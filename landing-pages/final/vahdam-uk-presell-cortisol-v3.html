@@ -243,6 +243,101 @@
       margin-top: 18px
     }
 
+    .hero-buybox {
+      margin-top: 26px;
+      padding: 22px 24px;
+      background: rgba(251, 245, 234, .06);
+      border: 1px solid rgba(171, 135, 67, .35);
+      border-radius: 14px;
+      max-width: 440px
+    }
+
+    .hero-rating {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px
+    }
+
+    .hero-stars {
+      color: var(--gold-li);
+      font-size: 18px;
+      letter-spacing: 2px
+    }
+
+    .hero-rating-text {
+      font-family: var(--sans);
+      font-size: 14px;
+      color: var(--on-moss-dim)
+    }
+
+    .hero-rating-text b {
+      color: var(--cream)
+    }
+
+    .hero-price {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px
+    }
+
+    .hero-price-now {
+      font-family: var(--sans);
+      font-size: 40px;
+      font-weight: 900;
+      color: var(--cream);
+      line-height: 1
+    }
+
+    .hero-price-per {
+      font-size: 18px;
+      font-weight: 700
+    }
+
+    .hero-price-was {
+      font-size: 18px;
+      color: var(--on-moss-dim);
+      text-decoration: line-through
+    }
+
+    .hero-price-save {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--gold-li);
+      width: 100%
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--gold);
+      color: var(--moss-dk);
+      padding: 18px 46px;
+      border-radius: 6px;
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      box-shadow: 0 4px 0 var(--gold-deep);
+      transition: transform .15s
+    }
+
+    .hero-cta:hover {
+      transform: translateY(-2px)
+    }
+
+    .hero-trust {
+      margin-top: 14px;
+      font-family: var(--sans);
+      font-size: 12.5px;
+      color: var(--on-moss-dim)
+    }
+
     /* Body diagram visualization */
     .bodydiag {
       position: relative;
@@ -2736,6 +2831,21 @@
         font-size: 14px
       }
 
+      .hero-buybox {
+        max-width: 100%;
+        padding: 18px 18px
+      }
+
+      .hero-price-now {
+        font-size: 34px
+      }
+
+      .hero-cta {
+        width: 100%;
+        justify-content: center;
+        padding: 18px 24px
+      }
+
       .bodydiag {
         aspect-ratio: 4/5;
         order: -1
@@ -4519,6 +4629,19 @@
             woman in the mirror looks more tired than the years she's actually lived.</p>
           <p class="pay">Calm your cortisol. Get your day back.<br>One cup. Every morning. Everything downstream
             changes.</p>
+        </div>
+        <div class="hero-buybox">
+          <div class="hero-rating">
+            <span class="hero-stars">★★★★★</span>
+            <span class="hero-rating-text"><b>4.8</b> · 12,400+ verified reviews</span>
+          </div>
+          <div class="hero-price">
+            <span class="hero-price-now">£29<span class="hero-price-per">/mo</span></span>
+            <span class="hero-price-was">£83</span>
+            <span class="hero-price-save">Save 65% + £49 in free gifts</span>
+          </div>
+          <a href="https://vahdam.co.uk/products/ashwagandha-coffee-starter-kit" class="hero-cta">Try It Now →</a>
+          <div class="hero-trust">90-day money-back guarantee · Free UK shipping on first order</div>
         </div>
       </div>
       <div class="bodydiag" style="aspect-ratio: auto; background: transparent; border: none;">
