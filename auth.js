@@ -928,4 +928,16 @@
   } else {
     init();
   }
+
+  // App-wide AI Agent — inject the shared voice assistant on every page that
+  // loads auth.js. Guarded so it loads once; the Studio's own dock stands down
+  // for it (see copilot.js). Loaded async so it never blocks the shell.
+  try {
+    if (!document.querySelector('script[data-vhd-agent]')) {
+      var ag = document.createElement('script');
+      ag.src = '/copilot.js?v=20260617';
+      ag.defer = true; ag.setAttribute('data-vhd-agent', '1');
+      (document.body || document.head || document.documentElement).appendChild(ag);
+    }
+  } catch (e) { /* never break the shell over the agent */ }
 })();
