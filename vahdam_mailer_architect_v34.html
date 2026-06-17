@@ -1283,7 +1283,7 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
       <span class="ci">&#128266;</span><span class="lbl">Listen</span>
       <span class="listen-eq"><span></span><span></span><span></span><span></span></span>
     </button>
-    <input id="copilotInput" class="copilot-input" type="text" autocomplete="off" placeholder="Ask the Studio assistant — copy, subject lines, ideas…" onfocus="Copilot.expand()" onkeydown="if(event.key==='Enter')Copilot.send()">
+    <input id="copilotInput" class="copilot-input" type="text" autocomplete="off" placeholder="Ask the Studio assistant — copy, subject lines, ideas…" onkeydown="if(event.key==='Enter')Copilot.send()">
     <button class="copilot-send" onclick="Copilot.send()" aria-label="Send message">&#10148;</button>
     <button class="copilot-exp" onclick="Copilot.toggle()" title="Show / hide chat history" aria-label="Toggle chat history">&#9650;</button>
   </div>
@@ -9669,11 +9669,9 @@ document.addEventListener('DOMContentLoaded',function(){
     var w=el('copilotMsgs'); var d=document.createElement('div'); d.className='cmsg bot typing';
     d.innerHTML='<span></span><span></span><span></span>'; w.appendChild(d); w.scrollTop=w.scrollHeight; return d;
   }
-  function greet(){
-    if(greeted) return; greeted=true;
-    addMsg('bot',"Hi! I'm your VAHDAM Studio assistant. Ask me for subject lines, hooks, copy tweaks, or a critique of your current mailer.");
-    var q=el('copilotQuick'); if(q){ QUICK.forEach(function(t){ var b=document.createElement('button'); b.type='button'; b.textContent=t; b.onclick=function(){ var i=el('copilotInput'); if(i)i.value=t; window.Copilot.send(); }; q.appendChild(b); }); }
-  }
+  // Nothing auto-loads: no greeting bubble, no quick-reply chips. The chat
+  // stays empty until the user actually sends a message.
+  function greet(){ greeted=true; }
   window.Copilot={
     toggle:function(){ var d=el('copilotDock'); if(!d)return; d.classList.contains('open')?this.collapse():this.expand(); },
     expand:function(){
