@@ -76,4 +76,23 @@ async function update(table, patch, filters) {
   return rest(table, { method: 'PATCH', body: patch, prefer: 'return=representation', query: filters });
 }
 
-module.exports = { env, headers, rest, select, insert, update, sha1, hashObj };
+// ── Storage: upload bytes to a bucket and return the public URL ──────────────
+// Used by the off-Vercel collectors to park screenshots / raw HTML in the
+// "ci-captures" bucket (create it public in Supabase once). `body` is a Buffer
+// or Uint8Array. Idempotent via upsert.
+async function uploadObject(bucket, objectPath, body, contentType = 'application/octet-stream') {
+  const { url, key } = env();
+  const clean = objectPath.replace(/^\/+/, '');
+  const res = await fetch(`${url}/storage/v1/object/${bucket}/${clean}`, {
+    method: 'POST',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': contentType, 'x-upsert': 'true' },
+    body
+  });
+  if (!res.ok && res.status !== 409) {
+    const t = await res.text();
+    throw new Error(`storage upload ${bucket}/${clean} → ${res.status}: ${t.slice(0, 200)}`);
+  }
+  return { path: clean, public_url: `${url}/storage/v1/object/public/${bucket}/${clean}` };
+}
+
+module.exports = { env, headers, rest, select, insert, update, uploadObject, sha1, hashObj };
