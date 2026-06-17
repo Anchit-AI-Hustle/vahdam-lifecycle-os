@@ -48,6 +48,8 @@
     { "source": "/mailer-discovery", "destination": "/competitor-benchmarking.html" },
     { "source": "/intel",      "destination": "/competitive-intelligence.html" },
     { "source": "/competitive-intelligence", "destination": "/competitive-intelligence.html" },
+    { "source": "/agent",      "destination": "/agent.html" },
+    { "source": "/lp/agent",   "destination": "/templates/conversational-lp.html" },
     { "source": "/api/health", "destination": "/api/public-config?health=1" }
   ],
   "headers": [

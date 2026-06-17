@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VAHDAM AI Agent</title>
+  <link rel="icon" href="/favicon.ico" />
+  <meta name="theme-color" content="#004A2B">
+  <meta name="apple-mobile-web-app-title" content="Lifecycle OS">
+  <script src="/auth.js?v=20260617" defer></script>
+  <style>
+    :root{ --green:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif; color:var(--ink); background:var(--cream); }
+    .wrap{ max-width:1080px; margin:0 auto; padding:20px 18px 28px; display:flex; flex-direction:column; min-height:100vh; }
+    .head{ flex:0 0 auto; }
+    h1{ font-family:'Lao MN','Cormorant Garamond',Georgia,serif; font-weight:700; color:var(--green); margin:.1em 0 .05em; font-size:30px; }
+    .sub{ color:#5b5b52; margin:0 0 14px; max-width:680px; }
+    /* The agent fills the rest of the page — a true all-in-one surface. */
+    #vhd-agent-mount{ flex:1 1 auto; min-height:520px; }
+    @media(max-width:600px){ .wrap{ padding:14px 12px 18px; } #vhd-agent-mount{ min-height:70vh; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <h1>VAHDAM AI Agent</h1>
+      <p class="sub">Your all-in-one assistant — ask anything about the catalog, campaigns, copy, cohorts or competitors. It answers from the VAHDAM knowledge base and speaks aloud. Tap the mic to talk.</p>
+    </div>
+    <!-- copilot.js (injected by auth.js) detects this mount and renders the
+         full-page conversational agent here instead of the floating popup. -->
+    <div id="vhd-agent-mount"></div>
+  </div>
+</body>
+</html>

@@ -23,6 +23,18 @@
 
   var BRAND = { green: '#004A2B', gold: '#AB8743', ink: '#171717', cream: '#FBF5EA' };
 
+  // Config — overridable per host (e.g. a public conversational landing page sets
+  // window.VAHDAM_AGENT_CONFIG before loading this script).
+  //   apiBase   : origin of /api/ai/generate (default same-origin)
+  //   mode      : 'popup' (default) | 'inline'  (inline fills #vhd-agent-mount)
+  //   serverTTS : true (fixed free server voice) | false (browser voice only)
+  //   ttsVoice  : server voice name (default 'nova')
+  //   greeting  : custom opening line · quick: string[] of quick prompts
+  //   context   : extra grounding (e.g. {product, offer, campaign}) for LP mode
+  //   autoOpen  : popup auto-open once per session (default true)
+  var CFG = (window.VAHDAM_AGENT_CONFIG && typeof window.VAHDAM_AGENT_CONFIG === 'object') ? window.VAHDAM_AGENT_CONFIG : {};
+  var API_BASE = (CFG.apiBase || '').replace(/\/$/, '');
+
   // ── styles ────────────────────────────────────────────────────────────────
   var css = `
   .vhd-agent-fab{position:fixed;right:20px;bottom:20px;z-index:2147483000;width:62px;height:62px;border-radius:50%;
@@ -78,6 +90,11 @@
   .vhd-agent-rate input{width:74px}
   @media(max-width:600px){.vhd-agent-modal{height:100%;border-radius:0}.vhd-agent-overlay{padding:0}
     .vhd-msg{max-width:90%}.vhd-agent-hd h3{font-size:15px}.vhd-agent-rate{display:none}}
+  /* inline / full-page + embedded conversational-LP mode */
+  .vhd-agent-inline{display:flex;flex-direction:column;height:100%;width:100%;background:${BRAND.cream};
+    border-radius:16px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.18);
+    font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;border:1px solid #e7e1d4}
+  .vhd-agent-inline .vhd-agent-msgs{min-height:0}
   `;
 
   // ── KB grounding: load the public catalog once, build a compact summary ─────
@@ -138,15 +155,39 @@
       .replace(/%/g, ' percent').replace(/&/g, ' and ')
       .replace(/\s+/g, ' ').trim();
   }
-  function speak(text) {
-    if (!synth || !autoSpeak) return;
+  // Browser TTS — free but the voice varies per device/OS (can't be guaranteed
+  // identical everywhere). Used as the fallback.
+  function browserSpeak(text) {
+    if (!synth) return;
     try { synth.cancel(); } catch (e) {}
     var u = new SpeechSynthesisUtterance(speakable(text).slice(0, 4000));
     if (voice) u.voice = voice;
     u.rate = rate; u.pitch = 1; u.lang = (voice && voice.lang) || 'en-US';
     try { synth.speak(u); } catch (e) {}
   }
-  function stopSpeak() { try { if (synth) synth.cancel(); } catch (e) {} }
+  // Free server TTS → ONE fixed voice for every visitor regardless of device
+  // (Pollinations openai-audio, already a trusted free provider in this stack;
+  // CORS-open so the browser calls it directly — no serverless function used).
+  // Falls back to the browser voice if it's blocked/unavailable.
+  var TTS_VOICE = (CFG.ttsVoice || 'nova'), ttsAudio = null;
+  function speak(text) {
+    if (!autoSpeak) return;
+    stopSpeak();
+    var clean = speakable(text).slice(0, 700);
+    if (CFG.serverTTS === false) { browserSpeak(text); return; }
+    try {
+      var url = 'https://text.pollinations.ai/' + encodeURIComponent(clean) + '?model=openai-audio&voice=' + encodeURIComponent(TTS_VOICE);
+      ttsAudio = new Audio(url);
+      try { ttsAudio.playbackRate = rate; } catch (e) {}
+      ttsAudio.onerror = function () { browserSpeak(text); };
+      var p = ttsAudio.play();
+      if (p && p.catch) p.catch(function () { browserSpeak(text); });
+    } catch (e) { browserSpeak(text); }
+  }
+  function stopSpeak() {
+    try { if (synth) synth.cancel(); } catch (e) {}
+    try { if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; } } catch (e) {}
+  }
 
   // ── DOM ─────────────────────────────────────────────────────────────────
   var history = [], greeted = false, dom = {};
@@ -202,8 +243,8 @@
   }
   function greet() {
     if (greeted) return; greeted = true;
-    addMsg('bot', "Hi! I'm your VAHDAM AI Agent. I know the product catalog and brand playbook — ask me for campaign ideas, subject lines, copy, product picks, or anything about this tool. I'll speak my answers aloud too.");
-    QUICK.forEach(function (t) {
+    addMsg('bot', CFG.greeting || "Hi! I'm your VAHDAM AI Agent. I know the product catalog and brand playbook — ask me for campaign ideas, subject lines, copy, product picks, or anything about this tool. I'll speak my answers aloud too.");
+    (Array.isArray(CFG.quick) && CFG.quick.length ? CFG.quick : QUICK).forEach(function (t) {
       var b = document.createElement('button'); b.type = 'button'; b.textContent = t;
       b.onclick = function () { dom.input.value = t; send(); };
       dom.quick.appendChild(b);
@@ -225,11 +266,11 @@
     try {
       await loadKB();
       var headers = (typeof window._getApiHeaders === 'function') ? window._getApiHeaders() : { 'Content-Type': 'application/json' };
-      var res = await fetch('/api/ai/generate', {
+      var res = await fetch(API_BASE + '/api/ai/generate', {
         method: 'POST', cache: 'no-store', headers: headers,
         body: JSON.stringify({
           mode: 'chat', message: msg, history: history.slice(-8),
-          chat_context: { page: pageName(), kb: KB.summary, app: 'VAHDAM Lifecycle OS' }
+          chat_context: Object.assign({ page: pageName(), kb: KB.summary, app: 'VAHDAM Lifecycle OS' }, CFG.context || {})
         })
       });
       var data = await res.json().catch(function () { return {}; });
@@ -260,14 +301,55 @@
     };
   }
 
-  // ── boot: inject + auto-open once per session (prominent) ──────────────────
+  // ── inline / full-page mount (dedicated /agent page + conversational LPs) ────
+  function buildInline(container) {
+    if (dom.inlineBuilt) return;
+    var style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
+    container.classList.add('vhd-agent-inline');
+    container.innerHTML =
+      '<div class="vhd-agent-hd"><span class="live"></span>'
+      + '<div><h3>' + (CFG.title || 'VAHDAM AI Agent') + '</h3><div class="sub">' + (CFG.subtitle || 'Ask anything · voice enabled') + '</div></div>'
+      + '<div class="sp">'
+      + '<div class="vhd-agent-rate" title="Speech rate">🗣<input type="range" min="0.7" max="1.3" step="0.05" value="1" id="vhdRate"></div>'
+      + '<button id="vhdSpeakToggle" class="on" title="Autoplay voice">🔊 Voice</button>'
+      + '</div></div>'
+      + '<div class="vhd-agent-msgs" id="vhdMsgs"></div>'
+      + '<div class="vhd-agent-quick" id="vhdQuick"></div>'
+      + '<div class="vhd-agent-bar">'
+      + '<button class="mic" id="vhdMic" title="Speak">🎤</button>'
+      + '<input id="vhdInput" type="text" autocomplete="off" placeholder="' + (CFG.placeholder || 'Ask the VAHDAM agent anything…') + '">'
+      + '<button class="send" id="vhdSend" aria-label="Send">&#10148;</button>'
+      + '</div>';
+    dom.msgs = container.querySelector('#vhdMsgs');
+    dom.quick = container.querySelector('#vhdQuick');
+    dom.input = container.querySelector('#vhdInput');
+    container.querySelector('#vhdSend').onclick = send;
+    dom.input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+    container.querySelector('#vhdRate').addEventListener('input', function (e) { rate = parseFloat(e.target.value) || 1; });
+    var st = container.querySelector('#vhdSpeakToggle');
+    st.onclick = function () { autoSpeak = !autoSpeak; st.classList.toggle('on', autoSpeak); st.innerHTML = autoSpeak ? '🔊 Voice' : '🔇 Muted'; if (!autoSpeak) stopSpeak(); };
+    setupMic(container.querySelector('#vhdMic'));
+    dom.inlineBuilt = true;
+    greet(); loadKB();
+    setTimeout(function () { dom.input && dom.input.focus(); }, 80);
+  }
+  function mount(target) {
+    var el = typeof target === 'string' ? document.querySelector(target) : target;
+    if (el) buildInline(el);
+  }
+
+  // ── boot ────────────────────────────────────────────────────────────────
   function boot() {
+    var inlineEl = document.getElementById('vhd-agent-mount');
+    if (CFG.mode === 'inline' || inlineEl) { if (inlineEl) buildInline(inlineEl); return; }
+    // default: floating popup, auto-open once per session (prominent)
     build();
+    var auto = CFG.autoOpen !== false;
     var dismissed = false; try { dismissed = sessionStorage.getItem('vhdAgentDismissed') === '1'; } catch (e) {}
-    if (!dismissed) setTimeout(open, 1200);
+    if (auto && !dismissed) setTimeout(open, 1200);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
-  window.VahdamAgent = { open: open, close: close, send: send };
+  window.VahdamAgent = { open: open, close: close, send: send, mount: mount };
 })();
