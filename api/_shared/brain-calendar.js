@@ -1,228 +1,318 @@
 'use strict';
-// ─────────────────────────────────────────────────────────────────────────────
-// SMART BRAIN — Calendar Intelligence.
-//
-//   • Auto-extract festivals / sales moments / seasonal peaks from past years
-//     (calendar_events history in the linked DB, with a built-in fallback set).
-//   • Generate a TENTATIVE 15-day rolling calendar: mailers + ads (Google/Meta/
-//     TikTok) + landing pages for both.
-//   • DAILY automated review: re-check each slot against the latest analysis
-//     signals + (read-only) competitor-benchmark feed, then auto-update.
-//   • MVT loop: fold experiment winners back into priorities.
-//   • Feedback: apply captured human feedback to future generation.
-//
-// Own-data analysis is the primary driver. The competitor feed is consumed
-// READ-ONLY (counts/offer-mix only) and never merged into own-data scoring.
-// ─────────────────────────────────────────────────────────────────────────────
 
-const supa = require('./supa');
-const analysis = require('./brain-analysis');
+/**
+ * brain-calendar.js — Calendar Intelligence (Module 4).
+ *
+ *   extractFestivals()  — auto-detect sales peaks from smart_sales_history
+ *                         (trailing-baseline spike detection) → smart_festivals (source='auto')
+ *   generate()          — tentative 15-day rolling calendar: mailers + Google/
+ *                         Meta/TikTok ads + landing pages for both, per market,
+ *                         cohort-targeted, driven by: filtered own library,
+ *                         learned weights (MVT + feedback), festivals, and
+ *                         competitor signals as a clearly-labelled advisory.
+ *   dailyReview()       — re-check calendar vs latest data, apply feedback,
+ *                         swap weak themes, fill gaps; logs smart_calendar_reviews.
+ *   applyMvt()          — fold smart_mvt_results into learned_weights.
+ */
 
-const CHANNELS = ['email', 'google', 'meta', 'tiktok'];
+const { db, getConfig, setConfig, todayIso, addDays, round, groupBy, sum, idFor } = require('./brain-core.js');
+const analysis = require('./brain-analysis.js');
+const competitor = require('./brain-competitor.js');
 
-// Fallback seasonal calendar (used only when the DB has no history yet).
-const FALLBACK_MOMENTS = [
-  { md: '01-01', theme: 'New Year Reset', weight: 0.8 },
-  { md: '02-14', theme: 'Valentine Gifting', weight: 0.7 },
-  { md: '03-08', theme: 'International Women\'s Day', weight: 0.5 },
-  { md: '05-01', theme: 'Spring Refresh', weight: 0.6 },
-  { md: '06-21', theme: 'Summer Iced Tea', weight: 0.7 },
-  { md: '10-01', theme: 'Festive Pre-Diwali', weight: 0.9 },
-  { md: '11-29', theme: 'Black Friday', weight: 1.0 },
-  { md: '12-15', theme: 'Holiday Gifting', weight: 0.9 }
-];
-
-// Pull seasonal/festival moments. Prefer DB history; fall back to constants.
-async function getMoments(rangeStart, rangeEnd) {
-  let moments = [];
-  try {
-    const rows = await supa.select('calendar_events', { order: 'event_date.asc', limit: 500 });
-    moments = rows.map(r => ({ md: (r.event_date || '').slice(5, 10), theme: r.name, weight: r.weight ?? 0.7 }));
-  } catch { /* no history table */ }
-  if (!moments.length) moments = FALLBACK_MOMENTS;
-  // Keep moments whose month-day falls inside the window.
-  const inWindow = (md) => {
-    for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
-      if (d.toISOString().slice(5, 10) === md) return new Date(d);
+// ── Festival / seasonal-peak auto-extraction ────────────────────────────────
+async function extractFestivals({ persist = true } = {}) {
+  const cfgAll = await getConfig();
+  const cfg = cfgAll.peak_detection;
+  const rows = await db().select('smart_sales_history', { limit: 5000, order: 'sale_date.asc' });
+  const byMarket = groupBy(rows, (r) => r.market);
+  const found = [];
+  for (const [market, days] of Object.entries(byMarket)) {
+    for (let i = 0; i < days.length; i++) {
+      const win = days.slice(Math.max(0, i - cfg.baseline_window_days), i);
+      if (win.length < 10) continue;
+      const baseline = sum(win, (d) => Number(d.revenue)) / win.length;
+      const rev = Number(days[i].revenue);
+      if (baseline > 0 && rev / baseline >= cfg.spike_ratio) {
+        const mmdd = days[i].sale_date.slice(5);
+        found.push({ market, mmdd, date: days[i].sale_date, ratio: round(rev / baseline, 2), revenue: rev });
+      }
     }
-    return null;
-  };
-  return moments.map(m => ({ ...m, date: inWindow(m.md) })).filter(m => m.date);
+  }
+  // collapse consecutive days into windows, name by proximity to known moments
+  const known = await db().select('smart_festivals', { limit: 500 });
+  const merged = [];
+  const grouped = groupBy(found, (f) => `${f.market}|${f.mmdd.slice(0, 2)}`);
+  for (const [key, spikes] of Object.entries(grouped)) {
+    const [market, month] = key.split('|');
+    const best = spikes.sort((a, b) => b.ratio - a.ratio)[0];
+    const near = known.find((k) => k.market === market && Math.abs(parseInt(k.mmdd.slice(3), 10) - parseInt(best.mmdd.slice(3), 10)) <= 7 && k.mmdd.slice(0, 2) === month);
+    merged.push({
+      id: `fest_auto_${market.toLowerCase()}_${best.mmdd.replace('-', '')}`,
+      market, mmdd: best.mmdd,
+      name: near ? `${near.name} (peak confirmed)` : `Detected sales peak ${best.mmdd}`,
+      weight: Math.min(10, Math.max(4, Math.round(best.ratio * 3))),
+      source: 'auto',
+      evidence: { spike_ratio: best.ratio, observed_dates: spikes.map((s) => s.date).slice(0, 6), baseline_window_days: cfg.baseline_window_days },
+    });
+  }
+  if (persist && merged.length) await db().upsert('smart_festivals', merged, 'id');
+  return merged;
 }
 
-// Build the tentative 15-day rolling calendar. Idempotent for a given start:
-// existing future tentative/auto slots are replaced; reviewed/approved/human
-// slots are preserved.
-async function generate({ startDate, days = 15, market = 'US' } = {}) {
-  const start = startDate ? new Date(startDate) : new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start); end.setDate(end.getDate() + days);
+// ── Slot planning helpers ────────────────────────────────────────────────────
+function festivalFor(dateIso, market, festivals) {
+  const mmdd = dateIso.slice(5);
+  const within = (f) => {
+    const d1 = parseInt(mmdd.replace('-', ''), 10), d2 = parseInt(f.mmdd.replace('-', ''), 10);
+    return f.market === market && Math.abs(d1 - d2) <= 10; // ±10 day window (rough, month-aware enough for planning)
+  };
+  return festivals.filter(within).sort((a, b) => b.weight - a.weight)[0] || null;
+}
 
-  const signals = await analysis.dailyAnalysis();
-  const cohorts = (signals.cohorts || []);
-  const moments = await getMoments(new Date(start), new Date(end));
-  const benchmark = await benchmarkFeed(); // read-only competitor signal
+function pickWeighted(list, weightFn) {
+  if (!list.length) return null;
+  const weights = list.map((x) => Math.max(weightFn(x), 0.01));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = (total * ((Date.now() % 9973) / 9973));
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
 
-  // Clear stale auto/tentative slots in the window so re-gen is clean.
-  const fromIso = start.toISOString().slice(0, 10);
-  await supa.rest('calendar_slots', {
-    method: 'DELETE',
-    query: { slot_date: `gte.${fromIso}`, status: 'eq.tentative', source: 'eq.auto' }
-  }).catch(() => {});
+// ── 15-day rolling calendar generation ──────────────────────────────────────
+async function generate({ startDate, days, persist = true, regenerate = false } = {}) {
+  const config = await getConfig();
+  const start = startDate || todayIso();
+  const horizon = days || config.calendar.days || 15;
+
+  // inputs — each labelled in slot.source for auditability
+  const [daily, festivalsAll, feedbackRows, compSignals, existing] = await Promise.all([
+    analysis.runDaily({ persist }),                       // own data: patterns + cohorts + filtered scores
+    db().select('smart_festivals', { limit: 500 }),
+    db().select('smart_feedback', { limit: 500, order: 'created_at.desc' }),
+    competitor.benchmarks({ persist: false }),            // advisory only
+    db().select('smart_calendar', { limit: 2000, filters: { slot_date: `gte.${start}` } }),
+  ]);
+  const learned = config.learned_weights || {};
+  const cohorts = daily.cohorts;
+  const patterns = daily.patterns;
+
+  // negative feedback → suppress angles/themes the humans rejected
+  const suppressed = new Set(
+    feedbackRows.filter((f) => f.verdict === 'reject' && f.notes)
+      .map((f) => (f.notes.match(/angle:(\S+)/) || [])[1]).filter(Boolean)
+  );
+
+  const angleRank = (patterns.angle || []).filter((a) => !suppressed.has(a.value));
+  const boost = (dim, v) => Number(((learned[`${dim}_boost`] || {})[v]) || 0);
+
+  const existingKey = new Set(existing.map((s) => `${s.slot_date}|${s.market}|${s.channel}|${s.slot_type}`));
+  const protectedSlots = new Set(existing.filter((s) => ['approved', 'generated', 'in_review', 'final'].includes(s.status)).map((s) => s.id));
 
   const slots = [];
-  for (let i = 0; i < days; i++) {
-    const d = new Date(start); d.setDate(d.getDate() + i);
-    const iso = d.toISOString().slice(0, 10);
-    const moment = moments.find(m => m.date && m.date.toISOString().slice(0, 10) === iso);
-    const cohort = cohorts[i % Math.max(cohorts.length, 1)] || { cohort_key: 'all-subscribers' };
-    const theme = moment ? moment.theme : pickEvergreenTheme(signals, i);
+  const perWeekCount = {}; // capacity guard
+  const cohortLastUsed = {};
 
-    // One mailer per day; rotate paid channels; landing pages paired with each.
-    const dayChannels = ['email', CHANNELS[1 + (i % 3)]];
-    for (const channel of dayChannels) {
-      const isAd = channel !== 'email';
-      const priority = computePriority({ moment, channel, signals, benchmark });
-      slots.push({
-        slot_date: iso, channel, asset_kind: isAd ? 'ad' : 'mailer',
-        cohort_key: cohort.cohort_key, market, theme,
-        rationale: {
-          driver: moment ? 'seasonal_moment' : 'evergreen',
-          winning_hook: signals.winning_hooks?.[0]?.value || null,
-          benchmark_offer_mix: benchmark.offer_mix || null
-        },
-        priority, status: 'tentative', source: 'auto'
-      });
-      // Paired landing page for every mailer + ad.
-      slots.push({
-        slot_date: iso, channel, asset_kind: 'landing_page',
-        cohort_key: cohort.cohort_key, market, theme,
-        rationale: { paired_with: isAd ? channel : 'mailer' },
-        priority: priority - 0.05, status: 'tentative', source: 'auto'
-      });
+  for (let d = 0; d < horizon; d++) {
+    const date = addDays(start, d);
+    const week = `${date.slice(0, 7)}w${Math.ceil(parseInt(date.slice(8), 10) / 7)}`;
+    for (const market of config.calendar.markets) {
+      const fest = festivalFor(date, market, festivalsAll);
+      const marketCohorts = cohorts.filter((c) => c.market === market);
+
+      // EMAIL — Mon/Wed/Fri/Sun style cadence: schedule when day index matches capacity spread
+      const emailCapacity = config.capacity.email_per_market_per_week;
+      const emailKey = `${week}|${market}|email`;
+      const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
+      const emailDays = [1, 3, 5, 0].slice(0, emailCapacity);
+      if (emailDays.includes(dow) && (perWeekCount[emailKey] || 0) < emailCapacity) {
+        perWeekCount[emailKey] = (perWeekCount[emailKey] || 0) + 1;
+        const cohort = pickWeighted(
+          marketCohorts.filter((c) => (cohortLastUsed[c.id] == null || d - cohortLastUsed[c.id] >= config.calendar.min_gap_days_same_cohort)),
+          (c) => c.value_score + (fest && c.id.includes('gift') ? 1 : 0)
+        ) || marketCohorts[0];
+        if (cohort) cohortLastUsed[cohort.id] = d;
+        const angle = fest && fest.weight >= 8
+          ? (angleRank.find((a) => a.value === 'gifting') || angleRank[0])
+          : pickWeighted(angleRank.slice(0, 4), (a) => a.revenue_per_campaign / 1000 + boost('angle', a.value));
+        const winners = (patterns.by_channel.email || []);
+        const ref = winners[d % Math.max(winners.length, 1)] || null;
+        slots.push(slotRow({
+          date, market, channel: 'email', slot_type: 'campaign', cohort, angle: angle && angle.value,
+          hook: ref ? ref.hook : null, theme: fest ? fest.name : (ref ? ref.archetype : 'Morning Ritual'),
+          archRef: ref, fest, config,
+          rationale: [
+            `cohort ${cohort ? cohort.name : 'n/a'} (value ${cohort ? cohort.value_score : 0})`,
+            `angle '${angle ? angle.value : 'n/a'}' ranks top-4 by revenue/campaign in own library`,
+            fest ? `festival window: ${fest.name} (w${fest.weight}, ${fest.source})` : 'no festival window',
+          ].join(' · '),
+          source: {
+            own_library: ref ? { campaign: ref.id, revenue: ref.revenue } : null,
+            festival: fest ? { id: fest.id, source: fest.source } : null,
+            competitor_advisory: ((compSignals[market] || {}).email || {}).top_angles || null,
+            learned_weights_applied: boost('angle', angle ? angle.value : '') !== 0,
+          },
+        }));
+        // matching landing page for the mailer
+        slots.push(slotRow({
+          date, market, channel: 'landing_email', slot_type: 'campaign', cohort,
+          angle: angle && angle.value, hook: ref ? ref.hook : null,
+          theme: `LP — ${fest ? fest.name : 'Mailer companion'}`, archRef: ref, fest, config,
+          rationale: 'conversion-optimized landing page paired to the mailer of the same day/cohort',
+          source: { paired_channel: 'email' },
+        }));
+      }
+
+      // PAID — rotate google/meta/tiktok across the week
+      const paidKey = `${week}|${market}|paid`;
+      const paidCapacity = config.capacity.paid_campaigns_per_market_per_week;
+      const paidChannels = config.calendar.channels.filter((c) => c !== 'email');
+      if ([1, 2, 4, 5, 6].includes(dow) && (perWeekCount[paidKey] || 0) < paidCapacity) {
+        perWeekCount[paidKey] = (perWeekCount[paidKey] || 0) + 1;
+        const channel = paidChannels[(d + (market === 'UK' ? 1 : 0)) % paidChannels.length];
+        const compCh = ((compSignals[market] || {})[channel] || {});
+        const cohort = pickWeighted(marketCohorts, (c) => c.value_score * (c.metrics.ads_engaged_pct || 0.3) + 0.05) || marketCohorts[0];
+        const angle = pickWeighted(angleRank.slice(0, 5), (a) => a.revenue_per_campaign / 1000 + boost('angle', a.value));
+        const winners = (patterns.by_channel[channel] || []);
+        const ref = winners[d % Math.max(winners.length, 1)] || null;
+        slots.push(slotRow({
+          date, market, channel, slot_type: 'campaign', cohort, angle: angle && angle.value,
+          hook: ref ? ref.hook : null, theme: fest ? fest.name : (ref ? ref.name.split('—')[0].trim() : 'Single-Estate Heritage'),
+          archRef: ref, fest, config,
+          rationale: [
+            `${channel} slot — cohort ${cohort ? cohort.name : 'n/a'}`,
+            ref ? `seeded by passing campaign ${ref.id} (rev ${ref.revenue})` : 'no prior winner — exploratory slot',
+            compCh.promo_share > 0.5 ? 'competitor field promo-heavy → differentiate on story' : 'normal competitive pressure',
+          ].join(' · '),
+          source: { own_library: ref ? { campaign: ref.id } : null, competitor_advisory: compCh.top_angles || null, festival: fest ? fest.id : null },
+        }));
+        // landing page for ads every other paid slot
+        if ((perWeekCount[paidKey] % 2) === 1) {
+          slots.push(slotRow({
+            date, market, channel: 'landing_ads', slot_type: 'campaign', cohort,
+            angle: angle && angle.value, hook: ref ? ref.hook : null,
+            theme: `LP — ${channel} ${fest ? fest.name : 'campaign'}`, archRef: ref, fest, config,
+            rationale: `conversion-optimized landing page paired to the ${channel} campaign`,
+            source: { paired_channel: channel },
+          }));
+        }
+        // retargeting follow-up 3 days later
+        if (d + 3 < horizon) {
+          slots.push(slotRow({
+            date: addDays(start, d + 3), market, channel, slot_type: 'retargeting', cohort,
+            angle: 'social-proof', hook: null, theme: `Retargeting — ${fest ? fest.name : (angle ? angle.value : 'campaign')}`,
+            archRef: ref, fest, config,
+            rationale: `auto retargeting wave for the ${date} ${channel} campaign (engaged-viewers audience)`,
+            source: { retargets: `${date}|${market}|${channel}` },
+          }));
+        }
+      }
     }
   }
-  const inserted = await supa.insert('calendar_slots', slots);
-  return { start: fromIso, days, slots: inserted.length, signals_at: signals.generated_at };
+
+  // de-dup against existing; keep protected slots untouched
+  const fresh = slots.filter((s) => !existingKey.has(`${s.slot_date}|${s.market}|${s.channel}|${s.slot_type}`));
+  if (persist) {
+    if (regenerate) {
+      // drop ONLY tentative future slots, keep human-touched ones
+      try { await db().remove('smart_calendar', { slot_date: `gte.${start}`, status: 'eq.tentative' }); } catch (_) {}
+    }
+    if (fresh.length) await db().upsert('smart_calendar', fresh, 'id');
+  }
+  return { ok: true, start, days: horizon, created: fresh.length, kept_existing: existing.length, slots: fresh, daily_summary: daily.summary };
 }
 
-function pickEvergreenTheme(signals, i) {
-  const hooks = signals.winning_hooks || [];
-  return hooks.length ? hooks[i % hooks.length].value : 'Origin & Ritual';
+function slotRow({ date, market, channel, slot_type, cohort, angle, hook, theme, archRef, fest, rationale, source, config }) {
+  const id = idFor('slot', { date, market, channel, slot_type, cohort: cohort && cohort.id });
+  return {
+    id, slot_date: date, market, channel, slot_type,
+    cohort_id: cohort ? cohort.id : null,
+    theme: theme || null, angle: angle || null, hook: hook || null,
+    products: [],
+    festival: fest ? fest.name : null,
+    rationale, mvt: { dimensions: ['hook', 'cta'], variants: 2 },
+    status: 'tentative',
+    confidence: 0,
+    source: source || {},
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 }
 
-function computePriority({ moment, channel, signals, benchmark }) {
-  let p = 0.5;
-  if (moment) p += moment.weight * 0.4;
-  if (channel === 'email') p += 0.1; // owned channel, cheapest
-  if ((signals.library?.cleared || 0) > 0) p += 0.05;
-  // Competitors crowding an offer type slightly raises urgency to respond.
-  if (benchmark.active_offers > 10) p += 0.05;
-  return Math.round(Math.min(1, p) * 100) / 100;
-}
+// ── Daily automated review ───────────────────────────────────────────────────
+async function dailyReview({ persist = true } = {}) {
+  const config = await getConfig();
+  const today = todayIso();
+  const [daily, feedbackRows, slots] = await Promise.all([
+    analysis.runDaily({ persist }),
+    db().select('smart_feedback', { limit: 300, order: 'created_at.desc', filters: { applied: 'eq.false' } }),
+    db().select('smart_calendar', { limit: 2000, filters: { slot_date: `gte.${today}` }, order: 'slot_date.asc' }),
+  ]);
+  const changes = [];
+  const angleRank = (daily.patterns.angle || []);
+  const goodAngles = new Set(angleRank.slice(0, 4).map((a) => a.value));
+  const angleBest = angleRank[0] ? angleRank[0].value : 'ritual';
 
-// READ-ONLY competitor benchmark feed. Returns aggregate signals ONLY — never
-// row-level competitor data merged into own scoring.
-async function benchmarkFeed() {
-  try {
-    const since = new Date(Date.now() - 30 * 86400000).toISOString();
-    const offers = await supa.select('ci_offers', { filters: { last_seen: `gte.${since}` }, select: 'offer_type', limit: 1000 });
-    const mix = {};
-    for (const o of offers) mix[o.offer_type] = (mix[o.offer_type] || 0) + 1;
-    return { active_offers: offers.length, offer_mix: mix };
-  } catch { return { active_offers: 0, offer_mix: {} }; }
-}
+  // 1. apply human feedback to tentative slots
+  for (const f of feedbackRows) {
+    const slot = slots.find((s) => s.id === f.target_id);
+    if (!slot) continue;
+    if (f.verdict === 'reject' && slot.status === 'tentative') {
+      changes.push({ slot: slot.id, action: 'skipped', reason: `human feedback #${f.id}: ${f.notes || 'rejected'}` });
+      if (persist) await db().update('smart_calendar', { id: `eq.${slot.id}` }, { status: 'skipped', updated_at: new Date().toISOString() });
+    }
+    if (f.verdict === 'approve' && slot.status === 'tentative') {
+      changes.push({ slot: slot.id, action: 'approved', reason: `human feedback #${f.id}` });
+      if (persist) await db().update('smart_calendar', { id: `eq.${slot.id}` }, { status: 'approved', updated_at: new Date().toISOString() });
+    }
+    if (f.verdict === 'adjust' && f.notes) {
+      const m = f.notes.match(/angle:(\S+)/);
+      if (m && slot.status === 'tentative') {
+        changes.push({ slot: slot.id, action: 'angle_adjusted', reason: `human feedback: ${m[1]}` });
+        if (persist) await db().update('smart_calendar', { id: `eq.${slot.id}` }, { angle: m[1], updated_at: new Date().toISOString() });
+      }
+    }
+    if (persist) await db().update('smart_feedback', { id: `eq.${f.id}` }, { applied: true });
+  }
 
-// DAILY automated review: re-score priorities against fresh signals; bump or
-// demote tentative slots; log the review. Approved/verified slots untouched.
-async function dailyReview() {
-  const today = new Date().toISOString().slice(0, 10);
-  const slots = await supa.select('calendar_slots', {
-    filters: { slot_date: `gte.${today}`, status: 'in.(tentative,reviewed)' },
-    order: 'slot_date.asc', limit: 500
-  });
-  const signals = await analysis.dailyAnalysis();
-  const benchmark = await benchmarkFeed();
-  let touched = 0;
-  for (const s of slots) {
-    const moment = null; // already encoded in theme; re-weight on signals only
-    const priority = computePriority({ moment, channel: s.channel, signals, benchmark });
-    if (Math.abs((s.priority || 0) - priority) >= 0.01) {
-      await supa.update('calendar_slots',
-        { priority, status: 'reviewed', last_reviewed_at: new Date().toISOString(),
-          revision: (s.revision || 1) + 1 },
-        { id: `eq.${s.id}` });
-      touched++;
+  // 2. swap angles that dropped out of the top set (latest data wins, never blindly follow)
+  for (const slot of slots.filter((s) => s.status === 'tentative' && s.angle)) {
+    if (!goodAngles.has(slot.angle) && slot.angle !== 'social-proof') {
+      changes.push({ slot: slot.id, action: 'angle_swapped', from: slot.angle, to: angleBest, reason: 'angle fell below top-4 by revenue/campaign in today’s analysis' });
+      if (persist) await db().update('smart_calendar', { id: `eq.${slot.id}` }, { angle: angleBest, updated_at: new Date().toISOString() });
     }
   }
-  await applyFeedback(); // fold any pending human feedback into the plan
-  try {
-    await supa.insert('recalibration_log', [{
-      kind: 'daily_review', actor: 'system', scope: ['calendar'],
-      summary: { reviewed: slots.length, benchmark }, slots_touched: touched,
-      next_due_at: new Date(Date.now() + 86400000).toISOString()
-    }]);
-  } catch {}
-  return { reviewed: slots.length, touched };
+
+  // 3. roll the horizon forward: ensure full 15-day coverage
+  const gen = await generate({ persist });
+  if (gen.created > 0) changes.push({ action: 'horizon_extended', new_slots: gen.created });
+
+  // 4. fold MVT learnings into weights
+  const mvt = await applyMvt({ persist });
+  if (mvt.applied) changes.push({ action: 'mvt_weights_updated', learnings: mvt.count });
+
+  const review = {
+    review_date: today, automated: true, changes,
+    reasons: { pass_rate: daily.summary.pass_rate, top_angles: daily.summary.top_angles },
+  };
+  if (persist) await db().insert('smart_calendar_reviews', [review]);
+  return { ok: true, review, daily_summary: daily.summary };
 }
 
-// Apply un-applied human feedback to the calendar (reject → cancel slot; edit →
-// patch; approve → lock status). Feedback also informs FUTURE generation by
-// staying queryable in calendar_feedback.
-async function applyFeedback() {
-  const pending = await supa.select('calendar_feedback', { filters: { applied: 'eq.false' }, limit: 200 });
-  for (const fb of pending) {
-    if (!fb.slot_id) { await supa.update('calendar_feedback', { applied: true }, { id: `eq.${fb.id}` }); continue; }
-    if (fb.verdict === 'reject') await supa.update('calendar_slots', { status: 'rejected' }, { id: `eq.${fb.slot_id}` });
-    else if (fb.verdict === 'approve') await supa.update('calendar_slots', { status: 'approved', source: 'human' }, { id: `eq.${fb.slot_id}` });
-    else if (fb.verdict === 'edit' && fb.patch) await supa.update('calendar_slots', { ...fb.patch, source: 'human' }, { id: `eq.${fb.slot_id}` });
-    await supa.update('calendar_feedback', { applied: true }, { id: `eq.${fb.id}` });
+// ── MVT loop ─────────────────────────────────────────────────────────────────
+async function applyMvt({ persist = true } = {}) {
+  const config = await getConfig();
+  const results = await db().select('smart_mvt_results', { limit: 500, order: 'created_at.desc' });
+  if (!results.length) return { applied: false, count: 0 };
+  const learned = config.learned_weights || { angle_boost: {}, hook_boost: {}, mvt_learnings: [] };
+  let count = 0;
+  for (const r of results.filter((x) => x.winner)) {
+    const l = r.learned || {};
+    if (l.angle) { learned.angle_boost[l.angle] = round((learned.angle_boost[l.angle] || 0) + 0.05, 3); count++; }
+    if (l.hook) { learned.hook_boost[l.hook] = round((learned.hook_boost[l.hook] || 0) + 0.05, 3); count++; }
   }
-  return { applied: pending.length };
+  learned.mvt_learnings = results.slice(0, 20).map((r) => ({ dimension: r.dimension, variant: r.variant, winner: r.winner, learned: r.learned }));
+  if (persist && count) await setConfig('learned_weights', learned);
+  return { applied: count > 0, count, learned_weights: learned };
 }
 
-async function recordFeedback(fb) {
-  const [r] = await supa.insert('calendar_feedback', [{
-    slot_id: fb.slot_id || null, user_email: fb.user_email || null,
-    verdict: fb.verdict, rating: fb.rating ?? null, notes: fb.notes || null, patch: fb.patch || {}
-  }]);
-  return r;
-}
-
-// MVT loop: conclude experiments with a winner and let their winning factor
-// levels raise priority of matching future slots.
-async function applyMvtWinners() {
-  const concluded = await supa.select('mvt_experiments', { filters: { status: 'eq.concluded' }, limit: 100 });
-  let boosted = 0;
-  for (const exp of concluded) {
-    if (!exp.winner) continue;
-    const today = new Date().toISOString().slice(0, 10);
-    const slots = await supa.select('calendar_slots', {
-      filters: { slot_date: `gte.${today}`, channel: `eq.${exp.channel}`, cohort_key: `eq.${exp.cohort_key}` }, limit: 200
-    });
-    for (const s of slots) {
-      await supa.update('calendar_slots',
-        { priority: Math.min(1, (s.priority || 0.5) + 0.08),
-          rationale: { ...(s.rationale || {}), mvt_winner: exp.winner } },
-        { id: `eq.${s.id}` });
-      boosted++;
-    }
-  }
-  return { experiments: concluded.length, slots_boosted: boosted };
-}
-
-async function getCalendar({ from, to } = {}) {
-  // PostgREST can't express two filters on one column via the simple helper, so
-  // we lower-bound in the query and upper-bound (to) in memory.
-  let rows = await supa.select('calendar_slots', {
-    filters: from ? { slot_date: `gte.${from}` } : {},
-    order: 'slot_date.asc', limit: 1000
-  });
-  if (to) rows = rows.filter(r => r.slot_date <= to);
-  return rows;
-}
-
-module.exports = {
-  CHANNELS, getMoments, generate, dailyReview, applyFeedback, recordFeedback,
-  applyMvtWinners, benchmarkFeed, getCalendar
-};
+module.exports = { extractFestivals, generate, dailyReview, applyMvt };

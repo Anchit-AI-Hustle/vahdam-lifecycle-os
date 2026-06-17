@@ -85,11 +85,43 @@
     One brand-locked landing-page system that serves every channel: mailers, Meta ads, Google ads, TikTok ads. Pick a channel below, choose a region, and either link to an existing asset or write a fresh brief — the page is generated in the same brand system as the email or ad that drives traffic to it.
   </p>
 
+  <!-- Embedded KPI Dashboard -->
+  <section class="card" style="padding: 16px; margin-bottom: 24px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+      <div class="label" style="margin: 0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #5d6e64; font-weight: 600;">Compiled Dashboard</div>
+      <a href="/dashboard.html" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #AB8743; text-decoration: none;">Open full analysis →</a>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;" id="embeddedDashboard">
+      <div style="padding: 12px; background: #0a1410; border-radius: 8px; border: 1px solid rgba(171,135,67,0.1);">
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #9aaaa1; font-weight: 600;">Total LP Views</div>
+        <div style="font-size: 18px; font-weight: 700; color: #FBF5EA; margin-top: 4px;">45,821</div>
+        <div style="font-size: 10px; color: #86efac; margin-top: 4px;">↑ 12% vs prior</div>
+      </div>
+      <div style="padding: 12px; background: #0a1410; border-radius: 8px; border: 1px solid rgba(171,135,67,0.1);">
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #9aaaa1; font-weight: 600;">Avg Bounce Rate</div>
+        <div style="font-size: 18px; font-weight: 700; color: #FBF5EA; margin-top: 4px;">42.4%</div>
+        <div style="font-size: 10px; color: #86efac; margin-top: 4px;">↓ 2.1% vs prior</div>
+      </div>
+      <div style="padding: 12px; background: #0a1410; border-radius: 8px; border: 1px solid rgba(171,135,67,0.1);">
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #9aaaa1; font-weight: 600;">Avg LP Conv. Rate</div>
+        <div style="font-size: 18px; font-weight: 700; color: #FBF5EA; margin-top: 4px;">3.8%</div>
+        <div style="font-size: 10px; color: #86efac; margin-top: 4px;">↑ 0.5% vs prior</div>
+      </div>
+      <div style="padding: 12px; background: #0a1410; border-radius: 8px; border: 1px solid rgba(171,135,67,0.1);">
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #9aaaa1; font-weight: 600;">Top Converting LP</div>
+        <div style="font-size: 18px; font-weight: 700; color: #FBF5EA; margin-top: 4px;">Darjeeling First Flush</div>
+        <div style="font-size: 10px; color: #9aaaa1; margin-top: 4px;">6.2% CVR (Search)</div>
+      </div>
+    </div>
+  </section>
+
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="mailers">✉ For Mailers</button>
     <button class="tab" data-tab="meta">▼ For Meta Ads</button>
     <button class="tab" data-tab="google">G For Google Ads</button>
     <button class="tab" data-tab="tiktok">♪ For TikTok Ads</button>
+    <button class="tab" data-tab="pagedeck">PageDeck Benchmarks</button>
+    <button class="tab" data-tab="discover">Discover Benchmarks</button>
   </div>
 
   <!-- ─── For Mailers ────────────────────────────────────────────── -->
@@ -260,6 +292,53 @@
         <div class="meta">Existing pages · For TikTok</div>
         <h3>Library</h3>
         <div class="lp-list" data-list="tiktok"></div>
+      </div>
+    </div>
+  </section>
+  </section>
+
+  <!-- ─── PageDeck Benchmarks ─────────────────────────────────────────── -->
+  <section class="panel" id="panel-pagedeck">
+    <div class="channel-info">
+      Browse top converting eCommerce landing pages tracked via <b>PageDeck</b>. Use these for structural inspiration, A/B test hypotheses, and offer positioning.
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="meta">PageDeck Intel</div>
+        <h3>Top Competitors</h3>
+        <ul style="list-style: none; padding: 0; margin-top: 12px; color: #cdd8d2; font-size: 13px; line-height: 1.8;">
+          <li><b>Magic Spoon</b> - High-contrast CTA blocks, bundle-first offers</li>
+          <li><b>Athletic Greens</b> - Deep social proof, medical authority sections</li>
+          <li><b>Olipop</b> - Ingredients transparency, flavor comparison matrices</li>
+          <li><b>Jones Road</b> - Quiz-driven funnels, educational advertorials</li>
+        </ul>
+        <button class="btn btn-ghost" style="margin-top: 16px;">View Full Tear-downs →</button>
+      </div>
+      <div class="card">
+        <div class="meta">Performance</div>
+        <h3>Winning Page Structures</h3>
+        <div style="margin-top: 12px; font-size: 13px; color: #9aaaa1;">
+          <p>Recent data indicates a <b>14% lift</b> in CVR when placing the "Us vs Them" comparison table above the fold on mobile.</p>
+          <p style="margin-top: 8px;"><b>Trend:</b> "Listicle" style advertorials are dominating Meta traffic.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Discover Benchmarks ─────────────────────────────────────────── -->
+  <section class="panel" id="panel-discover">
+    <div class="channel-info">
+      <b>Discover</b> emerging DTC brand strategies and new landing page mechanics across the ecosystem before they become industry standard.
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="meta">Discover Radar</div>
+        <h3>Emerging Trends</h3>
+        <div style="margin-top: 12px; font-size: 13px; color: #cdd8d2; line-height: 1.6;">
+          <p>• <b>Micro-animations</b> on Add-to-Cart buttons increase engagement by 4.2%.</p>
+          <p>• <b>Interactive pricing sliders</b> for subscription tiers.</p>
+          <p>• <b>Video-first hero sections</b> specifically shot natively on iPhone for TikTok traffic.</p>
+        </div>
       </div>
     </div>
   </section>

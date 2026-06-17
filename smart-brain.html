@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Brain — VAHDAM Lifecycle OS</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<style>
+  :root{--green:#004A2B;--gold:#AB8743;--ink:#171717;--cream:#FBF5EA;--muted:#6b7770}
+  *{box-sizing:border-box} body{margin:0;background:#0a1410;color:#e8ede9;font-family:Inter,system-ui,Arial,sans-serif;padding:28px}
+  .wrap{max-width:1280px;margin:0 auto}.top{display:flex;gap:18px;justify-content:space-between;align-items:flex-end;margin-bottom:22px;flex-wrap:wrap}
+  .eyebrow{color:var(--gold);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:800}h1{font-family:Georgia,serif;font-size:40px;line-height:1.05;margin:8px 0 10px}p{color:#a7b5ad;line-height:1.55}
+  .btn{border:0;border-radius:10px;background:var(--gold);color:#0a1410;padding:12px 16px;font-weight:800;cursor:pointer}
+  .btn.secondary{background:transparent;color:#e8ede9;border:1px solid rgba(171,135,67,.35)}
+  .btn:disabled{opacity:.5;cursor:wait}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+  .btn.ok{background:#1d6b45;color:#eafff3}.btn.no{background:transparent;color:#e89a9a;border:1px solid rgba(232,154,154,.4)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#0f1d18;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px}
+  .card h2{font-size:16px;margin:0 0 8px}.metric{font-size:30px;color:#FBF5EA;font-weight:800}.label{font-size:11px;color:#789;letter-spacing:.12em;text-transform:uppercase}
+  .wide{grid-column:span 4}.two{grid-column:span 2}
+  pre{white-space:pre-wrap;word-break:break-word;background:#07100d;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;max-height:420px;overflow:auto;color:#cfe0d7;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font-size:10px;color:#789;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 8px;border-bottom:1px solid rgba(171,135,67,.25)}
+  td{padding:9px 8px;border-bottom:1px solid rgba(171,135,67,.1);vertical-align:top}
+  tr:hover td{background:rgba(171,135,67,.05)}
+  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#d9c18f;white-space:nowrap}
+  .st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
+  .st.tentative{background:rgba(171,135,67,.16);color:#d9c18f}.st.approved{background:rgba(29,107,69,.3);color:#8fe7b9}.st.final{background:#1d6b45;color:#eafff3}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
+  .feed{max-height:300px;overflow:auto}.feed p{margin:6px 0;font-size:13px;border-left:2px solid rgba(171,135,67,.35);padding-left:10px}
+  .conf{font-variant-numeric:tabular-nums}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <section class="top">
+    <div>
+      <div class="eyebrow">VAHDAM Lifecycle OS · Smart Brain</div>
+      <h1>Rolling Plan: Review &amp; Approve</h1>
+      <p>The brain keeps a tentative <b>15-day calendar</b> per market, re-reviewed daily against the latest data (auto via cron at 03:30 UTC, or manually below). Approving a slot generates the full funnel — mailer, Meta/Google/TikTok ads, and a hosted landing page — for final human check.</p>
+    </div>
+    <div>
+      <button id="sync" class="btn">🔄 Run Daily Sync</button>
+      <button id="refresh" class="btn secondary">Refresh Plan</button>
+      <button id="schema" class="btn secondary">Schema</button>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card"><div class="label">Mode</div><div id="mode" class="metric">—</div></div>
+    <div class="card"><div class="label">Plan entries</div><div id="entries" class="metric">—</div></div>
+    <div class="card"><div class="label">Pending approval</div><div id="pending" class="metric">—</div></div>
+    <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div></div>
+
+    <div class="card wide">
+      <h2>Rolling calendar (next 15 days · all markets)</h2>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Date</th><th>Market</th><th>Cohort</th><th>Objective · Hero</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="plan"><tr><td colspan="8" style="color:#789">Loading plan…</td></tr></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
+    <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
+
+    <div class="card wide"><h2 id="detailTitle">Details</h2><pre id="detail">Select an entry (View) or run a sync.</pre></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const API = '/api/calendar';
+let PLAN = [];
+
+function reviewerEmail(){ try { return window.LifecycleAuth?.session?.user?.email || null; } catch(_) { return null; } }
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function renderPlan(){
+  if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="8" style="color:#789">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }
+  $('entries').textContent = PLAN.length;
+  $('pending').textContent = PLAN.filter(e => e.status === 'tentative').length;
+  $('plan').innerHTML = PLAN.map((e,i)=>`<tr>
+    <td>${esc(e.date)}</td>
+    <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
+    <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span></td>
+    <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
+    <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
+    <td class="conf">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}</td>
+    <td><span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}</td>
+    <td style="white-space:nowrap">
+      <button class="btn sm secondary" onclick="viewEntry(${i})">View</button>
+      ${e.status==='tentative' ? `<button class="btn sm ok" onclick="approve(${i})">Approve</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
+    </td>
+  </tr>`).join('');
+}
+
+function viewEntry(i){
+  const e = PLAN[i];
+  $('detailTitle').textContent = `Details · ${e.date} ${e.market}`;
+  $('detail').textContent = JSON.stringify(e, null, 2);
+}
+
+async function loadPlan(){
+  try{
+    const r = await fetch(`${API}?action=smart-brain-plan`);
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Failed to load plan');
+    $('mode').textContent = data.mode === 'db-linked' ? (data.stored ? 'DB-linked' : 'DB (empty)') : 'Preview';
+    PLAN = data.entries || [];
+    renderPlan();
+    if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; approvals will generate assets but the calendar itself is not persisted.</p>';
+  }catch(e){ $('plan').innerHTML = `<tr><td colspan="8" style="color:#e89a9a">${esc(e.message)}</td></tr>`; }
+}
+
+async function runSync(){
+  $('sync').disabled = true; $('sync').textContent = 'Reviewing latest data…';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-sync-daily`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Sync failed');
+    $('mode').textContent = data.mode === 'db-linked' ? 'DB-linked' : 'Preview';
+    $('lastsync').textContent = new Date(data.synced_at).toLocaleString();
+    $('insights').innerHTML = (data.insights||[]).map(x=>`<p>• ${esc(x)}</p>`).join('') || '<p>No insights.</p>';
+    $('changes').innerHTML = (data.changes||[]).filter(c=>c.kind!=='kept_locked').map(c=>`<p><b>${esc(c.kind)}</b> — ${esc(c.detail)}</p>`).join('') || '<p>No material changes — plan already in sync with the data.</p>';
+    PLAN = data.plan || [];
+    renderPlan();
+  }catch(e){ $('detail').textContent = e.stack || e.message; }
+  finally{ $('sync').disabled = false; $('sync').textContent = '🔄 Run Daily Sync'; }
+}
+
+async function approve(i){
+  const e = PLAN[i];
+  if(!confirm(`Approve ${e.date} ${e.market} (${e.objective})?\nThis generates the mailer, ads, and landing page for final check.`)) return;
+  $('detailTitle').textContent = `Generating campaign · ${e.date} ${e.market}…`;
+  $('detail').textContent = 'Writing copy with the LLM waterfall and assembling assets — usually 10–30s.';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Approve failed');
+    e.status = 'approved'; e.generated_campaign_id = data.campaign.campaign_id;
+    renderPlan();
+    $('detailTitle').textContent = `Generated · ${data.campaign.name} (copy: ${data.campaign.copywriter?.provider})`;
+    $('detail').textContent = JSON.stringify(data.campaign, null, 2);
+    if(data.landing_page_url) window.open(data.landing_page_url, '_blank');
+  }catch(err){ $('detailTitle').textContent = 'Approve failed'; $('detail').textContent = err.stack || err.message; }
+}
+
+async function reject(i){
+  const e = PLAN[i];
+  const notes = prompt(`Why reject ${e.date} ${e.market}? (stored as feedback; slot is re-planned on next sync)`) ?? '';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, notes, reviewer: reviewerEmail() })});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Reject failed');
+    e.status = 'rejected';
+    renderPlan();
+  }catch(err){ $('detail').textContent = err.stack || err.message; }
+}
+
+async function showSchema(){
+  const r = await fetch(`${API}?action=smart-brain-schema`);
+  $('detailTitle').textContent = 'Schema contract';
+  $('detail').textContent = JSON.stringify(await r.json(), null, 2);
+}
+
+$('sync').addEventListener('click', runSync);
+$('refresh').addEventListener('click', loadPlan);
+$('schema').addEventListener('click', showSchema);
+loadPlan();
+</script>
+</body>
+</html>

@@ -376,8 +376,8 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
           <div class="card p-4 lg:col-span-2">
-            <h3 class="text-sm font-semibold mb-3">Open rate vs CVR · per campaign (size = revenue)</h3>
-            <div id="chartCampScatter" data-chart-host data-chart-id="campScatter" data-chart-title="Campaigns · Open-rate vs CVR · bubble size = revenue" style="height:340px"></div>
+            <h3 class="text-sm font-semibold mb-3">Top Campaigns · Revenue vs CVR</h3>
+            <div id="chartCampScatter" data-chart-host data-chart-id="campScatter" data-chart-title="Top Campaigns · Revenue vs CVR" style="height:340px"></div>
           </div>
           <div class="card p-4">
             <h3 class="text-sm font-semibold mb-3">Channel mix · 30d</h3>
@@ -1601,28 +1601,29 @@ function renderCampaigns(filter='') {
     kpi('Unsub rate', fmtPct(k.unsubRate, 2), `${fmtInt(k.unsubs)} unsubs`),
   ].join('');
 
-  // Scatter: open rate vs CVR, size = revenue
+  // Combo chart: Campaign Revenue (Bar) vs CVR (Line)
   const camps = filteredCampaigns();
-  const seriesByChannel = {};
-  camps.forEach((c) => {
-    const open = c.sends ? c.opens / c.sends : 0;
-    const cvr = c.clicks ? c.conversions / c.clicks : 0;
-    const k = c.channel;
-    if (!seriesByChannel[k]) seriesByChannel[k] = [];
-    seriesByChannel[k].push({ x: +(open * 100).toFixed(1), y: +(cvr * 100).toFixed(2), z: Math.max(2, Math.log10(Math.max(c.revenue, 10)) * 6), name: c.name });
-  });
+  const topCamps = [...camps].sort((a,b) => b.revenue - a.revenue).slice(0, 15);
+  const names = topCamps.map(c => c.name.length > 20 ? c.name.substring(0,20)+'...' : c.name);
+  const revData = topCamps.map(c => c.revenue);
+  const cvrData = topCamps.map(c => c.clicks ? +(c.conversions / c.clicks * 100).toFixed(2) : 0);
+  
   charts.campScatter = new ApexCharts($('chartCampScatter'), {
     ...APEX_BASE,
-    chart: { ...APEX_BASE.chart, type: 'bubble', height: 340 },
-    series: Object.entries(seriesByChannel).map(([n, data]) => ({ name: n, data })),
-    xaxis: { title: { text: 'Open rate %', style: { color: '#5d6e64', fontSize: '11px' } }, type:'numeric' },
-    yaxis: { title: { text: 'Conversion rate %', style: { color: '#5d6e64', fontSize: '11px' } } },
-    colors: ['#3b82f6', '#a855f7'],
-    fill: { opacity: 0.6 },
-    tooltip: { theme: 'dark', custom: ({ seriesIndex, dataPointIndex, w }) => {
-      const d = w.config.series[seriesIndex].data[dataPointIndex];
-      return `<div class="apex-tooltip-custom p-2 rounded text-xs"><b>${d.name}</b><br>Open ${d.x}% · CVR ${d.y}%</div>`;
-    }},
+    chart: { ...APEX_BASE.chart, type: 'line', height: 340 },
+    stroke: { width: [0, 3], curve: 'smooth' },
+    series: [
+      { name: 'Revenue', type: 'column', data: revData },
+      { name: 'CVR %', type: 'line', data: cvrData }
+    ],
+    labels: names,
+    xaxis: { type: 'category', labels: { style: { colors: '#5d6e64', fontSize: '9px' } } },
+    yaxis: [
+      { title: { text: 'Revenue', style: { color: '#5d6e64', fontSize: '11px' } }, labels: { formatter: (v) => '$' + (v/1000).toFixed(1) + 'k' } },
+      { opposite: true, title: { text: 'CVR %', style: { color: '#5d6e64', fontSize: '11px' } } }
+    ],
+    colors: ['#AB8743', '#16a34a'],
+    tooltip: { theme: 'dark', shared: true, intersect: false },
   });
   charts.campScatter.render();
 

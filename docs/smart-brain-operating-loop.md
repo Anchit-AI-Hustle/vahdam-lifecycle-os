@@ -1,5 +1,12 @@
 # Smart Brain — Operating Loop & Module Contracts
 
+> **Superseded for the brain layer:** the production Smart Brain lives on `main`
+> (`api/brain.js`, `api/_shared/brain-*.js`, `/brain` console — see
+> `docs/SMART_BRAIN.md`). The brain endpoints/loop described here were an earlier
+> PR design. The parts of this runbook that remain live in this PR are the
+> **Competitive-Intelligence collectors** (`/api/competitor?action=ci-*`,
+> `workers/collect-*`, the `ci-daily` cron) and the `ci_*` data model.
+
 This is the runbook for the VAHDAM Lifecycle OS "Smart Brain" and the
 Competitive-Intelligence collection stream. It documents **how the system runs
 day-to-day**, the **clean contracts** between modules, and the **schema

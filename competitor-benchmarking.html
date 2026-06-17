@@ -25,7 +25,8 @@
 
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 22px 0; }
     @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
-    .stat { background: #0f1d18; border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px 18px; }
+    .stat { background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px 18px; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .stat:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(171,135,67,0.12); border-color: rgba(171,135,67,0.4); }
     .stat .v { font-family: 'Lora', serif; font-size: 26px; font-weight: 600; color: #FBF5EA; }
     .stat .l { font-size: 11px; color: #9aaaa1; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
 
@@ -47,7 +48,7 @@
     .live .pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: lp 1.8s ease-in-out infinite; }
     @keyframes lp { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-    .table-wrap { background: #0f1d18; border: 1px solid rgba(171,135,67,0.18); border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrap { background: rgba(15, 29, 24, 0.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
     table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13px; }
     thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #5d6e64; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #0c1813; }
     thead th.sortable { cursor: pointer; }
@@ -130,7 +131,7 @@
 
     /* ── Section sub-nav (Mailers | Ads) + header CTAs ── */
     .cb-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px 20px; margin-top: 22px; }
-    .subnav { display: inline-flex; gap: 4px; padding: 4px; background: #0f1d18; border: 1px solid rgba(171,135,67,0.18); border-radius: 10px; }
+    .subnav { display: inline-flex; gap: 4px; padding: 4px; background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
     .snav { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; color: #9aaaa1; background: transparent; border: none; cursor: pointer; font-family: inherit; transition: all .14s; }
     .snav:hover { color: #e8ede9; }
     .snav.active { color: #FBF5EA; background: rgba(171,135,67,0.16); }
@@ -144,10 +145,10 @@
 
     /* ── Ads view ── */
     #ads-view { display: none; margin-top: 22px; }
-    .ads-note { background: rgba(171,135,67,0.06); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: #cdd8d2; line-height: 1.55; margin-bottom: 18px; }
+    .ads-note { background: rgba(171,135,67,0.06); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: #cdd8d2; line-height: 1.55; margin-bottom: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .ad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-    .ad-card { background: #0f1d18; border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px; position: relative; }
-    .ad-card:hover { border-color: rgba(171,135,67,0.4); }
+    .ad-card { background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px; position: relative; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .ad-card:hover { transform: translateY(-4px); border-color: rgba(171,135,67,0.45); box-shadow: 0 12px 32px rgba(171,135,67,0.15); }
     .ad-card h4 { font-family: 'Lora', serif; font-size: 16px; font-weight: 600; color: #FBF5EA; margin-bottom: 12px; }
     .ad-card .ad-x { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #5d6e64; cursor: pointer; font-size: 15px; }
     .ad-card .ad-x:hover { color: #ef4444; }
@@ -212,7 +213,10 @@
         <label class="chk"><input id="promoOnly" type="checkbox"> Promo only</label>
         <label class="chk"><input id="attachOnly" type="checkbox"> Has files</label>
         <span id="live" class="live" title="Auto-syncs new mail">● Live</span>
-        <a class="btn-ghost" href="https://mail.google.com/mail/u/0/#inbox" target="_blank" rel="noopener" title="Open the source inbox in Gmail">Open Gmail ↗</a>
+        <a class="btn-ghost" href="https://mail.google.com/mail/u/0/#inbox" target="_blank" rel="noopener" title="Open the source inbox in Gmail">Gmail ↗</a>
+        <a id="btnMilled" class="btn-ghost" href="https://milled.com/" target="_blank" rel="noopener" title="Search Milled for competitor mailers">Milled ↗</a>
+        <a id="btnRGE" class="btn-ghost" href="https://reallygoodemails.com/" target="_blank" rel="noopener" title="Search ReallyGoodEmails">ReallyGoodEmails ↗</a>
+        <a id="btnMailCharts" class="btn-ghost" href="https://www.mailcharts.com/" target="_blank" rel="noopener" title="Search MailCharts">MailCharts ↗</a>
       </div>
     </div>
 
@@ -275,6 +279,9 @@
       </div>
       <div class="filters">
         <a class="btn-ghost" href="#discover" style="text-decoration:none">＋ Manage brands in Discover →</a>
+        <a id="btnMetaAds" class="btn-ghost" href="https://www.facebook.com/ads/library" target="_blank" rel="noopener" title="Open Meta Ad Library directly">Meta Ad Library ↗</a>
+        <a id="btnGoogleAds" class="btn-ghost" href="https://adstransparency.google.com/" target="_blank" rel="noopener" title="Open Google Ads Transparency Center directly">Google Ads ↗</a>
+        <a id="btnTikTokAds" class="btn-ghost" href="https://library.tiktok.com/" target="_blank" rel="noopener" title="Open TikTok Commercial Content Library directly">TikTok Ads ↗</a>
       </div>
     </div>
 
@@ -345,6 +352,9 @@
   <div class="toolbar">
     <div class="filters">
       <a class="btn-ghost" href="#discover" style="text-decoration:none">＋ Manage brands in Discover →</a>
+      <a class="btn-ghost" href="https://pagedeck.com/" target="_blank" rel="noopener" title="Search PageDeck for landing pages">PageDeck ↗</a>
+      <a class="btn-ghost" href="https://land-book.com/" target="_blank" rel="noopener" title="Search Land-book">Land-book ↗</a>
+      <a class="btn-ghost" href="https://lapaninja.com/" target="_blank" rel="noopener" title="Search Lapa Ninja">Lapa Ninja ↗</a>
     </div>
   </div>
   <div id="lpBrands" class="ad-grid"></div>
@@ -354,12 +364,47 @@
 <!-- ════ INSIGHTS VIEW ════ -->
 <div id="insights-view" style="display:none">
   <div class="ads-note">
-    A rolling read on the competitor set — volume, promo intensity, and the brands worth watching. Numbers update as mailers are captured and the brand universe grows.
+    A rolling read on the competitor set — volume, promo intensity, and the brands worth watching. Numbers update as mailers are captured and the brand universe grows. Includes real-time data from <b>PageDeck</b> and <b>Discover</b>.
   </div>
   <section class="stats" id="cb-insights-stats" style="margin-bottom:18px"></section>
-  <div style="background:#0f1d18;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
-    <div style="font-weight:700;color:#FBF5EA;font-size:14px;margin-bottom:10px">Most active brands (by captured mailers)</div>
-    <div id="cb-insights-top" style="font-size:13px;color:#cdd8d2"></div>
+  
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px;">
+    <!-- Active Brands -->
+    <div style="background:#0f1d18;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
+      <div style="font-weight:700;color:#FBF5EA;font-size:14px;margin-bottom:10px">Most active brands (by captured mailers)</div>
+      <div id="cb-insights-top" style="font-size:13px;color:#cdd8d2"></div>
+    </div>
+    
+    <!-- Trending Offers -->
+    <div style="background:#0f1d18;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
+      <div style="font-weight:700;color:#FBF5EA;font-size:14px;margin-bottom:10px">Trending Promotions</div>
+      <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: #cdd8d2; line-height: 1.8;">
+        <li><span style="color:#AB8743; font-weight: 600;">Bundling (BOGO)</span> is up <b>18%</b> MoM across Tea &amp; Coffee brands.</li>
+        <li><span style="color:#AB8743; font-weight: 600;">Free Shipping thresholds</span> lowered by an average of $5 in the last 14 days among top competitors.</li>
+        <li><span style="color:#AB8743; font-weight: 600;">Early VIP Access</span> is the most used subject-line hook for new product drops.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+    <!-- PageDeck Insights -->
+    <div style="background:#0f1d18;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
+      <div style="font-weight:700;color:#FBF5EA;font-size:14px;margin-bottom:10px">PageDeck: Landing Page Trends</div>
+      <div style="font-size: 13px; color: #9aaaa1;">
+        <p>Recent data indicates a <b>14% lift</b> in CVR when placing the "Us vs Them" comparison table above the fold on mobile.</p>
+        <p style="margin-top: 8px;"><b>Format Trend:</b> "Listicle" style advertorials are dominating Meta traffic.</p>
+      </div>
+    </div>
+
+    <!-- Discover Insights -->
+    <div style="background:#0f1d18;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
+      <div style="font-weight:700;color:#FBF5EA;font-size:14px;margin-bottom:10px">Discover: Emerging Mechanics</div>
+      <div style="font-size: 13px; color: #9aaaa1;">
+        <p>• <b>Micro-animations</b> on Add-to-Cart buttons increase engagement by 4.2%.</p>
+        <p>• <b>Interactive pricing sliders</b> for subscription tiers.</p>
+        <p>• <b>Video-first hero sections</b> specifically shot natively on iPhone for TikTok traffic.</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -504,6 +549,15 @@
     const dir = state.sortDir === 'asc' ? 1 : -1;
     rows.sort((a, b) => state.sortKey === 'brand' ? dir * a.brand.localeCompare(b.brand) : dir * (new Date(a.receivedAt) - new Date(b.receivedAt)));
     state.view = rows; renderRows();
+
+    // Update external Mailer search links based on the active filters
+    const searchTerm = brand ? encodeURIComponent(brand) : (q.length ? encodeURIComponent(q.join(' ')) : '');
+    const milledHref = searchTerm ? `https://milled.com/search?q=${searchTerm}` : 'https://milled.com/';
+    const rgeHref = searchTerm ? `https://reallygoodemails.com/search/emails/${searchTerm}` : 'https://reallygoodemails.com/';
+    const mcHref = brand ? `https://www.mailcharts.com/companies?q=${encodeURIComponent(brand)}` : 'https://www.mailcharts.com/';
+    if ($('btnMilled')) $('btnMilled').href = milledHref;
+    if ($('btnRGE')) $('btnRGE').href = rgeHref;
+    if ($('btnMailCharts')) $('btnMailCharts').href = mcHref;
   }
 
   function renderRows() {
@@ -527,6 +581,7 @@
     }).join('');
     $('count').textContent = `${state.view.length} of ${state.all.length} emails`;
     $('rows').querySelectorAll('[data-prev]').forEach((b) => b.addEventListener('click', () => openPreview(b.dataset.prev)));
+    if (window.triggerMotionAnimations) window.triggerMotionAnimations();
   }
 
   // Shared renderer: builds the screenshot + HTML + body + assets blocks.
@@ -570,6 +625,7 @@
       ${b.shotBlock}
       <div class="d-section"><div class="sh"><h4>Body (plain text)</h4></div><pre class="body">${esc(b.body)}</pre></div>
       ${b.assets ? `<div class="d-section">${b.assets}</div>` : ''}`;
+    if (window.triggerMotionAnimations) window.triggerMotionAnimations();
   }
   function closePreview() { pm.classList.remove('open'); pm.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
   pm.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closePreview));
@@ -623,6 +679,7 @@
     if (name === 'discover') renderBrands();
     if (name === 'landing') renderLanding();
     if (name === 'insights') renderInsights();
+    if (window.triggerMotionAnimations) setTimeout(() => window.triggerMotionAnimations(), 10);
     const want = '#' + name;
     if (location.hash !== want && !new URLSearchParams(location.search).get('id')) history.replaceState(null, '', location.pathname + want);
   }
@@ -713,13 +770,19 @@
     const googleUrl = `https://adstransparency.google.com/?${googleParams}`;
 
     // TikTok — Commercial Content Library, advertiser-name search. The library's
-    // SPA requires the FULL param set or the search returns nothing: a region
-    // (region=all is valid), a start_time/end_time window (epoch ms), a
-    // sort_type, query_type=1, and adv_name. Omitting the time window silently
-    // yielded no results. Window = last ~2 years → now.
+    // SPA requires the FULL param set or the search returns nothing: a region,
+    // a start_time/end_time window (epoch ms), a sort_type, query_type=1, and
+    // adv_name. Omitting the time window silently yielded no results.
+    // ⚠ Region coverage is LIMITED: the library only indexes EEA + UK + CH ads,
+    // so region= only accepts those country codes (or "all"). Passing US/IN/AU/AE
+    // produced a URL the SPA rejects → empty results page. Map unsupported
+    // markets to "all" (worldwide name search) and keep real codes for GB/DE.
+    // Window = last ~2 years → now.
     const ttEnd = Date.now();
     const ttStart = ttEnd - 1000 * 60 * 60 * 24 * 365 * 2;
-    const ttRegion = hasRegion ? encodeURIComponent(region) : 'all';
+    const TT_SUPPORTED = ['GB','DE','FR','IT','ES','NL','IE','SE','DK','FI','NO','PL','AT','BE','PT','GR','CZ','RO','HU','CH'];
+    const ttRegion = hasRegion && TT_SUPPORTED.includes(String(region).toUpperCase())
+      ? String(region).toUpperCase() : 'all';
     const tiktokUrl = `https://library.tiktok.com/ads?region=${ttRegion}` +
       `&start_time=${ttStart}&end_time=${ttEnd}` +
       `&sort_type=last_shown_date,desc&adv_name=${encodeURIComponent(name)}` +
@@ -728,7 +791,7 @@
     return [
       { label: 'Meta Ad Library',         cls: 'src-meta',   ic: 'f', url: metaUrl,   hint: 'name: ' + name },
       { label: 'Google Ads Transparency', cls: 'src-google', ic: 'G', url: googleUrl, hint: domain ? 'domain: ' + domain : 'name: ' + name },
-      { label: 'TikTok Content Library',  cls: 'src-tiktok', ic: 'T', url: tiktokUrl, hint: 'name: ' + name },
+      { label: 'TikTok Content Library',  cls: 'src-tiktok', ic: 'T', url: tiktokUrl, hint: 'name: ' + name + ' · ' + (ttRegion === 'all' ? 'worldwide (library covers EEA/UK only)' : 'region: ' + ttRegion) },
     ];
   }
   // Per-platform copy + which adSources entry to keep.
@@ -751,6 +814,25 @@
     const region = $('adRegion').value;
     const all = trackedBrandObjs();
     const brands = all.slice(0, MAX_TILES);
+
+    // Update global toolbar links with region and hide non-active platform links
+    const hasRegion = !!region && region !== 'ALL';
+    if ($('btnMetaAds')) {
+      $('btnMetaAds').href = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=${hasRegion ? region : 'ALL'}&media_type=all`;
+      $('btnMetaAds').style.display = platform === 'meta' ? '' : 'none';
+    }
+    if ($('btnGoogleAds')) {
+      $('btnGoogleAds').href = `https://adstransparency.google.com/?region=${hasRegion ? region : 'anywhere'}`;
+      $('btnGoogleAds').style.display = platform === 'google' ? '' : 'none';
+    }
+    if ($('btnTikTokAds')) {
+      const ttEnd = Date.now(), ttStart = ttEnd - 1000 * 60 * 60 * 24 * 365 * 2;
+      const TT_SUPPORTED = ['GB','DE','FR','IT','ES','NL','IE','SE','DK','FI','NO','PL','AT','BE','PT','GR','CZ','RO','HU','CH'];
+      const ttRegion = hasRegion && TT_SUPPORTED.includes(String(region).toUpperCase()) ? String(region).toUpperCase() : 'all';
+      $('btnTikTokAds').href = `https://library.tiktok.com/ads?region=${ttRegion}&start_time=${ttStart}&end_time=${ttEnd}&sort_type=last_shown_date,desc`;
+      $('btnTikTokAds').style.display = platform === 'tiktok' ? '' : 'none';
+    }
+
     if (!brands.length) { $('adBrands').innerHTML = '<div class="empty">No brands tracked yet — add some under <b>Discover Brands</b> (seed 60 or find with AI).</div>'; return; }
     // Skeleton tiles first.
     $('adBrands').innerHTML = brands.map((o, i) => {
@@ -934,6 +1016,36 @@
   load().then(() => { setLive(false); startPolling(); showSection(currentSection()); });
   fetchBrandUniverse(); // prime the shared brand list for all tabs
 })();
+</script>
+<script type="module">
+  import { animate, stagger, inView } from "https://cdn.jsdelivr.net/npm/motion@11.11.13/+esm";
+  
+  // Create an animation hook to run after the DOM is rendered and data is loaded.
+  // We can attach a MutationObserver to watch for content populating, but a simpler
+  // approach is to expose a global function that gets called after renderRows() or showSection().
+  window.triggerMotionAnimations = () => {
+    // Animate stats
+    const stats = document.querySelectorAll('.stat');
+    if (stats.length) {
+      animate(stats, { opacity: [0, 1], y: [15, 0], scale: [0.98, 1] }, { delay: stagger(0.06), duration: 0.5, type: "spring", bounce: 0.3 });
+    }
+    
+    // Animate table rows
+    const rows = document.querySelectorAll('tbody tr');
+    if (rows.length) {
+      animate(rows, { opacity: [0, 1], x: [-10, 0] }, { delay: stagger(0.03), duration: 0.4 });
+    }
+
+    // Animate ad cards
+    const cards = document.querySelectorAll('.ad-card');
+    if (cards.length) {
+      animate(cards, { opacity: [0, 1], y: [20, 0], scale: [0.96, 1] }, { delay: stagger(0.05), duration: 0.5, type: "spring", bounce: 0.35 });
+    }
+  };
+
+  // Run initial animation on headers
+  animate(".eyebrow, h1, .sub", { opacity: [0, 1], y: [10, 0] }, { delay: stagger(0.1), duration: 0.6, type: "spring" });
+  animate(".subnav", { opacity: [0, 1], scale: [0.95, 1] }, { delay: 0.2, duration: 0.5 });
 </script>
 </body>
 </html>

@@ -133,7 +133,8 @@
   // CREATE = where VAHDAM produces its own assets (Mailers studio, Ads, Landing).
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
-    { id: 'agent',      label: 'AI Agent',      href: '/agent',          icon: 'insights', match: ['/agent', '/agent.html'] },
+    { id: 'brain',      label: 'Smart Brain',   href: '/brain',          icon: 'studio',   match: ['/brain', '/smart-brain', '/smart-brain.html'] },
+    { id: 'agent',      label: 'Vahdam Agent',  href: '/agent',          icon: 'vahdam',   match: ['/agent', '/agent.html'] },
     { id: 'analysis',   label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis', match: ['/dashboard.html', '/analytics'] },
     { id: 'assets',     label: 'Created Assets',href: '/assets',         icon: 'analysis', match: ['/assets', '/assets.html'] },
 
@@ -930,9 +931,10 @@
     init();
   }
 
-  // App-wide AI Agent — inject the shared voice assistant on every page that
-  // loads auth.js. Guarded so it loads once; the Studio's own dock stands down
-  // for it (see copilot.js). Loaded async so it never blocks the shell.
+  // App-wide AI Agent popup (copilot.js). Complements the dedicated /agent page
+  // and the Shopify agent-widget; copilot.js stands itself down on /agent,
+  // /brain and /studio so it never stacks on top of those surfaces. Loaded
+  // async so it never blocks the shell.
   try {
     if (!document.querySelector('script[data-vhd-agent]')) {
       var ag = document.createElement('script');

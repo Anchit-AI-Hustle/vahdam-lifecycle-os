@@ -17,8 +17,10 @@
 (function () {
   'use strict';
   if (window.__vahdamAgentBooted) return;
-  // Studio has its own native, state-aware copilot dock — don't double up.
-  if (window.Copilot && /\/studio|vahdam_mailer_architect/i.test(location.pathname)) return;
+  // Stand down on surfaces that already host a dedicated agent/console so the
+  // popup never stacks on top: the Studio (its own copilot dock), the full-page
+  // /agent concierge, and the /brain · /smart-brain operator console.
+  if (/\/agent(\.html)?$|\/agent\b|\/brain\b|\/smart-brain|\/studio|vahdam_mailer_architect/i.test(location.pathname)) return;
   window.__vahdamAgentBooted = true;
 
   var BRAND = { green: '#004A2B', gold: '#AB8743', ink: '#171717', cream: '#FBF5EA' };

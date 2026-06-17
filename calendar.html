@@ -82,13 +82,41 @@
     </div>
     <div class="flex-1"></div>
     <div class="flex gap-2 items-center">
-      <!-- Cross-page navigation is provided by the global top-bar (auth.js). -->
-      <a href="/dashboard.html" class="text-[11px] uppercase tracking-wider text-ink-mute hover:text-ink">View dashboard →</a>
     </div>
   </div>
 </header>
 
 <main class="max-w-7xl mx-auto p-6 space-y-6">
+
+  <!-- Embedded KPI Dashboard -->
+  <section class="card p-4">
+    <div class="flex items-center justify-between mb-3">
+      <div class="label">Compiled Dashboard</div>
+      <a href="/dashboard.html" class="text-[11px] uppercase tracking-wider text-gold hover:text-cream">Open full analysis →</a>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="embeddedDashboard">
+      <div class="p-3 bg-bg-card rounded-lg border border-gold/10">
+        <div class="text-[10px] uppercase tracking-wider text-ink-mute font-semibold">Total Revenue (30d)</div>
+        <div class="text-lg font-bold text-cream mt-1">$212,450</div>
+        <div class="text-[10px] text-green-bright mt-1">↑ 12% vs prior</div>
+      </div>
+      <div class="p-3 bg-bg-card rounded-lg border border-gold/10">
+        <div class="text-[10px] uppercase tracking-wider text-ink-mute font-semibold">Avg Open Rate</div>
+        <div class="text-lg font-bold text-cream mt-1">42.8%</div>
+        <div class="text-[10px] text-green-bright mt-1">↑ 2.1% vs prior</div>
+      </div>
+      <div class="p-3 bg-bg-card rounded-lg border border-gold/10">
+        <div class="text-[10px] uppercase tracking-wider text-ink-mute font-semibold">Active Customers</div>
+        <div class="text-lg font-bold text-cream mt-1">12,405</div>
+        <div class="text-[10px] text-green-bright mt-1">↑ 5.4% vs prior</div>
+      </div>
+      <div class="p-3 bg-bg-card rounded-lg border border-gold/10">
+        <div class="text-[10px] uppercase tracking-wider text-ink-mute font-semibold">Top Segment</div>
+        <div class="text-lg font-bold text-cream mt-1">Champions</div>
+        <div class="text-[10px] text-ink-mute mt-1">45% of revenue</div>
+      </div>
+    </div>
+  </section>
 
   <!-- Filter & action bar -->
   <section class="card p-4">

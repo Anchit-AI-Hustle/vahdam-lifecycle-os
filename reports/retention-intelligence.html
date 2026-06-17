@@ -1232,28 +1232,38 @@ function renderCampaigns(filter='') {
     kpi('Unsub rate', fmtPct(k.unsubRate, 2), `${fmtInt(k.unsubs)} unsubs`),
   ].join('');
 
-  // Scatter: open rate vs CVR, size = revenue
+  // Combo chart: Top 15 Campaigns by Revenue (Bar) vs CVR (Line)
   const camps = filteredCampaigns();
-  const seriesByChannel = {};
-  camps.forEach((c) => {
-    const open = c.sends ? c.opens / c.sends : 0;
-    const cvr = c.clicks ? c.conversions / c.clicks : 0;
-    const k = c.channel;
-    if (!seriesByChannel[k]) seriesByChannel[k] = [];
-    seriesByChannel[k].push({ x: +(open * 100).toFixed(1), y: +(cvr * 100).toFixed(2), z: Math.max(2, Math.log10(Math.max(c.revenue, 10)) * 6), name: c.name });
-  });
+  const top15 = [...camps].sort((a,b) => b.revenue - a.revenue).slice(0, 15);
+  const chartLabels = top15.map(c => c.name.length > 15 ? c.name.substring(0,15)+'...' : c.name);
+  const revData = top15.map(c => +(c.revenue).toFixed(0));
+  const cvrData = top15.map(c => +(c.clicks ? (c.conversions / c.clicks) * 100 : 0).toFixed(2));
+
   charts.campScatter = new ApexCharts($('chartCampScatter'), {
     ...APEX_BASE,
-    chart: { ...APEX_BASE.chart, type: 'bubble', height: 340 },
-    series: Object.entries(seriesByChannel).map(([n, data]) => ({ name: n, data })),
-    xaxis: { title: { text: 'Open rate %', style: { color: '#5d6e64', fontSize: '11px' } }, type:'numeric' },
-    yaxis: { title: { text: 'Conversion rate %', style: { color: '#5d6e64', fontSize: '11px' } } },
+    chart: { ...APEX_BASE.chart, type: 'line', height: 340 },
+    series: [
+      { name: 'Revenue', type: 'column', data: revData },
+      { name: 'CVR %', type: 'line', data: cvrData }
+    ],
+    xaxis: { 
+      categories: chartLabels,
+      labels: { style: { color: '#5d6e64', fontSize: '10px' }, rotate: -45 }
+    },
+    yaxis: [
+      { 
+        title: { text: 'Revenue ($)', style: { color: '#5d6e64', fontSize: '11px' } },
+        labels: { formatter: (v) => '$' + (v >= 1000 ? (v/1000).toFixed(1) + 'k' : v) }
+      },
+      { 
+        opposite: true,
+        title: { text: 'Conversion Rate %', style: { color: '#5d6e64', fontSize: '11px' } },
+        labels: { formatter: (v) => v + '%' }
+      }
+    ],
     colors: ['#3b82f6', '#a855f7'],
-    fill: { opacity: 0.6 },
-    tooltip: { theme: 'dark', custom: ({ seriesIndex, dataPointIndex, w }) => {
-      const d = w.config.series[seriesIndex].data[dataPointIndex];
-      return `<div class="apex-tooltip-custom p-2 rounded text-xs"><b>${d.name}</b><br>Open ${d.x}% · CVR ${d.y}%</div>`;
-    }},
+    stroke: { width: [0, 3], curve: 'smooth' },
+    tooltip: { theme: 'dark' }
   });
   charts.campScatter.render();
 

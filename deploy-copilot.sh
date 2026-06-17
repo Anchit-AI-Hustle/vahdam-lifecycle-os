@@ -1,60 +1,65 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Deploy this session's Mailer Studio work (Chat+Listen dock, futuristic polish,
-# generate.js chat mode) from the canonical repo. Vercel auto-builds on push.
+# Deploy this session's Mailer Studio work (unified Chat+Listen dock, futuristic
+# polish, generate.js chat mode) from the canonical repo. Vercel auto-builds on
+# push. Copies ONLY the two changed files from the iCloud working copy into the
+# matching locations inside your repo, then commits + pushes.
 #
-# It copies ONLY the two files this session changed from the iCloud working copy
-# into the canonical repo, then commits + pushes. The parallel effort's files
-# (assets.html, ad-campaigns.html, auth.js, landing-pages.html, vercel.json)
-# are untouched. Safe + idempotent.
-#
-# Run:  bash "deploy-copilot.sh"
+# Run:  bash "deploy-copilot.sh"            (uses the repo path below)
+#  or:  bash "deploy-copilot.sh" /repo/path  (override)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 SRC="$HOME/Library/Mobile Documents/com~apple~CloudDocs/ANCHIT'S AI HUSTLE/Vahdam-LifeCycle-OS"
-CANON="${1:-$HOME/dev/anchit-hustle}"   # pass a path as arg if your repo lives elsewhere
+CANON="${1:-$HOME/Library/Mobile Documents/com~apple~CloudDocs/ANCHIT'S AI HUSTLE/Anchit-Work-Portfolio}"
 
-echo "▸ Source (iCloud working copy): $SRC"
-echo "▸ Canonical repo:              $CANON"
+echo "▸ Source (this session's edits): $SRC"
+echo "▸ Canonical repo:                $CANON"
 echo
 
-if [ ! -d "$CANON/.git" ]; then
-  echo "✗ No git repo at: $CANON"
-  echo "  Re-run with the correct path, e.g.:  bash deploy-copilot.sh /path/to/your/repo"
-  exit 1
-fi
-
+[ -d "$CANON/.git" ] || { echo "✗ No git repo at: $CANON"; echo "  Re-run: bash deploy-copilot.sh /correct/repo/path"; exit 1; }
 cd "$CANON"
 
-echo "▸ Pulling latest so we sit on top of the parallel work…"
-git pull --ff-only || { echo "✗ git pull failed — resolve manually, then re-run."; exit 1; }
+echo "▸ Pulling latest…"
+git pull --ff-only || { echo "✗ git pull failed — resolve, then re-run."; exit 1; }
 
-echo "▸ Copying the two changed files in…"
-cp "$SRC/vahdam_mailer_architect_v34.html" "$CANON/vahdam_mailer_architect_v34.html"
-cp "$SRC/api/ai/generate.js"               "$CANON/api/ai/generate.js"
+DESTS=()
+copy_in () {           # $1 = filename to find, $2 = source file
+  local name="$1" src="$2" dest
+  dest="$(find "$CANON" -name "$name" -not -path '*/.git/*' -not -path '*/node_modules/*' | head -n1)"
+  if [ -z "$dest" ]; then
+    echo "  ! $name not found in repo — placing at repo root."
+    dest="$CANON/$name"; mkdir -p "$(dirname "$dest")"
+  fi
+  cp "$src" "$dest"
+  DESTS+=("$dest")
+  echo "  ✓ $name → ${dest#$CANON/}"
+}
+
+echo "▸ Copying changed files into the repo…"
+copy_in "vahdam_mailer_architect_v34.html" "$SRC/vahdam_mailer_architect_v34.html"
+copy_in "generate.js"                       "$SRC/api/ai/generate.js"
 
 echo
-echo "▸ Changes staged for commit:"
-git add vahdam_mailer_architect_v34.html api/ai/generate.js
+echo "▸ Staged changes (only these two files):"
+git add -- "${DESTS[@]}"
 git --no-pager diff --cached --stat
 echo
 
 if git diff --cached --quiet; then
-  echo "✓ Nothing to deploy — canonical already matches. (Already pushed?)"
-  exit 0
+  echo "✓ Nothing to deploy — repo already matches. (Already pushed?)"; exit 0
 fi
 
 git commit -m "feat(studio): unified Chat+Listen dock + futuristic polish; mode:'chat' in generate.js
 
 One common bottom dock: Listen + chat input + send always together; message
 history expands above the same bar (collapsed or expanded). On-brand motion
-(reduced-motion gated). New mode:'chat' in api/ai/generate.js powers the
-assistant; Listen uses the browser SpeechSynthesis API. Light/dark themed."
+(reduced-motion gated). New mode:'chat' in generate.js powers the assistant;
+Listen uses the browser SpeechSynthesis API. Light/dark themed."
 
-echo "▸ Pushing… (Vercel will auto-build)"
+echo "▸ Pushing… (Vercel auto-builds)"
 git push
 
 echo
-echo "✅ Pushed. Watch the build at: https://vercel.com/anchittandon-3589s-projects/vahdam-lifecycle-os"
-echo "   Live in ~1–2 min at /studio."
+echo "✅ Pushed. Build: https://vercel.com/anchittandon-3589s-projects/vahdam-lifecycle-os"
+echo "   Live at /studio in ~1–2 min."

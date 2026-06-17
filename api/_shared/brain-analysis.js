@@ -1,134 +1,170 @@
 'use strict';
-// ─────────────────────────────────────────────────────────────────────────────
-// SMART BRAIN — Data Analysis Engine (OWN data only).
-//
-// Continuous, in-sync analysis of the linked backend DB's performance data.
-//   • Performance scoring + threshold filtering of the own campaign library
-//     (kb_campaigns) → surfaces only what cleared the bar to inspire new work.
-//   • Personalized cohort building from user-level data.
-//   • A daily-analysis pass that feeds calendar + generation downstream.
-//
-// STRICT ISOLATION: this module never imports or reads any ci_* competitor
-// table. Benchmarking signals enter the calendar via a separate, read-only feed.
-// "Config-driven, not hardcoded": thresholds live in analysis_config (DB) with
-// safe defaults here.
-// ─────────────────────────────────────────────────────────────────────────────
 
-const supa = require('./supa');
+/**
+ * brain-analysis.js — Data Analysis Engine (Module 2).
+ *
+ * Always reads the linked DB fresh (perfectly in sync — no local caches).
+ *   runDaily()        → full daily analysis: channel/campaign/creative KPIs,
+ *                       threshold scoring of the library, cohort rebuild.
+ *                       Persists smart_library_scores + smart_cohorts.
+ *   filteredLibrary() → ONLY campaigns that cleared performance thresholds
+ *                       (cohort + performance filtering), with reasons.
+ *   buildCohorts()    → personalized cohorts from user-level data.
+ *
+ * Own-data only. Competitor data NEVER enters scoring (see brain-competitor.js).
+ */
 
-const DEFAULT_THRESHOLDS = {
-  email:  { open_rate: 0.18, ctr: 0.02, revenue_per_send: 0.15 },
-  google: { roas: 2.5, ctr: 0.03 },
-  meta:   { roas: 2.0, ctr: 0.012 },
-  tiktok: { roas: 1.8, ctr: 0.008 },
-  landing:{ conversion_rate: 0.025 }
-};
+const { db, getConfig, round, pct, sum, groupBy, idFor } = require('./brain-core.js');
+const kb = require('./brain-kb.js');
 
-async function loadThresholds() {
-  // analysis_config is optional; fall back to defaults so the engine always runs.
-  try {
-    const rows = await supa.select('analysis_config', { filters: { key: 'eq.performance_thresholds' }, limit: 1 });
-    if (rows[0]?.value) return { ...DEFAULT_THRESHOLDS, ...rows[0].value };
-  } catch { /* table may not exist yet */ }
-  return DEFAULT_THRESHOLDS;
-}
-
-// Normalize a campaign's raw metrics into a 0-100 composite score and decide if
-// it cleared the channel threshold. Weighting favors efficiency (ROAS/RPS) then
-// engagement (CTR/open).
-function scoreCampaign(channel, metrics, thresholds) {
-  const t = thresholds[channel] || {};
-  const m = metrics || {};
-  let hits = 0, checks = 0, ratioSum = 0;
-  for (const [k, bar] of Object.entries(t)) {
-    if (m[k] == null) continue;
-    checks++;
-    const ratio = bar ? m[k] / bar : 1;
-    ratioSum += Math.min(ratio, 3);
-    if (m[k] >= bar) hits++;
+// ── Threshold scoring ────────────────────────────────────────────────────────
+function scoreCampaign(c, thresholds) {
+  const t = thresholds[c.channel] || {};
+  const k = c.kpis;
+  const checks = [];
+  const add = (name, actual, min) => checks.push({ name, actual, min, pass: actual >= min });
+  if (c.channel === 'email') {
+    add('open_rate', k.open_rate, t.open_rate ?? 0.22);
+    add('click_rate', k.click_rate, t.click_rate ?? 0.018);
+    add('rpr', k.rpr, t.rpr ?? 0.08);
+  } else if (c.channel === 'landing_page') {
+    add('cvr', pct(k.conversions, k.impressions), t.cvr ?? 0.018);
+  } else {
+    add('ctr', k.ctr, t.ctr ?? 0.01);
+    add('roas', k.roas ?? 0, t.roas ?? 1.5);
   }
-  if (!checks) return { score: null, cleared: false };
-  const score = Math.round(Math.min(100, (ratioSum / checks) * 40 + (hits / checks) * 30 + 30));
-  return { score, cleared: hits >= Math.ceil(checks / 2) };
+  const passed = checks.every((x) => x.pass);
+  const score = round(checks.reduce((s, x) => s + Math.min(x.min > 0 ? x.actual / x.min : 1, 2), 0) / checks.length, 4);
+  return { passed, score, checks };
 }
 
-// Re-score the entire own campaign library against current thresholds.
-async function rescoreLibrary({ limit = 1000 } = {}) {
-  const thresholds = await loadThresholds();
-  const campaigns = await supa.select('kb_campaigns', { order: 'launched_at.desc', limit });
-  let cleared = 0;
-  for (const c of campaigns) {
-    const { score, cleared: ok } = scoreCampaign(c.channel, c.metrics, thresholds);
-    if (score == null) continue;
-    if (ok) cleared++;
-    await supa.update('kb_campaigns',
-      { performance_score: score, cleared_threshold: ok },
-      { id: `eq.${c.id}` });
+// ── Cohort builder (user-level data) ────────────────────────────────────────
+function defineCohorts(users) {
+  const now = Date.now(), day = 86400000;
+  const daysSince = (ts) => (ts ? Math.floor((now - new Date(ts).getTime()) / day) : 9999);
+  const defs = [
+    { key: 'vip_ritualists', name: 'VIP Ritualists', test: (u) => u.orders_count >= 8 && u.total_spent >= 300, definition: { rule: 'orders_count >= 8 AND total_spent >= 300', intent: 'retention + early access' } },
+    { key: 'wellness_seekers', name: 'Wellness Seekers', test: (u) => (u.categories || []).some((c) => ['wellness', 'herbal', 'sleep'].includes(c)), definition: { rule: "categories ∩ {wellness,herbal,sleep} ≠ ∅", intent: 'wellness-benefit angle' } },
+    { key: 'chai_loyalists', name: 'Chai Loyalists', test: (u) => (u.categories || []).includes('chai'), definition: { rule: "'chai' ∈ categories", intent: 'chai stories, replenishment' } },
+    { key: 'gift_buyers', name: 'Gift Buyers', test: (u) => (u.categories || []).includes('gift') || (u.categories || []).includes('teaware'), definition: { rule: "gift|teaware ∈ categories", intent: 'festival gifting funnels' } },
+    { key: 'new_customers', name: 'New Customers (≤60d)', test: (u) => daysSince(u.first_order_at) <= 60, definition: { rule: 'first_order ≤ 60 days', intent: 'onboarding funnel, second purchase' } },
+    { key: 'at_risk_winback', name: 'At-Risk / Win-back', test: (u) => daysSince(u.last_order_at) > 120 && u.orders_count >= 2, definition: { rule: 'last_order > 120d AND orders ≥ 2', intent: 'win-back offer, low discount affinity guard' } },
+    { key: 'discount_responsive', name: 'Discount Responsive', test: (u) => Number(u.discount_affinity) >= 0.25, definition: { rule: 'discount_affinity ≥ 0.25', intent: 'promo windows only — never brand-story slots' } },
+    { key: 'engaged_nonbuyers', name: 'Engaged Non-buyers (90d)', test: (u) => u.email_engaged && daysSince(u.last_order_at) > 90, definition: { rule: 'email_engaged AND last_order > 90d', intent: 'mid-funnel nudges + retargeting seed' } },
+  ];
+  const out = [];
+  for (const market of ['US', 'UK']) {
+    const mu = users.filter((u) => u.market === market);
+    for (const d of defs) {
+      const members = mu.filter(d.test);
+      if (!members.length) continue;
+      const totalSpent = sum(members, (u) => u.total_spent);
+      out.push({
+        id: `coh_${market.toLowerCase()}_${d.key}`,
+        name: `${d.name} · ${market}`,
+        market,
+        definition: d.definition,
+        size: members.length,
+        value_score: round(totalSpent / Math.max(members.length, 1) / 100, 4),
+        metrics: {
+          avg_orders: round(sum(members, (u) => u.orders_count) / members.length, 2),
+          avg_spent: round(totalSpent / members.length, 2),
+          email_engaged_pct: round(members.filter((u) => u.email_engaged).length / members.length, 3),
+          ads_engaged_pct: round(members.filter((u) => u.ads_engaged).length / members.length, 3),
+        },
+        source: 'auto',
+        active: true,
+        updated_at: new Date().toISOString(),
+      });
+    }
   }
-  return { scored: campaigns.length, cleared, thresholds };
+  return out;
 }
 
-// Performance-filtered library read — the "what worked before" feed for the
-// generation engine. Optionally constrained to a channel / cohort.
-async function topPerformers({ channel, cohort_key, limit = 25 } = {}) {
-  const filters = { cleared_threshold: 'eq.true' };
-  if (channel)    filters.channel = `eq.${channel}`;
-  if (cohort_key) filters.cohort_key = `eq.${cohort_key}`;
-  return supa.select('kb_campaigns', { filters, order: 'performance_score.desc', limit });
+async function buildCohorts({ persist = true } = {}) {
+  const users = await db().select('smart_users', { limit: 20000 });
+  const cohorts = defineCohorts(users);
+  if (persist && cohorts.length) await db().upsert('smart_cohorts', cohorts, 'id');
+  return cohorts;
 }
 
-// Build / refresh personalized cohorts. In production the membership query runs
-// against the linked DB's user-level table; here we persist the cohort
-// DEFINITION + the latest computed size handed in by the sync job.
-async function upsertCohort(def) {
-  const cohort_key = def.cohort_key || def.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const row = {
-    cohort_key, name: def.name, market: def.market || null,
-    definition: def.definition || {}, size: def.size ?? null, rfm: def.rfm || null,
-    lifecycle_stage: def.lifecycle_stage || null, computed_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+// ── Channel rollups ──────────────────────────────────────────────────────────
+function channelRollup(library) {
+  const out = {};
+  for (const [channel, items] of Object.entries(groupBy(library, (c) => c.channel))) {
+    const k = items.map((c) => c.kpis);
+    out[channel] = {
+      campaigns: items.length,
+      revenue: round(sum(k, (x) => x.revenue), 2),
+      spend: round(sum(k, (x) => x.spend), 2),
+      conversions: sum(k, (x) => x.conversions),
+      avg_open_rate: round(sum(k, (x) => x.open_rate) / items.length, 4),
+      avg_ctr: round(sum(k, (x) => x.ctr) / items.length, 4),
+      avg_roas: round(sum(k.filter((x) => x.roas != null), (x) => x.roas) / Math.max(k.filter((x) => x.roas != null).length, 1), 2),
+    };
+  }
+  return out;
+}
+
+// ── Daily run ────────────────────────────────────────────────────────────────
+async function runDaily({ persist = true } = {}) {
+  const config = await getConfig();
+  const library = await kb.libraryIndex();
+  const patterns = kb.patterns(library);
+
+  // score every campaign against thresholds
+  const scored = library.map((c) => ({ c, s: scoreCampaign(c, config.thresholds) }));
+  const sortedScores = scored.map((x) => x.s.score).sort((a, b) => a - b);
+  const pctile = (v) => round((sortedScores.filter((s) => s <= v).length / sortedScores.length) * 100, 2);
+  const scoreRows = scored.map(({ c, s }) => ({
+    campaign_id: c.id, channel: c.channel, market: c.market,
+    score: s.score, percentile: pctile(s.score), passed: s.passed,
+    reasons: { checks: s.checks }, scored_at: new Date().toISOString(),
+  }));
+
+  const cohorts = await buildCohorts({ persist });
+  if (persist) await db().upsert('smart_library_scores', scoreRows, 'campaign_id');
+
+  const passedCount = scoreRows.filter((r) => r.passed).length;
+  const summary = {
+    library_size: library.length,
+    passed_thresholds: passedCount,
+    pass_rate: round(passedCount / Math.max(library.length, 1), 3),
+    cohorts: cohorts.length,
+    channels: channelRollup(library),
+    top_angles: (patterns.angle || []).slice(0, 3),
+    top_archetypes: (patterns.archetype || []).slice(0, 3),
   };
-  const [r] = await supa.insert('cohorts', [row], { upsertOn: 'cohort_key' });
-  return r;
+  return { ok: true, summary, patterns, cohorts, scores: scoreRows };
 }
 
-async function listCohorts() {
-  return supa.select('cohorts', { order: 'size.desc', limit: 200 });
+// ── Filtered library (performance + cohort filter) ──────────────────────────
+async function filteredLibrary({ channel, market, cohortId } = {}) {
+  const [library, scores, cohorts] = await Promise.all([
+    kb.libraryIndex(),
+    db().select('smart_library_scores', { limit: 5000 }),
+    db().select('smart_cohorts', { limit: 200, filters: { active: 'eq.true' } }),
+  ]);
+  const scoreBy = Object.fromEntries(scores.map((s) => [s.campaign_id, s]));
+  let items = library
+    .map((c) => ({ ...c, scoring: scoreBy[c.id] || null }))
+    .filter((c) => c.scoring && c.scoring.passed);
+  if (channel) items = items.filter((c) => c.channel === channel);
+  if (market) items = items.filter((c) => c.market === market);
+  if (cohortId) {
+    const coh = cohorts.find((x) => x.id === cohortId);
+    if (coh) {
+      // surface campaigns whose audience segments overlap cohort intent
+      const want = JSON.stringify(coh.definition).toLowerCase();
+      items = items.sort((a, b) => {
+        const rel = (c) => ((c.angle && want.includes(c.angle.split('-')[0])) ? 1 : 0);
+        return rel(b) - rel(a) || b.scoring.score - a.scoring.score;
+      });
+    }
+  } else {
+    items = items.sort((a, b) => b.scoring.score - a.scoring.score);
+  }
+  return { count: items.length, items };
 }
 
-// The daily analysis pass: re-score the library, refresh derived signals, and
-// log a snapshot. Returns the signal bundle the calendar consumes.
-async function dailyAnalysis() {
-  const rescored = await rescoreLibrary({});
-  const cohorts = await listCohorts();
-  const top = await topPerformers({ limit: 50 });
-
-  // Derive simple "winning patterns" the calendar/generation can lean on:
-  // most common winning hooks/angles/formats among cleared campaigns.
-  const tally = (arr, key) => {
-    const m = {};
-    for (const c of arr) for (const a of (c.assets || [])) { const v = a[key]; if (v) m[v] = (m[v] || 0) + 1; }
-    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, n]) => ({ value: k, count: n }));
-  };
-  const signals = {
-    generated_at: new Date().toISOString(),
-    library: { cleared: rescored.cleared, scored: rescored.scored },
-    winning_hooks:   tally(top, 'hook'),
-    winning_angles:  tally(top, 'angle'),
-    winning_formats: tally(top, 'format'),
-    cohorts: cohorts.map(c => ({ cohort_key: c.cohort_key, size: c.size, lifecycle_stage: c.lifecycle_stage }))
-  };
-  try {
-    await supa.insert('recalibration_log', [{
-      kind: 'daily_review', actor: 'system', scope: ['thresholds', 'cohorts'],
-      summary: signals, slots_touched: 0,
-      next_due_at: new Date(Date.now() + 86400000).toISOString()
-    }]);
-  } catch {}
-  return signals;
-}
-
-module.exports = {
-  DEFAULT_THRESHOLDS, loadThresholds, scoreCampaign, rescoreLibrary,
-  topPerformers, upsertCohort, listCohorts, dailyAnalysis
-};
+module.exports = { runDaily, buildCohorts, filteredLibrary, scoreCampaign, channelRollup };

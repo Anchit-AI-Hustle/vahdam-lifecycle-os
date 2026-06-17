@@ -1,5 +1,13 @@
 # Competitive Intelligence & Smart Brain — Architecture
 
+> **Status note (post-merge with `main`):** The **Smart Brain** is implemented on
+> `main` — `api/brain.js` + `api/_shared/brain-*.js` + the `/brain` console and
+> `/agent` page (see `docs/SMART_BRAIN.md`). The Smart-Brain sections below describe
+> an earlier PR design and are **superseded** by main's; treat them as background.
+> The **Competitive-Intelligence Collection** sections (ads / emails / landing
+> pages / offers / funnels, the `ci_*` schema, collectors and dashboard) are what
+> this PR actually ships and remain accurate.
+
 > Status: design spec. This document is the single source of truth for two
 > overlapping systems built into VAHDAM Lifecycle OS:
 >
