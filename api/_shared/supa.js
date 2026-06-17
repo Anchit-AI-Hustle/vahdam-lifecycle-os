@@ -29,10 +29,20 @@ function headers(extra) {
 
 function sha1(s) { return crypto.createHash('sha1').update(String(s == null ? '' : s)).digest('hex'); }
 
-// Stable hash over an object (key-sorted) — used for content-hash dedup.
+// Deterministic stringify with keys sorted at EVERY level. A plain
+// JSON.stringify(obj, sortedTopLevelKeys) uses the array as an allowlist applied
+// at all depths, which silently drops nested keys (serializing them as {} / [{}])
+// — so nested pricing/bundles/offer changes would hash identically. Recurse.
+function stableStringify(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(v).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(v[k])).join(',') + '}';
+}
+
+// Stable hash over an object (deeply key-sorted) — used for content-hash dedup.
 function hashObj(obj) {
-  const norm = JSON.stringify(obj, Object.keys(obj || {}).sort());
-  return sha1(norm);
+  return sha1(stableStringify(obj == null ? {} : obj));
 }
 
 async function rest(path, { method = 'GET', body, prefer, query } = {}) {

@@ -86,23 +86,22 @@
   }
 
   async function loadBrands(){
+    // Use the Supabase brands table — its ids match ci_*.brand_id used by the
+    // ci-ads / ci-emails / ci-landing / ci-funnel reads. (?action=brands returns
+    // the legacy Google-Sheet rows whose ids do NOT match, so don't use it here.)
     try{
-      const r = await jget('ci-ads',{limit:1}); // warm; brands come from dedicated read below
-    }catch(e){}
-    // brands list via the brand database action
-    try{
-      const r = await fetch(API+'?action=brands'); const j = await r.json();
+      const r = await fetch(API+'?action=ci-brands'); const j = await r.json();
       const sel = $('brand'); const list = (j.brands||[]);
-      list.forEach(b=>{ const o=document.createElement('option'); o.value=b.id||b.Name||b.name||''; o.textContent=b.name||b.Name||b.brand||b.id; sel.appendChild(o); });
+      list.forEach(b=>{ const o=document.createElement('option'); o.value=b.id; o.textContent=(b.name||('brand '+b.id))+(b.category?' · '+b.category:''); sel.appendChild(o); });
     }catch(e){}
   }
 
   function renderTiles(counts){
     if(state.mode==='offers' || state.mode==='funnel'){ $('tileRow').innerHTML=''; return; }
     const srcs = SOURCES[state.mode]||[];
-    $('tileRow').innerHTML = '<div class="cat">'+state.mode+' · sources</div><div class="tiles">'+
-      srcs.map(([val,label])=>`<div class="tile ${state.source===val?'active':''}" data-src="${val}">
-        <div class="n">${counts[val]??'·'}</div><div class="l">${label}</div></div>`).join('')+'</div>';
+    $('tileRow').innerHTML = '<div class="cat">'+esc(state.mode)+' · sources</div><div class="tiles">'+
+      srcs.map(([val,label])=>`<div class="tile ${state.source===val?'active':''}" data-src="${esc(val)}">
+        <div class="n">${esc(String(counts[val]??'·'))}</div><div class="l">${esc(label)}</div></div>`).join('')+'</div>';
     document.querySelectorAll('#tileRow .tile').forEach(t=>t.onclick=()=>{ state.source=t.dataset.src; refresh(); });
   }
 
@@ -172,7 +171,7 @@
       rows = rows.filter(r=>matchQ((r.headline||'')+(r.primary_copy||'')+(r.subject||'')+(r.url||'')));
       const card = state.mode==='ads'?adCard:state.mode==='emails'?emailCard:lpCard;
       P.innerHTML = rows.length ? '<div class="grid">'+rows.map(card).join('')+'</div>'
-        : '<p class="muted">No '+state.mode+' captured yet for this filter. Collectors POST to /api/competitor?action=ci-collect-'+(state.mode==='ads'?'ad':state.mode==='emails'?'email':'landing')+'.</p>';
+        : '<p class="muted">No '+esc(state.mode)+' captured yet for this filter. Collectors POST to /api/competitor?action=ci-collect-'+(state.mode==='ads'?'ad':state.mode==='emails'?'email':'landing')+'.</p>';
     }catch(e){ P.innerHTML='<p class="muted">Error: '+esc(e.message)+'</p>'; }
   }
 

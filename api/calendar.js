@@ -136,6 +136,11 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, ...(await generation.generateApproved({ limit: Number(q.limit || 10) })) });
     }
     if (action === 'verify') {
+      // Finalizing a spec is the human launch gate — privileged + mutating.
+      // Require POST and authorization so it can't be triggered by a guessed
+      // id over GET (consistent with gen-slot / gen-approved).
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST required' });
+      if (!authorized(req)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const body = await readBody(req);
       if (!q.id) return res.status(400).json({ ok: false, error: 'id required' });
       return res.status(200).json({ ok: true, spec: await generation.verifySpec(q.id, {

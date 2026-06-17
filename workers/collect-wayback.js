@@ -30,8 +30,10 @@ const FROM = process.env.FROM || '';               // YYYYMMDD lower bound (opti
 
 function stripTags(html) {
   return (html || '')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    // End tags allow whitespace/attrs before '>' (e.g. "</script >") so the
+    // filter can't be bypassed — see CodeQL js/bad-tag-filter.
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 }

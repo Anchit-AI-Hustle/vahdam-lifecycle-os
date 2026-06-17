@@ -41,7 +41,11 @@ CREATE TABLE IF NOT EXISTS public.brands (
   active        BOOLEAN DEFAULT true,
   meta          JSONB DEFAULT '{}'::jsonb
 );
-CREATE UNIQUE INDEX IF NOT EXISTS brands_slug_uidx ON public.brands (slug) WHERE slug IS NOT NULL;
+-- Non-partial so it can serve as the ON CONFLICT (slug) arbiter for upserts
+-- (resolveBrand). NULL slugs remain allowed/duplicable — Postgres treats NULLs
+-- as distinct in a unique index.
+DROP INDEX IF EXISTS public.brands_slug_uidx;
+CREATE UNIQUE INDEX IF NOT EXISTS brands_slug_uidx ON public.brands (slug);
 CREATE INDEX IF NOT EXISTS brands_category_idx ON public.brands (category);
 CREATE INDEX IF NOT EXISTS brands_region_idx   ON public.brands (region);
 
@@ -275,7 +279,10 @@ CREATE TABLE IF NOT EXISTS public.kb_campaigns (
   embedding_ref TEXT,                      -- pointer to vector store (future semantic search)
   indexed_at    TIMESTAMPTZ DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS kb_campaigns_src_uidx ON public.kb_campaigns (source_db_id) WHERE source_db_id IS NOT NULL;
+-- Non-partial so it can serve as the ON CONFLICT (source_db_id) arbiter used by
+-- /api/kb?action=index-campaigns. NULL source_db_id stays duplicable.
+DROP INDEX IF EXISTS public.kb_campaigns_src_uidx;
+CREATE UNIQUE INDEX IF NOT EXISTS kb_campaigns_src_uidx ON public.kb_campaigns (source_db_id);
 CREATE INDEX IF NOT EXISTS kb_campaigns_channel_idx ON public.kb_campaigns (channel);
 CREATE INDEX IF NOT EXISTS kb_campaigns_score_idx   ON public.kb_campaigns (performance_score DESC);
 CREATE INDEX IF NOT EXISTS kb_campaigns_cleared_idx ON public.kb_campaigns (cleared_threshold);

@@ -212,6 +212,16 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // Supabase brands (the CI system of record) — ids here match ci_*.brand_id.
+    // Distinct from ?action=brands, which returns legacy Google-Sheet rows.
+    if (action === 'ci-brands') {
+      const filters = { is_own: 'eq.false' };
+      if (url.searchParams.get('active') !== '0') filters.active = 'eq.true';
+      const rows = await supa.select('brands', { filters, order: 'name.asc', limit: 1000 });
+      res.status(200).json({ ok: true, count: rows.length, brands: rows });
+      return;
+    }
+
     if (action === 'ci-ads' || action === 'ci-emails' || action === 'ci-landing') {
       const table = { 'ci-ads': 'ci_ads', 'ci-emails': 'ci_emails', 'ci-landing': 'ci_landing_pages' }[action];
       const filters = {};
