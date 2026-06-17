@@ -14,11 +14,15 @@
     "api/ai/pipeline/variant.js":  { "maxDuration": 55 },
     "api/ai/pipeline/images.js":   { "maxDuration": 120 },
     "api/ai/pipeline/html.js":     { "maxDuration": 90 },
+    "api/ai/pipeline/score.js":    { "maxDuration": 45 },
     "api/calendar.js":             { "maxDuration": 90 },
     "api/competitor.js":           { "maxDuration": 60 },
     "api/kb.js":                   { "maxDuration": 60 },
     "api/public-config.js":        { "maxDuration": 3 }
   },
+  "crons": [
+    { "path": "/api/cron/smart-brain", "schedule": "30 3 * * *" }
+  ],
   "redirects": [
     { "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false }
   ],
@@ -34,6 +38,10 @@
     { "source": "/agent",      "destination": "/agent.html" },
     { "source": "/deck",       "destination": "/docs/deck.html" },
     { "source": "/c/:theme/:variant", "destination": "/campaign.html?theme=:theme&variant=:variant" },
+    { "source": "/brain",     "destination": "/smart-brain.html" },
+    { "source": "/smart-brain", "destination": "/smart-brain.html" },
+    { "source": "/lp/:id",    "destination": "/api/calendar?action=lp&id=:id" },
+    { "source": "/api/cron/smart-brain", "destination": "/api/calendar?action=smart-brain-cron" },
     { "source": "/studio",    "destination": "/vahdam_mailer_architect_v34.html" },
     { "source": "/app",       "destination": "/vahdam_mailer_architect_v34.html" },
     { "source": "/mailer",    "destination": "/vahdam_mailer_architect_v34.html" },

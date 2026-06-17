@@ -6,393 +6,168 @@
 <title>Smart Brain — VAHDAM Lifecycle OS</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <style>
-  :root { --green:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA; --bg:#0b1813; --panel:#0f1d18; --line:rgba(171,135,67,.25); --txt:#e8ede9; --mut:#9aaaa1; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--txt); font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif; }
-  .wrap { max-width:1280px; margin:0 auto; padding:22px 18px 80px; }
-  h1 { font-family:'Lao MN','Cormorant Garamond',Georgia,serif; font-size:26px; color:var(--cream); margin:6px 0 2px; }
-  .eyebrow { font-size:10.5px; letter-spacing:.24em; text-transform:uppercase; color:var(--gold); font-weight:700; }
-  .sub { color:var(--mut); font-size:13px; margin-bottom:16px; }
-  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin:16px 0 18px; }
-  .tab { background:transparent; border:1px solid var(--line); color:var(--mut); padding:9px 16px; border-radius:9px; font-size:13px; cursor:pointer; font-family:inherit; transition:all .15s; }
-  .tab:hover { color:var(--cream); border-color:var(--gold); }
-  .tab.on { background:rgba(171,135,67,.16); color:var(--cream); border-color:var(--gold); }
-  .view { display:none; animation:fade .3s ease; }
-  .view.on { display:block; }
-  @keyframes fade { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-  .grid { display:grid; gap:14px; }
-  .g3 { grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; }
-  .card h3 { margin:0 0 10px; font-size:13px; color:var(--gold); letter-spacing:.06em; text-transform:uppercase; }
-  .big { font-size:30px; font-weight:700; color:var(--cream); font-family:'Lao MN',Georgia,serif; }
-  .mut { color:var(--mut); font-size:12.5px; line-height:1.6; }
-  button.act { background:var(--gold); border:none; color:#0a1410; font-weight:700; padding:10px 16px; border-radius:9px; cursor:pointer; font-family:inherit; font-size:13px; transition:transform .15s; }
-  button.act:hover { transform:translateY(-1px); }
-  button.ghost { background:transparent; border:1px solid var(--line); color:var(--txt); padding:8px 13px; border-radius:8px; cursor:pointer; font-family:inherit; font-size:12px; }
-  button.ghost:hover { border-color:var(--gold); }
-  button.ok { border-color:#2e7d32; color:#81c784; }
-  button.no { border-color:#c62828; color:#ef9a9a; }
-  table { width:100%; border-collapse:collapse; font-size:12.5px; }
-  th { text-align:left; color:var(--gold); font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; padding:8px 9px; border-bottom:1px solid var(--line); }
-  td { padding:9px; border-bottom:1px solid rgba(171,135,67,.12); vertical-align:top; }
-  tr:hover td { background:rgba(171,135,67,.05); }
-  .pill { display:inline-block; padding:2.5px 9px; border-radius:999px; font-size:10.5px; font-weight:600; letter-spacing:.03em; }
-  .p-tentative{background:rgba(171,135,67,.15);color:var(--gold)} .p-approved{background:rgba(76,175,80,.15);color:#81c784}
-  .p-generated{background:rgba(33,150,243,.15);color:#64b5f6} .p-final{background:rgba(76,175,80,.3);color:#a5d6a7}
-  .p-skipped{background:rgba(244,67,54,.12);color:#ef9a9a} .p-pending{background:rgba(255,193,7,.14);color:#ffd54f}
-  .p-in_review{background:rgba(33,150,243,.15);color:#64b5f6} .p-rejected{background:rgba(244,67,54,.2);color:#ef9a9a}
-  .banner { border:1px solid #c62828; background:rgba(198,40,40,.12); color:#ef9a9a; border-radius:11px; padding:12px 16px; font-size:13px; margin-bottom:14px; display:none; }
-  .banner.ok { border-color:#2e7d32; background:rgba(46,125,50,.1); color:#a5d6a7; }
-  .console { display:flex; flex-direction:column; height:62vh; background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
-  .cmsgs { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:12px; }
-  .cm { max-width:80%; padding:12px 16px; border-radius:14px; font-size:13.5px; line-height:1.65; white-space:pre-wrap; animation:fade .3s ease; }
-  .cm.u { align-self:flex-end; background:var(--green); color:var(--cream); }
-  .cm.a { align-self:flex-start; background:#13241d; border:1px solid var(--line); }
-  .cinput { display:flex; gap:9px; padding:12px; border-top:1px solid var(--line); background:#0c1a14; }
-  .cinput input { flex:1; background:var(--bg); border:1px solid var(--line); border-radius:10px; color:var(--txt); padding:11px 13px; font-size:14px; font-family:inherit; outline:none; }
-  .cinput input:focus { border-color:var(--gold); }
-  .sugg { display:flex; gap:7px; flex-wrap:wrap; padding:0 12px 12px; background:#0c1a14; }
-  .sugg button { font-size:11px; }
-  iframe.preview { width:100%; height:520px; border:1px solid var(--line); border-radius:12px; background:#fff; }
-  .row { display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
-  select, input.fld { background:var(--panel); border:1px solid var(--line); color:var(--txt); border-radius:8px; padding:8px 10px; font-size:12.5px; font-family:inherit; }
-  pre.code { background:#0c1a14; border:1px solid var(--line); border-radius:10px; padding:14px; font-size:11.5px; overflow:auto; color:#cdd8d2; max-height:380px; }
-  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--gold); border-top-color:transparent; border-radius:50%; animation:rot .8s linear infinite; vertical-align:-2px; }
-  @keyframes rot { to{transform:rotate(360deg)} }
+  :root{--green:#004A2B;--gold:#AB8743;--ink:#171717;--cream:#FBF5EA;--muted:#6b7770}
+  *{box-sizing:border-box} body{margin:0;background:#0a1410;color:#e8ede9;font-family:Inter,system-ui,Arial,sans-serif;padding:28px}
+  .wrap{max-width:1280px;margin:0 auto}.top{display:flex;gap:18px;justify-content:space-between;align-items:flex-end;margin-bottom:22px;flex-wrap:wrap}
+  .eyebrow{color:var(--gold);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:800}h1{font-family:Georgia,serif;font-size:40px;line-height:1.05;margin:8px 0 10px}p{color:#a7b5ad;line-height:1.55}
+  .btn{border:0;border-radius:10px;background:var(--gold);color:#0a1410;padding:12px 16px;font-weight:800;cursor:pointer}
+  .btn.secondary{background:transparent;color:#e8ede9;border:1px solid rgba(171,135,67,.35)}
+  .btn:disabled{opacity:.5;cursor:wait}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+  .btn.ok{background:#1d6b45;color:#eafff3}.btn.no{background:transparent;color:#e89a9a;border:1px solid rgba(232,154,154,.4)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#0f1d18;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px}
+  .card h2{font-size:16px;margin:0 0 8px}.metric{font-size:30px;color:#FBF5EA;font-weight:800}.label{font-size:11px;color:#789;letter-spacing:.12em;text-transform:uppercase}
+  .wide{grid-column:span 4}.two{grid-column:span 2}
+  pre{white-space:pre-wrap;word-break:break-word;background:#07100d;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;max-height:420px;overflow:auto;color:#cfe0d7;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font-size:10px;color:#789;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 8px;border-bottom:1px solid rgba(171,135,67,.25)}
+  td{padding:9px 8px;border-bottom:1px solid rgba(171,135,67,.1);vertical-align:top}
+  tr:hover td{background:rgba(171,135,67,.05)}
+  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#d9c18f;white-space:nowrap}
+  .st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
+  .st.tentative{background:rgba(171,135,67,.16);color:#d9c18f}.st.approved{background:rgba(29,107,69,.3);color:#8fe7b9}.st.final{background:#1d6b45;color:#eafff3}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
+  .feed{max-height:300px;overflow:auto}.feed p{margin:6px 0;font-size:13px;border-left:2px solid rgba(171,135,67,.35);padding-left:10px}
+  .conf{font-variant-numeric:tabular-nums}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="eyebrow">VAHDAM · Lifecycle OS</div>
-  <h1>Smart Brain</h1>
-  <div class="sub" id="statusline">Connecting to the linked DB…</div>
-  <div class="banner" id="recalbanner"></div>
+<main class="wrap">
+  <section class="top">
+    <div>
+      <div class="eyebrow">VAHDAM Lifecycle OS · Smart Brain</div>
+      <h1>Rolling Plan: Review &amp; Approve</h1>
+      <p>The brain keeps a tentative <b>15-day calendar</b> per market, re-reviewed daily against the latest data (auto via cron at 03:30 UTC, or manually below). Approving a slot generates the full funnel — mailer, Meta/Google/TikTok ads, and a hosted landing page — for final human check.</p>
+    </div>
+    <div>
+      <button id="sync" class="btn">🔄 Run Daily Sync</button>
+      <button id="refresh" class="btn secondary">Refresh Plan</button>
+      <button id="schema" class="btn secondary">Schema</button>
+    </div>
+  </section>
 
-  <div class="tabs" id="tabs">
-    <button class="tab on" data-v="console">⌘ Console</button>
-    <button class="tab" data-v="today">Today’s Analysis</button>
-    <button class="tab" data-v="calendar">Calendar (15-day)</button>
-    <button class="tab" data-v="library">Library &amp; Patterns</button>
-    <button class="tab" data-v="cohorts">Cohorts</button>
-    <button class="tab" data-v="bench">Competitor Signals</button>
-    <button class="tab" data-v="assets">Generated Assets</button>
-    <button class="tab" data-v="review">Review Queue</button>
-    <button class="tab" data-v="agents">Agents</button>
-  </div>
+  <section class="grid">
+    <div class="card"><div class="label">Mode</div><div id="mode" class="metric">—</div></div>
+    <div class="card"><div class="label">Plan entries</div><div id="entries" class="metric">—</div></div>
+    <div class="card"><div class="label">Pending approval</div><div id="pending" class="metric">—</div></div>
+    <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div></div>
 
-  <div class="view on" id="v-console">
-    <div class="console">
-      <div class="cmsgs" id="cmsgs">
-        <div class="cm a">I'm the Smart Brain console — ask me anything about your data, calendar, cohorts, or what to do next. I answer from live system state.</div>
-      </div>
-      <div class="sugg">
-        <button class="ghost" data-q="What's today's pass rate and which angles are winning?">Winning angles?</button>
-        <button class="ghost" data-q="Summarize the next 7 days of the calendar and flag anything risky.">Next 7 days</button>
-        <button class="ghost" data-q="Which cohorts have the highest value and what should we send them?">Best cohorts</button>
-        <button class="ghost" data-q="Is the weekly recalibration overdue? What does that block?">Recalibration status</button>
-      </div>
-      <div class="cinput">
-        <input id="cq" placeholder="Ask the brain — e.g. “why is TikTok underperforming?”">
-        <button class="act" id="csend">Ask</button>
+    <div class="card wide">
+      <h2>Rolling calendar (next 15 days · all markets)</h2>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Date</th><th>Market</th><th>Cohort</th><th>Objective · Hero</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="plan"><tr><td colspan="8" style="color:#789">Loading plan…</td></tr></tbody>
+      </table>
       </div>
     </div>
-  </div>
 
-  <div class="view" id="v-today">
-    <div class="row">
-      <button class="act" id="runDaily">▶ Run daily analysis now</button>
-      <button class="ghost" id="runReview">Run daily calendar review</button>
-      <button class="ghost" id="runFest">Re-extract festivals from sales history</button>
-      <span class="mut" id="todayStamp"></span>
-    </div>
-    <div class="grid g3" id="todayCards"><div class="card"><span class="spin"></span> loading…</div></div>
-    <div class="card" style="margin-top:14px"><h3>Channel rollup (full history)</h3><div id="channelTable"></div></div>
-    <div class="card" style="margin-top:14px"><h3>Latest automated review</h3><pre class="code" id="reviewLog">—</pre></div>
-  </div>
+    <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
+    <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
 
-  <div class="view" id="v-calendar">
-    <div class="row">
-      <select id="calMarket"><option value="">All markets</option><option>US</option><option>UK</option></select>
-      <button class="act" id="calRegen">↻ Regenerate tentative slots</button>
-      <span class="mut">Approve a slot → assets auto-generate in the nightly run, or generate instantly with ⚡.</span>
-    </div>
-    <div class="card"><div id="calTable"><span class="spin"></span></div></div>
-  </div>
-
-  <div class="view" id="v-library">
-    <div class="row">
-      <select id="libChannel"><option value="">All channels</option><option>email</option><option>google</option><option>meta</option><option>tiktok</option><option value="landing_page">landing</option></select>
-      <select id="libMarket"><option value="">All markets</option><option>US</option><option>UK</option></select>
-      <span class="mut">Only campaigns that CLEARED performance thresholds are shown (cohort + performance filter).</span>
-    </div>
-    <div class="grid g3" id="patternCards"></div>
-    <div class="card" style="margin-top:14px"><h3>Performance-filtered library</h3><div id="libTable"><span class="spin"></span></div></div>
-  </div>
-
-  <div class="view" id="v-cohorts">
-    <div class="card"><h3>Personalized cohorts (auto-built daily from user-level data)</h3><div id="cohTable"><span class="spin"></span></div></div>
-  </div>
-
-  <div class="view" id="v-bench">
-    <div class="card"><h3>Competitor benchmarks — isolated advisory stream</h3>
-      <div class="mut" style="margin-bottom:10px">Real-time captures from the competitor pipeline. These inform calendar &amp; creative direction but never enter own-library scoring.</div>
-      <div id="benchBody"><span class="spin"></span></div>
-    </div>
-  </div>
-
-  <div class="view" id="v-assets">
-    <div class="row"><select id="assetSel" style="min-width:330px"></select><button class="ghost" id="assetOpen">Open raw ↗</button></div>
-    <div id="assetMeta" class="mut" style="margin-bottom:10px"></div>
-    <iframe class="preview" id="assetFrame" sandbox="allow-same-origin"></iframe>
-    <div class="card" style="margin-top:14px"><h3>Platform-ready campaign objects (phase-2 push plugs in here)</h3><pre class="code" id="campObjects">—</pre></div>
-  </div>
-
-  <div class="view" id="v-review">
-    <div class="row">
-      <button class="act" id="recalBtn">✓ Record weekly recalibration (human)</button>
-      <input class="fld" id="recalName" placeholder="reviewer name" value="">
-      <span class="mut">Hard gate: if recalibration is &gt;7 days old, auto-approval is blocked system-wide.</span>
-    </div>
-    <div class="card"><h3>Pending verification — every campaign needs a human at launch</h3><div id="rqTable"><span class="spin"></span></div></div>
-    <div class="card" style="margin-top:14px"><h3>Confidence by channel (auto-approval unlocks at ≥0.85 with ≥20 samples)</h3><div id="confTable"></div></div>
-  </div>
-
-  <div class="view" id="v-agents">
-    <div class="row">
-      <button class="act" onclick="window.open('/agent','_blank')">Open agent page ↗</button>
-      <button class="ghost" id="agentSyncAll">Sync knowledge from official product pages</button>
-      <span class="mut" id="agentSyncMsg"></span>
-    </div>
-    <div class="card"><h3>Conversational agents (brand / collection / product)</h3><div id="agTable"><span class="spin"></span></div></div>
-    <div class="card" style="margin-top:14px"><h3>Embed on Shopify</h3>
-      <div class="mut">One line in theme.liquid (or a product/collection template). Use data-agent for product/collection-level agents.</div>
-      <pre class="code" id="embedCode"></pre>
-    </div>
-  </div>
-</div>
-
-<script src="/auth.js" defer></script>
+    <div class="card wide"><h2 id="detailTitle">Details</h2><pre id="detail">Select an entry (View) or run a sync.</pre></div>
+  </section>
+</main>
 <script>
-(function(){
-'use strict';
-var API='/api/brain';
-function $(id){return document.getElementById(id);}
-function j(u,opt){return fetch(u,opt).then(function(r){return r.json();});}
-function post(action,bodyObj){return j(API+'?action='+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(bodyObj||{})});}
-function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
-function pill(s){return '<span class="pill p-'+esc(s)+'">'+esc(s)+'</span>';}
+const $ = (id) => document.getElementById(id);
+const API = '/api/calendar';
+let PLAN = [];
 
-document.querySelectorAll('.tab').forEach(function(t){
-  t.onclick=function(){
-    document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on');});
-    document.querySelectorAll('.view').forEach(function(x){x.classList.remove('on');});
-    t.classList.add('on'); $('v-'+t.dataset.v).classList.add('on');
-    load(t.dataset.v);
-  };
-});
+function reviewerEmail(){ try { return window.LifecycleAuth?.session?.user?.email || null; } catch(_) { return null; } }
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-function loadStatus(){
-  j(API+'?action=status').then(function(s){
-    $('statusline').innerHTML='Linked DB: <b style="color:'+(s.db_linked?'#81c784':'#ef9a9a')+'">'+(s.db_linked?'connected':'OFFLINE')+'</b>'
-      +' · LLM cascade: '+(s.llm_available?'ready':'fallback mode')
-      +' · slots: '+((s.counts||{}).calendar_slots||0)
-      +' · pending review: '+((s.counts||{}).pending_review||0)
-      +' · live push: phase 2';
-    var r=s.weekly_recalibration||{};
-    var b=$('recalbanner');
-    if(r.overdue){ b.style.display='block'; b.classList.remove('ok');
-      b.innerHTML='⚠ <b>Weekly human recalibration is OVERDUE'+(r.age_days!=null?' ('+r.age_days+' days)':'')+'.</b> Auto-approval is hard-blocked until a human recalibrates. Review Queue → “Record weekly recalibration”.';
-    } else { b.style.display='block'; b.classList.add('ok'); b.innerHTML='✓ Weekly recalibration current — last by '+esc(r.last_reviewer||'—')+', '+(r.age_days||0)+'d ago.'; }
-  }).catch(function(){ $('statusline').textContent='API unreachable'; });
-}
-loadStatus();
-
-function cAdd(cls,t){var d=document.createElement('div');d.className='cm '+cls;d.textContent=t;$('cmsgs').appendChild(d);$('cmsgs').scrollTop=1e9;return d;}
-function cAsk(q){
-  if(!q)return; cAdd('u',q); $('cq').value='';
-  var w=cAdd('a','thinking…');
-  post('console-chat',{message:q}).then(function(r){ w.textContent=r.reply||r.error||'(no reply)'; }).catch(function(){ w.textContent='Console offline — data tabs still work.'; });
-}
-$('csend').onclick=function(){cAsk($('cq').value.trim());};
-$('cq').addEventListener('keydown',function(e){if(e.key==='Enter')cAsk($('cq').value.trim());});
-document.querySelectorAll('.sugg button').forEach(function(b){b.onclick=function(){cAsk(b.dataset.q);};});
-
-function loadToday(){
-  j(API+'?action=analyze').then(function(r){
-    var s=r.summary;
-    $('todayStamp').textContent='analyzed just now · in perfect sync with the linked DB';
-    $('todayCards').innerHTML=
-      '<div class="card"><h3>Library</h3><div class="big">'+s.library_size+'</div><div class="mut">historical campaigns indexed to creative level</div></div>'+
-      '<div class="card"><h3>Cleared thresholds</h3><div class="big">'+s.passed_thresholds+' <span style="font-size:15px;color:var(--mut)">('+Math.round(s.pass_rate*100)+'%)</span></div><div class="mut">only these feed calendar &amp; generation</div></div>'+
-      '<div class="card"><h3>Cohorts</h3><div class="big">'+s.cohorts+'</div><div class="mut">personalized, rebuilt from user-level data</div></div>'+
-      '<div class="card"><h3>Top angle</h3><div class="big" style="font-size:20px">'+esc((s.top_angles[0]||{}).value||'—')+'</div><div class="mut">$'+Math.round((s.top_angles[0]||{}).revenue_per_campaign||0)+' revenue/campaign</div></div>';
-    var ch=s.channels, rows='';
-    Object.keys(ch).forEach(function(k){var c=ch[k];rows+='<tr><td><b>'+k+'</b></td><td>'+c.campaigns+'</td><td>$'+Math.round(c.revenue).toLocaleString()+'</td><td>'+(c.avg_roas||'—')+'</td><td>'+((c.avg_open_rate*100).toFixed(1))+'%</td><td>'+((c.avg_ctr*100).toFixed(2))+'%</td></tr>';});
-    $('channelTable').innerHTML='<table><tr><th>channel</th><th>campaigns</th><th>revenue</th><th>avg roas</th><th>avg open</th><th>avg ctr</th></tr>'+rows+'</table>';
-  });
-}
-$('runDaily').onclick=function(){ this.innerHTML='<span class="spin"></span> running…'; var b=this; post('analyze').then(function(){b.textContent='▶ Run daily analysis now';loadToday();loadStatus();}); };
-$('runReview').onclick=function(){ var b=this; b.innerHTML='<span class="spin"></span>'; post('calendar-review').then(function(r){ b.textContent='Run daily calendar review'; $('reviewLog').textContent=JSON.stringify(r.review,null,2); loadStatus(); }); };
-$('runFest').onclick=function(){ var b=this; b.innerHTML='<span class="spin"></span>'; post('festivals-extract').then(function(r){ b.textContent='Re-extract festivals ('+r.detected+' peaks found)'; }); };
-
-function loadCalendar(){
-  var m=$('calMarket').value;
-  j(API+'?action=calendar'+(m?'&market='+m:'')).then(function(r){
-    var rows='';
-    (r.slots||[]).slice(0,200).forEach(function(s){
-      rows+='<tr><td>'+s.slot_date+'</td><td>'+s.market+'</td><td><b>'+s.channel+'</b><div class="mut">'+esc(s.slot_type)+'</div></td>'+
-        '<td>'+esc(s.theme||'—')+'<div class="mut">'+esc(s.angle||'')+(s.festival?' · 🎉 '+esc(s.festival):'')+'</div></td>'+
-        '<td class="mut" style="max-width:260px">'+esc((s.rationale||'').slice(0,160))+'</td>'+
-        '<td>'+pill(s.status)+'</td>'+
-        '<td style="white-space:nowrap">'+
-          (s.status==='tentative'?'<button class="ghost ok" data-a="approve" data-id="'+s.id+'">✓</button> <button class="ghost no" data-a="reject" data-id="'+s.id+'">✗</button> ':'')+
-          (['approved','tentative'].indexOf(s.status)>-1?'<button class="ghost" data-a="gen" data-id="'+s.id+'" title="Generate assets now">⚡</button>':'')+
-          '<button class="ghost" data-a="note" data-id="'+s.id+'" title="Leave feedback">✎</button>'+
-        '</td></tr>';
-    });
-    $('calTable').innerHTML='<table><tr><th>date</th><th>mkt</th><th>channel</th><th>theme / angle</th><th>why (rationale)</th><th>status</th><th></th></tr>'+rows+'</table>';
-    $('calTable').querySelectorAll('button').forEach(function(b){
-      b.onclick=function(){
-        var id=b.dataset.id, a=b.dataset.a;
-        if(a==='gen'){ b.innerHTML='<span class="spin"></span>'; post('generate',{slot_id:id}).then(function(){loadCalendar();}); return; }
-        if(a==='note'){ var n=prompt('Feedback for the brain (applied at the next daily review).\nTip: include "angle:gifting" to switch angle.'); if(n) post('feedback',{target_id:id,verdict:'adjust',notes:n,reviewer:'operator'}).then(function(){alert('Recorded — applies at next daily review.');}); return; }
-        post('feedback',{target_id:id,verdict:a==='approve'?'approve':'reject',reviewer:'operator'}).then(function(){ return post('calendar-review'); }).then(function(){loadCalendar();});
-      };
-    });
-  });
-}
-$('calMarket').onchange=loadCalendar;
-$('calRegen').onclick=function(){ var b=this; b.innerHTML='<span class="spin"></span>'; post('calendar-generate',{regenerate:true}).then(function(r){ b.textContent='↻ Regenerate tentative slots ('+r.created+' created)'; loadCalendar(); }); };
-
-function loadLibrary(){
-  j(API+'?action=kb-patterns').then(function(r){
-    var p=r.patterns, html='';
-    ['angle','archetype','format'].forEach(function(dim){
-      var top=(p[dim]||[]).slice(0,4).map(function(x){return '<div style="display:flex;justify-content:space-between;margin:5px 0"><span>'+esc(x.value)+'</span><b style="color:var(--gold)">$'+Math.round(x.revenue_per_campaign)+'/cmp</b></div>';}).join('');
-      html+='<div class="card"><h3>What works · '+dim+'</h3>'+top+'</div>';
-    });
-    $('patternCards').innerHTML=html;
-  });
-  var q=[]; if($('libChannel').value)q.push('channel='+$('libChannel').value); if($('libMarket').value)q.push('market='+$('libMarket').value);
-  j(API+'?action=library'+(q.length?'&'+q.join('&'):'')).then(function(r){
-    var rows='';
-    (r.items||[]).slice(0,80).forEach(function(c){
-      rows+='<tr><td><b>'+esc(c.name)+'</b><div class="mut">'+esc(c.hook||'')+'</div></td><td>'+c.channel+'</td><td>'+c.market+'</td><td>'+esc(c.angle||'')+'</td>'+
-      '<td>$'+Math.round(c.kpis.revenue).toLocaleString()+'</td><td>'+(c.kpis.roas||(c.kpis.open_rate*100).toFixed(1)+'%')+'</td><td>'+(c.scoring?c.scoring.score:'')+' <span class="mut">p'+(c.scoring?Math.round(c.scoring.percentile):'')+'</span></td></tr>';
-    });
-    $('libTable').innerHTML='<table><tr><th>campaign / hook</th><th>channel</th><th>mkt</th><th>angle</th><th>revenue</th><th>roas/open</th><th>score</th></tr>'+rows+'</table>';
-  });
-}
-$('libChannel').onchange=loadLibrary; $('libMarket').onchange=loadLibrary;
-
-function loadCohorts(){
-  j(API+'?action=cohorts').then(function(r){
-    var rows='';
-    (r.cohorts||[]).forEach(function(c){
-      rows+='<tr><td><b>'+esc(c.name)+'</b></td><td>'+c.size+'</td><td>'+c.value_score+'</td><td class="mut">'+esc((c.definition||{}).rule||'')+'</td><td class="mut">'+esc((c.definition||{}).intent||'')+'</td><td>$'+((c.metrics||{}).avg_spent||0)+'</td></tr>';
-    });
-    $('cohTable').innerHTML='<table><tr><th>cohort</th><th>size</th><th>value</th><th>rule</th><th>intent</th><th>avg spent</th></tr>'+rows+'</table>';
-  });
+function renderPlan(){
+  if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="8" style="color:#789">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }
+  $('entries').textContent = PLAN.length;
+  $('pending').textContent = PLAN.filter(e => e.status === 'tentative').length;
+  $('plan').innerHTML = PLAN.map((e,i)=>`<tr>
+    <td>${esc(e.date)}</td>
+    <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
+    <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span></td>
+    <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
+    <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
+    <td class="conf">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}</td>
+    <td><span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}</td>
+    <td style="white-space:nowrap">
+      <button class="btn sm secondary" onclick="viewEntry(${i})">View</button>
+      ${e.status==='tentative' ? `<button class="btn sm ok" onclick="approve(${i})">Approve</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
+    </td>
+  </tr>`).join('');
 }
 
-function loadBench(){
-  j(API+'?action=benchmarks').then(function(r){
-    var b=r.benchmarks||{}, html='';
-    Object.keys(b).forEach(function(mkt){
-      if(mkt==='_advisory'){ html+='<div class="card" style="margin-top:10px"><h3>Advisory</h3><div class="mut">'+ (b[mkt].notes||[]).map(esc).join('<br>') +'</div></div>'; return; }
-      var rows='';
-      Object.keys(b[mkt]).forEach(function(ch){
-        var c=b[mkt][ch];
-        rows+='<tr><td><b>'+ch+'</b></td><td>'+c.captured+'</td><td>'+c.active_brands+'</td><td>'+Math.round(c.promo_share*100)+'%</td><td>'+(c.top_angles||[]).map(function(a){return esc(a.angle)+' ('+a.count+')';}).join(', ')+'</td></tr>';
-      });
-      html+='<h3 style="color:var(--gold);font-size:12px;margin:14px 0 6px">'+mkt+'</h3><table><tr><th>channel</th><th>captured 60d</th><th>brands</th><th>promo share</th><th>top angles</th></tr>'+rows+'</table>';
-    });
-    $('benchBody').innerHTML=html;
-  });
+function viewEntry(i){
+  const e = PLAN[i];
+  $('detailTitle').textContent = `Details · ${e.date} ${e.market}`;
+  $('detail').textContent = JSON.stringify(e, null, 2);
 }
 
-function loadAssets(){
-  j(API+'?action=assets').then(function(r){
-    var sel=$('assetSel'); sel.innerHTML='';
-    (r.assets||[]).forEach(function(a){
-      var o=document.createElement('option'); o.value=a.id; o.textContent=a.type+' · '+a.name+' · '+(a.created_at||'').slice(0,10); sel.appendChild(o);
-    });
-    if(sel.options.length){ sel.onchange(); } else { $('assetMeta').textContent='No generated assets yet — approve a calendar slot and hit ⚡, or wait for the nightly run.'; }
-  });
-  j(API+'?action=campaigns').then(function(r){
-    $('campObjects').textContent=(r.campaigns||[]).slice(0,3).map(function(c){return '── '+c.platform+' ('+c.status+') ──\n'+JSON.stringify(c.campaign_object,null,2);}).join('\n\n')||'—';
-  });
+async function loadPlan(){
+  try{
+    const r = await fetch(`${API}?action=smart-brain-plan`);
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Failed to load plan');
+    $('mode').textContent = data.mode === 'db-linked' ? (data.stored ? 'DB-linked' : 'DB (empty)') : 'Preview';
+    PLAN = data.entries || [];
+    renderPlan();
+    if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; approvals will generate assets but the calendar itself is not persisted.</p>';
+  }catch(e){ $('plan').innerHTML = `<tr><td colspan="8" style="color:#e89a9a">${esc(e.message)}</td></tr>`; }
 }
-$('assetSel').onchange=function(){
-  var id=this.value; if(!id)return;
-  j(API+'?action=asset&id='+id).then(function(r){
-    var a=r.asset; $('assetMeta').textContent=a.type+' · '+a.name;
-    if(/html/.test(a.type)){ $('assetFrame').srcdoc=a.content; }
-    else { $('assetFrame').srcdoc='<pre style="font-family:monospace;padding:18px;white-space:pre-wrap">'+esc(a.content)+'</pre>'; }
-  });
-};
-$('assetOpen').onclick=function(){ var id=$('assetSel').value; if(id) window.open(API+'?action=asset&id='+id+'&raw=1','_blank'); };
 
-function loadReview(){
-  j(API+'?action=review').then(function(r){
-    var rows='';
-    (r.items||[]).forEach(function(i){
-      var c=i.campaign||{};
-      rows+='<tr><td>#'+i.id+'</td><td>'+esc(i.item_type)+'</td><td><b>'+esc(c.platform||i.item_id)+'</b><div class="mut">'+esc(((c.campaign_object||{}).campaign||{}).name||((c.campaign_object||{}).message||{}).subject||'')+'</div></td><td>'+pill(i.state)+(i.auto_approved?' <span class="mut">auto</span>':'')+'</td>'+
-        '<td>'+(i.state==='pending'?'<button class="ghost ok" data-d="approve" data-id="'+i.id+'">Approve → final</button> <button class="ghost no" data-d="reject" data-id="'+i.id+'">Reject</button>':esc(i.reviewer||''))+'</td></tr>';
-    });
-    $('rqTable').innerHTML='<table><tr><th>#</th><th>type</th><th>item</th><th>state</th><th>action</th></tr>'+(rows||'<tr><td colspan="5" class="mut">Queue is clear.</td></tr>')+'</table>';
-    $('rqTable').querySelectorAll('button').forEach(function(b){
-      b.onclick=function(){
-        var notes = b.dataset.d==='reject' ? (prompt('Why? (fed back into future generation)')||'') : '';
-        post('decide',{queue_id:Number(b.dataset.id),decision:b.dataset.d,reviewer:$('recalName').value||'operator',notes:notes}).then(function(){loadReview();loadStatus();});
-      };
-    });
-  });
-  j(API+'?action=confidence').then(function(r){
-    var rows='';
-    (r.confidence||[]).forEach(function(c){ rows+='<tr><td><b>'+c.scope+'</b></td><td>'+c.score+'</td><td>'+c.samples+'</td><td>'+c.approvals+'</td><td>'+c.rejections+'</td></tr>'; });
-    $('confTable').innerHTML='<table><tr><th>scope</th><th>confidence</th><th>samples</th><th>approvals</th><th>rejections</th></tr>'+rows+'</table>';
-  });
+async function runSync(){
+  $('sync').disabled = true; $('sync').textContent = 'Reviewing latest data…';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-sync-daily`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Sync failed');
+    $('mode').textContent = data.mode === 'db-linked' ? 'DB-linked' : 'Preview';
+    $('lastsync').textContent = new Date(data.synced_at).toLocaleString();
+    $('insights').innerHTML = (data.insights||[]).map(x=>`<p>• ${esc(x)}</p>`).join('') || '<p>No insights.</p>';
+    $('changes').innerHTML = (data.changes||[]).filter(c=>c.kind!=='kept_locked').map(c=>`<p><b>${esc(c.kind)}</b> — ${esc(c.detail)}</p>`).join('') || '<p>No material changes — plan already in sync with the data.</p>';
+    PLAN = data.plan || [];
+    renderPlan();
+  }catch(e){ $('detail').textContent = e.stack || e.message; }
+  finally{ $('sync').disabled = false; $('sync').textContent = '🔄 Run Daily Sync'; }
 }
-$('recalBtn').onclick=function(){
-  var who=$('recalName').value.trim(); if(!who){alert('Enter reviewer name — the weekly recalibration must be attributable to a human.');return;}
-  var notes=prompt('Recalibration decisions (one line, e.g. "calendar ok; raise email open threshold to 0.24; pause tiktok UK")')||'reviewed';
-  post('recalibrate',{reviewer:who,decisions:[notes]}).then(function(){ alert('Weekly recalibration recorded.'); loadStatus(); loadReview(); });
-};
 
-function loadAgents(){
-  $('embedCode').textContent='<script src="'+location.origin+'/agent-widget.js" data-agent="agent_vahdam" defer><\/script>';
-  j(API+'?action=agents').then(function(r){
-    var rows='';
-    (r.agents||[]).forEach(function(a){
-      rows+='<tr><td><b>'+esc(a.name)+'</b><div class="mut">'+esc(a.id)+'</div></td><td>'+esc(a.level)+'</td><td class="mut">'+esc(JSON.stringify(a.catalog_scope||{}).slice(0,60))+'</td>'+
-      '<td><button class="ghost" data-try="'+a.id+'">Try ↗</button> <button class="ghost" data-sync="'+a.id+'">Sync KB</button></td></tr>';
-    });
-    $('agTable').innerHTML='<table><tr><th>agent</th><th>level</th><th>catalog scope</th><th></th></tr>'+rows+'</table>';
-    $('agTable').querySelectorAll('[data-try]').forEach(function(b){ b.onclick=function(){ window.open('/agent?agent='+b.dataset.try,'_blank'); }; });
-    $('agTable').querySelectorAll('[data-sync]').forEach(function(b){
-      b.onclick=function(){ b.innerHTML='<span class="spin"></span>'; post('agent-sync',{agent_id:b.dataset.sync}).then(function(r){ b.textContent='Synced ('+r.knowledge_items+')'; }); };
-    });
-  });
+async function approve(i){
+  const e = PLAN[i];
+  if(!confirm(`Approve ${e.date} ${e.market} (${e.objective})?\nThis generates the mailer, ads, and landing page for final check.`)) return;
+  $('detailTitle').textContent = `Generating campaign · ${e.date} ${e.market}…`;
+  $('detail').textContent = 'Writing copy with the LLM waterfall and assembling assets — usually 10–30s.';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Approve failed');
+    e.status = 'approved'; e.generated_campaign_id = data.campaign.campaign_id;
+    renderPlan();
+    $('detailTitle').textContent = `Generated · ${data.campaign.name} (copy: ${data.campaign.copywriter?.provider})`;
+    $('detail').textContent = JSON.stringify(data.campaign, null, 2);
+    if(data.landing_page_url) window.open(data.landing_page_url, '_blank');
+  }catch(err){ $('detailTitle').textContent = 'Approve failed'; $('detail').textContent = err.stack || err.message; }
 }
-$('agentSyncAll').onclick=function(){
-  var b=this; b.innerHTML='<span class="spin"></span> syncing…';
-  j(API+'?action=agents').then(function(r){
-    var chain=Promise.resolve(), n=0;
-    (r.agents||[]).forEach(function(a){ chain=chain.then(function(){ return post('agent-sync',{agent_id:a.id}).then(function(x){n+=x.knowledge_items||0;}); }); });
-    return chain.then(function(){ b.textContent='Sync knowledge from official product pages'; $('agentSyncMsg').textContent=n+' knowledge items refreshed.'; });
-  });
-};
 
-var loaded={};
-function load(v){
-  if(loaded[v])return; loaded[v]=true;
-  if(v==='today')loadToday(); if(v==='calendar')loadCalendar(); if(v==='library')loadLibrary();
-  if(v==='cohorts')loadCohorts(); if(v==='bench')loadBench(); if(v==='assets')loadAssets();
-  if(v==='review')loadReview(); if(v==='agents')loadAgents();
+async function reject(i){
+  const e = PLAN[i];
+  const notes = prompt(`Why reject ${e.date} ${e.market}? (stored as feedback; slot is re-planned on next sync)`) ?? '';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, notes, reviewer: reviewerEmail() })});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Reject failed');
+    e.status = 'rejected';
+    renderPlan();
+  }catch(err){ $('detail').textContent = err.stack || err.message; }
 }
-})();
+
+async function showSchema(){
+  const r = await fetch(`${API}?action=smart-brain-schema`);
+  $('detailTitle').textContent = 'Schema contract';
+  $('detail').textContent = JSON.stringify(await r.json(), null, 2);
+}
+
+$('sync').addEventListener('click', runSync);
+$('refresh').addEventListener('click', loadPlan);
+$('schema').addEventListener('click', showSchema);
+loadPlan();
 </script>
 </body>
 </html>
