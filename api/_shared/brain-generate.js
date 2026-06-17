@@ -23,6 +23,36 @@ const analysis = require('./brain-analysis.js');
 let callLLM = null;
 try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 
+// Vahdam Campaign Hub compiler (ported from marketing_automation/) — premium,
+// curated themed landing pages for the wellness/ashwagandha-coffee campaigns it
+// was built for. The brain routes to it when a slot matches; otherwise it uses
+// the LLM long-form landing builder below.
+let lpCompiler = null;
+try { lpCompiler = require('./lp-compiler.js'); } catch (_) { lpCompiler = null; }
+
+// Match a calendar slot to a Campaign-Hub theme by keyword overlap. Returns
+// { theme, variant } only on a real match, so a Darjeeling slot never gets a
+// cortisol page. null → fall back to the generic LLM landing page.
+function pickCampaignHubLP(slot, products) {
+  if (!lpCompiler || !Array.isArray(lpCompiler.THEMES) || !lpCompiler.THEMES.length) return null;
+  const hay = [slot.theme, slot.angle, slot.cohort_id, slot.festival,
+    ...(products || []).flatMap((p) => [p.title, p.category, ...((p.tags) || [])])].filter(Boolean).join(' ').toLowerCase();
+  // Only consider the Hub for wellness/functional-coffee intents.
+  const gate = /(cortisol|stress|anxiety|jitter|sleep|bloat|gut|digest|hormone|perimenopaus|puffin|water retention|weight|belly|burnout|adrenal|ashwagandha|wellness|coffee)/;
+  if (!gate.test(hay)) return null;
+  const score = (t) => {
+    const kws = `${t.name} ${t.slug} ${t.coreProblem} ${t.scientificHook}`.toLowerCase().match(/[a-z]{4,}/g) || [];
+    return kws.reduce((s, w) => s + (hay.includes(w) ? 1 : 0), 0);
+  };
+  let best = null, bestScore = 0;
+  for (const t of lpCompiler.THEMES) { const sc = score(t); if (sc > bestScore) { bestScore = sc; best = t; } }
+  if (!best || bestScore < 2) return null;
+  // Variant: honour an explicit code on the slot, else the first (strongest) variant.
+  const wantCode = (slot.source && slot.source.lp_variant) || (slot.metadata && slot.metadata.lp_variant);
+  const variant = lpCompiler.FUNNEL_VARIANTS.find((v) => v.code === wantCode) || lpCompiler.FUNNEL_VARIANTS[0];
+  return { theme: best, variant, score: bestScore };
+}
+
 async function llmJson(system, user, maxTokens = 1800) {
   if (!callLLM) return null;
   try {
@@ -538,7 +568,16 @@ async function generateForSlot(slotId, { persist = true } = {}) {
     push('mailer_html', `Mailer · ${slot.theme} · ${slot.market}`, mailerHtml(slot, copy, picked, brand, agentUrl), { subject: copy.subject, preheader: copy.preheader, variants: ['A: image hero', 'B: text editorial (same copy, no hero block)'] });
   }
   if (slot.channel.startsWith('landing')) {
-    push('landing_html', `Landing · ${slot.theme} · ${slot.market}`, landingHtml(slot, copy, picked, brand, agentUrl), { paired: (slot.source || {}).paired_channel || null });
+    const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+    const hub = pickCampaignHubLP(slot, picked);
+    if (hub) {
+      // Premium curated themed LP from the Campaign Hub compiler.
+      push('landing_html', `Landing · ${hub.theme.name} · ${slot.market}`, lpCompiler.compileHTML(hub.theme, hub.variant, store),
+        { source: 'campaign_hub', theme: hub.theme.slug, variant: hub.variant.code, paired: (slot.source || {}).paired_channel || null });
+    } else {
+      push('landing_html', `Landing · ${slot.theme} · ${slot.market}`, landingHtml(slot, copy, picked, brand, agentUrl),
+        { source: 'brain_llm', paired: (slot.source || {}).paired_channel || null });
+    }
   }
   if (['google', 'meta', 'tiktok'].includes(slot.channel)) {
     push('ad_copy', `${slot.channel} copy · ${slot.market}`, JSON.stringify(slot.channel === 'google' ? copy.google : slot.channel === 'meta' ? copy.meta : copy.tiktok, null, 2), { angle: slot.angle });
@@ -567,4 +606,4 @@ async function generateForSlot(slotId, { persist = true } = {}) {
   return { ok: true, slot_id: slot.id, funnel, campaigns: genCampaigns, assets: assets.map((a) => ({ id: a.id, type: a.type, name: a.name, bytes: (a.content || '').length })), copy };
 }
 
-module.exports = { generateForSlot, mailerHtml, landingHtml, campaignObjects, audienceSpec, fallbackCopy };
+module.exports = { generateForSlot, mailerHtml, landingHtml, campaignObjects, audienceSpec, fallbackCopy, pickCampaignHubLP };
