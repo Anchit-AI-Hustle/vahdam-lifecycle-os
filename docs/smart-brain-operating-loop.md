@@ -76,11 +76,18 @@ Driven by Vercel Cron (see `vercel.json` → `crons`). Vercel automatically send
 | Time (UTC) | Cron path | What runs |
 |---|---|---|
 | 02:00 | `/api/calendar?action=daily-review` | `dailyAnalysis()` (re-score library against current thresholds, refresh cohort signals, derive winning hooks/angles/formats) → re-score every tentative/reviewed calendar slot → apply pending human feedback → fold in MVT winners. Logs to `recalibration_log` (`kind=daily_review`). |
-| 03:00 | `/api/competitor?action=ci-enrich&type=ad&limit=20` | Enrich the freshest un-enriched competitor ads via the LLM waterfall; fan out facet tags. |
+| 03:00 | `/api/competitor?action=ci-daily` | Combined competitor pass (one Hobby cron slot): mirror new emails from the legacy Sheet into `ci_emails` (`ci-email-bridge.sync`), then enrich the freshest un-enriched emails + ads via the LLM waterfall and fan out facet tags. |
+
+> Hobby caps cron jobs at **2**, so the competitor daily work is combined into
+> `ci-daily`. On Pro, split it into `ci-email-sync`, `ci-enrich&type=email`, and
+> `ci-enrich&type=ad` for finer scheduling.
 
 The competitor **collection** itself runs continuously from the external
-Playwright worker / IMAP sync / aggregator pulls, which `POST` into the
-`ci-collect-*` endpoints (idempotent — dedup + versioning happen DB-side).
+collectors (`workers/collect-ads.js`, `collect-landing.js`, `collect-wayback.js`)
+and the IMAP→Sheet→`ci_emails` bridge. Ad/landing collectors write straight to
+Supabase via the shared core; emails flow Sheet → `ci_emails` through
+`/api/competitor?action=ci-email-sync` (or the `ci-daily` cron). All paths are
+idempotent — dedup + versioning happen DB-side.
 
 **Generation** is intentionally NOT on the daily cron — assets are generated for
 **approved** slots on demand (`gen-slot` / `gen-approved`) so LLM/image spend is

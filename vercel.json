@@ -22,7 +22,7 @@
   },
   "crons": [
     { "path": "/api/calendar?action=daily-review", "schedule": "0 2 * * *" },
-    { "path": "/api/competitor?action=ci-enrich&type=ad&limit=20", "schedule": "0 3 * * *" }
+    { "path": "/api/competitor?action=ci-daily", "schedule": "0 3 * * *" }
   ],
   "redirects": [
     { "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false }

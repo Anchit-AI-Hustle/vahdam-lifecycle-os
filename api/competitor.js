@@ -263,6 +263,31 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // Mirror the legacy Google-Sheet email capture into the unified ci_emails
+    // table (idempotent). Runs server-side — the function holds the Sheet creds.
+    if (action === 'ci-email-sync') {
+      if (!authorized(req) && !ciWriteGuard()) { res.status(401).json({ ok: false, error: 'Unauthorized' }); return; }
+      const bridge = require('./_shared/ci-email-bridge');
+      const result = await bridge.sync({
+        limit: Number(url.searchParams.get('limit') || 0),
+        html: url.searchParams.get('html') !== '0'
+      });
+      res.status(200).json(result);
+      return;
+    }
+
+    // Combined daily competitor pass (one cron slot on Hobby): mirror new emails
+    // from the Sheet, then enrich the freshest un-enriched emails + ads.
+    if (action === 'ci-daily') {
+      if (!authorized(req) && !ciWriteGuard()) { res.status(401).json({ ok: false, error: 'Unauthorized' }); return; }
+      const bridge = require('./_shared/ci-email-bridge');
+      const emailSync = await bridge.sync({ limit: 0 });
+      const enrichEmails = await getEnrich().enrichBatch('email', { limit: 15 });
+      const enrichAds = await getEnrich().enrichBatch('ad', { limit: 15 });
+      res.status(200).json({ ok: true, emailSync, enrichEmails: { processed: enrichEmails.processed }, enrichAds: { processed: enrichAds.processed } });
+      return;
+    }
+
     res.status(400).json({ ok: false, error: `Unknown action: ${action}` });
   } catch (err) {
     console.error(`[api/competitor] action=${action} failed:`, err);
