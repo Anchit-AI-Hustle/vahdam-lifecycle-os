@@ -20,6 +20,10 @@
     "api/kb.js":                   { "maxDuration": 60 },
     "api/public-config.js":        { "maxDuration": 3 }
   },
+  "crons": [
+    { "path": "/api/calendar?action=daily-review", "schedule": "0 2 * * *" },
+    { "path": "/api/competitor?action=ci-enrich&type=ad&limit=20", "schedule": "0 3 * * *" }
+  ],
   "redirects": [
     { "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false }
   ],
@@ -42,6 +46,8 @@
     { "source": "/cohorts",    "destination": "/cohort-definitions.html" },
     { "source": "/discover",   "destination": "/competitor-benchmarking.html" },
     { "source": "/mailer-discovery", "destination": "/competitor-benchmarking.html" },
+    { "source": "/intel",      "destination": "/competitive-intelligence.html" },
+    { "source": "/competitive-intelligence", "destination": "/competitive-intelligence.html" },
     { "source": "/api/health", "destination": "/api/public-config?health=1" }
   ],
   "headers": [

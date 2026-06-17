@@ -152,6 +152,7 @@
       { id: 'comp-tiktok',  label: 'TikTok Ads',     href: '/competitor-benchmarking.html#tiktok',   icon: 'tiktok' },
       { id: 'comp-landing', label: 'Landing Pages',  href: '/competitor-benchmarking.html#landing',  icon: 'landing' },
       { id: 'comp-insights',label: 'Insights',       href: '/competitor-benchmarking.html#insights', icon: 'insights' },
+      { id: 'comp-intel',   label: 'Intel · Offers', href: '/intel', icon: 'insights', match: ['/intel', '/competitive-intelligence', '/competitive-intelligence.html'] },
     ]},
 
     { section: 'Create' },
