@@ -21,13 +21,11 @@
     "api/public-config.js":        { "maxDuration": 3 }
   },
   "crons": [
-    { "path": "/api/cron/smart-brain", "schedule": "30 3 * * *" }
+    { "path": "/api/brain?action=cron", "schedule": "30 3 * * *" },
+    { "path": "/api/competitor?action=ci-daily", "schedule": "0 3 * * *" }
   ],
   "redirects": [
     { "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false }
-  ],
-  "crons": [
-    { "path": "/api/brain?action=cron", "schedule": "30 3 * * *" }
   ],
   "rewrites": [
     { "source": "/api/ai/pipeline/health", "destination": "/api/public-config?pipeline=1" },
@@ -37,9 +35,9 @@
     { "source": "/smart-brain","destination": "/smart-brain.html" },
     { "source": "/agent",      "destination": "/agent.html" },
     { "source": "/deck",       "destination": "/docs/deck.html" },
+    { "source": "/intel",      "destination": "/competitive-intelligence.html" },
+    { "source": "/competitive-intelligence", "destination": "/competitive-intelligence.html" },
     { "source": "/c/:theme/:variant", "destination": "/campaign.html?theme=:theme&variant=:variant" },
-    { "source": "/brain",     "destination": "/smart-brain.html" },
-    { "source": "/smart-brain", "destination": "/smart-brain.html" },
     { "source": "/lp/:id",    "destination": "/api/calendar?action=lp&id=:id" },
     { "source": "/api/cron/smart-brain", "destination": "/api/calendar?action=smart-brain-cron" },
     { "source": "/studio",    "destination": "/vahdam_mailer_architect_v34.html" },

@@ -89,3 +89,63 @@ form detection, then drop `DRY_RUN`.
   (token-auth via `INGEST_TOKEN`) for the same write-back — unused by this worker
   while the API is SSO-gated, but available if a public path or bypass is added later.
 - **Be a good citizen:** keep `DELAY_MS` sane; don't hammer a brand repeatedly.
+
+---
+
+## Competitive-Intelligence collectors (Supabase-backed)
+
+Producers for the CI repository (`ci_ads` / `ci_landing_pages` / …). Like
+`auto-subscribe.js`, they bypass the SSO-protected API and reuse the tested
+shared core (`api/_shared/ci-collect.js`, `ci-offers.js`, `supa.js`), writing
+straight to Supabase. Dedup, version history and offer extraction all happen
+DB-side, so every collector is safe to re-run.
+
+### Setup
+Add to `.env.local` (gitignored) at the repo root:
+```
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service-role key>     # writes to ci_* + Storage
+APIFY_TOKEN=<optional>                            # structured Meta Ad Library pulls
+```
+Create a **public** Supabase Storage bucket named `ci-captures` once (screenshots
+land under `landing/<url_hash>/{desktop,mobile}.png`). Apply the migration
+`supabase/migrations/20260617_competitive_intel_and_brain.sql` first.
+
+### collect-ads.js — `npm run collect:ads`
+Discovers competitor ads per brand and stores them.
+- **Meta Ad Library**: fully working via `competitor-core.fetchMetaAds()` (Apify
+  token → structured creatives; without a token the deep-link is recorded so
+  nothing is lost).
+- **Google Ads Transparency / TikTok Creative Center**: no stable public API and
+  they block headless scraping, so the worker records the per-brand deep-link as
+  a discovery breadcrumb and leaves structured capture to a future
+  authenticated/3rd-party connector. It never fabricates ads it couldn't fetch.
+```
+npm run collect:ads
+ONLY="Bird & Blend,Harney" COUNTRY=GB MAX=10 npm run collect:ads
+```
+
+### collect-landing.js — `npm run collect:landing`
+Renders landing pages (Playwright, desktop + mobile), captures full HTML + DOM +
+screenshots, parses pricing / bundles / subscription / reviews / FAQ / trust /
+checkout links, and stores via `collectLanding`. Only navigates to the landing
+URL — never clicks through to checkout or follows links. URLs come from `URLS=`
+or, by default, `landing_url`s already discovered on `ci_ads`.
+```
+npm run collect:landing
+URLS="https://brand.com/pages/sale" HEADFUL=1 npm run collect:landing
+```
+
+### collect-wayback.js — `npm run collect:wayback`
+Pure-HTTP backfill of historical landing-page versions from the Internet Archive
+(CDX API → raw `id_` snapshots), stored with `source='wayback'`.
+```
+npm run collect:wayback
+URLS="https://brand.com/pages/sale" LIMIT=8 FROM=20250101 npm run collect:wayback
+```
+
+### Suggested cadence
+Run on your machine or a CI cron (GitHub Actions): `collect:ads` daily,
+`collect:landing` after `collect:ads` (it consumes the landing URLs ads
+discover), `collect:wayback` weekly. The Vercel daily cron then enriches and
+re-scores whatever these collectors deposited.
