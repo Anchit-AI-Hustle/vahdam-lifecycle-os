@@ -17,7 +17,8 @@
     "subscribe": "node workers/auto-subscribe.js",
     "collect:ads": "node workers/collect-ads.js",
     "collect:landing": "node workers/collect-landing.js",
-    "collect:wayback": "node workers/collect-wayback.js"
+    "collect:wayback": "node workers/collect-wayback.js",
+    "seed:products": "node scripts/seed-smart-products.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0"
