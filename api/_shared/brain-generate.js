@@ -47,8 +47,8 @@ Reference hooks that worked before: ${ref || 'n/a'}
 Featured products:\n${productLines}
 
 JSON shape:
-{"subject":"","preheader":"","headline":"","subheadline":"","body_intro":"2-3 sentence sensory opening","story":"4-5 sentence narrative for the angle","cta_primary":"","cta_secondary":"","testimonial":{"quote":"tiny personal story, 2 sentences","name":"first name + city"},"google":{"headlines":["12 short headlines ≤30 chars"],"descriptions":["4 descriptions ≤90 chars"]},"meta":{"primary_text":"","headline":"","description":""},"tiktok":{"hook_line":"","script":"15s spoken script, conversational"},"landing":{"hero_headline":"","hero_sub":"","benefit_bullets":["3-4 bullets"],"faq":[{"q":"","a":""},{"q":"","a":""}]}}`;
-  let copy = await llmJson(sys, user, 2200);
+{"subject":"","preheader":"","headline":"","subheadline":"","body_intro":"2-3 sentence sensory opening","story":"4-5 sentence narrative for the angle","cta_primary":"","cta_secondary":"","testimonial":{"quote":"tiny personal story, 2 sentences","name":"first name + city"},"google":{"headlines":["12 short headlines ≤30 chars"],"descriptions":["4 descriptions ≤90 chars"]},"meta":{"primary_text":"","headline":"","description":""},"tiktok":{"hook_line":"","script":"15s spoken script, conversational"},"landing":{"hero_eyebrow":"3-5 word kicker","hero_headline":"big emotional promise","hero_sub":"1-2 sentence support","offer_bar":"short sticky offer line e.g. Free sampler + free shipping over $35","trust_badges":["4 very short proof points"],"problem":{"headline":"name the pain","body":"3-4 sentences on what they settle for today"},"mechanism":{"headline":"why origin-fresh changes it","steps":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}]},"benefits":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}],"comparison":{"us_label":"VAHDAM","them_label":"Supermarket tea","rows":[{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""}]},"testimonials":[{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"}],"offer_stack":{"headline":"what you get","items":["3-5 included lines, each with a small value note"],"price_note":"value framing e.g. about 40c a cup","cta":"buy CTA"},"faq":[{"q":"","a":""},{"q":"","a":""},{"q":"","a":""},{"q":"","a":""}],"guarantee":{"headline":"risk reversal","body":"1-2 sentences"}}}`;
+  let copy = await llmJson(sys, user, 3400);
   if (!copy || !copy.headline) copy = fallbackCopy(slot, products);
   // brand-compliance scrub on every string
   const walk = (o) => {
@@ -81,13 +81,57 @@ function fallbackCopy(slot, products) {
     meta: { primary_text: `From a single estate in India to your morning — hand-picked, packed at origin, shipped garden-fresh. ${p.title} is where most people begin.`, headline: `The ritual, restored`, description: `Origin-fresh teas, crafted for balance` },
     tiktok: { hook_line: `This tea was on a bush in Assam eleven days ago.`, script: `This tea was on a bush in Assam eleven days ago. Most tea sits in warehouses for years — this one is packed at the estate the week it is picked. You brew it, and it tastes like the garden smells at dawn. That is the whole difference. Steep one cup and you will taste it.` },
     landing: {
+      hero_eyebrow: fest ? `${fest} · Single-estate` : `Single-estate · Hand-picked`,
       hero_headline: fest ? `Crafted for ${fest}` : `The daily ritual, restored`,
       hero_sub: `Single-estate teas and wellness blends, hand-picked and shipped garden-fresh from India.`,
-      benefit_bullets: ['Packed at origin within days of harvest', 'Single-estate, hand-picked leaves', 'Blended for balance — never flavour-sprayed', 'Carbon & plastic neutral brand'],
+      offer_bar: `Welcome gift: free sampler + free shipping over ${slot.market === 'UK' ? '£30' : '$35'}`,
+      trust_badges: ['Single-estate origin', 'Packed days after harvest', 'Carbon & plastic neutral', '1M+ cups poured'],
+      problem: {
+        headline: `Most tea is older than you think`,
+        body: `Supermarket tea can sit in warehouses and on shelves for a year or more before it reaches your cup. The oils that carry aroma fade, the leaves flatten, and what is left is colour without character. You steep it out of habit, not pleasure.`,
+      },
+      mechanism: {
+        headline: `Why origin-fresh tastes different`,
+        steps: [
+          { title: 'Hand-picked at a single estate', desc: 'Two leaves and a bud, plucked at peak — never blended-down floor sweepings.' },
+          { title: 'Packed at origin in days', desc: 'Sealed at the garden within days of harvest, so the aroma oils stay locked in.' },
+          { title: 'Shipped direct to you', desc: 'No middle warehouses or years on a shelf — months fresher in your cup.' },
+        ],
+      },
+      benefits: [
+        { title: 'Garden-fresh aroma', desc: 'The first steep smells the way the estate does at dawn.' },
+        { title: 'Single-estate traceability', desc: 'Every tin names the garden it came from.' },
+        { title: 'Blended for balance', desc: 'Real botanicals, never flavour-sprayed.' },
+        { title: 'Ritual that pays back', desc: 'About 50 cups a tin — a daily reset for the price of a habit.' },
+      ],
+      comparison: {
+        us_label: 'VAHDAM',
+        them_label: 'Supermarket tea',
+        rows: [
+          { feature: 'Freshness', us: 'Packed days after harvest', them: 'Often 1+ year old' },
+          { feature: 'Source', us: 'Named single estate', them: 'Anonymous blend' },
+          { feature: 'Leaf grade', us: 'Whole-leaf, hand-picked', them: 'Dust & fannings' },
+          { feature: 'Footprint', us: 'Carbon & plastic neutral', them: 'Rarely disclosed' },
+        ],
+      },
+      testimonials: [
+        { quote: `I started with one tin in January. My kitchen now has a shelf my family calls the apothecary.`, name: 'Sarah', location: 'Austin' },
+        { quote: `The first cup actually smelled like something. I did not know tea could do that.`, name: 'Daniel', location: 'Leeds' },
+        { quote: `Switched my whole morning to this. Calmer start, and I look forward to it now.`, name: 'Priya', location: 'San Jose' },
+      ],
+      offer_stack: {
+        headline: `What is in your first order`,
+        items: [`${p.title} — the place most people begin`, 'A free origin sampler to find your next favourite', 'Brewing card with steep times for each leaf', 'Free shipping on your welcome order'],
+        price_note: `From ${slot.market === 'UK' ? '£' : '$'}${p.price} — about ${slot.market === 'UK' ? '40p' : '40c'} a cup`,
+        cta: 'Start the ritual',
+      },
       faq: [
         { q: 'How fresh is it really?', a: 'We pack at origin within days of plucking and ship direct — months fresher than store-shelf tea.' },
         { q: 'How long does a tin last?', a: 'A 100g tin steeps roughly 50 cups — about seven weeks of a daily ritual.' },
+        { q: 'What if I do not love it?', a: 'Our leaf is guaranteed. If a tin is not for you, we will make it right — no fuss.' },
+        { q: 'Can the tea expert help me choose?', a: 'Yes — tap “Talk to our tea expert” and ask about taste, caffeine, or brewing. It answers out loud, like a call.' },
       ],
+      guarantee: { headline: `Steep it risk-free`, body: `Love the leaf or we will make it right. Every order is backed by our garden-fresh promise.` },
     },
   };
 }
@@ -155,20 +199,78 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
   const heads = brand.typography.headings.fallback;
   const body = brand.typography.body.fallback;
   const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+  const cur = slot.market === 'UK' ? '£' : '$';
+  const esc = (s) => String(s == null ? '' : s).replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'));
   const L = copy.landing || {};
-  const bullets = (L.benefit_bullets || []).map((b) => `<li style="margin:10px 0;padding-left:28px;position:relative"><span style="position:absolute;left:0;color:${P.gold}">✦</span>${b}</li>`).join('');
-  const faq = (L.faq || []).map((f) => `<details style="border-bottom:1px solid ${P.gold}33;padding:14px 0"><summary style="font-family:${heads};font-size:17px;color:${P.near_black};cursor:pointer">${f.q}</summary><p style="font-family:${body};color:${P.near_black}BB;line-height:1.7">${f.a}</p></details>`).join('');
+  // Defensive defaults so an older/partial LLM response still renders well.
+  const eyebrow = L.hero_eyebrow || slot.festival || slot.theme || 'Single-estate · Hand-picked';
+  const heroH = L.hero_headline || copy.headline;
+  const heroSub = L.hero_sub || copy.subheadline;
+  const offerBar = L.offer_bar || `Welcome gift: free sampler + free shipping over ${cur}${slot.market === 'UK' ? '30' : '35'}`;
+  const badges = (L.trust_badges && L.trust_badges.length ? L.trust_badges : ['Single-estate origin', 'Packed days after harvest', 'Carbon & plastic neutral', '1M+ cups poured']);
+  const problem = L.problem || { headline: 'Most tea is older than you think', body: copy.body_intro };
+  const mech = L.mechanism || { headline: 'Why origin-fresh tastes different', steps: [] };
+  const benefits = (L.benefits && L.benefits.length ? L.benefits : (L.benefit_bullets || []).map((b) => ({ title: b, desc: '' })));
+  const comp = L.comparison || null;
+  const testis = (L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' })));
+  const stack = L.offer_stack || { headline: 'What is in your first order', items: [], price_note: '', cta: copy.cta_primary };
+  const faqList = L.faq || [];
+  const guarantee = L.guarantee || { headline: 'Steep it risk-free', body: 'Love the leaf or we will make it right.' };
+  const agentId = `vahdam_${(slot.cohort_id || slot.market || 'tea').toString().toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+
+  const badgeRow = badges.slice(0, 4).map((b) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:${P.cream}DD"><span style="color:${P.gold}">✦</span>${esc(b)}</span>`).join('<span style="opacity:.4">·</span>');
+  const steps = (mech.steps || []).slice(0, 3).map((s, i) => `
+    <div class="card" style="animation-delay:${i * 90}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:24px">
+      <div style="width:34px;height:34px;border-radius:50%;background:${P.forest_green};color:${P.cream};display:flex;align-items:center;justify-content:center;font-weight:700;font-family:${heads}">${i + 1}</div>
+      <div style="font-family:${heads};font-size:18px;color:${P.near_black};margin:14px 0 6px">${esc(s.title)}</div>
+      <div style="font-size:14px;color:${P.near_black}AA;line-height:1.6">${esc(s.desc)}</div>
+    </div>`).join('');
+  const benefitCards = benefits.slice(0, 4).map((b, i) => `
+    <div class="card" style="animation-delay:${i * 70}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:22px">
+      <div style="color:${P.gold};font-size:20px">✦</div>
+      <div style="font-family:${heads};font-size:17px;color:${P.near_black};margin:8px 0 6px">${esc(b.title)}</div>
+      ${b.desc ? `<div style="font-size:14px;color:${P.near_black}AA;line-height:1.6">${esc(b.desc)}</div>` : ''}
+    </div>`).join('');
   const prods = products.slice(0, 3).map((p, i) => `
     <a href="${p.url || store}" class="card" style="animation-delay:${i * 90}ms;text-decoration:none;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:26px 20px;display:block">
-      <div style="font-family:${heads};font-size:18px;color:${P.near_black};line-height:1.35">${p.title}</div>
-      <div style="font-family:${body};font-size:13px;color:${P.near_black}88;margin-top:6px">${p.category}</div>
-      <div style="font-family:${body};font-size:15px;color:${P.gold};font-weight:700;margin-top:12px">${slot.market === 'UK' ? '£' : '$'}${p.price}</div>
+      <div style="font-family:${heads};font-size:18px;color:${P.near_black};line-height:1.35">${esc(p.title)}</div>
+      <div style="font-size:13px;color:${P.near_black}88;margin-top:6px">${esc(p.category)}</div>
+      <div style="font-size:15px;color:${P.gold};font-weight:700;margin-top:12px">${cur}${p.price}</div>
     </a>`).join('');
+  const compTable = comp ? `
+  <section style="padding:24px 0 72px"><div class="wrap" style="max-width:760px">
+    <h3 style="font-family:${heads};font-size:26px;color:${P.forest_green};text-align:center;margin-bottom:24px">The difference, side by side</h3>
+    <div style="overflow:hidden;border:1px solid ${P.gold}33;border-radius:14px;background:#fff">
+      <table style="width:100%;border-collapse:collapse;font-size:14.5px">
+        <thead><tr style="background:${P.forest_green};color:${P.cream}">
+          <th style="text-align:left;padding:14px 16px;font-family:${heads};font-weight:600"></th>
+          <th style="padding:14px 16px;font-family:${heads};font-weight:700">${esc(comp.us_label || 'VAHDAM')}</th>
+          <th style="padding:14px 16px;font-family:${heads};font-weight:600;color:${P.cream}AA">${esc(comp.them_label || 'Supermarket tea')}</th>
+        </tr></thead>
+        <tbody>${(comp.rows || []).map((r, i) => `<tr style="background:${i % 2 ? P.cream : '#fff'}">
+          <td style="padding:13px 16px;color:${P.near_black}99">${esc(r.feature)}</td>
+          <td style="padding:13px 16px;text-align:center;font-weight:600;color:${P.forest_green}">${esc(r.us)}</td>
+          <td style="padding:13px 16px;text-align:center;color:${P.near_black}88">${esc(r.them)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </div></section>` : '';
+  const testiCards = testis.slice(0, 3).map((t, i) => `
+    <div class="card" style="animation-delay:${i * 80}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:24px">
+      <div style="color:${P.gold};letter-spacing:2px">★★★★★</div>
+      <div style="font-family:${heads};font-style:italic;font-size:16px;line-height:1.6;margin:10px 0;color:${P.near_black}">“${esc(t.quote)}”</div>
+      <div style="font-size:12.5px;color:${P.gold};font-weight:600">— ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''}</div>
+    </div>`).join('');
+  const stackItems = (stack.items || []).map((it) => `<li style="margin:10px 0;padding-left:28px;position:relative;line-height:1.6"><span style="position:absolute;left:0;color:${P.gold}">✓</span>${esc(it)}</li>`).join('');
+  const faq = faqList.map((f) => `<details style="border-bottom:1px solid ${P.gold}33;padding:16px 0"><summary style="font-family:${heads};font-size:17px;color:${P.near_black};cursor:pointer;list-style:none">${esc(f.q)}</summary><p style="color:${P.near_black}BB;line-height:1.7;margin:10px 0 0">${esc(f.a)}</p></details>`).join('');
+
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${L.hero_headline || copy.headline} — VAHDAM</title>
+<title>${esc(heroH)} — VAHDAM</title>
+<meta name="description" content="${esc(heroSub)}">
 <style>
-  body{margin:0;background:${P.cream};color:${P.near_black};font-family:${body}}
+  *{box-sizing:border-box}
+  body{margin:0;background:${P.cream};color:${P.near_black};font-family:${body};padding-bottom:64px}
   .wrap{max-width:1040px;margin:0 auto;padding:0 22px}
   .fade{opacity:0;transform:translateY(18px);animation:up .7s ease forwards}
   .card{opacity:0;transform:translateY(18px) scale(.98);animation:up .6s ease forwards}
@@ -176,43 +278,85 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
   .cta{display:inline-block;background:${P.gold};color:${P.near_black};font-weight:700;font-size:15px;padding:16px 38px;border-radius:9px;text-decoration:none;transition:transform .2s, box-shadow .2s}
   .cta:hover{transform:translateY(-2px);box-shadow:0 14px 34px ${P.forest_green}44}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+  .obar{background:${P.gold};color:${P.near_black};text-align:center;font-size:13px;font-weight:600;padding:9px 14px}
+  .stickb{position:fixed;left:0;right:0;bottom:0;z-index:50;background:${P.forest_green};display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;box-shadow:0 -6px 20px rgba(0,0,0,.18)}
+  .stickb .p{color:${P.cream};font-size:13px}.stickb .p b{color:${P.gold}}
+  @media(max-width:760px){.split{grid-template-columns:1fr!important}.stickb .p{display:none}}
 </style></head>
 <body>
+<div class="obar">${esc(offerBar)}</div>
 <header style="background:${P.forest_green};padding:14px 0"><div class="wrap" style="display:flex;justify-content:space-between;align-items:center">
   <div style="font-family:${heads};letter-spacing:.3em;color:${P.cream};font-weight:700">VAHDAM</div>
   <a href="${agentUrl}" style="color:${P.gold};font-size:13px;text-decoration:none">🎙 Talk to our tea expert</a>
 </div></header>
-<section style="background:${P.forest_green};padding:84px 0 96px;text-align:center">
+
+<section style="background:${P.forest_green};padding:72px 0 64px;text-align:center">
   <div class="wrap">
-    <div class="fade" style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${P.gold}">${slot.festival || slot.theme || ''}</div>
-    <h1 class="fade" style="animation-delay:.1s;font-family:${heads};font-size:clamp(34px,5vw,56px);color:${P.cream};line-height:1.15;margin:18px auto;max-width:760px">${L.hero_headline || copy.headline}</h1>
-    <p class="fade" style="animation-delay:.2s;color:${P.cream}CC;font-size:17px;max-width:560px;margin:0 auto 34px;line-height:1.65">${L.hero_sub || copy.subheadline}</p>
-    <a class="cta fade" style="animation-delay:.3s" href="${store}">${copy.cta_primary}</a>
+    <div class="fade" style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${P.gold}">${esc(eyebrow)}</div>
+    <h1 class="fade" style="animation-delay:.1s;font-family:${heads};font-size:clamp(34px,5vw,56px);color:${P.cream};line-height:1.15;margin:18px auto;max-width:780px">${esc(heroH)}</h1>
+    <p class="fade" style="animation-delay:.2s;color:${P.cream}CC;font-size:17px;max-width:580px;margin:0 auto 30px;line-height:1.65">${esc(heroSub)}</p>
+    <a class="cta fade" style="animation-delay:.3s" href="${store}">${esc(copy.cta_primary)}</a>
+    <div class="fade" style="animation-delay:.4s;margin-top:26px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center">${badgeRow}</div>
   </div>
 </section>
-<section style="padding:72px 0"><div class="wrap" style="display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center">
-  <div>
-    <h2 style="font-family:${heads};font-size:30px;color:${P.forest_green}">${copy.headline}</h2>
-    <p style="line-height:1.8;color:${P.near_black}CC">${copy.story}</p>
-    <ul style="list-style:none;padding:0;font-size:15px">${bullets}</ul>
-  </div>
-  <div style="background:#fff;border:1px solid ${P.gold}33;border-radius:16px;padding:30px">
-    <div style="font-family:${heads};font-style:italic;font-size:19px;line-height:1.6">“${copy.testimonial.quote}”</div>
-    <div style="color:${P.gold};margin-top:12px;font-size:13px;font-weight:600">— ${copy.testimonial.name}</div>
-    <hr style="border:none;border-top:1px solid ${P.gold}22;margin:22px 0">
-    <div style="font-size:13.5px;color:${P.near_black}AA;line-height:1.6">Prefer to ask? Our voice expert explains benefits, steep times, and value — conversationally.</div>
-    <a href="${agentUrl}" style="display:inline-block;margin-top:12px;color:${P.forest_green};font-weight:700;text-decoration:none">🎙 Start a conversation →</a>
-  </div>
+
+<section style="padding:64px 0 24px"><div class="wrap" style="max-width:760px;text-align:center">
+  <h2 style="font-family:${heads};font-size:30px;color:${P.forest_green}">${esc(problem.headline)}</h2>
+  <p style="line-height:1.85;color:${P.near_black}CC;font-size:16px">${esc(problem.body)}</p>
 </div></section>
-<section style="padding:10px 0 64px"><div class="wrap">
+
+<section style="padding:24px 0 56px"><div class="wrap">
+  <h3 style="font-family:${heads};font-size:26px;color:${P.forest_green};text-align:center;margin-bottom:28px">${esc(mech.headline)}</h3>
+  <div class="grid">${steps}</div>
+</div></section>
+
+<section style="padding:8px 0 56px"><div class="wrap">
+  <div class="grid">${benefitCards}</div>
+</div></section>
+
+<section style="padding:8px 0 64px"><div class="wrap">
   <h3 style="font-family:${heads};font-size:24px;color:${P.forest_green};text-align:center;margin-bottom:28px">Steeped most by this cohort</h3>
   <div class="grid">${prods}</div>
 </div></section>
-<section style="padding:0 0 80px"><div class="wrap" style="max-width:720px">
-  <h3 style="font-family:${heads};font-size:24px;color:${P.forest_green}">Questions, answered</h3>${faq}
-  <div style="text-align:center;margin-top:44px"><a class="cta" href="${store}">${copy.cta_secondary}</a></div>
+
+${compTable}
+
+<section style="padding:8px 0 64px"><div class="wrap">
+  <h3 style="font-family:${heads};font-size:26px;color:${P.forest_green};text-align:center;margin-bottom:28px">From people who switched</h3>
+  <div class="grid">${testiCards}</div>
 </div></section>
+
+<section style="padding:8px 0 72px"><div class="wrap" style="max-width:760px">
+  <div style="background:${P.forest_green};border-radius:18px;padding:40px;color:${P.cream};text-align:center">
+    <h3 style="font-family:${heads};font-size:26px;color:${P.cream};margin:0 0 8px">${esc(stack.headline)}</h3>
+    <ul style="list-style:none;padding:0;text-align:left;max-width:440px;margin:18px auto;font-size:15px;color:${P.cream}EE">${stackItems}</ul>
+    ${stack.price_note ? `<div style="color:${P.gold};font-weight:700;font-size:18px;margin:8px 0 18px">${esc(stack.price_note)}</div>` : ''}
+    <a class="cta" href="${store}">${esc(stack.cta || copy.cta_primary)}</a>
+  </div>
+</div></section>
+
+<section style="padding:0 0 24px"><div class="wrap" style="max-width:720px">
+  <h3 style="font-family:${heads};font-size:24px;color:${P.forest_green}">Questions, answered</h3>${faq}
+</div></section>
+
+<section style="padding:24px 0 72px"><div class="wrap" style="max-width:640px;text-align:center">
+  <div style="border:1px dashed ${P.gold};border-radius:14px;padding:28px;background:#fff">
+    <div style="font-family:${heads};font-size:20px;color:${P.forest_green}">${esc(guarantee.headline)}</div>
+    <p style="color:${P.near_black}AA;line-height:1.7;margin:8px 0 0">${esc(guarantee.body)}</p>
+  </div>
+  <div style="margin-top:34px"><a class="cta" href="${store}">${esc(copy.cta_secondary || copy.cta_primary)}</a></div>
+  <div style="margin-top:14px"><a href="${agentUrl}" style="color:${P.forest_green};font-weight:700;text-decoration:none;font-size:14px">🎙 Or ask our tea expert anything →</a></div>
+</div></section>
+
 <footer style="background:${P.near_black};color:${P.cream}99;text-align:center;padding:30px;font-size:12px">VAHDAM India · Single-estate · Carbon &amp; plastic neutral</footer>
+
+<div class="stickb">
+  <div class="p"><b>${esc(offerBar)}</b></div>
+  <a class="cta" style="padding:11px 26px;font-size:14px" href="${store}">${esc(copy.cta_primary)}</a>
+</div>
+
+<!-- Embedded all-in-one VAHDAM voice agent (chat + voice), like the reference LP -->
+<script src="/agent-widget.js" data-agent="${agentId}" data-collection="${esc(slot.market || '')}" defer></script>
 </body></html>`;
 }
 
