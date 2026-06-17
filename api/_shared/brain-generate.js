@@ -47,7 +47,7 @@ Reference hooks that worked before: ${ref || 'n/a'}
 Featured products:\n${productLines}
 
 JSON shape:
-{"subject":"","preheader":"","headline":"","subheadline":"","body_intro":"2-3 sentence sensory opening","story":"4-5 sentence narrative for the angle","cta_primary":"","cta_secondary":"","testimonial":{"quote":"tiny personal story, 2 sentences","name":"first name + city"},"google":{"headlines":["12 short headlines ≤30 chars"],"descriptions":["4 descriptions ≤90 chars"]},"meta":{"primary_text":"","headline":"","description":""},"tiktok":{"hook_line":"","script":"15s spoken script, conversational"},"landing":{"hero_eyebrow":"3-5 word kicker","hero_headline":"big emotional promise","hero_sub":"1-2 sentence support","offer_bar":"short sticky offer line e.g. Free sampler + free shipping over $35","trust_badges":["4 very short proof points"],"problem":{"headline":"name the pain","body":"3-4 sentences on what they settle for today"},"mechanism":{"headline":"why origin-fresh changes it","steps":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}]},"benefits":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}],"comparison":{"us_label":"VAHDAM","them_label":"Supermarket tea","rows":[{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""}]},"testimonials":[{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"}],"offer_stack":{"headline":"what you get","items":["3-5 included lines, each with a small value note"],"price_note":"value framing e.g. about 40c a cup","cta":"buy CTA"},"faq":[{"q":"","a":""},{"q":"","a":""},{"q":"","a":""},{"q":"","a":""}],"guarantee":{"headline":"risk reversal","body":"1-2 sentences"}}}`;
+{"subject":"","preheader":"","headline":"","subheadline":"","body_intro":"2-3 sentence sensory opening","story":"4-5 sentence narrative for the angle","cta_primary":"","cta_secondary":"","testimonial":{"quote":"tiny personal story, 2 sentences","name":"first name + city"},"google":{"headlines":["12 short headlines ≤30 chars"],"descriptions":["4 descriptions ≤90 chars"],"callouts":["4 callouts ≤25 chars e.g. Free shipping over $35"],"sitelinks":[{"text":"≤25 chars","desc":"≤35 chars"},{"text":"","desc":""},{"text":"","desc":""},{"text":"","desc":""}]},"meta":{"primary_text":"best single primary text","primary_text_variants":["unaware-stage hook","problem-aware angle","solution-aware/offer angle"],"headline":"≤40 chars","headlines":["3 headline options ≤40 chars"],"description":"≤30 chars","creative_concept":"one-line art direction for the hero image"},"tiktok":{"hook_line":"first 2s spoken hook","script":"15s spoken script, conversational","shot_list":["4 beats: 0-2s hook / 3-6s problem / 7-11s product+proof / 12-15s CTA"],"captions":["3 on-screen caption lines"]},"landing":{"hero_eyebrow":"3-5 word kicker","hero_headline":"big emotional promise","hero_sub":"1-2 sentence support","offer_bar":"short sticky offer line e.g. Free sampler + free shipping over $35","trust_badges":["4 very short proof points"],"problem":{"headline":"name the pain","body":"3-4 sentences on what they settle for today"},"mechanism":{"headline":"why origin-fresh changes it","steps":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}]},"benefits":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}],"comparison":{"us_label":"VAHDAM","them_label":"Supermarket tea","rows":[{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""}]},"testimonials":[{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"}],"offer_stack":{"headline":"what you get","items":["3-5 included lines, each with a small value note"],"price_note":"value framing e.g. about 40c a cup","cta":"buy CTA"},"faq":[{"q":"","a":""},{"q":"","a":""},{"q":"","a":""},{"q":"","a":""}],"guarantee":{"headline":"risk reversal","body":"1-2 sentences"}}}`;
   let copy = await llmJson(sys, user, 3400);
   if (!copy || !copy.headline) copy = fallbackCopy(slot, products);
   // brand-compliance scrub on every string
@@ -77,9 +77,32 @@ function fallbackCopy(slot, products) {
     google: {
       headlines: ['Single-Estate Indian Teas', 'Garden-Fresh, Origin Packed', `${p.category} From India`, 'Hand-Picked At Origin', 'Steep A Better Morning', 'Heritage Teas, Crafted', 'From Estate To Cup', 'The Daily Ritual Upgrade', 'Award-Winning Teas', 'Fresh Harvest Teas', 'Balance In Every Steep', 'Origin-Direct Teas'],
       descriptions: ['Hand-picked, single-estate teas shipped garden-fresh from India. Crafted for your daily ritual.', 'From estate to cup in days, not years. Taste the difference origin-fresh makes.', 'Premium teas and wellness blends, packed at source. Free shipping over $35.', 'A ritual worth keeping: heritage teas, hand-picked and crafted at origin.'],
+      callouts: ['Free shipping over $35', 'Packed at origin', 'Carbon & plastic neutral', 'Single-estate'],
+      sitelinks: [
+        { text: 'Best-Selling Teas', desc: 'Start where most people begin' },
+        { text: 'Wellness Blends', desc: 'Turmeric, chamomile & more' },
+        { text: 'Gift Sets', desc: 'Crafted for the season' },
+        { text: 'The Tea Expert', desc: 'Ask anything, get a pick' },
+      ],
     },
-    meta: { primary_text: `From a single estate in India to your morning — hand-picked, packed at origin, shipped garden-fresh. ${p.title} is where most people begin.`, headline: `The ritual, restored`, description: `Origin-fresh teas, crafted for balance` },
-    tiktok: { hook_line: `This tea was on a bush in Assam eleven days ago.`, script: `This tea was on a bush in Assam eleven days ago. Most tea sits in warehouses for years — this one is packed at the estate the week it is picked. You brew it, and it tastes like the garden smells at dawn. That is the whole difference. Steep one cup and you will taste it.` },
+    meta: {
+      primary_text: `From a single estate in India to your morning — hand-picked, packed at origin, shipped garden-fresh. ${p.title} is where most people begin.`,
+      primary_text_variants: [
+        `Your tea is probably older than you think. Supermarket leaves can sit a year before the first steep. Ours is packed at the garden days after harvest — taste the difference.`,
+        `Tired of flat, dusty tea? Single-estate, whole-leaf, origin-packed. ${p.title} steeps like the garden smells at dawn.`,
+        `Start the ritual: free sampler + free shipping on your first order. Hand-picked single-estate teas, shipped garden-fresh from India.`,
+      ],
+      headline: `The ritual, restored`,
+      headlines: ['The ritual, restored', 'Origin-fresh, in days', 'Tea worth slowing down for'],
+      description: `Origin-fresh, crafted for balance`,
+      creative_concept: `Hero close-up of ${p.title} on cream linen, steam visible, gold props, soft dawn light. No text overlay.`,
+    },
+    tiktok: {
+      hook_line: `This tea was on a bush in Assam eleven days ago.`,
+      script: `This tea was on a bush in Assam eleven days ago. Most tea sits in warehouses for years — this one is packed at the estate the week it is picked. You brew it, and it tastes like the garden smells at dawn. That is the whole difference. Steep one cup and you will taste it.`,
+      shot_list: ['0-2s: hold the tin to camera — "eleven days ago this was on a bush"', '3-6s: cut to supermarket shelf — "most tea sits for years"', '7-11s: pour + steam bloom, close-up of leaf — proof of freshness', '12-15s: sip + smile, end-card forest green with gold CTA'],
+      captions: ['Tea you can smell from across the room', 'Packed at the estate, not a warehouse', 'Steep one cup — you’ll taste it'],
+    },
     landing: {
       hero_eyebrow: fest ? `${fest} · Single-estate` : `Single-estate · Hand-picked`,
       hero_headline: fest ? `Crafted for ${fest}` : `The daily ritual, restored`,
@@ -142,53 +165,76 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   const heads = brand.typography.headings.fallback;
   const body = brand.typography.body.fallback;
   const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+  const cur = slot.market === 'UK' ? '£' : '$';
+  const esc = (s) => String(s == null ? '' : s).replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'));
+  const L = copy.landing || {};
+  const offerBar = L.offer_bar || `Welcome gift: free sampler + free shipping over ${cur}${slot.market === 'UK' ? '30' : '35'}`;
+  const badges = (L.trust_badges && L.trust_badges.length ? L.trust_badges : ['Single-estate', 'Origin-packed', 'Carbon neutral', '1M+ cups']).slice(0, 4);
+  const steps = ((L.mechanism || {}).steps || []).slice(0, 3);
+  const testis = (L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' }))).slice(0, 2);
+  const guarantee = L.guarantee || null;
+
+  const badgeRow = badges.map((b) => `<td align="center" style="font-family:${body};font-size:11px;color:${P.forest_green};padding:4px 6px"><span style="color:${P.gold}">✦</span> ${esc(b)}</td>`).join('');
+  const stepRow = steps.length ? `
+  <tr><td style="padding:8px 26px 6px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+    ${steps.map((s) => `<td valign="top" align="center" style="width:33%;padding:10px 8px">
+      <div style="font-family:${heads};font-size:14px;color:${P.forest_green};font-weight:700">${esc(s.title)}</div>
+      <div style="font-family:${body};font-size:12px;color:${P.near_black}AA;line-height:1.55;margin-top:6px">${esc(s.desc)}</div>
+    </td>`).join('')}
+    </tr></table>
+  </td></tr>` : '';
+  const testiBlocks = testis.map((t) => `
+    <div style="background:${P.cream};border-left:3px solid ${P.gold};padding:16px 18px;text-align:left;margin-bottom:10px">
+      <div style="font-family:${heads};font-size:14px;font-style:italic;color:${P.near_black};line-height:1.6">“${esc(t.quote)}”</div>
+      <div style="font-family:${body};font-size:12px;color:${P.gold};margin-top:8px">— ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''} &nbsp;★★★★★</div>
+    </div>`).join('');
   const prods = products.slice(0, 3).map((p) => `
     <td align="center" style="padding:10px;width:33%">
       <a href="${p.url || store}" style="text-decoration:none">
         <div style="background:${P.cream};border:1px solid ${P.gold}33;border-radius:10px;padding:18px 10px">
-          <div style="font-family:${heads};font-size:15px;color:${P.near_black};line-height:1.35">${p.title}</div>
-          <div style="font-family:${body};font-size:13px;color:${P.gold};margin-top:8px;font-weight:600">${slot.market === 'UK' ? '£' : '$'}${p.price}</div>
+          <div style="font-family:${heads};font-size:15px;color:${P.near_black};line-height:1.35">${esc(p.title)}</div>
+          <div style="font-family:${body};font-size:13px;color:${P.gold};margin-top:8px;font-weight:600">${cur}${p.price}</div>
         </div>
       </a>
     </td>`).join('');
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${copy.subject}</title></head>
+<title>${esc(copy.subject)}</title></head>
 <body style="margin:0;padding:0;background:${P.cream}">
-<div style="display:none;max-height:0;overflow:hidden">${copy.preheader}</div>
+<div style="display:none;max-height:0;overflow:hidden">${esc(copy.preheader)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${P.cream}">
 <tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%">
-  <tr><td align="center" style="padding:18px 0">
+  <tr><td align="center" style="background:${P.gold};border-radius:8px;padding:8px 14px;font-family:${body};font-size:12px;font-weight:700;color:${P.near_black}">${esc(offerBar)}</td></tr>
+  <tr><td align="center" style="padding:18px 0 8px">
     <div style="font-family:${heads};font-size:22px;letter-spacing:0.28em;color:${P.forest_green};font-weight:700">VAHDAM</div>
     <div style="font-family:${body};font-size:10px;letter-spacing:0.22em;color:${P.gold};text-transform:uppercase;margin-top:4px">India · Est. at origin</div>
   </td></tr>
   <tr><td style="background:${P.forest_green};border-radius:14px;padding:46px 36px" align="center">
-    <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:14px">${slot.festival || slot.theme || 'The Collection'}</div>
-    <div style="font-family:${heads};font-size:34px;line-height:1.2;color:${P.cream};font-weight:700">${copy.headline}</div>
-    <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${copy.subheadline}</div>
-    <a href="${store}" style="display:inline-block;margin-top:26px;background:${P.gold};color:${P.near_black};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${copy.cta_primary}</a>
+    <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:14px">${esc(slot.festival || slot.theme || 'The Collection')}</div>
+    <div style="font-family:${heads};font-size:34px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
+    <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
+    <a href="${store}" style="display:inline-block;margin-top:26px;background:${P.gold};color:${P.near_black};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>
   </td></tr>
-  <tr><td style="padding:34px 26px 10px">
-    <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black}">${copy.body_intro}</div>
-    <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black};margin-top:14px">${copy.story}</div>
+  <tr><td style="padding:14px 16px 2px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${badgeRow}</tr></table></td></tr>
+  <tr><td style="padding:22px 26px 6px">
+    <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black}">${esc(copy.body_intro)}</div>
+    <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black};margin-top:14px">${esc(copy.story)}</div>
   </td></tr>
+  ${stepRow}
   <tr><td style="padding:14px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${prods}</tr></table></td></tr>
-  <tr><td style="padding:8px 26px 6px" align="center">
-    <div style="background:${P.cream};border-left:3px solid ${P.gold};padding:18px 20px;text-align:left">
-      <div style="font-family:${heads};font-size:15px;font-style:italic;color:${P.near_black};line-height:1.6">“${copy.testimonial.quote}”</div>
-      <div style="font-family:${body};font-size:12px;color:${P.gold};margin-top:8px">— ${copy.testimonial.name}</div>
-    </div>
-  </td></tr>
-  <tr><td align="center" style="padding:24px 26px 8px">
+  <tr><td style="padding:8px 26px 6px">${testiBlocks}</td></tr>
+  ${guarantee ? `<tr><td align="center" style="padding:6px 26px"><div style="border:1px dashed ${P.gold};border-radius:10px;padding:14px 18px"><span style="font-family:${heads};font-size:14px;color:${P.forest_green};font-weight:700">${esc(guarantee.headline)}</span> <span style="font-family:${body};font-size:12.5px;color:${P.near_black}AA">${esc(guarantee.body)}</span></div></td></tr>` : ''}
+  <tr><td align="center" style="padding:18px 26px 8px">
     <div style="border:1px solid ${P.gold}55;border-radius:12px;padding:20px 22px;background:#ffffff">
       <div style="font-family:${heads};font-size:17px;color:${P.forest_green}">Not sure where to begin?</div>
       <div style="font-family:${body};font-size:13px;color:${P.near_black}AA;line-height:1.6;margin-top:6px">Talk to our tea expert — ask about benefits, brewing, and which blend fits your ritual. It answers, out loud, like a call.</div>
       <a href="${agentUrl}" style="display:inline-block;margin-top:12px;background:${P.forest_green};color:${P.cream};font-family:${body};font-size:13px;font-weight:700;padding:11px 26px;border-radius:8px;text-decoration:none">Talk to the Vahdam expert →</a>
     </div>
   </td></tr>
-  <tr><td align="center" style="padding:26px 20px 36px">
-    <a href="${store}" style="font-family:${body};font-size:13px;color:${P.forest_green};text-decoration:underline">${copy.cta_secondary}</a>
+  <tr><td align="center" style="padding:20px 20px 36px">
+    <a href="${store}" style="font-family:${body};font-size:13px;color:${P.forest_green};text-decoration:underline">${esc(copy.cta_secondary)}</a>
     <div style="font-family:${body};font-size:11px;color:${P.near_black}77;margin-top:16px;line-height:1.6">VAHDAM India · Crafted at origin · Carbon &amp; plastic neutral<br>You receive this because you joined the ritual. <a href="#" style="color:${P.gold}">Preferences</a> · <a href="#" style="color:${P.gold}">Unsubscribe</a></div>
   </td></tr>
 </table></td></tr></table></body></html>`;
@@ -403,6 +449,7 @@ function campaignObjects(slot, copy, cohort, products, brand) {
         campaign: { name: `G·${slot.market}·${slot.slot_date}·${slot.theme}`, type: 'SEARCH', bidding: 'MAXIMIZE_CONVERSION_VALUE', budget_daily_usd: 80, geo: slot.market === 'UK' ? ['GB'] : ['US'] },
         ad_group: { name: slot.angle || 'core', keywords: (copy.google.headlines || []).slice(0, 6).map((h) => ({ text: h.toLowerCase(), match: 'PHRASE' })) },
         responsive_search_ad: { headlines: copy.google.headlines, descriptions: copy.google.descriptions, final_url: `${store}?${utm.replace('{platform}', 'google').replace('{medium}', 'cpc')}` },
+        extensions: { callouts: copy.google.callouts || [], sitelinks: copy.google.sitelinks || [] },
         audience: aud,
       },
     });
@@ -413,8 +460,8 @@ function campaignObjects(slot, copy, cohort, products, brand) {
       campaign_object: {
         campaign: { name: `M·${slot.market}·${slot.slot_date}·${slot.theme}`, objective: 'OUTCOME_SALES', budget_daily_usd: 70 },
         ad_set: { optimization: 'OFFSITE_CONVERSIONS', audience: aud, placements: ['feed', 'stories', 'reels'] },
-        creative: { primary_text: copy.meta.primary_text, headline: copy.meta.headline, description: copy.meta.description, cta: 'SHOP_NOW', link: `${store}?${utm.replace('{platform}', 'meta').replace('{medium}', 'paid_social')}`, brief: `Hero close-up of ${products[0] ? products[0].title : 'tea'} on ${brand.palette.cream} linen, steam visible, gold accent props. NO text overlay.` },
-        ab_test: { dimension: 'creative_format', variants: ['static_hero', 'carousel_3p'], metric: 'roas' },
+        creative: { primary_text: copy.meta.primary_text, primary_text_variants: copy.meta.primary_text_variants || [], headline: copy.meta.headline, headlines: copy.meta.headlines || [copy.meta.headline], description: copy.meta.description, cta: 'SHOP_NOW', link: `${store}?${utm.replace('{platform}', 'meta').replace('{medium}', 'paid_social')}`, brief: copy.meta.creative_concept || `Hero close-up of ${products[0] ? products[0].title : 'tea'} on ${brand.palette.cream} linen, steam visible, gold accent props, soft dawn light. NO text overlay. Palette: forest green ${brand.palette.forest_green} / gold ${brand.palette.gold} / cream ${brand.palette.cream}.`, formats: ['1:1 static hero', '4:5 feed', '9:16 story/reel', '3-card carousel (estate → leaf → cup)'] },
+        ab_test: { dimension: 'primary_text', variants: copy.meta.primary_text_variants || ['static_hero', 'carousel_3p'], metric: 'roas' },
       },
     });
   }
@@ -424,7 +471,7 @@ function campaignObjects(slot, copy, cohort, products, brand) {
       campaign_object: {
         campaign: { name: `T·${slot.market}·${slot.slot_date}·${slot.theme}`, objective: 'WEB_CONVERSIONS', budget_daily_usd: 50 },
         ad_group: { audience: aud, placements: ['tiktok'], optimization: 'CONVERSION' },
-        creative: { hook_line: copy.tiktok.hook_line, script: copy.tiktok.script, format: 'ugc_voiceover_15s', link: `${store}?${utm.replace('{platform}', 'tiktok').replace('{medium}', 'paid_social')}`, brief: 'Creator-style kitchen shot, natural light, brew pour at 0:03, on-screen captions, end-card in forest green with gold CTA.' },
+        creative: { hook_line: copy.tiktok.hook_line, script: copy.tiktok.script, shot_list: copy.tiktok.shot_list || [], captions: copy.tiktok.captions || [], format: 'ugc_voiceover_15s', link: `${store}?${utm.replace('{platform}', 'tiktok').replace('{medium}', 'paid_social')}`, brief: 'Creator-style kitchen shot, natural daylight, brew pour at 0:03 with steam bloom, on-screen captions per shot_list, end-card in forest green with gold CTA. Vertical 9:16, sound-on, no licensed music.' },
       },
     });
   }
