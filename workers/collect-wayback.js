@@ -30,10 +30,11 @@ const FROM = process.env.FROM || '';               // YYYYMMDD lower bound (opti
 
 function stripTags(html) {
   return (html || '')
-    // End tags allow whitespace/attrs before '>' (e.g. "</script >") so the
-    // filter can't be bypassed — see CodeQL js/bad-tag-filter.
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
+    // End tags allow any whitespace/junk before '>' (e.g. "</script >" or
+    // "</script\t\n foo>") so the filter can't be bypassed — CodeQL
+    // js/bad-tag-filter. \b keeps "</scriptx>" from matching a different tag.
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 }
