@@ -5159,11 +5159,11 @@
       }
     }
   </style>
-  <button class="va-launch" id="vaLaunch" aria-label="Talk with me"><span class="ic">🎙️</span>Talk with me</button>
+  <button class="va-launch" id="vaLaunch" aria-label="Narrate or ask"><span class="ic">🎙️</span>Narrate or ask</button>
   <div class="va-panel" id="vaPanel" role="dialog" aria-label="VAHDAM assistant">
     <div class="va-head">
       <span class="dot"></span>
-      <span class="t">VAHDAM Assistant<span class="s">British voice · chat, talk or just listen</span></span>
+      <span class="t">VAHDAM Assistant<span class="s">British voice · narrates the page &amp; answers you</span></span>
       <button id="vaMute" title="Mute voice">🔊</button>
       <button id="vaClose" title="Minimise">✕</button>
       <div class="va-gender">
@@ -5213,27 +5213,61 @@
         if ('speechSynthesis' in window) { speechSynthesis.onvoiceschanged = function () { voiceCache = {}; }; }
         function britishise(t) { return t.replace(/VAHDAM®?/gi, 'Vahdam').replace(/KSM-?66®?/gi, 'K S M sixty-six').replace(/£(\d+)/g, '$1 pounds').replace(/®/g, '').replace(/\bmg\b/g, 'milligrams').replace(/\bGP\b/g, 'G P'); }
         function speak(t) { if (muted || !('speechSynthesis' in window)) return; try { speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(britishise(t)); u.lang = 'en-GB'; var v = resolveVoice(gender); if (v) u.voice = v; u.rate = 1.0; u.pitch = (gender === 'F' ? 1.05 : 0.92); speechSynthesis.speak(u); } catch (e) { } }
-        document.getElementById('vaF').addEventListener('click', function () { gender = 'F'; this.classList.add('on'); document.getElementById('vaM').classList.remove('on'); speak('Hello, you have chosen the British female voice.'); });
-        document.getElementById('vaM').addEventListener('click', function () { gender = 'M'; this.classList.add('on'); document.getElementById('vaF').classList.remove('on'); speak('Hello, you have chosen the British male voice.'); });
+        document.getElementById('vaF').addEventListener('click', function () { gender = 'F'; this.classList.add('on'); document.getElementById('vaM').classList.remove('on'); if (narrating) { narrateFrom(narrIdx); } else { speak('Hello, you have chosen the British female voice.'); } });
+        document.getElementById('vaM').addEventListener('click', function () { gender = 'M'; this.classList.add('on'); document.getElementById('vaF').classList.remove('on'); if (narrating) { narrateFrom(narrIdx); } else { speak('Hello, you have chosen the British male voice.'); } });
         function add(t, who) { var d = document.createElement('div'); d.className = 'va-m ' + who; d.textContent = t; msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight; return d; }
-        function reply(q) { var hit = KB.find(function (r) { return r.k.test(q) }); var a = hit ? hit.a : "Great question — the short version: one cup a day, 300mg KSM-66 Ashwagandha, calmer cortisol, steadier energy. Ask me about ingredients, the offer, taste, safety, or how to use it."; setTimeout(function () { add(a, 'bot'); speak(a); }, 450); }
-        // ---- intro flow: chat / talk / just listen ----
-        function intro() {
-          add("👋 Hi! I'm the VAHDAM assistant. How would you like to do this?", 'bot');
+        function reply(q) { pauseNarration(); var hit = KB.find(function (r) { return r.k.test(q) }); var a = hit ? hit.a : "Great question — the short version: one cup a day, 300mg KSM-66 Ashwagandha, calmer cortisol, steadier energy. Ask me about ingredients, the offer, taste, safety, or how to use it."; setTimeout(function () { add(a, 'bot'); speak(a); setTimeout(offerResume, 250); }, 450); }
+        // ---- narration + interaction state (the two coexist) ----
+        var narrating = false, wasNarrating = false, narrIdx = 0, narrTimer = null;
+        var TOUR = [
+          { sel: '.hero', t: "Here's the short version. Cortisol, the stress hormone, is behind the tired mornings, the 11am brain fog, the 3am wake-ups and the stress belly that won't shift. Vahdam Ashwagandha Coffee is built to calm it. Let me walk you down the page." },
+          { sel: '.truth-section', t: "First, the symptoms. Tired all day but wired at night, patience gone by 4pm, skin that's lost its glow — that isn't simply your age, it's cortisol staying high around the clock." },
+          { sel: '.failed-section', t: "Here's why the pills, the apps and the detox teas never worked. Each one chased a symptom. The real cause sits upstream — cortisol — and nothing you tried was aimed at it." },
+          { sel: '.ingred-section', t: "Now the formula. Every cup carries 300mg of KSM-66 Ashwagandha, the extract behind more than fifty clinical trials, with smooth Indian Arabica, turmeric, Lion's Mane and Chaga. No fillers, no bitter aftertaste." },
+          { sel: '.ugc-section', t: "You're not the first. More than 148,000 women have made the swap and rated it 4.8 stars — calmer energy, sharper focus, the bloat easing." },
+          { sel: '.final-cta', t: "And the offer: right now it's 65% off, £29 instead of £83, with £49 of free gifts, free UK shipping and a 90-day risk-free guarantee. One swap, two cups a day. Ask me anything, or tap Claim your starter kit when you're ready." }
+        ];
+        function scrollToSel(sel) { var el = document.querySelector(sel); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        function speakSeq(t, onend) {
+          if (muted || !('speechSynthesis' in window)) { if (onend) onend(); return; }
+          try { speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(britishise(t)); u.lang = 'en-GB'; var v = resolveVoice(gender); if (v) u.voice = v; u.rate = 1.0; u.pitch = (gender === 'F' ? 1.05 : 0.92); u.onend = function () { if (onend) onend(); }; speechSynthesis.speak(u); } catch (e) { if (onend) onend(); }
+        }
+        function narrateFrom(i) {
+          if (i >= TOUR.length) { narrating = false; add("That's the walkthrough. Ask me anything below — by text or voice — whenever you like.", 'bot'); return; }
+          narrating = true; wasNarrating = false; narrIdx = i;
+          var seg = TOUR[i];
+          scrollToSel(seg.sel);
+          add(seg.t, 'bot');
+          var advance = function () { if (!narrating || narrIdx !== i) return; narrateFrom(i + 1); };
+          if (muted || !('speechSynthesis' in window)) { clearTimeout(narrTimer); narrTimer = setTimeout(advance, Math.min(11000, 1600 + seg.t.length * 42)); }
+          else { speakSeq(seg.t, advance); }
+        }
+        function pauseNarration() { if (narrating) { wasNarrating = true; narrating = false; clearTimeout(narrTimer); try { speechSynthesis.cancel() } catch (e) { } } }
+        function offerResume() {
+          if (!wasNarrating || narrIdx >= TOUR.length) return;
           var c = document.createElement('div'); c.className = 'va-choice';
-          c.innerHTML = '<button data-c="chat">💬 Chat by typing</button><button data-c="talk">🎙️ Talk to me</button><button data-c="listen">🔊 Just listen</button>';
+          c.innerHTML = '<button data-resume="1">▶ Resume the walkthrough</button>';
+          msgs.appendChild(c); msgs.scrollTop = msgs.scrollHeight;
+          c.addEventListener('click', function () { c.remove(); wasNarrating = false; narrateFrom(narrIdx); });
+        }
+        // ---- intro flow: narrate, interact, or BOTH (the point of the all-in-one agent) ----
+        function intro() {
+          add("👋 Hi — I'm your VAHDAM guide. I can do both: narrate this page for you, and answer anything you ask, by text or voice. How would you like to start?", 'bot');
+          var c = document.createElement('div'); c.className = 'va-choice';
+          c.innerHTML = '<button data-c="both">✨ Narrate &amp; let me ask</button><button data-c="listen">🔊 Just narrate</button><button data-c="chat">💬 Just chat / talk</button>';
           msgs.appendChild(c); msgs.scrollTop = msgs.scrollHeight;
           c.addEventListener('click', function (e) {
             var m = e.target.getAttribute('data-c'); if (!m) return; c.remove();
-            if (m === 'chat') { add('Chat by typing', 'me'); add("Perfect — ask me anything, or tap a suggestion below.", 'bot'); speak("Perfect — ask me anything, or tap a suggestion below."); quick.style.display = 'flex'; }
-            if (m === 'talk') { add('Talk to me', 'me'); add("Brilliant. Your browser will ask for microphone permission — tap Allow, then just speak. I'll talk back in a British voice.", 'bot'); speak("Brilliant. Your browser will ask for microphone permission — tap Allow, then just speak."); quick.style.display = 'flex'; askMicThenListen(); }
-            if (m === 'listen') { add('Just listen', 'me'); add("Lovely — sit back, here's the one-minute version. (Tap 🔇 any time to stop.)", 'bot'); speak(NARRATION); quick.style.display = 'flex'; }
+            quick.style.display = 'flex';
+            if (m === 'both') { add('Narrate & let me ask', 'me'); add("Perfect — I'll walk you through the page. Jump in any time: type a question or tap the mic, and I'll pause, answer, then carry on.", 'bot'); narrateFrom(0); }
+            else if (m === 'listen') { add('Just narrate', 'me'); add("Lovely — sit back, I'll take you through it. Tap 🔇 to stop, or ask me anything to jump in.", 'bot'); narrateFrom(0); }
+            else if (m === 'chat') { add('Just chat / talk', 'me'); add("Great — ask me anything by text, or tap the mic to talk. Tap a suggestion to begin.", 'bot'); speak("Great — ask me anything by text, or tap the microphone to talk."); }
           });
         }
         function openPanel() { panel.classList.add('open'); if (!panel.dataset.intro) { panel.dataset.intro = '1'; intro(); } }
         launch.addEventListener('click', function () { panel.classList.contains('open') ? panel.classList.remove('open') : openPanel(); });
-        document.getElementById('vaClose').addEventListener('click', function () { panel.classList.remove('open'); try { speechSynthesis.cancel() } catch (e) { } });
-        muteBtn.addEventListener('click', function () { muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊'; if (muted) { try { speechSynthesis.cancel() } catch (e) { } } });
+        document.getElementById('vaClose').addEventListener('click', function () { panel.classList.remove('open'); narrating = false; clearTimeout(narrTimer); try { speechSynthesis.cancel() } catch (e) { } });
+        muteBtn.addEventListener('click', function () { muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊'; if (muted) { try { speechSynthesis.cancel() } catch (e) { } if (narrating) { pauseNarration(); offerResume(); } } });
         function send() { var t = input.value.trim(); if (!t) return; add(t, 'me'); input.value = ''; reply(t); }
         document.getElementById('vaSend').addEventListener('click', send);
         input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
