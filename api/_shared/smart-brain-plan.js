@@ -283,20 +283,13 @@ function applyCopy(campaign, entry, copy) {
   return campaign;
 }
 
-// ── Approve / reject ────────────────────────────────────────────────────────
+// ── Funnel build (shared by preview + approve) ──────────────────────────────
 
-async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inlineEntry = null } = {}) {
-  const config = smartConfig(cfg);
-  const db = new SmartBrainDbAdapter(config);
-  let row = null;
-  let entry = inlineEntry;
-  if (db.connected && id) {
-    const rows = await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
-    row = rows && rows[0];
-    if (row) entry = row.payload;
-  }
-  if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
-
+// Build the full funnel for a slot — template skeleton (GenerationService) plus
+// LLM-written copy applied to the email + landing page + ads. Pure: it does NOT
+// touch the DB or change any slot's status. Both previewEntry() and approveEntry()
+// call this so a reviewer sees EXACTLY what approving will produce.
+async function buildCampaign(entry, config, { id = null } = {}) {
   const campaign = new GenerationService(config).generate(entry);
   let copyMeta = { provider: 'template-fallback', model: null };
   try {
@@ -307,6 +300,53 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     console.warn('[smart-brain] LLM copy failed, using template assets:', e.message);
   }
   campaign.copywriter = copyMeta;
+  campaign.calendar_entry_id = entry.id || id || null;
+  return campaign;
+}
+
+// Resolve a slot's entry payload — from the inline entry the UI already holds,
+// or by id from the stored calendar. Used by preview + approve.
+async function resolveEntry({ id, inlineEntry, config, db }) {
+  if (inlineEntry) return { entry: inlineEntry, row: null };
+  if (db.connected && id) {
+    const rows = await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
+    const row = rows && rows[0];
+    if (row) return { entry: row.payload, row };
+  }
+  return { entry: null, row: null };
+}
+
+// ── Preview (generate-on-demand, NO persistence, NO status change) ───────────
+
+async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inlineEntry = null } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  const { entry } = await resolveEntry({ id, inlineEntry, config, db });
+  if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
+
+  const campaign = await buildCampaign(entry, config, { id });
+  campaign.status = 'preview';
+  return {
+    ok: true,
+    preview: true,
+    campaign,
+    copywriter: campaign.copywriter,
+    email_html: campaign.assets.email?.html || null,
+    landing_html: campaign.assets.landing_pages?.[0]?.html || null,
+    ads: campaign.assets.ads || [],
+  };
+}
+
+// ── Approve / reject ────────────────────────────────────────────────────────
+
+async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inlineEntry = null } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  const { entry, row } = await resolveEntry({ id, inlineEntry, config, db });
+  if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
+
+  const campaign = await buildCampaign(entry, config, { id });
+  const copyMeta = campaign.copywriter;
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
 
@@ -366,4 +406,4 @@ async function landingPageHtml(id, cfg = {}) {
   return lp?.[0]?.payload?.html || null;
 }
 
-module.exports = { syncDaily, getPlan, approveEntry, rejectEntry, landingPageHtml };
+module.exports = { syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, landingPageHtml };
