@@ -319,8 +319,27 @@ async function generateCreativeImage(prompt, { size = '1024x1024', mode = '' } =
   });
 }
 
+// Upload a base64 data-URL creative to the public Supabase Storage bucket and
+// return its hosted URL (so we persist a small URL, not a multi-MB data-URL).
+// Returns null if it's not a data-URL or storage isn't configured — callers then
+// keep the inline data-URL, so creatives still work with no storage set up.
+async function uploadCreative(dataUrl, name) {
+  const m = /^data:(image\/[a-z+]+);base64,(.+)$/i.exec(dataUrl || '');
+  if (!m) return null;
+  let supa;
+  try { supa = require('./supa.js'); } catch (_) { return null; }
+  try {
+    const ext = m[1].includes('png') ? 'png' : m[1].includes('webp') ? 'webp' : 'jpg';
+    const safe = String(name || 'creative').replace(/[^a-z0-9-]/gi, '_').slice(0, 60);
+    const path = `${safe}-${Date.now().toString(36)}.${ext}`;
+    const { public_url } = await supa.uploadObject('smart-brain-creatives', path, Buffer.from(m[2], 'base64'), m[1]);
+    return public_url || null;
+  } catch (_) { return null; }
+}
+
 // One creative per asset, generated in parallel. Each → {brief, image, provider};
-// falls back to brief-only (image:null) so no asset is ever left without a creative.
+// the image is a hosted Supabase URL when storage is configured, else an inline
+// data-URL; falls back to brief-only (image:null) if generation fails.
 async function generateCreatives(copy, entry) {
   const hero = entry.heroProduct?.title ? ` Hero product: VAHDAM ${entry.heroProduct.title}.` : '';
   const specs = [
@@ -334,7 +353,9 @@ async function generateCreatives(copy, entry) {
   await Promise.all(specs.map(async ([key, rawBrief, size]) => {
     const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} hero creative — warm, premium, photoreal.`;
     const gen = await generateCreativeImage(b + hero, { size }).catch(() => null);
-    out[key] = { brief: b, image: gen?.image || null, provider: gen?.provider || null };
+    let image = gen?.image || null;
+    if (image) image = (await uploadCreative(image, `${entry.id || 'slot'}-${key}`).catch(() => null)) || image;
+    out[key] = { brief: b, image, provider: gen?.provider || null };
   }));
   return out;
 }
