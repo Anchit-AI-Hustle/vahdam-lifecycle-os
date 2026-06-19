@@ -9,10 +9,11 @@
  *  - Cross-origin / non-GET: pass through to the network.
  *  - On activate: drop old caches + claim clients so updates ship immediately.
  */
-const VERSION = 'lifecycle-os-v15';
+const VERSION = 'lifecycle-os-v16';
 const SHELL = [
   '/', '/index.html', '/dashboard.html', '/calendar.html', '/cohort-definitions.html',
-  '/auth.js', '/table-sort.js', '/chart-enhance.js',
+  '/agent.html', '/competitive-intelligence.html', '/smart-brain.html',
+  '/auth.js', '/table-sort.js', '/chart-enhance.js', '/copilot.js', '/agent-widget.js',
   '/manifest.webmanifest', '/favicon.png',
 ];
 
