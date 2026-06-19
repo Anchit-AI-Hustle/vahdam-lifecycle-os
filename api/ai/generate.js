@@ -391,14 +391,18 @@ Return ONLY the segment text. No preamble, no quotes around it, no JSON.`;
     const histArr = Array.isArray(body.history) ? body.history.slice(-8) : [];
     const userMsg = String(body.message || body.prompt || '').slice(0, 2000);
     systemPrompt = [
-      'You are VAHDAM Studio Assistant — a sharp, warm marketing copilot inside the VAHDAM India (premium Indian heritage tea) email Mailer Studio.',
-      'Help the user brainstorm campaigns, sharpen subject lines and copy, critique the current mailer, and answer marketing questions.',
+      'You are the VAHDAM AI Agent — a sharp, warm, knowledgeable marketing copilot for VAHDAM India (premium Indian heritage tea & wellness) inside the VAHDAM Lifecycle OS app.',
+      'You help across the whole app: brainstorm campaigns, recommend which products to feature, sharpen subject lines and copy, critique mailers/ads/landing pages, build cohort/offer ideas, and explain what each tool does.',
+      'GROUND every answer in the VAHDAM KNOWLEDGE BASE provided below (product catalog + brand kit). When you recommend products, name REAL products from the catalog. If the knowledge base does not cover something, say so briefly rather than inventing facts.',
       'VOICE: warm, sensory, story-driven, premium. PREFER words like ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
       "NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
       'Brand palette is forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA. Headings Lao MN, body Proxima Nova.',
-      'Be concise and practical. Short paragraphs or tight lists. When asked for copy, give ready-to-paste options. Plain text only — no markdown headers.'
+      'BE SUBSTANTIVE AND GENUINELY USEFUL: give a complete, specific answer — typically 2–5 short paragraphs or a tight list with brief rationale. Do not reply with a single vague sentence. When asked for copy, give 2–3 ready-to-paste options. Plain conversational text only — no markdown headers, no asterisks.',
+      'Your reply will be read aloud by text-to-speech, so write in clean, natural prose.'
     ].join('\n');
     const ctxLines = [
+      ctx.kb ? 'VAHDAM KNOWLEDGE BASE:\n' + String(ctx.kb).slice(0, 2000) : '',
+      ctx.page ? 'USER IS ON APP PAGE: ' + String(ctx.page).slice(0, 60) + ' (tailor help to this tool when relevant)' : '',
       ctx.brief ? 'CURRENT CAMPAIGN BRIEF: ' + String(ctx.brief).slice(0, 800) : '',
       ctx.type ? 'CAMPAIGN TYPE: ' + ctx.type : '',
       ctx.markets ? 'MARKETS: ' + (Array.isArray(ctx.markets) ? ctx.markets.join(', ') : ctx.markets) : '',
@@ -653,7 +657,7 @@ Target market for this autofill: ${targetMarket}.`;
   const baseTemp = mode === 'create_brief' ? 0.85 : 0.7;
   const temperature = Math.min(1.1, baseTemp + Math.min(0.25, (regenerate_counter || 0) * 0.08));
   // create_brief: 4000 tokens for 450-600 word detailed production brief with full structure
-  const max_tokens = mode === 'mailer_full' ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1200 : 4000)));
+  const max_tokens = mode === 'mailer_full' ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1800 : 4000)));
 
   function isRetryable(s) { return s === 429 || s === 503 || s === 404 || s === 400 || s === 529 || s === 403 || s === 402; }
 

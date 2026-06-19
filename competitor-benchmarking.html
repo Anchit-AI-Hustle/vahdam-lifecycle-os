@@ -25,7 +25,8 @@
 
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 22px 0; }
     @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
-    .stat { background: #0f1d18; border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px 18px; }
+    .stat { background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px 18px; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .stat:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(171,135,67,0.12); border-color: rgba(171,135,67,0.4); }
     .stat .v { font-family: 'Lora', serif; font-size: 26px; font-weight: 600; color: #FBF5EA; }
     .stat .l { font-size: 11px; color: #9aaaa1; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
 
@@ -47,7 +48,7 @@
     .live .pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: lp 1.8s ease-in-out infinite; }
     @keyframes lp { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-    .table-wrap { background: #0f1d18; border: 1px solid rgba(171,135,67,0.18); border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrap { background: rgba(15, 29, 24, 0.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
     table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13px; }
     thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #5d6e64; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #0c1813; }
     thead th.sortable { cursor: pointer; }
@@ -130,7 +131,7 @@
 
     /* ── Section sub-nav (Mailers | Ads) + header CTAs ── */
     .cb-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px 20px; margin-top: 22px; }
-    .subnav { display: inline-flex; gap: 4px; padding: 4px; background: #0f1d18; border: 1px solid rgba(171,135,67,0.18); border-radius: 10px; }
+    .subnav { display: inline-flex; gap: 4px; padding: 4px; background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
     .snav { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; color: #9aaaa1; background: transparent; border: none; cursor: pointer; font-family: inherit; transition: all .14s; }
     .snav:hover { color: #e8ede9; }
     .snav.active { color: #FBF5EA; background: rgba(171,135,67,0.16); }
@@ -144,10 +145,10 @@
 
     /* ── Ads view ── */
     #ads-view { display: none; margin-top: 22px; }
-    .ads-note { background: rgba(171,135,67,0.06); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: #cdd8d2; line-height: 1.55; margin-bottom: 18px; }
+    .ads-note { background: rgba(171,135,67,0.06); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: #cdd8d2; line-height: 1.55; margin-bottom: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .ad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-    .ad-card { background: #0f1d18; border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px; position: relative; }
-    .ad-card:hover { border-color: rgba(171,135,67,0.4); }
+    .ad-card { background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px; position: relative; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .ad-card:hover { transform: translateY(-4px); border-color: rgba(171,135,67,0.45); box-shadow: 0 12px 32px rgba(171,135,67,0.15); }
     .ad-card h4 { font-family: 'Lora', serif; font-size: 16px; font-weight: 600; color: #FBF5EA; margin-bottom: 12px; }
     .ad-card .ad-x { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #5d6e64; cursor: pointer; font-size: 15px; }
     .ad-card .ad-x:hover { color: #ef4444; }
@@ -580,6 +581,7 @@
     }).join('');
     $('count').textContent = `${state.view.length} of ${state.all.length} emails`;
     $('rows').querySelectorAll('[data-prev]').forEach((b) => b.addEventListener('click', () => openPreview(b.dataset.prev)));
+    if (window.triggerMotionAnimations) window.triggerMotionAnimations();
   }
 
   // Shared renderer: builds the screenshot + HTML + body + assets blocks.
@@ -623,6 +625,7 @@
       ${b.shotBlock}
       <div class="d-section"><div class="sh"><h4>Body (plain text)</h4></div><pre class="body">${esc(b.body)}</pre></div>
       ${b.assets ? `<div class="d-section">${b.assets}</div>` : ''}`;
+    if (window.triggerMotionAnimations) window.triggerMotionAnimations();
   }
   function closePreview() { pm.classList.remove('open'); pm.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
   pm.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closePreview));
@@ -676,6 +679,7 @@
     if (name === 'discover') renderBrands();
     if (name === 'landing') renderLanding();
     if (name === 'insights') renderInsights();
+    if (window.triggerMotionAnimations) setTimeout(() => window.triggerMotionAnimations(), 10);
     const want = '#' + name;
     if (location.hash !== want && !new URLSearchParams(location.search).get('id')) history.replaceState(null, '', location.pathname + want);
   }
@@ -1012,6 +1016,36 @@
   load().then(() => { setLive(false); startPolling(); showSection(currentSection()); });
   fetchBrandUniverse(); // prime the shared brand list for all tabs
 })();
+</script>
+<script type="module">
+  import { animate, stagger, inView } from "https://cdn.jsdelivr.net/npm/motion@11.11.13/+esm";
+  
+  // Create an animation hook to run after the DOM is rendered and data is loaded.
+  // We can attach a MutationObserver to watch for content populating, but a simpler
+  // approach is to expose a global function that gets called after renderRows() or showSection().
+  window.triggerMotionAnimations = () => {
+    // Animate stats
+    const stats = document.querySelectorAll('.stat');
+    if (stats.length) {
+      animate(stats, { opacity: [0, 1], y: [15, 0], scale: [0.98, 1] }, { delay: stagger(0.06), duration: 0.5, type: "spring", bounce: 0.3 });
+    }
+    
+    // Animate table rows
+    const rows = document.querySelectorAll('tbody tr');
+    if (rows.length) {
+      animate(rows, { opacity: [0, 1], x: [-10, 0] }, { delay: stagger(0.03), duration: 0.4 });
+    }
+
+    // Animate ad cards
+    const cards = document.querySelectorAll('.ad-card');
+    if (cards.length) {
+      animate(cards, { opacity: [0, 1], y: [20, 0], scale: [0.96, 1] }, { delay: stagger(0.05), duration: 0.5, type: "spring", bounce: 0.35 });
+    }
+  };
+
+  // Run initial animation on headers
+  animate(".eyebrow, h1, .sub", { opacity: [0, 1], y: [10, 0] }, { delay: stagger(0.1), duration: 0.6, type: "spring" });
+  animate(".subnav", { opacity: [0, 1], scale: [0.95, 1] }, { delay: 0.2, duration: 0.5 });
 </script>
 </body>
 </html>

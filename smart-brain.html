@@ -1,86 +1,273 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VAHDAM · Smart Brain</title>
+<title>Smart Brain — VAHDAM Lifecycle OS</title>
 <link rel="icon" type="image/png" href="/favicon.png">
-<script src="/auth.js?v=20260617" defer></script>
 <style>
   :root{--green:#004A2B;--gold:#AB8743;--ink:#171717;--cream:#FBF5EA;--muted:#6b7770}
   *{box-sizing:border-box} body{margin:0;background:#0a1410;color:#e8ede9;font-family:Inter,system-ui,Arial,sans-serif;padding:28px}
-  .wrap{max-width:1240px;margin:0 auto}.top{display:flex;gap:18px;justify-content:space-between;align-items:flex-end;margin-bottom:22px}
-  .eyebrow{color:var(--gold);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:800}h1{font-family:Georgia,serif;font-size:42px;line-height:1.05;margin:8px 0 10px}p{color:#a7b5ad;line-height:1.55}.btn{border:0;border-radius:10px;background:var(--gold);color:#0a1410;padding:12px 16px;font-weight:800;cursor:pointer}.btn.secondary{background:transparent;color:#e8ede9;border:1px solid rgba(171,135,67,.35)}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{background:#0f1d18;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px}.card h2{font-size:16px;margin:0 0 8px}.metric{font-size:32px;color:#FBF5EA;font-weight:800}.label{font-size:11px;color:#789;letter-spacing:.12em;text-transform:uppercase}.wide{grid-column:span 3}.two{grid-column:span 2}pre{white-space:pre-wrap;word-break:break-word;background:#07100d;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;max-height:420px;overflow:auto;color:#cfe0d7}.entry{border-top:1px solid rgba(171,135,67,.14);padding:12px 0}.entry:first-child{border-top:0}.pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:3px 8px;margin:2px;font-size:11px;color:#d9c18f}@media(max-width:850px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}.top{display:block}h1{font-size:32px}}
+  .wrap{max-width:1280px;margin:0 auto}.top{display:flex;gap:18px;justify-content:space-between;align-items:flex-end;margin-bottom:22px;flex-wrap:wrap}
+  .eyebrow{color:var(--gold);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:800}h1{font-family:Georgia,serif;font-size:40px;line-height:1.05;margin:8px 0 10px}p{color:#a7b5ad;line-height:1.55}
+  .btn{border:0;border-radius:10px;background:var(--gold);color:#0a1410;padding:12px 16px;font-weight:800;cursor:pointer}
+  .btn.secondary{background:transparent;color:#e8ede9;border:1px solid rgba(171,135,67,.35)}
+  .btn:disabled{opacity:.5;cursor:wait}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+  .btn.ok{background:#1d6b45;color:#eafff3}.btn.no{background:transparent;color:#e89a9a;border:1px solid rgba(232,154,154,.4)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#0f1d18;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px}
+  .card h2{font-size:16px;margin:0 0 8px}.metric{font-size:30px;color:#FBF5EA;font-weight:800}.label{font-size:11px;color:#789;letter-spacing:.12em;text-transform:uppercase}
+  .wide{grid-column:span 4}.two{grid-column:span 2}
+  pre{white-space:pre-wrap;word-break:break-word;background:#07100d;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;max-height:420px;overflow:auto;color:#cfe0d7;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font-size:10px;color:#789;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 8px;border-bottom:1px solid rgba(171,135,67,.25)}
+  td{padding:9px 8px;border-bottom:1px solid rgba(171,135,67,.1);vertical-align:top}
+  tr:hover td{background:rgba(171,135,67,.05)}
+  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#d9c18f;white-space:nowrap}
+  .st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
+  .st.tentative{background:rgba(171,135,67,.16);color:#d9c18f}.st.approved{background:rgba(29,107,69,.3);color:#8fe7b9}.st.final{background:#1d6b45;color:#eafff3}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
+  .feed{max-height:300px;overflow:auto}.feed p{margin:6px 0;font-size:13px;border-left:2px solid rgba(171,135,67,.35);padding-left:10px}
+  .conf{font-variant-numeric:tabular-nums}
+  /* Funnel preview */
+  #preview{margin:0 0 12px}
+  .pvbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .pvtabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 12px;border-bottom:1px solid rgba(171,135,67,.2)}
+  .pvtab{background:transparent;border:0;border-bottom:2px solid transparent;color:#9fb3a8;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px 6px 0 0}
+  .pvtab:hover{color:#e8ede9}
+  .pvtab.on{color:#FBF5EA;border-bottom-color:var(--gold);background:rgba(171,135,67,.08)}
+  .pvpane{display:none}.pvpane.on{display:block}
+  .pvframe{width:100%;height:560px;border:1px solid rgba(171,135,67,.22);border-radius:12px;background:#fff}
+  .pvnote{color:#9fb3a8;font-size:12px;margin:0 0 10px}
+  .adcard{background:#07100d;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;margin-bottom:10px}
+  .adcard h4{margin:0 0 6px;font-size:12px;color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
+  .adcard .k{color:#789;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
+  .adcard .v{color:#e8ede9;line-height:1.55;font-size:13px;white-space:pre-wrap}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}}
 </style>
 </head>
 <body>
 <main class="wrap">
   <section class="top">
     <div>
-<<<<<<< HEAD
-      <div class="eyebrow">VAHDAM Lifecycle OS · Autopilot</div>
-      <h1>Autopilot: Data, Plan, Write</h1>
-      <p>Runs the first 3 steps of the workflow together: Looks at your data, plans the month's calendar based on cohorts, and writes the emails. Generates a fully integrated plan ready for review.</p>
-    </div>
-    <div><button id="run" class="btn">✨ Run Autopilot (Steps 1-3)</button> <button id="schema" class="btn secondary">Schema</button></div>
-=======
       <div class="eyebrow">VAHDAM Lifecycle OS · Smart Brain</div>
-      <h1>Daily DB-linked marketing brain</h1>
-      <p>Runs Knowledge Base indexing, own-data analysis, isolated competitor benchmarking, 15-day calendar intelligence, campaign generation, and human-review policy — without live platform push.</p>
+      <h1>Rolling Plan: Review &amp; Approve</h1>
+      <p>The brain keeps a tentative <b>15-day calendar</b> per market, re-reviewed daily against the latest data (auto via cron at 03:30 UTC, or manually below). Approving a slot generates the full funnel — mailer, Meta/Google/TikTok ads, and a hosted landing page — for final human check.</p>
     </div>
-    <div><button id="run" class="btn">Run daily review</button> <button id="schema" class="btn secondary">Schema</button></div>
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
+    <div>
+      <button id="sync" class="btn">🔄 Run Daily Sync</button>
+      <button id="refresh" class="btn secondary">Refresh Plan</button>
+      <button id="schema" class="btn secondary">Schema</button>
+    </div>
   </section>
 
   <section class="grid">
     <div class="card"><div class="label">Mode</div><div id="mode" class="metric">—</div></div>
-    <div class="card"><div class="label">Calendar entries</div><div id="entries" class="metric">—</div></div>
-    <div class="card"><div class="label">Campaign objects</div><div id="campaigns" class="metric">—</div></div>
-<<<<<<< HEAD
-    <div class="card two"><h2>30-day rolling calendar preview</h2><div id="calendar"><p>Click Run Autopilot.</p></div></div>
-=======
-    <div class="card two"><h2>15-day rolling calendar preview</h2><div id="calendar"><p>Click Run daily review.</p></div></div>
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-    <div class="card"><h2>Daily insights</h2><div id="insights"><p>Waiting for analysis.</p></div></div>
-    <div class="card wide"><h2>Platform-ready sample campaign</h2><pre id="sample">No campaign generated yet.</pre></div>
+    <div class="card"><div class="label">Plan entries</div><div id="entries" class="metric">—</div></div>
+    <div class="card"><div class="label">Pending approval</div><div id="pending" class="metric">—</div></div>
+    <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div></div>
+
+    <div class="card wide">
+      <h2>Rolling calendar (next 15 days · all markets)</h2>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Date</th><th>Market</th><th>Cohort</th><th>Objective · Hero</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="plan"><tr><td colspan="8" style="color:#789">Loading plan…</td></tr></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
+    <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
+
+    <div class="card wide">
+      <h2 id="detailTitle">Details</h2>
+      <div id="preview"></div>
+      <pre id="detail">Click “View” on any slot to preview its full funnel — mailer, ads & landing page — before approving.</pre>
+    </div>
   </section>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
-async function runDaily(){
-  $('run').disabled = true; $('run').textContent = 'Running…';
-  try {
-<<<<<<< HEAD
-    const r = await fetch('/api/smart-brain?action=run-daily', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({days:30})});
+const API = '/api/calendar';
+let PLAN = [];
+
+function reviewerEmail(){ try { return window.LifecycleAuth?.session?.user?.email || null; } catch(_) { return null; } }
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function renderPlan(){
+  if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="8" style="color:#789">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }
+  $('entries').textContent = PLAN.length;
+  $('pending').textContent = PLAN.filter(e => e.status === 'tentative').length;
+  $('plan').innerHTML = PLAN.map((e,i)=>`<tr>
+    <td>${esc(e.date)}</td>
+    <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
+    <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span></td>
+    <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
+    <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
+    <td class="conf">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}</td>
+    <td><span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}</td>
+    <td style="white-space:nowrap">
+      <button class="btn sm secondary" onclick="viewEntry(${i})">View</button>
+      ${e.status==='tentative' ? `<button class="btn sm ok" onclick="approve(${i})">Approve</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
+    </td>
+  </tr>`).join('');
+}
+
+// ── Funnel preview (generate-on-demand, before approval) ────────────────────
+const PREVIEW_CACHE = {};   // keyed by entry id → preview payload (avoid re-calling the LLM)
+
+function clearPreview(){ $('preview').innerHTML = ''; }
+
+window.pvTab = function(btn, paneId){
+  const root = btn.closest('#preview');
+  root.querySelectorAll('.pvtab').forEach(b => b.classList.remove('on'));
+  root.querySelectorAll('.pvpane').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  const pane = root.querySelector('#' + paneId); if(pane) pane.classList.add('on');
+};
+
+function renderAd(ad){
+  const rows = [];
+  const add = (k,v)=>{ if(v!=null && String(v).trim()!=='') rows.push(`<div class="k">${esc(k)}</div><div class="v">${esc(Array.isArray(v)?v.filter(Boolean).join('\n'):v)}</div>`); };
+  if(ad.platform==='meta'){ add('Primary text',ad.primary_text); add('Headline',ad.headline); add('Description',ad.description); }
+  else if(ad.platform==='google'){ add('Headlines',ad.headlines); add('Descriptions',ad.descriptions); }
+  else if(ad.platform==='tiktok'){ add('Script',ad.script); add('Caption',ad.caption); }
+  else { Object.keys(ad).forEach(k=>{ if(!['platform','creative_brief'].includes(k)) add(k, ad[k]); }); }
+  if(ad.creative_brief) add('Creative brief', ad.creative_brief);
+  return `<div class="adcard"><h4>${esc((ad.platform||'ad').toUpperCase())} ad</h4>${rows.join('')}</div>`;
+}
+
+function renderPreview(payload, e, i, opts){
+  opts = opts || {};
+  const campaign  = payload.campaign || {};
+  const emailHtml = (payload.email_html   || campaign.assets?.email?.html || '');
+  const lpHtml    = (payload.landing_html || campaign.assets?.landing_pages?.[0]?.html || '');
+  const ads       = payload.ads || campaign.assets?.ads || [];
+  const cw        = payload.copywriter || campaign.copywriter || {};
+  const liveLpId  = e.generated_campaign_id || (opts.persisted && campaign.campaign_id) || null;
+
+  const tabs = [], panes = [];
+  const tab = (id,label,on)=> tabs.push(`<button class="pvtab${on?' on':''}" onclick="pvTab(this,'${id}')">${label}</button>`);
+  const pane= (id,html,on)=> panes.push(`<div class="pvpane${on?' on':''}" id="${id}">${html}</div>`);
+
+  let first = true;
+  if(emailHtml){ const html = emailHtml.replace(/\{\{\s*landing_page_url\s*\}\}/g,'#'); tab('pv-mail','✉ Mailer',first); pane('pv-mail', `<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first); first=false; }
+  if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#8fe7b9">/lp/${esc(liveLpId)} ↗</a> once approved.</p>`:''}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
+  ads.forEach(ad=>{ const id='pv-ad-'+(ad.platform||'x'); tab(id, esc((ad.platform||'ad'))+' ad', first); pane(id, renderAd(ad), first); first=false; });
+  tab('pv-json','{ } Details', first); pane('pv-json', `<pre style="margin:0">${esc(JSON.stringify(campaign && campaign.campaign_id ? campaign : e, null, 2))}</pre>`, first);
+
+  const isTentative = e.status==='tentative';
+  const banner = opts.persisted
+    ? `<span class="st approved">approved</span> <span class="pvnote" style="margin:0">Live campaign generated.</span>`
+    : `<span class="st tentative">preview</span> <span class="pvnote" style="margin:0">Not yet approved — this is generated on demand and not saved.</span>`;
+
+  $('preview').innerHTML = `
+    <div class="pvbar">
+      ${banner}
+      <span style="flex:1"></span>
+      <button class="btn sm secondary" onclick="viewEntry(${i}, true)">↻ Regenerate</button>
+      ${isTentative ? `<button class="btn sm ok" onclick="approve(${i})">Approve this slot</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
+    </div>
+    <div class="pvnote">Copy by <b>${esc(cw.provider || 'template')}</b>${cw.model?` · ${esc(cw.model)}`:''} · channels: ${(e.channels||[]).map(esc).join(', ')||'—'}</div>
+    <div class="pvtabs">${tabs.join('')}</div>
+    ${panes.join('')}`;
+  $('detail').textContent = '';
+  $('preview').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+async function viewEntry(i, forceRegen){
+  const e = PLAN[i];
+  $('detailTitle').textContent = `Funnel preview · ${e.date} ${e.market}`;
+  if(forceRegen) delete PREVIEW_CACHE[e.id];
+  if(PREVIEW_CACHE[e.id]){ renderPreview(PREVIEW_CACHE[e.id], e, i); return; }
+  $('preview').innerHTML = `<p class="pvnote"><span class="spinner"></span> Generating the full funnel (mailer, ads & landing page) with the LLM waterfall — usually 10–30s…</p>`;
+  $('detail').textContent = '';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
     const data = await r.json();
-    if(!data.ok) throw new Error(data.error || 'Autopilot failed');
-=======
-    const r = await fetch('/api/calendar?action=smart-brain-run-daily', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({days:15})});
+    if(!data.ok) throw new Error(data.error || 'Preview failed');
+    PREVIEW_CACHE[e.id] = data;
+    renderPreview(data, e, i);
+  }catch(err){ $('preview').innerHTML = `<p class="pvnote" style="color:#e89a9a">Preview failed: ${esc(err.message)}</p>`; }
+}
+window.viewEntry = viewEntry;
+
+async function loadPlan(){
+  try{
+    const r = await fetch(`${API}?action=smart-brain-plan`);
     const data = await r.json();
-    if(!data.ok) throw new Error(data.error || 'Smart Brain failed');
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-    $('mode').textContent = data.mode;
-    $('entries').textContent = data.calendar.entries.length;
-    $('campaigns').textContent = data.campaigns.length;
-    $('insights').innerHTML = data.analysis.dailyInsights.map(x=>`<p>• ${x}</p>`).join('');
-    $('calendar').innerHTML = data.calendar.entries.slice(0,8).map(e=>`<div class="entry"><b>${e.date} · ${e.market}</b><br>${e.objective}<br><span class="pill">${e.cohort.name}</span>${e.channels.map(c=>`<span class="pill">${c}</span>`).join('')}</div>`).join('');
-    $('sample').textContent = JSON.stringify(data.campaigns[0], null, 2);
-  } catch(e) { $('sample').textContent = e.stack || e.message; }
-<<<<<<< HEAD
-  finally { $('run').disabled = false; $('run').textContent = '✨ Run Autopilot (Steps 1-3)'; }
+    if(!data.ok) throw new Error(data.error || 'Failed to load plan');
+    $('mode').textContent = data.mode === 'db-linked' ? (data.stored ? 'DB-linked' : 'DB (empty)') : 'Preview';
+    PLAN = data.entries || [];
+    renderPlan();
+    if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; approvals will generate assets but the calendar itself is not persisted.</p>';
+  }catch(e){ $('plan').innerHTML = `<tr><td colspan="8" style="color:#e89a9a">${esc(e.message)}</td></tr>`; }
 }
+
+async function runSync(){
+  $('sync').disabled = true; $('sync').textContent = 'Reviewing latest data…';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-sync-daily`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Sync failed');
+    $('mode').textContent = data.mode === 'db-linked' ? 'DB-linked' : 'Preview';
+    $('lastsync').textContent = new Date(data.synced_at).toLocaleString();
+    $('insights').innerHTML = (data.insights||[]).map(x=>`<p>• ${esc(x)}</p>`).join('') || '<p>No insights.</p>';
+    $('changes').innerHTML = (data.changes||[]).filter(c=>c.kind!=='kept_locked').map(c=>`<p><b>${esc(c.kind)}</b> — ${esc(c.detail)}</p>`).join('') || '<p>No material changes — plan already in sync with the data.</p>';
+    PLAN = data.plan || [];
+    Object.keys(PREVIEW_CACHE).forEach(k => delete PREVIEW_CACHE[k]);  // slots may have been re-planned
+    clearPreview();
+    renderPlan();
+  }catch(e){ $('detail').textContent = e.stack || e.message; }
+  finally{ $('sync').disabled = false; $('sync').textContent = '🔄 Run Daily Sync'; }
+}
+
+async function approve(i){
+  const e = PLAN[i];
+  if(!confirm(`Approve ${e.date} ${e.market} (${e.objective})?\nThis generates the mailer, ads, and landing page for final check.`)) return;
+  $('detailTitle').textContent = `Generating campaign · ${e.date} ${e.market}…`;
+  $('preview').innerHTML = `<p class="pvnote"><span class="spinner"></span> Writing copy with the LLM waterfall and assembling assets — usually 10–30s…</p>`;
+  $('detail').textContent = '';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Approve failed');
+    e.status = 'approved'; e.generated_campaign_id = data.campaign.campaign_id;
+    delete PREVIEW_CACHE[e.id];
+    renderPlan();
+    $('detailTitle').textContent = `Generated · ${data.campaign.name} (copy: ${data.campaign.copywriter?.provider})`;
+    renderPreview(data, e, i, { persisted: true });
+  }catch(err){ $('detailTitle').textContent = 'Approve failed'; clearPreview(); $('detail').textContent = err.stack || err.message; }
+}
+
+async function reject(i){
+  const e = PLAN[i];
+  const notes = prompt(`Why reject ${e.date} ${e.market}? (stored as feedback; slot is re-planned on next sync)`) ?? '';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, notes, reviewer: reviewerEmail() })});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Reject failed');
+    e.status = 'rejected';
+    delete PREVIEW_CACHE[e.id];
+    clearPreview();
+    renderPlan();
+  }catch(err){ $('detail').textContent = err.stack || err.message; }
+}
+window.approve = approve; window.reject = reject;
+
 async function showSchema(){
-  const r = await fetch('/api/smart-brain?action=schema');
-=======
-  finally { $('run').disabled = false; $('run').textContent = 'Run daily review'; }
+  clearPreview();
+  const r = await fetch(`${API}?action=smart-brain-schema`);
+  $('detailTitle').textContent = 'Schema contract';
+  $('detail').textContent = JSON.stringify(await r.json(), null, 2);
 }
-async function showSchema(){
-  const r = await fetch('/api/calendar?action=smart-brain-schema');
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-  $('sample').textContent = JSON.stringify(await r.json(), null, 2);
-}
-$('run').addEventListener('click', runDaily); $('schema').addEventListener('click', showSchema);
+
+$('sync').addEventListener('click', runSync);
+$('refresh').addEventListener('click', loadPlan);
+$('schema').addEventListener('click', showSchema);
+loadPlan();
 </script>
 </body>
 </html>

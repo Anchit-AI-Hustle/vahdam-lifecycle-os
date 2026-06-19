@@ -1,174 +1,79 @@
-# VAHDAM Smart Brain MVP
+# VAHDAM Smart Brain — architecture, schema assumptions & operating loop
 
-This repo now includes a working, DB-linked Smart Brain for VAHDAM Lifecycle OS. It stops before live platform push: generated objects are platform-ready for Google, Meta, TikTok, Klaviyo, and WebEngage, but every object is marked `push_status: not_integrated_phase_2`.
+The Smart Brain turns Lifecycle OS into a closed-loop marketing system: a DB-linked knowledge base, an always-in-sync analysis engine, an isolated competitor stream, a self-reviewing 15-day calendar, a full-funnel generation engine, a human-in-the-loop review gate, and conversational voice agents. Live platform push (Google/Meta/TikTok/Klaviyo/WebEngage) is deliberately excluded — every generated campaign is stored as a platform-ready object so phase 2 plugs in without refactor.
+
+## Persistent rolling plan (the daily loop)
+
+The brain keeps a durable tentative **15-day calendar** in `smart_calendar_entries`
+(one row per date+market, stable id `cal_<date>_<market>`), implemented in
+`api/_shared/smart-brain-plan.js` and reviewed daily:
+
+1. **Vercel Cron** (03:30 UTC, `vercel.json` → `/api/cron/smart-brain` →
+   `/api/calendar?action=smart-brain-cron`, protected by `CRON_SECRET`) calls
+   `syncDaily()`.
+2. `syncDaily()` re-runs KB → Analysis → Competitor Benchmarking on the latest
+   data, regenerates the window, then **diff-updates** the stored plan:
+   - `approved`/`final` entries are never touched (human decisions are locked),
+   - `tentative` entries are updated only on material change (cohort, hero
+     product, objective, channels, confidence ±5pts) with a `change_log` entry,
+   - `rejected` entries are re-planned,
+   - new days are appended so the window stays 15 days ahead; past tentative
+     days are `archived`.
+3. The **Smart Brain console** (`/brain` → `smart-brain.html`) shows the plan,
+   the change feed, and per-entry **Approve / Reject** buttons.
+4. **Approve** generates the full funnel for that slot — LLM-written copy via
+   the 6-provider waterfall (template fallback) for the mailer, Meta/Google/
+   TikTok ads, and a landing page — persisted to `smart_generated_campaigns`,
+   mirrored into `ads_generated` + `landing_pages_generated` (so the Ads and
+   Landing Pages dashboards list them), and the landing page is served at
+   **`/lp/<campaign_id>`**.
+5. **Reject** stores feedback in `smart_feedback`; the slot regenerates on the
+   next daily sync with feedback applied.
+
+### Plan API
+
+```http
+GET  /api/calendar?action=smart-brain-plan          # current rolling plan
+POST /api/calendar?action=smart-brain-sync-daily    # manual daily review  { "days": 15 }
+GET  /api/calendar?action=smart-brain-cron          # cron entrypoint (Bearer CRON_SECRET)
+POST /api/calendar?action=smart-brain-approve       # { "id": "cal_2026-06-12_us", "reviewer": "..." }
+POST /api/calendar?action=smart-brain-reject        # { "id": "...", "notes": "...", "reviewer": "..." }
+GET  /lp/:campaignId                                # hosted generated landing page
+```
+
+Without Supabase env vars everything still runs statelessly against local CSV
+samples (plan preview + inline-entry approval), so the MVP stays demonstrable.
 
 ## Service boundaries
 
-| Service | File | Responsibility |
-|---|---|---|
-| Knowledge Base | `lib/smart-brain/services.js` | Ingests catalog, assets, campaigns, campaign-assets, metrics, users, and orders from the linked DB and indexes own campaigns with assets, hooks, formats, and creative-level rollups. |
-| Data Analysis | `lib/smart-brain/services.js` | Builds cohorts, applies performance thresholds to own campaign history, scores products, summarizes MVT results, and emits daily insights. |
-| Competitor Benchmarking | `lib/smart-brain/services.js` | Reads only the separate `smart_competitor_campaigns` stream and produces isolated channel/hook benchmarks. |
-| Calendar Intelligence | `lib/smart-brain/services.js` | Creates a 15-day rolling plan by market/cohort/channel using own winners, seasonal moments, competitor context, feedback, and MVT plans. |
-| Generation | `lib/smart-brain/services.js` | Produces HTML mailers, platform ad specs, landing pages, retargeting, similar-audience logic, and full-funnel campaign objects. |
-| Human Review | `lib/smart-brain/services.js` | Enforces human verification for every campaign and a hard weekly recalibration checklist. |
+UI: `/brain` (Smart Brain console), `/agent` (voice/chat agents), `agent-widget.js` (Shopify embed). API: `/api/brain?action=…` (single Vercel function; all logic in `api/_shared/brain-*.js`). DB: the provided linked DB pinned in `data/linked-db.json` (Supabase project `gubbckgjujwqodghcavv`, all tables prefixed `smart_`). Override with `SMART_BRAIN_SUPABASE_URL` / `SMART_BRAIN_SUPABASE_KEY` env vars when relinking to the real production-fed DB.
 
-<<<<<<< HEAD
-The single serverless entrypoint is `api/smart-brain.js`.
-=======
-The Smart Brain is multiplexed through the existing `api/calendar.js` serverless function to keep the Vercel Hobby deployment under the 12-function cap.
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
+## Module map (clean contracts)
 
-## API
+`brain-core.js` — linked-DB adapter, config (DB-driven via `smart_brain_config`), brand kit, banned-phrase scrubber. `brain-kb.js` — Module 1: catalog + assets + campaign library joined to creative-level metrics; `patterns()` aggregates what worked by angle/hook/archetype/format/channel. `brain-analysis.js` — Module 2: daily scoring of every campaign against per-channel thresholds, percentiles, pass/fail with reasons (`smart_library_scores`); personalized cohorts from user-level data (`smart_cohorts`); `filteredLibrary()` exposes ONLY threshold-passing campaigns. `brain-competitor.js` — Module 3: reads ONLY `smart_competitor_*`; outputs advisory signals (angle frequency, promo share, cadence); never enters own-data scoring. `brain-calendar.js` — Module 4: festival auto-extraction from `smart_sales_history` (trailing-baseline spike detection, evidence stored), 15-day rolling multi-channel calendar (mailers + Google/Meta/TikTok + landing pages for both + retargeting follow-ups), daily automated review (applies human feedback, swaps weak angles, extends horizon, folds MVT learnings into `learned_weights`). `brain-generate.js` — Module 5: per approved slot → brand-compliant HTML mailer, RSA/Meta/TikTok copy + creative briefs, conversion-optimized landing pages, audience + retargeting + lookalike specs, full funnel (creative → landing → mailer follow-up), platform-ready campaign objects (`smart_generated_campaigns`). LLM copy via the 6-provider cascade with a deterministic brand-safe fallback. `brain-review.js` — Module 6: review queue, per-channel confidence (Beta-mean), auto-approve sweep gated by confidence AND a hard weekly-recalibration freshness check. `brain-agent.js` — voice/chat agents at brand/collection/product/persona level with catalog-scoped knowledge, official-site scraping, honest objection handling (price → per-cup math; efficacy → 2–4 week expectations), transcripts persisted.
 
-### Health
+## Schema assumptions (the "provided linked DB" contract)
 
-```http
-<<<<<<< HEAD
-GET /api/smart-brain?action=health
-=======
-GET /api/calendar?action=smart-brain-health
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-```
+Own data: `smart_products` (sku, market, title, category, price, url, tags), `smart_assets` (brand kit incl. palette/typography/banned phrases), `smart_campaigns` (channel email|google|meta|tiktok|landing_page; theme/hook/angle/format/archetype/festival/audience), `smart_campaign_assets` (creative-level: subject/headline/body/html per creative_id), `smart_campaign_metrics` (per campaign AND per creative: sends, impressions, opens, clicks, conversions, revenue, spend), `smart_users` (RFM segment, orders, spend, categories, engagement flags), `smart_orders`, `smart_events`, `smart_sales_history` (daily revenue/orders per market — festival extraction source). Competitor (isolated): `smart_competitor_campaigns`, `smart_competitor_signals`. Brain state: `smart_brain_config`, `smart_brain_runs`, `smart_cohorts`, `smart_library_scores`, `smart_festivals`, `smart_calendar`, `smart_calendar_reviews`, `smart_feedback`, `smart_mvt_results`, `smart_funnels`, `smart_generated_campaigns`, `smart_generated_assets`, `smart_review_queue`, `smart_confidence`, `smart_recalibrations`, `smart_agents` + knowledge/sessions/messages. Migrations live in `supabase/migrations/` and were applied to the linked project; synthetic 24-month seed data (600 users, ~4.5k orders, 96 campaigns, 192 creatives, competitor stream) makes every module runnable today and is replaced by real data without code changes.
 
-Returns module availability and whether Supabase DB env vars are linked.
+When the real DB arrives: keep the table names (or map them in one place — `brain-core.js`), load real rows, delete seeds. Nothing else changes.
 
-### Schema contract
+## Security posture (current, deliberate)
 
-```http
-<<<<<<< HEAD
-GET /api/smart-brain?action=schema
-=======
-GET /api/calendar?action=smart-brain-schema
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-```
+The linked DB uses the public anon key committed in `data/linked-db.json` with permissive RLS — acceptable for an internal tool on synthetic data, NOT for production data. Hardening (15 minutes): set `SUPABASE_SERVICE_ROLE_KEY` (or `SMART_BRAIN_SUPABASE_KEY`) in Vercel env, then replace the `allow_all` policies with authenticated-only ones.
 
-Returns expected table names and columns.
+## The operating loop
 
-### Daily automated review + generation
+**Daily (automated, no humans — Vercel cron 03:30 UTC → `/api/brain?action=cron`):** 1) re-extract festivals/peaks from latest sales history; 2) daily calendar review — full re-analysis of the linked DB, apply pending human feedback, swap angles that fell out of the top set, extend the 15-day horizon, fold MVT results into learned weights (the calendar is never followed blindly); 3) refresh competitor benchmark signals (isolated); 4) auto-approve sweep (only if launch_mode=false, confidence ≥0.85 with ≥20 samples, AND weekly recalibration is fresh); 5) auto-generate complete asset sets for approved slots due within 3 days — every one lands in the review queue. Each run is logged in `smart_brain_runs` and `smart_calendar_reviews`.
 
-```http
-<<<<<<< HEAD
-POST /api/smart-brain?action=run-daily
-=======
-POST /api/calendar?action=smart-brain-run-daily
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-Content-Type: application/json
+**Weekly (human, hard-gated):** open `/brain` → Review Queue → "Record weekly recalibration" with your name and decisions (threshold changes, cohort edits, calendar direction). If skipped past 7 days, the UI banners OVERDUE and ALL auto-approval is hard-blocked until a human recalibrates. Launch state: `review_policy.launch_mode=true` means every campaign requires human verification regardless of confidence; flip it via Config (POST `/api/brain?action=config`) once trust is earned. Confidence grows with approvals per channel, so verification load decreases gradually — the weekly human gate never goes away.
 
-{
-  "days": 15,
-  "start_date": "2026-06-09",
-  "persist": false,
-  "config": {
-    "markets": ["US", "UK"]
-  }
-}
-```
+**Operator day-to-day:** `/brain` → Console to interrogate the system in plain language; Calendar tab to approve/reject/✎-feedback slots (feedback is applied at the next daily review and shapes future generation); Assets tab to preview mailers/landing pages and inspect platform-ready objects; Agents tab to manage voice agents and grab the Shopify embed snippet.
 
-Returns:
+## Voice agents (the telecalling substitute)
 
-- `kb`: indexed own catalog/assets/campaign library.
-- `analysis`: cohorts, own campaign winners, benchmarks, daily insights.
-- `competitorBenchmarks`: isolated real-time competitive stream summary.
-- `calendar`: rolling 15-day calendar with human-review status.
-- `campaigns`: final ready-to-deploy assets and platform-ready schemas.
-- `review`: daily automation summary and weekly recalibration policy.
+Telecalling held ROAS 3.5–4 because explaining value conversationally beats text. The agents reproduce that mode at zero marginal cost: brand-level "Vahdam", product-level "Ashwagandha Coffee Expert", collection-level guides — each scoped to its slice of the catalog, each honest about price (per-cup math) and duration (2–4 weeks for adaptogens). Voice in/out runs in-browser (Web Speech API) with optional ElevenLabs premium voice via `ELEVENLABS_API_KEY`. Generated mailers and landing pages carry a "Talk to the Vahdam expert" CTA that deep-links to `/agent`. Shopify embed: one script tag per theme/collection/product template (`agent-widget.js`, `data-agent=`).
 
-If Supabase env vars are missing, the endpoint runs against local CSV samples so the MVP remains demonstrable. In production, provide the linked DB via `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` or the `SMART_BRAIN_*` equivalents.
+## Phase 2 (excluded by design)
 
-### Generate one approved slot
-
-```http
-<<<<<<< HEAD
-POST /api/smart-brain?action=generate-slot
-=======
-POST /api/calendar?action=smart-brain-generate-slot
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-Content-Type: application/json
-
-{ "entry": { ...calendarEntry } }
-```
-
-### Capture human feedback
-
-```http
-<<<<<<< HEAD
-POST /api/smart-brain?action=feedback
-=======
-POST /api/calendar?action=smart-brain-feedback
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-Content-Type: application/json
-
-{
-  "target_type": "calendar_entry",
-  "target_id": "cal_xxx",
-  "verdict": "approved_with_changes",
-  "notes": "Use gift bundle proof instead of discount framing."
-}
-```
-
-The feedback is written to `smart_feedback` when DB env vars are configured and is read on future calendar generations.
-
-### Weekly recalibration
-
-```http
-<<<<<<< HEAD
-POST /api/smart-brain?action=weekly-recalibration
-=======
-POST /api/calendar?action=smart-brain-weekly-recalibration
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-Content-Type: application/json
-
-{
-  "reviewer": "Lifecycle Lead",
-  "days": 15,
-  "decisions": ["raise Meta ROAS threshold", "pause At-Risk discount tests"]
-}
-```
-
-Runs the same daily brain plus records the human recalibration context in the response.
-
-## Schema assumptions
-
-The migration `supabase/migrations/20260609_smart_brain.sql` documents the assumed linked DB shape. The critical separation is:
-
-- Own data: `smart_products`, `smart_assets`, `smart_campaigns`, `smart_campaign_assets`, `smart_campaign_metrics`, `smart_users`, `smart_orders`, `smart_events`, `smart_mvt_results`, `smart_feedback`.
-- Competitive stream: `smart_competitor_campaigns` only.
-
-Competitive data informs calendar and creative decisions through `competitorContext`, but never qualifies own campaign-library winners.
-
-## Daily operating loop
-
-<<<<<<< HEAD
-1. Scheduler calls `POST /api/smart-brain?action=run-daily` for a 15-day window.
-=======
-1. Scheduler calls `POST /api/calendar?action=smart-brain-run-daily` for a 15-day window.
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-2. Knowledge Base re-indexes own DB data and campaign assets.
-3. Analysis rebuilds cohorts, product scores, thresholds, and MVT learnings.
-4. Competitor Benchmarking pulls the separate competitive stream.
-5. Calendar Intelligence regenerates the tentative rolling calendar.
-6. Generation creates all campaign assets and platform-ready schemas.
-7. Review keeps every campaign in a human-verification state before final launch.
-
-## Weekly human loop
-
-<<<<<<< HEAD
-1. Lifecycle owner calls `POST /api/smart-brain?action=weekly-recalibration`.
-=======
-1. Lifecycle owner calls `POST /api/calendar?action=smart-brain-weekly-recalibration`.
->>>>>>> acdfe52a6c4ed835673c3b9e52cbe06da0f33c4b
-2. Reviewer checks calendar, cohorts, thresholds, competitive usage, and generated assets.
-3. Reviewer records decisions and/or granular feedback through `action=feedback`.
-4. The next daily run applies the updated feedback and any config changes.
-
-## Phase 2 integration contract
-
-Phase 2 platform push can consume the `platform_ready` object on each generated campaign:
-
-- `google_ads[]`
-- `meta_ads[]`
-- `tiktok_ads[]`
-- `lifecycle_messaging[]`
-
-No refactor is needed: replace `push_status: not_integrated_phase_2` with a connector result after sending to the external platform.
+Adapters consume `smart_generated_campaigns.campaign_object` (already shaped for Klaviyo / Google Ads / Meta / TikTok) and push via each platform's API; status moves final → pushed → live, and `smart_campaign_metrics` starts receiving real performance — closing the loop the MVT system already expects.
