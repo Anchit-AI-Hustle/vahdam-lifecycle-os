@@ -34,6 +34,8 @@
     { "source": "/brain",      "destination": "/smart-brain.html" },
     { "source": "/smart-brain","destination": "/smart-brain.html" },
     { "source": "/agent",      "destination": "/agent.html" },
+    { "source": "/team",       "destination": "/team.html" },
+    { "source": "/copilot",    "destination": "/team.html" },
     { "source": "/deck",       "destination": "/docs/deck.html" },
     { "source": "/intel",      "destination": "/competitive-intelligence.html" },
     { "source": "/competitive-intelligence", "destination": "/competitive-intelligence.html" },

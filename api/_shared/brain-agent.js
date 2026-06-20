@@ -19,6 +19,115 @@ const { db, getBrandKit, idFor, scrubBannedPhrases } = require('./brain-core.js'
 let callLLM = null;
 try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 
+let smartBrain = null;
+try { smartBrain = require('../../lib/smart-brain/services.js'); } catch (_) { smartBrain = null; }
+
+const dataClass = require('./data-classification.js');
+
+// Detect whether a message is asking for analytical/data figures rather than
+// product advice. Routing is keyword-based and conservative: a hit sends the
+// turn through the EXACT-numbers path (computed from real own-data), a miss
+// stays on the conversational sales-advisor path.
+const ANALYTIC_RE = /\b(revenue|sales|aov|average order|order(s)?|cohort|cohorts|ltv|lifetime value|customer(s)?|conversion|conversions?|cvr|ctr|roas|click[- ]?rate|open[- ]?rate|benchmark|how many|how much|top|best|worst|highest|lowest|rank(ed|ing)?|most[- ]?(sold|popular)|best[- ]?seller)/i;
+function looksAnalytical(message) {
+  return ANALYTIC_RE.test(String(message || ''));
+}
+
+function fmtMoney(n) { return '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+function pct(n) { return (Number(n || 0) * 100).toFixed(2) + '%'; }
+
+/**
+ * agent-analyze — answer a natural-language analytical question with EXACT
+ * figures computed from own-data via the Smart Brain AnalysisService.
+ *
+ * Numbers ALWAYS come from the deterministic analysis below. The LLM (if any)
+ * is used ONLY to phrase those exact numbers in brand voice — never to invent
+ * figures. Returns { ok, answer, data:{...} }.
+ */
+async function analyze({ message = '' }) {
+  if (!smartBrain) return { ok: false, error: 'analysis engine unavailable' };
+  const { smartConfig, SmartBrainDbAdapter, KnowledgeBaseService, AnalysisService } = smartBrain;
+  const config = smartConfig();
+  const adapter = new SmartBrainDbAdapter(config);
+  const ownData = await adapter.ownData();
+  const kb = new KnowledgeBaseService(config).build(ownData);
+  const analysis = new AnalysisService(config).analyze(kb, ownData);
+
+  const q = String(message).toLowerCase();
+  const cohorts = (analysis.cohorts || []);
+  const productScores = (analysis.productScores || []);
+  const channels = analysis.channelBenchmarks || {};
+
+  // ── (a) Deterministic exact answers for common asks ──────────────────────
+  let answer = '';
+  const data = {};
+
+  const wantsProducts = /(product|sku|best[- ]?sell|top|most[- ]?(sold|popular)|hero)/.test(q) && !/cohort|channel|customer/.test(q);
+  const wantsCohorts = /(cohort|segment|customer|ltv|lifetime|champion|loyal|winback|at[- ]?risk)/.test(q);
+  const wantsChannels = /(channel|email|meta|google|tiktok|roas|ctr|conversion|open[- ]?rate|click[- ]?rate|benchmark|aov|average order)/.test(q);
+
+  if (wantsProducts) {
+    const byRevenue = /revenue|sales|\$|money|earn/.test(q);
+    const sorted = productScores.slice().sort((a, b) =>
+      byRevenue ? (b.revenue - a.revenue) : (b.orderCount - a.orderCount) || (b.score - a.score));
+    const top = sorted.slice(0, 5).map((s) => ({
+      title: s.product?.title || s.product?.sku || 'Unknown',
+      sku: s.product?.sku || s.product?.id || null,
+      orders: s.orderCount, revenue: Number(s.revenue || 0), score: s.score,
+    }));
+    data.topProducts = top; data.metric = byRevenue ? 'revenue' : 'orders';
+    if (top.length) {
+      const lead = top[0];
+      answer = `Top product by ${byRevenue ? 'revenue' : 'orders'}: ${lead.title} — ${fmtMoney(lead.revenue)} across ${lead.orders} orders. `
+        + top.slice(1, 3).map((t) => `${t.title} (${fmtMoney(t.revenue)}, ${t.orders} orders)`).join('; ') + '.';
+    } else {
+      answer = 'No product order data is available in the linked dataset yet.';
+    }
+  } else if (wantsCohorts) {
+    data.cohorts = cohorts.map((c) => ({ name: c.name, count: c.count, revenue: Number(c.revenue || 0), avgLtv: Number(c.avgLtv || 0) }));
+    if (cohorts.length) {
+      const top = cohorts[0];
+      answer = `Largest cohort by revenue: ${top.name} — ${top.count} profiles, ${fmtMoney(top.revenue)} total, ${fmtMoney(top.avgLtv)} average LTV. `
+        + `Other cohorts: ${cohorts.slice(1, 4).map((c) => `${c.name} (${c.count} profiles, ${fmtMoney(c.avgLtv)} LTV)`).join('; ')}.`;
+    } else {
+      answer = 'No cohort data is available in the linked dataset yet.';
+    }
+  } else if (wantsChannels) {
+    data.channelBenchmarks = Object.fromEntries(Object.entries(channels).map(([ch, m]) => [ch, {
+      campaigns: m.count, avgClickRate: m.avgClickRate, avgConversionRate: m.avgConversionRate, avgRoas: m.avgRoas,
+    }]));
+    const entries = Object.entries(channels);
+    if (entries.length) {
+      answer = 'Channel benchmarks (own data): ' + entries.map(([ch, m]) =>
+        `${ch} — ${m.count} campaigns, ${pct(m.avgClickRate)} click rate, ${pct(m.avgConversionRate)} conversion, ${Number(m.avgRoas || 0).toFixed(2)}x ROAS`).join('; ') + '.';
+    } else {
+      answer = 'No channel performance data is available in the linked dataset yet.';
+    }
+  } else {
+    // Fallback: hand the LLM the precomputed numbers and let it pick + phrase
+    // the right ones. It must use ONLY these numbers (no fabrication).
+    data.cohorts = cohorts.slice(0, 6).map((c) => ({ name: c.name, count: c.count, revenue: Number(c.revenue || 0), avgLtv: Number(c.avgLtv || 0) }));
+    data.topProducts = productScores.slice(0, 8).map((s) => ({ title: s.product?.title, orders: s.orderCount, revenue: Number(s.revenue || 0) }));
+    data.channelBenchmarks = data.channelBenchmarks || Object.fromEntries(Object.entries(channels).map(([ch, m]) => [ch, { campaigns: m.count, avgClickRate: m.avgClickRate, avgConversionRate: m.avgConversionRate, avgRoas: m.avgRoas }]));
+    if (callLLM) {
+      const sys = `You are a VAHDAM analytics assistant. Answer the question using ONLY the JSON numbers below. NEVER invent or estimate figures not present in the data — if a figure is not present, say it is not available. Lead with the exact answer, be concise (2-4 sentences), state real numbers.\n\nDATA:\n${JSON.stringify(data)}`;
+      try {
+        const out = await callLLM({ systemPrompt: sys, userMessage: message, maxTokens: 280, temperature: 0.2, timeoutMs: 30000, stage: 'agent-analyze' });
+        answer = (typeof out === 'string' ? out : out.text || '').trim();
+      } catch (_) { answer = ''; }
+    }
+    if (!answer) {
+      answer = cohorts.length
+        ? `Top cohort: ${cohorts[0].name} (${cohorts[0].count} profiles, ${fmtMoney(cohorts[0].avgLtv)} LTV). Top product: ${productScores[0]?.product?.title || 'N/A'}.`
+        : 'No analytical data is available in the linked dataset yet.';
+    }
+  }
+
+  const brand = await getBrandKit().catch(() => ({}));
+  answer = scrubBannedPhrases(answer, brand);
+  return { ok: true, answer, data, source: ownData.source };
+}
+
 async function listAgents() {
   return db().select('smart_agents', { limit: 100, order: 'created_at.asc', filters: { active: 'eq.true' } });
 }
@@ -103,9 +212,35 @@ Grounded product-education facts (use honestly, no medical claims):
 - Value framing: a 100g tin ≈ 50 cups → roughly $0.40–0.60 per cup vs $5 cafe drinks; packed at origin within days of harvest (fresher than store tea that ages 6–24 months in warehouses).
 - VAHDAM is carbon & plastic neutral, ships direct from India.`;
 
-async function chat({ agentId, sessionId, message, context = {}, history = [] }) {
+async function chat({ agentId, sessionId, message, context = {}, history = [], scope = 'buyer' }) {
   const agent = await getAgent(agentId);
   const brand = await getBrandKit();
+
+  // ── Analytical routing: EXACT computed numbers (revenue/cohorts/orders/etc.).
+  //    GATED to internal scope only — these are internal-only figures and must
+  //    NEVER reach a buyer-facing persona agent (see data-classification.js).
+  if (dataClass.resolveScope(scope) === dataClass.SCOPE.INTERNAL && smartBrain && looksAnalytical(message)) {
+    try {
+      const a = await analyze({ message });
+      if (a.ok && a.answer) {
+        let reply = scrubBannedPhrases(a.answer, brand);
+        const sid = sessionId || idFor('sess', { agent: agentId, t: Date.now() });
+        try {
+          if (!sessionId) await db().upsert('smart_agent_sessions', [{ id: sid, agent_id: agentId, visitor_id: context.visitor || null, context }], 'id');
+          await db().insert('smart_agent_messages', [
+            { session_id: sid, role: 'user', content: message, meta: context },
+            { session_id: sid, role: 'agent', content: reply, meta: { provider: 'analysis', mode: 'exact-numbers' } },
+          ]);
+        } catch (_) { /* transcripts are best-effort */ }
+        return {
+          ok: true, session_id: sid, agent: { id: agent.id, name: agent.name, voice: agent.voice },
+          reply, speak: reply.replace(/https?:\/\/\S+/g, 'the product page').replace(/[*_#`]/g, ''),
+          provider: 'analysis', data: a.data,
+        };
+      }
+    } catch (_) { /* fall through to conversational path */ }
+  }
+
   const [products, knowledge] = await Promise.all([
     db().select('smart_products', { limit: 500, filters: { active: 'eq.true' } }),
     db().select('smart_agent_knowledge', { limit: 30, filters: { agent_id: `eq.${agentId}` } }),
@@ -130,12 +265,13 @@ ${catalogLines}
 KNOWLEDGE (official VAHDAM sources):
 ${kbLines || '(catalog facts only)'}
 
-RULES:
-- Keep replies SHORT and spoken-friendly: 2–5 sentences, then one helpful follow-up question. This is a conversation, not an essay.
+RULES — CLEAR AND TO-THE-POINT:
+- LEAD with the direct answer in your FIRST sentence. Answer the exact question asked before anything else.
+- Then at most 2–4 short supporting sentences (the why / the relevant product / the honest caveat). Then OPTIONALLY one short follow-up question — only if it genuinely helps.
+- No rambling, no filler, no preamble ("great question", "happy to help"), and do NOT repeat brand/value boilerplate (per-cup math, origin-freshness, certifications) in every reply — bring those up ONLY when the question is about price or worth.
 - Be honest about durations and effects; set expectations (2–4 weeks for adaptogens). No medical claims, no cure language.
-- When price concern appears: per-cup math + origin-freshness + certifications, then let the customer decide. Zero pressure.
-- If asked something outside VAHDAM products/tea/wellness, gently steer back.
-- Reply in the user's language if they switch (incl. Hindi/Hinglish).`;
+- If asked something outside VAHDAM products/tea/wellness, say so briefly and steer back in one sentence.
+- Reply in the user's language if they switch (incl. Hindi/Hinglish). Stay spoken-friendly (this may be read aloud).`;
 
   const convo = history.slice(-10).map((m) => `${m.role === 'user' ? 'Customer' : agent.name}: ${m.content}`).join('\n');
   const userMessage = `${convo ? convo + '\n' : ''}Customer: ${message}\n${agent.name}:`;
@@ -168,4 +304,66 @@ RULES:
   return { ok: true, session_id: sid, agent: { id: agent.id, name: agent.name, voice: agent.voice }, reply, speak: reply.replace(/https?:\/\/\S+/g, 'the product page').replace(/[*_#`]/g, ''), provider };
 }
 
-module.exports = { listAgents, getAgent, upsertAgent, syncKnowledge, chat, scopedProducts };
+// ── Internal Employee Agent (the /team copilot) ─────────────────────────────
+// A ChatGPT/Claude-style assistant for VAHDAM STAFF. Full internal scope: may
+// discuss revenue, cohorts, performance, strategy, and use exact-number answers.
+// NEVER exposed on a buyer surface. See docs/UNIFIED-ARCHITECTURE.md §5.
+async function teamChat({ sessionId, message, context = {}, history = [] }) {
+  const brand = await getBrandKit();
+
+  // Analytical questions → exact computed numbers (internal scope is allowed).
+  if (smartBrain && looksAnalytical(message)) {
+    try {
+      const a = await analyze({ message });
+      if (a.ok && a.answer) {
+        const sid = sessionId || idFor('sess', { agent: 'team', t: Date.now() });
+        try {
+          if (!sessionId) await db().upsert('smart_agent_sessions', [{ id: sid, agent_id: 'team', context }], 'id');
+          await db().insert('smart_agent_messages', [
+            { session_id: sid, role: 'user', content: message, meta: context },
+            { session_id: sid, role: 'agent', content: a.answer, meta: { provider: 'analysis', scope: 'internal' } },
+          ]);
+        } catch (_) { /* best-effort */ }
+        return { ok: true, session_id: sid, scope: 'internal', reply: a.answer, provider: 'analysis', data: a.data };
+      }
+    } catch (_) { /* fall through */ }
+  }
+
+  let catalog = [];
+  try { catalog = await db().select('smart_products', { limit: 500 }); } catch (_) { catalog = []; }
+  const catalogLines = (catalog || []).slice(0, 40).map((p) => `- ${p.title} | ${p.category} | $${p.price}`).join('\n');
+
+  const system = `You are the VAHDAM Growth Copilot — an INTERNAL assistant for VAHDAM India EMPLOYEES (not customers). You have full access to Vahdam's catalog, performance data, and the Lifecycle OS tooling.
+Help staff execute growth work: analyse performance, draft campaigns/mailers/ads/landing copy, plan and review calendars, answer data questions with exact numbers, and explain how to use each module.
+TONE: direct, expert, concise — lead with the answer, then the supporting detail. You MAY discuss internal metrics, revenue, cohorts, spend, and strategy (this is an internal tool).
+When you draft CUSTOMER-FACING copy, follow brand voice — prefer: ${(brand.preferred_lexicon || []).join(', ')}; never use: ${(brand.banned_phrases || []).join(', ')}; palette #004A2B/#AB8743/#171717/#FBF5EA, headings Lao MN, body Proxima Nova.
+CATALOG (sample):
+${catalogLines}`;
+
+  const convo = history.slice(-10).map((m) => `${m.role === 'user' ? 'Employee' : 'Copilot'}: ${m.content}`).join('\n');
+  const userMessage = `${convo ? convo + '\n' : ''}Employee: ${message}\nCopilot:`;
+
+  let reply = '';
+  let provider = 'fallback';
+  if (callLLM) {
+    try {
+      const out = await callLLM({ systemPrompt: system, userMessage, maxTokens: 900, temperature: 0.5, timeoutMs: 40000, stage: 'team-chat' });
+      reply = (typeof out === 'string' ? out : out.text || '').trim();
+      provider = typeof out === 'object' ? out.provider : 'llm';
+    } catch (_) { reply = ''; }
+  }
+  if (!reply) reply = 'I can help with Vahdam growth work — analytics with exact numbers, campaign/mailer/ad/landing drafts, calendar planning and review. What do you need?';
+
+  const sid = sessionId || idFor('sess', { agent: 'team', t: Date.now() });
+  try {
+    if (!sessionId) await db().upsert('smart_agent_sessions', [{ id: sid, agent_id: 'team', context }], 'id');
+    await db().insert('smart_agent_messages', [
+      { session_id: sid, role: 'user', content: message, meta: context },
+      { session_id: sid, role: 'agent', content: reply, meta: { provider, scope: 'internal' } },
+    ]);
+  } catch (_) { /* best-effort */ }
+
+  return { ok: true, session_id: sid, scope: 'internal', reply, provider };
+}
+
+module.exports = { listAgents, getAgent, upsertAgent, syncKnowledge, chat, teamChat, scopedProducts, analyze, looksAnalytical };

@@ -32,11 +32,30 @@ const DESIGN_PROMPT_PREAMBLE = `High-fidelity flat graphic design mockup of a co
 Design:
 `;
 
-// Map our standard sizes to Gemini aspect ratios
+// Map our standard sizes to Gemini aspect ratios.
+// Includes the ad-creative sizes (Google 1.91:1 + 1:1, Meta/IG/TikTok 1:1 + 9:16).
 const GEMINI_ASPECT_MAP = {
   '1024x1024': '1:1',
   '1024x1536': '3:4',    // portrait (closest to 2:3)
-  '1536x1024': '4:3'     // landscape
+  '1536x1024': '4:3',    // landscape
+  '1080x1080': '1:1',    // Meta/IG feed
+  '1080x1920': '9:16',   // story / reel / TikTok vertical
+  '1200x1200': '1:1',    // Google square
+  '1200x628': '16:9'     // Google landscape (closest aspect)
+};
+
+// OpenAI gpt-image only accepts a fixed set of sizes — map every requested
+// (incl. ad-creative) size to the nearest supported one. The text overlay is
+// composited on the client canvas afterwards, so exact pixels here are not
+// critical; aspect orientation is what matters.
+const OPENAI_SIZE_MAP = {
+  '1024x1024': '1024x1024',
+  '1024x1536': '1024x1536',
+  '1536x1024': '1536x1024',
+  '1080x1080': '1024x1024',  // square
+  '1200x1200': '1024x1024',  // square
+  '1080x1920': '1024x1536',  // vertical
+  '1200x628': '1536x1024'    // landscape
 };
 
 module.exports = async function handler(req, res) {
@@ -55,7 +74,7 @@ module.exports = async function handler(req, res) {
   if (!userPrompt) return res.status(400).json({ error: 'missing_prompt' });
   const size = body.size || '1024x1536';
   const quality = body.quality || 'high';
-  const validSizes = ['1024x1024', '1536x1024', '1024x1536'];
+  const validSizes = ['1024x1024', '1536x1024', '1024x1536', '1080x1080', '1080x1920', '1200x1200', '1200x628'];
   const validQualities = ['low', 'medium', 'high', 'auto'];
   if (validSizes.indexOf(size) < 0) return res.status(400).json({ error: 'invalid_size', allowed: validSizes });
   if (validQualities.indexOf(quality) < 0) return res.status(400).json({ error: 'invalid_quality', allowed: validQualities });
@@ -232,7 +251,7 @@ module.exports = async function handler(req, res) {
             method: 'POST',
             cache: 'no-store',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-            body: JSON.stringify({ model: imageModel, prompt: finalPrompt, n: 1, size, quality, output_format: 'png' }),
+            body: JSON.stringify({ model: imageModel, prompt: finalPrompt, n: 1, size: (OPENAI_SIZE_MAP[size] || '1024x1024'), quality, output_format: 'png' }),
             signal: controller.signal
           });
           clearTimeout(timeout);
@@ -309,7 +328,11 @@ module.exports = async function handler(req, res) {
   const sizeMap = {
     '1024x1024': { w: 1024, h: 1024 },
     '1024x1536': { w: 1024, h: 1536 },
-    '1536x1024': { w: 1536, h: 1024 }
+    '1536x1024': { w: 1536, h: 1024 },
+    '1080x1080': { w: 1080, h: 1080 },
+    '1080x1920': { w: 1080, h: 1920 },
+    '1200x1200': { w: 1200, h: 1200 },
+    '1200x628':  { w: 1200, h: 628 }
   };
   const dim = sizeMap[size] || sizeMap['1024x1536'];
   const seed = Math.floor(Math.random() * 1000000);

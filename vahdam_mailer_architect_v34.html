@@ -1260,8 +1260,8 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
     <!-- Legacy full grid (kept hidden by default — toggle via "Show all variants" in unified panel) -->
     <div id="allMailersMatrix" style="margin-top:18px;display:none"></div>
     <div class="btn-row" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);flex-wrap:wrap;gap:8px">
-      <button class="btn btn-outline btn-sm" onclick="downloadVariant('A')" style="gap:6px" title="Download Variant A (Editorial Hero layout)">&#11015; Variant A</button>
-      <button class="btn btn-outline btn-sm" onclick="downloadVariant('B')" style="gap:6px" title="Download Variant B (Narrative Story layout)">&#11015; Variant B</button>
+      <button class="btn btn-outline btn-sm" onclick="downloadVariant('A')" style="gap:6px" title="Download V1 (Complete Text — no imagery)">&#11015; V1 · Text</button>
+      <button class="btn btn-outline btn-sm" onclick="downloadVariant('B')" style="gap:6px" title="Download V2 (Text + Visual)">&#11015; V2 · Text + Visual</button>
       <button class="btn btn-gold btn-sm" onclick="downloadBothVariants()" style="gap:6px" title="Download BOTH variants for the current market">&#11015; Download Both</button>
       <button class="btn btn-outline btn-sm" onclick="previewBothSideBySide()" style="gap:6px" title="Open A and B side-by-side in a new tab">&#9871; Side-by-Side</button>
       <div style="flex:1"></div>
@@ -4174,11 +4174,11 @@ function buildStrategicDepth(strategy){
   var kpi=impactKpis[t]||impactKpis.Campaign;
 
   // ── 4) JUSTIFICATION (data-backed paragraph) ──────────────────────────────
-  var variantText=s.primaryVariant==='B'?'Variant B (Narrative Story — full-width hero, vertical stack, lifestyle-led)':'Variant A (Editorial Hero — offer-forward, side-by-side, conversion-led)';
-  var justify='Layout chosen: '+variantText+'. '+
+  var variantText=s.primaryVariant==='B'?'V2 (Text + Visual — copy plus on-brand imagery/GIF/video)':'V1 (Complete Text — pure copy, no imagery)';
+  var justify='Variant suggested: '+variantText+'. '+
               'Reason: '+(s.primaryVariant==='B'
-                ? 'Story-led campaigns convert better with editorial pacing — full-width hero anchors emotion before the product introduction.'
-                : 'Conversion-led campaigns benefit from above-the-fold offer + product visibility — side-by-side hero lets the eye connect price/promo to product instantly.')+' '+
+                ? 'Story-led campaigns gain from imagery — visuals anchor emotion before the product introduction.'
+                : 'Text-only sends maximise deliverability and render everywhere — the copy carries the campaign with zero image dependencies.')+' '+
               'Hero: '+(heroName||'top-ranked product')+(heroCat?' ('+heroCat+')':'')+'. '+
               'Featured: '+(prods.slice(0,3).map(function(p){return p.n.split(',')[0];}).join(', ')||'curated assortment')+'. '+
               (hasOffer?'Offer mechanic: '+(pct?pct+'% off':'discount')+(code?' via code '+code:'')+' — drives urgency without diluting brand.':'No discount mechanic — pure brand value play.')+' '+
@@ -5271,7 +5271,7 @@ function renderContentPreview(){
   checks.push({ok:!!cta, label:'Primary CTA', val:cta||'MISSING'});
   checks.push({ok:feats.length>=3, label:'Benefit strip', val:feats.length+' items'});
   checks.push({ok:true, label:'Market', val:(mktLabels[mkt]||mkt)+' ('+base+')'});
-  checks.push({ok:true, label:'Variant', val:variant+' — '+(variant==='A'?'Editorial Hero':'Narrative Story')});
+  checks.push({ok:true, label:'Variant', val:(variant==='A'?'V1 — Complete Text (no imagery)':'V2 — Text + Visual')});
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
   checks.forEach(function(c){
     h+='<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:#fff;border-radius:6px;border:1px solid #ede5d8">';
@@ -5386,8 +5386,8 @@ function buildDesignPromptFromCatalog(market,variant){
   }).join('\n');
   // Variant-specific layout
   var layoutDesc=variant==='B'
-    ?'VARIANT B — NARRATIVE STORY: Full-width cinematic hero image top (no side-by-side), headline centred below, vertical product stack (one product per full-width row), single dramatic customer quote, gold offer banner at bottom'
-    :'VARIANT A — EDITORIAL HERO: Side-by-side hero (headlines LEFT, lifestyle product photo RIGHT), 4-column product grid below, 3 small testimonial cards, mid-flow offer banner';
+    ?'V2 — TEXT + VISUAL: full-width cinematic hero visual top, headline centred below, vertical product stack, single dramatic customer quote, gold offer banner at bottom. Visual source order: hosted media URL → auto-generated GIF from product frames → AI video (last resort)'
+    :'V1 — COMPLETE TEXT (NO IMAGERY): pure typographic email, zero images/GIFs/video. Editorial headline, story-driven body copy, benefit lines, one mini-testimonial, clear text CTA — the copy stands entirely on its own';
   var aud=(st.audience||S.audience||'').trim();
   return 'VAHDAM India premium tea marketing email creative — designed to drive clicks and revenue when sent to the segment below.\n\n'+
     'CAMPAIGN: '+detType+' | Market: '+mt+' | '+annBar+'\n'+
@@ -5478,7 +5478,7 @@ async function approveWithUpload(){
   // Pre-pick the primary variant suggested by the strategy (A=editorial / B=story)
   S.activeVariant=S.strategy.primaryVariant||'A';
   const fr=document.getElementById('emailFr');
-  const loadingHtml='<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial;background:#f0ebe0"><div style="text-align:center"><div style="width:40px;height:40px;border:3px solid #004A2B;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style><p style="color:#004A2B;font-weight:600">Building two strategic variants of your mailer…</p><p style="color:#666;font-size:12px;margin-top:8px">Variant A: Editorial Hero · Variant B: Narrative Story · '+mkts.length+' market'+(mkts.length>1?'s':'')+'</p></div></body></html>';
+  const loadingHtml='<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial;background:#f0ebe0"><div style="text-align:center"><div style="width:40px;height:40px;border:3px solid #004A2B;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style><p style="color:#004A2B;font-weight:600">Building two strategic variants of your mailer…</p><p style="color:#666;font-size:12px;margin-top:8px">V1: Complete Text · V2: Text + Visual · '+mkts.length+' market'+(mkts.length>1?'s':'')+'</p></div></body></html>';
   if(fr)fr.srcdoc=loadingHtml;
   var rawEl=document.getElementById('htmlRaw');
   if(rawEl)rawEl.textContent='';
@@ -5561,8 +5561,8 @@ function renderVariantSwitcher(){
   if(!bar)return;
   var st=S.strategy||buildCampaignStrategy();
   var rationale={
-    A:'Editorial Hero — offer-forward, side-by-side hero, conversion-led. Best for sales, launches, bestsellers.',
-    B:'Narrative Story — full-width hero, centred story flow, vertical product stack. Best for gifts, storytelling, routine.'
+    A:'Complete Text — pure copy that stands alone with zero imagery. Highest deliverability, works everywhere.',
+    B:'Text + Visual — the same copy plus on-brand imagery/GIF/video (hosted media → auto GIF → AI video).'
   };
   var mkts=Object.keys(S.marketMailers||{});
   var aMkt=S.activeMarket||mkts[0]||'US';
@@ -5604,10 +5604,10 @@ function renderVariantSwitcher(){
         // ── Variant A card ──
         '<div style="flex:1;min-width:240px;background:'+(actA?'rgba(171,135,67,0.18)':'rgba(255,255,255,0.06)')+';border:1.5px solid '+(actA?'#AB8743':'rgba(255,255,255,0.18)')+';border-radius:8px;padding:12px 14px">'+
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+
-            '<span style="background:'+(actA?'#AB8743':'rgba(255,255,255,0.12)')+';color:#fff;font-size:8.5px;font-weight:800;letter-spacing:0.2em;padding:3px 8px;border-radius:4px">VARIANT A</span>'+
+            '<span style="background:'+(actA?'#AB8743':'rgba(255,255,255,0.12)')+';color:#fff;font-size:8.5px;font-weight:800;letter-spacing:0.2em;padding:3px 8px;border-radius:4px">V1</span>'+
             (actA?'<span style="font-size:9px;color:#AB8743;font-weight:700">● PREVIEWING</span>':'')+
           '</div>'+
-          '<div style="font-size:13px;font-weight:700;margin-bottom:3px;color:#fff">Editorial Hero</div>'+
+          '<div style="font-size:13px;font-weight:700;margin-bottom:3px;color:#fff">Complete Text</div>'+
           '<div style="font-size:10px;font-weight:400;color:#c9e8d5;line-height:1.5;margin-bottom:10px">'+rationale.A+'</div>'+
           '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
             '<button onclick="switchVariant(\'A\')" style="flex:1;min-width:90px;padding:7px 10px;background:'+(actA?'#AB8743':'transparent')+';color:#fff;border:1.5px solid '+(actA?'#AB8743':'rgba(255,255,255,0.3)')+';border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.04em">'+(actA?'● Previewing':'👁 Preview A')+'</button>'+
@@ -5617,10 +5617,10 @@ function renderVariantSwitcher(){
         // ── Variant B card ──
         '<div style="flex:1;min-width:240px;background:'+(actB?'rgba(171,135,67,0.18)':'rgba(255,255,255,0.06)')+';border:1.5px solid '+(actB?'#AB8743':'rgba(255,255,255,0.18)')+';border-radius:8px;padding:12px 14px">'+
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+
-            '<span style="background:'+(actB?'#AB8743':'rgba(255,255,255,0.12)')+';color:#fff;font-size:8.5px;font-weight:800;letter-spacing:0.2em;padding:3px 8px;border-radius:4px">VARIANT B</span>'+
+            '<span style="background:'+(actB?'#AB8743':'rgba(255,255,255,0.12)')+';color:#fff;font-size:8.5px;font-weight:800;letter-spacing:0.2em;padding:3px 8px;border-radius:4px">V2</span>'+
             (actB?'<span style="font-size:9px;color:#AB8743;font-weight:700">● PREVIEWING</span>':'')+
           '</div>'+
-          '<div style="font-size:13px;font-weight:700;margin-bottom:3px;color:#fff">Narrative Story</div>'+
+          '<div style="font-size:13px;font-weight:700;margin-bottom:3px;color:#fff">Text + Visual</div>'+
           '<div style="font-size:10px;font-weight:400;color:#c9e8d5;line-height:1.5;margin-bottom:10px">'+rationale.B+'</div>'+
           '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
             '<button onclick="switchVariant(\'B\')" style="flex:1;min-width:90px;padding:7px 10px;background:'+(actB?'#AB8743':'transparent')+';color:#fff;border:1.5px solid '+(actB?'#AB8743':'rgba(255,255,255,0.3)')+';border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.04em">'+(actB?'● Previewing':'👁 Preview B')+'</button>'+
@@ -5676,7 +5676,7 @@ function renderCanvasFilterPanel(){
   if(mkts.indexOf(aMkt)<0)aMkt=mkts[0];
   var aVar=S.canvasVariant||S.activeVariant||(S.strategy&&S.strategy.primaryVariant)||'A';
   var mktLabels={US:'🇺🇸 United States',UK:'🇬🇧 United Kingdom',IN:'🇮🇳 India',Global:'🌍 Global',ME:'🇦🇪 Middle East',AU:'🇦🇺 Australia',EU:'🇪🇺 Europe'};
-  var variantMeta={A:{name:'Editorial Hero',accent:'#004A2B',sub:'Side-by-side hero · 4-col grid · mid-flow offer'},B:{name:'Narrative Story',accent:'#AB8743',sub:'Full-width hero · vertical stack · gold offer at bottom'}};
+  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',sub:'Pure copy · no imagery · stands alone'},B:{name:'V2 · Text + Visual',accent:'#AB8743',sub:'Copy + imagery/GIF/video'}};
   box.innerHTML=
     '<div style="border:1.5px solid #ede5d8;border-radius:12px;overflow:hidden;background:#fff">'+
       '<div style="background:linear-gradient(135deg,#004A2B,#004A2B);padding:12px 16px;display:flex;align-items:center;gap:10px;color:#FBF5EA;flex-wrap:wrap">'+
@@ -5870,7 +5870,7 @@ function renderRegionVariantPanel(config){
   if(config.regions.indexOf(aMkt)<0)aMkt=config.regions[0];
   var aVar=config.activeVariant||'A';
   var mktLabels={US:'🇺🇸 US',UK:'🇬🇧 UK',IN:'🇮🇳 IN',Global:'🌍 Global',ME:'🇦🇪 ME',AU:'🇦🇺 AU',EU:'🇪🇺 EU'};
-  var variantMeta={A:{name:'Editorial Hero',accent:'#004A2B',bg:'#e8f5ee'},B:{name:'Narrative Story',accent:'#AB8743',bg:'#FBF5EA'}};
+  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#e8f5ee'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
   var content=config.getContentHTML?config.getContentHTML(aMkt,aVar):'';
   var extraTopHTML=(config.extraTopActions||[]).map(function(a){
     return '<button onclick="'+a.onclick+'" style="'+(a.style||'padding:6px 12px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.04em')+'">'+a.label+'</button>';
@@ -6133,8 +6133,8 @@ function renderStep5UnifiedPanel(){
         // VARIANT A
         '<div style="display:flex;flex-direction:column;background:#FBF5EA;border-radius:10px;border:1.5px solid #ede5d8;overflow:hidden">'+
           '<div style="background:linear-gradient(180deg,#004A2B,#003d23);color:#FBF5EA;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
-            '<span style="font-family:Lao MN,Georgia,serif;font-size:13px;font-weight:700;letter-spacing:0.06em">VARIANT A</span>'+
-            '<span style="font-size:9.5px;color:#AB8743;font-weight:700;letter-spacing:0.16em;text-transform:uppercase">Editorial Hero · Conversion-led</span>'+
+            '<span style="font-family:Lao MN,Georgia,serif;font-size:13px;font-weight:700;letter-spacing:0.06em">V1</span>'+
+            '<span style="font-size:9.5px;color:#AB8743;font-weight:700;letter-spacing:0.16em;text-transform:uppercase">Complete Text · No imagery</span>'+
             '<span style="flex:1"></span>'+
             '<button onclick="__step5Preview(\''+activeMkt+'\',\'A\')" style="padding:5px 10px;background:#AB8743;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700">Open</button>'+
             '<button onclick="__step5Download(\''+activeMkt+'\',\'A\')" style="padding:5px 10px;background:transparent;color:#FBF5EA;border:1px solid rgba(251,245,234,0.3);border-radius:5px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700">&#11015;</button>'+
@@ -6146,8 +6146,8 @@ function renderStep5UnifiedPanel(){
         // VARIANT B
         '<div style="display:flex;flex-direction:column;background:#FBF5EA;border-radius:10px;border:1.5px solid #ede5d8;overflow:hidden">'+
           '<div style="background:linear-gradient(180deg,#171717,#2a2a2a);color:#FBF5EA;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
-            '<span style="font-family:Lao MN,Georgia,serif;font-size:13px;font-weight:700;letter-spacing:0.06em">VARIANT B</span>'+
-            '<span style="font-size:9.5px;color:#AB8743;font-weight:700;letter-spacing:0.16em;text-transform:uppercase">Narrative Story · Story-led</span>'+
+            '<span style="font-family:Lao MN,Georgia,serif;font-size:13px;font-weight:700;letter-spacing:0.06em">V2</span>'+
+            '<span style="font-size:9.5px;color:#AB8743;font-weight:700;letter-spacing:0.16em;text-transform:uppercase">Text + Visual</span>'+
             '<span style="flex:1"></span>'+
             '<button onclick="__step5Preview(\''+activeMkt+'\',\'B\')" style="padding:5px 10px;background:#AB8743;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700">Open</button>'+
             '<button onclick="__step5Download(\''+activeMkt+'\',\'B\')" style="padding:5px 10px;background:transparent;color:#FBF5EA;border:1px solid rgba(251,245,234,0.3);border-radius:5px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700">&#11015;</button>'+
@@ -6188,7 +6188,7 @@ function _wrapPreviewWithNav(mailerHtml, mkt, variant){
   var mktFlags={US:'🇺🇸',UK:'🇬🇧',IN:'🇮🇳',Global:'🌍',ME:'🇦🇪',AU:'🇦🇺',EU:'🇪🇺'};
   var mktNames={US:'United States',UK:'United Kingdom',IN:'India',Global:'Global',ME:'Middle East',AU:'Australia',EU:'Europe'};
   var mktCurr={US:'USD ($)',UK:'GBP (£)',IN:'INR (₹)',EU:'EUR (€)',AU:'AUD (A$)',ME:'AED',Global:'USD ($)'};
-  var variantLabel = variant==='B' ? 'VARIANT B · NARRATIVE STORY' : (variant==='A' ? 'VARIANT A · EDITORIAL HERO' : 'PREVIEW');
+  var variantLabel = variant==='B' ? 'V2 · TEXT + VISUAL' : (variant==='A' ? 'V1 · COMPLETE TEXT' : 'PREVIEW');
   var safeHtml = String(mailerHtml||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   return '<!DOCTYPE html><html><head><title>VAHDAM® '+variantLabel+' — '+(mktNames[mkt]||mkt)+'</title>'+
     '<style>body{margin:0;padding:0;background:#f0ebe0;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;display:flex;flex-direction:column;height:100vh}'+
@@ -6223,7 +6223,7 @@ window.__step5Download=function(m,v){
 function _legacyImagesGrid_unused(){
   var mkts=Object.keys(S.imagePrompts);
   var mktLabels={US:'🇺🇸 United States',UK:'🇬🇧 United Kingdom',IN:'🇮🇳 India',Global:'🌍 Global',ME:'🇦🇪 Middle East',AU:'🇦🇺 Australia',EU:'🇪🇺 Europe'};
-  var variantMeta={A:{name:'Editorial Hero',accent:'#004A2B',bg:'#e8f5ee'},B:{name:'Narrative Story',accent:'#AB8743',bg:'#FBF5EA'}};
+  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#e8f5ee'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
   var feedbackBadge=(S.feedbackHistory&&S.feedbackHistory.length)?
     '<span style="font-size:9px;font-weight:700;color:#fff;background:#AB8743;padding:3px 8px;border-radius:12px;letter-spacing:0.06em">REGEN ×'+S.feedbackHistory.length+'</span>':'';
   var totalCells=mkts.length*2;
@@ -6376,8 +6376,8 @@ function renderImageVariantSwitcher(){
   var st=S.strategy||{};
   var mktLabels={US:'🇺🇸 United States',UK:'🇬🇧 United Kingdom',IN:'🇮🇳 India',Global:'🌍 Global',ME:'🇦🇪 Middle East',AU:'🇦🇺 Australia',EU:'🇪🇺 Europe'};
   var rationale={
-    A:{title:'Editorial Hero',sub:'Side-by-side hero · 4-col product grid · 3 testimonials · mid-flow offer banner',accent:'#004A2B',bg:'#e8f5ee'},
-    B:{title:'Narrative Story',sub:'Full-width hero · vertical product stack · large pull-quote · gold offer at bottom',accent:'#AB8743',bg:'#FBF5EA'}
+    A:{title:'V1 · Complete Text',sub:'Pure copy · no imagery · stands alone · highest deliverability',accent:'#004A2B',bg:'#e8f5ee'},
+    B:{title:'V2 · Text + Visual',sub:'Same copy + imagery/GIF/video (hosted media → auto GIF → AI video)',accent:'#AB8743',bg:'#FBF5EA'}
   };
   var totalCount=mkts.length*2;
   bar.innerHTML=
@@ -6472,7 +6472,7 @@ function renderAllMailersMatrix(){
           var stored=entries[mkt];
           var hasBoth=stored&&typeof stored==='object'&&stored.A&&stored.B;
           var variants=hasBoth
-            ?[{key:'A',name:'Editorial Hero',html:stored.A,colorBg:'#004A2B'},{key:'B',name:'Narrative Story',html:stored.B,colorBg:'#AB8743'}]
+            ?[{key:'A',name:'V1 · Complete Text',html:stored.A,colorBg:'#004A2B'},{key:'B',name:'V2 · Text + Visual',html:stored.B,colorBg:'#AB8743'}]
             :[{key:'A',name:'Generated',html:typeof stored==='string'?stored:(stored.A||stored.B||''),colorBg:'#004A2B'}];
           return '<div style="background:#fff;border:1px solid #ede5d8;border-radius:10px;overflow:hidden">'+
             // Market header
@@ -6605,8 +6605,8 @@ function previewBothSideBySide(){
       '<div class="ttl">A vs B Comparison</div>'+
     '</div>'+
     '<div class="split">'+
-      '<div class="col"><div class="lbl">VARIANT A &mdash; EDITORIAL HERO &middot; CONVERSION-LED</div><iframe srcdoc="'+htmlA.replace(/"/g,'&quot;')+'"></iframe></div>'+
-      '<div class="col"><div class="lbl">VARIANT B &mdash; NARRATIVE STORY &middot; STORY-LED</div><iframe srcdoc="'+htmlB.replace(/"/g,'&quot;')+'"></iframe></div>'+
+      '<div class="col"><div class="lbl">V1 &mdash; COMPLETE TEXT &middot; NO IMAGERY</div><iframe srcdoc="'+htmlA.replace(/"/g,'&quot;')+'"></iframe></div>'+
+      '<div class="col"><div class="lbl">V2 &mdash; TEXT + VISUAL</div><iframe srcdoc="'+htmlB.replace(/"/g,'&quot;')+'"></iframe></div>'+
     '</div></body></html>';
   var w=window.open('','_blank');
   if(!w){showCopyToast('Pop-up blocked — allow pop-ups and try again');return;}
@@ -6687,9 +6687,9 @@ const _ARCH_INK='#171717';
 const _ARCH_CREAM='#FBF5EA';
 
 // Map (campaignType, variant) → primary archetype.
-// CONTRACT: A = conversion-led execution, B = narrative-led execution.
-// They MUST differ in archetype family so the user gets two genuinely
-// different mailers to choose between.
+// CONTRACT: slot A = V1 (COMPLETE TEXT, imagery stripped at render), slot B = V2
+// (TEXT + VISUAL). They MUST differ in archetype family so the two variants read
+// as genuinely different mailers to choose between.
 const _ARCH_MAP={
   Sale:       {A:'product-grid-conversion',  B:'hero-led-editorial'},
   Launch:     {A:'single-product-spotlight', B:'storytelling-narrative'},
@@ -7312,6 +7312,23 @@ function _arch_renderEmail(strategy,archetype,variant,uploadedDesignImg,mt){
     html=html.split('{{STORE_BASE}}').join(resolvedBase);
     html=html.replace(/https?:\/\/(?:www\.)?vahdam\.com(?!\/cdn)/g,resolvedBase);
   }catch(_){}
+  // ── V1 (slot A) = COMPLETE TEXTUAL content only: strip every image so the
+  // mailer stands alone as pure copy. V2 (slot B) keeps its visuals.
+  if(variant==='A'){ try{ html=_arch_stripImagery(html); }catch(_){} }
+  return html;
+}
+
+// ── Remove all imagery from a rendered mailer (used for V1 / text-only). ────
+// Drops <img> tags and image-only placeholder blocks while leaving the text,
+// tables, links and brand styling intact.
+function _arch_stripImagery(html){
+  if(!html) return html;
+  // 1. Strip <img ...> tags entirely.
+  html=html.replace(/<img\b[^>]*>/gi,'');
+  // 2. Strip CSS background-image declarations (keep any solid background color).
+  html=html.replace(/background-image\s*:\s*url\([^)]*\)\s*;?/gi,'');
+  // 3. Remove gradient "image placeholder" divs that only existed to hold a photo.
+  html=html.replace(/<div[^>]*background:linear-gradient\(135deg,#d8ede2,#e8f0e8\)[^>]*><\/div>/gi,'');
   return html;
 }
 
@@ -8986,8 +9003,8 @@ async function renderDashboard(page){
     var mktFlags={US:'🇺🇸',UK:'🇬🇧',IN:'🇮🇳',Global:'🌍',ME:'🇦🇪',AU:'🇦🇺',EU:'🇪🇺'};
     var mktNames={US:'United States',UK:'United Kingdom',IN:'India',Global:'Global',ME:'Middle East',AU:'Australia',EU:'Europe'};
     var variantMeta={
-      A:{name:'Editorial Hero',sub:'Offer-forward, conversion-led',accent:'#004A2B',accentBg:'#e8f5ee'},
-      B:{name:'Narrative Story',sub:'Lifestyle, story-driven',accent:'#AB8743',accentBg:'#FBF5EA'}
+      A:{name:'V1 · Complete Text',sub:'Pure copy, no imagery',accent:'#004A2B',accentBg:'#e8f5ee'},
+      B:{name:'V2 · Text + Visual',sub:'Copy + imagery/GIF/video',accent:'#AB8743',accentBg:'#FBF5EA'}
     };
     var mailerMatrix='';
     if(mktKeys.length){
@@ -9348,8 +9365,8 @@ function previewDashboardSideBySide(logIdx,mkt){
   var pageHtml='<!DOCTYPE html><html><head><title>VAHDAM® '+mkt+' · A vs B</title><style>body{margin:0;padding:0;background:#004A2B;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;display:flex;flex-direction:column;height:100vh}.bar{background:#004A2B;color:#FBF5EA;padding:10px 16px;font-size:13px;font-weight:700;flex-shrink:0}.split{display:flex;flex:1;overflow:hidden}.col{flex:1;border-right:1px solid #004A2B;display:flex;flex-direction:column}.col:last-child{border-right:0}.lbl{background:#AB8743;color:#fff;padding:8px 14px;font-size:11px;font-weight:800;letter-spacing:0.18em;text-align:center;flex-shrink:0}.col iframe{flex:1;width:100%;border:0;background:#fff}</style></head><body>'+
     '<div class="bar">VAHDAM® · '+mkt+' · A vs B Comparison (from Dashboard)</div>'+
     '<div class="split">'+
-      '<div class="col"><div class="lbl">VARIANT A — EDITORIAL HERO</div><iframe srcdoc="'+stored.A.replace(/"/g,'&quot;')+'"></iframe></div>'+
-      '<div class="col"><div class="lbl">VARIANT B — NARRATIVE STORY</div><iframe srcdoc="'+stored.B.replace(/"/g,'&quot;')+'"></iframe></div>'+
+      '<div class="col"><div class="lbl">V1 — COMPLETE TEXT</div><iframe srcdoc="'+stored.A.replace(/"/g,'&quot;')+'"></iframe></div>'+
+      '<div class="col"><div class="lbl">V2 — TEXT + VISUAL</div><iframe srcdoc="'+stored.B.replace(/"/g,'&quot;')+'"></iframe></div>'+
     '</div></body></html>';
   var w=window.open('','_blank');
   if(!w){showCopyToast('Pop-up blocked');return;}
@@ -9483,9 +9500,9 @@ function applyCalendarHandoff(){
     }
   }catch(_){}
 
-  // 5. Land on Step 1 and announce the prefill — plus render the 4 variants
-  //    the calendar already produced so the user sees the exact mailer being
-  //    made (step-wise linking, no re-generation).
+  // 5. Land on Step 1 and announce the prefill — plus render the 2 variants
+  //    (V1 complete text, V2 text + visual) the calendar already produced so the
+  //    user sees the exact mailer being made (step-wise linking, no re-generation).
   try{
     if(typeof showOnly==='function') showOnly(1);
     var p1 = document.getElementById('p1');
@@ -9504,18 +9521,18 @@ function applyCalendarHandoff(){
   return true;
 }
 
-// Render the 4 calendar-produced variants as a tabbed panel inside Step 1 so
-// the user sees the exact mailer the calendar built before touching anything.
+// Render the 2 calendar-produced variants (V1 / V2) as a tabbed panel inside
+// Step 1 so the user sees the exact mailer the calendar built before touching it.
 function renderHandoffVariants(variants, strategy, ctaUrl){
   var box = document.createElement('div');
   box.id = 'vhdHandoffVariants';
   box.style.cssText = 'margin:14px 22px 0;padding:16px;border:1.5px solid #ece4d2;border-radius:12px;background:#fff;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;';
-  var ORDER = ['A1','A2','B1','B2'];
+  var ORDER = ['V1','V2'];
   var available = ORDER.filter(function(k){ return !!variants[k]; });
   if(!available.length){ box.style.display='none'; return box; }
   var head = '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px;">'
     + '<div style="font-family:Lao MN,Cormorant Garamond,Georgia,serif;font-size:18px;color:#004A2B;font-weight:600;">Mailer drafted from this plan row</div>'
-    + '<div style="font-size:11px;color:#7a6e5a;">2 types · 2 variants each · subject "'+escStudio(strategy.subject_line||'')+'"</div>'
+    + '<div style="font-size:11px;color:#7a6e5a;">2 variants · V1 complete text · V2 text + visual · subject "'+escStudio(strategy.subject_line||'')+'"</div>'
     + '</div>';
   var tabs = '<div id="vhdHvTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">'
     + available.map(function(k,i){
@@ -9526,16 +9543,20 @@ function renderHandoffVariants(variants, strategy, ctaUrl){
       }).join('') + '</div>';
   var panels = available.map(function(k,i){
     var v = variants[k];
-    var inner;
-    if(v.kind === 'text' && v.html){
-      inner = '<iframe srcdoc="'+escStudio(v.html).replace(/&quot;/g,'&#34;')+'" style="width:100%;height:520px;border:1px solid #ece4d2;border-radius:8px;background:#fff;"></iframe>';
-    } else {
-      inner = '<div style="padding:18px;border:1px dashed #ece4d2;border-radius:10px;background:#faf6ef;">'
-        + '<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#AB8743;font-weight:700;margin-bottom:6px;">Image generation brief</div>'
-        + '<div style="font-size:13px;line-height:1.6;color:#171717;">'+escStudio(v.hero_image_brief||'')+'</div>'
-        + '<div style="margin-top:12px;font-size:11px;color:#7a6e5a;">Render this in Step 3 via the standard image pipeline (Gemini → OpenAI → Pollinations).</div>'
+    var inner = '';
+    if(v.html){
+      inner += '<iframe srcdoc="'+escStudio(v.html).replace(/&quot;/g,'&#34;')+'" style="width:100%;height:520px;border:1px solid #ece4d2;border-radius:8px;background:#fff;"></iframe>';
+    }
+    // V2 (text + visual) also carries a visual brief + source cascade.
+    if(v.hero_image_brief){
+      inner += '<div style="margin-top:10px;padding:18px;border:1px dashed #ece4d2;border-radius:10px;background:#faf6ef;">'
+        + '<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#AB8743;font-weight:700;margin-bottom:6px;">Visual brief</div>'
+        + '<div style="font-size:13px;line-height:1.6;color:#171717;">'+escStudio(v.hero_image_brief)+'</div>'
+        + (v.hosted_media_url ? '<div style="margin-top:8px;font-size:11px;color:#004A2B;">Hosted media: <a href="'+escStudio(v.hosted_media_url)+'" target="_blank" rel="noopener" style="color:#004A2B;text-decoration:underline;">'+escStudio(v.hosted_media_url)+'</a></div>' : '')
+        + '<div style="margin-top:12px;font-size:11px;color:#7a6e5a;">Visual source order: hosted media URL → auto-generated GIF from product frames → AI video (last resort).</div>'
         + '</div>';
     }
+    if(!inner){ inner = '<div style="padding:18px;color:#7a6e5a;font-size:12px;">No preview available.</div>'; }
     var foot = ctaUrl ? '<div style="margin-top:8px;font-size:11px;color:#7a6e5a;">CTA → <a href="'+escStudio(ctaUrl)+'" target="_blank" rel="noopener" style="color:#004A2B;text-decoration:underline;">'+escStudio(ctaUrl)+'</a></div>' : '';
     return '<div data-panel="'+k+'" style="'+(i===0?'':'display:none;')+'">'+inner+foot+'</div>';
   }).join('');
