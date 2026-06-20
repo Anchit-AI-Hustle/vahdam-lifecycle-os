@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Smart Brain — VAHDAM Lifecycle OS</title>
 <link rel="icon" type="image/png" href="/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/favicon.png">
+<meta name="theme-color" content="#004A2B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Smart Brain">
 <style>
   :root{--green:#004A2B;--gold:#AB8743;--ink:#171717;--cream:#FBF5EA;--muted:#6b7770}
   *{box-sizing:border-box} body{margin:0;background:#0a1410;color:#e8ede9;font-family:Inter,system-ui,Arial,sans-serif;padding:28px}
@@ -28,7 +35,24 @@
   .st.tentative{background:rgba(171,135,67,.16);color:#d9c18f}.st.approved{background:rgba(29,107,69,.3);color:#8fe7b9}.st.final{background:#1d6b45;color:#eafff3}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
   .feed{max-height:300px;overflow:auto}.feed p{margin:6px 0;font-size:13px;border-left:2px solid rgba(171,135,67,.35);padding-left:10px}
   .conf{font-variant-numeric:tabular-nums}
-  @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}}
+  /* Funnel preview */
+  #preview{margin:0 0 12px}
+  .pvbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .pvtabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 12px;border-bottom:1px solid rgba(171,135,67,.2)}
+  .pvtab{background:transparent;border:0;border-bottom:2px solid transparent;color:#9fb3a8;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px 6px 0 0}
+  .pvtab:hover{color:#e8ede9}
+  .pvtab.on{color:#FBF5EA;border-bottom-color:var(--gold);background:rgba(171,135,67,.08)}
+  .adimg{width:100%;max-height:420px;object-fit:cover;border-radius:8px;margin:4px 0 12px;border:1px solid rgba(171,135,67,.2);display:block}
+  .pvpane{display:none}.pvpane.on{display:block}
+  .pvframe{width:100%;height:560px;border:1px solid rgba(171,135,67,.22);border-radius:12px;background:#fff}
+  .pvnote{color:#9fb3a8;font-size:12px;margin:0 0 10px}
+  .adcard{background:#07100d;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;margin-bottom:10px}
+  .adcard h4{margin:0 0 6px;font-size:12px;color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
+  .adcard .k{color:#789;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
+  .adcard .v{color:#e8ede9;line-height:1.55;font-size:13px;white-space:pre-wrap}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}}
 </style>
 </head>
 <body>
@@ -65,7 +89,11 @@
     <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
     <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
 
-    <div class="card wide"><h2 id="detailTitle">Details</h2><pre id="detail">Select an entry (View) or run a sync.</pre></div>
+    <div class="card wide">
+      <h2 id="detailTitle">Details</h2>
+      <div id="preview"></div>
+      <pre id="detail">Click “View” on any slot to preview its full funnel — mailer, ads & landing page — before approving.</pre>
+    </div>
   </section>
 </main>
 <script>
@@ -95,11 +123,87 @@ function renderPlan(){
   </tr>`).join('');
 }
 
-function viewEntry(i){
-  const e = PLAN[i];
-  $('detailTitle').textContent = `Details · ${e.date} ${e.market}`;
-  $('detail').textContent = JSON.stringify(e, null, 2);
+// ── Funnel preview (generate-on-demand, before approval) ────────────────────
+const PREVIEW_CACHE = {};   // keyed by entry id → preview payload (avoid re-calling the LLM)
+
+function clearPreview(){ $('preview').innerHTML = ''; }
+
+window.pvTab = function(btn, paneId){
+  const root = btn.closest('#preview');
+  root.querySelectorAll('.pvtab').forEach(b => b.classList.remove('on'));
+  root.querySelectorAll('.pvpane').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  const pane = root.querySelector('#' + paneId); if(pane) pane.classList.add('on');
+};
+
+function renderAd(ad){
+  const rows = [];
+  const add = (k,v)=>{ if(v!=null && String(v).trim()!=='') rows.push(`<div class="k">${esc(k)}</div><div class="v">${esc(Array.isArray(v)?v.filter(Boolean).join('\n'):v)}</div>`); };
+  if(ad.platform==='meta'){ add('Primary text',ad.primary_text); add('Headline',ad.headline); add('Description',ad.description); }
+  else if(ad.platform==='google'){ add('Headlines',ad.headlines); add('Descriptions',ad.descriptions); }
+  else if(ad.platform==='tiktok'){ add('Script',ad.script); add('Caption',ad.caption); }
+  else { Object.keys(ad).forEach(k=>{ if(!['platform','creative_brief','creative'].includes(k)) add(k, ad[k]); }); }
+  const cr = ad.creative || {};
+  const brief = cr.brief || ad.creative_brief;
+  if(brief) add('Creative brief', brief);
+  const img = cr.image ? `<img class="adimg" src="${esc(cr.image)}" alt="${esc((ad.platform||'ad')+' creative')}" loading="lazy"/>` : '';
+  return `<div class="adcard"><h4>${esc((ad.platform||'ad').toUpperCase())} ad</h4>${img}${rows.join('')}</div>`;
 }
+
+function renderPreview(payload, e, i, opts){
+  opts = opts || {};
+  const campaign  = payload.campaign || {};
+  const emailHtml = (payload.email_html   || campaign.assets?.email?.html || '');
+  const lpHtml    = (payload.landing_html || campaign.assets?.landing_pages?.[0]?.html || '');
+  const ads       = payload.ads || campaign.assets?.ads || [];
+  const cw        = payload.copywriter || campaign.copywriter || {};
+  const liveLpId  = e.generated_campaign_id || (opts.persisted && campaign.campaign_id) || null;
+
+  const tabs = [], panes = [];
+  const tab = (id,label,on)=> tabs.push(`<button class="pvtab${on?' on':''}" onclick="pvTab(this,'${id}')">${label}</button>`);
+  const pane= (id,html,on)=> panes.push(`<div class="pvpane${on?' on':''}" id="${id}">${html}</div>`);
+
+  let first = true;
+  if(emailHtml){ const html = emailHtml.replace(/\{\{\s*landing_page_url\s*\}\}/g,'#'); tab('pv-mail','✉ Mailer',first); pane('pv-mail', `<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first); first=false; }
+  if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#8fe7b9">/lp/${esc(liveLpId)} ↗</a> once approved.</p>`:''}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
+  ads.forEach(ad=>{ const id='pv-ad-'+(ad.platform||'x'); tab(id, esc((ad.platform||'ad'))+' ad', first); pane(id, renderAd(ad), first); first=false; });
+  tab('pv-json','{ } Details', first); pane('pv-json', `<pre style="margin:0">${esc(JSON.stringify(campaign && campaign.campaign_id ? campaign : e, null, 2))}</pre>`, first);
+
+  const isTentative = e.status==='tentative';
+  const banner = opts.persisted
+    ? `<span class="st approved">approved</span> <span class="pvnote" style="margin:0">Live campaign generated.</span>`
+    : `<span class="st tentative">preview</span> <span class="pvnote" style="margin:0">Not yet approved — this is generated on demand and not saved.</span>`;
+
+  $('preview').innerHTML = `
+    <div class="pvbar">
+      ${banner}
+      <span style="flex:1"></span>
+      <button class="btn sm secondary" onclick="viewEntry(${i}, true)">↻ Regenerate</button>
+      ${isTentative ? `<button class="btn sm ok" onclick="approve(${i})">Approve this slot</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
+    </div>
+    <div class="pvnote">Copy by <b>${esc(cw.provider || 'template')}</b>${cw.model?` · ${esc(cw.model)}`:''} · channels: ${(e.channels||[]).map(esc).join(', ')||'—'}</div>
+    <div class="pvtabs">${tabs.join('')}</div>
+    ${panes.join('')}`;
+  $('detail').textContent = '';
+  $('preview').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+async function viewEntry(i, forceRegen){
+  const e = PLAN[i];
+  $('detailTitle').textContent = `Funnel preview · ${e.date} ${e.market}`;
+  if(forceRegen) delete PREVIEW_CACHE[e.id];
+  if(PREVIEW_CACHE[e.id]){ renderPreview(PREVIEW_CACHE[e.id], e, i); return; }
+  $('preview').innerHTML = `<p class="pvnote"><span class="spinner"></span> Generating the full funnel (mailer, ads & landing page) with the LLM waterfall — usually 10–30s…</p>`;
+  $('detail').textContent = '';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Preview failed');
+    PREVIEW_CACHE[e.id] = data;
+    renderPreview(data, e, i);
+  }catch(err){ $('preview').innerHTML = `<p class="pvnote" style="color:#e89a9a">Preview failed: ${esc(err.message)}</p>`; }
+}
+window.viewEntry = viewEntry;
 
 async function loadPlan(){
   try{
@@ -124,6 +228,8 @@ async function runSync(){
     $('insights').innerHTML = (data.insights||[]).map(x=>`<p>• ${esc(x)}</p>`).join('') || '<p>No insights.</p>';
     $('changes').innerHTML = (data.changes||[]).filter(c=>c.kind!=='kept_locked').map(c=>`<p><b>${esc(c.kind)}</b> — ${esc(c.detail)}</p>`).join('') || '<p>No material changes — plan already in sync with the data.</p>';
     PLAN = data.plan || [];
+    Object.keys(PREVIEW_CACHE).forEach(k => delete PREVIEW_CACHE[k]);  // slots may have been re-planned
+    clearPreview();
     renderPlan();
   }catch(e){ $('detail').textContent = e.stack || e.message; }
   finally{ $('sync').disabled = false; $('sync').textContent = '🔄 Run Daily Sync'; }
@@ -133,17 +239,18 @@ async function approve(i){
   const e = PLAN[i];
   if(!confirm(`Approve ${e.date} ${e.market} (${e.objective})?\nThis generates the mailer, ads, and landing page for final check.`)) return;
   $('detailTitle').textContent = `Generating campaign · ${e.date} ${e.market}…`;
-  $('detail').textContent = 'Writing copy with the LLM waterfall and assembling assets — usually 10–30s.';
+  $('preview').innerHTML = `<p class="pvnote"><span class="spinner"></span> Writing copy with the LLM waterfall and assembling assets — usually 10–30s…</p>`;
+  $('detail').textContent = '';
   try{
     const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
     const data = await r.json();
     if(!data.ok) throw new Error(data.error || 'Approve failed');
     e.status = 'approved'; e.generated_campaign_id = data.campaign.campaign_id;
+    delete PREVIEW_CACHE[e.id];
     renderPlan();
     $('detailTitle').textContent = `Generated · ${data.campaign.name} (copy: ${data.campaign.copywriter?.provider})`;
-    $('detail').textContent = JSON.stringify(data.campaign, null, 2);
-    if(data.landing_page_url) window.open(data.landing_page_url, '_blank');
-  }catch(err){ $('detailTitle').textContent = 'Approve failed'; $('detail').textContent = err.stack || err.message; }
+    renderPreview(data, e, i, { persisted: true });
+  }catch(err){ $('detailTitle').textContent = 'Approve failed'; clearPreview(); $('detail').textContent = err.stack || err.message; }
 }
 
 async function reject(i){
@@ -154,11 +261,15 @@ async function reject(i){
     const data = await r.json();
     if(!data.ok) throw new Error(data.error || 'Reject failed');
     e.status = 'rejected';
+    delete PREVIEW_CACHE[e.id];
+    clearPreview();
     renderPlan();
   }catch(err){ $('detail').textContent = err.stack || err.message; }
 }
+window.approve = approve; window.reject = reject;
 
 async function showSchema(){
+  clearPreview();
   const r = await fetch(`${API}?action=smart-brain-schema`);
   $('detailTitle').textContent = 'Schema contract';
   $('detail').textContent = JSON.stringify(await r.json(), null, 2);

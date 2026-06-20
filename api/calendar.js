@@ -21,6 +21,9 @@
  *                              entries from latest data, keep approved locked
  *   ?action=smart-brain-cron        → GET: Vercel Cron entrypoint for the same
  *                              (CRON_SECRET-protected)
+ *   ?action=smart-brain-preview     → POST: generate-on-demand funnel preview
+ *                              (mailer + ads + LP) for any slot — NOT persisted,
+ *                              status unchanged. Powers "View" before approval.
  *   ?action=smart-brain-approve     → POST: human sign-off → LLM-written
  *                              mailer + ads + landing page, persisted
  *   ?action=smart-brain-reject      → POST: reject slot, re-planned next sync
@@ -76,6 +79,15 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json({ ok: true, cron: true, synced_at: result.synced_at, mode: result.mode, changes: result.changes.length, persistence: result.persistence });
     }
 
+    if (smartAction === 'preview') {
+      // Generate-on-demand funnel preview for ANY slot (incl. tentative) without
+      // persisting or approving — reviewers see the mailer/ads/LP before sign-off.
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+      if (!body.id && !body.entry) return res.status(400).json({ ok: false, error: 'id (calendar entry) or entry is required' });
+      const result = await plan.previewEntry({ id: body.id, entry: body.entry || null, reviewer: body.reviewer || null, config: body.config || {} });
+      return res.status(200).json(result);
+    }
+
     if (smartAction === 'approve') {
       if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
       if (!body.id && !body.entry) return res.status(400).json({ ok: false, error: 'id (calendar entry) or entry is required' });
@@ -119,7 +131,7 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json(result);
     }
 
-    return res.status(400).json({ ok: false, error: 'Unknown Smart Brain action. Use smart-brain-health|smart-brain-schema|smart-brain-plan|smart-brain-sync-daily|smart-brain-cron|smart-brain-approve|smart-brain-reject|smart-brain-run-daily|smart-brain-generate-slot|smart-brain-feedback|smart-brain-weekly-recalibration' });
+    return res.status(400).json({ ok: false, error: 'Unknown Smart Brain action. Use smart-brain-health|smart-brain-schema|smart-brain-plan|smart-brain-sync-daily|smart-brain-cron|smart-brain-preview|smart-brain-approve|smart-brain-reject|smart-brain-run-daily|smart-brain-generate-slot|smart-brain-feedback|smart-brain-weekly-recalibration' });
   } catch (err) {
     console.error('[api/calendar smart-brain]', err);
     return res.status(500).json({ ok: false, error: err.message });

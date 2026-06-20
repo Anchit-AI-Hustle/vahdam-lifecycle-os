@@ -57,6 +57,7 @@
     { "source": "/lp/cortisol-v2", "destination": "/landing-pages/final/vahdam-uk-presell-cortisol-v2.html" },
     { "source": "/lp/cortisol-v3", "destination": "/landing-pages/final/vahdam-uk-presell-cortisol-v3.html" },
     { "source": "/lp/agent",       "destination": "/landing-pages/final/lp_all_in_one_agent_v2.html" },
+    { "source": "/lp/:id",         "destination": "/api/calendar?action=lp&id=:id" },
     { "source": "/knowledge-base", "destination": "/knowledge-base.html" },
     { "source": "/kb",         "destination": "/knowledge-base.html" },
     { "source": "/cohort-definitions", "destination": "/cohort-definitions.html" },
@@ -72,7 +73,7 @@
         { "key": "X-Frame-Options",          "value": "SAMEORIGIN" },
         { "key": "X-Content-Type-Options",   "value": "nosniff" },
         { "key": "Referrer-Policy",          "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy",       "value": "geolocation=(), microphone=(), camera=(), payment=(), usb=()" },
+        { "key": "Permissions-Policy",       "value": "geolocation=(), microphone=(self), camera=(), payment=(), usb=()" },
         { "key": "Strict-Transport-Security","value": "max-age=31536000; includeSubDomains" }
       ]
     },
