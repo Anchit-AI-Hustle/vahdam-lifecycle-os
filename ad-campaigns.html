@@ -108,7 +108,17 @@
   .cre-prev img { max-width: 220px; width: 100%; border-radius: 10px; border: 1px solid rgba(171,135,67,0.25); display: block; }
   .cre-prev .cre-actions { display: flex; gap: 8px; margin-top: 8px; }
   .cre-spin { font-size: 11.5px; color: #9aaaa1; }
-  .item-cre img { max-width: 120px; border-radius: 8px; border: 1px solid rgba(171,135,67,0.2); margin-top: 8px; display: block; }
+  /* Multi-asset creative grid (one tile per platform format). */
+  .cre-assets { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+  .cre-asset { width: 150px; }
+  .cre-asset .cre-asset-label { font-size: 10px; color: #9aaaa1; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block; }
+  .cre-asset img { width: 100%; border-radius: 8px; border: 1px solid rgba(171,135,67,0.25); display: block; background: #0a1410; }
+  .cre-asset .cre-asset-dl { font-size: 10.5px; color: #AB8743; text-decoration: none; display: inline-block; margin-top: 4px; }
+  .cre-anim { position: relative; overflow: hidden; }
+  .cre-anim img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; animation: creFade var(--cre-dur, 6s) infinite; }
+  @keyframes creFade { 0%,100%{opacity:0} 8%,33%{opacity:1} 41%{opacity:0} }
+  .item-cre { display: flex; flex-wrap: wrap; gap: 8px; }
+  .item-cre img { max-width: 110px; border-radius: 8px; border: 1px solid rgba(171,135,67,0.2); margin-top: 8px; display: block; }
 </style>
 </head>
 <body>
@@ -198,10 +208,15 @@
         <textarea id="g-desc" placeholder="Hand-picked, single-estate teas shipped within 72 hours of harvest."></textarea>
         <div class="cre" data-cre="g">
           <div class="cre-head">
-            <span class="cre-title">🎨 Ad creative</span>
-            <button class="btn btn-ghost" type="button" id="g-cre">Generate creative image</button>
+            <span class="cre-title">🎨 Ad creatives</span>
+            <div class="btn-row">
+              <button class="btn btn-ghost" type="button" id="g-cre">Generate ad creatives</button>
+              <button class="btn btn-ghost" type="button" id="g-mp" data-mp="g">⧉ Copy master prompt</button>
+            </div>
           </div>
-          <p class="note" id="g-cre-note">Builds a brand-safe product image from this campaign's name, keywords & market.</p>
+          <label class="label" style="margin-top:8px">Media URL (optional) — paste a hosted image / GIF / MP4 (e.g. a Shopify product video)</label>
+          <input id="g-media" type="url" placeholder="https://cdn.shopify.com/…/product.mp4">
+          <p class="note" id="g-cre-note">Builds platform-correct creatives (1.91:1 + 1:1) with on-creative headline & offer from this campaign.</p>
           <div class="cre-prev" id="g-cre-prev"></div>
         </div>
         <div class="btn-row">
@@ -245,10 +260,15 @@
         <input id="m-headline" placeholder="Garden-fresh, single-estate tea">
         <div class="cre" data-cre="m">
           <div class="cre-head">
-            <span class="cre-title">🎨 Ad creative</span>
-            <button class="btn btn-ghost" type="button" id="m-cre">Generate creative image</button>
+            <span class="cre-title">🎨 Ad creatives</span>
+            <div class="btn-row">
+              <button class="btn btn-ghost" type="button" id="m-cre">Generate ad creatives</button>
+              <button class="btn btn-ghost" type="button" id="m-mp" data-mp="m">⧉ Copy master prompt</button>
+            </div>
           </div>
-          <p class="note" id="m-cre-note">Builds a brand-safe lifestyle/product image from this campaign's name, headline & market.</p>
+          <label class="label" style="margin-top:8px">Media URL (optional) — paste a hosted image / GIF / MP4 (e.g. a Shopify product video)</label>
+          <input id="m-media" type="url" placeholder="https://cdn.shopify.com/…/product.mp4">
+          <p class="note" id="m-cre-note">Builds platform-correct creatives (1:1 feed + 9:16 story/reel) with on-creative headline & offer.</p>
           <div class="cre-prev" id="m-cre-prev"></div>
         </div>
         <div class="btn-row">
@@ -296,10 +316,15 @@
         </div>
         <div class="cre" data-cre="t">
           <div class="cre-head">
-            <span class="cre-title">🎨 Ad creative</span>
-            <button class="btn btn-ghost" type="button" id="t-cre">Generate creative image</button>
+            <span class="cre-title">🎨 Ad creatives</span>
+            <div class="btn-row">
+              <button class="btn btn-ghost" type="button" id="t-cre">Generate ad creatives</button>
+              <button class="btn btn-ghost" type="button" id="t-mp" data-mp="t">⧉ Copy master prompt</button>
+            </div>
           </div>
-          <p class="note" id="t-cre-note">Builds a brand-safe, mobile-first creative from this campaign's hook & market.</p>
+          <label class="label" style="margin-top:8px">Media URL (optional) — paste a hosted image / GIF / MP4 (e.g. a Shopify product video)</label>
+          <input id="t-media" type="url" placeholder="https://cdn.shopify.com/…/product.mp4">
+          <p class="note" id="t-cre-note">Builds a platform-correct 9:16 creative with on-creative hook & offer, safe-zoned for TikTok UI.</p>
           <div class="cre-prev" id="t-cre-prev"></div>
         </div>
         <div class="btn-row">
@@ -383,7 +408,19 @@
   async function persistAd(channel, c) {
     const sb = sbClient(); if (!sb) return;
     try {
-      let creativeUrl = c.image || '';
+      // Upload every base64 creative asset to Storage so only hosted URLs are
+      // stored on the row. creative_assets is an array of platform-correct
+      // assets ({format,size,url,text_overlay}); creative_url stays = primary
+      // for backward compatibility.
+      const assets = Array.isArray(c.creative_assets) ? c.creative_assets : [];
+      for (let i = 0; i < assets.length; i++) {
+        const a = assets[i];
+        if (a && a.url && a.url.indexOf('data:') === 0) {
+          const hosted = await uploadCreative(a.url);
+          if (hosted) a.url = hosted;
+        }
+      }
+      let creativeUrl = c.image || (assets[0] && assets[0].url) || '';
       if (creativeUrl && creativeUrl.indexOf('data:') === 0) creativeUrl = await uploadCreative(creativeUrl);
       const u = sbUser() || {};
       const row = {
@@ -392,6 +429,8 @@
         channel, name: c.name || '', market: c.market || '',
         objective: c.type || c.obj || '', budget: String(c.budget || ''),
         url: c.url || '', audience: c.aud || '',
+        // c (stored in the `copy` JSONB) carries the full creative_assets array,
+        // so the multi-asset payload survives without needing a new column.
         copy: c, creative_url: creativeUrl || '', creative_prompt: c.imagePrompt || '',
         origin: location.origin || ''
       };
@@ -402,20 +441,46 @@
     } catch (e) { console.warn('[ads] persist error:', e && e.message); }
   }
 
-  // ── Ad creative generator (calls the shared /api/ai/image cascade) ───
-  // Holds the just-generated creative per channel until the campaign is saved.
+  // ── Ad creative generator — REAL platform ad creatives ───────────────
+  // Produces platform-correct creative ASSETS (visual + on-creative text
+  // overlay) at the right sizes, via the shared /api/ai/image cascade for the
+  // underlying visual. Held per channel until the campaign is saved.
+  //   creative[ch] = { assets: [{format,size,url,text_overlay}], provider }
   const creative = { g: null, m: null, t: null };
+  const CUR = { US: '$', UK: '£', IN: '₹', EU: '€', AU: 'A$', ME: 'AED', Global: '$' };
+  // Platform format specs. label = human name; size = WxH the visual + overlay
+  // are rendered at; ar = friendly aspect tag stored on the asset.
   const CRE_CFG = {
-    g: { market: 'g-market', name: 'g-name', a: 'g-keywords', b: 'g-headlines', size: '1024x1024' },
-    m: { market: 'm-market', name: 'm-name', a: 'm-headline', b: 'm-primary',  size: '1024x1024' },
-    t: { market: 't-market', name: 't-name', a: 't-hook',     b: 't-caption',  size: '1024x1536' },
+    g: { market: 'g-market', name: 'g-name',
+      formats: [
+        { format: 'Google · Landscape 1.91:1', size: '1200x628',  ar: '1.91:1' },
+        { format: 'Google · Square 1:1',       size: '1200x1200', ar: '1:1' },
+      ] },
+    m: { market: 'm-market', name: 'm-name',
+      formats: [
+        { format: 'Meta/IG · Feed 1:1',         size: '1080x1080', ar: '1:1' },
+        { format: 'Meta/IG · Story/Reel 9:16',  size: '1080x1920', ar: '9:16' },
+      ] },
+    t: { market: 't-market', name: 't-name',
+      formats: [
+        { format: 'TikTok · Vertical 9:16', size: '1080x1920', ar: '9:16' },
+      ] },
   };
+  const v = (id) => (document.getElementById(id)?.value || '').trim();
+  // Pull the headline / offer / sub copy + market for a channel.
+  function getCopy(ch) {
+    const market = v(CRE_CFG[ch].market) || 'US';
+    const headline = (ch === 'g' ? (v('g-headlines').split('\n')[0]) : ch === 'm' ? v('m-headline') : v('t-hook'))
+      || v(CRE_CFG[ch].name) || 'Steep the moment';
+    const sub = (ch === 'g' ? v('g-keywords').split(',')[0] : ch === 'm' ? v('m-primary') : v('t-caption'))
+      || 'Single-estate · garden-fresh in 72 hours';
+    return { market, headline, sub, offer: 'Shop now', cur: CUR[market] || '$' };
+  }
+  // Text-free visual prompt for the AI image cascade (text is overlaid on canvas).
   function buildCreativePrompt(ch) {
     const cfg = CRE_CFG[ch];
-    const v = (id) => (document.getElementById(id)?.value || '').trim();
     const market = v(cfg.market) || 'US';
-    const name = v(cfg.name); const a = v(cfg.a); const b = v(cfg.b);
-    const subject = [name, a, b].filter(Boolean).join(' — ').slice(0, 320) || 'VAHDAM premium single-estate tea';
+    const subject = [v(cfg.name), getCopy(ch).headline].filter(Boolean).join(' — ').slice(0, 320) || 'VAHDAM premium single-estate tea';
     const orient = ch === 't' ? 'vertical 9:16 mobile-first social composition' : 'clean centered composition';
     return [
       'Premium advertising creative for VAHDAM India — single-estate, garden-fresh Indian tea.',
@@ -438,96 +503,176 @@
     if (line && lines.length < maxLines) lines.push(line);
     return lines;
   }
-  // Deterministic, always-works creative: a designed ad rendered on a canvas
-  // from the real campaign copy + brand palette. No external API needed.
-  function renderCanvasCreative(ch) {
-    const cfg = CRE_CFG[ch];
-    const v = (id) => (document.getElementById(id)?.value || '').trim();
-    const dims = cfg.size.split('x').map(Number); const W = dims[0], H = dims[1];
-    const market = v(cfg.market) || 'US';
-    const headline = (ch === 'g' ? (v('g-headlines').split('\n')[0]) : ch === 'm' ? v('m-headline') : v('t-hook'))
-      || v(cfg.name) || 'Steep the moment';
-    const sub = (ch === 'g' ? v('g-keywords').split(',')[0] : ch === 'm' ? v('m-primary') : v('t-caption')) || 'Single-estate · garden-fresh in 72 hours';
-    const cur = { US: '$', UK: '£', IN: '₹', EU: '€', AU: 'A$', ME: 'AED', Global: '$' }[market] || '$';
-    const c = document.createElement('canvas'); c.width = W; c.height = H;
-    const x = c.getContext('2d');
-    // Background — forest green with a soft radial glow
+  // Load an image (CORS-safe) for compositing. Returns null on failure.
+  function loadImage(src) {
+    return new Promise((resolve) => {
+      if (!src) return resolve(null);
+      // MP4/WebM (e.g. a Shopify product video) → grab the first frame.
+      if (/\.(mp4|webm|mov)(\?|#|$)/i.test(src)) {
+        const vid = document.createElement('video');
+        vid.crossOrigin = 'anonymous'; vid.muted = true; vid.playsInline = true; vid.preload = 'auto';
+        const done = (ok) => resolve(ok ? vid : null);
+        vid.onloadeddata = () => { try { vid.currentTime = Math.min(0.1, (vid.duration || 1) * 0.1); } catch (_) { done(true); } };
+        vid.onseeked = () => done(true);
+        vid.onerror = () => done(false);
+        vid.src = src;
+        return;
+      }
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+  // Draw a base visual into the canvas: cover-fit the provided image, or paint
+  // the brand gradient fallback. Then add a legibility scrim.
+  function drawBase(x, W, H, baseImg) {
     x.fillStyle = '#004A2B'; x.fillRect(0, 0, W, H);
-    const g = x.createRadialGradient(W * 0.5, H * 0.32, 40, W * 0.5, H * 0.32, W * 0.8);
-    g.addColorStop(0, 'rgba(171,135,67,0.28)'); g.addColorStop(1, 'rgba(0,74,43,0)');
-    x.fillStyle = g; x.fillRect(0, 0, W, H);
-    // Gold frame
-    x.strokeStyle = '#AB8743'; x.lineWidth = Math.round(W * 0.012);
-    const m = Math.round(W * 0.05); x.strokeRect(m, m, W - m * 2, H - m * 2);
-    // Wordmark
-    x.fillStyle = '#FBF5EA'; x.textAlign = 'center';
-    x.font = '700 ' + Math.round(W * 0.045) + 'px Georgia, serif';
-    x.fillText('V A H D A M', W / 2, H * 0.16);
-    x.fillStyle = '#AB8743'; x.font = '600 ' + Math.round(W * 0.02) + 'px Inter, sans-serif';
-    x.fillText('SINGLE-ESTATE INDIAN TEA', W / 2, H * 0.20);
-    // Headline (serif, wrapped, centered block)
+    if (baseImg) {
+      const bw = baseImg.videoWidth || baseImg.width, bh = baseImg.videoHeight || baseImg.height;
+      const ir = (bw && bh) ? bw / bh : (W / H), cr = W / H;
+      let dw = W, dh = H, dx = 0, dy = 0;
+      if (ir > cr) { dh = H; dw = H * ir; dx = (W - dw) / 2; } else { dw = W; dh = W / ir; dy = (H - dh) / 2; }
+      try { x.drawImage(baseImg, dx, dy, dw, dh); } catch (_) {}
+    } else {
+      const g = x.createRadialGradient(W * 0.5, H * 0.32, 40, W * 0.5, H * 0.32, W * 0.9);
+      g.addColorStop(0, 'rgba(171,135,67,0.30)'); g.addColorStop(1, 'rgba(0,74,43,0)');
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+    }
+  }
+  // Composite ONE platform asset: base visual + brand text overlay (wordmark,
+  // headline, sub, offer pill, market chip). 9:16 keeps text clear of the
+  // bottom ~20% (platform UI chrome safe zone). Returns a PNG data URL.
+  function composeCreative(fmt, copy, baseImg) {
+    const dims = fmt.size.split('x').map(Number); const W = dims[0], H = dims[1];
+    const tall = (H / W) > 1.4; // 9:16-ish
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d'); x.textAlign = 'center';
+    drawBase(x, W, H, baseImg);
+    // Text band gradient (bottom for tall, full soft wash otherwise) for legibility.
+    const band = x.createLinearGradient(0, 0, 0, H);
+    band.addColorStop(0, 'rgba(10,20,16,0.55)'); band.addColorStop(0.45, 'rgba(10,20,16,0.10)'); band.addColorStop(1, 'rgba(10,20,16,0.80)');
+    x.fillStyle = band; x.fillRect(0, 0, W, H);
+    // Safe zone: on 9:16 keep all text above the bottom 20%.
+    const safeBottom = tall ? H * 0.80 : H * 0.94;
+    const base = Math.min(W, H);
+    // Wordmark (top)
     x.fillStyle = '#FBF5EA';
-    const hSize = Math.round(W * 0.072); x.font = '600 ' + hSize + 'px Georgia, serif';
-    const hLines = wrapText(x, headline, W * 0.78, 4);
-    let y = H * (ch === 't' ? 0.40 : 0.42) - (hLines.length - 1) * hSize * 0.6;
-    hLines.forEach((ln) => { x.fillText(ln, W / 2, y); y += hSize * 1.15; });
-    // Sub copy
-    x.fillStyle = 'rgba(251,245,234,0.82)';
-    const sSize = Math.round(W * 0.028); x.font = '400 ' + sSize + 'px Inter, sans-serif';
-    wrapText(x, sub, W * 0.7, 2).forEach((ln, i) => x.fillText(ln, W / 2, y + sSize * 0.6 + i * sSize * 1.4));
-    // Offer / CTA pill
-    const pillY = H * 0.82, pillW = W * 0.6, pillH = Math.round(H * 0.075), pillX = (W - pillW) / 2;
+    x.font = '700 ' + Math.round(base * 0.05) + "px 'Lao MN', Georgia, serif";
+    x.fillText('V A H D A M', W / 2, H * 0.10);
+    x.fillStyle = '#AB8743'; x.font = '600 ' + Math.round(base * 0.022) + "px 'Proxima Nova', Arial, sans-serif";
+    x.fillText('SINGLE-ESTATE INDIAN TEA', W / 2, H * 0.14);
+    // Offer pill (sits just above safe-zone floor)
+    const pillH = Math.round(base * 0.085), pillW = Math.min(W * 0.7, base * 0.9);
+    const pillX = (W - pillW) / 2, pillY = safeBottom - pillH;
     x.fillStyle = '#AB8743';
     if (x.roundRect) { x.beginPath(); x.roundRect(pillX, pillY, pillW, pillH, pillH / 2); x.fill(); }
     else x.fillRect(pillX, pillY, pillW, pillH);
-    x.fillStyle = '#0a1410'; x.font = '700 ' + Math.round(W * 0.032) + 'px Inter, sans-serif';
-    x.fillText('Shop now · garden-fresh', W / 2, pillY + pillH * 0.64);
-    // Market chip
-    x.fillStyle = 'rgba(251,245,234,0.5)'; x.font = '600 ' + Math.round(W * 0.02) + 'px Inter, sans-serif';
-    x.fillText(market + ' · ' + cur, W / 2, H * 0.93);
+    x.fillStyle = '#171717'; x.font = '700 ' + Math.round(base * 0.034) + "px 'Proxima Nova', Arial, sans-serif";
+    x.fillText(copy.offer + ' · garden-fresh', W / 2, pillY + pillH * 0.64);
+    // Headline block (above the pill, wrapped)
+    const hSize = Math.round(base * 0.075); x.font = '600 ' + hSize + "px 'Lao MN', Georgia, serif";
+    const hLines = wrapText(x, copy.headline, W * 0.82, 4);
+    const sSize = Math.round(base * 0.03);
+    const blockH = hLines.length * hSize * 1.12 + sSize * 1.6;
+    let y = pillY - base * 0.06 - blockH + hSize;
+    if (y < H * 0.24) y = H * 0.24;
+    x.fillStyle = '#FBF5EA';
+    hLines.forEach((ln) => { x.fillText(ln, W / 2, y); y += hSize * 1.12; });
+    // Sub copy
+    x.fillStyle = 'rgba(251,245,234,0.85)'; x.font = '400 ' + sSize + "px 'Proxima Nova', Arial, sans-serif";
+    wrapText(x, copy.sub, W * 0.74, 2).forEach((ln, i) => x.fillText(ln, W / 2, y + sSize * 0.4 + i * sSize * 1.3));
+    // Market chip (within safe zone)
+    x.fillStyle = 'rgba(251,245,234,0.55)'; x.font = '600 ' + Math.round(base * 0.02) + "px 'Proxima Nova', Arial, sans-serif";
+    x.fillText(copy.market + ' · ' + copy.cur, W / 2, safeBottom + (tall ? H * 0.05 : 0) + base * 0.02);
     return c.toDataURL('image/png');
   }
-  function showCreative(ch, dataUrl, label, note) {
+  // Fetch ONE AI base visual at the given size (text-free). Returns dataURL or ''.
+  async function fetchAiVisual(prompt, size) {
+    try {
+      const geminiKey = (() => { try { return localStorage.getItem('vahdam-gemini-key') || ''; } catch (_) { return ''; } })();
+      const r = await fetch('/api/ai/image', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, geminiKey ? { 'x-user-gemini-key': geminiKey } : {}),
+        body: JSON.stringify({ prompt, size, quality: 'high' }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.image_data_url) return { url: d.image_data_url, provider: d.provider || 'ai' };
+    } catch (_) {}
+    return { url: '', provider: '' };
+  }
+  // Render the per-channel multi-asset preview (grid + optional animated tile).
+  function showCreatives(ch, assets, animFrames, provider, note) {
     const prev = document.getElementById(ch + '-cre-prev');
     const noteEl = document.getElementById(ch + '-cre-note');
-    creative[ch] = { dataUrl, prompt: buildCreativePrompt(ch), provider: label };
-    prev.innerHTML = '<img src="' + dataUrl + '" alt="ad creative">' +
-      '<div class="cre-actions">' +
-        '<button class="btn btn-ghost" type="button" data-cre-redo="' + ch + '">↻ Regenerate</button>' +
-        '<a class="btn btn-ghost" href="' + dataUrl + '" download="vahdam-' + ch + '-creative.png">⬇ Download</a>' +
-        '<button class="btn btn-ghost" type="button" data-cre-clear="' + ch + '">Remove</button>' +
+    creative[ch] = { assets, provider, prompt: buildCreativePrompt(ch) };
+    let html = '';
+    if (animFrames && animFrames.length > 1) {
+      const ar = (assets[0] && assets[0].size.split('x').map(Number)) || [1, 1];
+      html += '<div class="cre-asset"><span class="cre-asset-label">Animated preview</span>' +
+        '<div class="cre-anim" style="aspect-ratio:' + ar[0] + '/' + ar[1] + '">' +
+        animFrames.map((f) => '<img src="' + f + '" alt="frame">').join('') + '</div></div>';
+    }
+    html += '<div class="cre-assets">' + assets.map((a, i) =>
+      '<div class="cre-asset"><span class="cre-asset-label">' + esc(a.format) + '</span>' +
+      '<img src="' + a.url + '" alt="' + esc(a.format) + '">' +
+      '<a class="cre-asset-dl" href="' + a.url + '" download="vahdam-' + ch + '-' + a.size + '.png">⬇ Download</a></div>'
+    ).join('') + '</div>';
+    html += '<div class="cre-actions">' +
+      '<button class="btn btn-ghost" type="button" data-cre-redo="' + ch + '">↻ Regenerate</button>' +
+      '<button class="btn btn-ghost" type="button" data-cre-clear="' + ch + '">Remove</button>' +
       '</div>';
+    prev.innerHTML = html;
     if (noteEl) noteEl.textContent = note;
   }
   async function genCreative(ch) {
     const note = document.getElementById(ch + '-cre-note');
     const btn  = document.getElementById(ch + '-cre');
+    const cfg = CRE_CFG[ch];
+    const copy = getCopy(ch);
     const prompt = buildCreativePrompt(ch);
+    const mediaUrl = v(ch + '-media');
     const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Generating…';
-    if (note) { note.innerHTML = '<span class="cre-spin">Generating your creative…</span>'; }
+    if (note) note.innerHTML = '<span class="cre-spin">Building platform creatives…</span>';
     try {
-      // 1) Try AI photo-real image (works once OpenAI image is enabled).
-      let aiUrl = '', provider = '';
-      try {
-        const geminiKey = (() => { try { return localStorage.getItem('vahdam-gemini-key') || ''; } catch { return ''; } })();
-        const r = await fetch('/api/ai/image', {
-          method: 'POST',
-          headers: Object.assign({ 'Content-Type': 'application/json' }, geminiKey ? { 'x-user-gemini-key': geminiKey } : {}),
-          body: JSON.stringify({ prompt, size: CRE_CFG[ch].size, quality: 'high' }),
-        });
-        const d = await r.json().catch(() => ({}));
-        if (r.ok && d.image_data_url) { aiUrl = d.image_data_url; provider = d.provider || 'ai'; }
-      } catch (_) { /* fall through to canvas */ }
-
-      if (aiUrl) {
-        showCreative(ch, aiUrl, provider, 'AI creative ready · ' + provider + ' — attaches when you save.');
-      } else {
-        // 2) Always-works fallback: render a designed creative on canvas.
-        const url = renderCanvasCreative(ch);
-        showCreative(ch, url, 'designed', 'Designed creative ready (AI image unavailable) — attaches when you save. Download or regenerate above.');
+      let baseImg = null, provider = 'designed', animFrames = [];
+      // ── Visual source cascade ──
+      // Tier 1: a provided hosted media URL (image / GIF / MP4 still).
+      if (mediaUrl) {
+        baseImg = await loadImage(mediaUrl);
+        if (baseImg) provider = 'media-url';
+        if (note) note.innerHTML = '<span class="cre-spin">Composing creatives from your media…</span>';
       }
+      // Tier 2/3: no usable media → AI-generate a base visual (cascade inside
+      // /api/ai/image), and assemble an animated multi-frame preview from
+      // generated/gradient frames. Fully degrades to a brand-gradient canvas.
+      if (!baseImg) {
+        const primarySize = cfg.formats[0].size;
+        const a1 = await fetchAiVisual(prompt, primarySize);
+        if (a1.url) { baseImg = await loadImage(a1.url); provider = a1.provider; }
+        // Build a 2-frame cross-fade animated preview (Tier 2). Second frame is
+        // a re-roll where available, else the brand-gradient composite.
+        const f1 = composeCreative(cfg.formats[0], copy, baseImg);
+        const a2 = baseImg ? await fetchAiVisual(prompt, primarySize) : { url: '' };
+        const img2 = a2.url ? await loadImage(a2.url) : null;
+        const f2 = composeCreative(cfg.formats[0], copy, img2 || null);
+        animFrames = [f1, f2];
+      }
+      // Compose one platform-correct asset per format from the resolved base.
+      const assets = cfg.formats.map((fmt) => ({
+        format: fmt.format, size: fmt.size, ar: fmt.ar,
+        url: composeCreative(fmt, copy, baseImg),
+        text_overlay: { headline: copy.headline, offer: copy.offer + ' · garden-fresh', sub: copy.sub, market: copy.market }
+      }));
+      const msg = provider === 'media-url'
+        ? assets.length + ' creatives composed from your media — attaches when you save.'
+        : provider === 'designed'
+          ? assets.length + ' designed creatives ready (AI visual unavailable) — animated preview included. Attaches when you save.'
+          : assets.length + ' AI creatives ready · ' + provider + ' — attaches when you save.';
+      showCreatives(ch, assets, animFrames, provider, msg);
     } catch (e) {
-      if (note) note.textContent = 'Error: ' + (e && e.message || e);
+      if (note) note.textContent = 'Error: ' + ((e && e.message) || e);
     } finally {
       btn.disabled = false; btn.textContent = orig;
     }
@@ -536,17 +681,89 @@
     const gen = e.target.closest('[id$="-cre"]');
     if (gen && /^[gmt]-cre$/.test(gen.id)) { genCreative(gen.id.charAt(0)); return; }
     const redo = e.target.closest('[data-cre-redo]'); if (redo) { genCreative(redo.dataset.creRedo); return; }
+    const mp = e.target.closest('[data-mp]'); if (mp) { copyMasterPrompt(mp.dataset.mp, mp); return; }
     const clr = e.target.closest('[data-cre-clear]');
     if (clr) { const ch = clr.dataset.creClear; creative[ch] = null;
       const p = document.getElementById(ch + '-cre-prev'); if (p) p.innerHTML = '';
-      const n = document.getElementById(ch + '-cre-note'); if (n) n.textContent = 'Creative removed.'; }
+      const n = document.getElementById(ch + '-cre-note'); if (n) n.textContent = 'Creatives removed.'; }
   });
-  // Pull the pending creative for a channel into the saved record, then reset.
+  // Pull the pending creatives for a channel into the saved record, then reset.
   function attachCreative(ch, rec) {
-    if (creative[ch]) { rec.image = creative[ch].dataUrl; rec.imagePrompt = creative[ch].prompt; }
+    if (creative[ch]) {
+      rec.creative_assets = creative[ch].assets || [];
+      rec.image = (rec.creative_assets[0] && rec.creative_assets[0].url) || '';  // primary, backward compat
+      rec.imagePrompt = creative[ch].prompt;
+    }
     creative[ch] = null;
     const p = document.getElementById(ch + '-cre-prev'); if (p) p.innerHTML = '';
     const n = document.getElementById(ch + '-cre-note'); if (n) n.textContent = '';
+    const md = document.getElementById(ch + '-media'); if (md) md.value = '';
+  }
+
+  // ── Master prompt (copy anywhere) ─────────────────────────────────────
+  // The single portable prompt for this ad. The /api/ai/generate autofill
+  // response now returns `master_prompt`; we cache it per channel and let the
+  // user copy it. If autofill hasn't run, build a client-side prompt mirroring
+  // api/_shared/master-prompt.js (assetType:'ad', platform per channel).
+  const CH_PLATFORM = { g: 'google', m: 'meta', t: 'tiktok' };
+  const lastMasterPrompt = { g: '', m: '', t: '' };
+  const STORE_FACTS = {
+    US: { store: 'www.vahdamteas.com', currency: '$' }, UK: { store: 'uk.vahdamteas.com', currency: '£' },
+    IN: { store: 'www.vahdamindia.com', currency: '₹' }, EU: { store: 'eu.vahdamteas.com', currency: '€' },
+    AU: { store: 'au.vahdamteas.com', currency: 'A$' }, ME: { store: 'www.vahdamteas.com', currency: 'AED' },
+    Global: { store: 'www.vahdamteas.com', currency: '$' },
+  };
+  const AD_SPEC = {
+    google: 'Google (Responsive Search + Performance Max): 15 headlines (≤30 chars), 4 descriptions (≤90 chars), long headline (≤90), business name, plus image/video asset briefs at 1.91:1 (1200×628), 1:1 (1200×1200) and a 16:9 video (≤30s).',
+    meta: 'Meta (Facebook/Instagram Feed + Reels + Stories): primary text (≤125 chars before truncation), headline (≤40), description, and creative briefs at 1:1 (1080×1080) feed, 9:16 (1080×1920) Reels/Stories, with a short product video/GIF option for Reels.',
+    tiktok: 'TikTok (In-Feed + Spark): 9:16 (1080×1920) native-feeling video script with a 0–2s hook, on-screen text beats per second, trending-but-brand-safe audio direction, caption, and 3 hashtag options.',
+  };
+  // Client-side mirror of buildMasterPrompt({assetType:'ad'}) for when the
+  // server-returned master_prompt isn't available yet.
+  function clientMasterPrompt(ch) {
+    const platform = CH_PLATFORM[ch];
+    const market = v(CRE_CFG[ch].market) || 'US';
+    const f = STORE_FACTS[market] || STORE_FACTS.Global;
+    const c = getCopy(ch);
+    const brief = [v(CRE_CFG[ch].name), c.headline, c.sub].filter(Boolean).join(' — ');
+    return [
+      "You are VAHDAM India's senior lifecycle creative director. Produce best-in-class, ready-to-ship output. Follow every rule exactly.",
+      '',
+      'BRAND: VAHDAM India — premium single-estate Indian teas & wellness.',
+      'VOICE: warm, sensory, emotionally resonant, story-driven.',
+      'PALETTE (use ONLY these four): #004A2B forest green · #AB8743 gold · #171717 near-black · #FBF5EA cream.',
+      "TYPOGRAPHY (strict): Headings = 'Lao MN'. Body = 'Proxima Nova'. Never introduce other fonts.",
+      'BANNED phrases: "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" (caps), "hurry", "don\'t miss out", "last chance", "while supplies last".',
+      '',
+      'MARKET: ' + market + ' · Store: https://' + f.store + ' · Currency: ' + f.currency,
+      brief ? '\nCAMPAIGN BRIEF:\n' + brief : '',
+      '',
+      'ASSET: Paid ad creative for ' + platform.toUpperCase() + ' — a FULL ad, not just copy.',
+      'The creative itself must combine VISUAL (image / GIF / video) WITH on-creative text overlay (headline + offer), exactly like a real ' + platform + ' ad.',
+      'Platform spec: ' + (AD_SPEC[platform] || AD_SPEC.meta),
+      'Deliver: (a) every text field the platform requires; (b) for each required size/format, a precise creative brief describing the visual, the text overlay wording + placement, safe zones, and the motion (if any); (c) the destination URL.',
+      'VISUALS — source order: (1) embed a provided hosted media URL (image/GIF/MP4); (2) else an auto-generated animated GIF from 2–4 still frames; (3) AI image/video as a last resort.',
+      '',
+      'QUALITY BAR: premium, specific, sensory, zero filler. No banned phrases. No medical claims.',
+    ].filter((l) => l !== null && l !== undefined).join('\n').trim();
+  }
+  async function copyMasterPrompt(ch, btn) {
+    const text = lastMasterPrompt[ch] || clientMasterPrompt(ch);
+    const orig = btn.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = '✓ Copied';
+      toast('Master prompt copied — paste into any chat');
+    } catch (_) {
+      // Clipboard blocked — fall back to a temporary textarea selection.
+      try {
+        const ta = document.createElement('textarea'); ta.value = text;
+        ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        btn.textContent = '✓ Copied'; toast('Master prompt copied');
+      } catch (e2) { toast('Copy failed — select manually'); }
+    }
+    setTimeout(() => { btn.textContent = orig; }, 1600);
   }
 
   // ── Tabs (hash-routed to match sidebar deep-links) ───────────────────
@@ -646,6 +863,18 @@
     toast('Copy drafted from AI brief');
   };
 
+  // Render the saved creative thumbnails for a list row. Prefers the multi-asset
+  // creative_assets array; falls back to the single legacy c.image.
+  function creativeThumbs(c) {
+    const assets = Array.isArray(c.creative_assets) ? c.creative_assets : [];
+    if (assets.length) {
+      return '<div class="item-cre">' + assets.map((a) =>
+        '<img src="' + esc(a.url) + '" alt="' + esc(a.format || 'creative') + '" title="' + esc(a.format || '') + '">'
+      ).join('') + '</div>';
+    }
+    return c.image ? '<div class="item-cre"><img src="' + esc(c.image) + '" alt="creative"></div>' : '';
+  }
+
   // ── Google list ──────────────────────────────────────────────────────
   function renderGoogle() {
     $('#g-count').textContent = store.google.length;
@@ -655,7 +884,7 @@
         <div class="item-meta"><span><b>${esc(c.type)}</b></span><span>$${esc(String(c.budget || '—'))}/day</span><span>${esc(c.market)}</span><span>→ ${esc(c.url || '')}</span></div>
         ${(c.headlines || []).length ? `<div class="item-copy"><span class="h">Headlines:</span> ${c.headlines.map(esc).join(' · ')}</div>` : ''}
         ${(c.descriptions || []).length ? `<div class="item-copy">${c.descriptions.map(esc).join('<br>')}</div>` : ''}
-        ${c.image ? `<div class="item-cre"><img src="${esc(c.image)}" alt="creative"></div>` : ''}
+        ${creativeThumbs(c)}
       </div>`).join('') : '<div class="empty">No Google campaigns yet.</div>';
     $('#g-list').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { store.google = store.google.filter((x) => x.id !== b.dataset.rm); save(); renderGoogle(); }));
   }
@@ -677,7 +906,7 @@
         ${c.aud ? `<div class="item-copy"><span class="h">Audience:</span> ${esc(c.aud)}</div>` : ''}
         ${c.primary ? `<div class="item-copy">${esc(c.primary)}</div>` : ''}
         ${c.headline ? `<div class="item-copy"><span class="h">${esc(c.headline)}</span></div>` : ''}
-        ${c.image ? `<div class="item-cre"><img src="${esc(c.image)}" alt="creative"></div>` : ''}
+        ${creativeThumbs(c)}
       </div>`).join('') : '<div class="empty">No Meta campaigns yet.</div>';
     $('#m-list').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { store.meta = store.meta.filter((x) => x.id !== b.dataset.rm); save(); renderMeta(); }));
   }
@@ -698,7 +927,7 @@
         <div class="item-meta"><span>${esc(c.obj || '')}</span>${c.budget ? `<span>$${esc(c.budget)}/day</span>` : ''}<span>${esc(c.market || '')}</span>${c.creator ? `<span>${esc(c.creator)}</span>` : ''}</div>
         <div class="item-copy" style="margin-top:6px"><span class="h">${esc(c.hook || '')}</span><br>${esc(c.caption || '')}</div>
         ${c.hashtags ? `<div class="item-meta" style="margin-top:6px"><span>${esc(c.hashtags)}</span></div>` : ''}
-        ${c.image ? `<div class="item-cre"><img src="${esc(c.image)}" alt="creative"></div>` : ''}
+        ${creativeThumbs(c)}
       </div>`).join('') : '<div class="empty">No TikTok campaigns yet.</div>';
     $('#t-list').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { store.tiktok = store.tiktok.filter((x) => x.id !== b.dataset.rm); save(); renderTikTok(); }));
   }
@@ -783,6 +1012,11 @@
           return null;
         };
         const fields = safeJson(typeof d === 'string' ? d : (d.text != null ? d.text : d)) || {};
+        // Cache the server-returned master prompt for the "Copy master prompt"
+        // button (surface google|meta|tiktok → channel key g|m|t).
+        const mp = (d && d.master_prompt) || (fields && fields.master_prompt) || '';
+        const chKey = { google: 'g', meta: 'm', tiktok: 't' }[surface];
+        if (mp && chKey) lastMasterPrompt[chKey] = mp;
         let filled = 0;
         for (const key in fieldMap) {
           if (fields[key] !== undefined) { setField(fieldMap[key], fields[key]); filled++; }

@@ -9,13 +9,14 @@
  *
  * Body: { entry: <calendar-row>, market_override?: 'US' }
  *
- * Returns: { ok, html, subject, archetype, variants: { A, B, T1, T2 }, runs: [...] }
+ * Returns: { ok, html, subject, archetype, variants: { V1, V2 }, runs: [...] }
  *
  * IMPORTANT: This does NOT actually send the email — it produces the artefact.
  * Sending is a separate, intentionally-gated endpoint to be added later.
  */
 
 const llm = require('../_shared/llm.js');
+const { buildMasterPrompt } = require('../_shared/master-prompt.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -183,14 +184,13 @@ module.exports = async function handler(req, res) {
   const S = strategy.data;
   const ctaUrl = ctaUrlForEntry(entry, market);
 
-  // ── Stage 2: 4 variants in 2 types ───────────────────────────────────────
-  //   Type A — Image-driven
-  //     A1 · Premium — top-shelf, elite quality, magazine cover
-  //     A2 · Graphic — bold visual layout, hero product in context
-  //   Type B — Text-driven
-  //     B1 · Visual — text email with light visual elements
-  //     B2 · Pure   — text-only, no decoration
-  // Each variant carries the same strategy so they read as a coherent campaign.
+  // ── Stage 2: EXACTLY 2 variants per region ───────────────────────────────
+  //   V1 — COMPLETE TEXTUAL content only (pure copy, no imagery).
+  //   V2 — TEXTUAL + VISUAL (images/gifs/videos). Visual source cascade:
+  //          (1) provided hosted media URL → (2) auto-generated animated GIF
+  //          from product image frames → (3) AI-generated video (last resort).
+  // Each variant carries the same strategy so they read as a coherent campaign,
+  // plus a portable `master_prompt` (built from the shared master-prompt module).
   const sharedText = {
     subject: S.subject_line,
     hero_headline: S.hero_headline,
@@ -200,47 +200,48 @@ module.exports = async function handler(req, res) {
     cta_url: ctaUrl,
     market,
   };
+
+  // Products in scope for the master prompt (hero + any supporting picks on entry).
+  const promptProducts = [
+    { title: entry.hero_product || entry.hero_sku, handle: entry.hero_handle, sku: entry.hero_sku },
+    ...((Array.isArray(entry.supporting_products) ? entry.supporting_products : [])),
+  ].filter((p) => p && (p.title || p.handle || p.sku));
+
   const variants = {
-    A1: {
-      kind: 'image',
-      type: 'A',
-      label: 'Type A · Premium',
-      preview_text: S.preview_text,
-      cta_url: ctaUrl,
-      hero_image_brief:
-        `Top-shelf premium VAHDAM email cover for "${S.subject_line}". Hero ${entry.hero_product || entry.hero_sku}. ` +
-        `Magazine-quality editorial photography, single-estate provenance, elegant negative space, ` +
-        `cinematic light. Brand palette only (forest #004A2B, gold #AB8743, cream #FBF5EA). ` +
-        `Mood: elite, restrained, gift-worthy. No on-image text.`,
-    },
-    A2: {
-      kind: 'image',
-      type: 'A',
-      label: 'Type A · Graphic',
-      preview_text: S.preview_text,
-      cta_url: ctaUrl,
-      hero_image_brief:
-        `Bold graphic ${entry.archetype} layout for "${S.subject_line}". Hero ${entry.hero_product || entry.hero_sku}. ` +
-        `${entry.content_type === 'promo' ? 'High-clarity product photography with crisp typography blocks.' : 'Visual storytelling with composition-heavy lifestyle scene.'} ` +
-        `Saturated brand palette, strong hierarchy, clear CTA pull. No on-image text.`,
-    },
-    B1: {
+    V1: {
       kind: 'text',
-      type: 'B',
-      label: 'Type B · Text + Visual',
-      style: 'visual',
-      preview_text: S.preview_text,
-      cta_url: ctaUrl,
-      html: renderTextVariant({ ...sharedText, style: 'visual', hero_product: entry.hero_product, hero_sku: entry.hero_sku }),
-    },
-    B2: {
-      kind: 'text',
-      type: 'B',
-      label: 'Type B · Pure Text',
+      type: 'V1',
+      label: 'V1 · Complete Text (no imagery)',
       style: 'pure',
       preview_text: S.preview_text,
       cta_url: ctaUrl,
       html: renderTextVariant({ ...sharedText, style: 'pure' }),
+      master_prompt: buildMasterPrompt({
+        assetType: 'mailer', variant: 'V1', market, brief, products: promptProducts, cohort: entry.segment,
+      }),
+    },
+    V2: {
+      kind: 'text+visual',
+      type: 'V2',
+      label: 'V2 · Text + Visual',
+      style: 'visual',
+      preview_text: S.preview_text,
+      cta_url: ctaUrl,
+      html: renderTextVariant({ ...sharedText, style: 'visual', hero_product: entry.hero_product, hero_sku: entry.hero_sku }),
+      // Visual source cascade, in priority order:
+      //   1. provided hosted media URL (product image/GIF/MP4), if present on the entry
+      //   2. auto-generated animated GIF from product image frames
+      //   3. AI-generated video (last resort)
+      visual_cascade: ['hosted_media_url', 'auto_gif_from_product_frames', 'ai_generated_video'],
+      hosted_media_url: entry.hero_media_url || entry.hero_video_url || null,
+      hero_image_brief:
+        `On-brand VAHDAM email visual for "${S.subject_line}". Hero ${entry.hero_product || entry.hero_sku}. ` +
+        `Editorial photography or gentle product-frame motion (animated GIF), single-estate provenance, ` +
+        `elegant negative space, cinematic light. Brand palette only (forest #004A2B, gold #AB8743, cream #FBF5EA). ` +
+        `Mood: warm, restrained, gift-worthy. No on-image text.`,
+      master_prompt: buildMasterPrompt({
+        assetType: 'mailer', variant: 'V2', market, brief, products: promptProducts, cohort: entry.segment,
+      }),
     },
   };
 
@@ -270,7 +271,7 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
       <p style="font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.65;color:${palette.ink};margin:0;">${esc(b.body || '')}</p>
     </td></tr>`).join('');
 
-  // ── B1 · Text + Visual: same editorial copy with a botanical gold divider
+  // ── V2 · Text + Visual: same editorial copy with a botanical gold divider
   //    and a brand palette hero block. Visual elements stay light and on-brand.
   if (style === 'visual') {
     const heroLabel = hero_product ? esc(hero_product) : 'Today on the cupping table';
@@ -311,7 +312,7 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
 </body></html>`;
   }
 
-  // ── B2 · Pure Text: simple, monospace-free, no decorative blocks at all.
+  // ── V1 · Pure Text: simple, monospace-free, no decorative blocks at all.
   if (style === 'pure') {
     const textBlocks = (body_blocks || []).map((b) => `
       <p style="font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.7;color:${palette.ink};margin:0 0 14px;">

@@ -70,7 +70,7 @@
 (function(){
   'use strict';
   var API = '/api/brain';
-  var agents = [], current = null, sessionId = null, history = [];
+  var agents = [], current = null, sessionId = null, history = [], sessionReady = false;
   var chatEl = document.getElementById('chat');
   var qEl = document.getElementById('q');
   var micBtn = document.getElementById('mic');
@@ -82,11 +82,11 @@
     var bar = document.getElementById('agentbar'); bar.innerHTML='';
     agents.forEach(function(a){
       var b=document.createElement('button'); b.className='agentchip'+(current&&current.id===a.id?' active':''); b.textContent=a.name+(a.level==='product'?' · product':a.level==='collection'?' · collection':'');
-      b.onclick=function(){ current=a; sessionId=null; history=[]; chatEl.innerHTML=''; renderAgents(); greet(); };
+      b.onclick=function(){ current=a; sessionId=null; history=[]; sessionReady=false; chatEl.innerHTML=''; renderAgents(); greet(); };
       bar.appendChild(b);
     });
   }
-  function greet(){ if(current && current.greeting){ el('agent', current.greeting); maybeSpeak(current.greeting); } }
+  function greet(){ if(current && current.greeting){ sessionReady=true; el('agent', current.greeting); maybeSpeak(current.greeting); } }
 
   // ── Voice output: ElevenLabs via /api/brain?action=tts, fallback browser TTS
   var audioEl = null;
@@ -113,11 +113,15 @@
       window.speechSynthesis.speak(u);
     }
   }
-  function maybeAutoListen(){ if(document.getElementById('auto').checked) startListening(); }
+  // Voice resume only fires once a chat session is active (greeting shown or a
+  // reply received). Before that it no-ops, so we never drive mic/auto-listen
+  // off an uninitialized session.
+  function maybeAutoListen(){ if(!sessionReady) return; if(document.getElementById('auto').checked) startListening(); }
 
   // ── Voice input: Web Speech API
   var rec=null, listening=false;
   function startListening(){
+    if(!sessionReady||!current) return; // no voice actions until the session is established
     var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR){ el('agent','Voice input is not supported in this browser — Chrome or Edge work best. Text works everywhere.'); return; }
     if(listening){ rec && rec.stop(); return; }
@@ -140,7 +144,7 @@
         body:JSON.stringify({agent_id:current.id, session_id:sessionId, message:msg, history:history.slice(-10), context:{page:location.href, ctx:new URLSearchParams(location.search).get('ctx')}})});
       var j=await r.json();
       t.remove();
-      if(j.ok){ sessionId=j.session_id; history.push({role:'agent',content:j.reply}); var m=el('agent', j.reply); m.classList.add('speaking'); setTimeout(function(){m.classList.remove('speaking');},1200); maybeSpeak(j.speak||j.reply); }
+      if(j.ok){ sessionReady=true; sessionId=j.session_id; history.push({role:'agent',content:j.reply}); var m=el('agent', j.reply); m.classList.add('speaking'); setTimeout(function(){m.classList.remove('speaking');},1200); maybeSpeak(j.speak||j.reply); }
       else el('agent','Hmm, something went wrong: '+(j.error||'unknown')+'. Try again?');
     }catch(e){ t.remove(); el('agent','I could not reach the brain just now — please try again in a moment.'); }
   }

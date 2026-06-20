@@ -133,8 +133,14 @@
   // CREATE = where VAHDAM produces its own assets (Mailers studio, Ads, Landing).
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
+
+    { section: 'Agents' },
+    // Two distinct agents (see docs/UNIFIED-ARCHITECTURE.md §5): buyer-facing
+    // sales personas vs the internal employee copilot with full data access.
+    { id: 'agent',      label: 'Ask Vahdam · Customers', href: '/agent',  icon: 'vahdam',   match: ['/agent', '/agent.html'] },
+    { id: 'team',       label: 'Team Copilot · Internal', href: '/team',   icon: 'studio',   match: ['/team', '/team.html', '/copilot'] },
+
     { id: 'brain',      label: 'Smart Brain',   href: '/brain',          icon: 'studio',   match: ['/brain', '/smart-brain', '/smart-brain.html'] },
-    { id: 'agent',      label: 'Vahdam Agent',  href: '/agent',          icon: 'vahdam',   match: ['/agent', '/agent.html'] },
     { id: 'analysis',   label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis', match: ['/dashboard.html', '/analytics'] },
     { id: 'assets',     label: 'Created Assets',href: '/assets',         icon: 'analysis', match: ['/assets', '/assets.html'] },
 

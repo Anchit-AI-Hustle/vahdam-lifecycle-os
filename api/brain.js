@@ -250,6 +250,21 @@ module.exports = async function handler(req, res) {
         const out = await agents.chat({ agentId: b.agent_id || 'agent_vahdam', sessionId: b.session_id, message: b.message, context: b.context || {}, history: b.history || [] });
         return res.json(out);
       }
+      case 'agent-analyze': {
+        // Natural-language analytical question → EXACT figures from own-data.
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        if (!b.message) return res.status(400).json({ ok: false, error: 'message required' });
+        const out = await agents.analyze({ message: b.message });
+        return res.json(out);
+      }
+      case 'team-chat': {
+        // INTERNAL employee copilot — full data scope (revenue/cohorts/strategy).
+        // Distinct from buyer-facing agent-chat; never used on a buyer surface.
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        if (!b.message) return res.status(400).json({ ok: false, error: 'message required' });
+        const out = await agents.teamChat({ sessionId: b.session_id, message: b.message, context: b.context || {}, history: b.history || [] });
+        return res.json(out);
+      }
       case 'agent-sessions': {
         const filters = {};
         if (req.query.agent) filters.agent_id = `eq.${req.query.agent}`;
@@ -327,7 +342,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
       }
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-sessions', 'console-chat', 'cron'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'console-chat', 'cron'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);

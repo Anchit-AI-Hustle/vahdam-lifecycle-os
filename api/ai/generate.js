@@ -14,6 +14,7 @@
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const { buildMasterPrompt } = require('../_shared/master-prompt.js');
 
 // ────────────────────────────────────────────────────────────────────────────
 // MASTER PROMPTS (production-grade, embedded server-side so they cannot be
@@ -936,6 +937,25 @@ Target market for this autofill: ${targetMarket}.`;
     }
 
     const text = result.text || '';
+
+    // Portable master prompt(s): one self-contained block per asset the caller
+    // can paste into a blank ChatGPT/Claude/Gemini to reproduce/upgrade output.
+    let masterPromptFields = {};
+    try {
+      const mpProducts = selected_products.map((p) => ({ title: p.name || p.n, price: p.price, handle: p.handle || p.id, category: p.category }));
+      const mpBase = { market, brief: campaign_brief, products: mpProducts };
+      const sfc = String(body.surface || '').toLowerCase();
+      if (mode === 'autofill' && sfc.startsWith('lp')) {
+        masterPromptFields = { master_prompt: buildMasterPrompt({ ...mpBase, assetType: 'landing_page' }) };
+      } else if (mode === 'autofill') {
+        masterPromptFields = { master_prompt: buildMasterPrompt({ ...mpBase, assetType: 'ad', platform: sfc }) };
+      } else if (mode === 'create_brief' || mode === 'mailer_full' || mode === 'concepts') {
+        const v1 = buildMasterPrompt({ ...mpBase, assetType: 'mailer', variant: 'V1' });
+        const v2 = buildMasterPrompt({ ...mpBase, assetType: 'mailer', variant: 'V2' });
+        masterPromptFields = { master_prompt: v2, master_prompt_v1: v1, master_prompt_v2: v2 };
+      }
+    } catch (_) { /* master prompt is best-effort; never block generation */ }
+
     if (mode === 'concepts' || mode === 'mailer_full' || mode === 'suggested_prompts') {
       let parsed;
       // Robust JSON extraction: handles markdown fences, prose prefix/suffix (Gemini habit)
@@ -954,9 +974,9 @@ Target market for this autofill: ${targetMarket}.`;
       if (!parsed) {
         return res.status(502).json({ error: 'json_parse_failed', provider: result.provider, raw: text.substring(0, 600) });
       }
-      return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: parsed });
+      return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: parsed, ...masterPromptFields });
     }
-    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text });
+    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text, ...masterPromptFields });
 
   } catch (e) {
     return res.status(500).json({ error: 'server_error', provider, detail: String(e && e.message || e).substring(0, 300) });
