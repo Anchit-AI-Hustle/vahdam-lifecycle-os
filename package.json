@@ -20,7 +20,7 @@
     "collect:wayback": "node workers/collect-wayback.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48.0"
+    "@playwright/test": "^1.61.0"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",
