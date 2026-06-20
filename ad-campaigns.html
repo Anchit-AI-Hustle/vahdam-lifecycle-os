@@ -467,6 +467,9 @@
       ] },
   };
   const v = (id) => (document.getElementById(id)?.value || '').trim();
+  // Only allow http(s) or image data URLs as a media source — blocks javascript:,
+  // data:text/html, and other schemes from user-pasted URLs (CodeQL js/xss-through-dom).
+  const safeUrl = (u) => { const s = String(u || '').trim(); return /^(https?:\/\/|data:image\/)/i.test(s) ? s : ''; };
   // Pull the headline / offer / sub copy + market for a channel.
   function getCopy(ch) {
     const market = v(CRE_CFG[ch].market) || 'US';
@@ -506,6 +509,7 @@
   // Load an image (CORS-safe) for compositing. Returns null on failure.
   function loadImage(src) {
     return new Promise((resolve) => {
+      src = safeUrl(src);
       if (!src) return resolve(null);
       // MP4/WebM (e.g. a Shopify product video) → grab the first frame.
       if (/\.(mp4|webm|mov)(\?|#|$)/i.test(src)) {
@@ -612,12 +616,12 @@
       const ar = (assets[0] && assets[0].size.split('x').map(Number)) || [1, 1];
       html += '<div class="cre-asset"><span class="cre-asset-label">Animated preview</span>' +
         '<div class="cre-anim" style="aspect-ratio:' + ar[0] + '/' + ar[1] + '">' +
-        animFrames.map((f) => '<img src="' + f + '" alt="frame">').join('') + '</div></div>';
+        animFrames.map((f) => '<img src="' + esc(safeUrl(f)) + '" alt="frame">').join('') + '</div></div>';
     }
     html += '<div class="cre-assets">' + assets.map((a, i) =>
       '<div class="cre-asset"><span class="cre-asset-label">' + esc(a.format) + '</span>' +
-      '<img src="' + a.url + '" alt="' + esc(a.format) + '">' +
-      '<a class="cre-asset-dl" href="' + a.url + '" download="vahdam-' + ch + '-' + a.size + '.png">⬇ Download</a></div>'
+      '<img src="' + esc(a.url) + '" alt="' + esc(a.format) + '">' +
+      '<a class="cre-asset-dl" href="' + esc(a.url) + '" download="vahdam-' + esc(ch) + '-' + esc(a.size) + '.png">⬇ Download</a></div>'
     ).join('') + '</div>';
     html += '<div class="cre-actions">' +
       '<button class="btn btn-ghost" type="button" data-cre-redo="' + ch + '">↻ Regenerate</button>' +
@@ -632,7 +636,7 @@
     const cfg = CRE_CFG[ch];
     const copy = getCopy(ch);
     const prompt = buildCreativePrompt(ch);
-    const mediaUrl = v(ch + '-media');
+    const mediaUrl = safeUrl(v(ch + '-media'));
     const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Generating…';
     if (note) note.innerHTML = '<span class="cre-spin">Building platform creatives…</span>';
     try {
