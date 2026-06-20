@@ -15,6 +15,26 @@
  */
 
 const core = require('./_shared/competitor-core');
+// Competitive-Intelligence collection layer (Supabase-backed; real-time stream).
+const ciCollect = require('./_shared/ci-collect');
+const ciOffers  = require('./_shared/ci-offers');
+const ciFunnel  = require('./_shared/ci-funnel');
+let ciEnrich; // lazy — pulls in llm.js only when an enrich action runs
+function getEnrich() { return (ciEnrich = ciEnrich || require('./_shared/ci-enrich')); }
+const supa = require('./_shared/supa');
+
+async function readBody(req) {
+  let body = req.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
+  if (!body && req.method === 'POST') {
+    body = await new Promise((resolve) => {
+      let raw = ''; req.on('data', (c) => (raw += c));
+      req.on('end', () => { try { resolve(JSON.parse(raw)); } catch { resolve({}); } });
+      req.on('error', () => resolve({}));
+    });
+  }
+  return body || {};
+}
 
 // Warm-instance throttle so concurrent dashboards / hot-reloads don't hammer IMAP.
 const POLL_THROTTLE_MS = 30000;
@@ -164,6 +184,117 @@ module.exports = async function handler(req, res) {
       });
       const stored = await core.appendBrands(found.brands, new Date().toISOString());
       res.status(200).json({ ok: true, proposed: found.brands.length, provider: found.provider, ...stored });
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // COMPETITIVE INTELLIGENCE (Supabase) — ads / emails / landing / offers /
+    // funnels. Collectors POST already-fetched payloads; this layer owns dedup,
+    // versioning and offer extraction. Optional shared secret via INGEST_TOKEN.
+    // ═══════════════════════════════════════════════════════════════════════
+    const ciWriteGuard = () => {
+      const secret = (process.env.INGEST_TOKEN || '').trim();
+      if (!secret) return true;
+      const got = (req.headers['x-ingest-token'] || url.searchParams.get('token') || '').trim();
+      return got === secret;
+    };
+
+    if (action === 'ci-collect-ad' || action === 'ci-collect-email' || action === 'ci-collect-landing') {
+      if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'POST required' }); return; }
+      if (!ciWriteGuard()) { res.status(401).json({ ok: false, error: 'Unauthorized' }); return; }
+      const body = await readBody(req);
+      const items = Array.isArray(body.items) ? body.items : [body];
+      const fn = action === 'ci-collect-ad' ? ciCollect.collectAd
+               : action === 'ci-collect-email' ? ciCollect.collectEmail : ciCollect.collectLanding;
+      const results = [];
+      for (const it of items) { try { results.push(await fn(it)); } catch (e) { results.push({ error: e.message }); } }
+      res.status(200).json({ ok: true, count: results.length, results });
+      return;
+    }
+
+    // Supabase brands (the CI system of record) — ids here match ci_*.brand_id.
+    // Distinct from ?action=brands, which returns legacy Google-Sheet rows.
+    if (action === 'ci-brands') {
+      const filters = { is_own: 'eq.false' };
+      if (url.searchParams.get('active') !== '0') filters.active = 'eq.true';
+      const rows = await supa.select('brands', { filters, order: 'name.asc', limit: 1000 });
+      res.status(200).json({ ok: true, count: rows.length, brands: rows });
+      return;
+    }
+
+    if (action === 'ci-ads' || action === 'ci-emails' || action === 'ci-landing') {
+      const table = { 'ci-ads': 'ci_ads', 'ci-emails': 'ci_emails', 'ci-landing': 'ci_landing_pages' }[action];
+      const filters = {};
+      const brandId = url.searchParams.get('brand_id'); if (brandId) filters.brand_id = `eq.${brandId}`;
+      const src = url.searchParams.get('source'); if (src) filters.source = `eq.${src}`;
+      const orderCol = action === 'ci-emails' ? 'send_date.desc' : action === 'ci-landing' ? 'captured_at.desc' : 'last_seen.desc';
+      const rows = await supa.select(table, { filters, order: orderCol, limit: Number(url.searchParams.get('limit') || 200) });
+      res.status(200).json({ ok: true, count: rows.length, rows });
+      return;
+    }
+
+    if (action === 'ci-offers') {
+      const rows = await ciOffers.query({
+        offer_type: url.searchParams.get('offer_type') || undefined,
+        product_category: url.searchParams.get('category') || undefined,
+        region: url.searchParams.get('region') || undefined,
+        brand_id: url.searchParams.get('brand_id') || undefined,
+        days: url.searchParams.get('days') || 30,
+        limit: Number(url.searchParams.get('limit') || 200)
+      });
+      res.status(200).json({ ok: true, count: rows.length, offers: rows });
+      return;
+    }
+
+    if (action === 'ci-enrich') {
+      if (!ciWriteGuard()) { res.status(401).json({ ok: false, error: 'Unauthorized' }); return; }
+      const assetType = url.searchParams.get('type') || 'ad';
+      const result = await getEnrich().enrichBatch(assetType, {
+        limit: Number(url.searchParams.get('limit') || 10),
+        force: url.searchParams.get('force') === '1'
+      });
+      res.status(200).json({ ok: true, ...result });
+      return;
+    }
+
+    if (action === 'ci-funnel') {
+      const brandId = url.searchParams.get('brand_id');
+      if (!brandId) { res.status(400).json({ ok: false, error: 'brand_id required' }); return; }
+      const funnels = await ciFunnel.getForBrand(brandId);
+      res.status(200).json({ ok: true, count: funnels.length, funnels });
+      return;
+    }
+
+    if (action === 'ci-funnel-rebuild') {
+      if (!ciWriteGuard()) { res.status(401).json({ ok: false, error: 'Unauthorized' }); return; }
+      const brandId = url.searchParams.get('brand_id');
+      const result = brandId ? await ciFunnel.rebuildForBrand(brandId) : await ciFunnel.rebuildAll();
+      res.status(200).json({ ok: true, result });
+      return;
+    }
+
+    // Mirror the legacy Google-Sheet email capture into the unified ci_emails
+    // table (idempotent). Runs server-side — the function holds the Sheet creds.
+    if (action === 'ci-email-sync') {
+      if (!authorized(req) && !ciWriteGuard()) { res.status(401).json({ ok: false, error: 'Unauthorized' }); return; }
+      const bridge = require('./_shared/ci-email-bridge');
+      const result = await bridge.sync({
+        limit: Number(url.searchParams.get('limit') || 0),
+        html: url.searchParams.get('html') !== '0'
+      });
+      res.status(200).json(result);
+      return;
+    }
+
+    // Combined daily competitor pass (one cron slot on Hobby): mirror new emails
+    // from the Sheet, then enrich the freshest un-enriched emails + ads.
+    if (action === 'ci-daily') {
+      if (!authorized(req) && !ciWriteGuard()) { res.status(401).json({ ok: false, error: 'Unauthorized' }); return; }
+      const bridge = require('./_shared/ci-email-bridge');
+      const emailSync = await bridge.sync({ limit: 0 });
+      const enrichEmails = await getEnrich().enrichBatch('email', { limit: 15 });
+      const enrichAds = await getEnrich().enrichBatch('ad', { limit: 15 });
+      res.status(200).json({ ok: true, emailSync, enrichEmails: { processed: enrichEmails.processed }, enrichAds: { processed: enrichAds.processed } });
       return;
     }
 

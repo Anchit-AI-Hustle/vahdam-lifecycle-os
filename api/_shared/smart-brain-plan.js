@@ -183,14 +183,16 @@ function copyPrompt(entry) {
 - Rationale: ${entry.rationale || ''}
 - Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
 
+Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle photograph of the hero product (NO text/logos/UI in the image — just the scene, props, light, mood). Tailor each brief to its channel (email/LP = aspirational hero; meta = scroll-stopping square; google = clean landscape; tiktok = vertical, native, hand-held feel).
+
 Return JSON with exactly this shape:
 {
- "email": { "subject": "", "preheader": "", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "cta": "" },
- "landing": { "hero_headline": "", "hero_sub": "", "why_title": "", "why_bullets": ["","",""], "proof_quote": "", "proof_author": "", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "" },
+ "email": { "subject": "", "preheader": "", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "cta": "", "image_brief": "" },
+ "landing": { "hero_headline": "", "hero_sub": "", "why_title": "", "why_bullets": ["","",""], "proof_quote": "", "proof_author": "", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
  "ads": {
-   "meta": { "primary_text": "", "headline": "", "description": "" },
-   "google": { "headlines": ["","",""], "descriptions": ["",""] },
-   "tiktok": { "script": "", "caption": "" }
+   "meta": { "primary_text": "", "headline": "", "description": "", "image_brief": "" },
+   "google": { "headlines": ["","",""], "descriptions": ["",""], "image_brief": "" },
+   "tiktok": { "script": "", "caption": "", "image_brief": "" }
  }
 }`;
 }
@@ -198,8 +200,11 @@ Return JSON with exactly this shape:
 const FONT_HEAD = "'Lao MN','Cormorant Garamond',Georgia,serif";
 const FONT_BODY = "'Proxima Nova','Helvetica Neue',Arial,sans-serif";
 
-function lpHtml(entry, copy, campaignId) {
+function lpHtml(entry, copy, campaignId, creativeUrl) {
   const L = copy.landing;
+  const heroImg = creativeUrl
+    ? `<img src="${creativeUrl}" alt="${String(L.hero_headline || entry.heroProduct?.title || 'VAHDAM').replace(/"/g, '')}" style="width:100%;display:block;max-height:520px;object-fit:cover"/>`
+    : '';
   const faq = (L.faq || []).map((f) => `<details style="border-top:1px solid #AB874333;padding:14px 0"><summary style="font-weight:700;cursor:pointer">${f.q}</summary><p style="color:#171717;line-height:1.6">${f.a}</p></details>`).join('');
   const bullets = (L.why_bullets || []).map((b) => `<li style="margin:10px 0;line-height:1.6">${b}</li>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${L.hero_headline}</title></head>
@@ -210,6 +215,7 @@ function lpHtml(entry, copy, campaignId) {
   <p style="max-width:560px;margin:0 auto 28px;line-height:1.6;color:#FBF5EAcc">${L.hero_sub}</p>
   <a href="#shop" style="display:inline-block;background:#AB8743;color:#171717;font-weight:700;text-decoration:none;padding:16px 32px;border-radius:4px">${L.cta || 'Shop the edit'}</a>
 </section>
+${heroImg}
 <section style="max-width:880px;margin:0 auto;padding:56px 24px">
   <h2 style="font-family:${FONT_HEAD};font-size:30px">${L.why_title || 'Why this edit'}</h2>
   <ul style="padding-left:20px">${bullets}</ul>
@@ -228,8 +234,11 @@ function lpHtml(entry, copy, campaignId) {
 </body></html>`;
 }
 
-function emailHtml(entry, copy) {
+function emailHtml(entry, copy, creativeUrl) {
   const E = copy.email;
+  const heroImg = creativeUrl
+    ? `<img src="${creativeUrl}" alt="${String(E.hero_headline || entry.heroProduct?.title || 'VAHDAM').replace(/"/g, '')}" style="width:100%;display:block;max-height:440px;object-fit:cover"/>`
+    : '';
   return `<!doctype html><html><head><meta charset="utf-8"><title>${E.subject}</title></head>
 <body style="margin:0;background:#FBF5EA;color:#171717;font-family:${FONT_BODY}">
 <main style="max-width:680px;margin:auto;background:#ffffff">
@@ -237,6 +246,7 @@ function emailHtml(entry, copy) {
     <p style="color:#AB8743;letter-spacing:.18em;text-transform:uppercase;font-size:11px;margin:0 0 14px">VAHDAM India</p>
     <h1 style="font-family:${FONT_HEAD};font-size:32px;line-height:1.15;margin:0">${E.hero_headline}</h1>
   </section>
+  ${heroImg}
   <section style="padding:36px">
     <p style="line-height:1.7">${E.intro_paragraph}</p>
     <p style="line-height:1.7">${E.body_paragraph}</p>
@@ -262,25 +272,148 @@ async function writeCopyWithLLM(entry) {
   return { copy: json, provider: res.provider, model: res.model };
 }
 
-function applyCopy(campaign, entry, copy) {
+function applyCopy(campaign, entry, copy, creatives = {}) {
+  const brief = (k) => ({ brief: (k && copy.ads?.[k]?.image_brief) || '', image: null, provider: null });
   if (campaign.assets.email) {
     campaign.assets.email.subject = copy.email.subject || campaign.assets.email.subject;
     campaign.assets.email.preheader = copy.email.preheader || campaign.assets.email.preheader;
-    campaign.assets.email.html = emailHtml(entry, copy);
+    campaign.assets.email.creative = creatives.email || { brief: copy.email.image_brief || '', image: null, provider: null };
+    campaign.assets.email.html = emailHtml(entry, copy, campaign.assets.email.creative.image);
     campaign.assets.email.text = `${copy.email.subject}\n${copy.email.preheader}\n\n${copy.email.intro_paragraph}\n\n${copy.email.body_paragraph}\n\n${copy.email.cta}: {{landing_page_url}}`;
   }
   if (campaign.assets.landing_pages?.length) {
     const lp = campaign.assets.landing_pages[0];
     lp.title = copy.landing.hero_headline || lp.title;
-    lp.html = lpHtml(entry, copy, campaign.campaign_id);
+    lp.creative = creatives.landing || { brief: copy.landing.image_brief || '', image: null, provider: null };
+    lp.html = lpHtml(entry, copy, campaign.campaign_id, lp.creative.image);
     lp.path = `/lp/${campaign.campaign_id}`;
   }
   for (const ad of campaign.assets.ads || []) {
     if (ad.platform === 'meta' && copy.ads.meta) Object.assign(ad, { primary_text: copy.ads.meta.primary_text || ad.primary_text, headline: copy.ads.meta.headline || ad.headline, description: copy.ads.meta.description || ad.description });
     if (ad.platform === 'google' && copy.ads.google) Object.assign(ad, { headlines: copy.ads.google.headlines?.filter(Boolean) || ad.headlines, descriptions: copy.ads.google.descriptions?.filter(Boolean) || ad.descriptions });
     if (ad.platform === 'tiktok' && copy.ads.tiktok) Object.assign(ad, { script: copy.ads.tiktok.script || ad.script, caption: copy.ads.tiktok.caption || ad.caption });
+    ad.creative = creatives[ad.platform] || brief(ad.platform);
+    ad.creative_brief = ad.creative.brief || ad.creative_brief || '';
   }
   return campaign;
+}
+
+// ── Creative image generation (reuses the /api/ai/image.js provider cascade) ─
+
+// Invoke the existing image handler in-process via a mock res object, so we get
+// the full Gemini → OpenAI → free-Pollinations cascade without an HTTP hop.
+async function generateCreativeImage(prompt, { size = '1024x1024', mode = '' } = {}) {
+  if (!prompt || !String(prompt).trim()) return null;
+  let handler;
+  try { handler = require('../ai/image.js'); } catch (_) { return null; }
+  return await new Promise((resolve) => {
+    let settled = false;
+    const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+    const res = {
+      setHeader() {}, status() { return res; }, end() { done(null); return res; },
+      json(obj) { done(obj && obj.image_data_url ? { image: obj.image_data_url, provider: obj.provider, model: obj.model } : null); return res; },
+    };
+    const req = { method: 'POST', body: { prompt: String(prompt).slice(0, 1800), size, quality: 'high', mode } };
+    Promise.resolve().then(() => handler(req, res)).catch(() => done(null));
+    setTimeout(() => done(null), 60000);
+  });
+}
+
+// Upload a base64 data-URL creative to the public Supabase Storage bucket and
+// return its hosted URL (so we persist a small URL, not a multi-MB data-URL).
+// Returns null if it's not a data-URL or storage isn't configured — callers then
+// keep the inline data-URL, so creatives still work with no storage set up.
+async function uploadCreative(dataUrl, name) {
+  const m = /^data:(image\/[a-z+]+);base64,(.+)$/i.exec(dataUrl || '');
+  if (!m) return null;
+  let supa;
+  try { supa = require('./supa.js'); } catch (_) { return null; }
+  try {
+    const ext = m[1].includes('png') ? 'png' : m[1].includes('webp') ? 'webp' : 'jpg';
+    const safe = String(name || 'creative').replace(/[^a-z0-9-]/gi, '_').slice(0, 60);
+    const path = `${safe}-${Date.now().toString(36)}.${ext}`;
+    const { public_url } = await supa.uploadObject('smart-brain-creatives', path, Buffer.from(m[2], 'base64'), m[1]);
+    return public_url || null;
+  } catch (_) { return null; }
+}
+
+// One creative per asset, generated in parallel. Each → {brief, image, provider};
+// the image is a hosted Supabase URL when storage is configured, else an inline
+// data-URL; falls back to brief-only (image:null) if generation fails.
+async function generateCreatives(copy, entry) {
+  const hero = entry.heroProduct?.title ? ` Hero product: VAHDAM ${entry.heroProduct.title}.` : '';
+  const specs = [
+    ['email',  copy.email?.image_brief,       '1536x1024'],
+    ['landing', copy.landing?.image_brief,    '1536x1024'],
+    ['meta',   copy.ads?.meta?.image_brief,   '1024x1024'],
+    ['google', copy.ads?.google?.image_brief, '1536x1024'],
+    ['tiktok', copy.ads?.tiktok?.image_brief, '1024x1536'],
+  ];
+  const out = {};
+  await Promise.all(specs.map(async ([key, rawBrief, size]) => {
+    const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} hero creative — warm, premium, photoreal.`;
+    const gen = await generateCreativeImage(b + hero, { size }).catch(() => null);
+    let image = gen?.image || null;
+    if (image) image = (await uploadCreative(image, `${entry.id || 'slot'}-${key}`).catch(() => null)) || image;
+    out[key] = { brief: b, image, provider: gen?.provider || null };
+  }));
+  return out;
+}
+
+// ── Funnel build (shared by preview + approve) ──────────────────────────────
+
+// Build the full funnel for a slot — template skeleton (GenerationService) plus
+// LLM-written copy applied to the email + landing page + ads. Pure: it does NOT
+// touch the DB or change any slot's status. Both previewEntry() and approveEntry()
+// call this so a reviewer sees EXACTLY what approving will produce.
+async function buildCampaign(entry, config, { id = null, withCreatives = true } = {}) {
+  const campaign = new GenerationService(config).generate(entry);
+  let copyMeta = { provider: 'template-fallback', model: null, creatives: 'none' };
+  try {
+    const { copy, provider, model } = await writeCopyWithLLM(entry);
+    const creatives = withCreatives ? await generateCreatives(copy, entry) : {};
+    applyCopy(campaign, entry, copy, creatives);
+    const imgProviders = [...new Set(Object.values(creatives).map((c) => c && c.provider).filter(Boolean))];
+    copyMeta = { provider, model, creatives: imgProviders.length ? imgProviders.join(',') : 'briefs-only' };
+  } catch (e) {
+    console.warn('[smart-brain] LLM copy failed, using template assets:', e.message);
+  }
+  campaign.copywriter = copyMeta;
+  campaign.calendar_entry_id = entry.id || id || null;
+  return campaign;
+}
+
+// Resolve a slot's entry payload — from the inline entry the UI already holds,
+// or by id from the stored calendar. Used by preview + approve.
+async function resolveEntry({ id, inlineEntry, config, db }) {
+  if (inlineEntry) return { entry: inlineEntry, row: null };
+  if (db.connected && id) {
+    const rows = await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
+    const row = rows && rows[0];
+    if (row) return { entry: row.payload, row };
+  }
+  return { entry: null, row: null };
+}
+
+// ── Preview (generate-on-demand, NO persistence, NO status change) ───────────
+
+async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inlineEntry = null } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  const { entry } = await resolveEntry({ id, inlineEntry, config, db });
+  if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
+
+  const campaign = await buildCampaign(entry, config, { id });
+  campaign.status = 'preview';
+  return {
+    ok: true,
+    preview: true,
+    campaign,
+    copywriter: campaign.copywriter,
+    email_html: campaign.assets.email?.html || null,
+    landing_html: campaign.assets.landing_pages?.[0]?.html || null,
+    ads: campaign.assets.ads || [],
+  };
 }
 
 // ── Approve / reject ────────────────────────────────────────────────────────
@@ -288,25 +421,11 @@ function applyCopy(campaign, entry, copy) {
 async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inlineEntry = null } = {}) {
   const config = smartConfig(cfg);
   const db = new SmartBrainDbAdapter(config);
-  let row = null;
-  let entry = inlineEntry;
-  if (db.connected && id) {
-    const rows = await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
-    row = rows && rows[0];
-    if (row) entry = row.payload;
-  }
+  const { entry, row } = await resolveEntry({ id, inlineEntry, config, db });
   if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
 
-  const campaign = new GenerationService(config).generate(entry);
-  let copyMeta = { provider: 'template-fallback', model: null };
-  try {
-    const { copy, provider, model } = await writeCopyWithLLM(entry);
-    applyCopy(campaign, entry, copy);
-    copyMeta = { provider, model };
-  } catch (e) {
-    console.warn('[smart-brain] LLM copy failed, using template assets:', e.message);
-  }
-  campaign.copywriter = copyMeta;
+  const campaign = await buildCampaign(entry, config, { id });
+  const copyMeta = campaign.copywriter;
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
 
@@ -366,4 +485,4 @@ async function landingPageHtml(id, cfg = {}) {
   return lp?.[0]?.payload?.html || null;
 }
 
-module.exports = { syncDaily, getPlan, approveEntry, rejectEntry, landingPageHtml };
+module.exports = { syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, landingPageHtml };

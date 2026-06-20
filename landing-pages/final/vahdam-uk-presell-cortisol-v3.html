@@ -2,9 +2,10 @@
 <html lang="en-GB">
 
 <head>
+  <!-- v3: funnel-restructured from v1/v2 content -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>[V2] Beat the Cortisol Belly With This Natural Coffee Upgrade — Vahdam</title>
+  <title>[V3] Beat the Cortisol Belly With This Natural Coffee Upgrade — Vahdam</title>
   <style>
     @import url('https://fonts.cdnfonts.com/css/proxima-nova-2');
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
@@ -240,6 +241,101 @@
       color: var(--cream);
       font-weight: 700;
       margin-top: 18px
+    }
+
+    .hero-buybox {
+      margin-top: 26px;
+      padding: 22px 24px;
+      background: rgba(251, 245, 234, .06);
+      border: 1px solid rgba(171, 135, 67, .35);
+      border-radius: 14px;
+      max-width: 440px
+    }
+
+    .hero-rating {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px
+    }
+
+    .hero-stars {
+      color: var(--gold-li);
+      font-size: 18px;
+      letter-spacing: 2px
+    }
+
+    .hero-rating-text {
+      font-family: var(--sans);
+      font-size: 14px;
+      color: var(--on-moss-dim)
+    }
+
+    .hero-rating-text b {
+      color: var(--cream)
+    }
+
+    .hero-price {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px
+    }
+
+    .hero-price-now {
+      font-family: var(--sans);
+      font-size: 40px;
+      font-weight: 900;
+      color: var(--cream);
+      line-height: 1
+    }
+
+    .hero-price-per {
+      font-size: 18px;
+      font-weight: 700
+    }
+
+    .hero-price-was {
+      font-size: 18px;
+      color: var(--on-moss-dim);
+      text-decoration: line-through
+    }
+
+    .hero-price-save {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--gold-li);
+      width: 100%
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--gold);
+      color: var(--moss-dk);
+      padding: 18px 46px;
+      border-radius: 6px;
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      box-shadow: 0 4px 0 var(--gold-deep);
+      transition: transform .15s
+    }
+
+    .hero-cta:hover {
+      transform: translateY(-2px)
+    }
+
+    .hero-trust {
+      margin-top: 14px;
+      font-family: var(--sans);
+      font-size: 12.5px;
+      color: var(--on-moss-dim)
     }
 
     /* Body diagram visualization */
@@ -917,7 +1013,7 @@
 
     .enemy-photo {
       aspect-ratio: 4/5;
-      background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+      background: linear-gradient(135deg, var(--moss) 0%, var(--ink) 100%);
       border-radius: 14px;
       display: flex;
       align-items: center;
@@ -1573,6 +1669,29 @@
 
     .kit-cta:hover {
       transform: translateY(-2px)
+    }
+
+    .kit-rating {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px
+    }
+
+    .kit-stars {
+      color: var(--gold);
+      font-size: 18px;
+      letter-spacing: 2px
+    }
+
+    .kit-rating-text {
+      font-family: var(--sans);
+      font-size: 14px;
+      color: var(--ink-dim)
+    }
+
+    .kit-rating-text b {
+      color: var(--ink)
     }
 
     /* ============ § 12-OLD SAVE BLOCK (kept defs unused — safe to delete later) ============ */
@@ -2233,7 +2352,7 @@
       font-weight: 800
     }
 
-    /* ============ § 18. TRANSFORMATION GALLERY — CREAM ============ */
+    /* ============ § 18. RESULTS GALLERY — CREAM ============ */
     /* ============ § 18A. RESULTS / BEFORE-AFTER CAROUSEL — edge-to-edge dark-moss tiles ============ */
     .results-section {
       padding: 90px 0;
@@ -2710,6 +2829,21 @@
 
       .hero-body p {
         font-size: 14px
+      }
+
+      .hero-buybox {
+        max-width: 100%;
+        padding: 18px 18px
+      }
+
+      .hero-price-now {
+        font-size: 34px
+      }
+
+      .hero-cta {
+        width: 100%;
+        justify-content: center;
+        padding: 18px 24px
       }
 
       .bodydiag {
@@ -3867,6 +4001,602 @@
     .smart-body b u {
       color: var(--gold)
     }
+
+    /* ============ V3: QUICK-CLAIMS / TABS STRIP (cream) ============ */
+    .claims-section {
+      padding: 30px 0 36px;
+      background: var(--cream);
+      border-bottom: 1px solid rgba(0, 74, 43, .15)
+    }
+
+    .claims-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      max-width: 1080px;
+      margin: 0 auto
+    }
+
+    .claim-chip {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: #fff;
+      border: 1.5px solid var(--moss);
+      border-radius: 100px;
+      padding: 11px 20px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--moss);
+      box-shadow: 0 2px 8px rgba(0, 73, 43, .06)
+    }
+
+    .claim-chip .ci {
+      font-size: 15px;
+      line-height: 1
+    }
+
+    .claim-chip.gold-chip {
+      background: var(--gold-li);
+      border-color: var(--gold-deep)
+    }
+
+    /* ============ V3: BENEFITS TABS (dark moss) ============ */
+    .benefit-section {
+      padding: 90px 0;
+      background: var(--moss-deep);
+      color: var(--cream)
+    }
+
+    .benefit-eyebrow {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .18em;
+      color: var(--gold-li);
+      text-align: center;
+      text-transform: uppercase;
+      margin-bottom: 14px
+    }
+
+    .benefit-h2 {
+      font-family: var(--sans);
+      font-size: 56px;
+      font-weight: 900;
+      color: var(--cream);
+      text-align: center;
+      line-height: 1.02;
+      letter-spacing: -.025em;
+      max-width: 760px;
+      margin: 0 auto 40px
+    }
+
+    .benefit-h2 .gold {
+      color: var(--gold-li)
+    }
+
+    .benefit-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      max-width: 820px;
+      margin: 0 auto 34px
+    }
+
+    .benefit-tab {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--on-moss-dim);
+      background: rgba(251, 245, 234, .06);
+      border: 1px solid rgba(251, 245, 234, .16);
+      border-radius: 100px;
+      padding: 11px 20px;
+      cursor: pointer;
+      transition: all .2s ease
+    }
+
+    .benefit-tab.active {
+      color: var(--moss-dk);
+      background: var(--gold);
+      border-color: var(--gold-deep)
+    }
+
+    .benefit-panels {
+      max-width: 820px;
+      margin: 0 auto
+    }
+
+    .benefit-panel {
+      display: none;
+      background: linear-gradient(180deg, rgba(251, 245, 234, .07) 0%, rgba(251, 245, 234, .03) 100%);
+      border: 1px solid rgba(251, 245, 234, .16);
+      border-bottom: 1px solid rgba(171, 135, 67, .5);
+      border-radius: 18px;
+      padding: 40px 38px;
+      text-align: center
+    }
+
+    .benefit-panel.active {
+      display: block
+    }
+
+    .benefit-panel .bp-ico {
+      font-size: 40px;
+      margin-bottom: 16px
+    }
+
+    .benefit-panel h3 {
+      font-family: var(--sans);
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--cream);
+      letter-spacing: -.01em;
+      margin-bottom: 14px
+    }
+
+    .benefit-panel p {
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--on-moss-dim);
+      max-width: 600px;
+      margin: 0 auto
+    }
+
+    .benefit-panel p b {
+      color: var(--cream);
+      font-weight: 800
+    }
+
+    /* ============ V3: RESULTS TIMELINE (cream) ============ */
+    .timeline-section {
+      padding: 90px 0;
+      background: var(--cream-warm);
+      text-align: center
+    }
+
+    .timeline-eyebrow {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .18em;
+      color: var(--gold-deep);
+      text-transform: uppercase;
+      margin-bottom: 14px
+    }
+
+    .timeline-h2 {
+      font-family: var(--sans);
+      font-size: 54px;
+      font-weight: 900;
+      color: var(--moss);
+      line-height: 1.02;
+      letter-spacing: -.025em;
+      max-width: 820px;
+      margin: 0 auto 48px
+    }
+
+    .timeline-h2 .gold {
+      color: var(--gold)
+    }
+
+    .timeline-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+      max-width: 1080px;
+      margin: 0 auto;
+      text-align: left
+    }
+
+    .tl-card {
+      background: #fff;
+      border: 2px solid var(--moss);
+      border-radius: 14px;
+      padding: 30px 28px;
+      position: relative;
+      box-shadow: 0 6px 18px rgba(0, 73, 43, .06)
+    }
+
+    .tl-card .tl-step {
+      display: inline-block;
+      background: var(--gold-li);
+      color: var(--moss-dk);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 100px;
+      margin-bottom: 16px
+    }
+
+    .tl-card h3 {
+      font-family: var(--sans);
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--moss);
+      letter-spacing: -.01em;
+      margin-bottom: 12px;
+      line-height: 1.1
+    }
+
+    .tl-card p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--on-cream-dim)
+    }
+
+    .tl-card p b {
+      color: var(--moss);
+      font-weight: 800
+    }
+
+    /* ============ V3: CREDENTIALS / WHY TRUST (cream) ============ */
+    .cred-section {
+      padding: 90px 0;
+      background: var(--cream)
+    }
+
+    .cred-eyebrow {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .18em;
+      color: var(--gold-deep);
+      text-align: center;
+      text-transform: uppercase;
+      margin-bottom: 14px
+    }
+
+    .cred-h2 {
+      font-family: var(--sans);
+      font-size: 54px;
+      font-weight: 900;
+      color: var(--moss);
+      text-align: center;
+      line-height: 1.02;
+      letter-spacing: -.025em;
+      max-width: 820px;
+      margin: 0 auto 16px
+    }
+
+    .cred-h2 .gold {
+      color: var(--gold)
+    }
+
+    .cred-sub {
+      text-align: center;
+      font-size: 16px;
+      color: var(--on-cream-dim);
+      max-width: 720px;
+      margin: 0 auto 44px;
+      line-height: 1.6
+    }
+
+    .cred-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      max-width: 980px;
+      margin: 0 auto
+    }
+
+    .cred-card {
+      background: var(--cream-warm);
+      border: 1px solid rgba(0, 74, 43, .18);
+      border-left: 3px solid var(--gold);
+      border-radius: 12px;
+      padding: 28px 26px;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start
+    }
+
+    .cred-card .cc-ico {
+      font-size: 30px;
+      line-height: 1;
+      flex-shrink: 0
+    }
+
+    .cred-card h3 {
+      font-family: var(--sans);
+      font-size: 19px;
+      font-weight: 900;
+      color: var(--moss);
+      letter-spacing: -.01em;
+      margin-bottom: 8px
+    }
+
+    .cred-card p {
+      font-size: 14.5px;
+      line-height: 1.6;
+      color: var(--on-cream-dim)
+    }
+
+    /* ============ V3: GUARANTEE (dark moss) ============ */
+    .guarantee-section {
+      padding: 80px 0;
+      background: radial-gradient(ellipse at center, #0a3a26 0%, var(--moss-deep) 75%);
+      color: var(--cream)
+    }
+
+    .guarantee-card {
+      max-width: 880px;
+      margin: 0 auto;
+      text-align: center;
+      border: 2px solid var(--gold);
+      border-radius: 18px;
+      padding: 50px 44px;
+      background: rgba(251, 245, 234, .04)
+    }
+
+    .guarantee-card .seal {
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      margin: 0 auto 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      background: radial-gradient(circle, rgba(195, 154, 61, .4) 0%, transparent 70%);
+      border: 2px solid var(--gold)
+    }
+
+    .guarantee-card .g-eyebrow {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--gold-li);
+      margin-bottom: 14px
+    }
+
+    .guarantee-card h2 {
+      font-family: var(--sans);
+      font-size: 44px;
+      font-weight: 900;
+      color: var(--cream);
+      line-height: 1.05;
+      letter-spacing: -.02em;
+      margin-bottom: 20px
+    }
+
+    .guarantee-card h2 .gold {
+      color: var(--gold-li)
+    }
+
+    .guarantee-card p {
+      font-size: 16px;
+      line-height: 1.7;
+      color: var(--on-moss-dim);
+      max-width: 640px;
+      margin: 0 auto 12px
+    }
+
+    .guarantee-card p b {
+      color: var(--cream);
+      font-weight: 800
+    }
+
+    /* ============ V3: FAQ ACCORDION (cream) ============ */
+    .faq-section {
+      padding: 90px 0;
+      background: var(--cream)
+    }
+
+    .faq-eyebrow {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .18em;
+      color: var(--gold-deep);
+      text-align: center;
+      text-transform: uppercase;
+      margin-bottom: 14px
+    }
+
+    .faq-h2 {
+      font-family: var(--sans);
+      font-size: 54px;
+      font-weight: 900;
+      color: var(--moss);
+      text-align: center;
+      line-height: 1.02;
+      letter-spacing: -.025em;
+      margin-bottom: 44px
+    }
+
+    .faq-h2 .gold {
+      color: var(--gold)
+    }
+
+    .faq-list {
+      max-width: 820px;
+      margin: 0 auto
+    }
+
+    .faq-item {
+      border: 1px solid rgba(0, 74, 43, .2);
+      border-radius: 12px;
+      background: #fff;
+      margin-bottom: 14px;
+      overflow: hidden
+    }
+
+    .faq-q {
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: 0;
+      cursor: pointer;
+      padding: 22px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--sans);
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--moss);
+      letter-spacing: -.01em
+    }
+
+    .faq-q .faq-mark {
+      flex-shrink: 0;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--gold);
+      line-height: 1;
+      transition: transform .25s ease
+    }
+
+    .faq-item.open .faq-q .faq-mark {
+      transform: rotate(45deg)
+    }
+
+    .faq-a {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .3s ease
+    }
+
+    .faq-a .faq-a-inner {
+      padding: 0 24px 22px;
+      font-size: 15.5px;
+      line-height: 1.7;
+      color: var(--on-cream-dim)
+    }
+
+    .faq-a .faq-a-inner b {
+      color: var(--moss);
+      font-weight: 800
+    }
+
+    @media (max-width:768px) {
+
+      .claims-section {
+        padding: 22px 0 26px
+      }
+
+      .claim-chip {
+        font-size: 10px;
+        padding: 9px 14px;
+        gap: 7px
+      }
+
+      .benefit-section {
+        padding: 50px 0
+      }
+
+      .benefit-h2 {
+        font-size: 28px;
+        margin-bottom: 26px
+      }
+
+      .benefit-tab {
+        font-size: 10px;
+        padding: 9px 14px
+      }
+
+      .benefit-panel {
+        padding: 28px 22px
+      }
+
+      .benefit-panel h3 {
+        font-size: 20px
+      }
+
+      .benefit-panel p {
+        font-size: 14px
+      }
+
+      .timeline-section {
+        padding: 50px 0
+      }
+
+      .timeline-h2 {
+        font-size: 28px;
+        margin-bottom: 28px
+      }
+
+      .timeline-grid {
+        grid-template-columns: 1fr;
+        gap: 14px
+      }
+
+      .tl-card {
+        padding: 24px 20px
+      }
+
+      .cred-section {
+        padding: 50px 0
+      }
+
+      .cred-h2 {
+        font-size: 28px
+      }
+
+      .cred-sub {
+        font-size: 14px;
+        margin-bottom: 28px
+      }
+
+      .cred-grid {
+        grid-template-columns: 1fr;
+        gap: 12px
+      }
+
+      .cred-card {
+        padding: 20px 18px;
+        gap: 14px
+      }
+
+      .guarantee-section {
+        padding: 50px 0
+      }
+
+      .guarantee-card {
+        padding: 34px 22px
+      }
+
+      .guarantee-card h2 {
+        font-size: 26px
+      }
+
+      .guarantee-card p {
+        font-size: 14px
+      }
+
+      .faq-section {
+        padding: 50px 0
+      }
+
+      .faq-h2 {
+        font-size: 28px;
+        margin-bottom: 28px
+      }
+
+      .faq-q {
+        font-size: 15px;
+        padding: 18px 18px
+      }
+
+      .faq-a .faq-a-inner {
+        font-size: 14px;
+        padding: 0 18px 18px
+      }
+    }
   </style>
 </head>
 
@@ -3885,6 +4615,7 @@
     </div>
   </header>
 
+
   <!-- ============ § 1. HERO — BODY DIAGRAM ============ -->
   <section class="hero">
     <div class="container hero-grid">
@@ -3898,6 +4629,19 @@
             woman in the mirror looks more tired than the years she's actually lived.</p>
           <p class="pay">Calm your cortisol. Get your day back.<br>One cup. Every morning. Everything downstream
             changes.</p>
+        </div>
+        <div class="hero-buybox">
+          <div class="hero-rating">
+            <span class="hero-stars">★★★★★</span>
+            <span class="hero-rating-text"><b>4.8</b> · 12,400+ verified reviews</span>
+          </div>
+          <div class="hero-price">
+            <span class="hero-price-now">£29<span class="hero-price-per">/mo</span></span>
+            <span class="hero-price-was">£83</span>
+            <span class="hero-price-save">Save 65% + £49 in free gifts</span>
+          </div>
+          <a href="https://vahdam.co.uk/products/ashwagandha-coffee-starter-kit" class="hero-cta">Try It Now →</a>
+          <div class="hero-trust">90-day money-back guarantee · Free UK shipping on first order</div>
         </div>
       </div>
       <div class="bodydiag" style="aspect-ratio: auto; background: transparent; border: none;">
@@ -3921,6 +4665,20 @@
       </div>
     </div>
   </div>
+
+  <!-- ============ V3 NEW: QUICK-CLAIMS / TABS STRIP ============ -->
+  <section class="claims-section">
+    <div class="container">
+      <div class="claims-row">
+        <div class="claim-chip gold-chip"><span class="ci">🌿</span> 300mg KSM-66®</div>
+        <div class="claim-chip"><span class="ci">📉</span> Calms Cortisol At The Source</div>
+        <div class="claim-chip"><span class="ci">☕</span> One Morning Ritual</div>
+        <div class="claim-chip"><span class="ci">🔬</span> 24 RCTs Backing The Extract</div>
+        <div class="claim-chip"><span class="ci">🇬🇧</span> UK Stocked</div>
+        <div class="claim-chip"><span class="ci">✓</span> 90-Day Guarantee</div>
+      </div>
+    </div>
+  </section>
 
   <!-- ============ § 3. TRUTH SECTION — Photo + Warnings ============ -->
   <section class="truth-section">
@@ -4187,7 +4945,8 @@
             style="display:flex;width:110px;height:110px;margin:0 auto 14px;background:radial-gradient(circle, rgba(195,154,61,.2) 0%, transparent 70%);border-radius:50%;align-items:center;justify-content:center;">
             <img loading="lazy" decoding="async"
               src="https://www.vahdam.co.uk/cdn/shop/files/ashwagandha_20ec64fa-dc68-4c58-b610-8f0bc11024b1.png?format=webp&quality=50&v=1756892705&width=300"
-              style="width:80%;height:80%;object-fit:contain;" alt="Ashwagandha"></div>
+              style="width:80%;height:80%;object-fit:contain;" alt="Ashwagandha">
+          </div>
           <div class="name">KSM-66® Ashwagandha</div>
           <div class="dose">300 mg</div>
           <div class="desc">A high-potency root extract with 5% withanolides—clinically studied to support stress relief
@@ -4198,7 +4957,8 @@
             style="display:flex;width:110px;height:110px;margin:0 auto 14px;background:radial-gradient(circle, rgba(195,154,61,.2) 0%, transparent 70%);border-radius:50%;align-items:center;justify-content:center;">
             <img loading="lazy" decoding="async"
               src="https://www.vahdam.co.uk/cdn/shop/files/beans_01.png?format=webp&quality=50&v=1756892985&width=300"
-              style="width:80%;height:80%;object-fit:contain;" alt="Arabica Coffee"></div>
+              style="width:80%;height:80%;object-fit:contain;" alt="Arabica Coffee">
+          </div>
           <div class="name">Arabica Coffee</div>
           <div class="dose">75 mg caffeine per serving</div>
           <div class="desc">Finely ground, shade-grown Arabica beans from India—rich, smooth, and crafted for your
@@ -4209,7 +4969,8 @@
             style="display:flex;width:110px;height:110px;margin:0 auto 14px;background:radial-gradient(circle, rgba(195,154,61,.2) 0%, transparent 70%);border-radius:50%;align-items:center;justify-content:center;">
             <img loading="lazy" decoding="async"
               src="https://www.vahdam.co.uk/cdn/shop/files/turmeric_5ccd2ad1-cc84-4573-b37f-4865dfb68f44.png?format=webp&quality=50&v=1756892793&width=300"
-              style="width:80%;height:80%;object-fit:contain;" alt="Turmeric"></div>
+              style="width:80%;height:80%;object-fit:contain;" alt="Turmeric">
+          </div>
           <div class="name">Turmeric</div>
           <div class="dose">110 mg</div>
           <div class="desc">Premium-quality turmeric extract with 95% curcuminoids for exceptional purity and
@@ -4220,7 +4981,8 @@
             style="display:flex;width:110px;height:110px;margin:0 auto 14px;background:radial-gradient(circle, rgba(195,154,61,.2) 0%, transparent 70%);border-radius:50%;align-items:center;justify-content:center;">
             <img loading="lazy" decoding="async"
               src="https://www.vahdam.co.uk/cdn/shop/files/image_f8901990-6a5c-40c8-aef1-24f755c17683.png?format=webp&quality=50&v=1756892855&width=300"
-              style="width:80%;height:80%;object-fit:contain;" alt="Lion's Mane"></div>
+              style="width:80%;height:80%;object-fit:contain;" alt="Lion's Mane">
+          </div>
           <div class="name">Lion's Mane</div>
           <div class="dose">50 mg</div>
           <div class="desc">Fruiting body extract of Lion’s Mane mushroom—sustainably sourced and carefully selected.
@@ -4231,7 +4993,8 @@
             style="display:flex;width:110px;height:110px;margin:0 auto 14px;background:radial-gradient(circle, rgba(195,154,61,.2) 0%, transparent 70%);border-radius:50%;align-items:center;justify-content:center;">
             <img loading="lazy" decoding="async"
               src="https://www.vahdam.co.uk/cdn/shop/files/Review_Image.png?format=webp&quality=50&v=1756892924&width=300"
-              style="width:80%;height:80%;object-fit:contain;" alt="Chaga"></div>
+              style="width:80%;height:80%;object-fit:contain;" alt="Chaga">
+          </div>
           <div class="name">Chaga</div>
           <div class="dose">50 mg</div>
           <div class="desc">Premium quality Chaga mushroom extract, included as part of a balanced wellness blend.</div>
@@ -4240,283 +5003,76 @@
     </div>
   </section>
 
-  <!-- ============ § 10B. SUPPLEMENT FACTS ============ -->
-  <style>
-    .sf-section { padding: 80px 0; background: var(--cream); }
-    .sf-section .sf-eyebrow { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: .16em; color: var(--gold-deep); text-align: center; text-transform: uppercase; margin-bottom: 14px; }
-    .sf-section .sf-h2 { font-size: 54px; font-weight: 900; color: var(--moss); text-align: center; line-height: 1.02; letter-spacing: -.025em; margin: 0 auto 12px; }
-    .sf-section .sf-h2 .gold { color: var(--gold); }
-    .sf-section .sf-sub { text-align: center; font-size: 16px; color: var(--on-cream-dim); max-width: 620px; margin: 0 auto 44px; line-height: 1.55; }
-    .sf-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; max-width: 1000px; margin: 0 auto; }
-    .sf-prod { border-radius: 18px; overflow: hidden; background: var(--cream-warm); border: 1px solid rgba(0, 74, 43, .12); box-shadow: 0 16px 34px rgba(0, 73, 43, .12); }
-    .sf-prod img { display: block; width: 100%; height: 100%; object-fit: cover; }
-    .sf-panel { background: #fff; color: #000; border: 2px solid #000; border-radius: 4px; padding: 12px 16px 14px; max-width: 420px; width: 100%; justify-self: center; }
-    .sf-panel .sf-title { font-size: 40px; font-weight: 900; line-height: .95; letter-spacing: -.02em; border-bottom: 1px solid #000; padding-bottom: 6px; margin-bottom: 4px; }
-    .sf-panel .sf-serv { font-size: 15px; line-height: 1.3; }
-    .sf-table { width: 100%; border-collapse: collapse; font-size: 15px; }
-    .sf-table td { padding: 5px 0; vertical-align: bottom; border-bottom: 1px solid #000; }
-    .sf-table td.amt { text-align: right; white-space: nowrap; padding-left: 8px; }
-    .sf-table td.dv { text-align: right; white-space: nowrap; width: 1%; padding-left: 10px; }
-    .sf-table tr.bar td { border-bottom: 8px solid #000; padding: 0; }
-    .sf-table tr.bar-top td { border-top: 8px solid #000; padding: 0; }
-    .sf-table tr.head td { font-weight: 700; border-bottom: 1px solid #000; }
-    .sf-table td.sub { padding-left: 18px; }
-    .sf-table tr.noline td { border-bottom: 0; }
-    .sf-foot { font-size: 12px; line-height: 1.4; padding-top: 8px; }
-    @media (max-width: 768px) {
-      .sf-section { padding: 52px 0; }
-      .sf-section .sf-h2 { font-size: 30px; }
-      .sf-wrap { grid-template-columns: 1fr; gap: 28px; }
-      .sf-prod { order: -1; max-width: 380px; margin: 0 auto; }
-      .sf-panel { max-width: 100%; }
-      .sf-panel .sf-title { font-size: 34px; }
-    }
-  </style>
-  <section class="sf-section" id="supplement-facts">
+  <!-- ============ V3 NEW: GETTING RESULTS — TIMELINE ============ -->
+  <section class="timeline-section" id="results-timeline">
     <div class="container">
-      <div class="sf-eyebrow">WHAT'S IN EVERY SPOON</div>
-      <h2 class="sf-h2">Supplement <span class="gold">Facts</span></h2>
-      <p class="sf-sub">Full label transparency — every milligram, nothing hidden. One 3 g spoon, 40 servings per
-        pack.</p>
-      <div class="sf-wrap">
-        <div class="sf-prod">
-          <img loading="lazy" decoding="async"
-            src="https://www.vahdam.com/cdn/shop/files/PM-04152_ZP_CTC_US_120g_Ashwagandha_Coffee_2__jpg_1024x1024.jpg?v=1780902079"
-            alt="VAHDAM Ashwagandha Coffee — 120 g pack">
+      <div class="timeline-eyebrow">WHAT TO EXPECT</div>
+      <h2 class="timeline-h2">One Cup A Day. <span class="gold">Here's How It Unfolds.</span></h2>
+      <div class="timeline-grid">
+        <div class="tl-card">
+          <span class="tl-step">Week 1</span>
+          <h3>The Morning Spike Softens</h3>
+          <p>You swap your regular coffee for one cup of Vahdam Ashwagandha Coffee. <b>Clean caffeine plus KSM-66®</b> means no 11am jitters, no 3pm crash — and the edge starts to come off the day.</p>
         </div>
-        <div class="sf-panel" role="table" aria-label="Supplement Facts">
-          <div class="sf-title">Supplement Facts</div>
-          <div class="sf-serv">Serving Size 1 Spoon (3 g)</div>
-          <div class="sf-serv" style="border-bottom:8px solid #000;padding-bottom:4px;">Servings Per Container 40</div>
-          <table class="sf-table">
-            <tbody>
-              <tr class="head">
-                <td></td>
-                <td class="amt">Amount Per Spoon</td>
-                <td class="dv">% Daily Value</td>
-              </tr>
-              <tr>
-                <td>Calories</td>
-                <td class="amt">10</td>
-                <td class="dv"></td>
-              </tr>
-              <tr class="bar">
-                <td>Total Carbohydrate</td>
-                <td class="amt">2 g</td>
-                <td class="dv">1%*</td>
-              </tr>
-              <tr>
-                <td>Instant Coffee Powder (beans)</td>
-                <td class="amt">2600 mg</td>
-                <td class="dv">+</td>
-              </tr>
-              <tr>
-                <td>KSM-66® Ashwagandha Root Extract (root)</td>
-                <td class="amt">150 mg</td>
-                <td class="dv">+</td>
-              </tr>
-              <tr>
-                <td>L-Theanine</td>
-                <td class="amt">100 mg</td>
-                <td class="dv">+</td>
-              </tr>
-              <tr class="noline">
-                <td>Proprietary Blend</td>
-                <td class="amt">150 mg</td>
-                <td class="dv">+</td>
-              </tr>
-              <tr>
-                <td class="sub">Chaga Mushroom Extract (<i>Inonotus obliquus</i>) (fruiting body)</td>
-                <td class="amt"></td>
-                <td class="dv">+</td>
-              </tr>
-              <tr>
-                <td class="sub">Lion's Mane Mushroom Extract (<i>Hericium erinaceus</i>) (fruiting body)</td>
-                <td class="amt"></td>
-                <td class="dv">+</td>
-              </tr>
-              <tr class="bar">
-                <td class="sub">Turmeric Extract (<i>Curcuma longa</i>) (rhizome) (95% curcuminoids)</td>
-                <td class="amt"></td>
-                <td class="dv">+</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="sf-foot">* Percent Daily Values are based on a 2,000 calorie diet.<br>+ Daily Value not
-            established.</div>
+        <div class="tl-card">
+          <span class="tl-step">Week 2–4</span>
+          <h3>Calmer Days, Deeper Nights</h3>
+          <p>As cortisol settles into a healthier rhythm, women report <b>steadier mood, more patience by 4pm, sharper focus and calmer evenings</b> — the brain fog lifts and sleep starts to deepen.</p>
+        </div>
+        <div class="tl-card">
+          <span class="tl-step">Week 6+</span>
+          <h3>The Belly Starts To Ease</h3>
+          <p>With the hormone calmed and the ritual holding, the downstream changes show — <b>cravings quieten and the stress belly that wouldn't shift finally begins to ease.</b> Results build the longer you steep the habit. Individual results vary.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============ § 11. UGC ============ -->
-  <section class="ugc-section">
+  <!-- ============ V3 NEW: BENEFITS — TABS ============ -->
+  <section class="benefit-section">
     <div class="container">
-      <div class="ugc-eyebrow">148,000+ WOMEN GOT THEIR DAY BACK</div>
-      <h2 class="ugc-h2">What Women Love<br>About <span class="gold">Vahdam Coffee</span></h2>
-      <div class="ugc-wrap">
-        <button class="ugc-nav prev" aria-label="Previous">&#10094;</button>
-        <div class="ugc-grid">
-          <div class="ugc-card has-video"><video preload="none" data-lazy-video
-              src="https://cdn.shopify.com/videos/c/o/v/d21ba03634f04641a0951ed61d26f3fa.mp4#t=0.1" loop muted
-              playsinline controls
-              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
-            <div class="ucap">"NO 3PM CRASH OR JITTERS"</div>
-          </div>
-          <div class="ugc-card has-video"><video preload="none" data-lazy-video
-              src="https://cdn.shopify.com/videos/c/o/v/d392a564127f474c9a658d88b6741c12.mp4#t=0.1" loop muted
-              playsinline controls
-              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
-            <div class="ucap">"THE BLOAT IS COMPLETELY GONE"</div>
-          </div>
-          <div class="ugc-card has-video"><video preload="none" data-lazy-video
-              src="https://cdn.shopify.com/videos/c/o/v/c61f4811f4bc4fbe9879347fa38ad2be.mp4#t=0.1" loop muted
-              playsinline controls
-              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
-            <div class="ucap">"FEEL CALM, FOCUSED & ENERGIZED"</div>
-          </div>
-          <div class="ugc-card has-video"><video preload="none" data-lazy-video
-              src="https://cdn.shopify.com/videos/c/o/v/83c8bfb174134c68a7b7e6ce077eebca.mp4#t=0.1" loop muted
-              playsinline controls
-              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
-            <div class="ucap">"TASTES INCREDIBLE — I CRAVE IT"</div>
-          </div>
-          <div class="ugc-card has-video"><video preload="none" data-lazy-video
-              src="https://cdn.shopify.com/videos/c/o/v/90c279b36b50400c92de110789a0ae13.mp4#t=0.1" loop muted
-              playsinline controls
-              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
-            <div class="ucap">"JUST REPLACED MY MORNING COFFEE"</div>
-          </div>
-          <div class="ugc-card has-video"><video preload="none" data-lazy-video
-              src="https://cdn.shopify.com/videos/c/o/v/3c23572e8c18471297a89a571cbeec8c.mp4#t=0.1" loop muted
-              playsinline controls
-              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
-            <div class="ucap">"MY CORTISOL LEVELS DROPPED"</div>
-          </div>
-          <div class="ugc-card has-video"><video preload="none" data-lazy-video
-              src="https://cdn.shopify.com/videos/c/o/v/4e4511c7574a4773ab2598eaa2848fa5.mp4#t=0.1" loop muted
-              playsinline controls
-              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
-            <div class="ucap">"LOST WEIGHT AND GAINED ENERGY"</div>
-          </div>
-        </div>
-        <button class="ugc-nav next" aria-label="Next">&#10095;</button>
-        <div class="ugc-dots"></div>
+      <div class="benefit-eyebrow">ONE MECHANISM · EVERYTHING DOWNSTREAM</div>
+      <h2 class="benefit-h2">What Calming Cortisol <span class="gold">Actually Changes</span></h2>
+      <div class="benefit-tabs">
+        <button class="benefit-tab active" data-benefit="0">Energy</button>
+        <button class="benefit-tab" data-benefit="1">Mood</button>
+        <button class="benefit-tab" data-benefit="2">Focus</button>
+        <button class="benefit-tab" data-benefit="3">Cravings</button>
+        <button class="benefit-tab" data-benefit="4">Ageing</button>
+        <button class="benefit-tab" data-benefit="5">Stress Belly</button>
       </div>
-    </div>
-  </section>
-
-  <!-- ============ § 12. LAUNCH KIT INCLUDES ============ -->
-  <section class="kit-section" id="buy">
-    <div class="container">
-      <h2 class="kit-h2">Your Launch Kit <span class="gold">Includes</span></h2>
-      <div class="kit-row">
-        <div class="kit-img"
-          style="padding: 0; background: var(--cream); border: 1px solid var(--cream-faint); border-radius: 14px; opacity: 1; overflow: hidden;">
-          <img loading="lazy" decoding="async"
-            src="https://cdn.shopify.com/s/files/1/0684/3603/3827/files/KIT.jpg?v=1781189249"
-            alt="Vahdam Ashwagandha Coffee launch kit"
-            style="width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;"></div>
-        <div class="kit-list">
-          <ul>
-            <li><span class="ll">Vahdam Ashwagandha Coffee · 1 Month</span><span class="rr"><s>£83</s> £29/mo</span>
-            </li>
-            <li><span class="ll">Vacuum Insulated Tumbler</span><span class="rr"><s>£30</s> FREE</span></li>
-            <li><span class="ll">Stainless Steel Straw</span><span class="rr"><s>£4</s> FREE</span></li>
-            <li><span class="ll">Wooden Scoop</span><span class="rr"><s>£4</s> FREE</span></li>
-            <li><span class="ll">Aroma Bean Pouch</span><span class="rr"><s>£6</s> FREE</span></li>
-            <li><span class="ll">Recipe Booklet</span><span class="rr"><s>£1</s> FREE</span></li>
-            <li><span class="ll">Plantable Paper</span><span class="rr"><s>£4</s> FREE</span></li>
-            <li><span class="ll gold-text">Free UK Shipping on First Order</span><span class="rr"><s>£10</s> FREE</span>
-            </li>
-          </ul>
-          <a href="https://vahdam.co.uk/products/ashwagandha-coffee-starter-kit" class="kit-cta">Try It Now →</a>
+      <div class="benefit-panels">
+        <div class="benefit-panel active" data-panel="0">
+          <div class="bp-ico">⚡</div>
+          <h3>Steady Daily Energy</h3>
+          <p>Clean caffeine paired with <b>300mg KSM-66®</b> means a real morning lift without the 11am spike or the 3pm crash. Energy that holds, instead of energy that whipsaws.</p>
+        </div>
+        <div class="benefit-panel" data-panel="1">
+          <div class="bp-ico">🌿</div>
+          <h3>Steadier Mood</h3>
+          <p>The 4pm snapping. The edge before bed. The lost patience. <b>All cortisol.</b> Calm it, and you start to feel like yourself again — warmer with the people who matter.</p>
+        </div>
+        <div class="benefit-panel" data-panel="2">
+          <div class="bp-ico">🧠</div>
+          <h3>Sharper Focus</h3>
+          <p>Brain fog gone. A calmer nervous system. <b>You can actually think clearly again</b> — no caffeine hammering an already-elevated cortisol curve.</p>
+        </div>
+        <div class="benefit-panel" data-panel="3">
+          <div class="bp-ico">🍃</div>
+          <h3>Cravings Stop</h3>
+          <p>The 11am biscuit. The 3pm sugar hit. The midnight cheese. <b>All cortisol-driven.</b> Calm the hormone and the spiral quietens — no deprivation diet required.</p>
+        </div>
+        <div class="benefit-panel" data-panel="4">
+          <div class="bp-ico">✨</div>
+          <h3>Healthier Ageing</h3>
+          <p>Chronic cortisol degrades collagen and wears on mood and bones. <b>Calm it from the inside</b> and you give your skin and your evenings a steadier baseline to work from.</p>
+        </div>
+        <div class="benefit-panel" data-panel="5">
+          <div class="bp-ico">⚖️</div>
+          <h3>The Stress Belly Eases</h3>
+          <p>The fat that wouldn't budge. The waistband that wouldn't move. <b>Both downstream of cortisol.</b> Calm the hormone and the belly follows. Individual results vary.</p>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- ============ § 14. CUSTOMER STORY ============ -->
-  <section class="story-section">
-    <div class="container story-row">
-      <div class="story-img" style="padding: 0; background: transparent; border: none; opacity: 1; overflow: hidden;">
-        <img loading="lazy" decoding="async"
-          src="https://cdn.shopify.com/s/files/1/0684/3603/3827/files/Sarah_M..png?v=1781257494"
-          alt="Sarah M., 47, verified UK buyer"
-          style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px; display: block;"></div>
-      <div class="story-copy">
-        <h3>I'M ON MONTH 7</h3>
-        <h2>"I've Got My Mornings Back — And Most of My Afternoons Too"</h2>
-        <div class="body">"I started this convinced it wouldn't work. I'd tried sleep aids, magnesium, HRT, meditation,
-          three different gym memberships. None of it touched the <mark>actual</mark> problem. I'm 7 months in. I sleep
-          through the night. I don't snap at the kids by 5pm. My GP commented on the drop in my stress markers. The
-          bonus — and I do mean bonus — is the stress belly has started to ease. But what I'd pay for, just on its own,
-          is finally feeling like myself again."</div>
-        <div class="by">SARAH M. · VERIFIED UK BUYER</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ § 15. FEATURED IN ============ -->
-  <section class="featured-section">
-    <div class="container">
-      <div class="featured-eyebrow">AS FEATURED IN</div>
-      <div class="featured-row">
-        <div class="logo-ph">THE TIMES</div>
-        <div class="logo-ph">VOGUE</div>
-        <div class="logo-ph">FORBES</div>
-        <div class="logo-ph">BBC</div>
-        <div class="logo-ph">GOOD HOUSEKEEPING</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ § 16. TESTIMONIAL CAROUSEL ============ -->
-  <section class="testi-section">
-    <div class="container">
-      <div class="testi-eyebrow">VERIFIED CUSTOMER REVIEWS · 4.8 ★ · 12,400+ RATED</div>
-    </div>
-    <div class="testi-wrap">
-      <button class="testi-nav prev" aria-label="Previous slide">←</button>
-      <button class="testi-nav next" aria-label="Next slide">→</button>
-      <div class="testi-track-container">
-        <div class="testi-track">
-          <div class="testi-card">
-            <div class="stars">★★★★★</div>
-            <div class="body">"I swear I feel like I'm 35 again! Lost 11 pounds, gained energy I haven't felt in a
-              decade, and the perimenopause belly that wouldn't budge for two years has finally started melting. If
-              you're on the fence, stop wasting time."</div>
-            <div class="by">DEBBIE F. · MANCHESTER · VERIFIED</div>
-          </div>
-          <div class="testi-card">
-            <div class="stars">★★★★★</div>
-            <div class="body">"So far I've lost about 8 pounds and feel stronger with so much more energy. I'm 10 weeks
-              in and the brain fog is completely gone. My husband asked what I was taking."</div>
-            <div class="by">LOUISE J. · BRISTOL · VERIFIED</div>
-          </div>
-          <div class="testi-card">
-            <div class="stars">★★★★★</div>
-            <div class="body">"This is the real deal — most ashwagandha capsules just do not work. My cortisol reading
-              on the saliva test was 18.4 before; after 12 weeks of Vahdam it dropped to 13.2. The longer you take it
-              the better it works."</div>
-            <div class="by">JOANNE S. · LEEDS · VERIFIED</div>
-          </div>
-          <div class="testi-card">
-            <div class="stars">★★★★★</div>
-            <div class="body">"I love it — dropped 13lbs, kept the muscle, and the husband notices the difference too.
-              The taste is the kicker — I actually crave it instead of forcing it down like the capsules."</div>
-            <div class="by">PAULA A. · GLASGOW · VERIFIED</div>
-          </div>
-          <div class="testi-card">
-            <div class="stars">★★★★★</div>
-            <div class="body">"Three months in and the bloat is gone. I had given up on losing this belly. The fact that
-              I just swap my morning Nescafé for this and it works — without any deprivation diet — is the only reason
-              I'm leaving a review."</div>
-            <div class="by">CLAIRE D. · BIRMINGHAM · VERIFIED</div>
-          </div>
-        </div>
-      </div>
-      <div class="testi-dots"></div>
     </div>
   </section>
 
@@ -4595,6 +5151,148 @@
         🚀 <b>Bottom Line:</b> Mushroom coffees swap caffeine for vibes. Vahdam keeps the coffee, adds the one
         ingredient with clinical proof on cortisol, and skips the dirt taste. <b>One cup. One mechanism. Everything
           downstream changes.</b>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ § 11. UGC ============ -->
+  <section class="ugc-section">
+    <div class="container">
+      <div class="ugc-eyebrow">148,000+ WOMEN GOT THEIR DAY BACK</div>
+      <h2 class="ugc-h2">What Women Love<br>About <span class="gold">Vahdam Coffee</span></h2>
+      <div class="ugc-wrap">
+        <button class="ugc-nav prev" aria-label="Previous">&#10094;</button>
+        <div class="ugc-grid">
+          <div class="ugc-card has-video"><video preload="none" data-lazy-video
+              src="https://cdn.shopify.com/videos/c/o/v/d21ba03634f04641a0951ed61d26f3fa.mp4#t=0.1" loop muted
+              playsinline controls
+              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
+            <div class="ucap">"NO 3PM CRASH OR JITTERS"</div>
+          </div>
+          <div class="ugc-card has-video"><video preload="none" data-lazy-video
+              src="https://cdn.shopify.com/videos/c/o/v/d392a564127f474c9a658d88b6741c12.mp4#t=0.1" loop muted
+              playsinline controls
+              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
+            <div class="ucap">"THE BLOAT IS COMPLETELY GONE"</div>
+          </div>
+          <div class="ugc-card has-video"><video preload="none" data-lazy-video
+              src="https://cdn.shopify.com/videos/c/o/v/c61f4811f4bc4fbe9879347fa38ad2be.mp4#t=0.1" loop muted
+              playsinline controls
+              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
+            <div class="ucap">"FEEL CALM, FOCUSED & ENERGIZED"</div>
+          </div>
+          <div class="ugc-card has-video"><video preload="none" data-lazy-video
+              src="https://cdn.shopify.com/videos/c/o/v/83c8bfb174134c68a7b7e6ce077eebca.mp4#t=0.1" loop muted
+              playsinline controls
+              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
+            <div class="ucap">"TASTES INCREDIBLE — I CRAVE IT"</div>
+          </div>
+          <div class="ugc-card has-video"><video preload="none" data-lazy-video
+              src="https://cdn.shopify.com/videos/c/o/v/90c279b36b50400c92de110789a0ae13.mp4#t=0.1" loop muted
+              playsinline controls
+              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
+            <div class="ucap">"JUST REPLACED MY MORNING COFFEE"</div>
+          </div>
+          <div class="ugc-card has-video"><video preload="none" data-lazy-video
+              src="https://cdn.shopify.com/videos/c/o/v/3c23572e8c18471297a89a571cbeec8c.mp4#t=0.1" loop muted
+              playsinline controls
+              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
+            <div class="ucap">"MY CORTISOL LEVELS DROPPED"</div>
+          </div>
+          <div class="ugc-card has-video"><video preload="none" data-lazy-video
+              src="https://cdn.shopify.com/videos/c/o/v/4e4511c7574a4773ab2598eaa2848fa5.mp4#t=0.1" loop muted
+              playsinline controls
+              style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;"></video>
+            <div class="ucap">"LOST WEIGHT AND GAINED ENERGY"</div>
+          </div>
+        </div>
+        <button class="ugc-nav next" aria-label="Next">&#10095;</button>
+        <div class="ugc-dots"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ § 16. TESTIMONIAL CAROUSEL ============ -->
+  <section class="testi-section">
+    <div class="container">
+      <div class="testi-eyebrow">VERIFIED CUSTOMER REVIEWS · 4.8 ★ · 12,400+ RATED</div>
+    </div>
+    <div class="testi-wrap">
+      <button class="testi-nav prev" aria-label="Previous slide">←</button>
+      <button class="testi-nav next" aria-label="Next slide">→</button>
+      <div class="testi-track-container">
+        <div class="testi-track">
+          <div class="testi-card">
+            <div class="stars">★★★★★</div>
+            <div class="body">"I swear I feel like I'm 35 again! Lost 11 pounds, gained energy I haven't felt in a
+              decade, and the perimenopause belly that wouldn't budge for two years has finally started melting. If
+              you're on the fence, stop wasting time."</div>
+            <div class="by">DEBBIE F. · MANCHESTER · VERIFIED</div>
+          </div>
+          <div class="testi-card">
+            <div class="stars">★★★★★</div>
+            <div class="body">"So far I've lost about 8 pounds and feel stronger with so much more energy. I'm 10 weeks
+              in and the brain fog is completely gone. My husband asked what I was taking."</div>
+            <div class="by">LOUISE J. · BRISTOL · VERIFIED</div>
+          </div>
+          <div class="testi-card">
+            <div class="stars">★★★★★</div>
+            <div class="body">"This is the real deal — most ashwagandha capsules just do not work. My cortisol reading
+              on the saliva test was 18.4 before; after 12 weeks of Vahdam it dropped to 13.2. The longer you take it
+              the better it works."</div>
+            <div class="by">JOANNE S. · LEEDS · VERIFIED</div>
+          </div>
+          <div class="testi-card">
+            <div class="stars">★★★★★</div>
+            <div class="body">"I love it — dropped 13lbs, kept the muscle, and the husband notices the difference too.
+              The taste is the kicker — I actually crave it instead of forcing it down like the capsules."</div>
+            <div class="by">PAULA A. · GLASGOW · VERIFIED</div>
+          </div>
+          <div class="testi-card">
+            <div class="stars">★★★★★</div>
+            <div class="body">"Three months in and the bloat is gone. I had given up on losing this belly. The fact that
+              I just swap my morning Nescafé for this and it works — without any deprivation diet — is the only reason
+              I'm leaving a review."</div>
+            <div class="by">CLAIRE D. · BIRMINGHAM · VERIFIED</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-dots"></div>
+    </div>
+  </section>
+
+  <!-- ============ § 15. FEATURED IN ============ -->
+  <section class="featured-section">
+    <div class="container">
+      <div class="featured-eyebrow">AS FEATURED IN</div>
+      <div class="featured-row">
+        <div class="logo-ph">THE TIMES</div>
+        <div class="logo-ph">VOGUE</div>
+        <div class="logo-ph">FORBES</div>
+        <div class="logo-ph">BBC</div>
+        <div class="logo-ph">GOOD HOUSEKEEPING</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ § 14. CUSTOMER STORY ============ -->
+  <section class="story-section">
+    <div class="container story-row">
+      <div class="story-img" style="padding: 0; background: transparent; border: none; opacity: 1; overflow: hidden;">
+        <img loading="lazy" decoding="async"
+          src="https://cdn.shopify.com/s/files/1/0684/3603/3827/files/Sarah_M..png?v=1781257494"
+          alt="Sarah M., 47, verified UK buyer"
+          style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px; display: block;">
+      </div>
+      <div class="story-copy">
+        <h3>I'M ON MONTH 7</h3>
+        <h2>"I've Got My Mornings Back — And Most of My Afternoons Too"</h2>
+        <div class="body">"I started this convinced it wouldn't work. I'd tried sleep aids, magnesium, HRT, meditation,
+          three different gym memberships. None of it touched the <mark>actual</mark> problem. I'm 7 months in. I sleep
+          through the night. I don't snap at the kids by 5pm. My GP commented on the drop in my stress markers. The
+          bonus — and I do mean bonus — is the stress belly has started to ease. But what I'd pay for, just on its own,
+          is finally feeling like myself again."</div>
+        <div class="by">SARAH M. · VERIFIED UK BUYER</div>
       </div>
     </div>
   </section>
@@ -4747,6 +5445,131 @@
     </div>
   </section>
 
+  <!-- ============ V3 NEW: CREDENTIALS / WHY TRUST VAHDAM ============ -->
+  <section class="cred-section" id="science">
+    <div class="container">
+      <div class="cred-eyebrow">WHY TRUST VAHDAM</div>
+      <h2 class="cred-h2">A <span class="gold">Founder-Led</span> Tea House, Crafted At The Origin</h2>
+      <p class="cred-sub">Vahdam isn't a wellness label that slapped its name on a generic blend. It's a single-estate, farm-to-cup business built on real sourcing and a clinically-studied extract — not vague adaptogen claims.</p>
+      <div class="cred-grid">
+        <div class="cred-card">
+          <div class="cc-ico">🌱</div>
+          <div>
+            <h3>Single-Estate, Farm-To-Cup</h3>
+            <p>Hand-picked, shade-grown Arabica from India and ingredients sourced at origin — crafted into one cup rather than blended down by middlemen.</p>
+          </div>
+        </div>
+        <div class="cred-card">
+          <div class="cc-ico">🔬</div>
+          <div>
+            <h3>A Clinically-Studied Dose, Not A Gesture</h3>
+            <p>The full <b>300mg KSM-66®</b> Ashwagandha root extract (5% withanolides) — the form backed by 24 RCTs for stress relief and healthy cortisol levels. Not a token sprinkle.</p>
+          </div>
+        </div>
+        <div class="cred-card">
+          <div class="cc-ico">☕</div>
+          <div>
+            <h3>Built Into A Ritual You'll Keep</h3>
+            <p>It replaces the one morning habit you were never going to quit — no new pill, no bitter capsule, no prescription. The mechanism only works if you actually drink it.</p>
+          </div>
+        </div>
+        <div class="cred-card">
+          <div class="cc-ico">🇬🇧</div>
+          <div>
+            <h3>UK Stocked, Backed By A Guarantee</h3>
+            <p>Dispatched from the UK with free first-order shipping and a 90-day money-back guarantee. Skip, pause or cancel anytime — no lock-in.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ V3 NEW: MONEY-BACK GUARANTEE ============ -->
+  <section class="guarantee-section">
+    <div class="container">
+      <div class="guarantee-card">
+        <div class="seal">🛡️</div>
+        <div class="g-eyebrow">90-DAY MONEY-BACK GUARANTEE</div>
+        <h2>Steep It For 90 Days.<br><span class="gold">Risk Nothing.</span></h2>
+        <p>Cortisol calms gradually — and the longer you keep the ritual, the more the energy, sleep, focus, mood and stress belly start to right themselves. So we give you a full <b>90 days</b> to feel it for yourself.</p>
+        <p>If you're not feeling calmer and more like yourself, contact us for a full refund. <b>Free UK shipping on your first order. Skip, pause or cancel anytime.</b></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ V3 NEW: FAQ ACCORDION ============ -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="faq-eyebrow">BEFORE YOU DECIDE</div>
+      <h2 class="faq-h2">Your Questions, <span class="gold">Answered</span></h2>
+      <div class="faq-list">
+        <div class="faq-item">
+          <button class="faq-q">Won't coffee spike my cortisol even more?<span class="faq-mark">+</span></button>
+          <div class="faq-a"><div class="faq-a-inner">That's the problem with regular coffee — standard caffeine on an already-elevated morning curve sends cortisol through the roof. Vahdam pairs a <b>gentler caffeine lift with 300mg KSM-66® Ashwagandha</b>, which is clinically studied to support healthy cortisol levels. You keep the morning ritual; you lose the spike.</div></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">How is this different from a mushroom coffee?<span class="faq-mark">+</span></button>
+          <div class="faq-a"><div class="faq-a-inner">Mushroom coffees usually strip the caffeine and lean on vague adaptogen claims — no clinical cortisol claim, and often a dirt-like taste. Vahdam <b>keeps real coffee, adds the one ingredient with clinical proof on cortisol</b>, and tastes like the cup you already love.</div></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">Do I need to take it forever, or change my diet?<span class="faq-mark">+</span></button>
+          <div class="faq-a"><div class="faq-a-inner">No deprivation diet and no new habit to bolt on. You simply swap your existing morning coffee for this one cup. <b>It works because it replaces the ritual you were never going to quit</b> — not because it asks you to add another.</div></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">What's actually in it?<span class="faq-mark">+</span></button>
+          <div class="faq-a"><div class="faq-a-inner">Shade-grown Arabica coffee plus a clean stack: <b>300mg KSM-66® Ashwagandha (5% withanolides), Turmeric (95% curcuminoids), Lion's Mane and Chaga.</b> A focused blend with a clinically-studied dose at its core — not a long list of fillers.</div></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">How quickly will I notice a difference?<span class="faq-mark">+</span></button>
+          <div class="faq-a"><div class="faq-a-inner">Many women feel a steadier morning within the first week as the spike softens. Calmer days, deeper sleep and sharper focus tend to build over weeks 2–4, and the stress belly typically eases later. <b>Cortisol calms gradually — the longer you steep the habit, the better it works.</b> Individual results vary.</div></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">What if it doesn't work for me?<span class="faq-mark">+</span></button>
+          <div class="faq-a"><div class="faq-a-inner">You're covered by a <b>90-day money-back guarantee</b>. If you're not feeling calmer and more like yourself, contact us for a full refund. You can skip, pause or cancel anytime — there's no lock-in.</div></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">Is it stocked and shipped in the UK?<span class="faq-mark">+</span></button>
+          <div class="faq-a"><div class="faq-a-inner">Yes — Vahdam is <b>UK stocked with free shipping on your first order</b>. Your launch kit also includes a vacuum-insulated tumbler, steel straw, wooden scoop and more, included free.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ § 12. LAUNCH KIT INCLUDES ============ -->
+  <section class="kit-section" id="buy">
+    <div class="container">
+      <h2 class="kit-h2">Your Launch Kit <span class="gold">Includes</span></h2>
+      <div class="kit-row">
+        <div class="kit-img"
+          style="padding: 0; background: var(--cream); border: 1px solid var(--cream-faint); border-radius: 14px; opacity: 1; overflow: hidden;">
+          <img loading="lazy" decoding="async"
+            src="https://cdn.shopify.com/s/files/1/0684/3603/3827/files/KIT.jpg?v=1781189249"
+            alt="Vahdam Ashwagandha Coffee launch kit"
+            style="width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;">
+        </div>
+        <div class="kit-list">
+          <ul>
+            <li><span class="ll">Vahdam Ashwagandha Coffee · 1 Month</span><span class="rr"><s>£83</s> £29/mo</span>
+            </li>
+            <li><span class="ll">Vacuum Insulated Tumbler</span><span class="rr"><s>£30</s> FREE</span></li>
+            <li><span class="ll">Stainless Steel Straw</span><span class="rr"><s>£4</s> FREE</span></li>
+            <li><span class="ll">Wooden Scoop</span><span class="rr"><s>£4</s> FREE</span></li>
+            <li><span class="ll">Aroma Bean Pouch</span><span class="rr"><s>£6</s> FREE</span></li>
+            <li><span class="ll">Recipe Booklet</span><span class="rr"><s>£1</s> FREE</span></li>
+            <li><span class="ll">Plantable Paper</span><span class="rr"><s>£4</s> FREE</span></li>
+            <li><span class="ll gold-text">Free UK Shipping on First Order</span><span class="rr"><s>£10</s> FREE</span>
+            </li>
+          </ul>
+          <div class="kit-rating">
+            <span class="kit-stars">★★★★★</span>
+            <span class="kit-rating-text"><b>4.8</b> · 12,400+ verified reviews</span>
+          </div>
+          <a href="https://vahdam.co.uk/products/ashwagandha-coffee-starter-kit" class="kit-cta">Try It Now →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ § 19. FINAL CTA ============ -->
   <section class="final-cta">
     <div class="container">
@@ -4855,555 +5678,169 @@
   </script>
 
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const container = document.querySelector('.testi-track-container');
-    const track = document.querySelector('.testi-track');
-    const cards = document.querySelectorAll('.testi-track .testi-card');
-    const dotsContainer = document.querySelector('.testi-dots');
-    const prevBtn = document.querySelector('.testi-nav.prev');
-    const nextBtn = document.querySelector('.testi-nav.next');
+      document.addEventListener('DOMContentLoaded', () => {
+        const container = document.querySelector('.testi-track-container');
+        const track = document.querySelector('.testi-track');
+        const cards = document.querySelectorAll('.testi-track .testi-card');
+        const dotsContainer = document.querySelector('.testi-dots');
+        const prevBtn = document.querySelector('.testi-nav.prev');
+        const nextBtn = document.querySelector('.testi-nav.next');
 
-    if (!container || !track || !cards.length) return;
+        if (!container || !track || !cards.length) return;
 
-    const isMobile = () => window.innerWidth <= 768;
-    const cardCount = cards.length;
+        const isMobile = () => window.innerWidth <= 768;
+        const cardCount = cards.length;
 
-    // Create dots
-    for (let i = 0; i < cardCount; i++) {
-      const dot = document.createElement('div');
-      dot.classList.add('testi-dot');
-      if (i === 0) dot.classList.add('active');
-      dot.addEventListener('click', () => {
-        scrollToIndex(i);
-      });
-      dotsContainer.appendChild(dot);
-    }
+        // Create dots
+        for (let i = 0; i < cardCount; i++) {
+          const dot = document.createElement('div');
+          dot.classList.add('testi-dot');
+          if (i === 0) dot.classList.add('active');
+          dot.addEventListener('click', () => {
+            scrollToIndex(i);
+          });
+          dotsContainer.appendChild(dot);
+        }
 
-    const dots = document.querySelectorAll('.testi-dot');
+        const dots = document.querySelectorAll('.testi-dot');
 
-    function getScrollParams() {
-      const firstCard = cards[0];
-      const secondCard = cards[1];
-      const cardWidth = firstCard.offsetWidth;
-      const gap = secondCard ? (secondCard.getBoundingClientRect().left - firstCard.getBoundingClientRect().right) : 24;
-      return { cardWidth, gap };
-    }
+        function getScrollParams() {
+          const firstCard = cards[0];
+          const secondCard = cards[1];
+          const cardWidth = firstCard.offsetWidth;
+          const gap = secondCard ? (secondCard.getBoundingClientRect().left - firstCard.getBoundingClientRect().right) : 24;
+          return { cardWidth, gap };
+        }
 
-    function scrollToIndex(index) {
-      const { cardWidth, gap } = getScrollParams();
-      const scrollLeft = index * (cardWidth + gap);
-      container.scrollTo({
-        left: scrollLeft,
-        behavior: 'smooth'
-      });
-    }
+        function scrollToIndex(index) {
+          const { cardWidth, gap } = getScrollParams();
+          const scrollLeft = index * (cardWidth + gap);
+          container.scrollTo({
+            left: scrollLeft,
+            behavior: 'smooth'
+          });
+        }
 
-    function updateActiveDot() {
-      if (!dots.length) return;
-      const { cardWidth, gap } = getScrollParams();
-      const scrollLeft = container.scrollLeft;
-      const index = Math.round(scrollLeft / (cardWidth + gap));
-      const clampedIndex = Math.max(0, Math.min(cardCount - 1, index));
+        function updateActiveDot() {
+          if (!dots.length) return;
+          const { cardWidth, gap } = getScrollParams();
+          const scrollLeft = container.scrollLeft;
+          const index = Math.round(scrollLeft / (cardWidth + gap));
+          const clampedIndex = Math.max(0, Math.min(cardCount - 1, index));
 
-      dots.forEach((dot, idx) => {
-        dot.classList.toggle('active', idx === clampedIndex);
-      });
+          dots.forEach((dot, idx) => {
+            dot.classList.toggle('active', idx === clampedIndex);
+          });
 
-      // Toggle nav buttons opacity at bounds
-      if (prevBtn) {
-        prevBtn.style.opacity = scrollLeft <= 10 ? '0.3' : '1';
-        prevBtn.style.pointerEvents = scrollLeft <= 10 ? 'none' : 'auto';
-      }
-      if (nextBtn) {
-        const maxScroll = container.scrollWidth - container.clientWidth;
-        nextBtn.style.opacity = (scrollLeft >= maxScroll - 10) ? '0.3' : '1';
-        nextBtn.style.pointerEvents = (scrollLeft >= maxScroll - 10) ? 'none' : 'auto';
-      }
-    }
+          // Toggle nav buttons opacity at bounds
+          if (prevBtn) {
+            prevBtn.style.opacity = scrollLeft <= 10 ? '0.3' : '1';
+            prevBtn.style.pointerEvents = scrollLeft <= 10 ? 'none' : 'auto';
+          }
+          if (nextBtn) {
+            const maxScroll = container.scrollWidth - container.clientWidth;
+            nextBtn.style.opacity = (scrollLeft >= maxScroll - 10) ? '0.3' : '1';
+            nextBtn.style.pointerEvents = (scrollLeft >= maxScroll - 10) ? 'none' : 'auto';
+          }
+        }
 
-    // Navigation button handlers
-    if (prevBtn) {
-      prevBtn.addEventListener('click', () => {
-        const { cardWidth, gap } = getScrollParams();
-        container.scrollBy({
-          left: -(cardWidth + gap),
-          behavior: 'smooth'
+        // Navigation button handlers
+        if (prevBtn) {
+          prevBtn.addEventListener('click', () => {
+            const { cardWidth, gap } = getScrollParams();
+            container.scrollBy({
+              left: -(cardWidth + gap),
+              behavior: 'smooth'
+            });
+          });
+        }
+
+        if (nextBtn) {
+          nextBtn.addEventListener('click', () => {
+            const { cardWidth, gap } = getScrollParams();
+            container.scrollBy({
+              left: cardWidth + gap,
+              behavior: 'smooth'
+            });
+          });
+        }
+
+        // Listen to scroll events
+        let isScrolling;
+        container.addEventListener('scroll', () => {
+          window.clearTimeout(isScrolling);
+          isScrolling = setTimeout(() => {
+            updateActiveDot();
+          }, 66);
         });
-      });
-    }
 
-    if (nextBtn) {
-      nextBtn.addEventListener('click', () => {
-        const { cardWidth, gap } = getScrollParams();
-        container.scrollBy({
-          left: cardWidth + gap,
-          behavior: 'smooth'
-        });
-      });
-    }
-
-    // Listen to scroll events
-    let isScrolling;
-    container.addEventListener('scroll', () => {
-      window.clearTimeout(isScrolling);
-      isScrolling = setTimeout(() => {
+        // Initial check
         updateActiveDot();
-      }, 66);
-    });
 
-    // Initial check
-    updateActiveDot();
-
-    // Handle resize
-    window.addEventListener('resize', () => {
-      updateActiveDot();
-    });
-  });
+        // Handle resize
+        window.addEventListener('resize', () => {
+          updateActiveDot();
+        });
+      });
   </script>
 
   <script type="module">
-  // Framer Motion (vanilla "motion" build) — graceful: page is fully usable without it
-  try {
-    const { animate, inView, scroll } = await import('https://cdn.jsdelivr.net/npm/motion@11/+esm');
-    // staggered card reveals
-    document.querySelectorAll('.ben-card,.bf-card,.ing-card,.testi-card,.truth-warn').forEach((el, i) => {
-      el.style.opacity = 0;
-      inView(el, () => { animate(el, { opacity: [0, 1], transform: ['translateY(28px)', 'translateY(0)'] }, { duration: .65, delay: (i % 6) * .07, easing: [.22, 1, .36, 1] }); }, { margin: '-10% 0px' });
-    });
-    // headline shimmer-in
-    document.querySelectorAll('h2').forEach(el => {
-      inView(el, () => { animate(el, { opacity: [0, 1], transform: ['translateY(18px)', 'translateY(0)'] }, { duration: .6, easing: 'ease-out' }); });
-    });
-    // gentle parallax on hero image
-    const hero = document.querySelector('.bodydiag img');
-    if (hero) scroll(animate(hero, { transform: ['translateY(0px)', 'translateY(-40px)'] }, { easing: 'linear' }), { target: hero, offset: ['start end', 'end start'] });
-  } catch (e) {
-    // CSS/IO fallback
-    const els = document.querySelectorAll('.ben-card,.bf-card,.ing-card,.testi-card,.truth-warn,h2');
-    els.forEach(el => el.classList.add('rv'));
-    const io = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } }), { rootMargin: '-8% 0px' });
-    els.forEach(el => io.observe(el));
-  }
+      // Framer Motion (vanilla "motion" build) — graceful: page is fully usable without it
+      try {
+        const { animate, inView, scroll } = await import('https://cdn.jsdelivr.net/npm/motion@11/+esm');
+        // staggered card reveals
+        document.querySelectorAll('.ben-card,.bf-card,.ing-card,.testi-card,.truth-warn').forEach((el, i) => {
+          el.style.opacity = 0;
+          inView(el, () => { animate(el, { opacity: [0, 1], transform: ['translateY(28px)', 'translateY(0)'] }, { duration: .65, delay: (i % 6) * .07, easing: [.22, 1, .36, 1] }); }, { margin: '-10% 0px' });
+        });
+        // headline shimmer-in
+        document.querySelectorAll('h2').forEach(el => {
+          inView(el, () => { animate(el, { opacity: [0, 1], transform: ['translateY(18px)', 'translateY(0)'] }, { duration: .6, easing: 'ease-out' }); });
+        });
+        // gentle parallax on hero image
+        const hero = document.querySelector('.bodydiag img');
+        if (hero) scroll(animate(hero, { transform: ['translateY(0px)', 'translateY(-40px)'] }, { easing: 'linear' }), { target: hero, offset: ['start end', 'end start'] });
+      } catch (e) {
+        // CSS/IO fallback
+        const els = document.querySelectorAll('.ben-card,.bf-card,.ing-card,.testi-card,.truth-warn,h2');
+        els.forEach(el => el.classList.add('rv'));
+        const io = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } }), { rootMargin: '-8% 0px' });
+        els.forEach(el => io.observe(el));
+      }
   </script>
 
-  <!-- ============ VAHDAM VOICE ASSISTANT ============ -->
-  <style>
-    .va-launch {
-      position: fixed;
-      right: 18px;
-      bottom: 96px;
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      background: var(--gold);
-      color: var(--moss-dk);
-      border: 2px solid var(--moss-dk);
-      border-radius: 999px;
-      padding: 13px 20px;
-      font-family: var(--mono);
-      font-weight: 900;
-      font-size: 13px;
-      letter-spacing: .05em;
-      text-transform: uppercase;
-      cursor: pointer;
-      z-index: 120;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
-      transition: transform .25s
-    }
-
-    .va-launch:hover {
-      transform: scale(1.04)
-    }
-
-    .va-launch .ic {
-      font-size: 18px
-    }
-
-    .va-panel {
-      position: fixed;
-      right: 0;
-      bottom: 0;
-      width: 380px;
-      max-width: 100vw;
-      height: 560px;
-      max-height: 80vh;
-      background: var(--cream);
-      border: 2px solid var(--moss);
-      border-bottom: 0;
-      border-radius: 16px 16px 0 0;
-      display: flex;
-      flex-direction: column;
-      z-index: 130;
-      box-shadow: 0 -10px 40px rgba(0, 0, 0, .35);
-      transform: translateY(108%);
-      transition: transform .4s cubic-bezier(.22, 1, .36, 1)
-    }
-
-    .va-panel.open {
-      transform: none
-    }
-
-    @media(min-width:768px) {
-      .va-panel {
-        right: 18px
-      }
-    }
-
-    .va-head {
-      background: var(--moss);
-      color: var(--cream);
-      padding: 12px 14px;
-      border-radius: 13px 13px 0 0;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap
-    }
-
-    .va-head .dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: #3fa86b;
-      box-shadow: 0 0 8px #3fa86b
-    }
-
-    .va-head .t {
-      font-family: var(--mono);
-      font-weight: 800;
-      font-size: 13px;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      flex: 1;
-      min-width: 140px
-    }
-
-    .va-head .s {
-      font-size: 10px;
-      opacity: .75;
-      display: block;
-      letter-spacing: .04em;
-      text-transform: none
-    }
-
-    .va-head button {
-      background: none;
-      border: 0;
-      color: var(--cream);
-      font-size: 17px;
-      cursor: pointer;
-      padding: 2px 6px
-    }
-
-    .va-gender {
-      display: flex;
-      gap: 6px;
-      width: 100%;
-      padding-top: 6px
-    }
-
-    .va-gender button {
-      flex: 1;
-      font-family: var(--mono);
-      font-weight: 800;
-      font-size: 10px;
-      letter-spacing: .06em;
-      padding: 6px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(251, 245, 234, .4);
-      background: transparent;
-      color: var(--cream);
-      cursor: pointer
-    }
-
-    .va-gender button.on {
-      background: var(--gold);
-      border-color: var(--gold);
-      color: var(--moss-dk)
-    }
-
-    .va-msgs {
-      flex: 1;
-      overflow-y: auto;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px
-    }
-
-    .va-m {
-      max-width: 85%;
-      padding: 10px 13px;
-      border-radius: 14px;
-      font-family: var(--sans);
-      font-size: 14px;
-      line-height: 1.5
-    }
-
-    .va-m.bot {
-      background: #fff;
-      border: 1px solid rgba(0, 74, 43, .18);
-      color: var(--ink);
-      border-bottom-left-radius: 4px;
-      align-self: flex-start
-    }
-
-    .va-m.me {
-      background: var(--moss);
-      color: var(--cream);
-      border-bottom-right-radius: 4px;
-      align-self: flex-end
-    }
-
-    .va-choice {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-self: flex-start
-    }
-
-    .va-choice button {
-      background: rgba(171, 135, 67, .16);
-      border: 1.5px solid var(--gold);
-      color: var(--moss-dk);
-      font-family: var(--mono);
-      font-weight: 800;
-      font-size: 11px;
-      letter-spacing: .04em;
-      padding: 9px 13px;
-      border-radius: 999px;
-      cursor: pointer
-    }
-
-    .va-quick {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      padding: 0 14px 8px
-    }
-
-    .va-quick button {
-      background: rgba(171, 135, 67, .16);
-      border: 1px solid var(--gold);
-      color: var(--moss-dk);
-      font-family: var(--mono);
-      font-weight: 700;
-      font-size: 11px;
-      letter-spacing: .04em;
-      padding: 7px 11px;
-      border-radius: 999px;
-      cursor: pointer
-    }
-
-    .va-row {
-      display: flex;
-      gap: 8px;
-      padding: 10px 12px 12px;
-      border-top: 1px solid rgba(0, 74, 43, .15);
-      align-items: center;
-      background: var(--cream-warm)
-    }
-
-    .va-row input {
-      flex: 1;
-      border: 1px solid rgba(0, 74, 43, .3);
-      border-radius: 999px;
-      padding: 10px 14px;
-      font-family: var(--sans);
-      font-size: 14px;
-      background: #fff;
-      color: var(--ink);
-      min-width: 0
-    }
-
-    .va-ic {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 1px solid var(--moss);
-      background: #fff;
-      color: var(--moss);
-      font-size: 17px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0
-    }
-
-    .va-ic.rec {
-      background: #c14545;
-      color: #fff;
-      border-color: #c14545;
-      animation: va-pulse 1.2s infinite
-    }
-
-    .va-ic.send {
-      background: var(--gold);
-      border-color: var(--gold);
-      color: var(--moss-dk)
-    }
-
-    @keyframes va-pulse {
-
-      0%,
-      100% {
-        box-shadow: 0 0 0 0 rgba(193, 69, 69, .5)
-      }
-
-      50% {
-        box-shadow: 0 0 0 9px rgba(193, 69, 69, 0)
-      }
-    }
-
-    @media(max-width:767px) {
-      .va-panel {
-        width: 100vw
-      }
-
-      .va-launch {
-        bottom: 88px;
-        padding: 11px 16px;
-        font-size: 12px
-      }
-    }
-  </style>
-  <button class="va-launch" id="vaLaunch" aria-label="Narrate or ask"><span class="ic">🎙️</span>Narrate or ask</button>
-  <div class="va-panel" id="vaPanel" role="dialog" aria-label="VAHDAM assistant">
-    <div class="va-head">
-      <span class="dot"></span>
-      <span class="t">VAHDAM Assistant<span class="s">British voice · narrates the page &amp; answers you</span></span>
-      <button id="vaMute" title="Mute voice">🔊</button>
-      <button id="vaClose" title="Minimise">✕</button>
-      <div class="va-gender">
-        <button id="vaF" class="on">🇬🇧 British Female</button>
-        <button id="vaM">🇬🇧 British Male</button>
-      </div>
-    </div>
-    <div class="va-msgs" id="vaMsgs"></div>
-    <div class="va-quick" id="vaQuick" style="display:none">
-      <button data-q="Help me choose">Help me choose</button>
-      <button data-q="What's inside?">What's inside?</button>
-      <button data-q="Is it safe?">Is it safe?</button>
-      <button data-q="What's the offer?">The offer</button>
-    </div>
-    <div class="va-row">
-      <button class="va-ic" id="vaTalk" title="Talk">🎙️</button>
-      <input id="vaIn" type="text" placeholder="Ask anything…" aria-label="Message">
-      <button class="va-ic send" id="vaSend" title="Send">➤</button>
-    </div>
-  </div>
   <script>
-      (function () {
-        var KB = [
-          { k: /choos|which|start|recommend|kit|begin/i, a: "Most people start with the 30-Day Starter Kit — 40 servings, currently 65% off at £29 with £49 of free gifts. If you want the best results, the 90-day plan works out cheaper per pack. Want the link?" },
-          { k: /inside|ingredient|what.?s in|contain|formula/i, a: "Every cup has 300mg KSM-66 Ashwagandha — the extract behind fifty-plus clinical trials — smooth Indian Arabica with 75mg caffeine, 110mg turmeric, plus Lion's Mane and Chaga. No fillers, no proprietary blends, no bitter aftertaste." },
-          { k: /safe|side effect|daily|pregnan|medication|gp|doctor/i, a: "It's formulated for daily use — most customers have one or two cups a day. It's vegan, non-GMO, GMP-made and third-party tested. If you're pregnant, on medication, or have a health condition, do check with your GP first." },
-          { k: /offer|price|cost|discount|deal|gift|free/i, a: "Right now it's 65% off — £29 instead of £83 — plus £49 in free gifts, free UK shipping, and you can skip, pause or cancel anytime. There's also a 90-day risk-free guarantee." },
-          { k: /cortisol|stress|how (does|it) work|mechanism/i, a: "Cortisol is the stress hormone behind poor sleep, brain fog, low mood and stubborn belly fat. KSM-66 Ashwagandha is clinically studied to support healthy cortisol levels — calm that one mechanism, and the rest follows downstream." },
-          { k: /taste|flavour|flavor|bitter/i, a: "It tastes like proper smooth coffee — the adaptogens are balanced so there's no bitter herbal aftertaste. Customers say they actually crave it." },
-          { k: /caffeine|jitter|crash/i, a: "There's 75mg of clean Arabica caffeine per serving — enough for steady energy, but paired with KSM-66 so you skip the jitters and the 3pm crash." },
-          { k: /ship|deliver|uk/i, a: "Free UK shipping on every order, stocked locally so it arrives fast." },
-          { k: /use|prepare|make|brew|how to/i, a: "Easy: one scoop, add 90 to 200 millilitres of hot or cold water or your milk of choice, stir or froth, and enjoy. Up to twice daily." }];
-        var NARRATION = "Here's the short story. The stress hormone cortisol is behind your tired mornings, the 11am brain fog, the 3am wake-ups, and the stress belly that won't shift. VAHDAM Ashwagandha Coffee pairs smooth Indian Arabica with 300 milligrams of KSM-66 Ashwagandha — the extract behind more than fifty clinical trials — to support healthy cortisol levels. One cup, every morning. Right now it's 65% off at 29 pounds, with 49 pounds of free gifts and a 90-day risk-free guarantee. Scroll on, or ask me anything.";
-        var panel = document.getElementById('vaPanel'), launch = document.getElementById('vaLaunch'),
-          msgs = document.getElementById('vaMsgs'), input = document.getElementById('vaIn'),
-          muteBtn = document.getElementById('vaMute'), quick = document.getElementById('vaQuick');
-        var muted = false, gender = 'F', voiceCache = {};
-        function gbVoices() { try { return speechSynthesis.getVoices().filter(function (v) { return /en[-_]GB/i.test(v.lang) }); } catch (e) { return [] } }
-        function resolveVoice(g) {
-          if (voiceCache[g]) return voiceCache[g];
-          var gb = gbVoices();
-          var F = /female|woman|sonia|libby|kate|serena|susan|hazel|martha|stephanie|amy/i;
-          var M = /male(?!.*female)|\bman\b|ryan|george|daniel|arthur|thomas|oliver|alfie|brian/i;
-          var v = (g === 'F') ? (gb.find(function (x) { return F.test(x.name) }) || gb.find(function (x) { return !M.test(x.name) })) : (gb.find(function (x) { return M.test(x.name) }) || gb.find(function (x) { return !F.test(x.name) }));
-          v = v || gb[0] || null; if (v) voiceCache[g] = v; return v;
-        }
-        if ('speechSynthesis' in window) { speechSynthesis.onvoiceschanged = function () { voiceCache = {}; }; }
-        function britishise(t) { return t.replace(/VAHDAM®?/gi, 'Vahdam').replace(/KSM-?66®?/gi, 'K S M sixty-six').replace(/£(\d+)/g, '$1 pounds').replace(/®/g, '').replace(/\bmg\b/g, 'milligrams').replace(/\bGP\b/g, 'G P'); }
-        function speak(t) { if (muted || !('speechSynthesis' in window)) return; try { speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(britishise(t)); u.lang = 'en-GB'; var v = resolveVoice(gender); if (v) u.voice = v; u.rate = 1.0; u.pitch = (gender === 'F' ? 1.05 : 0.92); speechSynthesis.speak(u); } catch (e) { } }
-        document.getElementById('vaF').addEventListener('click', function () { gender = 'F'; this.classList.add('on'); document.getElementById('vaM').classList.remove('on'); if (narrating) { narrateFrom(narrIdx); } else { speak('Hello, you have chosen the British female voice.'); } });
-        document.getElementById('vaM').addEventListener('click', function () { gender = 'M'; this.classList.add('on'); document.getElementById('vaF').classList.remove('on'); if (narrating) { narrateFrom(narrIdx); } else { speak('Hello, you have chosen the British male voice.'); } });
-        function add(t, who) { var d = document.createElement('div'); d.className = 'va-m ' + who; d.textContent = t; msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight; return d; }
-        function reply(q) { pauseNarration(); var hit = KB.find(function (r) { return r.k.test(q) }); var a = hit ? hit.a : "Great question — the short version: one cup a day, 300mg KSM-66 Ashwagandha, calmer cortisol, steadier energy. Ask me about ingredients, the offer, taste, safety, or how to use it."; setTimeout(function () { add(a, 'bot'); speak(a); setTimeout(offerResume, 250); }, 450); }
-        // ---- narration + interaction state (the two coexist) ----
-        var narrating = false, wasNarrating = false, narrIdx = 0, narrTimer = null;
-        var TOUR = [
-          { sel: '.hero', t: "Here's the short version. Cortisol, the stress hormone, is behind the tired mornings, the 11am brain fog, the 3am wake-ups and the stress belly that won't shift. Vahdam Ashwagandha Coffee is built to calm it. Let me walk you down the page." },
-          { sel: '.truth-section', t: "First, the symptoms. Tired all day but wired at night, patience gone by 4pm, skin that's lost its glow — that isn't simply your age, it's cortisol staying high around the clock." },
-          { sel: '.failed-section', t: "Here's why the pills, the apps and the detox teas never worked. Each one chased a symptom. The real cause sits upstream — cortisol — and nothing you tried was aimed at it." },
-          { sel: '.ingred-section', t: "Now the formula. Every cup carries 300mg of KSM-66 Ashwagandha, the extract behind more than fifty clinical trials, with smooth Indian Arabica, turmeric, Lion's Mane and Chaga. No fillers, no bitter aftertaste." },
-          { sel: '.ugc-section', t: "You're not the first. More than 148,000 women have made the swap and rated it 4.8 stars — calmer energy, sharper focus, the bloat easing." },
-          { sel: '.final-cta', t: "And the offer: right now it's 65% off, £29 instead of £83, with £49 of free gifts, free UK shipping and a 90-day risk-free guarantee. One swap, two cups a day. Ask me anything, or tap Claim your starter kit when you're ready." }
-        ];
-        function scrollToSel(sel) { var el = document.querySelector(sel); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-        function speakSeq(t, onend) {
-          if (muted || !('speechSynthesis' in window)) { if (onend) onend(); return; }
-          try { speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(britishise(t)); u.lang = 'en-GB'; var v = resolveVoice(gender); if (v) u.voice = v; u.rate = 1.0; u.pitch = (gender === 'F' ? 1.05 : 0.92); u.onend = function () { if (onend) onend(); }; speechSynthesis.speak(u); } catch (e) { if (onend) onend(); }
-        }
-        function narrateFrom(i) {
-          if (i >= TOUR.length) { narrating = false; add("That's the walkthrough. Ask me anything below — by text or voice — whenever you like.", 'bot'); return; }
-          narrating = true; wasNarrating = false; narrIdx = i;
-          var seg = TOUR[i];
-          scrollToSel(seg.sel);
-          add(seg.t, 'bot');
-          var advance = function () { if (!narrating || narrIdx !== i) return; narrateFrom(i + 1); };
-          if (muted || !('speechSynthesis' in window)) { clearTimeout(narrTimer); narrTimer = setTimeout(advance, Math.min(11000, 1600 + seg.t.length * 42)); }
-          else { speakSeq(seg.t, advance); }
-        }
-        function pauseNarration() { if (narrating) { wasNarrating = true; narrating = false; clearTimeout(narrTimer); try { speechSynthesis.cancel() } catch (e) { } } }
-        function offerResume() {
-          if (!wasNarrating || narrIdx >= TOUR.length) return;
-          var c = document.createElement('div'); c.className = 'va-choice';
-          c.innerHTML = '<button data-resume="1">▶ Resume the walkthrough</button>';
-          msgs.appendChild(c); msgs.scrollTop = msgs.scrollHeight;
-          c.addEventListener('click', function () { c.remove(); wasNarrating = false; narrateFrom(narrIdx); });
-        }
-        // ---- intro flow: narrate, interact, or BOTH (the point of the all-in-one agent) ----
-        function intro() {
-          add("👋 Hi — I'm your VAHDAM guide. I can do both: narrate this page for you, and answer anything you ask, by text or voice. How would you like to start?", 'bot');
-          var c = document.createElement('div'); c.className = 'va-choice';
-          c.innerHTML = '<button data-c="both">✨ Narrate &amp; let me ask</button><button data-c="listen">🔊 Just narrate</button><button data-c="chat">💬 Just chat / talk</button>';
-          msgs.appendChild(c); msgs.scrollTop = msgs.scrollHeight;
-          c.addEventListener('click', function (e) {
-            var m = e.target.getAttribute('data-c'); if (!m) return; c.remove();
-            quick.style.display = 'flex';
-            if (m === 'both') { add('Narrate & let me ask', 'me'); add("Perfect — I'll walk you through the page. Jump in any time: type a question or tap the mic, and I'll pause, answer, then carry on.", 'bot'); narrateFrom(0); }
-            else if (m === 'listen') { add('Just narrate', 'me'); add("Lovely — sit back, I'll take you through it. Tap 🔇 to stop, or ask me anything to jump in.", 'bot'); narrateFrom(0); }
-            else if (m === 'chat') { add('Just chat / talk', 'me'); add("Great — ask me anything by text, or tap the mic to talk. Tap a suggestion to begin.", 'bot'); speak("Great — ask me anything by text, or tap the microphone to talk."); }
-          });
-        }
-        function openPanel() { panel.classList.add('open'); if (!panel.dataset.intro) { panel.dataset.intro = '1'; intro(); } }
-        launch.addEventListener('click', function () { panel.classList.contains('open') ? panel.classList.remove('open') : openPanel(); });
-        document.getElementById('vaClose').addEventListener('click', function () { panel.classList.remove('open'); narrating = false; clearTimeout(narrTimer); try { speechSynthesis.cancel() } catch (e) { } });
-        muteBtn.addEventListener('click', function () { muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊'; if (muted) { try { speechSynthesis.cancel() } catch (e) { } if (narrating) { pauseNarration(); offerResume(); } } });
-        function send() { var t = input.value.trim(); if (!t) return; add(t, 'me'); input.value = ''; reply(t); }
-        document.getElementById('vaSend').addEventListener('click', send);
-        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
-        quick.addEventListener('click', function (e) { var q = e.target.getAttribute('data-q'); if (!q) return; add(q, 'me'); reply(q); });
-        // ---- talk: mic permission then speech recognition ----
-        var talkBtn = document.getElementById('vaTalk');
-        var SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null, listening = false;
-        function startSR() {
-          if (!SR) { add("Voice input isn't supported in this browser — but type away and I'll still talk back!", 'bot'); return; }
-          if (!rec) {
-            rec = new SR(); rec.lang = 'en-GB'; rec.interimResults = false;
-            rec.onresult = function (ev) { var t = ev.results[0][0].transcript; add(t, 'me'); reply(t); };
-            rec.onend = function () { listening = false; talkBtn.classList.remove('rec'); };
-            rec.onerror = function () { listening = false; talkBtn.classList.remove('rec'); };
+    /* V3: benefits tabs + FAQ accordion */
+    (function () {
+      // Benefit tabs
+      var tabs = document.querySelectorAll('.benefit-tab');
+      var panels = document.querySelectorAll('.benefit-panel');
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          var idx = tab.getAttribute('data-benefit');
+          tabs.forEach(function (t) { t.classList.remove('active'); });
+          panels.forEach(function (p) { p.classList.remove('active'); });
+          tab.classList.add('active');
+          var panel = document.querySelector('.benefit-panel[data-panel="' + idx + '"]');
+          if (panel) panel.classList.add('active');
+        });
+      });
+      // FAQ accordion
+      document.querySelectorAll('.faq-item .faq-q').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var item = btn.closest('.faq-item');
+          var ans = item.querySelector('.faq-a');
+          var isOpen = item.classList.contains('open');
+          if (isOpen) {
+            item.classList.remove('open');
+            ans.style.maxHeight = null;
+          } else {
+            item.classList.add('open');
+            ans.style.maxHeight = ans.scrollHeight + 'px';
           }
-          try { rec.start(); listening = true; talkBtn.classList.add('rec'); } catch (e) { }
-        }
-        function askMicThenListen() {
-          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(function (st) { st.getTracks().forEach(function (t) { t.stop() }); startSR(); })
-              .catch(function () { add("No worries — microphone stayed off. You can type instead, or tap the mic button whenever you're ready.", 'bot'); });
-          } else startSR();
-        }
-        talkBtn.addEventListener('click', function () { if (listening && rec) { rec.stop(); return; } askMicThenListen(); });
-        // ---- open chat window by default ----
-        setTimeout(openPanel, 1200);
-      })();
+        });
+      });
+    })();
   </script>
   <script src="/agent-widget.js" data-agent="agent_ashwagandha_coffee" defer></script>
 </body>

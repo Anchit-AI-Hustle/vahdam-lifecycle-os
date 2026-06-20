@@ -136,7 +136,6 @@
     { id: 'brain',      label: 'Smart Brain',   href: '/brain',          icon: 'studio',   match: ['/brain', '/smart-brain', '/smart-brain.html'] },
     { id: 'agent',      label: 'Vahdam Agent',  href: '/agent',          icon: 'vahdam',   match: ['/agent', '/agent.html'] },
     { id: 'analysis',   label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis', match: ['/dashboard.html', '/analytics'] },
-    { id: 'brain',      label: 'Smart Brain',   href: '/brain',          icon: 'insights', match: ['/brain', '/smart-brain', '/smart-brain.html'] },
     { id: 'assets',     label: 'Created Assets',href: '/assets',         icon: 'analysis', match: ['/assets', '/assets.html'] },
 
     { section: 'Knowledge Base' },
@@ -155,6 +154,7 @@
       { id: 'comp-tiktok',  label: 'TikTok Ads',     href: '/competitor-benchmarking.html#tiktok',   icon: 'tiktok' },
       { id: 'comp-landing', label: 'Landing Pages',  href: '/competitor-benchmarking.html#landing',  icon: 'landing' },
       { id: 'comp-insights',label: 'Insights',       href: '/competitor-benchmarking.html#insights', icon: 'insights' },
+      { id: 'comp-intel',   label: 'Intel · Offers', href: '/intel', icon: 'insights', match: ['/intel', '/competitive-intelligence', '/competitive-intelligence.html'] },
     ]},
 
     { section: 'Create' },
@@ -930,4 +930,17 @@
   } else {
     init();
   }
+
+  // App-wide AI Agent popup (copilot.js). Complements the dedicated /agent page
+  // and the Shopify agent-widget; copilot.js stands itself down on /agent,
+  // /brain and /studio so it never stacks on top of those surfaces. Loaded
+  // async so it never blocks the shell.
+  try {
+    if (!document.querySelector('script[data-vhd-agent]')) {
+      var ag = document.createElement('script');
+      ag.src = '/copilot.js?v=20260617';
+      ag.defer = true; ag.setAttribute('data-vhd-agent', '1');
+      (document.body || document.head || document.documentElement).appendChild(ag);
+    }
+  } catch (e) { /* never break the shell over the agent */ }
 })();
