@@ -55,6 +55,7 @@
     { "source": "/lp/cortisol-v2", "destination": "/landing-pages/final/vahdam-uk-presell-cortisol-v2.html" },
     { "source": "/lp/cortisol-v3", "destination": "/landing-pages/final/vahdam-uk-presell-cortisol-v3.html" },
     { "source": "/lp/agent",       "destination": "/landing-pages/final/lp_all_in_one_agent_v2.html" },
+    { "source": "/lp/:id",         "destination": "/api/calendar?action=lp&id=:id" },
     { "source": "/knowledge-base", "destination": "/knowledge-base.html" },
     { "source": "/kb",         "destination": "/knowledge-base.html" },
     { "source": "/cohort-definitions", "destination": "/cohort-definitions.html" },
