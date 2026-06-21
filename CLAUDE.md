@@ -110,3 +110,27 @@ Text: `OPENAI_API_KEY`(+`_2`/`_3`), `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `XAI_
 
 ## API Keys (2026-05-30) — per-project Gemini via gcloud
 Each app has its OWN restricted Gemini key minted from its own GCP project, pushed to Vercel (Production+Development): vahdam-lifecycle-os ← GCP vahdam-lifecycle-os (others: personal-ai-os, the-third-eye, music-gen-ai, hey-yaara, ai-tele-suite, th-life-engine, marketing-mailers-html-architect). Other providers left as-is.
+
+## Growth OS — integrated team (slash commands + connectors + skills)
+This repo ships project slash commands in `.claude/commands/` that operate the brand as a full growth team for a coffee + wellness D2C brand. Start anything with **`/growth-team`** (the router) or jump to a vertical:
+
+| Vertical | Command | Connectors + Skills it routes to |
+|---|---|---|
+| Strategy/planning | `/campaign-plan` | `marketing:campaign-plan` + Shopify + Klaviyo + competitor KB |
+| Email/SMS lifecycle | `/email-flow` | **Klaviyo** connector + `marketing:email-sequence` |
+| Mailers (HTML) | `/mailer` | `anthropic-skills:vahdam-d2c-mailer` + Mailer Studio contract |
+| Ad creatives (img/video/gif) | `/ad-creative` | `higgsfield-product-photoshoot` / `higgsfield-generate` / `higgsfield-soul-id` |
+| Landing pages (HTML) | `/landing-page` | brand asset code engine + `/lp/:id` contract |
+| Design (static/social) | `/design` | **Canva**, **Figma**, Adobe Express skills |
+| Commerce data | `/shopify` | **Shopify** MCP (products/orders/customers/analytics) |
+| Analytics/reporting | `/analytics` | Supabase + `marketing:performance-report` + Amplitude/Supermetrics |
+| Competitor intel | `/competitor` | competitor router + `marketing:competitive-brief` + SimilarWeb/Ahrefs |
+| SEO/AEO | `/seo` | `marketing:seo-audit` + Ahrefs |
+| Database | `/db` | `supabase` + `supabase-postgres-best-practices` + `supabase/migrations/` |
+| Ship | `/ship` | `vercel-plugin:deploy` / `:env` |
+
+**Every command enforces the Brand Constants above** (4-color palette, Lao MN/Proxima Nova, banned phrases, P01 "sell happiness").
+
+### Connecting the connectors (hosted OAuth MCP — connect once per account)
+These are not in `.mcp.json` (hosted OAuth servers, account-scoped). Connect via each server's `authenticate` → `complete_authentication` tool, or in the Claude **Connectors** UI:
+- **Shopify** — store data (connected this session). **Klaviyo** — `mcp__plugin_marketing_klaviyo__authenticate`. **Canva** — `mcp__plugin_marketing_canva__authenticate`. **Figma** — `mcp__plugin_marketing_figma__authenticate`. **Ahrefs / SimilarWeb / Supermetrics / Amplitude** — `mcp__plugin_marketing_<name>__authenticate`. **Higgsfield** — connected (generation MCP). Commands degrade gracefully and tell you what to connect if a tool is missing.
