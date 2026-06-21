@@ -102,6 +102,15 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json(result);
     }
 
+    if (smartAction === 'activate-scenario') {
+      // Promote a pre-staged standby scenario (best|conservative|emergency|instant)
+      // into the active rolling plan, or revert with scenario='medium'.
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+      if (!body.scenario) return res.status(400).json({ ok: false, error: 'scenario is required (best|medium|conservative|emergency|instant)' });
+      const result = await plan.activateScenario({ scenario: body.scenario, reviewer: body.reviewer || null, scope: body.scope || 'all', config: body.config || {} });
+      return res.status(200).json(result);
+    }
+
     if (smartAction === 'run-daily' || smartAction === 'daily') {
       if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
       const result = await runDailySmartBrain({ config: body.config || {}, startDate: body.start_date, days: body.days, persist: body.persist === true });
