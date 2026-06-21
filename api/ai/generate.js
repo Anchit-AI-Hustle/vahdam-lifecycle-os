@@ -332,6 +332,9 @@ module.exports = async function handler(req, res) {
   const regenerate_counter = Number(body.regenerate_counter || 0);
   const previous_outputs_summary = body.previous_outputs_summary || '';
   const season = body.season || '';
+  // Tier dial: 'budget' (default) = current cheap/free cascade; 'maxpower' = force premium models per provider. Overridable via *_MAX env vars.
+  const _tier = (body.tier || process.env.APP_AI_TIER || 'budget').toString().toLowerCase().trim();
+  const isMaxPower = _tier === 'maxpower' || _tier === 'max-power' || _tier === 'max' || _tier === 'output' || _tier === 'quality';
 
   let systemPrompt = SYSTEM_PROMPT_CREATE_BRIEF;
   let userMessage = '';
@@ -703,7 +706,8 @@ Target market for this autofill: ${targetMarket}.`;
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST', cache: 'no-store',
         headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model, max_tokens, temperature, system: claudeSys, messages: [{ role: 'user', content: userMessage }] }),
+        // Newer Claude models (Opus 4.7/4.8, Fable, …) REJECT `temperature` with a 400 — only send it on legacy claude-3* models.
+        body: JSON.stringify(Object.assign({ model, max_tokens, system: claudeSys, messages: [{ role: 'user', content: userMessage }] }, /^claude-3/.test(model) ? { temperature } : {})),
         signal: ctrl.signal
       });
       clearTimeout(t);
@@ -823,7 +827,9 @@ Target market for this autofill: ${targetMarket}.`;
     // 1. OpenAI (multi-key rotation on quota exhaustion)
     if (openaiKey && !skipOpenai) {
       const openaiKeys = [openaiKey, process.env.OPENAI_API_KEY_2, process.env.OPENAI_API_KEY_3].filter(Boolean);
-      const model = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
+      const model = isMaxPower
+        ? (process.env.OPENAI_TEXT_MODEL_MAX || 'gpt-4o')
+        : (process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini');
       for (const key of openaiKeys) {
         result = await callOpenAI(model, key);
         if (result.ok) break;
@@ -836,7 +842,10 @@ Target market for this autofill: ${targetMarket}.`;
     // 2. Anthropic (Claude) — if OpenAI unavailable or failed
     if (anthropicKey && (!result || !result.ok) && !skipAnthropic) {
       console.warn('[generate] Trying Anthropic (Claude)');
-      for (const model of [process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022']) {
+      const _anthModels = isMaxPower
+        ? [process.env.ANTHROPIC_TEXT_MODEL_MAX || 'claude-opus-4-8', 'claude-sonnet-4-6']
+        : [process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];
+      for (const model of _anthModels) {
         result = await callAnthropic(model);
         if (result.ok) break;
         if (isRetryable(result.status)) { console.warn('[generate] Anthropic ' + result.status + ' on ' + model + ' — next model'); continue; }
@@ -850,7 +859,10 @@ Target market for this autofill: ${targetMarket}.`;
       console.warn('[generate] Trying Gemini');
       const geminiModels = [];
       const seen = new Set();
-      for (const m of [process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']) {
+      const _gemSrc = isMaxPower
+        ? [process.env.GEMINI_TEXT_MODEL_MAX || 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash']
+        : [process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+      for (const m of _gemSrc) {
         if (!seen.has(m)) { seen.add(m); geminiModels.push(m); }
       }
       for (const model of geminiModels) {
@@ -865,7 +877,10 @@ Target market for this autofill: ${targetMarket}.`;
     // 4. Grok (xAI)
     if (grokKey && (!result || !result.ok) && !skipGrok) {
       console.warn('[generate] Trying Grok (xAI)');
-      for (const model of [process.env.GROK_TEXT_MODEL || 'grok-3-mini-fast', 'grok-3-mini']) {
+      const _grokModels = isMaxPower
+        ? [process.env.GROK_TEXT_MODEL_MAX || 'grok-3', 'grok-3-mini']
+        : [process.env.GROK_TEXT_MODEL || 'grok-3-mini-fast', 'grok-3-mini'];
+      for (const model of _grokModels) {
         result = await callGrok(model);
         if (result.ok) break;
         if (isRetryable(result.status)) { console.warn('[generate] Grok ' + result.status + ' on ' + model + ' — next model'); continue; }

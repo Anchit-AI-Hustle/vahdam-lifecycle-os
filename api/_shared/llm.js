@@ -29,7 +29,8 @@ function genSeed() {
 }
 
 /**
- * callLLM({ systemPrompt, userMessage, responseFormat, maxTokens, temperature, timeoutMs, stage })
+ * callLLM({ systemPrompt, userMessage, responseFormat, maxTokens, temperature, timeoutMs, stage, tier })
+ *   tier: 'budget' (default — cheap/free cascade) | 'maxpower' (force premium models per provider).
  * Returns { text, provider, model, seed, quota_warning?, exhausted_keys? }
  * Throws on all providers failing.
  */
@@ -42,8 +43,14 @@ module.exports = async function callLLM(opts) {
     temperature   = 0.7,
     timeoutMs     = 30000,
     stage         = 'llm',
-    userGeminiKey = ''
+    userGeminiKey = '',
+    tier          = (process.env.APP_AI_TIER || 'budget')  // 'budget' = low-cost/free cascade | 'maxpower' = highest quality
   } = opts;
+
+  // Tier dial: 'budget' keeps the existing cheap/free cascade (default — behavior unchanged);
+  // 'maxpower' forces each provider's premium model (Opus, GPT-4o-class, Gemini Pro, …). Per-request, overridable via *_MAX env vars.
+  const _tierNorm  = String(tier || 'budget').toLowerCase().trim();
+  const isMaxPower = _tierNorm === 'maxpower' || _tierNorm === 'max-power' || _tierNorm === 'max' || _tierNorm === 'output' || _tierNorm === 'quality';
 
   // APP_AI_PROVIDER env: force a specific provider first (skip others that waste time on 429/400)
   // Values: 'gemini', 'openai', 'anthropic', 'grok', or empty (default cascade)
@@ -63,7 +70,7 @@ module.exports = async function callLLM(opts) {
   const groqKey      = _clean(process.env.GROQ_API_KEY);
   const cerebrasKey  = _clean(process.env.CEREBRAS_API_KEY);
   // Debug: log key presence (not values) for cascade diagnostics
-  console.log('[llm] Keys present: groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' gemini=' + !!geminiKey);
+  console.log('[llm] Keys present: groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' gemini=' + !!geminiKey + ' tier=' + (isMaxPower ? 'maxpower' : 'budget'));
 
   if (!openaiKeys.length && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey) {
     throw new Error('No AI provider configured. Set at least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY');
@@ -135,13 +142,13 @@ module.exports = async function callLLM(opts) {
           'x-api-key': anthropicKey,
           'anthropic-version': '2023-06-01'
         },
-        body: JSON.stringify({
+        // Newer Claude models (Opus 4.7/4.8, Fable, …) REJECT `temperature` with a 400 — only send it on legacy claude-3* models.
+        body: JSON.stringify(Object.assign({
           model,
           max_tokens: maxTokens,
-          temperature,
           system: claudeSystem,
           messages: [{ role: 'user', content: seededUserMessage }]
-        }),
+        }, /^claude-3/.test(model) ? { temperature } : {})),
         signal: ctrl.signal
       });
       clearTimeout(t);
@@ -316,7 +323,9 @@ module.exports = async function callLLM(opts) {
 
   // === 1. OpenAI (ChatGPT) ===
   if (openaiKeys.length > 0 && !skipOpenai) {
-    const model = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
+    const model = isMaxPower
+      ? (process.env.OPENAI_TEXT_MODEL_MAX || 'gpt-4o')
+      : (process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini');
     for (let ki = 0; ki < openaiKeys.length; ki++) {
       result = await _openai(model, openaiKeys[ki]);
       if (result.ok) break;
@@ -339,10 +348,9 @@ module.exports = async function callLLM(opts) {
   // === 2. Anthropic (Claude) ===
   if (anthropicKey && (!result || !result.ok) && !skipAnthropic) {
     console.warn('[llm][' + stage + '] Trying Anthropic (Claude)');
-    const claudeModels = [
-      process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022',
-      'claude-3-5-sonnet-20241022'
-    ];
+    const claudeModels = isMaxPower
+      ? [ process.env.ANTHROPIC_TEXT_MODEL_MAX || 'claude-opus-4-8', 'claude-sonnet-4-6' ]
+      : [ process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022' ];
     for (const model of claudeModels) {
       result = await _anthropic(model);
       if (result.ok) break;
@@ -363,12 +371,14 @@ module.exports = async function callLLM(opts) {
   //    De-duplicate: env var might equal a hardcoded fallback
   if (geminiKey && (!result || !result.ok) && !skipGemini) {
     console.warn('[llm][' + stage + '] Trying Gemini');
-    const _gmRaw = [
-      process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite'
-    ];
+    const _gmRaw = isMaxPower
+      ? [ process.env.GEMINI_TEXT_MODEL_MAX || 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash' ]
+      : [
+          process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash',
+          'gemini-2.5-flash',
+          'gemini-2.0-flash',
+          'gemini-2.0-flash-lite'
+        ];
     const _gmSeen = new Set();
     const geminiModels = _gmRaw.filter(m => { if (_gmSeen.has(m)) return false; _gmSeen.add(m); return true; });
     for (const model of geminiModels) {
@@ -397,10 +407,9 @@ module.exports = async function callLLM(opts) {
   // === 4. Grok (xAI) ===
   if (grokKey && (!result || !result.ok) && !skipGrok) {
     console.warn('[llm][' + stage + '] Trying Grok (xAI)');
-    const grokModels = [
-      process.env.GROK_TEXT_MODEL || 'grok-3-mini-fast',
-      'grok-3-mini'
-    ];
+    const grokModels = isMaxPower
+      ? [ process.env.GROK_TEXT_MODEL_MAX || 'grok-3', 'grok-3-mini' ]
+      : [ process.env.GROK_TEXT_MODEL || 'grok-3-mini-fast', 'grok-3-mini' ];
     for (const model of grokModels) {
       result = await _grok(model);
       if (result.ok) break;
