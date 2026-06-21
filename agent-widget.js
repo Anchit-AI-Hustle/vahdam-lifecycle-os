@@ -154,6 +154,32 @@
       });
   }
 
+  // Server TTS (/api/brain?action=tts) caps a single request at ~2400 chars, so
+  // a long page narration must be split or only its opening would be spoken.
+  // Break text into <=1800-char chunks on sentence boundaries and speak them
+  // back-to-back so the whole page is read aloud.
+  function chunkForSpeech(text, max) {
+    max = max || 1800;
+    var sentences = String(text || '').match(/[^.!?]+[.!?]+(?:\s|$)|\S[^.!?]*$/g) || [];
+    var out = [], buf = '';
+    for (var i = 0; i < sentences.length; i++) {
+      var s = sentences[i].trim();
+      if (!s) continue;
+      if (buf && (buf.length + 1 + s.length) > max) { out.push(buf); buf = s; }
+      else { buf = buf ? buf + ' ' + s : s; }
+    }
+    if (buf) out.push(buf);
+    if (out.length) return out;
+    return text ? [String(text).slice(0, max)] : [];
+  }
+  function speakSequence(chunks, onDone) {
+    var i = 0;
+    (function next() {
+      if (i >= chunks.length) { if (onDone) onDone(); return; }
+      speak(chunks[i++], next);
+    })();
+  }
+
   // Read the page's actual prose as flowing sentences. We collect only
   // sentence-bearing copy (headings + paragraphs + list items) and skip UI
   // chrome — buttons, nav, badges, price chips — then give each clause a full
@@ -177,7 +203,7 @@
     var text = buildPageNarration();
     if (!text) { add('a', 'There is nothing on this page for me to read aloud yet.'); return; }
     add('a', 'Reading this page aloud for you…');
-    speak(text);
+    speakSequence(chunkForSpeech(text));
   }
 
   function ask(text) {
@@ -193,7 +219,12 @@
       // Reply mode governs voice: 'text' stays silent, 'voice'/'call' read the
       // full answer aloud, and 'call' re-opens the mic for hands-free chat.
       if (replyMode !== 'text') {
-        speak(j.speak || j.reply, replyMode === 'call' ? function () { setTimeout(startMic, 450); } : null);
+        speakSequence(chunkForSpeech(j.speak || j.reply), function () {
+          // Re-check the live state when speech ends — the visitor may have left
+          // Call mode or minimised the panel while the answer was being spoken,
+          // so only resume hands-free listening if they're still in it.
+          if (replyMode === 'call' && open) setTimeout(startMic, 450);
+        });
       }
     }).catch(function () { add('a', 'Connection hiccup — try again in a moment.'); });
   }
