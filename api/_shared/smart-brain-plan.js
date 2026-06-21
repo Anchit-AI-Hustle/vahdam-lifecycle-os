@@ -804,4 +804,8 @@ async function landingPageHtml(id, cfg = {}) {
   return lp?.[0]?.payload?.html || null;
 }
 
-module.exports = { syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, activateScenario, landingPageHtml, buildCampaign };
+module.exports = {
+  syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, activateScenario, landingPageHtml, buildCampaign,
+  // exported for unit testing (pure scenario helpers)
+  attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
+};

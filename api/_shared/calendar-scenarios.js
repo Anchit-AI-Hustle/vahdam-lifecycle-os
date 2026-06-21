@@ -1,63 +1,95 @@
 'use strict';
 // ─────────────────────────────────────────────────────────────────────────────
-// 5-scenario calendar planner. Given the analysis + a base calendar, produce
-// best / medium / conservative / emergency / instant variants over the same
-// horizon — each a full plan with assumptions + projected metrics.
-//   • medium    = the realistic baseline; the DEFAULT that goes live.
-//   • emergency = pre-staged dormant contingency (deliverability/budget/supply break).
-//   • instant   = fast-revenue quick-win, deploy today.
-// Tier-aware (maxpower → LLM-differentiated plans + projections); degrades to a
-// deterministic heuristic when no LLM is configured.
+// 5-scenario calendar presenter — a thin, DETERMINISTIC adapter over the single
+// canonical engine in scenario-model.js. (Reconciled: this file no longer has
+// its own scenario logic or any LLM-fabricated numbers — projections come from
+// the same pure projectMetrics() the Smart Brain rolling plan uses, so the
+// agentic flow, the /api/brain?action=calendar-scenarios route, and the rolling
+// plan all agree on the numbers.)
+//
+//   best / medium (default, goes live) / conservative / emergency / instant
+//
+// Same public API as before (buildScenarios) so callers need no change.
 // ─────────────────────────────────────────────────────────────────────────────
 
-let callLLM; try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
+const SM = require('./scenario-model.js');
 
-const SCENARIOS = [
-  { key: 'best',         label: 'Best case',                      stance: 'aggressive growth — everything goes right; high cadence, premium creative, new-launch pushes, stretch targets' },
-  { key: 'medium',       label: 'Medium / good',                  stance: 'realistic baseline; balanced cadence and a proven mix; THIS is the default that goes live' },
-  { key: 'conservative', label: 'Not good (conservative)',        stance: 'soft-performance hedge; lower cadence, lean on bestsellers, trim spend, protect margin' },
-  { key: 'emergency',    label: 'Worst case (emergency backup)',  stance: 'contingency for a break (deliverability crash / budget freeze / supply issue); retention-only, evergreen flows, ~zero new spend; pre-staged and dormant' },
-  { key: 'instant',      label: 'Instant good result (quick-win)', stance: 'fast revenue now; short horizon, flash / bestseller / cart-abandon, proven high-converters, deploy today' },
-];
-
-const CADENCE = { best: 6, medium: 4, conservative: 2, emergency: 1, instant: 5 };
-const REV_INDEX = { best: 160, medium: 100, conservative: 60, emergency: 25, instant: 120 };
-
-function heuristicScenarios(baseCalendar) {
-  const entries = baseCalendar.entries || [];
-  return SCENARIOS.map((s) => ({
-    key: s.key,
-    label: s.label,
-    assumptions: s.stance,
-    cadencePerWeek: CADENCE[s.key],
-    channelMix: s.key === 'emergency' ? 'owned email + SMS only'
-      : s.key === 'instant' ? 'email + paid retargeting'
-      : s.key === 'conservative' ? 'email + SMS' : 'email + SMS + paid social',
-    spend: s.key === 'emergency' ? 'none' : s.key === 'conservative' ? 'reduced' : s.key === 'best' ? 'elevated' : 'normal',
-    slots: entries.slice(0, s.key === 'emergency' ? 2 : s.key === 'conservative' ? 3 : 5)
-      .map((e) => e.theme || e.objective || e.title || e.subject).filter(Boolean),
-    projected: { revenueIndex: REV_INDEX[s.key], openRate: null, convRate: null },
-  }));
+function avgCohortLtv(analysis) {
+  const cs = (analysis && analysis.cohorts) || [];
+  const vals = cs.map((c) => Number(c.avgLtv || c.avg_ltv || 0)).filter((n) => n > 0);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
 }
 
-async function buildScenarios({ analysis = {}, baseCalendar = {}, market = 'US', tier = 'budget' } = {}) {
-  const base = {
-    cohorts: (analysis.cohorts || []).map((c) => c.name || c.cohort).filter(Boolean).slice(0, 8),
-    entries: (baseCalendar.entries || []).length,
-    days: baseCalendar.days || 30,
-  };
-  if (callLLM) {
-    try {
-      const sys = "You are VAHDAM India's Head of Lifecycle. Produce 5 calendar SCENARIO plans over the same horizon, each driven by different assumptions. For EACH scenario return: cadencePerWeek, channelMix, spend posture, 2-4 example campaign slots, key assumptions, and projected metrics (revenueIndex vs medium=100, est openRate %, est convRate %). Keys MUST be exactly best, medium, conservative, emergency, instant. Return STRICT JSON {\"scenarios\":[{\"key\",\"label\",\"cadencePerWeek\",\"channelMix\",\"spend\",\"assumptions\",\"slots\":[\"..\"],\"projected\":{\"revenueIndex\",\"openRate\",\"convRate\"}}]}. No banned phrases.";
-      const user = `MARKET: ${market}\nBASE PLAN: ${JSON.stringify(base)}\nSCENARIO DEFINITIONS: ${JSON.stringify(SCENARIOS.map((s) => ({ key: s.key, label: s.label, stance: s.stance })))}\n\nReturn the JSON now.`;
-      const out = await callLLM({ systemPrompt: sys, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens: 1800, tier, stage: 'calendar-scenarios' });
-      const parsed = callLLM.parseJSON(typeof out === 'string' ? out : out.text);
-      if (parsed && Array.isArray(parsed.scenarios) && parsed.scenarios.length >= 4) {
-        return { ok: true, provider: out.provider || 'llm', default: 'medium', scenarios: parsed.scenarios };
-      }
-    } catch (_) { /* fall through to heuristic */ }
+// Build the scenario's plan rows from the base calendar: cap to the scenario's
+// horizon and restrict each row's channels to the scenario's channel mix. The
+// response-band differentiation (P75/P50/P25/floor) is applied inside
+// projectMetrics() via the lever's responseMultiplier — pure + deterministic.
+function planRowsForScenario(entries, L, minTime) {
+  const horizonMs = (L.horizonDays || 30) * 86400000;
+  return entries
+    .filter((e) => { const t = Date.parse(e.date); return !Number.isFinite(t) || !Number.isFinite(minTime) || (t - minTime) <= horizonMs; })
+    .map((e) => ({
+      date: e.date,
+      cohort: e.cohort || { name: e.segment || 'all', size: e.segment_size || e.audience_size || 0 },
+      channels: Array.isArray(e.channels) ? e.channels.filter((c) => L.channelMix.includes(c)) : L.channelMix.slice(),
+    }));
+}
+
+function spendLabel(spendIndex) {
+  if (spendIndex === 0) return 'none';
+  if (spendIndex < 1) return 'reduced';
+  if (spendIndex > 1) return 'elevated';
+  return 'normal';
+}
+
+/**
+ * buildScenarios({ analysis, baseCalendar, market, tier }) → { ok, default, scenarios[] }
+ * `tier` is accepted for API compatibility but does NOT change the numbers
+ * (projections are deterministic — the LLM never alters them).
+ */
+async function buildScenarios({ analysis = {}, baseCalendar = {}, market = 'US' } = {}) {
+  const entries = Array.isArray(baseCalendar.entries) ? baseCalendar.entries : [];
+  const benchmark = SM.buildEngine2Benchmark(analysis, market, avgCohortLtv(analysis));
+  let minTime = Infinity;
+  for (const e of entries) { const t = Date.parse(e.date); if (Number.isFinite(t) && t < minTime) minTime = t; }
+
+  const scenarios = SM.SCENARIO_LABELS.map((key) => {
+    const L = SM.SCENARIO_LEVERS[key];
+    const profile = (SM.SCENARIO_PROFILES && SM.SCENARIO_PROFILES[key]) || { label: key };
+    const rows = planRowsForScenario(entries, L, minTime);
+    const p = SM.projectMetrics(rows, L, benchmark);
+    return {
+      key,
+      label: SM.sanitizeBrand(profile.display_name || key),
+      assumptions: SM.sanitizeBrand(profile.one_liner || ''),
+      assumption_list: (profile.assumptions || []).map((a) => SM.sanitizeBrand(a)),
+      cadenceMultiplier: L.cadenceMultiplier,
+      cadencePerWeek: Math.max(1, Math.round((L.cadenceMultiplier || 1) * 4)), // ~4/wk medium baseline, for display
+      channelMix: L.channelMix,
+      spend: spendLabel(L.spendIndex),
+      productStrategy: L.productStrategy,
+      segmentFocus: L.segmentFocus,
+      horizonDays: L.horizonDays,
+      projected: {
+        revenueIndex: null, // filled below, relative to medium = 100
+        totalRevenue: p.projected_total_revenue,
+        conversions: p.projected_conversions,
+        responseBand: p.response_band,
+        sends: p.sends_planned,
+        blendedRoas: p.blended_roas,
+        bound: p.bound,
+      },
+    };
+  });
+
+  // revenueIndex relative to medium = 100 (deterministic)
+  const med = scenarios.find((s) => s.key === 'medium');
+  const baseRev = med && med.projected.totalRevenue > 0 ? med.projected.totalRevenue : 0;
+  for (const s of scenarios) {
+    s.projected.revenueIndex = baseRev > 0 ? Math.round((s.projected.totalRevenue / baseRev) * 100) : null;
   }
-  return { ok: true, provider: 'fallback', default: 'medium', scenarios: heuristicScenarios(baseCalendar) };
+
+  return { ok: true, provider: 'scenario-model', engine: 'deterministic', default: 'medium', scenarios };
 }
 
-module.exports = { buildScenarios, SCENARIOS };
+module.exports = { buildScenarios, SCENARIOS: SM.SCENARIO_LABELS };
