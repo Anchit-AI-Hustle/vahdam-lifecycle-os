@@ -3518,8 +3518,12 @@ function offerText(p){
   return '';
 }
 function offerCode(p){
-  const m=p.match(/(?:code|coupon|use)\s+([A-Z0-9]{4,15})/i)||p.match(/\b([A-Z]{2,8}\d{1,4})\b/);
-  return m?m[1].toUpperCase():'';
+  // Filler words that look like a code but aren't — never render these as a promo code.
+  var STOP={NEEDED:1,NONE:1,TBD:1,HERE:1,YOUR:1,CODE:1,ABOVE:1,BELOW:1,REQUIRED:1,PLACEHOLDER:1,CHECKOUT:1,ORDERS:1,TODAY:1,OFFER:1,SALE:1,SHIPPING:1,FREE:1,LIMITED:1,DETOX:1,TEAS:1};
+  const m=p.match(/(?:code|coupon)[:\s]+([A-Z0-9]{4,15})/i)||p.match(/\b([A-Z]{2,8}\d{1,4})\b/);
+  if(!m)return '';
+  const c=m[1].toUpperCase();
+  return STOP[c]?'':c;
 }
 function offerSub(p){
   if(has(p.toLowerCase(),'free shipping'))return 'FREE SHIPPING ON ALL ORDERS';
@@ -6902,11 +6906,11 @@ function _sec_annBarUrgent(s,c){
 }
 function _sec_logo(s,c){
   var base=c.base, sub=c.subline||'PREMIUM INDIAN TEAS · DIRECT FROM SOURCE';
-  // Wordmark rendered as text — guaranteed visible even if remote logo image
-  // is blocked by the email client (Outlook / Gmail "show images" rule).
+  // Official VAHDAM India logo (brand asset, exact). alt text shows if a mail
+  // client blocks remote images before "show images" is clicked.
   return '<tr><td style="background:'+_ARCH_PAPER+';padding:20px 22px 14px;text-align:center;border-left:1px solid '+_ARCH_BORDER+';border-right:1px solid '+_ARCH_BORDER+'">'+
     '<a href="'+base+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block">'+
-      '<span style="font-family:'+_ARCH_FH+';font-size:32px;font-weight:bold;color:'+_ARCH_GREEN+';letter-spacing:0.18em;line-height:1;display:inline-block">VAHDAM<span style="font-size:15px;vertical-align:super;letter-spacing:0;margin-left:2px">&reg;</span></span>'+
+      '<img class="vah-logo" src="https://www.vahdam.co.uk/cdn/shop/files/logo-website_3.png?v=1756808809&width=310" alt="VAHDAM India" height="30" style="display:block;border:0;height:30px;width:auto;margin:0 auto">'+
     '</a>'+
     '<p style="font-family:'+_ARCH_FB+';font-size:9px;color:'+_ARCH_GOLD+';letter-spacing:0.22em;margin:8px 0 0;text-transform:uppercase;font-weight:700">'+sub+'</p>'+
   '</td></tr>';
@@ -7288,7 +7292,12 @@ function _arch_renderEmail(strategy,archetype,variant,uploadedDesignImg,mt){
   var html='<!DOCTYPE html>\n<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">\n<head>\n'+
     '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge">\n'+
     '<title>VAHDAM&reg; — '+(s.rawPrompt||'').substring(0,60).replace(/[<>"]/g,'')+'</title>\n'+msoHead+'\n'+
-    '<style>@media only screen and (max-width:600px){'+
+    '<style>'+
+      '@font-face{font-family:"LAO MN";src:url("https://cdn.nector.io/nector-static/fonts/LaoMN-01.ttf") format("truetype");}'+
+      '@font-face{font-family:"Proxima Nova";src:url("https://cdn-widgetsrepository.yotpo.com/brandkit/custom-fonts/nULz3c4cbjU7NEqLKreeoyIyIP4L5pnrZ53k1952/proximanova-regular/proximanova-regular.woff2") format("woff2");}'+
+      'body,table,td,p,span,div,a{font-family:"Proxima Nova","Helvetica Neue",Arial,sans-serif}'+
+      'h1,h2,h3,h4{font-family:"LAO MN",Georgia,"Times New Roman",serif}'+
+      '@media only screen and (max-width:600px){'+
       '.email-wrap{width:100%!important}'+
       '.hero-left,.hero-right{display:block!important;width:100%!important}'+
       '.hero-right img{height:auto!important;max-height:280px!important;padding:8px 0!important}'+
@@ -7323,8 +7332,9 @@ function _arch_renderEmail(strategy,archetype,variant,uploadedDesignImg,mt){
 // tables, links and brand styling intact.
 function _arch_stripImagery(html){
   if(!html) return html;
-  // 1. Strip <img ...> tags entirely.
-  html=html.replace(/<img\b[^>]*>/gi,'');
+  // 1. Strip <img ...> tags — EXCEPT the brand logo (class="vah-logo"), which
+  //    V1 (complete-text) must still show per the brand contract.
+  html=html.replace(/<img\b[^>]*>/gi,function(tag){ return /vah-logo/.test(tag)?tag:''; });
   // 2. Strip CSS background-image declarations (keep any solid background color).
   html=html.replace(/background-image\s*:\s*url\([^)]*\)\s*;?/gi,'');
   // 3. Remove gradient "image placeholder" divs that only existed to hold a photo.
