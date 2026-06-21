@@ -705,16 +705,51 @@ function isOwnBrand(domainOrUrl) {
   return OWN_DOMAINS.some((o) => d === o || d.endsWith('.' + o));
 }
 
-// Priority seed brands (Prompt 1) — VAHDAM is the reference, NOT a competitor,
-// so it is intentionally excluded.
+// Priority seed brands — the curated baseline DTC wellness competitor set
+// (tea, coffee & supplements, US + UK). VAHDAM is the reference, NOT a
+// competitor, so it is intentionally excluded. Domains here are real and
+// verified; appendBrands() dedupes by domain, so re-seeding is idempotent.
 const SEED_BRANDS = [
+  // ── Tea (US) ──
   { brandName: 'Pique', websiteUrl: 'https://www.piquelife.com', category: 'Tea', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Rishi Tea', websiteUrl: 'https://rishi-tea.com', category: 'Tea', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Tiesta Tea', websiteUrl: 'https://tiestatea.com', category: 'Tea', country: 'United States', positioning: 'Mid-market' },
+  { brandName: 'The Tea Spot', websiteUrl: 'https://theteaspot.com', category: 'Tea', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Buddha Teas', websiteUrl: 'https://buddhateas.com', category: 'Tea', country: 'United States', positioning: 'Mid-market' },
+  { brandName: 'Tea Drops', websiteUrl: 'https://myteadrops.com', category: 'Tea', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Tea Forte', websiteUrl: 'https://teaforte.com', category: 'Tea', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Yogi Tea', websiteUrl: 'https://yogiproducts.com', category: 'Tea', country: 'United States', positioning: 'Mid-market' },
+  { brandName: 'Teeccino', websiteUrl: 'https://teeccino.com', category: 'Tea', country: 'United States', positioning: 'Mid-market' },
+  // ── Tea (UK) ──
+  { brandName: 'Pukka Herbs', websiteUrl: 'https://pukkaherbs.com', category: 'Tea', country: 'United Kingdom', positioning: 'Premium' },
+  { brandName: 'Teapigs', websiteUrl: 'https://teapigs.co.uk', category: 'Tea', country: 'United Kingdom', positioning: 'Premium' },
+  { brandName: 'JING Tea', websiteUrl: 'https://jingtea.com', category: 'Tea', country: 'United Kingdom', positioning: 'Premium' },
+  { brandName: 'Bird & Blend Tea Co.', websiteUrl: 'https://birdandblend.com', category: 'Tea', country: 'United Kingdom', positioning: 'Premium' },
+  // ── Functional coffee / beverages (US) ──
   { brandName: 'Four Sigmatic', websiteUrl: 'https://foursigmatic.com', category: 'Functional Coffee', country: 'United States', positioning: 'Premium' },
-  { brandName: 'AG1', websiteUrl: 'https://drinkag1.com', category: 'Supplements', country: 'United States', positioning: 'Premium' },
-  { brandName: 'Everyday Dose', websiteUrl: 'https://everydaydose.com', category: 'Functional Coffee', country: 'United States', positioning: 'Premium' },
   { brandName: 'MUD\\WTR', websiteUrl: 'https://mudwtr.com', category: 'Functional Coffee', country: 'United States', positioning: 'Premium' },
-  { brandName: 'Beam', websiteUrl: 'https://beamorganics.com', category: 'Wellness Beverages', country: 'United States', positioning: 'Premium' },
   { brandName: 'RYZE', websiteUrl: 'https://ryzesuperfoods.com', category: 'Functional Coffee', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Everyday Dose', websiteUrl: 'https://everydaydose.com', category: 'Functional Coffee', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Rasa', websiteUrl: 'https://wearerasa.com', category: 'Functional Coffee', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Laird Superfood', websiteUrl: 'https://lairdsuperfood.com', category: 'Functional Coffee', country: 'United States', positioning: 'Mid-market' },
+  { brandName: 'Blume', websiteUrl: 'https://itsblume.com', category: 'Wellness Beverages', country: 'Canada', positioning: 'Premium' },
+  // ── Functional coffee (UK) ──
+  { brandName: 'London Nootropics', websiteUrl: 'https://londonnootropics.com', category: 'Functional Coffee', country: 'United Kingdom', positioning: 'Premium' },
+  { brandName: 'Pact Coffee', websiteUrl: 'https://pactcoffee.com', category: 'Functional Coffee', country: 'United Kingdom', positioning: 'Mid-market' },
+  // ── Supplements / adaptogens (US) ──
+  { brandName: 'AG1', websiteUrl: 'https://drinkag1.com', category: 'Supplements', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Ritual', websiteUrl: 'https://ritual.com', category: 'Supplements', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Beam', websiteUrl: 'https://beamorganics.com', category: 'Wellness Beverages', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Moon Juice', websiteUrl: 'https://moonjuice.com', category: 'Supplements', country: 'United States', positioning: 'Premium' },
+  { brandName: 'HUM Nutrition', websiteUrl: 'https://humnutrition.com', category: 'Supplements', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Cymbiotika', websiteUrl: 'https://cymbiotika.com', category: 'Supplements', country: 'United States', positioning: 'Premium' },
+  { brandName: 'Vital Proteins', websiteUrl: 'https://vitalproteins.com', category: 'Supplements', country: 'United States', positioning: 'Mid-market' },
+  { brandName: 'Seed', websiteUrl: 'https://seed.com', category: 'Supplements', country: 'United States', positioning: 'Premium' },
+  // ── Supplements (UK) ──
+  { brandName: 'The Nue Co.', websiteUrl: 'https://thenueco.com', category: 'Supplements', country: 'United Kingdom', positioning: 'Premium' },
+  { brandName: 'DIRTEA', websiteUrl: 'https://dirteaworld.com', category: 'Supplements', country: 'United Kingdom', positioning: 'Premium' },
+  { brandName: 'Wild Nutrition', websiteUrl: 'https://wildnutrition.com', category: 'Supplements', country: 'United Kingdom', positioning: 'Premium' },
+  { brandName: 'Form Nutrition', websiteUrl: 'https://formnutrition.com', category: 'Supplements', country: 'United Kingdom', positioning: 'Premium' },
 ];
 
 function normalizeDomain(url) {
