@@ -80,27 +80,31 @@ Deliver, in order:
 ${VISUAL_CASCADE}`;
 }
 
+// The studio compositor (ad-campaigns.html) renders ONE still PNG per size with
+// the text overlay baked in. Be honest about that: list the exact static sizes
+// it produces and treat motion as an OPTIONAL hand-off brief, never a delivered
+// asset. The text fields (headlines/captions/scripts) are still authored as copy.
 function adContract(platform) {
   const specs = {
-    google: 'Google (Responsive Search + Performance Max): 15 headlines (≤30 chars), 4 descriptions (≤90 chars), long headline (≤90), business name, plus image/video asset briefs at 1.91:1 (1200×628), 1:1 (1200×1200) and a 16:9 video (≤30s).',
-    meta: 'Meta (Facebook/Instagram Feed + Reels + Stories): primary text (≤125 chars before truncation), headline (≤40), description, and creative briefs at 1:1 (1080×1080) feed, 9:16 (1080×1920) Reels/Stories, with a short product video/GIF option for Reels.',
-    instagram: 'Instagram (Feed + Reels + Stories): caption with hook in first line + hashtags, and creative briefs at 1:1 (1080×1080) and 9:16 (1080×1920), motion-first (Reels/Stories favour video/GIF).',
-    tiktok: 'TikTok (In-Feed + Spark): 9:16 (1080×1920) native-feeling video script with a 0–2s hook, on-screen text beats per second, trending-but-brand-safe audio direction, caption, and 3 hashtag options.',
+    google: 'Google (Responsive Search + Performance Max): 15 headlines (≤30 chars), 4 descriptions (≤90 chars), long headline (≤90), business name. PRODUCED creatives are static images at 1.91:1 (1200×628) and 1:1 (1200×1200).',
+    meta: 'Meta (Facebook/Instagram Feed + Reels + Stories): primary text (≤125 chars before truncation), headline (≤40), description. PRODUCED creatives are static images at 1:1 (1080×1080, Feed) and 9:16 (1080×1920, Story/Reel).',
+    instagram: 'Instagram (Feed + Reels + Stories): caption with hook in first line + hashtags. PRODUCED creatives are static images at 1:1 (1080×1080) and 9:16 (1080×1920).',
+    tiktok: 'TikTok (In-Feed + Spark): native-feeling video script with a 0–2s hook, on-screen text beats, brand-safe audio direction, caption, and 3 hashtag options. The PRODUCED creative is a static 9:16 (1080×1920) key-frame/cover image (the script is a brief for a separate shoot/edit).',
   };
   const spec = specs[platform] || specs.meta;
   return `ASSET: Paid ad creative for ${platform.toUpperCase()} — a FULL ad, not just copy.
-The creative itself must combine VISUAL (image / GIF / video) WITH on-creative text overlay (headline + offer) BAKED INTO the image/video — exactly like a real ${platform} ad. The text is part of the rendered creative, NOT a separate caption: specify the exact overlay wording, font (Lao MN headings / Proxima Nova body), colour (on-palette), size and pixel placement within the safe zones, legible at a glance.
+The PRODUCED creative is a still, photoreal, on-palette image at each size below, with the on-creative text overlay BAKED INTO the image — exactly like a real ${platform} ad. The text is part of the rendered creative, NOT a separate caption: specify the exact overlay wording, font (Lao MN headings / Proxima Nova body), colour (use ONLY #004A2B / #AB8743 / #FBF5EA / #171717), size and pixel placement within the safe zones (on 9:16 keep all text clear of the bottom 20% platform-UI chrome), legible at a glance.
 
 ━━ STRATEGY — SELL HAPPINESS, NOT FEATURES (Aman's P01 mandate) ━━
 TARGET (P01): women 45+ and busy/working mums — high daily stress + cortisol, brain fog, "wired-but-tired" energy, menopause-era changes.
 SELL THE EMOTIONAL END-STATE, never the ingredient. The promise is happiness / calm / "feeling like myself again" — e.g. "calmer mornings," "steady energy with no 2pm crash," escaping the "wound-up feeling." NEVER lead with functional ingredients (Ashwagandha/KSM-66/Arabica/Lion's Mane) or feature lists; a feature may appear only as the *reason* a happiness payoff is believable.
 THE 1-SECOND SCROLL-STOP: the visual must demand a stop from a stressed, overworked mother in under one second — a visceral image mirroring her chaos OR her desired calm. Do NOT lead with heavy text or ingredient call-outs. Scaling depends on scroll-stop + engagement, not just the click.
 CURATE, DON'T INVENT: structure the creative on proven, replicable D2C wellness formats (UGC, split-screen before/after, day-in-the-life), not novel concepts.
-OFFER: transition cleanly from the emotional hook into the high-value "Starter Pack — 65% OFF + free gifts worth £40 (frother + scoop)" or quick/Insta delivery — a premium, frictionless CTA, never a cheap pop-up.
+OFFER: transition cleanly from the emotional hook into the high-value "Starter Pack — 65% OFF + free gifts (frother + scoop)" or quick delivery — a premium, frictionless CTA, never a cheap pop-up. This exact offer line is the on-creative offer baked into the image.
 
 Platform spec: ${spec}
-Deliver: (a) every text field the platform requires; (b) for each required size/format, a precise creative brief describing the visual, the BAKED-IN text overlay wording + exact placement + safe zones, and the motion (if any); (c) the destination URL.
-${VISUAL_CASCADE}`;
+Deliver: (a) every text field the platform requires; (b) for EACH static size above, a precise creative brief describing the still visual, the BAKED-IN overlay wording (headline + offer) + exact pixel placement + safe zones; (c) the destination URL.
+VISUALS (produced asset): one still, on-palette, photoreal image per size with the overlay baked in — this is exactly what the studio compositor renders. If a hosted product image/MP4 URL is supplied, its first frame is used as the base still. Motion (animated GIF / short video) is an OPTIONAL follow-up brief for the team — describe it only as a next step, NEVER as a delivered asset here.`;
 }
 
 function landingContract(facts) {

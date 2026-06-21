@@ -20,6 +20,8 @@
 //   OPENAI_API_KEY_3       — third OpenAI key (optional)
 // ════════════════════════════════════════════════════════════════════════════
 
+const { brandPlaceholderDataUri } = require('../_shared/brand-placeholder.js');
+
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const OPENAI_BASE = 'https://api.openai.com/v1';
 
@@ -406,11 +408,17 @@ module.exports = async function handler(req, res) {
   // longer works as a free fallback — a working OpenAI (gpt-image-1) key with
   // a verified org + credits is the supported path.
   const noKeys = !(openaiKeys && openaiKeys.length);
-  return res.status(502).json({
-    error: 'all_providers_failed', provider: 'openai',
+  // Every provider failed. Do NOT 502 — a non-200 leaves the caller with a
+  // broken/empty <img>. Instead return 200 with an on-brand placeholder data
+  // URI so the mailer / ad / landing page always renders an intentional brand
+  // panel (never a broken tile). `placeholder:true` lets callers flag it.
+  console.warn('[image] All providers failed — returning on-brand placeholder');
+  return res.status(200).json({
+    ok: true, provider: 'placeholder', placeholder: true, size, quality,
+    image_data_url: brandPlaceholderDataUri(size),
     quota_warning: hadKeys,
     detail: noKeys
-      ? 'No OpenAI image key configured. Add OPENAI_API_KEY (verified org + image credits) in Vercel.'
-      : 'OpenAI gpt-image-1 failed — usually means the org is not verified for image generation or has no image credits. Verify the org at platform.openai.com → Settings → Organization, then add credits. (Pollinations free fallback is now paywalled.)'
+      ? 'No OpenAI image key configured. Add OPENAI_API_KEY (verified org + image credits) in Vercel. Showing brand placeholder.'
+      : 'OpenAI gpt-image-1 failed — usually the org is not verified for image generation or has no image credits. Verify at platform.openai.com → Settings → Organization, then add credits. Showing brand placeholder. (Pollinations free fallback is now paywalled.)'
   });
 };

@@ -15,6 +15,26 @@
 const OPENAI_BASE = 'https://api.openai.com/v1';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
+// Single source of truth for the portable master prompt + brand block.
+const { buildMasterPrompt } = require('../_shared/master-prompt.js');
+
+// Static creative sizes the ad-campaigns.html compositor actually renders, per
+// surface. Mirrors CRE_CFG in ad-campaigns.html — used to build creative_spec
+// so the autofill response describes exactly the assets that get produced.
+const AD_FORMATS = {
+  google: [
+    { format: 'Google · Landscape 1.91:1', size: '1200x628',  ar: '1.91:1' },
+    { format: 'Google · Square 1:1',       size: '1200x1200', ar: '1:1' },
+  ],
+  meta: [
+    { format: 'Meta/IG · Feed 1:1',        size: '1080x1080', ar: '1:1' },
+    { format: 'Meta/IG · Story/Reel 9:16', size: '1080x1920', ar: '9:16' },
+  ],
+  tiktok: [
+    { format: 'TikTok · Vertical 9:16', size: '1080x1920', ar: '9:16' },
+  ],
+};
+
 // ────────────────────────────────────────────────────────────────────────────
 // MASTER PROMPTS (production-grade, embedded server-side so they cannot be
 // tampered with by browser-side edits)
@@ -481,7 +501,10 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
   "url": "<final landing URL — start with /, never absolute>",
   "keywords": "<comma-separated 6-12 keywords, lowercase, no quotes>",
   "headlines": "<3-5 headlines, one per line, each ≤30 chars>",
-  "desc": "<2 descriptions, one per line, each ≤90 chars>"
+  "desc": "<2 descriptions, one per line, each ≤90 chars>",
+  "overlay_headline": "<headline BAKED onto the creative image — ≤6 words, sells the calm/happy end-state (P01), never an ingredient or feature>",
+  "overlay_sub": "<supporting line baked under the headline — ≤8 words, sensory + concrete>",
+  "offer": "<the EXACT on-creative offer baked into the image — the real P01 offer, e.g. 'Starter Pack · 65% OFF + free gifts'. Concise, ≤40 chars, fits an offer pill.>"
 }`,
       },
       meta: {
@@ -494,7 +517,10 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
   "place": "<Advantage+ (all)|Feed|Stories/Reels|Manual>",
   "aud": "<one-sentence audience targeting — interests + lookalike if relevant>",
   "primary": "<primary text, 60-180 chars, emotional + concrete + ends with implicit CTA>",
-  "headline": "<≤40 chars headline>"
+  "headline": "<≤40 chars headline>",
+  "overlay_headline": "<headline BAKED onto the creative image — ≤6 words, sells the calm/happy end-state (P01), never an ingredient or feature>",
+  "overlay_sub": "<supporting line baked under the headline — ≤8 words, sensory + concrete>",
+  "offer": "<the EXACT on-creative offer baked into the image — the real P01 offer, e.g. 'Starter Pack · 65% OFF + free gifts'. Concise, ≤40 chars, fits an offer pill.>"
 }`,
       },
       tiktok: {
@@ -509,7 +535,10 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
   "hook": "<≤80 chars opener — conversational, sounds native to TikTok, not marketing speak>",
   "caption": "<≤140 chars on-screen text — short phrases separated by · or , >",
   "creator": "<@handle if relevant, else empty string>",
-  "hashtags": "<3-6 hashtags space-separated, lowercase, no marketing-speak>"
+  "hashtags": "<3-6 hashtags space-separated, lowercase, no marketing-speak>",
+  "overlay_headline": "<headline BAKED onto the static 9:16 key-frame — ≤6 words, sells the calm/happy end-state (P01), never an ingredient or feature>",
+  "overlay_sub": "<supporting line baked under the headline — ≤8 words, sensory + concrete>",
+  "offer": "<the EXACT on-creative offer baked into the image — the real P01 offer, e.g. 'Starter Pack · 65% OFF + free gifts'. Concise, ≤40 chars, fits an offer pill.>"
 }`,
       },
       'lp-mailer': {
@@ -976,6 +1005,33 @@ Target market for this autofill: ${targetMarket}.`;
       }
       return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: parsed, portable_prompt });
     }
+
+    // ── Autofill on an ad surface: also return the portable master_prompt and a
+    //    structured creative_spec the compositor can render. creative_spec lists
+    //    the EXACT static sizes ad-campaigns.html composites, each carrying the
+    //    LLM-authored overlay copy (headline/sub) + the real P01 offer — so the
+    //    canvas stops hardcoding 'Shop now'. Non-ad surfaces are unaffected.
+    if (mode === 'autofill') {
+      const surf = String(body.surface || '').toLowerCase();
+      if (AD_FORMATS[surf]) {
+        let fields = {};
+        try { fields = JSON.parse(text); } catch (_) {
+          const a = text.indexOf('{'), b = text.lastIndexOf('}');
+          if (a !== -1 && b > a) { try { fields = JSON.parse(text.slice(a, b + 1)); } catch (_) {} }
+        }
+        const overlay = {
+          headline: fields.overlay_headline || '',
+          sub: fields.overlay_sub || '',
+          offer: fields.offer || '',
+        };
+        const creative_spec = AD_FORMATS[surf].map((f) => ({ size: f.size, format: f.format, ar: f.ar, overlay }));
+        const targetMarket = body.market || body.region || market || 'US';
+        const userPrompt = String(body.prompt || campaign_brief || '').trim().slice(0, 1600);
+        const master_prompt = buildMasterPrompt({ assetType: 'ad', platform: surf, market: targetMarket, brief: userPrompt });
+        return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text, creative_spec, master_prompt, portable_prompt });
+      }
+    }
+
     return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text, portable_prompt });
 
   } catch (e) {
