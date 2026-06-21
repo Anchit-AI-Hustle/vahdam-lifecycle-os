@@ -133,7 +133,18 @@
   // complete sentences — never word-by-word or fragment-by-fragment. onDone
   // fires once the speech finishes (used by Call mode to re-open the mic).
   function speak(text, onDone) {
-    var clean = String(text || '').replace(/https?:\/\/\S+/g, 'the product page').replace(/[*_#`]/g, '').replace(/\s+/g, ' ').trim();
+    var clean = String(text || '')
+      .replace(/https?:\/\/\S+/g, 'the product page')
+      .replace(/```[a-zA-Z0-9]*\n?/g, ' ').replace(/```/g, ' ').replace(/`/g, '')
+      .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')                 // [label](url) -> label
+      .replace(/^[ \t]{0,3}#{1,6}\s*/gm, '')                     // headings
+      .replace(/^\s*([-*+•]|\d+[.)])\s+/gm, '')                  // list markers
+      .replace(/[*_#~]/g, '')                                    // stray emphasis chars
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F0FF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{200D}♀♂⚖❤]+/gu, ' ');
+    // Turn line breaks into sentence stops so lists don't read as run-ons.
+    clean = clean.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean)
+      .map(function (l) { return /[.!?:;,…]$/.test(l) ? l : (l + '.'); })
+      .join(' ').replace(/\s+([.,!?;:])/g, '$1').replace(/\s+/g, ' ').trim();
     if (!clean) { if (onDone) onDone(); return; }
     var spoken = clean.replace(/VAHDAM/g, 'Vahdam').replace(/KSM-?66/gi, 'K S M sixty-six');
     fetch(API + '?action=tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: clean }) })

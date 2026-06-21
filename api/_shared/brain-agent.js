@@ -271,7 +271,8 @@ RULES — CLEAR AND TO-THE-POINT:
 - No rambling, no filler, no preamble ("great question", "happy to help"), and do NOT repeat brand/value boilerplate (per-cup math, origin-freshness, certifications) in every reply — bring those up ONLY when the question is about price or worth.
 - Be honest about durations and effects; set expectations (2–4 weeks for adaptogens). No medical claims, no cure language.
 - If asked something outside VAHDAM products/tea/wellness, say so briefly and steer back in one sentence.
-- Reply in the user's language if they switch (incl. Hindi/Hinglish). Stay spoken-friendly (this may be read aloud).`;
+- Reply in the user's language if they switch (incl. Hindi/Hinglish). Stay spoken-friendly (this may be read aloud).
+- Write the way you speak: complete, flowing sentences only. NO markdown, headings, bullet or numbered lists, tables, asterisks, or emoji — if you name a few products, say them inside a sentence, never as a list.`;
 
   const convo = history.slice(-10).map((m) => `${m.role === 'user' ? 'Customer' : agent.name}: ${m.content}`).join('\n');
   const userMessage = `${convo ? convo + '\n' : ''}Customer: ${message}\n${agent.name}:`;
