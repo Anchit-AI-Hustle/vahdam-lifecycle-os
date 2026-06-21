@@ -37,6 +37,11 @@ data/catalog/
 *.html.bak
 test-output/
 
+# Playwright run artifacts (traces, screenshots, HTML report — regenerable, never source)
+test-results/
+tests/report/
+playwright-report/
+
 # Compiled analysis exports (keep the README, ignore the workbooks)
 output/*.xlsx
 output/*.csv
