@@ -13,6 +13,7 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 const { corsHeaders } = require('../../_shared/llm');
+const { brandPlaceholderDataUri } = require('../../_shared/brand-placeholder.js');
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
 const POLLINATIONS_BASE = 'https://image.pollinations.ai/prompt';
@@ -202,10 +203,15 @@ module.exports = async function handler(req, res) {
       }
     }
 
+    // Never emit a null data_url — a missing image renders as a broken tile in
+    // the mailer/LP. On total failure, fall back to an on-brand placeholder so
+    // the slot always has a valid image. `success` stays false so success_count
+    // / all_success and any downstream retry logic remain honest.
     return {
       slot,
-      data_url: dataUrl,
+      data_url: dataUrl || brandPlaceholderDataUri(size),
       success: !!dataUrl,
+      placeholder: !dataUrl,
       attempts,
       error: dataUrl ? null : lastError,
       prompt_used: fullPrompt.substring(0, 200)
@@ -214,7 +220,7 @@ module.exports = async function handler(req, res) {
 
   const images = await Promise.allSettled(imagePromises).then(results =>
     results.map(r => r.status === 'fulfilled' ? r.value : {
-      slot: '?', data_url: null, success: false, attempts: MAX_RETRIES, error: String(r.reason)
+      slot: '?', data_url: brandPlaceholderDataUri('1024x1024'), success: false, placeholder: true, attempts: MAX_RETRIES, error: String(r.reason)
     })
   );
 

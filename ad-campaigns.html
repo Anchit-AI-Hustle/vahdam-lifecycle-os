@@ -447,6 +447,11 @@
   // underlying visual. Held per channel until the campaign is saved.
   //   creative[ch] = { assets: [{format,size,url,text_overlay}], provider }
   const creative = { g: null, m: null, t: null };
+  // LLM-authored on-creative overlay copy per channel, set by the autofill
+  // response (creative_spec[].overlay): { headline, sub, offer }. getCopy()
+  // prefers this over raw form text so the baked-in wording + the real P01
+  // offer reach the canvas instead of the old hardcoded 'Shop now'.
+  const adSpec = { g: null, m: null, t: null };
   const CUR = { US: '$', UK: '£', IN: '₹', EU: '€', AU: 'A$', ME: 'AED', Global: '$' };
   // Platform format specs. label = human name; size = WxH the visual + overlay
   // are rendered at; ar = friendly aspect tag stored on the asset.
@@ -470,11 +475,17 @@
   // Pull the headline / offer / sub copy + market for a channel.
   function getCopy(ch) {
     const market = v(CRE_CFG[ch].market) || 'US';
-    const headline = (ch === 'g' ? (v('g-headlines').split('\n')[0]) : ch === 'm' ? v('m-headline') : v('t-hook'))
+    const spec = adSpec[ch] || {};
+    const headline = spec.headline
+      || (ch === 'g' ? (v('g-headlines').split('\n')[0]) : ch === 'm' ? v('m-headline') : v('t-hook'))
       || v(CRE_CFG[ch].name) || 'Steep the moment';
-    const sub = (ch === 'g' ? v('g-keywords').split(',')[0] : ch === 'm' ? v('m-primary') : v('t-caption'))
+    const sub = spec.sub
+      || (ch === 'g' ? v('g-keywords').split(',')[0] : ch === 'm' ? v('m-primary') : v('t-caption'))
       || 'Single-estate · garden-fresh in 72 hours';
-    return { market, headline, sub, offer: 'Shop now', cur: CUR[market] || '$' };
+    // Real P01 acquisition offer (not the old 'Shop now' CTA). Prefer the
+    // LLM-authored on-creative offer when autofill has run.
+    const offer = spec.offer || 'Starter Pack · 65% OFF + free gifts';
+    return { market, headline, sub, offer, cur: CUR[market] || '$' };
   }
   // Text-free visual prompt for the AI image cascade (text is overlaid on canvas).
   function buildCreativePrompt(ch) {
@@ -569,8 +580,15 @@
     x.fillStyle = '#AB8743';
     if (x.roundRect) { x.beginPath(); x.roundRect(pillX, pillY, pillW, pillH, pillH / 2); x.fill(); }
     else x.fillRect(pillX, pillY, pillW, pillH);
-    x.fillStyle = '#171717'; x.font = '700 ' + Math.round(base * 0.034) + "px 'Proxima Nova', Arial, sans-serif";
-    x.fillText(copy.offer + ' · garden-fresh', W / 2, pillY + pillH * 0.64);
+    // Offer text: the real P01 offer (may be long) — auto-shrink to fit the pill.
+    x.fillStyle = '#171717';
+    let offSize = Math.round(base * 0.034);
+    const maxOfferW = pillW * 0.88;
+    x.font = '700 ' + offSize + "px 'Proxima Nova', Arial, sans-serif";
+    while (offSize > 11 && x.measureText(copy.offer).width > maxOfferW) {
+      offSize -= 1; x.font = '700 ' + offSize + "px 'Proxima Nova', Arial, sans-serif";
+    }
+    x.fillText(copy.offer, W / 2, pillY + pillH * 0.64);
     // Headline block (above the pill, wrapped)
     const hSize = Math.round(base * 0.075); x.font = '600 ' + hSize + "px 'Lao MN', Georgia, serif";
     const hLines = wrapText(x, copy.headline, W * 0.82, 4);
@@ -663,7 +681,7 @@
       const assets = cfg.formats.map((fmt) => ({
         format: fmt.format, size: fmt.size, ar: fmt.ar,
         url: composeCreative(fmt, copy, baseImg),
-        text_overlay: { headline: copy.headline, offer: copy.offer + ' · garden-fresh', sub: copy.sub, market: copy.market }
+        text_overlay: { headline: copy.headline, offer: copy.offer, sub: copy.sub, market: copy.market }
       }));
       const msg = provider === 'media-url'
         ? assets.length + ' creatives composed from your media — attaches when you save.'
@@ -694,7 +712,7 @@
       rec.image = (rec.creative_assets[0] && rec.creative_assets[0].url) || '';  // primary, backward compat
       rec.imagePrompt = creative[ch].prompt;
     }
-    creative[ch] = null;
+    creative[ch] = null; adSpec[ch] = null;
     const p = document.getElementById(ch + '-cre-prev'); if (p) p.innerHTML = '';
     const n = document.getElementById(ch + '-cre-note'); if (n) n.textContent = '';
     const md = document.getElementById(ch + '-media'); if (md) md.value = '';
@@ -714,9 +732,9 @@
     Global: { store: 'www.vahdamteas.com', currency: '$' },
   };
   const AD_SPEC = {
-    google: 'Google (Responsive Search + Performance Max): 15 headlines (≤30 chars), 4 descriptions (≤90 chars), long headline (≤90), business name, plus image/video asset briefs at 1.91:1 (1200×628), 1:1 (1200×1200) and a 16:9 video (≤30s).',
-    meta: 'Meta (Facebook/Instagram Feed + Reels + Stories): primary text (≤125 chars before truncation), headline (≤40), description, and creative briefs at 1:1 (1080×1080) feed, 9:16 (1080×1920) Reels/Stories, with a short product video/GIF option for Reels.',
-    tiktok: 'TikTok (In-Feed + Spark): 9:16 (1080×1920) native-feeling video script with a 0–2s hook, on-screen text beats per second, trending-but-brand-safe audio direction, caption, and 3 hashtag options.',
+    google: 'Google (Responsive Search + Performance Max): 15 headlines (≤30 chars), 4 descriptions (≤90 chars), long headline (≤90), business name. PRODUCED creatives are static images at 1.91:1 (1200×628) and 1:1 (1200×1200).',
+    meta: 'Meta (Facebook/Instagram Feed + Reels + Stories): primary text (≤125 chars before truncation), headline (≤40), description. PRODUCED creatives are static images at 1:1 (1080×1080, Feed) and 9:16 (1080×1920, Story/Reel).',
+    tiktok: 'TikTok (In-Feed + Spark): native-feeling video script with a 0–2s hook, on-screen text beats, brand-safe audio direction, caption, and 3 hashtag options. The PRODUCED creative is a static 9:16 (1080×1920) key-frame/cover image.',
   };
   // Client-side mirror of buildMasterPrompt({assetType:'ad'}) for when the
   // server-returned master_prompt isn't available yet.
@@ -739,10 +757,10 @@
       brief ? '\nCAMPAIGN BRIEF:\n' + brief : '',
       '',
       'ASSET: Paid ad creative for ' + platform.toUpperCase() + ' — a FULL ad, not just copy.',
-      'The creative itself must combine VISUAL (image / GIF / video) WITH on-creative text overlay (headline + offer), exactly like a real ' + platform + ' ad.',
+      'The PRODUCED creative is a still, photoreal, on-palette image at each size below with the on-creative text overlay (headline + offer) BAKED INTO the image, exactly like a real ' + platform + ' ad.',
       'Platform spec: ' + (AD_SPEC[platform] || AD_SPEC.meta),
-      'Deliver: (a) every text field the platform requires; (b) for each required size/format, a precise creative brief describing the visual, the text overlay wording + placement, safe zones, and the motion (if any); (c) the destination URL.',
-      'VISUALS — source order: (1) embed a provided hosted media URL (image/GIF/MP4); (2) else an auto-generated animated GIF from 2–4 still frames; (3) AI image/video as a last resort.',
+      'Deliver: (a) every text field the platform requires; (b) for EACH static size, a precise creative brief describing the still visual, the baked-in overlay wording + pixel placement + safe zones; (c) the destination URL.',
+      'VISUALS (produced asset): one still on-palette image per size with the overlay baked in. If a hosted product image/MP4 URL is supplied, its first frame is the base still. Motion (GIF/short video) is an OPTIONAL follow-up brief — never a delivered asset here.',
       '',
       'QUALITY BAR: premium, specific, sensory, zero filler. No banned phrases. No medical claims.',
     ].filter((l) => l !== null && l !== undefined).join('\n').trim();
@@ -1017,6 +1035,14 @@
         const mp = (d && d.master_prompt) || (fields && fields.master_prompt) || '';
         const chKey = { google: 'g', meta: 'm', tiktok: 't' }[surface];
         if (mp && chKey) lastMasterPrompt[chKey] = mp;
+        // Capture the LLM-authored on-creative overlay (real offer + baked-in
+        // headline/sub) so the compositor renders it instead of raw form text.
+        const spec = (d && Array.isArray(d.creative_spec)) ? d.creative_spec : null;
+        const overlay = (spec && spec[0] && spec[0].overlay)
+          || { headline: fields.overlay_headline, sub: fields.overlay_sub, offer: fields.offer };
+        if (chKey && overlay && (overlay.headline || overlay.sub || overlay.offer)) {
+          adSpec[chKey] = { headline: overlay.headline || '', sub: overlay.sub || '', offer: overlay.offer || '' };
+        }
         let filled = 0;
         for (const key in fieldMap) {
           if (fields[key] !== undefined) { setField(fieldMap[key], fields[key]); filled++; }
