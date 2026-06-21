@@ -125,7 +125,7 @@ function fallbackCopy(slot, products) {
       headline: `The ritual, restored`,
       headlines: ['The ritual, restored', 'Origin-fresh, in days', 'Tea worth slowing down for'],
       description: `Origin-fresh, crafted for balance`,
-      creative_concept: `Hero close-up of ${p.title} on cream linen, steam visible, gold props, soft dawn light. No text overlay.`,
+      creative_concept: `Calm morning cup of ${p.title} on cream linen, steam visible, gold props, soft dawn light — emotional, premium (headline + offer baked in for the ad creative).`,
     },
     tiktok: {
       hook_line: `This tea was on a bush in Assam eleven days ago.`,
@@ -490,7 +490,7 @@ function campaignObjects(slot, copy, cohort, products, brand) {
       campaign_object: {
         campaign: { name: `M·${slot.market}·${slot.slot_date}·${slot.theme}`, objective: 'OUTCOME_SALES', budget_daily_usd: 70 },
         ad_set: { optimization: 'OFFSITE_CONVERSIONS', audience: aud, placements: ['feed', 'stories', 'reels'] },
-        creative: { primary_text: copy.meta.primary_text, primary_text_variants: copy.meta.primary_text_variants || [], headline: copy.meta.headline, headlines: copy.meta.headlines || [copy.meta.headline], description: copy.meta.description, cta: 'SHOP_NOW', link: `${store}?${utm.replace('{platform}', 'meta').replace('{medium}', 'paid_social')}`, brief: copy.meta.creative_concept || `Scroll-stopping paid Meta creative for P01 (women 45+/busy mums). Visual: a 1-second emotional scroll-stop — the calm of a quiet morning cup of ${products[0] ? products[0].title : 'tea'}, soft dawn light, steam, gold props on ${brand.palette.cream} linen. Sell the HAPPINESS end-state (calmer mornings, steady energy, "like myself again"), NOT ingredients. BAKE the headline "${copy.meta.headline || ''}" + the offer INTO the creative as legible on-palette text overlay (Lao MN headline, Proxima Nova offer) in the safe zone. Palette: forest green ${brand.palette.forest_green} / gold ${brand.palette.gold} / cream ${brand.palette.cream}.`, formats: ['1:1 static hero', '4:5 feed', '9:16 story/reel', '3-card carousel (estate → leaf → cup)'] },
+        creative: { primary_text: copy.meta.primary_text, primary_text_variants: copy.meta.primary_text_variants || [], headline: copy.meta.headline, headlines: copy.meta.headlines || [copy.meta.headline], description: copy.meta.description, cta: 'SHOP_NOW', link: `${store}?${utm.replace('{platform}', 'meta').replace('{medium}', 'paid_social')}`, brief: `${copy.meta.creative_concept || `1-second emotional scroll-stop — the calm of a quiet morning cup of ${products[0] ? products[0].title : 'tea'}, soft dawn light, steam, gold props on ${brand.palette.cream} linen`}. Paid Meta creative for P01 (women 45+/busy mums): sell the HAPPINESS end-state (calmer mornings, steady energy, "like myself again"), NOT ingredients. BAKE the headline "${copy.meta.headline || ''}" + the offer INTO the creative as legible on-palette text overlay (Lao MN headline, Proxima Nova offer) in the safe zone. Palette: forest green ${brand.palette.forest_green} / gold ${brand.palette.gold} / cream ${brand.palette.cream}.`, formats: ['1:1 static hero', '4:5 feed', '9:16 story/reel', '3-card carousel (estate → leaf → cup)'] },
         ab_test: { dimension: 'primary_text', variants: copy.meta.primary_text_variants || ['static_hero', 'carousel_3p'], metric: 'roas' },
       },
     });

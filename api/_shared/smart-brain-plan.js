@@ -486,17 +486,20 @@ async function uploadCreative(dataUrl, name) {
 // data-URL; falls back to brief-only (image:null) if generation fails.
 async function generateCreatives(copy, entry) {
   const hero = entry.heroProduct?.title ? ` Hero product: VAHDAM ${entry.heroProduct.title}.` : '';
+  // email/LP heroes are text-free photos (copy lives in the page layout);
+  // ad channels render the headline+offer baked into the image (mode:'ad'),
+  // since this server path has no client-side canvas overlay step.
   const specs = [
-    ['email',  copy.email?.image_brief,       '1536x1024'],
-    ['landing', copy.landing?.image_brief,    '1536x1024'],
-    ['meta',   copy.ads?.meta?.image_brief,   '1024x1024'],
-    ['google', copy.ads?.google?.image_brief, '1536x1024'],
-    ['tiktok', copy.ads?.tiktok?.image_brief, '1024x1536'],
+    ['email',  copy.email?.image_brief,       '1536x1024', ''],
+    ['landing', copy.landing?.image_brief,    '1536x1024', ''],
+    ['meta',   copy.ads?.meta?.image_brief,   '1024x1024', 'ad'],
+    ['google', copy.ads?.google?.image_brief, '1536x1024', 'ad'],
+    ['tiktok', copy.ads?.tiktok?.image_brief, '1024x1536', 'ad'],
   ];
   const out = {};
-  await Promise.all(specs.map(async ([key, rawBrief, size]) => {
+  await Promise.all(specs.map(async ([key, rawBrief, size, mode]) => {
     const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} hero creative — warm, premium, photoreal.`;
-    const gen = await generateCreativeImage(b + hero, { size }).catch(() => null);
+    const gen = await generateCreativeImage(b + hero, { size, mode }).catch(() => null);
     let image = gen?.image || null;
     if (image) image = (await uploadCreative(image, `${entry.id || 'slot'}-${key}`).catch(() => null)) || image;
     out[key] = { brief: b, image, provider: gen?.provider || null };

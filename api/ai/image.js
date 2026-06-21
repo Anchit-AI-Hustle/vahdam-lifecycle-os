@@ -32,6 +32,14 @@ const DESIGN_PROMPT_PREAMBLE = `High-fidelity flat graphic design mockup of a co
 Design:
 `;
 
+// Paid-social ad creative: a FINISHED ad, with the headline + offer text BAKED
+// INTO the image (server-generated Smart Brain creatives have no client-side
+// canvas step, so the text must be rendered here). Used when mode === 'ad'.
+const AD_PROMPT_PREAMBLE = `Scroll-stopping paid social ad creative for VAHDAM India premium tea brand — a photoreal lifestyle scene WITH a clean marketing text overlay rendered as part of the image (a finished ad, NOT a bare photo). Render the supplied headline and offer line as crisp, correctly-spelled, perfectly-legible on-brand typography in a clear safe-zone band: elegant serif headline, clean sans-serif offer, on the VAHDAM palette — deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. The emotional end-state (calm, steady energy, "feeling like myself again") leads; never an ingredient list. NO garbled or fake letterforms, NO logos, NO watermarks, NO inbox/UI chrome; product packaging shows a botanical illustration only with NO readable lettering. Gallery-print resolution.
+
+Ad creative:
+`;
+
 // Map our standard sizes to Gemini aspect ratios.
 // Includes the ad-creative sizes (Google 1.91:1 + 1:1, Meta/IG/TikTok 1:1 + 9:16).
 const GEMINI_ASPECT_MAP = {
@@ -80,7 +88,9 @@ module.exports = async function handler(req, res) {
   if (validQualities.indexOf(quality) < 0) return res.status(400).json({ error: 'invalid_quality', allowed: validQualities });
 
   const mode = (body.mode || '').toString().trim();
-  const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE : IMAGE_PROMPT_PREAMBLE;
+  const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE
+    : (mode === 'ad') ? AD_PROMPT_PREAMBLE
+    : IMAGE_PROMPT_PREAMBLE;
   const finalPrompt = (preamble + userPrompt).substring(0, 4000);
 
   // ═══════════════════════════════════════════════════════════════════════════
