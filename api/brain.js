@@ -30,6 +30,9 @@ const generate = require('./_shared/brain-generate.js');
 const review = require('./_shared/brain-review.js');
 const agents = require('./_shared/brain-agent.js');
 const jarvis = require('./_shared/jarvis.js');
+const agentic = require('./_shared/agentic-orchestrator.js');
+const calendarScenarios = require('./_shared/calendar-scenarios.js');
+const smartbrain = require('../lib/smart-brain/services.js');
 
 let callLLM = null;
 try { callLLM = require('./_shared/llm.js'); } catch (_) { callLLM = null; }
@@ -283,6 +286,37 @@ module.exports = async function handler(req, res) {
           { market: b.market || 'US' }
         );
         return res.json({ ok: true, actions });
+      }
+
+      case 'agentic-run': {
+        // Dual-mode AGENTIC flow: 8 traced stages (data→analysis→planning→
+        // calendar→content→asset→review→ideation). tier 'budget'|'maxpower'.
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        const out = await agentic.runAgentic({
+          market: b.market || 'US',
+          brief: b.brief || b.theme || '',
+          tier: b.tier || 'budget',
+          days: b.days ? parseInt(b.days, 10) : undefined,
+          withCreatives: b.withCreatives,
+          maxRetries: b.maxRetries != null ? b.maxRetries : 1,
+        });
+        return res.json(out);
+      }
+
+      case 'calendar-scenarios': {
+        // 5-scenario calendar: best / medium(default) / conservative / emergency / instant.
+        const market = b.market || req.query.market || 'US';
+        const tier = b.tier || req.query.tier || 'budget';
+        const cfg = smartbrain.smartConfig();
+        const sdb = new smartbrain.SmartBrainDbAdapter(cfg);
+        const ownData = await sdb.ownData();
+        const competitor = new smartbrain.CompetitorBenchmarkingService(cfg).benchmark(await sdb.competitorData());
+        const kb = new smartbrain.KnowledgeBaseService(cfg).build(ownData);
+        const analysis = new smartbrain.AnalysisService(cfg).analyze(kb, ownData);
+        const days = parseInt(req.query.days || b.days || '0', 10) || undefined;
+        const cal = new smartbrain.CalendarIntelligenceService(cfg).generate({ analysis, competitorBenchmarks: competitor, days, feedback: ownData.feedback });
+        const sc = await calendarScenarios.buildScenarios({ analysis, baseCalendar: cal, market, tier });
+        return res.json({ ok: true, calendar: { days: cal.days, entries: (cal.entries || []).length }, default: sc.default, scenarios: sc.scenarios });
       }
 
       // ── TTS (ElevenLabs proxy — premium voice for the agents; clients fall

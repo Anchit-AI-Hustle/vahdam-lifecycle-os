@@ -655,4 +655,4 @@ async function landingPageHtml(id, cfg = {}) {
   return lp?.[0]?.payload?.html || null;
 }
 
-module.exports = { syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, landingPageHtml };
+module.exports = { syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, landingPageHtml, buildCampaign };
