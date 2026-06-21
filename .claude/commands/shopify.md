@@ -1,19 +1,30 @@
 ---
-description: Query and act on the Vahdam Shopify store — products, orders, customers, inventory, analytics, discounts.
-argument-hint: "[ask, e.g. 'top 10 products by revenue last 30 days, US']"
+description: Pull Vahdam store data by scraping the public storefronts (US / UK / Global) — products, prices, collections, content. No Admin API / connector.
+argument-hint: "[ask, e.g. 'all ashwagandha coffee products + prices, US vs UK']"
 ---
 
-# Shopify commerce
+# Store data — public storefront scrape
 
-Answer/act on: `$ARGUMENTS` using the **Shopify MCP** connector.
+Answer: `$ARGUMENTS`. **Do NOT use the Shopify Admin MCP connector** (no auth granted). Scrape the public storefronts only, for these three markets:
 
-## Tool routing
-- Prefer built-in tools when they fit: `search_products`, `get-product`, `list-orders`, `get-order`, `list-customers`, `get-inventory-levels`, `set-inventory`, `run-analytics-query` (ShopifyQL), `create-discount`, `search_collections`.
-- For resources without a built-in tool (metafields, markets, pages, etc.) use `graphql_query` / `graphql_mutation`. Validate with `graphql_schema` / `validate_graphql_codeblocks` first.
-- Multi-market: confirm which store/market (`switch-shop` / `get-shop-info`) before reading or writing.
+| Market | Live storefront | Status (verified 2026-06-21) |
+|---|---|---|
+| US | `https://www.vahdamteas.com` | ✓ `/products.json` returns live catalog (USD) |
+| Global | `https://www.vahdamteas.com` | ✓ same origin as US; differs by currency |
+| UK | — | ✗ no reachable JSON storefront: `uk.vahdamteas.com` is **NXDOMAIN**, `www.vahdamteas.co.uk` is a holding/lander page. **Use local `data/catalog/products_uk.json`** for UK products; flag to the user if live UK pricing is required. |
 
-## Guardrails
-- **Reads are free; confirm before any write** (inventory, product status, discounts) — these are outward-facing.
-- Use real handles for any links: `{marketStoreBase}/products/{handle}`.
+## Public endpoints (no auth — these are open on every Shopify storefront)
+- **Full catalog:** `{base}/products.json?limit=250&page=N` — paginate until empty. Returns title, handle, variants (price, sku, available), images, product_type, tags.
+- **Single product:** `{base}/products/{handle}.js` (or `.json`) — live price/variant/inventory-ish availability.
+- **Collection:** `{base}/collections/{slug}/products.json?limit=250` — products in a collection.
+- **Page content / reviews / copy:** `WebFetch` (or Claude-in-Chrome for JS-rendered bits) on `{base}/products/{handle}`.
 
-Feed insights into `/campaign-plan` or `/analytics` when the ask is strategic.
+## Prefer local first
+The repo already builds catalog JSON from CSV exports at `data/catalog/products_{us,uk,global}.json` (via `scripts/build-catalog.js`). Use those for stable catalog facts; **scrape the storefront only for live/current data** (today's price, availability, new SKUs, on-page copy) or to fill gaps.
+
+## Rules
+- Be polite: paginate sequentially, don't hammer; cache results in scratchpad for the session.
+- Report which market each figure came from; US and Global share an origin so note currency explicitly.
+- Reads only — scraping never writes to the store.
+
+Feed insights into `/campaign-plan` or `/analytics`.

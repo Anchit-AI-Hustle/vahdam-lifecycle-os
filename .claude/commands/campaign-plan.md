@@ -8,7 +8,7 @@ argument-hint: "[goal, e.g. 'Q3 ashwagandha winback for lapsed US buyers']"
 Plan the campaign described in `$ARGUMENTS` as Vahdam's growth strategist.
 
 ## Inputs to gather first (use what's connected; skip cleanly if not)
-- **Store reality** — via Shopify MCP: top products in the relevant category, recent order/AOV trends, customer segments. Use `run-analytics-query` / `list-orders` / `search_products`.
+- **Store reality** — via `/shopify` (public storefront scrape — US/UK/Global, no Admin API): products in the relevant category, current pricing, availability. Pair with the local catalog JSON.
 - **Lifecycle state** — via Klaviyo connector: existing flows/segments, recent campaign performance, list health.
 - **Cohorts** — Supabase RFM/cohort data (see `dashboard.html`, `cohort-definitions.html`) and `localStorage` analytics handoff.
 - **Competitor angle** — `/competitor` brief for what rival coffee/wellness brands are sending.
