@@ -3,14 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/favicon.png">
-<link rel="icon" type="image/png" href="/favicon.png">
-<meta name="theme-color" content="#004A2B">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Vahdam Agent">
 <title>Vahdam Agent — talk to our tea &amp; wellness expert</title>
 <style>
   :root { --green:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA; }
@@ -43,6 +35,19 @@
   .toggles { display:flex; gap:14px; align-items:center; max-width:860px; margin:8px auto 0; font-size:12px; color:#6b6b6b; justify-content:flex-end; }
   .toggles label { cursor:pointer; display:flex; gap:5px; align-items:center; }
   .typing { align-self:flex-start; color:#999; font-size:13px; font-style:italic; }
+  .agent-admin { margin:2px 0 20px; }
+  .agent-admin-toggle { background:none; border:1.5px dashed var(--gold); color:var(--green); padding:8px 15px; border-radius:999px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .agent-admin-toggle:hover { background:rgba(171,135,67,.1); }
+  .agent-form { display:none; margin-top:14px; background:#fff; border:1px solid rgba(171,135,67,.35); border-radius:14px; padding:18px; gap:14px; }
+  .agent-form.open { display:grid; grid-template-columns:1fr 1fr; }
+  .agent-form .full { grid-column:1 / -1; }
+  .agent-form label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:#6b6b6b; margin-bottom:5px; font-weight:700; }
+  .agent-form input, .agent-form select { width:100%; border:1px solid rgba(171,135,67,.45); border-radius:10px; padding:10px 12px; font-size:14px; font-family:inherit; background:var(--cream); color:var(--ink); }
+  .agent-form .row-actions { grid-column:1 / -1; display:flex; gap:12px; align-items:center; }
+  .agent-form .save { background:var(--green); color:var(--cream); border:none; border-radius:10px; padding:11px 20px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .agent-form .save:hover { transform:translateY(-1px); }
+  .agent-form .formnote { font-size:12.5px; color:#6b6b6b; }
+  @media (max-width:560px){ .agent-form.open{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -51,6 +56,45 @@
   <h1>Talk to a Vahdam expert</h1>
   <div class="sub">Ask about benefits, brewing, how long results take, or whether a blend is worth it — by voice or text. Honest answers, zero pressure. Pick a specialist:</div>
   <div class="agentbar" id="agentbar"></div>
+
+  <div class="agent-admin">
+    <button class="agent-admin-toggle" id="agentAdminToggle" type="button">＋ Create an agent</button>
+    <form class="agent-form" id="agentForm">
+      <div>
+        <label for="afName">Agent name</label>
+        <input id="afName" placeholder="e.g. Ashwagandha Coffee Expert" autocomplete="off">
+      </div>
+      <div>
+        <label for="afType">Agent type</label>
+        <select id="afType">
+          <option value="brand">Brand — whole catalogue</option>
+          <option value="collection" selected>Collection — a category</option>
+          <option value="product">Product — one product</option>
+          <option value="persona">Persona — custom role</option>
+        </select>
+      </div>
+      <div>
+        <label for="afMarket">Market</label>
+        <select id="afMarket">
+          <option>US</option><option>UK</option><option>IN</option>
+          <option>EU</option><option>AU</option><option>Global</option>
+        </select>
+      </div>
+      <div>
+        <label for="afScope">Focus — categories (optional)</label>
+        <input id="afScope" placeholder="comma-separated, e.g. Coffee, Adaptogens" autocomplete="off">
+      </div>
+      <div class="full">
+        <label for="afGreeting">Greeting (optional)</label>
+        <input id="afGreeting" placeholder="Namaste! Ask me anything about…" autocomplete="off">
+      </div>
+      <div class="row-actions">
+        <button class="save" id="afSave" type="submit">Save agent</button>
+        <span class="formnote" id="afNote"></span>
+      </div>
+    </form>
+  </div>
+
   <div class="chat" id="chat"></div>
 </div>
 <div class="inputrow">
@@ -65,12 +109,12 @@
   </div>
 </div>
 
-<script src="/auth.js" defer></script>
+<script src="/auth.js?v=20260617" defer></script>
 <script>
 (function(){
   'use strict';
   var API = '/api/brain';
-  var agents = [], current = null, sessionId = null, history = [], sessionReady = false;
+  var agents = [], current = null, sessionId = null, history = [];
   var chatEl = document.getElementById('chat');
   var qEl = document.getElementById('q');
   var micBtn = document.getElementById('mic');
@@ -82,11 +126,11 @@
     var bar = document.getElementById('agentbar'); bar.innerHTML='';
     agents.forEach(function(a){
       var b=document.createElement('button'); b.className='agentchip'+(current&&current.id===a.id?' active':''); b.textContent=a.name+(a.level==='product'?' · product':a.level==='collection'?' · collection':'');
-      b.onclick=function(){ current=a; sessionId=null; history=[]; sessionReady=false; chatEl.innerHTML=''; renderAgents(); greet(); };
+      b.onclick=function(){ current=a; sessionId=null; history=[]; chatEl.innerHTML=''; renderAgents(); greet(); };
       bar.appendChild(b);
     });
   }
-  function greet(){ if(current && current.greeting){ sessionReady=true; el('agent', current.greeting); maybeSpeak(current.greeting); } }
+  function greet(){ if(current && current.greeting){ el('agent', current.greeting); maybeSpeak(current.greeting); } }
 
   // ── Voice output: ElevenLabs via /api/brain?action=tts, fallback browser TTS
   var audioEl = null;
@@ -113,15 +157,11 @@
       window.speechSynthesis.speak(u);
     }
   }
-  // Voice resume only fires once a chat session is active (greeting shown or a
-  // reply received). Before that it no-ops, so we never drive mic/auto-listen
-  // off an uninitialized session.
-  function maybeAutoListen(){ if(!sessionReady) return; if(document.getElementById('auto').checked) startListening(); }
+  function maybeAutoListen(){ if(document.getElementById('auto').checked) startListening(); }
 
   // ── Voice input: Web Speech API
   var rec=null, listening=false;
   function startListening(){
-    if(!sessionReady||!current) return; // no voice actions until the session is established
     var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR){ el('agent','Voice input is not supported in this browser — Chrome or Edge work best. Text works everywhere.'); return; }
     if(listening){ rec && rec.stop(); return; }
@@ -144,7 +184,7 @@
         body:JSON.stringify({agent_id:current.id, session_id:sessionId, message:msg, history:history.slice(-10), context:{page:location.href, ctx:new URLSearchParams(location.search).get('ctx')}})});
       var j=await r.json();
       t.remove();
-      if(j.ok){ sessionReady=true; sessionId=j.session_id; history.push({role:'agent',content:j.reply}); var m=el('agent', j.reply); m.classList.add('speaking'); setTimeout(function(){m.classList.remove('speaking');},1200); maybeSpeak(j.speak||j.reply); }
+      if(j.ok){ sessionId=j.session_id; history.push({role:'agent',content:j.reply}); var m=el('agent', j.reply); m.classList.add('speaking'); setTimeout(function(){m.classList.remove('speaking');},1200); maybeSpeak(j.speak||j.reply); }
       else el('agent','Hmm, something went wrong: '+(j.error||'unknown')+'. Try again?');
     }catch(e){ t.remove(); el('agent','I could not reach the brain just now — please try again in a moment.'); }
   }
@@ -153,12 +193,48 @@
   qEl.addEventListener('keydown',function(e){ if(e.key==='Enter') ask(); });
   micBtn.onclick=startListening;
 
-  fetch(API+'?action=agents').then(function(r){return r.json();}).then(function(j){
-    agents=(j.agents&&j.agents.length)?j.agents:[{id:'agent_vahdam',name:'Vahdam',level:'brand',greeting:'Namaste! Ask me anything about our teas.',voice:{}}];
-    var want=new URLSearchParams(location.search).get('agent');
-    current=agents.find(function(a){return a.id===want;})||agents[0];
-    renderAgents(); greet();
-  }).catch(function(){ agents=[{id:'agent_vahdam',name:'Vahdam',level:'brand',greeting:'Namaste! Ask me anything about our teas.',voice:{}}]; current=agents[0]; renderAgents(); greet(); });
+  var FALLBACK=[{id:'agent_vahdam',name:'Vahdam',level:'brand',greeting:'Namaste! Ask me anything about our teas.',voice:{}}];
+  function loadAgents(selectId){
+    return fetch(API+'?action=agents').then(function(r){return r.json();}).then(function(j){
+      agents=(j.agents&&j.agents.length)?j.agents:FALLBACK;
+      var want=selectId||new URLSearchParams(location.search).get('agent');
+      current=agents.find(function(a){return a.id===want;})||current||agents[0];
+      renderAgents();
+    }).catch(function(){ if(!agents.length){ agents=FALLBACK; current=agents[0]; renderAgents(); } });
+  }
+
+  // ── Agent creation + type selection (POST agent-upsert) ──
+  var adminToggle=document.getElementById('agentAdminToggle');
+  var agentForm=document.getElementById('agentForm');
+  if(adminToggle && agentForm){
+    adminToggle.onclick=function(){ agentForm.classList.toggle('open'); };
+    agentForm.addEventListener('submit', async function(e){
+      e.preventDefault();
+      var note=document.getElementById('afNote');
+      var name=document.getElementById('afName').value.trim();
+      if(!name){ note.textContent='Give the agent a name.'; return; }
+      var body={ name:name, level:document.getElementById('afType').value, market:document.getElementById('afMarket').value };
+      var scopeRaw=document.getElementById('afScope').value.trim();
+      if(scopeRaw){ body.catalog_scope={ categories: scopeRaw.split(',').map(function(s){return s.trim();}).filter(Boolean) }; }
+      var greeting=document.getElementById('afGreeting').value.trim();
+      if(greeting){ body.greeting=greeting; }
+      note.textContent='Saving…';
+      try{
+        var r=await fetch(API+'?action=agent-upsert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        var j=await r.json();
+        if(j.ok && j.agent){
+          note.textContent='Created “'+j.agent.name+'”. Building its knowledge…';
+          fetch(API+'?action=agent-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent_id:j.agent.id})}).catch(function(){});
+          await loadAgents(j.agent.id);
+          agentForm.reset(); agentForm.classList.remove('open');
+          chatEl.innerHTML=''; sessionId=null; history=[]; greet();
+          note.textContent='';
+        } else { note.textContent='Could not save: '+(j.error||'unknown error'); }
+      }catch(err){ note.textContent='Network error — please try again.'; }
+    });
+  }
+
+  loadAgents().then(greet);
 })();
 </script>
 </body>

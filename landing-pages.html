@@ -466,57 +466,44 @@
       ['Garden-fresh in 72h', 'Picked and packed within 72 hours, so the cup tastes alive.'],
       ['B-Corp craft', 'Ethically sourced, fairly made, certified to a higher standard.'],
     ];
-    const shop = base + '/collections/best-sellers';
     return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${e(hero)} · VAHDAM</title>
 <style>
-  :root{--moss:#004A2B;--moss-deep:#021c12;--moss-near:#00150a;--cream:#FBF5EA;--cream-warm:#f3ebd6;--gold:#AB8743;--ink:#171717;--ink-dim:#4a4a4a;--head:'Lao MN','Cormorant Garamond',Georgia,serif;--body:'Proxima Nova','Helvetica Neue',Arial,sans-serif}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:var(--body);color:var(--ink);background:var(--cream);line-height:1.55}
-  img{max-width:100%;display:block}
-  h1,h2,h3{font-family:var(--head);line-height:1.12}
-  .bar{background:var(--moss-deep);color:var(--cream);text-align:center;font-size:13px;padding:10px 14px;letter-spacing:.04em}
-  .bar b{color:var(--gold)}
-  .wrap{max-width:920px;margin:0 auto;padding:0 22px}
-  .hero{background:var(--moss);color:var(--cream);text-align:center;padding:62px 22px 70px}
-  .hero .eyebrow{color:var(--gold);letter-spacing:.2em;text-transform:uppercase;font-size:12px;margin-bottom:18px}
-  .hero h1{font-weight:600;font-size:clamp(30px,6vw,46px);max-width:760px;margin:0 auto 16px}
-  .hero p{font-size:clamp(15px,2.4vw,18px);color:rgba(251,245,234,.84);max-width:560px;margin:0 auto 26px}
-  .btn{display:inline-block;background:var(--gold);color:var(--ink);font-weight:700;text-decoration:none;padding:16px 34px;border-radius:6px;font-size:16px;border:0;cursor:pointer}
-  .btn-dark{background:var(--moss);color:var(--cream)}
-  .trust{display:flex;flex-wrap:wrap;justify-content:center;gap:16px 28px;background:var(--cream-warm);padding:18px 22px;font-size:13px;color:var(--ink-dim);text-align:center}
-  .sec{padding:52px 0}.sec h2{font-size:30px;margin-bottom:14px}
-  .props{display:flex;gap:18px;flex-wrap:wrap}
+  body{font-family:'Helvetica Neue',Arial,sans-serif;color:#171717;background:#FBF5EA;line-height:1.5}
+  .bar{background:#171717;color:#FBF5EA;text-align:center;font-size:13px;padding:9px 14px;letter-spacing:.04em}
+  .bar b{color:#AB8743}
+  header{background:#004A2B;color:#FBF5EA;text-align:center;padding:18px}
+  header .wm{font-family:Georgia,serif;font-weight:700;letter-spacing:.35em;font-size:18px}
+  .hero{background:#004A2B;color:#FBF5EA;text-align:center;padding:54px 22px 64px;position:relative}
+  .hero h1{font-family:Georgia,serif;font-weight:600;font-size:clamp(30px,6vw,52px);line-height:1.08;max-width:760px;margin:0 auto 16px}
+  .hero p{font-size:clamp(15px,2.4vw,19px);color:rgba(251,245,234,.85);max-width:560px;margin:0 auto 26px}
+  .cta{display:inline-block;background:#AB8743;color:#0a1410;font-weight:700;text-decoration:none;padding:15px 34px;border-radius:999px;font-size:16px}
+  .props{display:flex;gap:18px;max-width:980px;margin:-32px auto 0;padding:0 22px;flex-wrap:wrap}
   .prop{flex:1;min-width:220px;background:#fff;border:1px solid rgba(171,135,67,.25);border-radius:14px;padding:22px}
-  .prop h3{color:var(--moss);font-size:19px;margin-bottom:7px}.prop p{font-size:14px;color:var(--ink-dim)}
-  .offer{background:var(--gold);color:var(--ink);text-align:center;border-radius:16px;padding:34px 22px;margin:6px 0}
-  .offer h2{font-size:28px;margin-bottom:8px}
-  .code{display:inline-block;background:var(--moss-near);color:var(--cream);font-weight:700;letter-spacing:.15em;padding:8px 18px;border-radius:8px;margin-top:10px}
-  .proof{background:var(--moss-near);color:var(--cream);text-align:center}
-  .proof blockquote{font-family:var(--head);font-size:25px;max-width:680px;margin:0 auto;line-height:1.35}
-  .guarantee{background:var(--cream-warm);text-align:center;border-radius:14px;padding:32px;margin:28px 0}
-  .sticky{position:sticky;bottom:0;background:#fff;border-top:1px solid #e7ddc6;display:flex;gap:14px;align-items:center;justify-content:space-between;padding:12px 22px;box-shadow:0 -6px 24px rgba(0,0,0,.08)}
-  .sticky .info b{display:block;font-family:var(--head);font-size:16px}.sticky .info span{font-size:13px;color:var(--ink-dim)}
-  footer{background:var(--ink);color:rgba(251,245,234,.65);text-align:center;padding:30px 22px;font-size:12px}
-  @media(max-width:640px){.sticky .info span{display:none}}
+  .prop h3{font-family:Georgia,serif;color:#004A2B;font-size:19px;margin-bottom:7px}
+  .prop p{font-size:14px;color:#4a4a4a}
+  .offer{background:#AB8743;color:#0a1410;text-align:center;margin:48px auto 0;max-width:980px;border-radius:16px;padding:34px 22px}
+  .offer h2{font-family:Georgia,serif;font-size:28px;margin-bottom:8px}
+  .code{display:inline-block;background:#0a1410;color:#FBF5EA;font-weight:700;letter-spacing:.15em;padding:8px 18px;border-radius:8px;margin-top:10px}
+  .story{max-width:680px;margin:46px auto;padding:0 22px;text-align:center;color:#3a3a3a;font-size:16px}
+  footer{background:#171717;color:rgba(251,245,234,.7);text-align:center;padding:30px 22px;font-size:13px;margin-top:40px}
+  .foot-cta{margin:26px auto 0}
 </style></head><body>
-<div class="bar">VAHDAM India · ${e(region)} · Single-estate, hand-picked, shipped fresh${offer ? ` · ${e(offer)}${code ? ` · code <b>${e(code)}</b>` : ''}` : ''}</div>
+${offer ? `<div class="bar">${e(offer)}${code ? ` · code <b>${e(code)}</b>` : ''}</div>` : ''}
+<header><div class="wm">V A H D A M</div></header>
 <section class="hero">
-  <p class="eyebrow">A daily ritual, restored</p>
   <h1>${e(hero)}</h1>
   <p>${e(sub)}</p>
-  <a class="btn" href="${e(shop)}">Shop garden-fresh tea</a>
+  <a class="cta" href="${e(base)}/collections/best-sellers">Shop garden-fresh tea</a>
 </section>
-<div class="trust"><span>★★★★★ Loved by tea drinkers</span><span>Single-estate origin</span><span>Hand-picked &amp; fresh</span><span>B-Corp certified</span></div>
-<div class="wrap">
-  <section class="sec"><div class="props">${props.map((p) => `<div class="prop"><h3>${e(p[0])}</h3><p>${e(p[1])}</p></div>`).join('')}</div></section>
-  ${offer ? `<section class="sec"><div class="offer"><h2>${e(offer)}</h2>${code ? `<div class="code">${e(code)}</div>` : ''}<div style="margin-top:18px"><a class="btn btn-dark" href="${e(shop)}">Claim the offer</a></div></div></section>` : ''}
-</div>
-<section class="sec proof"><div class="wrap"><blockquote>“${e(notes || 'There is a moment when the right cup does more than warm your hands.')}”</blockquote><p style="color:var(--gold);font-weight:700;margin-top:16px">— A VAHDAM regular</p></div></section>
-<div class="wrap"><div class="guarantee"><h3>Steep with confidence</h3><p style="color:var(--ink-dim);margin-top:6px">If your first cup isn't a quiet highlight of the day, our team will make it right.</p></div></div>
-<div class="sticky"><div class="info"><b>${e(hero)}</b><span>Ships fresh from origin · ${e(region)}</span></div><a class="btn" href="${e(shop)}">Shop now</a></div>
-<footer>VAHDAM India · Single-estate · B-Corp certified · Garden-fresh in 72 hours<br>Generated by VAHDAM Lifecycle OS for the ${e(region)} market.</footer>
+<section class="props">
+  ${props.map((p) => `<div class="prop"><h3>${e(p[0])}</h3><p>${e(p[1])}</p></div>`).join('')}
+</section>
+${offer ? `<section class="offer"><h2>${e(offer)}</h2>${code ? `<div class="code">${e(code)}</div>` : ''}<div class="foot-cta"><a class="cta" href="${e(base)}/collections/best-sellers">Claim the offer</a></div></section>` : ''}
+${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a moment when the right cup does more than warm your hands. Begin your ritual with single-estate teas, steeped in heritage and picked at the peak of the season.</p>`}
+<footer>VAHDAM India · Single-estate · B-Corp certified · Garden-fresh in 72 hours<br>This page was generated by VAHDAM Lifecycle OS for the ${e(region)} market.</footer>
 </body></html>`;
   }
   function openLandingPreview(f) {
@@ -536,6 +523,44 @@
     a.download = 'vahdam-landing-' + (f.region || 'US') + '-' + (f.hero || 'page').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) + '.html';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }
+
+  // ─── Portable AI prompt — copy-paste into ChatGPT / Gemini / Claude ───
+  // Every generated page also ships a complete, self-contained external prompt
+  // so the user can reproduce a perfect page in any chatbot. (The app itself
+  // builds the page on free tiers; this is the "bring your own model" output.)
+  function buildLandingPrompt(f) {
+    f = f || {};
+    var region = f.region || f.market || 'US';
+    var channel = f.channel || 'landing';
+    return [
+      'You are a senior D2C conversion copywriter and front-end developer for VAHDAM India — premium Indian heritage tea (B-Corp, single-estate, garden-fresh within 72 hours of harvest).',
+      'Build a COMPLETE, production-ready, single-file responsive HTML landing page that converts ' + channel + ' traffic in the ' + region + ' market.',
+      '',
+      'BRAND RULES (strict):',
+      '- Colour palette ONLY: forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA.',
+      '- Headings in a Lao MN / serif stack; body in a Proxima Nova / sans-serif stack.',
+      '- Voice: warm, sensory, story-driven, premium. Prefer words like ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
+      "- NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
+      '- Currency in all copy must match the ' + region + ' market.',
+      '',
+      'PAGE BRIEF:',
+      '- Hero headline: ' + (f.hero || '(write a strong, specific one)'),
+      '- Sub-headline: ' + (f.sub || '(write a supporting line)'),
+      '- Offer: ' + (f.offer || '(no explicit discount — sell on quality, provenance and ritual)'),
+      f.notes ? '- Extra notes / story: ' + f.notes : '',
+      '- Channel intent: ' + channel + ' — mobile-first, one clear primary CTA, match how this channel\'s visitors arrive.',
+      '',
+      'REQUIRED STRUCTURE: announcement bar; hero (headline + sub + CTA + product image placeholder); trust strip; benefits; product/offer block with price; social proof / testimonials; FAQ; final CTA; footer; plus a sticky mobile CTA.',
+      'OUTPUT: return ONLY the full HTML document (from <!doctype html> to </html>) with inline CSS and no external dependencies. No commentary before or after.'
+    ].filter(Boolean).join('\n');
+  }
+  function copyText(txt, statusEl) {
+    function done(ok) { if (statusEl) statusEl.textContent = ok ? '✓ AI prompt copied — paste it into ChatGPT, Gemini or Claude.' : 'Could not copy automatically — see console.'; if (!ok) console.log('[landing] AI prompt:\n' + txt); }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(function () { done(true); }, function () { done(false); }); return; }
+    } catch (_) {}
+    try { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(true); } catch (_) { done(false); }
   }
 
   // ─── Generate handler — builds a real landing page, previews + saves it ───
@@ -558,7 +583,9 @@
         persistLanding(channel, form);
         openLandingPreview(form);
         loadLibrary(channel);
-        status.textContent = 'Landing page generated — preview opened in a new tab. It’s saved to your library below.';
+        var encForm = encodeURIComponent(JSON.stringify(form));
+        status.innerHTML = 'Landing page generated — preview opened in a new tab, saved to your library below. ' +
+          '<button type="button" class="lp-btn" data-lp-prompt="' + encForm + '">📋 Copy AI prompt</button> to recreate it in ChatGPT / Gemini / Claude.';
       } catch (err) {
         status.textContent = 'Error: ' + (err && err.message || err);
       }
@@ -572,6 +599,8 @@
     if (pv) { try { openLandingPreview(JSON.parse(decodeURIComponent(pv.dataset.lpPreview))); } catch (_) {} return; }
     const dl = e.target.closest('[data-lp-download]');
     if (dl) { try { downloadLanding(JSON.parse(decodeURIComponent(dl.dataset.lpDownload))); } catch (_) {} return; }
+    const pr = e.target.closest('[data-lp-prompt]');
+    if (pr) { try { copyText(buildLandingPrompt(JSON.parse(decodeURIComponent(pr.dataset.lpPrompt))), pr.closest('.lp-row') ? pr.closest('.lp-row').querySelector('.meta-row') : null); } catch (_) {} return; }
   });
 
   // ─── Library renderer (merges Supabase cross-device rows + localStorage) ───
@@ -591,6 +620,7 @@
           <div class="meta-row" style="margin-top:7px;display:flex;gap:8px">
             <button class="lp-btn" type="button" data-lp-preview="${enc}">Preview</button>
             <button class="lp-btn" type="button" data-lp-download="${enc}">Download HTML</button>
+            <button class="lp-btn" type="button" data-lp-prompt="${enc}">📋 Copy AI prompt</button>
           </div>
         </div>
       </div>`; }).join('');
@@ -658,19 +688,6 @@
           if (el && fields[k] !== undefined) { el.value = String(fields[k]); filled++; }
         });
         status.textContent = filled ? `Filled ${filled} fields — review and Generate landing page below.` : 'No matching fields returned. Try a more specific prompt.';
-        // Surface the portable master prompt so it can be pasted into ChatGPT/Claude/Gemini.
-        const mp = (typeof d === 'object' && d.master_prompt) ? d.master_prompt : '';
-        let mpBtn = bar.querySelector('[data-ai-mp]');
-        if (mp) {
-          if (!mpBtn) {
-            mpBtn = document.createElement('button');
-            mpBtn.type = 'button'; mpBtn.className = 'btn'; mpBtn.setAttribute('data-ai-mp', '1');
-            mpBtn.style.cssText = 'margin-left:8px;background:transparent;border:1px solid rgba(171,135,67,0.4);color:#AB8743;padding:7px 12px;border-radius:8px;font-size:12px;cursor:pointer';
-            status.parentNode.appendChild(mpBtn);
-          }
-          mpBtn.textContent = '⧉ Copy master prompt';
-          mpBtn.onclick = () => { navigator.clipboard.writeText(mp).then(() => { mpBtn.textContent = '✓ Copied'; setTimeout(() => { mpBtn.textContent = '⧉ Copy master prompt'; }, 1800); }); };
-        } else if (mpBtn) { mpBtn.remove(); }
       } catch (err) {
         status.textContent = 'Error: ' + err.message;
       } finally {

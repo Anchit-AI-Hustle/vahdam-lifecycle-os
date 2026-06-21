@@ -96,69 +96,15 @@ module.exports = async function handler(req, res) {
     return classifyEmails(req, res, env);
   }
 
-  // ── Smart-Brain KB: own historical campaign library (DB-linked) ──
-  // The linked backend DB pushes (or a sync job pulls) past campaigns here so
-  // the brain knows what hooks/graphics/angles/formats worked. Own-data ONLY —
-  // never mixed with competitor ci_* rows.
-  //   action=index-campaigns  POST { items:[{source_db_id,name,channel,...}] }
-  //   action=kb-campaigns      GET  ?channel=&cleared=true&limit=
-  if (action === 'index-campaigns') {
-    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
-    return indexCampaigns(req, res, env);
-  }
-  if (action === 'kb-campaigns') {
-    return listKbCampaigns(req, res, env);
-  }
-
-  return res.status(400).json({ ok: false, error: 'Unknown action. Use ?action=ingest|list|top-emails|brands|classify-emails|index-campaigns|kb-campaigns' });
+  return res.status(400).json({ ok: false, error: 'Unknown action. Use ?action=ingest|list|top-emails|brands|classify-emails' });
 };
-
-// ═══════════════════════════════════════════════════════════════════════════
-// SMART-BRAIN KB — own historical campaign library
-// ═══════════════════════════════════════════════════════════════════════════
-async function indexCampaigns(req, res, env) {
-  let body = req.body;
-  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
-  const items = Array.isArray(body?.items) ? body.items : (body ? [body] : []);
-  if (!items.length) return res.status(400).json({ ok: false, error: 'items[] required' });
-  const rows = items.map((c) => ({
-    source_db_id: c.source_db_id || c.id || null,
-    name: c.name || null, channel: c.channel || null, campaign_type: c.campaign_type || null,
-    market: c.market || null, launched_at: c.launched_at || null,
-    product_focus: c.product_focus || null, cohort_key: c.cohort_key || null,
-    assets: c.assets || [], metrics: c.metrics || {},
-    performance_score: c.performance_score ?? null, tags: c.tags || null,
-    indexed_at: new Date().toISOString()
-  }));
-  const headers = sbHeaders(env);
-  const r = await fetch(`${env.url}/rest/v1/kb_campaigns?on_conflict=source_db_id`, {
-    method: 'POST',
-    headers: { ...headers, Prefer: 'return=representation,resolution=merge-duplicates' },
-    body: JSON.stringify(rows)
-  });
-  const text = await r.text();
-  if (!r.ok) return res.status(r.status).json({ ok: false, error: text });
-  let data; try { data = JSON.parse(text); } catch { data = []; }
-  return res.status(200).json({ ok: true, indexed: data.length });
-}
-
-async function listKbCampaigns(req, res, env) {
-  const q = req.query || {};
-  const params = new URLSearchParams({ select: '*', order: 'performance_score.desc', limit: String(q.limit || 100) });
-  if (q.channel) params.set('channel', `eq.${q.channel}`);
-  if (q.cleared === 'true') params.set('cleared_threshold', 'eq.true');
-  const r = await fetch(`${env.url}/rest/v1/kb_campaigns?${params}`, { headers: sbHeaders(env) });
-  const text = await r.text();
-  if (!r.ok) return res.status(r.status).json({ ok: false, error: text });
-  return res.status(200).json({ ok: true, campaigns: JSON.parse(text) });
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. INGEST
 // ═══════════════════════════════════════════════════════════════════════════
 async function ingest(req, res, env) {
   // Lazy-require the LLM helper — only needed in this path.
-  const { callLLM } = require('./_shared/llm.js');
+  const callLLM = require('./_shared/llm.js');
 
   function stripHtml(html) {
     if (!html) return '';
@@ -226,8 +172,9 @@ Rules:
     }
     const userMsg = `URL: ${urlForContext}\n\nExtracted text:\n"""\n${textBody.slice(0, 30000)}\n"""`;
     try {
-      const raw = await callLLM({ system: SYSTEM_PROMPT, user: userMsg, maxTokens: 700, temperature: 0.3, jsonMode: true });
-      const json = JSON.parse(raw.replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1'));
+      const out = await callLLM({ systemPrompt: SYSTEM_PROMPT, userMessage: userMsg, responseFormat: { type: 'json_object' }, maxTokens: 700, temperature: 0.3, timeoutMs: 35000, stage: 'kb-ingest' });
+      if (!out || !out.ok || !out.text) throw new Error(out && out.err ? String(out.err) : 'no LLM response');
+      const json = JSON.parse(out.text.replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1'));
       return {
         summary: String(json.summary || '').slice(0, 2000),
         key_points: Array.isArray(json.key_points) ? json.key_points.slice(0, 8).map(String) : [],

@@ -133,14 +133,8 @@
   // CREATE = where VAHDAM produces its own assets (Mailers studio, Ads, Landing).
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
-
-    { section: 'Agents' },
-    // Two distinct agents (see docs/UNIFIED-ARCHITECTURE.md §5): buyer-facing
-    // sales personas vs the internal employee copilot with full data access.
-    { id: 'agent',      label: 'Ask Vahdam · Customers', href: '/agent',  icon: 'vahdam',   match: ['/agent', '/agent.html'] },
-    { id: 'team',       label: 'Team Copilot · Internal', href: '/team',   icon: 'studio',   match: ['/team', '/team.html', '/copilot'] },
-
     { id: 'brain',      label: 'Smart Brain',   href: '/brain',          icon: 'studio',   match: ['/brain', '/smart-brain', '/smart-brain.html'] },
+    { id: 'agent',      label: 'Vahdam Agent',  href: '/agent',          icon: 'vahdam',   match: ['/agent', '/agent.html'] },
     { id: 'analysis',   label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis', match: ['/dashboard.html', '/analytics'] },
     { id: 'assets',     label: 'Created Assets',href: '/assets',         icon: 'analysis', match: ['/assets', '/assets.html'] },
 
@@ -160,7 +154,6 @@
       { id: 'comp-tiktok',  label: 'TikTok Ads',     href: '/competitor-benchmarking.html#tiktok',   icon: 'tiktok' },
       { id: 'comp-landing', label: 'Landing Pages',  href: '/competitor-benchmarking.html#landing',  icon: 'landing' },
       { id: 'comp-insights',label: 'Insights',       href: '/competitor-benchmarking.html#insights', icon: 'insights' },
-      { id: 'comp-intel',   label: 'Intel · Offers', href: '/intel', icon: 'insights', match: ['/intel', '/competitive-intelligence', '/competitive-intelligence.html'] },
     ]},
 
     { section: 'Create' },
@@ -177,6 +170,8 @@
       { id: 'ads-tiktok',  label: 'TikTok Ads', href: '/ad-campaigns.html#tiktok',   icon: 'tiktok' },
     ]},
     { group: 'Landing Pages', icon: 'landing', children: [
+      { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
+      { id: 'lp-agent',   label: 'Agent Concept LP',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
       { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages.html#mailers',  icon: 'mailer' },
       { id: 'lp-meta',    label: 'For Meta Ads',   href: '/landing-pages.html#meta',     icon: 'meta' },
       { id: 'lp-google',  label: 'For Google Ads', href: '/landing-pages.html#google',   icon: 'google' },
@@ -936,17 +931,4 @@
   } else {
     init();
   }
-
-  // App-wide AI Agent popup (copilot.js). Complements the dedicated /agent page
-  // and the Shopify agent-widget; copilot.js stands itself down on /agent,
-  // /brain and /studio so it never stacks on top of those surfaces. Loaded
-  // async so it never blocks the shell.
-  try {
-    if (!document.querySelector('script[data-vhd-agent]')) {
-      var ag = document.createElement('script');
-      ag.src = '/copilot.js?v=20260617';
-      ag.defer = true; ag.setAttribute('data-vhd-agent', '1');
-      (document.body || document.head || document.documentElement).appendChild(ag);
-    }
-  } catch (e) { /* never break the shell over the agent */ }
 })();
