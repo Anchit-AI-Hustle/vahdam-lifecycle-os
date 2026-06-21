@@ -29,6 +29,7 @@ const calendar = require('./_shared/brain-calendar.js');
 const generate = require('./_shared/brain-generate.js');
 const review = require('./_shared/brain-review.js');
 const agents = require('./_shared/brain-agent.js');
+const jarvis = require('./_shared/jarvis.js');
 
 let callLLM = null;
 try { callLLM = require('./_shared/llm.js'); } catch (_) { callLLM = null; }
@@ -270,6 +271,18 @@ module.exports = async function handler(req, res) {
         if (req.query.agent) filters.agent_id = `eq.${req.query.agent}`;
         const rows = await core.db().select('smart_agent_sessions', { limit: 200, order: 'started_at.desc', filters });
         return res.json({ ok: true, sessions: rows });
+      }
+
+      case 'jarvis': {
+        // "Vahdam Jarvis" — turn an assistant reply + user text into in-app /
+        // storefront navigation actions (product PDPs + tool routes). _shared/jarvis.js.
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        const actions = jarvis.detectNavActions(
+          b.userText || b.user_text || b.message || '',
+          b.assistantText || b.assistant_text || b.reply || '',
+          { market: b.market || 'US' }
+        );
+        return res.json({ ok: true, actions });
       }
 
       // ── TTS (ElevenLabs proxy — premium voice for the agents; clients fall
