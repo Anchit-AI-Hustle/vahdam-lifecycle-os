@@ -17,10 +17,15 @@
 const BRAND_BLOCK = `BRAND: VAHDAM India — premium single-estate Indian teas & wellness.
 VOICE: warm, sensory, emotionally resonant, story-driven. Testimonials read as tiny personal stories, not reviews.
 PALETTE (use ONLY these four): #004A2B forest green · #AB8743 gold · #171717 near-black · #FBF5EA cream.
-TYPOGRAPHY (strict): Headings = 'Lao MN' (fallback 'Cormorant Garamond',Georgia,serif). Body = 'Proxima Nova' (fallback 'Helvetica Neue',Arial,sans-serif). Never introduce other fonts.
+CONTRAST (strict): on cream bg → body text MUST be #171717, headings #004A2B or #171717 (never cream text). On green/ink bg → ALL text MUST be #FBF5EA cream (never ink). Gold as text on cream/green MUST use font-weight 600/700.
+TYPOGRAPHY (strict): Headings = 'LAO MN' (fallback Georgia,'Times New Roman',serif). Body = 'Proxima Nova' (fallback 'Helvetica Neue',Arial,sans-serif). Never introduce other fonts. For any HTML asset, inject these EXACT @font-face into the <head> <style> before app rules:
+  @font-face{font-family:"LAO MN";src:url("https://cdn.nector.io/nector-static/fonts/LaoMN-01.ttf") format("truetype");}
+  @font-face{font-family:"Proxima Nova";src:url("https://cdn-widgetsrepository.yotpo.com/brandkit/custom-fonts/nULz3c4cbjU7NEqLKreeoyIyIP4L5pnrZ53k1952/proximanova-regular/proximanova-regular.woff2") format("woff2");}
+LOGO (header, exact — never substitute): <img src="https://www.vahdam.co.uk/cdn/shop/files/logo-website_3.png?v=1756808809&width=310" alt="VAHDAM India" /> at a restrained header height (~30px).
+FOOTER: "Privacy Policy" and "Terms of Service" must be plain labels with href="#" and no target/onclick routing.
 PREFERRED words: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.
 BANNED phrases (never use): "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" (in caps), "hurry", "don't miss out", "last chance", "while supplies last".
-NEVER: off-palette tints, medical claims, fake scarcity, ALL-CAPS urgency.`;
+NEVER: off-palette tints, medical claims, fake scarcity, ALL-CAPS urgency, fabricated filenames/URLs/selectors.`;
 
 // ── Regional facts ──────────────────────────────────────────────────────────
 const REGION = {
