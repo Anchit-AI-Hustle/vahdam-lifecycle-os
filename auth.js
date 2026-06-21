@@ -721,12 +721,10 @@
     });
     window.LifecycleAuth.client = client;
 
-    // Handle the post-OAuth redirect — exchanges the code in the URL for a session.
-    if (location.search.includes('code=') || location.hash.includes('access_token=')) {
-      try { await client.auth.exchangeCodeForSession(location.href); } catch { /* ignore */ }
-      history.replaceState({}, '', location.pathname);
-    }
-
+    // Post-OAuth redirect is handled automatically by detectSessionInUrl:true
+    // above (it exchanges the PKCE ?code= and cleans the URL). Calling
+    // exchangeCodeForSession() again here would double-consume the single-use
+    // code and fail — so we just wait for getSession() to resolve the session.
     const { data: { session } } = await client.auth.getSession();
     if (session?.user) {
       window.LifecycleAuth.session = session;
