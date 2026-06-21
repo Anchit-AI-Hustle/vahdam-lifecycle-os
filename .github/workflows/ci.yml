@@ -2,6 +2,9 @@ name: CI
 on:
   push: { branches: [main] }
   pull_request: {}
+# Least-privilege token: these jobs only read the checked-out repo.
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,8 +24,11 @@ jobs:
           for f in auth.js sw.js chart-enhance.js table-sort.js; do [ -f "$f" ] && node --check "$f"; done
           echo "All JS parses cleanly"
       - name: Function-count guard (Hobby cap = 12)
+        # Vercel counts every non-_shared file under api/ as a Serverless Function.
+        # The vercel.json "functions" map is OPTIONAL per-function config, so a file
+        # need not appear there — the only hard limit is the count (12 on Hobby).
         run: |
-          node -e "const v=require('./vercel.json');const cp=require('child_process');const cfg=new Set(Object.keys(v.functions||{}));const files=cp.execSync(\"find api -name '*.js' -not -path '*/_shared/*'\").toString().trim().split('\n').filter(Boolean);if(files.length>12){console.error('FAIL: '+files.length+' function files exceeds Hobby cap of 12');process.exit(1);}const undeclared=files.filter(f=>!cfg.has(f));if(undeclared.length){console.error('FAIL: undeclared function files: '+undeclared.join(', '));process.exit(1);}console.log('OK: '+files.length+'/12 function files, all declared');"
+          node -e "const cp=require('child_process');const files=cp.execSync(\"find api -name '*.js' -not -path '*/_shared/*'\").toString().trim().split('\n').filter(Boolean);if(files.length>12){console.error('FAIL: '+files.length+' function files exceeds Hobby cap of 12:\n  '+files.join('\n  '));process.exit(1);}console.log('OK: '+files.length+'/12 Serverless Function files (Hobby cap = 12)');"
       - name: Build catalog
         run: npm run build
 
