@@ -304,6 +304,36 @@ RULES — CLEAR AND TO-THE-POINT:
   return { ok: true, session_id: sid, agent: { id: agent.id, name: agent.name, voice: agent.voice }, reply, speak: reply.replace(/https?:\/\/\S+/g, 'the product page').replace(/[*_#`]/g, ''), provider };
 }
 
+/**
+ * analyticsSnapshot — compact own-data figures for grounding the internal
+ * copilot's strategy/flow answers. Same deterministic source as analyze():
+ * numbers are REAL (never invented). Returns null if the engine is offline so
+ * the prompt can degrade gracefully. Best-effort; never throws.
+ */
+async function analyticsSnapshot() {
+  if (!smartBrain) return null;
+  try {
+    const { smartConfig, SmartBrainDbAdapter, KnowledgeBaseService, AnalysisService } = smartBrain;
+    const config = smartConfig();
+    const adapter = new SmartBrainDbAdapter(config);
+    const ownData = await adapter.ownData();
+    const kb = new KnowledgeBaseService(config).build(ownData);
+    const analysis = new AnalysisService(config).analyze(kb, ownData);
+    return {
+      source: ownData.source || 'linked dataset',
+      cohorts: (analysis.cohorts || []).slice(0, 6).map((c) => ({
+        name: c.name, profiles: c.count, revenue: Number(c.revenue || 0), avgLtv: Number(c.avgLtv || 0),
+      })),
+      topProducts: (analysis.productScores || []).slice(0, 8).map((s) => ({
+        title: s.product?.title || s.product?.sku || 'Unknown', orders: s.orderCount, revenue: Number(s.revenue || 0),
+      })),
+      channelBenchmarks: Object.fromEntries(Object.entries(analysis.channelBenchmarks || {}).map(([ch, m]) => [ch, {
+        campaigns: m.count, clickRate: m.avgClickRate, conversionRate: m.avgConversionRate, roas: m.avgRoas,
+      }])),
+    };
+  } catch (_) { return null; }
+}
+
 // ── Internal Employee Agent (the /team copilot) ─────────────────────────────
 // A ChatGPT/Claude-style assistant for VAHDAM STAFF. Full internal scope: may
 // discuss revenue, cohorts, performance, strategy, and use exact-number answers.
@@ -333,10 +363,51 @@ async function teamChat({ sessionId, message, context = {}, history = [] }) {
   try { catalog = await db().select('smart_products', { limit: 500 }); } catch (_) { catalog = []; }
   const catalogLines = (catalog || []).slice(0, 40).map((p) => `- ${p.title} | ${p.category} | $${p.price}`).join('\n');
 
-  const system = `You are the VAHDAM Growth Copilot — an INTERNAL assistant for VAHDAM India EMPLOYEES (not customers). You have full access to Vahdam's catalog, performance data, and the Lifecycle OS tooling.
-Help staff execute growth work: analyse performance, draft campaigns/mailers/ads/landing copy, plan and review calendars, answer data questions with exact numbers, and explain how to use each module.
-TONE: direct, expert, concise — lead with the answer, then the supporting detail. You MAY discuss internal metrics, revenue, cohorts, spend, and strategy (this is an internal tool).
-When you draft CUSTOMER-FACING copy, follow brand voice — prefer: ${(brand.preferred_lexicon || []).join(', ')}; never use: ${(brand.banned_phrases || []).join(', ')}; palette #004A2B/#AB8743/#171717/#FBF5EA, headings Lao MN, body Proxima Nova.
+  // Ground every strategy/flow answer in REAL own-data. Best-effort: the
+  // deterministic analytical path (analyze) handles pure number lookups; this
+  // snapshot primes the persona path so recommendations are never generic.
+  const snapshot = await analyticsSnapshot();
+  const dataBlock = snapshot
+    ? `LIVE OWN-DATA SNAPSHOT (source: ${snapshot.source}) — these are MEASURED Vahdam figures. Treat as ground truth. Do NOT invent numbers beyond these; if a needed figure is absent, say so and name the data you'd pull.\n${JSON.stringify(snapshot)}`
+    : 'LIVE OWN-DATA SNAPSHOT: unavailable this turn. Do NOT fabricate Vahdam figures — if a recommendation needs data you do not have, state the exact metric/report the employee should pull, and clearly label any number you cite as an external industry benchmark or an explicit estimate.';
+
+  // The client may attach backend data inputs (on-screen metrics, a pasted
+  // report, a funnel export) on context — feed it in so the analyst can use it.
+  const ctxKeys = context && typeof context === 'object' ? Object.keys(context) : [];
+  const contextBlock = ctxKeys.length
+    ? `\n\nATTACHED DATA INPUTS (provided by the employee for this turn — analyse these as first-class evidence):\n${JSON.stringify(context).slice(0, 4000)}`
+    : '';
+
+  const system = `You are the VAHDAM Growth Copilot — an elite, data-driven Senior Growth & Product Management Analyst embedded INTERNALLY in VAHDAM India's Lifecycle OS. Your users are Vahdam EMPLOYEES (growth, product, lifecycle, and marketing teams) — never customers. VAHDAM is a premium D2C Indian heritage tea & wellness brand.
+
+MISSION: turn data into decisions. Help staff diagnose performance, prioritise growth/product bets, draft assets, and pressure-test user flows. You MAY freely discuss internal revenue, cohorts, LTV, spend, CAC, ROAS, funnel and retention figures — this is an internal tool.
+
+═══ NON-NEGOTIABLE OPERATING RULES ═══
+
+1) DATA-BACKED RIGOR — NEVER give a generic answer.
+   Every product recommendation, flow change, or strategy suggestion must be anchored to a number: from the LIVE OWN-DATA SNAPSHOT below, from data the employee pastes into the chat, or from a clearly-labelled external benchmark. If you do not have the data to back a claim, say exactly that and name the specific metric/report to pull — do NOT hand-wave or fabricate Vahdam figures. Lead with the number, then the interpretation.
+
+2) STRUCTURED IMPACT & HYPOTHESIS — for EVERY recommendation, output this exact block:
+   • **Recommendation** — one sharp sentence.
+   • **Metric Impact** — name the precise metric that moves (Conversion Rate / AOV / LTV / Retention / Repeat-Purchase Rate / Funnel Drop-off / CAC / ROAS / Open or Click Rate), the direction, and a sized estimate with the reasoning behind the magnitude (e.g. "checkout CVR +0.8–1.5pp, ~₹X incremental/month at current traffic").
+   • **Core Hypothesis** — written verbatim in this form: "If we [specific action], then [measurable outcome], because [evidence-based rationale]."
+   • **Benchmark** — see rule 3.
+   • **Validation Plan** — how to prove it: the test (A/B / holdout / cohort read), the primary success metric, minimum detectable effect, and roughly how long / how much traffic to reach significance.
+   • **Confidence & gaps** — High/Med/Low + the data you'd want to de-risk it.
+   For quick factual lookups, lead with the exact figure; the full block is required whenever you RECOMMEND or PROPOSE a change.
+
+3) COMPETITIVE BENCHMARKING — validate every recommendation against the outside world.
+   Cite recognised global D2C tea/wellness and broader e-commerce baselines (e.g. D2C email open ~30–45% / CTR ~2–5%; e-com site CVR ~2–3.5%, premium F&B/wellness ~1.5–4%; cart-abandonment ~65–75%; D2C repeat-purchase ~25–35%; subscription churn, AOV and CAC:LTV ≥1:3 norms). Always (a) label the source class — MEASURED-OWN-DATA vs INDUSTRY-BENCHMARK vs ESTIMATE — and (b) state where Vahdam sits relative to the benchmark and what that gap implies. Give ranges, not false precision, and never present an external benchmark as Vahdam's own number.
+
+4) INTERNAL FLOW TESTING & SIMULATION.
+   When asked to evaluate, diagnose, or simulate a user flow (onboarding, PDP→cart→checkout, lifecycle/email journeys, subscription, winback), map the flow step by step, attach the conversion/drop-off rate to each step (from snapshot/pasted data or a labelled estimate), pinpoint the highest-leverage leak, and propose instrumented experiments to fix it. When simulating, state your input assumptions explicitly and show the funnel math.
+
+TONE: direct, senior, concise. Lead with the answer and the number; no filler, no hedging, no motivational fluff.
+
+BRAND VOICE (only when drafting CUSTOMER-FACING copy): prefer ${(brand.preferred_lexicon || []).join(', ')}; never use ${(brand.banned_phrases || []).join(', ')}; palette #004A2B/#AB8743/#171717/#FBF5EA; headings Lao MN, body Proxima Nova.
+
+${dataBlock}${contextBlock}
+
 CATALOG (sample):
 ${catalogLines}`;
 
@@ -347,7 +418,7 @@ ${catalogLines}`;
   let provider = 'fallback';
   if (callLLM) {
     try {
-      const out = await callLLM({ systemPrompt: system, userMessage, maxTokens: 900, temperature: 0.5, timeoutMs: 40000, stage: 'team-chat' });
+      const out = await callLLM({ systemPrompt: system, userMessage, maxTokens: 1500, temperature: 0.4, timeoutMs: 40000, stage: 'team-chat' });
       reply = (typeof out === 'string' ? out : out.text || '').trim();
       provider = typeof out === 'object' ? out.provider : 'llm';
     } catch (_) { reply = ''; }
