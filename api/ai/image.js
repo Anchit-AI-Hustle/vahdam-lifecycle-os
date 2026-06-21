@@ -22,7 +22,7 @@
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const OPENAI_BASE = 'https://api.openai.com/v1';
 
-const IMAGE_PROMPT_PREAMBLE = `Photoreal product lifestyle photograph for VAHDAM India premium tea brand. Pure photography — NO text, NO logos, NO UI elements, NO email layout, NO mockup, NO watermarks, NO design frames. VAHDAM packaging tin where present: deep forest-green, warm cream, terracotta, or pink/magenta depending on SKU — gold botanical label. Gallery-print resolution, zero AI smear artifacts.
+const IMAGE_PROMPT_PREAMBLE = `Photoreal product lifestyle photograph for VAHDAM India premium tea brand. Pure photography — NO text, NO logos, NO UI elements, NO email layout, NO mockup, NO watermarks, NO design frames. VAHDAM packaging tin where present: deep forest-green, warm cream, terracotta, or pink/magenta depending on SKU, with a gold botanical illustration only — the label carries NO lettering, NO brand name, NO readable words or numbers (never render garbled or fake text on the packaging; keep label typography out of frame, softly out of focus, or angled away). Gallery-print resolution, zero AI smear artifacts.
 
 Scene:
 `;

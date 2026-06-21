@@ -84,9 +84,17 @@ function adContract(platform) {
   };
   const spec = specs[platform] || specs.meta;
   return `ASSET: Paid ad creative for ${platform.toUpperCase()} — a FULL ad, not just copy.
-The creative itself must combine VISUAL (image / GIF / video) WITH on-creative text overlay (headline + offer), exactly like a real ${platform} ad.
+The creative itself must combine VISUAL (image / GIF / video) WITH on-creative text overlay (headline + offer) BAKED INTO the image/video — exactly like a real ${platform} ad. The text is part of the rendered creative, NOT a separate caption: specify the exact overlay wording, font (Lao MN headings / Proxima Nova body), colour (on-palette), size and pixel placement within the safe zones, legible at a glance.
+
+━━ STRATEGY — SELL HAPPINESS, NOT FEATURES (Aman's P01 mandate) ━━
+TARGET (P01): women 45+ and busy/working mums — high daily stress + cortisol, brain fog, "wired-but-tired" energy, menopause-era changes.
+SELL THE EMOTIONAL END-STATE, never the ingredient. The promise is happiness / calm / "feeling like myself again" — e.g. "calmer mornings," "steady energy with no 2pm crash," escaping the "wound-up feeling." NEVER lead with functional ingredients (Ashwagandha/KSM-66/Arabica/Lion's Mane) or feature lists; a feature may appear only as the *reason* a happiness payoff is believable.
+THE 1-SECOND SCROLL-STOP: the visual must demand a stop from a stressed, overworked mother in under one second — a visceral image mirroring her chaos OR her desired calm. Do NOT lead with heavy text or ingredient call-outs. Scaling depends on scroll-stop + engagement, not just the click.
+CURATE, DON'T INVENT: structure the creative on proven, replicable D2C wellness formats (UGC, split-screen before/after, day-in-the-life), not novel concepts.
+OFFER: transition cleanly from the emotional hook into the high-value "Starter Pack — 65% OFF + free gifts worth £40 (frother + scoop)" or quick/Insta delivery — a premium, frictionless CTA, never a cheap pop-up.
+
 Platform spec: ${spec}
-Deliver: (a) every text field the platform requires; (b) for each required size/format, a precise creative brief describing the visual, the text overlay wording + placement, safe zones, and the motion (if any); (c) the destination URL.
+Deliver: (a) every text field the platform requires; (b) for each required size/format, a precise creative brief describing the visual, the BAKED-IN text overlay wording + exact placement + safe zones, and the motion (if any); (c) the destination URL.
 ${VISUAL_CASCADE}`;
 }
 

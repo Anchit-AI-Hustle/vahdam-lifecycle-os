@@ -233,7 +233,9 @@ function copyPrompt(entry) {
 - Rationale: ${entry.rationale || ''}
 - Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
 
-Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle photograph of the hero product (NO text/logos/UI in the image — just the scene, props, light, mood). Tailor each brief to its channel (email/LP = aspirational hero; meta = scroll-stopping square; google = clean landscape; tiktok = vertical, native, hand-held feel).
+Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules:
+- email / LP heroes: NO text/logos/UI baked into the image (text lives in the page layout) — just scene, props, light, mood; aspirational hero.
+- AD creatives (meta / google / tiktok): the headline + offer text MUST be BAKED INTO the creative (state the exact overlay wording, on-palette colour, and placement) — like a real paid ad. Sell the HAPPINESS end-state for P01 (women 45+/busy mums: calmer mornings, steady energy, "feeling like myself again"), NOT ingredients; open on a 1-second scroll-stop; meta = scroll-stopping square, google = clean landscape, tiktok = vertical native hand-held.
 
 Return JSON with exactly this shape:
 {
