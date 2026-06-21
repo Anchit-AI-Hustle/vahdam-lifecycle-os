@@ -10,7 +10,8 @@
 //
 // POST body:
 //   { prompt: string, size?: '1024x1024'|'1536x1024'|'1024x1536',
-//     quality?: 'low'|'medium'|'high'|'auto', mode?: 'design'|'' }
+//     quality?: 'low'|'medium'|'high'|'auto', mode?: 'design'|'',
+//     tier?: 'budget'|'maxpower' }   // maxpower brings Gemini native/Imagen into the cascade first
 //
 // Env vars:
 //   GEMINI_API_KEY         — Google AI / Gemini key (primary)
@@ -88,6 +89,10 @@ module.exports = async function handler(req, res) {
   if (validQualities.indexOf(quality) < 0) return res.status(400).json({ error: 'invalid_quality', allowed: validQualities });
 
   const mode = (body.mode || '').toString().trim();
+  // Tier dial: 'maxpower' brings the highest-quality image provider (Gemini native → Imagen)
+  // into the cascade first; 'budget' (default) keeps current behavior (Gemini OFF unless IMAGE_ENABLE_GEMINI=1).
+  const _tier = (body.tier || process.env.APP_AI_TIER || 'budget').toString().toLowerCase().trim();
+  const isMaxPower = _tier === 'maxpower' || _tier === 'max-power' || _tier === 'max' || _tier === 'output' || _tier === 'quality';
   const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE
     : (mode === 'ad') ? AD_PROMPT_PREAMBLE
     : IMAGE_PROMPT_PREAMBLE;
@@ -102,8 +107,8 @@ module.exports = async function handler(req, res) {
   const geminiKey = process.env.GEMINI_API_KEY;
   // Gemini image models (gemini-2.5-flash-image, Imagen) require a billing-enabled
   // key. They're OFF by default so OpenAI gpt-image is the effective primary;
-  // set IMAGE_ENABLE_GEMINI=1 to bring Gemini back into the cascade (tried first).
-  if (geminiKey && process.env.IMAGE_ENABLE_GEMINI === '1') {
+  // set IMAGE_ENABLE_GEMINI=1 — OR pass tier:'maxpower' — to bring Gemini into the cascade (tried first).
+  if (geminiKey && (isMaxPower || process.env.IMAGE_ENABLE_GEMINI === '1')) {
 
     // ── A) Native Gemini image generation via generateContent ──
     const nativeModels = [
