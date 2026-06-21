@@ -23,6 +23,9 @@ let smartBrain = null;
 try { smartBrain = require('../../lib/smart-brain/services.js'); } catch (_) { smartBrain = null; }
 
 const dataClass = require('./data-classification.js');
+// Customer-facing evidence + brand/confidentiality guardrails (ported from Vahdam-Super-App).
+// Appended to the BUYER chat() persona only — never to teamChat() (internal analyst).
+const { EVIDENCE_RULES, BRAND_GUARDRAILS } = require('./evidence-policy.js');
 
 // Detect whether a message is asking for analytical/data figures rather than
 // product advice. Routing is keyword-based and conservative: a hit sends the
@@ -272,7 +275,7 @@ RULES — CLEAR AND TO-THE-POINT:
 - Be honest about durations and effects; set expectations (2–4 weeks for adaptogens). No medical claims, no cure language.
 - If asked something outside VAHDAM products/tea/wellness, say so briefly and steer back in one sentence.
 - Reply in the user's language if they switch (incl. Hindi/Hinglish). Stay spoken-friendly (this may be read aloud).
-- Write the way you speak: complete, flowing sentences only. NO markdown, headings, bullet or numbered lists, tables, asterisks, or emoji — if you name a few products, say them inside a sentence, never as a list.`;
+- Write the way you speak: complete, flowing sentences only. NO markdown, headings, bullet or numbered lists, tables, asterisks, or emoji — if you name a few products, say them inside a sentence, never as a list.` + EVIDENCE_RULES + BRAND_GUARDRAILS;
 
   const convo = history.slice(-10).map((m) => `${m.role === 'user' ? 'Customer' : agent.name}: ${m.content}`).join('\n');
   const userMessage = `${convo ? convo + '\n' : ''}Customer: ${message}\n${agent.name}:`;

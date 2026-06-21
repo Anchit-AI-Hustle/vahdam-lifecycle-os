@@ -38,6 +38,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const SM = require('./scenario-model.js');
 
 let FESTIVALS = null;
 function loadFestivals() {
@@ -138,7 +139,20 @@ function pickContentType(weekIdx, segment, festival) {
   return 'editorial';
 }
 
-function pickHeroProduct(segment, festival, analytics) {
+// Stable string→index hash so hero selection is reproducible (replaces a prior
+// Math.random() call that made plans non-deterministic between identical runs).
+function stableIndex(str, n) {
+  if (n <= 1) return 0;
+  let h = 0;
+  const s = String(str);
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h % n;
+}
+
+// productStrategy lever (from the scenario model) overrides the per-segment
+// rotation: 'bestseller-only' always picks the top revenue product; 'launch-push'
+// favours the under-promoted/new SKU; 'current' (medium) keeps today's logic.
+function pickHeroProduct(segment, festival, analytics, productStrategy = 'current') {
   // Festival hint trumps.
   if (festival?.tags?.includes('gift')) {
     const gift = (analytics?.products || []).find((p) => /gift|bundle|set/i.test(p.title || p.category || ''));
@@ -148,6 +162,14 @@ function pickHeroProduct(segment, festival, analytics) {
   const top = (analytics?.products || []).slice().sort((a, b) => (b.revenue || 0) - (a.revenue || 0));
   if (!top.length) return { sku: 'DRJ-100', title: 'Darjeeling Summer Black' };
 
+  // Scenario product-strategy overrides (deterministic).
+  if (productStrategy === 'bestseller-only') return top[0];
+  if (productStrategy === 'launch-push') {
+    const underPromoted = top.find((p) => (p.promos || 0) <= 1);
+    return underPromoted || top[0];
+  }
+
+  // 'current' = today's segment-based rotation.
   if (segment === 'New' || segment === 'Promising') {
     // Show breadth → bestseller
     return top[0];
@@ -161,7 +183,7 @@ function pickHeroProduct(segment, festival, analytics) {
     // High-conviction comeback offer = bestseller
     return top[0];
   }
-  return top[Math.floor(Math.random() * Math.min(3, top.length))];
+  return top[stableIndex(segment, Math.min(3, top.length))];
 }
 
 function buildSubjectHint(segment, festival, hero, content_type, market) {
@@ -198,42 +220,22 @@ function rankSegmentsByValue(analytics) {
     .map((s, i) => ({ ...s, valueRank: i + 1 }));
 }
 
-function nextSegmentForDay({ market, dayIdx, sendsThisWeekBySeg, segmentList }) {
-  // Score each segment: high value, has remaining cadence, hasn't been hit yesterday.
+function nextSegmentForDay({ sendsThisWeekBySeg, segmentList, cadenceTable }) {
+  // Score each segment: high value, has remaining cadence (per the scenario's
+  // scaled cadence table), hasn't exhausted its weekly slots.
   const candidates = segmentList
-    .filter((s) => (sendsThisWeekBySeg[s.name] || 0) < (SEGMENT_CADENCE_PER_WEEK[s.name] ?? 0))
+    .filter((s) => (sendsThisWeekBySeg[s.name] || 0) < (cadenceTable[s.name] ?? 0))
     .sort((a, b) => a.valueRank - b.valueRank);
   return candidates[0] || null;
 }
 
-// ─── Main handler ───────────────────────────────────────────────────────────
-
-module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST')    return res.status(405).json({ error: 'POST only' });
-
-  let body;
-  try {
-    body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-  } catch {
-    return res.status(400).json({ error: 'Invalid JSON' });
-  }
-
-  const startDate = body.start_date ? new Date(body.start_date) : new Date();
-  const days = Math.min(60, Math.max(7, +body.days || 30));
-  const markets = Array.isArray(body.markets) && body.markets.length ? body.markets : ['US', 'UK', 'Global', 'IN'];
-  const capacity = +body.capacity_per_market_per_week || 4;
-  const analytics = body.analytics || {};
-
-  const segmentsRanked = rankSegmentsByValue(analytics);
-  if (!segmentsRanked.length) {
-    return res.status(400).json({ error: 'analytics.segments missing — call /api/analytics/compute first or paste a precomputed summary in body.analytics' });
-  }
-
-  // Build day-by-day plan, per market, respecting capacity + segment cadence.
+// ─── Plan builder (pure — shared by every scenario) ──────────────────────────
+// Extracted verbatim from the original handler loop. Given a pre-filtered
+// segment list, a per-segment cadence table, a per-market weekly capacity and a
+// product strategy, it builds the day-by-day plan + meta. Calling it with the
+// medium scenario's levers (cadence ×1.0, all segments, productStrategy 'current')
+// reproduces the original deterministic output.
+function buildPlan({ startDate, days, markets, capacity, analytics, segmentsRanked, cadenceTable, productStrategy }) {
   const plan = [];
   for (let m = 0; m < markets.length; m++) {
     const market = markets[m];
@@ -267,16 +269,16 @@ module.exports = async function handler(req, res) {
         const rec = festival.recommended_segments
           .map((n) => segmentsRanked.find((s) => s.name === n))
           .filter(Boolean)
-          .filter((s) => (sendsThisWeekBySeg[s.name] || 0) < (SEGMENT_CADENCE_PER_WEEK[s.name] ?? 0));
-        segment = rec[0] || nextSegmentForDay({ market, dayIdx: d, sendsThisWeekBySeg, segmentList: segmentsRanked });
+          .filter((s) => (sendsThisWeekBySeg[s.name] || 0) < (cadenceTable[s.name] ?? 0));
+        segment = rec[0] || nextSegmentForDay({ sendsThisWeekBySeg, segmentList: segmentsRanked, cadenceTable });
       } else {
-        segment = nextSegmentForDay({ market, dayIdx: d, sendsThisWeekBySeg, segmentList: segmentsRanked });
+        segment = nextSegmentForDay({ sendsThisWeekBySeg, segmentList: segmentsRanked, cadenceTable });
       }
       if (!segment) continue;
 
       const content_type = pickContentType(weekIdx, segment.name, festival);
       const archetype    = pickArchetype(segment.name, festival, content_type);
-      const hero         = pickHeroProduct(segment.name, festival, analytics);
+      const hero         = pickHeroProduct(segment.name, festival, analytics, productStrategy);
       const send_hour    = pickBestSendHourUTC(market, analytics);
       const subject_hint = buildSubjectHint(segment.name, festival, hero, content_type, market);
       const rationale    = buildRationale({ segment: segment.name, festival, content_type, archetype, hero, segValueRank: segment.valueRank, market });
@@ -308,18 +310,159 @@ module.exports = async function handler(req, res) {
 
   plan.sort((a, b) => (a.date + a.send_hour_utc).localeCompare(b.date + b.send_hour_utc));
 
+  const meta = {
+    segments_used: segmentsRanked.map((s) => ({ name: s.name, valueRank: s.valueRank, revenue: s.revenue, count: s.count })),
+    archetype_distribution: ARCHETYPES.reduce((mp, a) => ({ ...mp, [a]: plan.filter((p) => p.archetype === a).length }), {}),
+    content_type_distribution: CONTENT_TYPES.reduce((mp, c) => ({ ...mp, [c]: plan.filter((p) => p.content_type === c).length }), {}),
+  };
+  return { plan, meta };
+}
+
+// ─── Scenario builder ────────────────────────────────────────────────────────
+// Applies one scenario's levers (cadence / horizon / segment focus / product
+// strategy) and attaches grounded projected metrics + the hand-authored,
+// brand-scrubbed rationale.
+function buildScenario(label, { startDate, daysReq, markets, capacity, analytics }) {
+  const L = SM.SCENARIO_LEVERS[label];
+  const days = SM.scenarioDays(L, daysReq);
+  const cap = SM.effectiveCapacity(L, capacity);
+  const cadenceTable = SM.scaleCadence(SEGMENT_CADENCE_PER_WEEK, L);
+
+  const fullRanked = rankSegmentsByValue(analytics);
+  const eligible = new Set(SM.eligibleSegments(fullRanked.map((s) => s.name), L));
+  const segmentsRanked = fullRanked.filter((s) => eligible.has(s.name));
+
+  const { plan, meta } = buildPlan({ startDate, days, markets, capacity: cap, analytics, segmentsRanked, cadenceTable, productStrategy: L.productStrategy });
+
+  const benchmark = SM.buildEngine1Benchmark(analytics, markets[0]);
+  const projected_metrics = SM.projectMetrics(plan, L, benchmark);
+
+  const profile = SM.SCENARIO_PROFILES[label];
+  const display_name = SM.sanitizeBrand(profile.display_name);
+  const one_liner = SM.sanitizeBrand(profile.one_liner);
+  const assumptions = profile.assumptions.map((a) => SM.sanitizeBrand(a));
+  SM.assertNoBanned(`${display_name} ${one_liner} ${assumptions.join(' ')}`, `scenario:${label}`);
+
+  return {
+    label,
+    display_name,
+    one_liner,
+    assumptions,
+    levers: L,
+    days,
+    capacity_per_market_per_week: cap,
+    total_sends_planned: plan.length,
+    plan,
+    meta,
+    projected_metrics,
+  };
+}
+
+// ─── MaxPower strategist narrative (optional, time-boxed, fallback-safe) ──────
+// Only runs for tier='maxpower'. It writes ONLY qualitative narrative onto each
+// scenario AFTER the deterministic result is fully built — it never touches any
+// plan row or projected number. Any failure/timeout leaves the deterministic
+// body unchanged. Returns a narrative_status string for the UI.
+async function attachStrategistNarratives(scenarios) {
+  let callLLM, parseJSON;
+  try { callLLM = require('./llm.js'); parseJSON = require('./llm.js').parseJSON; } catch (_) { return 'skipped_no_llm'; }
+  if (typeof callLLM !== 'function') return 'skipped_no_llm';
+
+  const summary = scenarios.map((s) => ({
+    label: s.label, display_name: s.display_name, sends: s.total_sends_planned, horizon_days: s.days,
+    projected: {
+      total_revenue: s.projected_metrics.projected_total_revenue,
+      paid_spend: s.projected_metrics.projected_paid_spend,
+      blended_roas: s.projected_metrics.blended_roas,
+      band: s.projected_metrics.response_band,
+    },
+    assumptions: s.assumptions,
+  }));
+  const sys = "You are VAHDAM India's senior growth strategist. Voice: warm, precise, story-driven. NEVER use: \"wellness journey\", \"transform\", \"liquid gold\", \"game-changer\", \"LIMITED TIME\" in caps, \"hurry\", \"don't miss out\", \"last chance\", \"while supplies last\". Return STRICT JSON only, no markdown fences.";
+  const user = `For each calendar scenario, write a 2-3 sentence strategist_narrative: why these levers fit, what must be true for the projection to hold, and — for best, why it is a stretch ceiling not a committed target; for emergency, why it is the right floor. Scenarios:\n${JSON.stringify(summary)}\n\nReturn JSON: { "narratives": { "best": "", "medium": "", "conservative": "", "emergency": "", "instant": "" } }`;
+
+  let timer;
+  const llmCall = Promise.resolve().then(() => callLLM({
+    systemPrompt: sys, userMessage: user, responseFormat: { type: 'json_object' },
+    maxTokens: 900, temperature: 0.6, timeoutMs: 25000, stage: 'calendar-scenario-strategist', tier: 'maxpower',
+  }));
+  const guard = new Promise((resolve) => { timer = setTimeout(() => resolve(null), 25000); });
+  const result = await Promise.race([llmCall, guard]).catch(() => null);
+  clearTimeout(timer);
+  if (!result || !result.text) return 'skipped_timeout';
+
+  let json = null;
+  try { json = parseJSON ? parseJSON(result.text) : JSON.parse(result.text); } catch (_) { json = null; }
+  if (!json || !json.narratives) return 'skipped_error';
+
+  let applied = 0;
+  for (const s of scenarios) {
+    const raw = json.narratives[s.label];
+    if (raw && String(raw).trim()) {
+      const clean = SM.sanitizeBrand(raw);
+      if (clean) { s.strategist_narrative = clean; applied += 1; }
+    }
+  }
+  return applied ? 'ok' : 'skipped_error';
+}
+
+// ─── Main handler ───────────────────────────────────────────────────────────
+
+module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST')    return res.status(405).json({ error: 'POST only' });
+
+  let body;
+  try {
+    body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+  } catch {
+    return res.status(400).json({ error: 'Invalid JSON' });
+  }
+
+  const startDate = body.start_date ? new Date(body.start_date) : new Date();
+  const daysReq = Math.min(60, Math.max(7, +body.days || 30));
+  const markets = Array.isArray(body.markets) && body.markets.length ? body.markets : ['US', 'UK', 'Global', 'IN'];
+  const capacity = +body.capacity_per_market_per_week || 4;
+  const analytics = body.analytics || {};
+  // Dual-mode dial (vahdam-dual-mode-generation): budget = deterministic, zero
+  // LLM (default, byte-identical to before). maxpower may add a strategist
+  // narrative. Unknown values fall back to budget — never error.
+  const tier = String(body.tier || (req.query && req.query.tier) || 'budget').toLowerCase() === 'maxpower' ? 'maxpower' : 'budget';
+
+  // Empty-analytics guard BEFORE building any scenario (unchanged contract).
+  if (!rankSegmentsByValue(analytics).length) {
+    return res.status(400).json({ error: 'analytics.segments missing — call /api/analytics/compute first or paste a precomputed summary in body.analytics' });
+  }
+
+  // Build all 5 scenarios. Each is self-contained (its own plan + meta +
+  // projected_metrics) so the internal UI can render any scenario standalone.
+  const scenarios = SM.SCENARIO_LABELS.map((label) => buildScenario(label, { startDate, daysReq, markets, capacity, analytics }));
+  const medium = scenarios.find((s) => s.label === 'medium') || scenarios[0];
+
+  // MaxPower-only: attach narratives after the deterministic result exists.
+  let narrative_status = tier === 'maxpower' ? 'pending' : 'skipped_budget';
+  if (tier === 'maxpower') {
+    narrative_status = await attachStrategistNarratives(scenarios).catch(() => 'skipped_error');
+  }
+
   return res.status(200).json({
     generated_at: new Date().toISOString(),
     start_date: isoDate(startDate),
-    days,
+    days: daysReq,
     markets,
-    total_sends_planned: plan.length,
+    // ── Legacy top-level fields = the medium scenario (calendar.html reads these) ──
+    total_sends_planned: medium.total_sends_planned,
     capacity_per_market_per_week: capacity,
-    plan,
-    meta: {
-      segments_used: segmentsRanked.map((s) => ({ name: s.name, valueRank: s.valueRank, revenue: s.revenue, count: s.count })),
-      archetype_distribution: ARCHETYPES.reduce((m, a) => ({ ...m, [a]: plan.filter((p) => p.archetype === a).length }), {}),
-      content_type_distribution: CONTENT_TYPES.reduce((m, c) => ({ ...m, [c]: plan.filter((p) => p.content_type === c).length }), {}),
-    },
+    plan: medium.plan,         // same array reference as the medium scenario (no drift)
+    meta: medium.meta,
+    // ── New, additive (ignored by old consumers) ──
+    default_scenario: 'medium',
+    tier,
+    narrative_status,
+    scenario_model_version: SM.CONSTANTS_VERSION,
+    scenarios,
   });
 };

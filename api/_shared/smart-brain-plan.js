@@ -28,6 +28,7 @@ const {
 const callLLM = require('./llm.js');
 const { parseJSON } = require('./llm.js');
 const { buildMasterPrompt, regionFacts } = require('./master-prompt.js');
+const SM = require('./scenario-model.js');
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function nowIso() { return new Date().toISOString(); }
@@ -61,8 +62,95 @@ function freshEntries(config, ctx, startDate, days) {
     feedback: ctx.ownData.feedback,
   });
   // Re-key on date+market so the same slot keeps the same id across daily syncs.
-  for (const e of calendar.entries) e.id = stableId(e.date, e.market);
+  const cohortLtv = cohortLtvMap(ctx);
+  for (const e of calendar.entries) {
+    e.id = stableId(e.date, e.market);
+    attachScenarioLayer(e, ctx, cohortLtv);
+  }
   return calendar.entries;
+}
+
+// ── Scenario layer (medium active + best/conservative/emergency/instant pre-staged) ─
+// The active rolling plan IS the medium scenario. The other four are pre-staged
+// DORMANT inside the same row's payload — nested (not separate rows) because
+// smart_calendar_entries has a UNIQUE (date,market) index. A human can promote a
+// standby into the active fields via activateScenario() (the "break" switch).
+
+function cohortLtvMap(ctx) {
+  const m = {};
+  for (const c of (ctx.analysis?.cohorts || [])) m[c.name] = c.avgLtv || 0;
+  return m;
+}
+function toHero(product) {
+  if (!product) return null;
+  return { sku: product.sku || product.id, title: product.title, handle: product.handle, category: product.category };
+}
+
+// Build one dormant standby variant for a slot: re-derive ONLY the lever-varied
+// operational fields (channels intersected with the scenario's channel mix, hero
+// per its product strategy) + grounded projected metrics. NOT a second full plan.
+function buildStandbyVariant(e, label, ctx, cohortLtv) {
+  const L = SM.SCENARIO_LEVERS[label];
+  const baseChannels = Array.isArray(e.channels) ? e.channels : [];
+  let channels = baseChannels.filter((c) => L.channelMix.includes(c));
+  if (!channels.length) channels = L.channelMix.filter((c) => c === 'email' || c === 'landing_page');
+
+  let heroProduct = e.heroProduct;
+  const scores = (ctx.analysis && ctx.analysis.productScores) || [];
+  if (L.productStrategy === 'bestseller-only' && scores[0]) heroProduct = toHero(scores[0].product);
+  else if (L.productStrategy === 'launch-push' && scores.length) heroProduct = toHero((scores.find((s) => !s.winningMentions) || scores[0]).product);
+
+  const benchmark = SM.buildEngine2Benchmark(ctx.analysis, e.market, cohortLtv[e.cohort?.name] || 0);
+  const projected_metrics = SM.projectMetrics([{ cohort: e.cohort, channels, date: e.date }], L, benchmark);
+  return { active_scenario: label, status: 'dormant', channels, heroProduct, objective: e.objective, levers: L, projected_metrics };
+}
+
+function attachScenarioLayer(e, ctx, cohortLtv) {
+  const benchmark = SM.buildEngine2Benchmark(ctx.analysis, e.market, cohortLtv[e.cohort?.name] || 0);
+  e.active_scenario = e.active_scenario || 'medium';
+  e.scenario_projections = {
+    medium: SM.projectMetrics([{ cohort: e.cohort, channels: e.channels, date: e.date }], SM.SCENARIO_LEVERS.medium, benchmark),
+  };
+  e.standby = {};
+  for (const label of ['best', 'conservative', 'emergency', 'instant']) {
+    const variant = buildStandbyVariant(e, label, ctx, cohortLtv);
+    e.standby[label] = variant;
+    e.scenario_projections[label] = variant.projected_metrics;
+  }
+}
+
+// Promote a scenario's operational fields onto the payload top level (mutates).
+// Leaving medium snapshots the current medium fields so a switch-back is lossless;
+// returning to medium restores from that snapshot.
+function promoteScenario(payload, label) {
+  if (label === 'medium') {
+    const snap = payload.__medium_snapshot;
+    if (snap) Object.assign(payload, { channels: snap.channels, heroProduct: snap.heroProduct, objective: snap.objective });
+    payload.active_scenario = 'medium';
+    delete payload.__medium_snapshot;
+    return payload;
+  }
+  const v = payload.standby && payload.standby[label];
+  if (!v) return payload;
+  if (!payload.__medium_snapshot && (payload.active_scenario || 'medium') === 'medium') {
+    payload.__medium_snapshot = { channels: payload.channels, heroProduct: payload.heroProduct, objective: payload.objective };
+  }
+  Object.assign(payload, { channels: v.channels, heroProduct: v.heroProduct, objective: v.objective });
+  payload.active_scenario = label;
+  return payload;
+}
+
+// Build the effective entry an approval/preview should generate — the active
+// scenario's operational fields merged in, with all internal/projection keys
+// stripped so revenue numbers can NEVER reach the asset builders.
+function effectiveEntry(entry) {
+  const label = entry.active_scenario;
+  let merged = entry;
+  if (label && label !== 'medium' && entry.standby && entry.standby[label]) {
+    const v = entry.standby[label];
+    merged = { ...entry, channels: v.channels, heroProduct: v.heroProduct, objective: v.objective };
+  }
+  return SM.stripInternal(merged);
 }
 
 // Fields whose change means the slot was materially re-planned (vs. cosmetic).
@@ -131,7 +219,13 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
       changes.push({ id: entry.id, kind: 'kept_locked', detail: `${entry.date} ${entry.market}: human-approved, left untouched.` });
       continue;
     }
-    // tentative or rejected → refresh from latest data
+    // tentative or rejected → refresh from latest data.
+    // Preserve a human's scenario SELECTION across syncs: if the stored row was
+    // switched off medium (e.g. emergency), re-promote the freshly recomputed
+    // variant so the daily refresh updates the variant CONTENTS but keeps the
+    // chosen scenario active (and so materialDiff compares like-for-like).
+    const carried = (existing.payload && existing.payload.active_scenario) || 'medium';
+    if (carried !== 'medium' && entry.standby && entry.standby[carried]) promoteScenario(entry, carried);
     const diffs = materialDiff(existing.payload || {}, entry);
     const wasRejected = existing.status === 'rejected';
     if (diffs.length || wasRejected) {
@@ -551,7 +645,9 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   const { entry } = await resolveEntry({ id, inlineEntry, config, db });
   if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
 
-  const campaign = await buildCampaign(entry, config, { id });
+  // Preview EXACTLY what approving produces: the active scenario's operational
+  // fields, internal/projection keys stripped (so numbers can't reach assets).
+  const campaign = await buildCampaign(effectiveEntry(entry), config, { id });
   campaign.status = 'preview';
   return {
     ok: true,
@@ -588,8 +684,10 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     }
   }
 
-  // buildCampaign generates copy + creatives and attaches master prompts.
-  const campaign = await buildCampaign(entry, config, { id });
+  // buildCampaign generates copy + creatives and attaches master prompts. Use
+  // the ACTIVE scenario (medium unless a human switched the slot), internal keys
+  // stripped so projected revenue/spend can never reach the asset builders.
+  const campaign = await buildCampaign(effectiveEntry(entry), config, { id });
   const copyMeta = campaign.copywriter;
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
@@ -640,6 +738,57 @@ async function rejectEntry({ id, reviewer = null, notes = '', config: cfg = {} }
   return { ok: true, id, status: 'rejected', will_regenerate_on_next_sync: true };
 }
 
+// ── Scenario switch ("break" button + revert) ───────────────────────────────
+// Promotes a pre-staged standby scenario (emergency / instant / best /
+// conservative) into the active fields of affected slots — or reverts to medium.
+// scope: 'all' (every active future slot — the big red button), {date,market}, or
+// {ids:[...]}. Switching a slot that already generated assets resets it to
+// tentative + clears the prior campaign so the new scenario re-earns human
+// sign-off and fresh assets. activateScenario({scenario:'medium'}) reverts.
+async function activateScenario({ scenario, reviewer = null, scope = 'all', config: cfg = {} } = {}) {
+  if (!SM.SCENARIO_LABELS.includes(scenario)) throw new Error(`Unknown scenario "${scenario}". Use one of ${SM.SCENARIO_LABELS.join(', ')}.`);
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  if (!db.connected) return { ok: true, skipped: true, reason: 'Supabase env not configured — nothing persisted to switch.', scenario };
+
+  let rows;
+  if (scope && Array.isArray(scope.ids) && scope.ids.length) {
+    rows = await db.select(config.tableNames.calendarEntries, { filters: { id: `in.(${scope.ids.join(',')})` }, limit: 1000 }).catch(() => []);
+  } else if (scope && scope.date && scope.market) {
+    rows = await db.select(config.tableNames.calendarEntries, { filters: { date: `eq.${scope.date}`, market: `eq.${scope.market}` }, limit: 100 }).catch(() => []);
+  } else {
+    rows = await db.select(config.tableNames.calendarEntries, { filters: { date: `gte.${todayIso()}`, status: 'neq.archived' }, order: 'date.asc', limit: 1000 }).catch(() => []);
+  }
+
+  const switched = [];
+  const skipped = [];
+  for (const row of rows || []) {
+    const payload = row.payload || {};
+    const prev = payload.active_scenario || 'medium';
+    if (prev === scenario) { skipped.push({ id: row.id, reason: 'already-active' }); continue; }
+    if (scenario !== 'medium' && !(payload.standby && payload.standby[scenario])) { skipped.push({ id: row.id, reason: 'no-standby-variant (older row — run a daily sync first)' }); continue; }
+
+    promoteScenario(payload, scenario);
+    const log = Array.isArray(row.change_log) ? row.change_log.slice(-30) : [];
+    log.push({ at: nowIso(), kind: 'scenario_switched', detail: `${prev} → ${scenario} by ${reviewer || 'operator'} (scope ${scope && scope !== 'all' ? JSON.stringify(scope) : 'all'})` });
+    const patch = { payload, change_log: log, updated_at: nowIso() };
+
+    // Switching invalidates any already-generated assets — require fresh sign-off.
+    const hadAssets = row.generated_campaign_id || row.status === 'approved' || row.status === 'final';
+    if (hadAssets) Object.assign(patch, { status: 'tentative', generated_campaign_id: null, approved_by: null, approved_at: null });
+    // The switch is itself a deliberate human action, so it may flip approved rows;
+    // restrict only to non-archived to avoid resurrecting past slots.
+    const upd = await db.update(config.tableNames.calendarEntries, { id: `eq.${row.id}`, status: 'neq.archived' }, patch);
+    if (upd.ok && (upd.rows || []).length) switched.push(row.id);
+    else skipped.push({ id: row.id, reason: upd.ok ? 'conditional-update-missed' : upd.warning });
+  }
+  return {
+    ok: true, scenario, scope: scope || 'all',
+    switched_count: switched.length, switched, skipped,
+    note: 'Slots with generated assets were reset to tentative — re-approve to regenerate under the new scenario. Revert with scenario="medium".',
+  };
+}
+
 // ── Landing-page resolver for /lp/:id ───────────────────────────────────────
 
 async function landingPageHtml(id, cfg = {}) {
@@ -655,4 +804,4 @@ async function landingPageHtml(id, cfg = {}) {
   return lp?.[0]?.payload?.html || null;
 }
 
-module.exports = { syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, landingPageHtml };
+module.exports = { syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, activateScenario, landingPageHtml, buildCampaign };
