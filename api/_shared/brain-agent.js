@@ -84,7 +84,7 @@ async function analyze({ message = '' }) {
       answer = `Top product by ${byRevenue ? 'revenue' : 'orders'}: ${lead.title} — ${fmtMoney(lead.revenue)} across ${lead.orders} orders. `
         + top.slice(1, 3).map((t) => `${t.title} (${fmtMoney(t.revenue)}, ${t.orders} orders)`).join('; ') + '.';
     } else {
-      answer = 'No product order data is available in the linked dataset yet.';
+      answer = ''; // no exact figure → fall through to the LLM, don't dead-end
     }
   } else if (wantsCohorts) {
     data.cohorts = cohorts.map((c) => ({ name: c.name, count: c.count, revenue: Number(c.revenue || 0), avgLtv: Number(c.avgLtv || 0) }));
@@ -93,7 +93,7 @@ async function analyze({ message = '' }) {
       answer = `Largest cohort by revenue: ${top.name} — ${top.count} profiles, ${fmtMoney(top.revenue)} total, ${fmtMoney(top.avgLtv)} average LTV. `
         + `Other cohorts: ${cohorts.slice(1, 4).map((c) => `${c.name} (${c.count} profiles, ${fmtMoney(c.avgLtv)} LTV)`).join('; ')}.`;
     } else {
-      answer = 'No cohort data is available in the linked dataset yet.';
+      answer = ''; // no exact figure → fall through to the LLM, don't dead-end
     }
   } else if (wantsChannels) {
     data.channelBenchmarks = Object.fromEntries(Object.entries(channels).map(([ch, m]) => [ch, {
@@ -104,26 +104,30 @@ async function analyze({ message = '' }) {
       answer = 'Channel benchmarks (own data): ' + entries.map(([ch, m]) =>
         `${ch} — ${m.count} campaigns, ${pct(m.avgClickRate)} click rate, ${pct(m.avgConversionRate)} conversion, ${Number(m.avgRoas || 0).toFixed(2)}x ROAS`).join('; ') + '.';
     } else {
-      answer = 'No channel performance data is available in the linked dataset yet.';
+      answer = ''; // no exact figure → fall through to the LLM, don't dead-end
     }
-  } else {
-    // Fallback: hand the LLM the precomputed numbers and let it pick + phrase
-    // the right ones. It must use ONLY these numbers (no fabrication).
-    data.cohorts = cohorts.slice(0, 6).map((c) => ({ name: c.name, count: c.count, revenue: Number(c.revenue || 0), avgLtv: Number(c.avgLtv || 0) }));
-    data.topProducts = productScores.slice(0, 8).map((s) => ({ title: s.product?.title, orders: s.orderCount, revenue: Number(s.revenue || 0) }));
+  }
+
+  // ── (b) LLM-first: ANY question without a deterministic exact answer above
+  // is answered by the LLM, grounded on whatever data exists. It must not
+  // fabricate figures, but it must NEVER dead-end with "no data" — it reasons
+  // from the catalog, brand knowledge and D2C lifecycle judgment instead.
+  if (!answer && callLLM) {
+    data.cohorts = data.cohorts || cohorts.slice(0, 6).map((c) => ({ name: c.name, count: c.count, revenue: Number(c.revenue || 0), avgLtv: Number(c.avgLtv || 0) }));
+    data.topProducts = data.topProducts || productScores.slice(0, 8).map((s) => ({ title: s.product?.title, orders: s.orderCount, revenue: Number(s.revenue || 0) }));
     data.channelBenchmarks = data.channelBenchmarks || Object.fromEntries(Object.entries(channels).map(([ch, m]) => [ch, { campaigns: m.count, avgClickRate: m.avgClickRate, avgConversionRate: m.avgConversionRate, avgRoas: m.avgRoas }]));
-    if (callLLM) {
-      const sys = `You are a VAHDAM analytics assistant. Answer the question using ONLY the JSON numbers below. NEVER invent or estimate figures not present in the data — if a figure is not present, say it is not available. Lead with the exact answer, be concise (2-4 sentences), state real numbers.\n\nDATA:\n${JSON.stringify(data)}`;
-      try {
-        const out = await callLLM({ systemPrompt: sys, userMessage: message, maxTokens: 280, temperature: 0.2, timeoutMs: 30000, stage: 'agent-analyze' });
-        answer = (typeof out === 'string' ? out : out.text || '').trim();
-      } catch (_) { answer = ''; }
-    }
-    if (!answer) {
-      answer = cohorts.length
-        ? `Top cohort: ${cohorts[0].name} (${cohorts[0].count} profiles, ${fmtMoney(cohorts[0].avgLtv)} LTV). Top product: ${productScores[0]?.product?.title || 'N/A'}.`
-        : 'No analytical data is available in the linked dataset yet.';
-    }
+    const hasData = (data.cohorts && data.cohorts.length) || (data.topProducts && data.topProducts.length) || (data.channelBenchmarks && Object.keys(data.channelBenchmarks).length);
+    const sys = `You are VAHDAM's growth-analyst agent. Use the JSON numbers below when they answer the question — state those exact figures and NEVER invent or estimate numbers that aren't present. If the specific metric isn't in the data, say plainly it isn't wired into the dataset yet, then STILL give a genuinely useful, reasoned answer from the product catalog, brand knowledge and sound D2C lifecycle judgment. Never reply with just "I don't know" or "no data". Be concise (2-5 sentences), spoken-friendly.${hasData ? '' : '\n(Note: the analytics dataset is currently empty — reason from catalog + lifecycle best practice and say so.)'}\n\nDATA:\n${JSON.stringify(data)}`;
+    try {
+      const out = await callLLM({ systemPrompt: sys, userMessage: message, maxTokens: 400, temperature: 0.4, timeoutMs: 30000, stage: 'agent-analyze' });
+      answer = (typeof out === 'string' ? out : out.text || '').trim();
+    } catch (_) { answer = ''; }
+  }
+  if (!answer) {
+    // True last resort: LLM unreachable (e.g. no API key). Stay helpful, not dead.
+    answer = cohorts.length
+      ? `Top cohort: ${cohorts[0].name} (${cohorts[0].count} profiles, ${fmtMoney(cohorts[0].avgLtv)} LTV). Top product: ${productScores[0]?.product?.title || 'N/A'}.`
+      : "I don't have live numbers wired in yet — tell me the goal and I'll reason it out from the catalog and lifecycle best practice.";
   }
 
   const brand = await getBrandKit().catch(() => ({}));
