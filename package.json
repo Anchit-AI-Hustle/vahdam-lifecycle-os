@@ -13,6 +13,7 @@
     "export:complete": "node scripts/export-complete.js",
     "deploy": "vercel --prod",
     "test": "playwright test",
+    "test:scenarios": "node scripts/_test-scenarios.js && node scripts/_test-scenarios-brain.js",
     "test:ui": "playwright test --ui",
     "test:install": "playwright install",
     "subscribe": "node workers/auto-subscribe.js",
