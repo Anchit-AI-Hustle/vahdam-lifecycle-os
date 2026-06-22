@@ -4966,8 +4966,8 @@ async function runGeneration(feedback){
   S.imagePrompts={}; // {US:{A:'...',B:'...'}, UK:{A:'...',B:'...'}, …}
   _mkts.forEach(function(m){
     S.imagePrompts[m]={
-      A:buildImagePrompt(activePrompt,m,_t,S.finalProds,'A'),
-      B:buildImagePrompt(activePrompt,m,_t,S.finalProds,'B')
+      A:buildImagePrompt(activePrompt,m,_t,S.finalProds,'A')+'\n\n★ NOW GENERATE THIS IMAGE — produce the finished, production-ready email hero visual exactly as specified above. ★',
+      B:buildImagePrompt(activePrompt,m,_t,S.finalProds,'B')+'\n\n★ NOW GENERATE THIS IMAGE — produce the finished, production-ready email hero visual exactly as specified above. ★'
     };
   });
   // When regenerating with feedback, force new seeds so all images visibly change

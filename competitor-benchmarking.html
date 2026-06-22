@@ -829,7 +829,9 @@
       const ttEnd = Date.now(), ttStart = ttEnd - 1000 * 60 * 60 * 24 * 365 * 2;
       const TT_SUPPORTED = ['GB','DE','FR','IT','ES','NL','IE','SE','DK','FI','NO','PL','AT','BE','PT','GR','CZ','RO','HU','CH'];
       const ttRegion = hasRegion && TT_SUPPORTED.includes(String(region).toUpperCase()) ? String(region).toUpperCase() : 'all';
-      $('btnTikTokAds').href = `https://library.tiktok.com/ads?region=${ttRegion}&start_time=${ttStart}&end_time=${ttEnd}&sort_type=last_shown_date,desc`;
+      // query_type=1 is REQUIRED — without it the TikTok library SPA loads an empty
+      // results page (same param the per-brand adSources links already include).
+      $('btnTikTokAds').href = `https://library.tiktok.com/ads?region=${ttRegion}&start_time=${ttStart}&end_time=${ttEnd}&sort_type=last_shown_date,desc&query_type=1`;
       $('btnTikTokAds').style.display = platform === 'tiktok' ? '' : 'none';
     }
 

@@ -98,7 +98,9 @@ module.exports = async function handler(req, res) {
   const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE
     : (mode === 'ad') ? AD_PROMPT_PREAMBLE
     : IMAGE_PROMPT_PREAMBLE;
-  const finalPrompt = (preamble + userPrompt).substring(0, 4000);
+  // Always close with an explicit create instruction so the model treats the
+  // text as a generation command, not a description. (Reserve room for it.)
+  const finalPrompt = (preamble + userPrompt).substring(0, 3950) + '\n\nNow generate this image exactly as specified above.';
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PROVIDER 1: Gemini Image Generation (primary)
