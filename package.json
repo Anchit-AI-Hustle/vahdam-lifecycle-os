@@ -23,7 +23,7 @@
     "seed:products": "node scripts/seed-smart-products.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.0"
+    "@playwright/test": "^1.61.1"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",
