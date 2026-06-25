@@ -601,6 +601,23 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
     if (dl) { try { downloadLanding(JSON.parse(decodeURIComponent(dl.dataset.lpDownload))); } catch (_) {} return; }
     const pr = e.target.closest('[data-lp-prompt]');
     if (pr) { try { copyText(buildLandingPrompt(JSON.parse(decodeURIComponent(pr.dataset.lpPrompt))), pr.closest('.lp-row') ? pr.closest('.lp-row').querySelector('.meta-row') : null); } catch (_) {} return; }
+    // Clone: duplicate a saved page into a fresh editable library entry (local-first).
+    const cl = e.target.closest('[data-lp-clone]');
+    if (cl) {
+      try {
+        const src = JSON.parse(decodeURIComponent(cl.dataset.lpClone));
+        const channel = cl.dataset.lpChannel;
+        const key = 'lp-' + channel;
+        const list = JSON.parse(localStorage.getItem(key) || '[]');
+        const copy = { ...src, channel, hero: (src.hero || 'Untitled') + ' (Copy)', created_at: new Date().toISOString() };
+        list.unshift(copy);
+        localStorage.setItem(key, JSON.stringify(list.slice(0, 50)));
+        loadLibrary(channel);
+        const meta = cl.closest('.lp-row') ? cl.closest('.lp-row').querySelector('.meta-row') : null;
+        if (meta) meta.textContent = '✓ Cloned — see the new "(Copy)" entry at the top of the library.';
+      } catch (_) {}
+      return;
+    }
   });
 
   // ─── Library renderer (merges Supabase cross-device rows + localStorage) ───
@@ -620,6 +637,7 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
           <div class="meta-row" style="margin-top:7px;display:flex;gap:8px">
             <button class="lp-btn" type="button" data-lp-preview="${enc}">Preview</button>
             <button class="lp-btn" type="button" data-lp-download="${enc}">Download HTML</button>
+            <button class="lp-btn" type="button" data-lp-clone="${enc}" data-lp-channel="${channel}">⧉ Clone</button>
             <button class="lp-btn" type="button" data-lp-prompt="${enc}">📋 Copy AI prompt</button>
           </div>
         </div>
