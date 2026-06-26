@@ -33,6 +33,8 @@ const jarvis = require('./_shared/jarvis.js');
 const agentic = require('./_shared/agentic-orchestrator.js');
 const calendarScenarios = require('./_shared/calendar-scenarios.js');
 const smartbrain = require('../lib/smart-brain/services.js');
+const brandLlm = require('./_shared/brand-llm.js');
+const klaviyo = require('./_shared/klaviyo-core.js');
 
 let callLLM = null;
 try { callLLM = require('./_shared/llm.js'); } catch (_) { callLLM = null; }
@@ -319,6 +321,25 @@ module.exports = async function handler(req, res) {
         return res.json({ ok: true, calendar: { days: cal.days, entries: (cal.entries || []).length }, default: sc.default, scenarios: sc.scenarios });
       }
 
+      // ── ChaiGPT — the brand LLM (tool-calling chat over the whole stack) ──
+      case 'brand-chat': {
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        if (!b.message) return res.status(400).json({ ok: false, error: 'message required' });
+        const out = await brandLlm.chat({ message: b.message, history: b.history || [], market: b.market || (b.context && b.context.market) || 'US' });
+        return res.json(out);
+      }
+      case 'brand-tools': {
+        return res.json({ ok: true, brand: { name: brandLlm.BRAND_LLM_NAME, tagline: brandLlm.BRAND_LLM_TAGLINE }, tools: brandLlm.toolManifest(), klaviyo_connected: klaviyo.isConnected() });
+      }
+
+      // ── KLAVIYO (lifecycle email/SMS — scaffolded until KLAVIYO_API_KEY set) ──
+      case 'klaviyo': {
+        const op = b.op || req.query.op || 'status';
+        const params = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const out = await klaviyo.dispatch(op, params);
+        return res.json(out);
+      }
+
       // ── TTS (ElevenLabs proxy — premium voice for the agents; clients fall
       //    back to browser speechSynthesis when not configured) ─────────────
       case 'tts': {
@@ -389,7 +410,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
       }
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'console-chat', 'cron'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'console-chat', 'cron'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);
