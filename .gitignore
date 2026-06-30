@@ -70,3 +70,6 @@ supabase/.temp/
 
 # Auto-subscribe worker screenshots (audit artifacts, not source)
 workers/.artifacts/
+
+# local dashboard build artifacts
+scratchpad/
