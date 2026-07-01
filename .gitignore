@@ -37,6 +37,11 @@ data/catalog/
 *.html.bak
 test-output/
 
+# Playwright run artifacts (traces, screenshots, HTML report — regenerable, never source)
+test-results/
+tests/report/
+playwright-report/
+
 # Compiled analysis exports (keep the README, ignore the workbooks)
 output/*.xlsx
 output/*.csv
@@ -51,8 +56,10 @@ marketing_mailers__html_architect/
 # Supabase CLI runtime files
 supabase/.temp/
 
-# Claude Code local config
-.claude/
+# Claude Code local config (keep shared project commands tracked)
+.claude/*
+!.claude/commands/
+.claude/settings.local.json
 
 # Credentials and PATs
 *.pat
@@ -63,3 +70,6 @@ supabase/.temp/
 
 # Auto-subscribe worker screenshots (audit artifacts, not source)
 workers/.artifacts/
+
+# local dashboard build artifacts
+scratchpad/

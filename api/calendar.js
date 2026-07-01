@@ -102,6 +102,15 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json(result);
     }
 
+    if (smartAction === 'activate-scenario') {
+      // Promote a pre-staged standby scenario (best|conservative|emergency|instant)
+      // into the active rolling plan, or revert with scenario='medium'.
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+      if (!body.scenario) return res.status(400).json({ ok: false, error: 'scenario is required (best|medium|conservative|emergency|instant)' });
+      const result = await plan.activateScenario({ scenario: body.scenario, reviewer: body.reviewer || null, scope: body.scope || 'all', config: body.config || {} });
+      return res.status(200).json(result);
+    }
+
     if (smartAction === 'run-daily' || smartAction === 'daily') {
       if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
       const result = await runDailySmartBrain({ config: body.config || {}, startDate: body.start_date, days: body.days, persist: body.persist === true });
@@ -145,9 +154,16 @@ module.exports = async function handler(req, res) {
   if (action.startsWith('smart-brain-')) return smartBrain(req, res, action.replace('smart-brain-', ''));
   if (action === 'lp') {
     try {
-      const html = await plan.landingPageHtml(String(req.query?.id || ''));
+      const id = String(req.query?.id || '');
+      const html = await plan.landingPageHtml(id);
       if (!html) { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.status(404).send('<!doctype html><title>Not found</title><p style="font-family:Arial;padding:40px">Landing page not found. It may not have been approved/generated yet.</p>'); }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      // ?download=1 → export the self-contained, deploy-ready HTML file (drop onto try.vahdam.*).
+      if (req.query?.download) {
+        res.setHeader('Content-Disposition', `attachment; filename="vahdam-lp-${(id || 'page').replace(/[^a-z0-9_-]/gi, '')}.html"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).send(html);
+      }
       res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=600');
       return res.status(200).send(html);
     } catch (err) {

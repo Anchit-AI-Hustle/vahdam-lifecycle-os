@@ -106,6 +106,14 @@ HTML STRUCTURE RULES
 - Images: <img src="PLACEHOLDER" width="600" height="auto" style="display:block;border:0;max-width:100%">
 - Full email: <!DOCTYPE html> … </html>
 
+━━ BRAND ASSETS — EXACT, NEVER SUBSTITUTE ━━
+- Fonts: in the <head> <style>, before app rules, include verbatim:
+  @font-face{font-family:"LAO MN";src:url("https://cdn.nector.io/nector-static/fonts/LaoMN-01.ttf") format("truetype");}
+  @font-face{font-family:"Proxima Nova";src:url("https://cdn-widgetsrepository.yotpo.com/brandkit/custom-fonts/nULz3c4cbjU7NEqLKreeoyIyIP4L5pnrZ53k1952/proximanova-regular/proximanova-regular.woff2") format("woff2");}
+  Headings use 'LAO MN', Georgia, 'Times New Roman', serif. Body/UI uses 'Proxima Nova', 'Helvetica Neue', Arial, sans-serif.
+- Header logo: use this image ONLY (no text wordmark) — <img src="https://www.vahdam.co.uk/cdn/shop/files/logo-website_3.png?v=1756808809&width=310" alt="VAHDAM India" height="30" style="display:block;border:0">
+- Footer: "Privacy Policy" and "Terms of Service" are plain labels with href="#", no target/onclick.
+
 ━━ OUTLOOK (MSO) COMPATIBILITY — MANDATORY ━━
 Outlook ignores CSS background-color on <td>. You MUST add bgcolor="" attribute on EVERY colored <td>.
 Failure to do this = dark sections appear white in Outlook (breaks Variant B entirely).
@@ -725,7 +733,7 @@ ${sectionSpec || `(no sections provided — generate ${variant === 'B' ? '7' : '
 ━━ BUILD THE HTML NOW ━━
 EMAIL STRUCTURE ORDER — follow this exactly:
 1. <!DOCTYPE html> + <html lang="en"> + <head> with <meta charset="UTF-8">, <meta name="viewport">, <title>, responsive <style> block (includes Outlook reset + @media rules)
-2. <body style="margin:0;padding:0;background:#f5f0e8"> with outer 600px centering wrapper table
+2. <body style="margin:0;padding:0;background:#FBF5EA"> with outer 600px centering wrapper table
 3. PREHEADER — immediately after <body>: hidden div with preheader text (see template above)
 4. Announcement bar (amber #AB8743 background, offer/shipping line — bgcolor="#AB8743" on td)
 5. VAHDAM Header (dark green #004A2B — bgcolor on all tds, 3-column: EST date · VAHDAM® · SHOP ALL)
@@ -775,6 +783,16 @@ Output starts <!DOCTYPE html>, ends </html>. Nothing before or after.`;
     html = html.split('{{STORE_BASE}}').join(_resolvedBase);
     // 2) Defensive: if the LLM hard-coded a bad domain, rewrite to the market base
     html = html.replace(/https?:\/\/(?:www\.)?vahdam\.com(?!\/cdn)/g, _resolvedBase);
+
+    // ── BRAND FONTS — deterministically guarantee the exact VAHDAM @font-face
+    //    are present in <head>, regardless of LLM adherence (Brand Asset Engine).
+    const _BRAND_FONTFACE = '<style>'
+      + '@font-face{font-family:"LAO MN";src:url("https://cdn.nector.io/nector-static/fonts/LaoMN-01.ttf") format("truetype");}'
+      + '@font-face{font-family:"Proxima Nova";src:url("https://cdn-widgetsrepository.yotpo.com/brandkit/custom-fonts/nULz3c4cbjU7NEqLKreeoyIyIP4L5pnrZ53k1952/proximanova-regular/proximanova-regular.woff2") format("woff2");}'
+      + '</style>';
+    if (!/LaoMN-01\.ttf/.test(html) && /<head[^>]*>/i.test(html)) {
+      html = html.replace(/<head[^>]*>/i, (m) => m + _BRAND_FONTFACE);
+    }
 
     // Validation: must be actual HTML, not a refusal or truncated output
     if (!html || html.length < 600) {
@@ -871,10 +889,12 @@ Output starts <!DOCTYPE html>, ends </html>. Nothing before or after.`;
 <title>${heroHeadline}</title>
 <!--[if mso]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
 <style>
+@font-face{font-family:"LAO MN";src:url("https://cdn.nector.io/nector-static/fonts/LaoMN-01.ttf") format("truetype");}
+@font-face{font-family:"Proxima Nova";src:url("https://cdn-widgetsrepository.yotpo.com/brandkit/custom-fonts/nULz3c4cbjU7NEqLKreeoyIyIP4L5pnrZ53k1952/proximanova-regular/proximanova-regular.woff2") format("woff2");}
 body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
 table,td{mso-table-lspace:0;mso-table-rspace:0}
 img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;display:block}
-body{margin:0;padding:0;width:100%!important;-webkit-font-smoothing:antialiased}
+body{margin:0;padding:0;width:100%!important;-webkit-font-smoothing:antialiased;font-family:"Proxima Nova","Helvetica Neue",Arial,sans-serif}
 .email-container{max-width:600px!important}
 @media screen and (max-width:620px){
   .email-container{width:100%!important;max-width:100%!important}
@@ -886,12 +906,12 @@ body{margin:0;padding:0;width:100%!important;-webkit-font-smoothing:antialiased}
 }
 </style>
 </head>
-<body style="margin:0;padding:0;background:#f5f0e8" bgcolor="#f5f0e8">
+<body style="margin:0;padding:0;background:#FBF5EA" bgcolor="#FBF5EA">
 <!-- PREHEADER -->
-<div style="display:none;font-size:1px;color:#f5f0e8;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${preheader}</div>
+<div style="display:none;font-size:1px;color:#FBF5EA;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${preheader}</div>
 
 <!-- OUTER WRAPPER -->
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f5f0e8" bgcolor="#f5f0e8"><tr><td align="center" style="padding:0">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FBF5EA" bgcolor="#FBF5EA"><tr><td align="center" style="padding:0">
 
 <!-- ANNOUNCEMENT BAR -->
 <table class="email-container" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;margin:0 auto">
@@ -905,7 +925,7 @@ body{margin:0;padding:0;width:100%!important;-webkit-font-smoothing:antialiased}
 <tr><td style="background:#004A2B;padding:16px 24px;text-align:center;font-family:Georgia,serif;font-size:12px;color:#a89f91;letter-spacing:2px" bgcolor="#004A2B">
 <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td style="text-align:left;font-family:Arial,sans-serif;font-size:11px;color:#a89f91;letter-spacing:1px" class="mobile-hide">EST. 2015</td>
-<td style="text-align:center;font-family:Georgia,serif;font-size:22px;color:#FBF5EA;letter-spacing:3px;font-weight:bold">VAHDAM&reg;</td>
+<td style="text-align:center"><img src="https://www.vahdam.co.uk/cdn/shop/files/logo-website_3.png?v=1756808809&width=310" alt="VAHDAM India" height="30" style="display:inline-block;border:0;height:30px;width:auto"></td>
 <td style="text-align:right;font-family:Arial,sans-serif;font-size:11px;color:${accentColor};letter-spacing:1px" class="mobile-hide"><a href="${heuristicShopUrl}" style="color:${accentColor};text-decoration:none">SHOP ALL &rarr;</a></td>
 </tr></table>
 </td></tr>

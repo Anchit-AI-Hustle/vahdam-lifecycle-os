@@ -54,6 +54,7 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}}
 </style>
+<script src="/auth.js?v=20260617" defer></script>
 </head>
 <body>
 <main class="wrap">
@@ -89,6 +90,22 @@
     <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
     <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
 
+    <div class="card wide" id="dualmode">
+      <h2>Dual-Mode Generation</h2>
+      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation), or pull the <b>5-scenario calendar</b>. Pick a model tier.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <span class="label" style="margin-right:4px">Tier</span>
+        <button id="tierBudget" class="btn sm" onclick="setTier('budget')">💸 Budget</button>
+        <button id="tierMax" class="btn sm secondary" onclick="setTier('maxpower')">⚡ Max Power</button>
+        <select id="amarket" class="btn sm secondary" style="padding:6px">
+          <option value="US">US</option><option value="UK">UK</option><option value="GLOBAL">Global</option><option value="IN">IN</option><option value="EU">EU</option><option value="AU">AU</option>
+        </select>
+        <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
+        <button id="runScenarios" class="btn secondary" onclick="loadScenarios()">🗓 5-Scenario Calendar</button>
+      </div>
+      <div id="agenticOut" class="feed"><p style="color:#789">Pick a tier, then run the agentic flow or load the 5-scenario calendar.</p></div>
+    </div>
+
     <div class="card wide">
       <h2 id="detailTitle">Details</h2>
       <div id="preview"></div>
@@ -103,6 +120,45 @@ let PLAN = [];
 
 function reviewerEmail(){ try { return window.LifecycleAuth?.session?.user?.email || null; } catch(_) { return null; } }
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ── Dual-Mode Generation (agentic flow + 5-scenario calendar) ─────────────
+let TIER = 'budget';
+function setTier(t){ TIER = t; $('tierBudget').className = 'btn sm' + (t==='budget'?'':' secondary'); $('tierMax').className = 'btn sm' + (t==='maxpower'?'':' secondary'); }
+function scenarioCard(s){
+  const def = s.key==='medium';
+  return `<div class="card" style="flex:1;min-width:172px;${def?'border:2px solid #004A2B':''}">
+    <div class="label">${esc(s.label||s.key)}${def?' · DEFAULT':''}</div>
+    <div style="font-size:13px;color:#456;margin:4px 0">${esc(s.assumptions||'')}</div>
+    <div style="font-size:12px;color:#789">cadence ${esc(s.cadencePerWeek)}/wk · spend ${esc(s.spend||'—')}<br>rev index ${esc((s.projected&&s.projected.revenueIndex)||'—')}</div>
+  </div>`;
+}
+async function runAgentic(){
+  const out = $('agenticOut'), market = $('amarket').value || 'US';
+  out.innerHTML = `<p>🤖 Running agentic flow — tier <b>${TIER}</b>, ${esc(market)} — 8 stages, please wait…</p>`;
+  try{
+    const r = await fetch('/api/brain?action=agentic-run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ market, tier: TIER, withCreatives: TIER==='maxpower' })});
+    const d = await r.json();
+    if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
+    const stages = (d.stages||[]).map(s => `<div style="padding:6px 0;border-bottom:1px solid #eee5d2"><b>${s.ok?'✓':'✗'} ${esc(s.stage)}</b> — ${esc(s.summary||'')}</div>`).join('');
+    const scs = (d.scenarios&&d.scenarios.scenarios||[]).map(scenarioCard).join('');
+    const ideas = (d.ideation&&d.ideation.ideas||[]).map(i=>`<li><b>${esc(i.title)}</b> — ${esc(i.action||i.why||'')} <span style="color:#789">(${esc(i.impact||'')}/${esc(i.effort||'')})</span></li>`).join('');
+    out.innerHTML = `<div class="label">Flow · ${esc(d.mode)} · tier ${esc(d.tier)}</div>
+      <div style="margin:8px 0">${stages}</div>
+      <h2 style="font-size:18px">Calendar scenarios</h2><div style="display:flex;gap:10px;flex-wrap:wrap">${scs||'—'}</div>
+      <h2 style="font-size:18px;margin-top:14px">Ideation — what to do next</h2><ul>${ideas||'<li>—</li>'}</ul>`;
+  }catch(e){ out.innerHTML = `<p style="color:#b00">Error: ${esc(e.message||e)}</p>`; }
+}
+async function loadScenarios(){
+  const out = $('agenticOut'), market = $('amarket').value || 'US';
+  out.innerHTML = `<p>🗓 Building 5-scenario calendar — tier <b>${TIER}</b>, ${esc(market)}…</p>`;
+  try{
+    const r = await fetch(`/api/brain?action=calendar-scenarios&market=${encodeURIComponent(market)}&tier=${TIER}`);
+    const d = await r.json();
+    if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
+    const scs = (d.scenarios||[]).map(scenarioCard).join('');
+    out.innerHTML = `<div class="label">${d.calendar?d.calendar.entries:0} base entries · default ${esc(d.default)}</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${scs}</div>`;
+  }catch(e){ out.innerHTML = `<p style="color:#b00">Error: ${esc(e.message||e)}</p>`; }
+}
 
 function renderPlan(){
   if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="8" style="color:#789">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }

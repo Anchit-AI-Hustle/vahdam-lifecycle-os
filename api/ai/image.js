@@ -10,7 +10,8 @@
 //
 // POST body:
 //   { prompt: string, size?: '1024x1024'|'1536x1024'|'1024x1536',
-//     quality?: 'low'|'medium'|'high'|'auto', mode?: 'design'|'' }
+//     quality?: 'low'|'medium'|'high'|'auto', mode?: 'design'|'',
+//     tier?: 'budget'|'maxpower' }   // maxpower brings Gemini native/Imagen into the cascade first
 //
 // Env vars:
 //   GEMINI_API_KEY         — Google AI / Gemini key (primary)
@@ -19,10 +20,12 @@
 //   OPENAI_API_KEY_3       — third OpenAI key (optional)
 // ════════════════════════════════════════════════════════════════════════════
 
+const { brandPlaceholderDataUri } = require('../_shared/brand-placeholder.js');
+
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const OPENAI_BASE = 'https://api.openai.com/v1';
 
-const IMAGE_PROMPT_PREAMBLE = `Photoreal product lifestyle photograph for VAHDAM India premium tea brand. Pure photography — NO text, NO logos, NO UI elements, NO email layout, NO mockup, NO watermarks, NO design frames. VAHDAM packaging tin where present: deep forest-green, warm cream, terracotta, or pink/magenta depending on SKU — gold botanical label. Gallery-print resolution, zero AI smear artifacts.
+const IMAGE_PROMPT_PREAMBLE = `Photoreal product lifestyle photograph for VAHDAM India premium tea brand. Pure photography — NO text, NO logos, NO UI elements, NO email layout, NO mockup, NO watermarks, NO design frames. VAHDAM packaging tin where present: deep forest-green, warm cream, terracotta, or pink/magenta depending on SKU, with a gold botanical illustration only — the label carries NO lettering, NO brand name, NO readable words or numbers (never render garbled or fake text on the packaging; keep label typography out of frame, softly out of focus, or angled away). Gallery-print resolution, zero AI smear artifacts.
 
 Scene:
 `;
@@ -32,11 +35,45 @@ const DESIGN_PROMPT_PREAMBLE = `High-fidelity flat graphic design mockup of a co
 Design:
 `;
 
-// Map our standard sizes to Gemini aspect ratios
+// Paid-social ad creative: a FINISHED ad, with the headline + offer text BAKED
+// INTO the image (server-generated Smart Brain creatives have no client-side
+// canvas step, so the text must be rendered here). Used when mode === 'ad'.
+const AD_PROMPT_PREAMBLE = `Scroll-stopping paid social ad creative for VAHDAM India premium tea brand — a photoreal lifestyle scene WITH a clean marketing text overlay rendered as part of the image (a finished ad, NOT a bare photo). Render the supplied headline and offer line as crisp, correctly-spelled, perfectly-legible on-brand typography in a clear safe-zone band: elegant serif headline, clean sans-serif offer, on the VAHDAM palette — deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. The emotional end-state (calm, steady energy, "feeling like myself again") leads; never an ingredient list. NO garbled or fake letterforms, NO logos, NO watermarks, NO inbox/UI chrome; product packaging shows a botanical illustration only with NO readable lettering. Gallery-print resolution.
+
+Ad creative:
+`;
+
+// Universal quality bar appended to every image prompt (all modes). Excludes
+// any "no text" directive on purpose — the per-mode preambles above own the
+// text policy (ads bake in an overlay; photos/designs handle it themselves).
+const QUALITY_SUFFIX = `
+
+QUALITY BAR: ultra-high fidelity, 8K, razor-sharp focus, true-to-life colour, professional colour grading, natural soft lighting, fine material texture, correct anatomy and hands, balanced composition. Avoid: blur, noise, colour banding, JPEG/compression artifacts, plastic skin, warped or melted shapes, extra or missing fingers, duplicated objects, low resolution, oversaturation, HDR halos, uncanny faces.`;
+
+// Map our standard sizes to Gemini aspect ratios.
+// Includes the ad-creative sizes (Google 1.91:1 + 1:1, Meta/IG/TikTok 1:1 + 9:16).
 const GEMINI_ASPECT_MAP = {
   '1024x1024': '1:1',
   '1024x1536': '3:4',    // portrait (closest to 2:3)
-  '1536x1024': '4:3'     // landscape
+  '1536x1024': '4:3',    // landscape
+  '1080x1080': '1:1',    // Meta/IG feed
+  '1080x1920': '9:16',   // story / reel / TikTok vertical
+  '1200x1200': '1:1',    // Google square
+  '1200x628': '16:9'     // Google landscape (closest aspect)
+};
+
+// OpenAI gpt-image only accepts a fixed set of sizes — map every requested
+// (incl. ad-creative) size to the nearest supported one. The text overlay is
+// composited on the client canvas afterwards, so exact pixels here are not
+// critical; aspect orientation is what matters.
+const OPENAI_SIZE_MAP = {
+  '1024x1024': '1024x1024',
+  '1024x1536': '1024x1536',
+  '1536x1024': '1536x1024',
+  '1080x1080': '1024x1024',  // square
+  '1200x1200': '1024x1024',  // square
+  '1080x1920': '1024x1536',  // vertical
+  '1200x628': '1536x1024'    // landscape
 };
 
 module.exports = async function handler(req, res) {
@@ -55,14 +92,21 @@ module.exports = async function handler(req, res) {
   if (!userPrompt) return res.status(400).json({ error: 'missing_prompt' });
   const size = body.size || '1024x1536';
   const quality = body.quality || 'high';
-  const validSizes = ['1024x1024', '1536x1024', '1024x1536'];
+  const validSizes = ['1024x1024', '1536x1024', '1024x1536', '1080x1080', '1080x1920', '1200x1200', '1200x628'];
   const validQualities = ['low', 'medium', 'high', 'auto'];
   if (validSizes.indexOf(size) < 0) return res.status(400).json({ error: 'invalid_size', allowed: validSizes });
   if (validQualities.indexOf(quality) < 0) return res.status(400).json({ error: 'invalid_quality', allowed: validQualities });
 
   const mode = (body.mode || '').toString().trim();
-  const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE : IMAGE_PROMPT_PREAMBLE;
-  const finalPrompt = (preamble + userPrompt).substring(0, 4000);
+  // Tier dial: 'maxpower' brings the highest-quality image provider (Gemini native → Imagen)
+  // into the cascade first; 'budget' (default) keeps current behavior (Gemini OFF unless IMAGE_ENABLE_GEMINI=1).
+  const _tier = (body.tier || process.env.APP_AI_TIER || 'budget').toString().toLowerCase().trim();
+  const isMaxPower = _tier === 'maxpower' || _tier === 'max-power' || _tier === 'max' || _tier === 'output' || _tier === 'quality';
+  const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE
+    : (mode === 'ad') ? AD_PROMPT_PREAMBLE
+    : IMAGE_PROMPT_PREAMBLE;
+  // Reserve room so the quality bar always survives the 4000-char cap.
+  const finalPrompt = (preamble + userPrompt).substring(0, 4000 - QUALITY_SUFFIX.length) + QUALITY_SUFFIX;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PROVIDER 1: Gemini Image Generation (primary)
@@ -73,8 +117,8 @@ module.exports = async function handler(req, res) {
   const geminiKey = process.env.GEMINI_API_KEY;
   // Gemini image models (gemini-2.5-flash-image, Imagen) require a billing-enabled
   // key. They're OFF by default so OpenAI gpt-image is the effective primary;
-  // set IMAGE_ENABLE_GEMINI=1 to bring Gemini back into the cascade (tried first).
-  if (geminiKey && process.env.IMAGE_ENABLE_GEMINI === '1') {
+  // set IMAGE_ENABLE_GEMINI=1 — OR pass tier:'maxpower' — to bring Gemini into the cascade (tried first).
+  if (geminiKey && (isMaxPower || process.env.IMAGE_ENABLE_GEMINI === '1')) {
 
     // ── A) Native Gemini image generation via generateContent ──
     const nativeModels = [
@@ -232,7 +276,7 @@ module.exports = async function handler(req, res) {
             method: 'POST',
             cache: 'no-store',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-            body: JSON.stringify({ model: imageModel, prompt: finalPrompt, n: 1, size, quality, output_format: 'png' }),
+            body: JSON.stringify({ model: imageModel, prompt: finalPrompt, n: 1, size: (OPENAI_SIZE_MAP[size] || '1024x1024'), quality, output_format: 'png' }),
             signal: controller.signal
           });
           clearTimeout(timeout);
@@ -309,7 +353,11 @@ module.exports = async function handler(req, res) {
   const sizeMap = {
     '1024x1024': { w: 1024, h: 1024 },
     '1024x1536': { w: 1024, h: 1536 },
-    '1536x1024': { w: 1536, h: 1024 }
+    '1536x1024': { w: 1536, h: 1024 },
+    '1080x1080': { w: 1080, h: 1080 },
+    '1080x1920': { w: 1080, h: 1920 },
+    '1200x1200': { w: 1200, h: 1200 },
+    '1200x628':  { w: 1200, h: 628 }
   };
   const dim = sizeMap[size] || sizeMap['1024x1536'];
   const seed = Math.floor(Math.random() * 1000000);
@@ -368,11 +416,17 @@ module.exports = async function handler(req, res) {
   // longer works as a free fallback — a working OpenAI (gpt-image-1) key with
   // a verified org + credits is the supported path.
   const noKeys = !(openaiKeys && openaiKeys.length);
-  return res.status(502).json({
-    error: 'all_providers_failed', provider: 'openai',
+  // Every provider failed. Do NOT 502 — a non-200 leaves the caller with a
+  // broken/empty <img>. Instead return 200 with an on-brand placeholder data
+  // URI so the mailer / ad / landing page always renders an intentional brand
+  // panel (never a broken tile). `placeholder:true` lets callers flag it.
+  console.warn('[image] All providers failed — returning on-brand placeholder');
+  return res.status(200).json({
+    ok: true, provider: 'placeholder', placeholder: true, size, quality,
+    image_data_url: brandPlaceholderDataUri(size),
     quota_warning: hadKeys,
     detail: noKeys
-      ? 'No OpenAI image key configured. Add OPENAI_API_KEY (verified org + image credits) in Vercel.'
-      : 'OpenAI gpt-image-1 failed — usually means the org is not verified for image generation or has no image credits. Verify the org at platform.openai.com → Settings → Organization, then add credits. (Pollinations free fallback is now paywalled.)'
+      ? 'No OpenAI image key configured. Add OPENAI_API_KEY (verified org + image credits) in Vercel. Showing brand placeholder.'
+      : 'OpenAI gpt-image-1 failed — usually the org is not verified for image generation or has no image credits. Verify at platform.openai.com → Settings → Organization, then add credits. Showing brand placeholder. (Pollinations free fallback is now paywalled.)'
   });
 };

@@ -525,6 +525,44 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
   }
 
+  // ─── Portable AI prompt — copy-paste into ChatGPT / Gemini / Claude ───
+  // Every generated page also ships a complete, self-contained external prompt
+  // so the user can reproduce a perfect page in any chatbot. (The app itself
+  // builds the page on free tiers; this is the "bring your own model" output.)
+  function buildLandingPrompt(f) {
+    f = f || {};
+    var region = f.region || f.market || 'US';
+    var channel = f.channel || 'landing';
+    return [
+      'You are a senior D2C conversion copywriter and front-end developer for VAHDAM India — premium Indian heritage tea (B-Corp, single-estate, garden-fresh within 72 hours of harvest).',
+      'Build a COMPLETE, production-ready, single-file responsive HTML landing page that converts ' + channel + ' traffic in the ' + region + ' market.',
+      '',
+      'BRAND RULES (strict):',
+      '- Colour palette ONLY: forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA.',
+      '- Headings in a Lao MN / serif stack; body in a Proxima Nova / sans-serif stack.',
+      '- Voice: warm, sensory, story-driven, premium. Prefer words like ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
+      "- NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
+      '- Currency in all copy must match the ' + region + ' market.',
+      '',
+      'PAGE BRIEF:',
+      '- Hero headline: ' + (f.hero || '(write a strong, specific one)'),
+      '- Sub-headline: ' + (f.sub || '(write a supporting line)'),
+      '- Offer: ' + (f.offer || '(no explicit discount — sell on quality, provenance and ritual)'),
+      f.notes ? '- Extra notes / story: ' + f.notes : '',
+      '- Channel intent: ' + channel + ' — mobile-first, one clear primary CTA, match how this channel\'s visitors arrive.',
+      '',
+      'REQUIRED STRUCTURE: announcement bar; hero (headline + sub + CTA + product image placeholder); trust strip; benefits; product/offer block with price; social proof / testimonials; FAQ; final CTA; footer; plus a sticky mobile CTA.',
+      'OUTPUT: return ONLY the full HTML document (from <!doctype html> to </html>) with inline CSS and no external dependencies. No commentary before or after.'
+    ].filter(Boolean).join('\n');
+  }
+  function copyText(txt, statusEl) {
+    function done(ok) { if (statusEl) statusEl.textContent = ok ? '✓ AI prompt copied — paste it into ChatGPT, Gemini or Claude.' : 'Could not copy automatically — see console.'; if (!ok) console.log('[landing] AI prompt:\n' + txt); }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(function () { done(true); }, function () { done(false); }); return; }
+    } catch (_) {}
+    try { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(true); } catch (_) { done(false); }
+  }
+
   // ─── Generate handler — builds a real landing page, previews + saves it ───
   $$('[data-create]').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -545,7 +583,9 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
         persistLanding(channel, form);
         openLandingPreview(form);
         loadLibrary(channel);
-        status.textContent = 'Landing page generated — preview opened in a new tab. It’s saved to your library below.';
+        var encForm = encodeURIComponent(JSON.stringify(form));
+        status.innerHTML = 'Landing page generated — preview opened in a new tab, saved to your library below. ' +
+          '<button type="button" class="lp-btn" data-lp-prompt="' + encForm + '">📋 Copy AI prompt</button> to recreate it in ChatGPT / Gemini / Claude.';
       } catch (err) {
         status.textContent = 'Error: ' + (err && err.message || err);
       }
@@ -559,6 +599,25 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
     if (pv) { try { openLandingPreview(JSON.parse(decodeURIComponent(pv.dataset.lpPreview))); } catch (_) {} return; }
     const dl = e.target.closest('[data-lp-download]');
     if (dl) { try { downloadLanding(JSON.parse(decodeURIComponent(dl.dataset.lpDownload))); } catch (_) {} return; }
+    const pr = e.target.closest('[data-lp-prompt]');
+    if (pr) { try { copyText(buildLandingPrompt(JSON.parse(decodeURIComponent(pr.dataset.lpPrompt))), pr.closest('.lp-row') ? pr.closest('.lp-row').querySelector('.meta-row') : null); } catch (_) {} return; }
+    // Clone: duplicate a saved page into a fresh editable library entry (local-first).
+    const cl = e.target.closest('[data-lp-clone]');
+    if (cl) {
+      try {
+        const src = JSON.parse(decodeURIComponent(cl.dataset.lpClone));
+        const channel = cl.dataset.lpChannel;
+        const key = 'lp-' + channel;
+        const list = JSON.parse(localStorage.getItem(key) || '[]');
+        const copy = { ...src, channel, hero: (src.hero || 'Untitled') + ' (Copy)', created_at: new Date().toISOString() };
+        list.unshift(copy);
+        localStorage.setItem(key, JSON.stringify(list.slice(0, 50)));
+        loadLibrary(channel);
+        const meta = cl.closest('.lp-row') ? cl.closest('.lp-row').querySelector('.meta-row') : null;
+        if (meta) meta.textContent = '✓ Cloned — see the new "(Copy)" entry at the top of the library.';
+      } catch (_) {}
+      return;
+    }
   });
 
   // ─── Library renderer (merges Supabase cross-device rows + localStorage) ───
@@ -578,6 +637,8 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
           <div class="meta-row" style="margin-top:7px;display:flex;gap:8px">
             <button class="lp-btn" type="button" data-lp-preview="${enc}">Preview</button>
             <button class="lp-btn" type="button" data-lp-download="${enc}">Download HTML</button>
+            <button class="lp-btn" type="button" data-lp-clone="${enc}" data-lp-channel="${channel}">⧉ Clone</button>
+            <button class="lp-btn" type="button" data-lp-prompt="${enc}">📋 Copy AI prompt</button>
           </div>
         </div>
       </div>`; }).join('');

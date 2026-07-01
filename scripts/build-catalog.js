@@ -260,4 +260,11 @@ function main() {
   console.log(`\n✓ Build complete: ${totalProducts} total products across ${REGIONS.length} regions`);
 }
 
-main();
+// Export shared helpers so the live storefront scraper reuses identical
+// categorization (scripts/scrape-catalog.js). Only run the CSV build when this
+// file is executed directly, not when required.
+module.exports = { deriveTags };
+
+if (require.main === module) {
+  main();
+}

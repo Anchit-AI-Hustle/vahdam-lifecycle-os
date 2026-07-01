@@ -133,6 +133,7 @@
   // CREATE = where VAHDAM produces its own assets (Mailers studio, Ads, Landing).
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
+    { id: 'chaigpt',    label: 'ChaiGPT',       href: '/chaigpt',        icon: 'vahdam',   match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
     { id: 'brain',      label: 'Smart Brain',   href: '/brain',          icon: 'studio',   match: ['/brain', '/smart-brain', '/smart-brain.html'] },
     { id: 'agent',      label: 'Vahdam Agent',  href: '/agent',          icon: 'vahdam',   match: ['/agent', '/agent.html'] },
     { id: 'analysis',   label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis', match: ['/dashboard.html', '/analytics'] },
@@ -154,7 +155,6 @@
       { id: 'comp-tiktok',  label: 'TikTok Ads',     href: '/competitor-benchmarking.html#tiktok',   icon: 'tiktok' },
       { id: 'comp-landing', label: 'Landing Pages',  href: '/competitor-benchmarking.html#landing',  icon: 'landing' },
       { id: 'comp-insights',label: 'Insights',       href: '/competitor-benchmarking.html#insights', icon: 'insights' },
-      { id: 'comp-intel',   label: 'Intel · Offers', href: '/intel', icon: 'insights', match: ['/intel', '/competitive-intelligence', '/competitive-intelligence.html'] },
     ]},
 
     { section: 'Create' },
@@ -171,12 +171,19 @@
       { id: 'ads-tiktok',  label: 'TikTok Ads', href: '/ad-campaigns.html#tiktok',   icon: 'tiktok' },
     ]},
     { group: 'Landing Pages', icon: 'landing', children: [
+      { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
+      { id: 'lp-agent',   label: 'Agent Concept LP',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
       { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages.html#mailers',  icon: 'mailer' },
       { id: 'lp-meta',    label: 'For Meta Ads',   href: '/landing-pages.html#meta',     icon: 'meta' },
       { id: 'lp-google',  label: 'For Google Ads', href: '/landing-pages.html#google',   icon: 'google' },
       { id: 'lp-tiktok',  label: 'For TikTok Ads', href: '/landing-pages.html#tiktok',   icon: 'tiktok' },
     ]},
   ];
+
+  // Expose the nav model so other pages (e.g. the homepage widget grid) can
+  // mirror EVERY LHS item without drifting out of sync. Set synchronously on
+  // script parse (auth.js is deferred → runs before DOMContentLoaded).
+  try { window.__LC_NAV = NAV; } catch (_) {}
 
   // Flatten to a list of leaf items for matching / open-page detection.
   function leafItems() {
@@ -285,13 +292,20 @@
         @media (min-width: 961px) { body { margin-left: var(--lsb-w) !important; } }
         #lifecycle-nav { font-family: 'Inter', system-ui, sans-serif; }
 
-        /* Mobile top bar — sits in flow (reserves height) so pages flow below. */
+        /* Mobile top bar — FIXED so it stays pinned while the page scrolls.
+           (A sticky element can't hold here: its wrapper #lifecycle-nav is only
+           bar-height tall because the drawer + backdrop are position:fixed.)
+           An in-flow spacer of the same height reserves layout space below. */
         #lifecycle-nav .lnav-mbar {
           display: none; align-items: center; gap: 12px;
-          position: sticky; top: 0; z-index: 90; height: 50px; padding: 0 14px;
+          position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+          height: calc(50px + env(safe-area-inset-top, 0px));
+          padding: env(safe-area-inset-top, 0px) 14px 0;
           background: rgba(7,14,11,0.97); backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
           border-bottom: 1px solid rgba(171,135,67,0.18);
         }
+        #lifecycle-nav .lnav-mbar-spacer { display: none; }
         #lifecycle-nav .lnav-burger {
           background: transparent; border: 1px solid rgba(171,135,67,0.25);
           color: #e8ede9; border-radius: 8px; width: 34px; height: 34px;
@@ -418,14 +432,23 @@
 
         @media (max-width: 960px) {
           #lifecycle-nav .lnav-mbar { display: flex; }
-          #lifecycle-nav .lnav-side { transform: translateX(-100%); transition: transform .22s ease; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+          #lifecycle-nav .lnav-mbar-spacer { display: block; height: var(--ltb-h, 50px); }
+          #lifecycle-nav .lnav-side {
+            width: min(var(--lsb-w), 86vw); height: 100dvh;
+            transform: translateX(-100%); transition: transform .24s ease;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            padding-top: calc(16px + env(safe-area-inset-top, 0px));
+          }
           #lifecycle-nav.open .lnav-side { transform: translateX(0); }
+          /* On mobile the rail is a drawer, never the collapsed icon-rail. */
+          html.lnav-collapsed { --lsb-w: 248px; }
         }
       </style>
       <div class="lnav-mbar">
         <button class="lnav-burger" id="lnav-burger" aria-label="Open navigation">☰</button>
         <a class="lnav-mbrand" href="/">${LOGO_SVG} <span style="margin-left:8px">VAHDAM · Lifecycle OS</span></a>
       </div>
+      <div class="lnav-mbar-spacer"></div>
       <div class="lnav-backdrop" id="lnav-backdrop"></div>
       <aside class="lnav-side">
         <div class="lnav-head">
@@ -495,6 +518,42 @@
     wrap.querySelectorAll('.lnav-link').forEach((a) => {
       if (!a.target) a.addEventListener('click', () => setOpen(false));
     });
+
+    // ── Touch swipe: swipe RIGHT opens the LHS nav, swipe LEFT closes it ──
+    // Mobile only. Opening starts from the left half of the screen (so it never
+    // fights right-edge content); closing works from anywhere while open.
+    // Attached ONCE globally (injectTopbar can re-run on auth changes) and it
+    // resolves the live nav element at event time so it never holds a stale ref.
+    if (!window.__lcSwipeHooked) {
+      window.__lcSwipeHooked = true;
+      const navEl = () => document.getElementById('lifecycle-nav');
+      const setOpenG = (o) => { const n = navEl(); if (n) n.classList.toggle('open', o); };
+      const isMobileNav = () => window.matchMedia('(max-width: 960px)').matches;
+      const OPEN_FROM = 0.5;   // opening gesture must start in the left 50% of the viewport
+      const THRESH = 55;       // min horizontal travel (px)
+      let sx = 0, sy = 0, swiping = false;
+      document.addEventListener('touchstart', (e) => {
+        const n = navEl();
+        if (!n || !isMobileNav() || e.touches.length !== 1) { swiping = false; return; }
+        const t = e.touches[0]; sx = t.clientX; sy = t.clientY;
+        const open = n.classList.contains('open');
+        swiping = open || sx <= window.innerWidth * OPEN_FROM;
+      }, { passive: true });
+      document.addEventListener('touchend', (e) => {
+        if (!swiping) return;
+        swiping = false;
+        const n = navEl();
+        if (!n || !isMobileNav()) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - sx, dy = t.clientY - sy;
+        if (Math.abs(dx) < THRESH || Math.abs(dx) <= Math.abs(dy)) return; // horizontal-dominant only
+        const open = n.classList.contains('open');
+        if (dx > 0 && !open) setOpenG(true);        // swipe right → open
+        else if (dx < 0 && open) setOpenG(false);   // swipe left → close
+      }, { passive: true });
+      // Resize cleanup: leaving mobile width should never strand an open drawer.
+      window.addEventListener('resize', () => { if (!isMobileNav()) setOpenG(false); });
+    }
 
     // Sign-in / sign-out wiring
     const signinBtn = wrap.querySelector('#lnav-signin');
@@ -720,12 +779,10 @@
     });
     window.LifecycleAuth.client = client;
 
-    // Handle the post-OAuth redirect — exchanges the code in the URL for a session.
-    if (location.search.includes('code=') || location.hash.includes('access_token=')) {
-      try { await client.auth.exchangeCodeForSession(location.href); } catch { /* ignore */ }
-      history.replaceState({}, '', location.pathname);
-    }
-
+    // Post-OAuth redirect is handled automatically by detectSessionInUrl:true
+    // above (it exchanges the PKCE ?code= and cleans the URL). Calling
+    // exchangeCodeForSession() again here would double-consume the single-use
+    // code and fail — so we just wait for getSession() to resolve the session.
     const { data: { session } } = await client.auth.getSession();
     if (session?.user) {
       window.LifecycleAuth.session = session;
@@ -930,17 +987,4 @@
   } else {
     init();
   }
-
-  // App-wide AI Agent popup (copilot.js). Complements the dedicated /agent page
-  // and the Shopify agent-widget; copilot.js stands itself down on /agent,
-  // /brain and /studio so it never stacks on top of those surfaces. Loaded
-  // async so it never blocks the shell.
-  try {
-    if (!document.querySelector('script[data-vhd-agent]')) {
-      var ag = document.createElement('script');
-      ag.src = '/copilot.js?v=20260617';
-      ag.defer = true; ag.setAttribute('data-vhd-agent', '1');
-      (document.body || document.head || document.documentElement).appendChild(ag);
-    }
-  } catch (e) { /* never break the shell over the agent */ }
 })();

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChaiGPT — VAHDAM's brand intelligence</title>
+<style>
+  :root { --green:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--cream); font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif; color:var(--ink); }
+  .shell { max-width:920px; margin:0 auto; padding:26px 18px 150px; }
+  .kicker { font-size:11px; letter-spacing:.24em; text-transform:uppercase; color:var(--gold); font-weight:700; }
+  h1 { font-family:'Lao MN','Cormorant Garamond',Georgia,serif; color:var(--green); font-size:34px; margin:6px 0 2px; letter-spacing:-.01em; }
+  h1 .bot { color:var(--gold); }
+  .sub { color:#6b6b6b; font-size:14px; margin-bottom:16px; }
+  .toprow { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+  .market { display:flex; align-items:center; gap:7px; font-size:12.5px; color:#6b6b6b; }
+  .market select { border:1px solid rgba(171,135,67,.45); border-radius:9px; padding:6px 10px; font-family:inherit; font-size:13px; background:#fff; color:var(--ink); }
+  .pill { font-size:11.5px; padding:4px 11px; border-radius:999px; font-weight:700; }
+  .pill.on { background:rgba(0,74,43,.1); color:var(--green); }
+  .pill.off { background:rgba(171,135,67,.14); color:#9a7b2e; }
+  .suggest { display:flex; gap:9px; flex-wrap:wrap; margin:6px 0 18px; }
+  .schip { border:1.5px solid var(--gold); background:#fff; color:var(--ink); padding:8px 14px; border-radius:999px; font-size:12.5px; cursor:pointer; transition:all .16s; }
+  .schip:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(0,74,43,.16); background:var(--green); color:var(--cream); border-color:var(--green); }
+  .chat { background:#fff; border:1px solid rgba(171,135,67,.35); border-radius:18px; min-height:440px; padding:22px; display:flex; flex-direction:column; gap:16px; }
+  .msg { max-width:84%; padding:14px 18px; border-radius:16px; font-size:14.5px; line-height:1.62; animation:pop .32s ease; }
+  @keyframes pop { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .msg.user { align-self:flex-end; background:var(--green); color:var(--cream); border-bottom-right-radius:5px; }
+  .msg.bot { align-self:flex-start; background:var(--cream); border:1px solid rgba(171,135,67,.3); border-bottom-left-radius:5px; }
+  .msg.bot a { color:var(--green); font-weight:600; }
+  .msg.bot p { margin:.5em 0; } .msg.bot p:first-child { margin-top:0; } .msg.bot p:last-child { margin-bottom:0; }
+  .msg.bot code { background:rgba(0,74,43,.08); padding:1px 5px; border-radius:5px; font-size:13px; }
+  .msg.bot ul { margin:.4em 0; padding-left:1.2em; }
+  .tools { align-self:flex-start; max-width:84%; font-size:12px; }
+  .tools summary { cursor:pointer; color:var(--green); font-weight:700; list-style:none; display:inline-flex; align-items:center; gap:6px; }
+  .tools summary::-webkit-details-marker { display:none; }
+  .toolitem { background:#fff; border:1px solid rgba(171,135,67,.3); border-left:3px solid var(--gold); border-radius:9px; padding:8px 11px; margin:7px 0; }
+  .toolitem .tname { font-weight:700; color:var(--green); }
+  .toolitem .targs { color:#6b6b6b; }
+  .toolitem pre { margin:6px 0 0; white-space:pre-wrap; word-break:break-word; background:rgba(0,74,43,.04); padding:7px 9px; border-radius:7px; font-size:11.5px; max-height:160px; overflow:auto; }
+  .toolchip { display:inline-flex; align-items:center; gap:5px; background:rgba(0,74,43,.08); color:var(--green); border-radius:999px; padding:2px 9px; margin:2px 4px 2px 0; font-size:11px; font-weight:700; }
+  .typing { align-self:flex-start; color:#999; font-size:13px; font-style:italic; }
+  .inputrow { position:fixed; bottom:0; left:0; right:0; background:linear-gradient(transparent, var(--cream) 32%); padding:18px; }
+  @media (min-width:961px){ .inputrow{ left:var(--lsb-w,248px); } }
+  .inputbox { max-width:900px; margin:0 auto; display:flex; gap:10px; background:#fff; border:1.5px solid var(--gold); border-radius:16px; padding:10px 12px; box-shadow:0 14px 40px rgba(0,74,43,.14); }
+  .inputbox input { flex:1; border:none; outline:none; font-size:15px; font-family:inherit; background:transparent; }
+  .btn { border:none; border-radius:11px; padding:11px 18px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; transition:transform .15s; }
+  .btn:hover { transform:translateY(-1px); }
+  .btn.send { background:var(--green); color:var(--cream); }
+  .foot { max-width:900px; margin:7px auto 0; font-size:11px; color:#9a9a9a; text-align:center; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="kicker">VAHDAM · Brand Intelligence</div>
+  <h1>Chai<span class="bot">GPT</span></h1>
+  <div class="sub">Your brand's own AI — it doesn't just chat, it operates the growth stack: analytics, calendar, campaign generation, competitor intel, and Klaviyo lifecycle. Steeped in your own data.</div>
+
+  <div class="toprow">
+    <span class="market">Market
+      <select id="market">
+        <option>US</option><option>UK</option><option>IN</option><option>EU</option><option>AU</option><option>Global</option>
+      </select>
+    </span>
+    <span class="pill" id="klaviyoPill">Klaviyo: …</span>
+  </div>
+
+  <div class="suggest" id="suggest"></div>
+  <div class="chat" id="chat"></div>
+</div>
+
+<div class="inputrow">
+  <div class="inputbox">
+    <input id="q" placeholder="Ask me to analyze, plan, generate, or check Klaviyo — e.g. “what's our best cohort and plan a winback campaign”" autocomplete="off">
+    <button class="btn send" id="send">Send</button>
+  </div>
+  <div class="foot">ChaiGPT runs real tools on VAHDAM data. It never invents figures — if data isn't connected, it tells you what to set.</div>
+</div>
+
+<script src="/auth.js?v=20260617" defer></script>
+<script>
+(function(){
+  'use strict';
+  var API = '/api/brain';
+  var history = [];
+  var chatEl = document.getElementById('chat');
+  var qEl = document.getElementById('q');
+  var marketEl = document.getElementById('market');
+
+  var SUGGESTIONS = [
+    'What is our highest-value customer cohort right now?',
+    'Show the next 14 days of the marketing calendar',
+    'How are competitors emailing this month?',
+    'Plan and generate a winback campaign for lapsed tea drinkers',
+    'What audiences and segments do we have in Klaviyo?',
+    'Summarize this week’s analysis with the top angles that work'
+  ];
+
+  function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // Minimal, safe markdown: paragraphs, bullets, bold, inline code, links.
+  function md(t){
+    var s = escapeHtml(t);
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    s = s.replace(/(^|[\s(])(https?:\/\/[^\s)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    var blocks = s.split(/\n{2,}/).map(function(b){
+      if(/^\s*([-*]|\d+\.)\s+/.test(b)){
+        var items = b.split(/\n/).filter(function(l){return l.trim();}).map(function(l){ return '<li>'+l.replace(/^\s*([-*]|\d+\.)\s+/,'')+'</li>'; }).join('');
+        return '<ul>'+items+'</ul>';
+      }
+      return '<p>'+b.replace(/\n/g,'<br>')+'</p>';
+    });
+    return blocks.join('');
+  }
+
+  function addUser(text){ var d=document.createElement('div'); d.className='msg user'; d.textContent=text; chatEl.appendChild(d); scroll(); }
+  function addBot(text){ var d=document.createElement('div'); d.className='msg bot'; d.innerHTML=md(text); chatEl.appendChild(d); scroll(); return d; }
+  function scroll(){ chatEl.scrollTop=chatEl.scrollHeight; }
+
+  function addTools(steps){
+    if(!steps || !steps.length) return;
+    var det=document.createElement('details'); det.className='tools'; det.open=false;
+    var chips = steps.map(function(s){ return '<span class="toolchip">⚙ '+escapeHtml(s.tool)+'</span>'; }).join('');
+    var sum=document.createElement('summary'); sum.innerHTML='▸ Ran '+steps.length+' tool'+(steps.length>1?'s':'')+'  '+chips; det.appendChild(sum);
+    steps.forEach(function(s){
+      var it=document.createElement('div'); it.className='toolitem';
+      it.innerHTML='<div><span class="tname">'+escapeHtml(s.tool)+'</span> <span class="targs">'+escapeHtml(JSON.stringify(s.args||{}))+'</span></div><pre>'+escapeHtml(typeof s.summary==='string'?s.summary:JSON.stringify(s.summary))+'</pre>';
+      det.appendChild(it);
+    });
+    chatEl.appendChild(det); scroll();
+  }
+
+  function renderSuggestions(){
+    var box=document.getElementById('suggest'); box.innerHTML='';
+    SUGGESTIONS.forEach(function(s){ var b=document.createElement('button'); b.className='schip'; b.textContent=s; b.onclick=function(){ qEl.value=s; ask(); }; box.appendChild(b); });
+  }
+
+  async function ask(){
+    var msg=qEl.value.trim(); if(!msg) return;
+    qEl.value=''; addUser(msg); history.push({role:'user',content:msg});
+    var t=document.createElement('div'); t.className='typing'; t.textContent='ChaiGPT is working…'; chatEl.appendChild(t); scroll();
+    try{
+      var r=await fetch(API+'?action=brand-chat',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message:msg, history:history.slice(-12), market:marketEl.value})});
+      var j=await r.json();
+      t.remove();
+      if(j.ok){
+        addTools(j.steps);
+        var reply=j.reply||'(no response)';
+        addBot(reply);
+        history.push({role:'agent',content:reply});
+      } else {
+        addBot('Something went wrong: '+escapeHtml(j.error||'unknown')+'.');
+      }
+    }catch(e){ t.remove(); addBot('I could not reach the brain just now — please try again in a moment.'); }
+  }
+
+  document.getElementById('send').onclick=ask;
+  qEl.addEventListener('keydown',function(e){ if(e.key==='Enter') ask(); });
+
+  // Klaviyo connection pill + greeting
+  fetch(API+'?action=brand-tools').then(function(r){return r.json();}).then(function(j){
+    var pill=document.getElementById('klaviyoPill');
+    if(j && j.klaviyo_connected){ pill.className='pill on'; pill.textContent='Klaviyo: connected'; }
+    else { pill.className='pill off'; pill.textContent='Klaviyo: scaffolded (set KLAVIYO_API_KEY)'; }
+  }).catch(function(){});
+
+  renderSuggestions();
+  addBot('Namaste — I’m **ChaiGPT**, VAHDAM’s brand intelligence. Ask me to analyze the business, read the calendar, generate a campaign, check competitors, or work your Klaviyo lifecycle. I’ll run the real tools and show my work.');
+})();
+</script>
+</body>
+</html>

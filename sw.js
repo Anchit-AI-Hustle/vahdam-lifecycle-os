@@ -12,8 +12,7 @@
 const VERSION = 'lifecycle-os-v16';
 const SHELL = [
   '/', '/index.html', '/dashboard.html', '/calendar.html', '/cohort-definitions.html',
-  '/agent.html', '/competitive-intelligence.html', '/smart-brain.html',
-  '/auth.js', '/table-sort.js', '/chart-enhance.js', '/copilot.js', '/agent-widget.js',
+  '/auth.js', '/table-sort.js', '/chart-enhance.js',
   '/manifest.webmanifest', '/favicon.png',
 ];
 

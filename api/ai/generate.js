@@ -15,6 +15,26 @@
 const OPENAI_BASE = 'https://api.openai.com/v1';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
+// Single source of truth for the portable master prompt + brand block.
+const { buildMasterPrompt } = require('../_shared/master-prompt.js');
+
+// Static creative sizes the ad-campaigns.html compositor actually renders, per
+// surface. Mirrors CRE_CFG in ad-campaigns.html — used to build creative_spec
+// so the autofill response describes exactly the assets that get produced.
+const AD_FORMATS = {
+  google: [
+    { format: 'Google · Landscape 1.91:1', size: '1200x628',  ar: '1.91:1' },
+    { format: 'Google · Square 1:1',       size: '1200x1200', ar: '1:1' },
+  ],
+  meta: [
+    { format: 'Meta/IG · Feed 1:1',        size: '1080x1080', ar: '1:1' },
+    { format: 'Meta/IG · Story/Reel 9:16', size: '1080x1920', ar: '9:16' },
+  ],
+  tiktok: [
+    { format: 'TikTok · Vertical 9:16', size: '1080x1920', ar: '9:16' },
+  ],
+};
+
 // ────────────────────────────────────────────────────────────────────────────
 // MASTER PROMPTS (production-grade, embedded server-side so they cannot be
 // tampered with by browser-side edits)
@@ -332,6 +352,9 @@ module.exports = async function handler(req, res) {
   const regenerate_counter = Number(body.regenerate_counter || 0);
   const previous_outputs_summary = body.previous_outputs_summary || '';
   const season = body.season || '';
+  // Tier dial: 'budget' (default) = current cheap/free cascade; 'maxpower' = force premium models per provider. Overridable via *_MAX env vars.
+  const _tier = (body.tier || process.env.APP_AI_TIER || 'budget').toString().toLowerCase().trim();
+  const isMaxPower = _tier === 'maxpower' || _tier === 'max-power' || _tier === 'max' || _tier === 'output' || _tier === 'quality';
 
   let systemPrompt = SYSTEM_PROMPT_CREATE_BRIEF;
   let userMessage = '';
@@ -391,18 +414,14 @@ Return ONLY the segment text. No preamble, no quotes around it, no JSON.`;
     const histArr = Array.isArray(body.history) ? body.history.slice(-8) : [];
     const userMsg = String(body.message || body.prompt || '').slice(0, 2000);
     systemPrompt = [
-      'You are the VAHDAM AI Agent — a sharp, warm, knowledgeable marketing copilot for VAHDAM India (premium Indian heritage tea & wellness) inside the VAHDAM Lifecycle OS app.',
-      'You help across the whole app: brainstorm campaigns, recommend which products to feature, sharpen subject lines and copy, critique mailers/ads/landing pages, build cohort/offer ideas, and explain what each tool does.',
-      'GROUND every answer in the VAHDAM KNOWLEDGE BASE provided below (product catalog + brand kit). When you recommend products, name REAL products from the catalog. If the knowledge base does not cover something, say so briefly rather than inventing facts.',
+      'You are VAHDAM Studio Assistant — a sharp, warm marketing copilot inside the VAHDAM India (premium Indian heritage tea) email Mailer Studio.',
+      'Help the user brainstorm campaigns, sharpen subject lines and copy, critique the current mailer, and answer marketing questions.',
       'VOICE: warm, sensory, story-driven, premium. PREFER words like ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
       "NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
       'Brand palette is forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA. Headings Lao MN, body Proxima Nova.',
-      'BE SUBSTANTIVE AND GENUINELY USEFUL: give a complete, specific answer — typically 2–5 short paragraphs or a tight list with brief rationale. Do not reply with a single vague sentence. When asked for copy, give 2–3 ready-to-paste options. Plain conversational text only — no markdown headers, no asterisks.',
-      'Your reply will be read aloud by text-to-speech, so write in clean, natural prose.'
+      'Be concise and practical. Short paragraphs or tight lists. When asked for copy, give ready-to-paste options. Plain text only — no markdown headers.'
     ].join('\n');
     const ctxLines = [
-      ctx.kb ? 'VAHDAM KNOWLEDGE BASE:\n' + String(ctx.kb).slice(0, 2000) : '',
-      ctx.page ? 'USER IS ON APP PAGE: ' + String(ctx.page).slice(0, 60) + ' (tailor help to this tool when relevant)' : '',
       ctx.brief ? 'CURRENT CAMPAIGN BRIEF: ' + String(ctx.brief).slice(0, 800) : '',
       ctx.type ? 'CAMPAIGN TYPE: ' + ctx.type : '',
       ctx.markets ? 'MARKETS: ' + (Array.isArray(ctx.markets) ? ctx.markets.join(', ') : ctx.markets) : '',
@@ -482,7 +501,10 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
   "url": "<final landing URL — start with /, never absolute>",
   "keywords": "<comma-separated 6-12 keywords, lowercase, no quotes>",
   "headlines": "<3-5 headlines, one per line, each ≤30 chars>",
-  "desc": "<2 descriptions, one per line, each ≤90 chars>"
+  "desc": "<2 descriptions, one per line, each ≤90 chars>",
+  "overlay_headline": "<headline BAKED onto the creative image — ≤6 words, sells the calm/happy end-state (P01), never an ingredient or feature>",
+  "overlay_sub": "<supporting line baked under the headline — ≤8 words, sensory + concrete>",
+  "offer": "<the EXACT on-creative offer baked into the image — the real P01 offer, e.g. 'Starter Pack · 65% OFF + free gifts'. Concise, ≤40 chars, fits an offer pill.>"
 }`,
       },
       meta: {
@@ -495,7 +517,10 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
   "place": "<Advantage+ (all)|Feed|Stories/Reels|Manual>",
   "aud": "<one-sentence audience targeting — interests + lookalike if relevant>",
   "primary": "<primary text, 60-180 chars, emotional + concrete + ends with implicit CTA>",
-  "headline": "<≤40 chars headline>"
+  "headline": "<≤40 chars headline>",
+  "overlay_headline": "<headline BAKED onto the creative image — ≤6 words, sells the calm/happy end-state (P01), never an ingredient or feature>",
+  "overlay_sub": "<supporting line baked under the headline — ≤8 words, sensory + concrete>",
+  "offer": "<the EXACT on-creative offer baked into the image — the real P01 offer, e.g. 'Starter Pack · 65% OFF + free gifts'. Concise, ≤40 chars, fits an offer pill.>"
 }`,
       },
       tiktok: {
@@ -510,7 +535,10 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
   "hook": "<≤80 chars opener — conversational, sounds native to TikTok, not marketing speak>",
   "caption": "<≤140 chars on-screen text — short phrases separated by · or , >",
   "creator": "<@handle if relevant, else empty string>",
-  "hashtags": "<3-6 hashtags space-separated, lowercase, no marketing-speak>"
+  "hashtags": "<3-6 hashtags space-separated, lowercase, no marketing-speak>",
+  "overlay_headline": "<headline BAKED onto the static 9:16 key-frame — ≤6 words, sells the calm/happy end-state (P01), never an ingredient or feature>",
+  "overlay_sub": "<supporting line baked under the headline — ≤8 words, sensory + concrete>",
+  "offer": "<the EXACT on-creative offer baked into the image — the real P01 offer, e.g. 'Starter Pack · 65% OFF + free gifts'. Concise, ≤40 chars, fits an offer pill.>"
 }`,
       },
       'lp-mailer': {
@@ -650,6 +678,14 @@ Target market for this autofill: ${targetMarket}.`;
     ].filter(Boolean).join('\n');
   }
 
+  // ── Portable prompt ─────────────────────────────────────────────────────
+  // The exact, self-contained instructions this tool used. Returned with EVERY
+  // creation so the user can paste it into ChatGPT / Gemini / Claude and get the
+  // same on-brand output externally. (The app itself generates on free tiers.)
+  const _sp = Array.isArray(systemPrompt) ? systemPrompt.join('\n') : String(systemPrompt || '');
+  const _um = Array.isArray(userMessage) ? userMessage.join('\n') : String(userMessage || '');
+  const portable_prompt = (_sp + (_um ? '\n\n———\n\n' + _um : '')).trim();
+
   // ── Provider-specific call ──
   // Higher base temperature for create_brief + a per-regen bump so consecutive
   // briefs explore different copy territory (different hooks, different headline
@@ -657,7 +693,7 @@ Target market for this autofill: ${targetMarket}.`;
   const baseTemp = mode === 'create_brief' ? 0.85 : 0.7;
   const temperature = Math.min(1.1, baseTemp + Math.min(0.25, (regenerate_counter || 0) * 0.08));
   // create_brief: 4000 tokens for 450-600 word detailed production brief with full structure
-  const max_tokens = mode === 'mailer_full' ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1800 : 4000)));
+  const max_tokens = mode === 'mailer_full' ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1200 : 4000)));
 
   function isRetryable(s) { return s === 429 || s === 503 || s === 404 || s === 400 || s === 529 || s === 403 || s === 402; }
 
@@ -699,7 +735,8 @@ Target market for this autofill: ${targetMarket}.`;
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST', cache: 'no-store',
         headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model, max_tokens, temperature, system: claudeSys, messages: [{ role: 'user', content: userMessage }] }),
+        // Newer Claude models (Opus 4.7/4.8, Fable, …) REJECT `temperature` with a 400 — only send it on legacy claude-3* models.
+        body: JSON.stringify(Object.assign({ model, max_tokens, system: claudeSys, messages: [{ role: 'user', content: userMessage }] }, /^claude-3/.test(model) ? { temperature } : {})),
         signal: ctrl.signal
       });
       clearTimeout(t);
@@ -819,7 +856,9 @@ Target market for this autofill: ${targetMarket}.`;
     // 1. OpenAI (multi-key rotation on quota exhaustion)
     if (openaiKey && !skipOpenai) {
       const openaiKeys = [openaiKey, process.env.OPENAI_API_KEY_2, process.env.OPENAI_API_KEY_3].filter(Boolean);
-      const model = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
+      const model = isMaxPower
+        ? (process.env.OPENAI_TEXT_MODEL_MAX || 'gpt-4o')
+        : (process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini');
       for (const key of openaiKeys) {
         result = await callOpenAI(model, key);
         if (result.ok) break;
@@ -832,7 +871,10 @@ Target market for this autofill: ${targetMarket}.`;
     // 2. Anthropic (Claude) — if OpenAI unavailable or failed
     if (anthropicKey && (!result || !result.ok) && !skipAnthropic) {
       console.warn('[generate] Trying Anthropic (Claude)');
-      for (const model of [process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022']) {
+      const _anthModels = isMaxPower
+        ? [process.env.ANTHROPIC_TEXT_MODEL_MAX || 'claude-opus-4-8', 'claude-sonnet-4-6']
+        : [process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];
+      for (const model of _anthModels) {
         result = await callAnthropic(model);
         if (result.ok) break;
         if (isRetryable(result.status)) { console.warn('[generate] Anthropic ' + result.status + ' on ' + model + ' — next model'); continue; }
@@ -846,7 +888,10 @@ Target market for this autofill: ${targetMarket}.`;
       console.warn('[generate] Trying Gemini');
       const geminiModels = [];
       const seen = new Set();
-      for (const m of [process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']) {
+      const _gemSrc = isMaxPower
+        ? [process.env.GEMINI_TEXT_MODEL_MAX || 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash']
+        : [process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+      for (const m of _gemSrc) {
         if (!seen.has(m)) { seen.add(m); geminiModels.push(m); }
       }
       for (const model of geminiModels) {
@@ -861,7 +906,10 @@ Target market for this autofill: ${targetMarket}.`;
     // 4. Grok (xAI)
     if (grokKey && (!result || !result.ok) && !skipGrok) {
       console.warn('[generate] Trying Grok (xAI)');
-      for (const model of [process.env.GROK_TEXT_MODEL || 'grok-3-mini-fast', 'grok-3-mini']) {
+      const _grokModels = isMaxPower
+        ? [process.env.GROK_TEXT_MODEL_MAX || 'grok-3', 'grok-3-mini']
+        : [process.env.GROK_TEXT_MODEL || 'grok-3-mini-fast', 'grok-3-mini'];
+      for (const model of _grokModels) {
         result = await callGrok(model);
         if (result.ok) break;
         if (isRetryable(result.status)) { console.warn('[generate] Grok ' + result.status + ' on ' + model + ' — next model'); continue; }
@@ -914,6 +962,7 @@ Target market for this autofill: ${targetMarket}.`;
 
         return res.status(200).json({
           ok: true, mode, provider: 'heuristic', model: 'fallback-v1', text: heuristicBrief,
+          portable_prompt,
           _heuristic: true,
           _llm_error: String((result && result.detail) || 'All providers failed').substring(0, 200)
         });
@@ -954,9 +1003,36 @@ Target market for this autofill: ${targetMarket}.`;
       if (!parsed) {
         return res.status(502).json({ error: 'json_parse_failed', provider: result.provider, raw: text.substring(0, 600) });
       }
-      return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: parsed });
+      return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: parsed, portable_prompt });
     }
-    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text });
+
+    // ── Autofill on an ad surface: also return the portable master_prompt and a
+    //    structured creative_spec the compositor can render. creative_spec lists
+    //    the EXACT static sizes ad-campaigns.html composites, each carrying the
+    //    LLM-authored overlay copy (headline/sub) + the real P01 offer — so the
+    //    canvas stops hardcoding 'Shop now'. Non-ad surfaces are unaffected.
+    if (mode === 'autofill') {
+      const surf = String(body.surface || '').toLowerCase();
+      if (AD_FORMATS[surf]) {
+        let fields = {};
+        try { fields = JSON.parse(text); } catch (_) {
+          const a = text.indexOf('{'), b = text.lastIndexOf('}');
+          if (a !== -1 && b > a) { try { fields = JSON.parse(text.slice(a, b + 1)); } catch (_) {} }
+        }
+        const overlay = {
+          headline: fields.overlay_headline || '',
+          sub: fields.overlay_sub || '',
+          offer: fields.offer || '',
+        };
+        const creative_spec = AD_FORMATS[surf].map((f) => ({ size: f.size, format: f.format, ar: f.ar, overlay }));
+        const targetMarket = body.market || body.region || market || 'US';
+        const userPrompt = String(body.prompt || campaign_brief || '').trim().slice(0, 1600);
+        const master_prompt = buildMasterPrompt({ assetType: 'ad', platform: surf, market: targetMarket, brief: userPrompt });
+        return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text, creative_spec, master_prompt, portable_prompt });
+      }
+    }
+
+    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text, portable_prompt });
 
   } catch (e) {
     return res.status(500).json({ error: 'server_error', provider, detail: String(e && e.message || e).substring(0, 300) });
