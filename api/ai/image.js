@@ -43,6 +43,13 @@ const AD_PROMPT_PREAMBLE = `Scroll-stopping paid social ad creative for VAHDAM I
 Ad creative:
 `;
 
+// Universal quality bar appended to every image prompt (all modes). Excludes
+// any "no text" directive on purpose — the per-mode preambles above own the
+// text policy (ads bake in an overlay; photos/designs handle it themselves).
+const QUALITY_SUFFIX = `
+
+QUALITY BAR: ultra-high fidelity, 8K, razor-sharp focus, true-to-life colour, professional colour grading, natural soft lighting, fine material texture, correct anatomy and hands, balanced composition. Avoid: blur, noise, colour banding, JPEG/compression artifacts, plastic skin, warped or melted shapes, extra or missing fingers, duplicated objects, low resolution, oversaturation, HDR halos, uncanny faces.`;
+
 // Map our standard sizes to Gemini aspect ratios.
 // Includes the ad-creative sizes (Google 1.91:1 + 1:1, Meta/IG/TikTok 1:1 + 9:16).
 const GEMINI_ASPECT_MAP = {
@@ -98,7 +105,8 @@ module.exports = async function handler(req, res) {
   const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE
     : (mode === 'ad') ? AD_PROMPT_PREAMBLE
     : IMAGE_PROMPT_PREAMBLE;
-  const finalPrompt = (preamble + userPrompt).substring(0, 4000);
+  // Reserve room so the quality bar always survives the 4000-char cap.
+  const finalPrompt = (preamble + userPrompt).substring(0, 4000 - QUALITY_SUFFIX.length) + QUALITY_SUFFIX;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PROVIDER 1: Gemini Image Generation (primary)
