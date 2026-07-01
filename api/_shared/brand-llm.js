@@ -145,16 +145,28 @@ YOU CAN CALL THESE TOOLS:
 ${toolManifest().map((t) => `- ${t.name}${t.mutates ? ' [writes/generates — only on explicit user request]' : ''}: ${t.description}`).join('\n')}
 
 HOW TO RESPOND — every message you send MUST be a single JSON object, nothing else:
-• To use a tool:   {"action":"tool","tool":"<name>","args":{...},"thought":"why, one line"}
-• To answer user:  {"action":"final","reply":"<your answer in clean markdown>"}
+• One tool:        {"action":"tool","tool":"<name>","args":{...},"thought":"why, one line"}
+• Several tools:   {"action":"tool","tools":[{"tool":"<name>","args":{...}},{"tool":"<name>","args":{...}}],"thought":"why, one line"}
+  ← up to 3 INDEPENDENT lookups run IN PARALLEL. Always batch lookups that don't depend on each other
+  (e.g. ask_analytics + get_competitor_benchmarks + get_calendar) — it is much faster than one at a time.
+• Final answer:    {"action":"final","reply":"<your answer in clean markdown>"}
+
+EVIDENCE CONTRACT — non-negotiable for EVERY suggestion or recommendation you make:
+1. DATA ANALYSIS: quote the EXACT figures behind it (counts, %, revenue, AOV, dates, slot ids) and name the tool they came from. Call tools first — never estimate what a tool can tell you.
+2. TARGET METRIC: name the single metric the recommendation should improve (repeat-purchase rate, winback conversion, open→click rate, AOV, revenue per recipient, list growth…) with expected direction and a rough magnitude.
+3. COMPLETE HYPOTHESIS: state it in full — "Because [observed data], doing [specific action] for [specific segment] should move [metric] by [expected range], because [mechanism]."
+4. COMPETITIVE BENCHMARK: call get_competitor_benchmarks and QUOTE the relevant numbers (send cadence, offer depth, dominant angles) alongside ours. If it returns empty, write "no competitor benchmark captured yet" — never skip this silently.
+
+FINAL-ANSWER FORMAT:
+- Recommendation / strategy / "what should we do" questions → a DETAILED, structured markdown reply: the answer in 1–2 lines, then "**What the data shows**" (bulleted exact numbers with tool sources), "**Hypothesis**", "**Expected metric impact**", "**Competitor benchmark**" (quoted figures), "**Next actions**" (numbered, each doable inside this app with slot ids/dates where relevant).
+- Simple factual lookups → a direct, concise answer with the exact figures. No sections, no padding.
+- Markdown tables are welcome for comparisons (ours vs competitors, cohort vs cohort).
 
 RULES:
-- Prefer real data over guessing: if a question is about our numbers, audience, calendar, competitors, or Klaviyo, CALL A TOOL before answering.
-- Chain tools when needed (e.g. get_calendar → generate_assets_for_slot). One tool per turn.
+- Prefer real data over guessing: if a question is about our numbers, audience, calendar, competitors, or Klaviyo, CALL TOOLS before answering — batched in parallel when independent, chained (e.g. get_calendar → generate_assets_for_slot) when dependent.
 - Never invent figures. If a tool returns 'not_connected' or empty, say so plainly and state what's needed (e.g. "set KLAVIYO_API_KEY").
 - Only call [writes/generates] tools when the user clearly asks to create/generate/run something.
-- Brand voice: warm, sensory, story-driven. Use ritual, restore, origin, single-estate, steep, heritage. NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME, hurry, don't miss out, last chance.
-- When you give the final answer, be concise and useful; surface concrete numbers, slot dates/ids, and next actions.`;
+- Brand voice: warm, sensory, story-driven. Use ritual, restore, origin, single-estate, steep, heritage. NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME, hurry, don't miss out, last chance.`;
 }
 
 function renderTranscript(history, message, working) {
@@ -192,9 +204,21 @@ async function chat({ message, history = [], market = 'US', maxSteps = 5 } = {})
     const force = step === maxSteps - 1;
     const userMessage = renderTranscript(history, message, working) +
       (force ? '\n\nYou have gathered enough. Respond with {"action":"final",...} now — do not call more tools.' : '');
+    // maxTokens is a cap, not a target: tool actions stay tiny, but detailed
+    // evidence-backed finals get room. 20s timeout per provider keeps a hung
+    // provider from stalling the turn — the cascade moves on instead.
+    const llmOpts = { systemPrompt: sys, userMessage, responseFormat: { type: 'json_object' }, maxTokens: 2200, temperature: 0.4, timeoutMs: 20000, stage: 'chaigpt' };
     let out;
     try {
-      out = await callLLM({ systemPrompt: sys, userMessage, responseFormat: { type: 'json_object' }, maxTokens: 1100, temperature: 0.45, timeoutMs: 40000, stage: 'chaigpt' });
+      // Sticky provider: once a provider answers, later steps of this turn go
+      // straight to it instead of re-walking dead keys / rate-limit sleeps in
+      // the full cascade. If it dies mid-turn, fall back to the cascade once.
+      if (provider) {
+        try { out = await callLLM({ ...llmOpts, preferProvider: provider }); }
+        catch (_) { provider = null; out = await callLLM(llmOpts); }
+      } else {
+        out = await callLLM(llmOpts);
+      }
     } catch (e) {
       return { ok: true, brand, provider, steps, reply: `I hit a provider error: ${e.message}. The data tools and dashboards are still available.` };
     }
@@ -207,14 +231,32 @@ async function chat({ message, history = [], market = 'US', maxSteps = 5 } = {})
 
     if (parsed.action === 'final') return { ok: true, brand, provider, steps, reply: String(parsed.reply || '').trim() || 'Done.' };
 
-    if (parsed.action === 'tool') {
-      const tool = TOOLS[parsed.tool];
-      const args = parsed.args || {};
-      if (!tool) { working.push({ tool: parsed.tool, args, result: { ok: false, error: `Unknown tool '${parsed.tool}'. Available: ${Object.keys(TOOLS).join(', ')}` } }); continue; }
-      let result;
-      try { result = await tool.run(args); } catch (e) { result = { ok: false, error: e.message }; }
-      working.push({ tool: parsed.tool, args, result });
-      steps.push({ tool: parsed.tool, args, summary: truncate(result, 600) });
+    if (parsed.action === 'tool' || parsed.action === 'tools') {
+      // Accept a single tool or a batch — batched lookups execute in parallel.
+      const requested = (Array.isArray(parsed.tools) && parsed.tools.length)
+        ? parsed.tools
+        : [{ tool: parsed.tool, args: parsed.args }];
+      // Dedupe BEFORE dispatch (both within the batch and against earlier
+      // steps this turn) — checking inside the parallel callbacks would race,
+      // since results only land in `working` after each tool's await.
+      const seen = new Set(working.map((w) => w.tool + JSON.stringify(w.args || {})));
+      const batch = requested.slice(0, 3)
+        .map((r) => ({ name: r.tool || r.name, args: r.args || {} }))
+        .filter((r) => {
+          if (!r.name) return false;
+          const key = r.name + JSON.stringify(r.args);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      await Promise.all(batch.map(async ({ name, args }) => {
+        const tool = TOOLS[name];
+        if (!tool) { working.push({ tool: name, args, result: { ok: false, error: `Unknown tool '${name}'. Available: ${Object.keys(TOOLS).join(', ')}` } }); return; }
+        let result;
+        try { result = await tool.run(args); } catch (e) { result = { ok: false, error: e.message }; }
+        working.push({ tool: name, args, result });
+        steps.push({ tool: name, args, summary: truncate(result, 600) });
+      }));
       continue;
     }
 
