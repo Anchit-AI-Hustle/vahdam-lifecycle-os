@@ -31,6 +31,10 @@
   .msg.bot p { margin:.5em 0; } .msg.bot p:first-child { margin-top:0; } .msg.bot p:last-child { margin-bottom:0; }
   .msg.bot code { background:rgba(0,74,43,.08); padding:1px 5px; border-radius:5px; font-size:13px; }
   .msg.bot ul { margin:.4em 0; padding-left:1.2em; }
+  .msg.bot .hd { display:block; font-weight:700; color:var(--green); margin:.7em 0 .25em; }
+  .msg.bot table { border-collapse:collapse; margin:.5em 0; font-size:13px; width:100%; }
+  .msg.bot th, .msg.bot td { border:1px solid rgba(171,135,67,.35); padding:5px 9px; text-align:left; }
+  .msg.bot th { background:rgba(0,74,43,.07); color:var(--green); }
   .tools { align-self:flex-start; max-width:84%; font-size:12px; }
   .tools summary { cursor:pointer; color:var(--green); font-weight:700; list-style:none; display:inline-flex; align-items:center; gap:6px; }
   .tools summary::-webkit-details-marker { display:none; }
@@ -97,14 +101,31 @@
   ];
 
   function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  // Minimal, safe markdown: paragraphs, bullets, bold, inline code, links.
+  // Minimal, safe markdown: paragraphs, bullets, headings, tables, bold, inline code, links.
   function md(t){
     var s = escapeHtml(t);
     s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     s = s.replace(/(^|[\s(])(https?:\/\/[^\s)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
     s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Headings become their own block even when the model writes them flush
+    // against the next line (### Title\n- bullet …).
+    s = s.replace(/^(#{1,4}\s.+)$/gm, '\n$1\n');
+    var cells = function(l){ return l.replace(/^\s*\|/,'').replace(/\|\s*$/,'').split('|').map(function(c){ return c.trim(); }); };
     var blocks = s.split(/\n{2,}/).map(function(b){
+      // GFM-style table: header row, |---| separator, body rows.
+      var rows = b.split(/\n/).filter(function(l){ return l.trim(); });
+      if(rows.length >= 2 && /^\s*\|.*\|\s*$/.test(rows[0]) && /^\s*\|[\s:|-]+\|\s*$/.test(rows[1])){
+        var html = '<table><thead><tr>' + cells(rows[0]).map(function(c){ return '<th>'+c+'</th>'; }).join('') + '</tr></thead><tbody>';
+        rows.slice(2).forEach(function(l){ if(/\|/.test(l)) html += '<tr>' + cells(l).map(function(c){ return '<td>'+c+'</td>'; }).join('') + '</tr>'; });
+        return html + '</tbody></table>';
+      }
+      if(/^\s*#{1,4}\s+/.test(b)){
+        return b.split(/\n/).map(function(l){
+          var h = l.match(/^\s*#{1,4}\s+(.*)$/);
+          return h ? '<span class="hd">'+h[1]+'</span>' : l;
+        }).join('<br>');
+      }
       if(/^\s*([-*]|\d+\.)\s+/.test(b)){
         var items = b.split(/\n/).filter(function(l){return l.trim();}).map(function(l){ return '<li>'+l.replace(/^\s*([-*]|\d+\.)\s+/,'')+'</li>'; }).join('');
         return '<ul>'+items+'</ul>';
@@ -139,12 +160,19 @@
   async function ask(){
     var msg=qEl.value.trim(); if(!msg) return;
     qEl.value=''; addUser(msg); history.push({role:'user',content:msg});
-    var t=document.createElement('div'); t.className='typing'; t.textContent='ChaiGPT is working…'; chatEl.appendChild(t); scroll();
+    var t=document.createElement('div'); t.className='typing'; chatEl.appendChild(t); scroll();
+    var t0=Date.now();
+    var PHASES=['reading your data','running the tools','checking benchmarks','composing the answer'];
+    var tick=setInterval(function(){
+      var secs=Math.round((Date.now()-t0)/1000);
+      t.textContent='ChaiGPT is '+PHASES[Math.min(Math.floor(secs/6),PHASES.length-1)]+'… '+secs+'s';
+    },1000);
+    t.textContent='ChaiGPT is '+PHASES[0]+'…';
     try{
       var r=await fetch(API+'?action=brand-chat',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({message:msg, history:history.slice(-12), market:marketEl.value})});
       var j=await r.json();
-      t.remove();
+      clearInterval(tick); t.remove();
       if(j.ok){
         addTools(j.steps);
         var reply=j.reply||'(no response)';
@@ -153,7 +181,7 @@
       } else {
         addBot('Something went wrong: '+escapeHtml(j.error||'unknown')+'.');
       }
-    }catch(e){ t.remove(); addBot('I could not reach the brain just now — please try again in a moment.'); }
+    }catch(e){ clearInterval(tick); t.remove(); addBot('I could not reach the brain just now — please try again in a moment.'); }
   }
 
   document.getElementById('send').onclick=ask;

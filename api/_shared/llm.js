@@ -44,6 +44,7 @@ module.exports = async function callLLM(opts) {
     timeoutMs     = 30000,
     stage         = 'llm',
     userGeminiKey = '',
+    preferProvider = '',     // per-call provider preference — same values as APP_AI_PROVIDER; lets callers pin the provider that already worked this turn
     tier          = (process.env.APP_AI_TIER || 'budget')  // 'budget' = low-cost/free cascade | 'maxpower' = highest quality
   } = opts;
 
@@ -52,9 +53,9 @@ module.exports = async function callLLM(opts) {
   const _tierNorm  = String(tier || 'budget').toLowerCase().trim();
   const isMaxPower = _tierNorm === 'maxpower' || _tierNorm === 'max-power' || _tierNorm === 'max' || _tierNorm === 'output' || _tierNorm === 'quality';
 
-  // APP_AI_PROVIDER env: force a specific provider first (skip others that waste time on 429/400)
-  // Values: 'gemini', 'openai', 'anthropic', 'grok', or empty (default cascade)
-  const preferredProvider = (process.env.APP_AI_PROVIDER || '').toLowerCase().trim();
+  // Provider preference: per-call preferProvider wins over the APP_AI_PROVIDER env.
+  // Values: 'gemini', 'openai', 'anthropic', 'grok', 'groq', 'cerebras', 'gemini+', or empty (default cascade)
+  const preferredProvider = (preferProvider || process.env.APP_AI_PROVIDER || '').toLowerCase().trim();
 
   const openaiKeys = [
     process.env.OPENAI_API_KEY,
