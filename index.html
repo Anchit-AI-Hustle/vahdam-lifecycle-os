@@ -173,58 +173,116 @@
     landing:    '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>',
     brain:      '<path d="M12 3a4 4 0 0 0-4 4v1H7a4 4 0 0 0 0 8h1v1a4 4 0 0 0 8 0v-1h1a4 4 0 0 0 0-8h-1V7a4 4 0 0 0-4-4Z"/><path d="M9 8h6M9 16h6M8 12h8"/>',
     agent:      '<path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z"/><path d="M8 10h8M8 14h5"/>',
+    assets:     '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   };
   const svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${IC[k]||''}</svg>`;
 
-  // Widgets mirror the LHS nav order EXACTLY (Home is the page itself,
-  // so it's omitted as a widget): Knowledge Base → Data Analysis →
-  // Competitor Benchmarking → Marketing Mailers → Ad Campaigns →
-  // Landing Pages. Each card explains what the feature is + what you
-  // can do inside it.
-  const FEATURES = [
-    { icon: 'brain',      title: 'Smart Brain',             href: '/smart-brain.html',
-      desc: 'The end-to-end DB-linked autopilot: own knowledge base, daily analysis, isolated competitor benchmarks, 15-day calendar, generated mailers, ads and landing pages.',
-      subs: ['Daily automated review + 15-day rolling calendar', 'Own campaign winners filtered by performance', 'Separate competitor stream for benchmarks only', 'Platform-ready objects · no live push until Phase 2'] },
-    { icon: 'agent',      title: 'Vahdam Agent',            href: '/agent',
-      desc: 'Voice + chat concierge that talks to customers like a telecaller — and you can create your own agents by type (brand, collection, product or persona).',
-      subs: ['Create agents + pick the type', 'Talk by voice or text · female voice default', 'Live on the agent-integrated landing page', 'Embeds on Shopify with one script tag'],
-      live: { href: '/lp/best', label: 'View live page →' } },
-    { icon: 'kb',         title: 'Knowledge Base',          href: '/knowledge-base.html',
-      desc: 'The single source of truth that every generator in this app reads from. Brand kit, markets, product catalog, manual references, uploaded files.',
-      subs: ['VAHDAM brand kit + 313-product catalog', 'Competitor profiles + captured assets', 'Manual: paste any URL — AI summarises', 'Upload PDFs · CSVs · PNGs · ZIPs'] },
-    { icon: 'analysis',   title: 'Compiled Dashboard',      href: '/dashboard.html',
-      desc: 'See who buys, who drifts, what to send next. Drives every plan + brief in the rest of the app.',
-      subs: ['9 RFM segments + cohort retention', 'Top campaigns, channel mix, AOV trend', 'Auto-insights — what changed this week', 'Upload your CSV or link a database'] },
-    { icon: 'competitor', title: 'Competitor Benchmarking', href: '/competitor-benchmarking.html',
-      desc: 'Every competitor mailer captured automatically + live ad-library deep-links + a 60-brand registry across Tea/Coffee/Supplements × US/UK.',
-      subs: ['Mailers — auto-synced, screenshotted, searchable', 'Ads — Meta / Google / TikTok deep-links per brand', 'Brands — discover with AI or seed Top 60'] },
-    { icon: 'mailer',     title: 'Marketing Mailers',       href: '/calendar.html',
-      desc: 'Plan the month + write the email. A 30-day cohort-aware calendar feeds a 5-step Mailer Studio that outputs export-ready HTML.',
-      subs: ['Calendar — one day, one email, festivals tuned', 'Mailer Studio — type a brief, get brand-perfect HTML', '6-LLM cascade · 11 layout archetypes · 2 variants each'] },
-    { icon: 'ads',        title: 'Ad Campaigns',            href: '/ad-campaigns.html',
-      desc: 'Brief and track Google + Meta + TikTok campaigns on the same calendar as your emails. AI fills every field from one prompt.',
-      subs: ['Calendar — paid + organic in one view', 'Google · Meta · TikTok forms with autofill', 'Linked to the landing pages that catch traffic'] },
-    { icon: 'landing',    title: 'Landing Pages',           href: '/landing-pages.html',
-      desc: 'One brand-locked landing-page system that serves every channel. Pick channel + region + offer; AI generates the page in the same brand voice.',
-      subs: ['★ Live: agent-integrated Meta-ad page', 'For Mailers — extends the email narrative', 'For Meta Ads — mobile-first, single CTA', 'For Google / TikTok — keyword + UGC-native'],
-      live: { href: '/lp/best', label: 'View live page →' } },
+  // Per-feature copy + icon overrides, keyed by NAV leaf id or NAV group name.
+  // The widget SET is derived from the live LHS nav (window.__LC_NAV) so the
+  // homepage always mirrors EVERY sidebar item; this map only enriches the
+  // copy + picks a homepage icon. Anything missing falls back to sensible text.
+  const COPY = {
+    // top-level items (by id)
+    chaigpt:  { icon: 'agent',    desc: "The brand's own AI — it doesn't just chat, it operates the whole stack: analytics, calendar, campaign generation, competitor intel and Klaviyo lifecycle.",
+                subs: ['Ask in plain language — it runs the real tools', 'Analytics · calendar · generation · competitor · KB', 'Klaviyo lifecycle (scaffolded until a key is set)', 'Shows its tool-by-tool working like Claude'] },
+    brain:    { icon: 'brain',    desc: 'The end-to-end DB-linked autopilot: own knowledge base, daily analysis, isolated competitor benchmarks, 15-day calendar, generated mailers, ads and landing pages.',
+                subs: ['Daily automated review + 15-day rolling calendar', 'Own campaign winners filtered by performance', 'Separate competitor stream for benchmarks only', 'Platform-ready objects · no live push until Phase 2'] },
+    agent:    { icon: 'agent',    desc: 'Voice + chat concierge that talks to customers like a telecaller — and you can create your own agents by type (brand, collection, product or persona).',
+                subs: ['Create agents + pick the type', 'Talk by voice or text · female voice default', 'Live on the agent-integrated landing page', 'Embeds on Shopify with one script tag'],
+                live: { href: '/lp/best', label: 'View live page →' } },
+    analysis: { icon: 'analysis', title: 'Data Analysis', desc: 'See who buys, who drifts, what to send next. Drives every plan + brief in the rest of the app.',
+                subs: ['9 RFM segments + cohort retention', 'Top campaigns, channel mix, AOV trend', 'Auto-insights — what changed this week', 'Upload your CSV or link a database'] },
+    assets:   { icon: 'assets',   desc: 'Every mailer, ad and landing page the system has generated — in one searchable library you can preview, download and reuse.',
+                subs: ['Generated mailers · ads · landing pages', 'Preview, download HTML, clone & reuse', 'Synced across devices via Supabase'] },
+    // groups (by group name) — title/href/icon + copy
+    'VAHDAM': { title: 'Knowledge Base', href: '/knowledge-base.html', icon: 'kb',
+                desc: 'The single source of truth every generator reads from — brand kit, markets, product catalog, manual references and uploaded files.' },
+    'Competitor Benchmarking': { href: '/competitor-benchmarking.html', icon: 'competitor',
+                desc: 'Every competitor mailer captured automatically + live ad-library deep-links + a 60-brand registry across Tea/Coffee/Supplements × US/UK.' },
+    'Marketing Mailers': { href: '/calendar.html', icon: 'mailer',
+                desc: 'Plan the month + write the email. A cohort-aware calendar feeds the 5-step Mailer Studio that outputs export-ready HTML.' },
+    'Ad Campaigns': { href: '/ad-campaigns.html', icon: 'ads',
+                desc: 'Brief and track Google + Meta + TikTok campaigns on the same calendar as your emails. AI fills every field from one prompt.' },
+    'Landing Pages': { href: '/landing-pages.html', icon: 'landing',
+                desc: 'One brand-locked landing-page system that serves every channel. Pick channel + region + offer; AI generates the page in your brand voice.',
+                live: { href: '/lp/best', label: 'View live page →' } },
+  };
+
+  const stripHash = (h) => String(h || '').split('#')[0];
+
+  // Fallback nav (only used if auth.js hasn't published window.__LC_NAV yet) —
+  // keeps the homepage populated even in isolation.
+  const FALLBACK_NAV = [
+    { id: 'home', label: 'Home', href: '/' },
+    { id: 'chaigpt', label: 'ChaiGPT', href: '/chaigpt', icon: 'agent' },
+    { id: 'brain', label: 'Smart Brain', href: '/smart-brain.html', icon: 'brain' },
+    { id: 'agent', label: 'Vahdam Agent', href: '/agent', icon: 'agent' },
+    { id: 'analysis', label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis' },
+    { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'assets' },
+    { section: 'Knowledge Base' },
+    { group: 'VAHDAM', icon: 'kb', children: [{ label: 'Mailers' }, { label: 'Meta Ads' }, { label: 'Google Ads' }, { label: 'TikTok Ads' }, { label: 'Landing Pages' }] },
+    { group: 'Competitor Benchmarking', icon: 'competitor', children: [{ label: 'Discover Brands' }, { label: 'Mailers' }, { label: 'Meta / Google / TikTok Ads' }, { label: 'Insights' }] },
+    { section: 'Create' },
+    { group: 'Marketing Mailers', icon: 'mailer', children: [{ label: 'Calendar' }, { label: 'Cohort Definitions' }, { label: 'Mailer Studio' }] },
+    { group: 'Ad Campaigns', icon: 'ads', children: [{ label: 'Calendar' }, { label: 'Meta Ads' }, { label: 'Google Ads' }, { label: 'TikTok Ads' }] },
+    { group: 'Landing Pages', icon: 'landing', children: [{ label: '★ Live agent page' }, { label: 'For Mailers' }, { label: 'For Meta / Google / TikTok' }] },
   ];
 
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  // Turn the nav model into homepage widgets: one card per top-level item and
+  // one card per group (children become the sub-list) — mirroring the sidebar.
+  function widgetsFromNav(nav) {
+    const cards = [];
+    let section = '';
+    nav.forEach((n) => {
+      if (n.section) { section = n.section; return; }
+      if (n.group) {
+        const c = COPY[n.group] || {};
+        cards.push({
+          tag: section, icon: c.icon || n.icon || 'landing',
+          title: c.title || n.group,
+          href: c.href || stripHash((n.children && n.children[0] && n.children[0].href) || '/'),
+          desc: c.desc || ('Everything under ' + (c.title || n.group) + '.'),
+          subs: c.subs || (n.children || []).map((x) => x.label),
+          live: c.live,
+        });
+      } else {
+        if (n.id === 'home') return;  // Home is this page
+        const c = COPY[n.id] || {};
+        cards.push({
+          tag: section, icon: c.icon || n.icon || 'analysis',
+          title: c.title || n.label,
+          href: n.href,
+          desc: c.desc || (n.label + '.'),
+          subs: c.subs || [],
+          live: c.live,
+        });
+      }
+    });
+    return cards;
+  }
 
-  const grid = document.getElementById('feature-grid');
-  grid.innerHTML = FEATURES.map((f, i) => `
-    <div class="card">
-      ${f.group ? `<span class="card-tag">${f.group}</span>` : ''}
-      <div class="card-ic">${svg(f.icon)}</div>
-      <h2>${f.title}</h2>
-      <p>${f.desc}</p>
-      <ul class="card-subs">${f.subs.map((s) => `<li>${s}</li>`).join('')}</ul>
-      <div class="card-ctas">
-        <a class="btn btn-solid" href="${f.href}">Open →</a>
-        ${f.live ? `<a class="btn" href="${f.live.href}" target="_blank" rel="noopener" style="background:#fff;border:1px solid #16a34a;color:#16a34a;">${f.live.label}</a>` : ''}
-      </div>
-    </div>`).join('');
+  function render() {
+    const nav = (Array.isArray(window.__LC_NAV) && window.__LC_NAV.length) ? window.__LC_NAV : FALLBACK_NAV;
+    const cards = widgetsFromNav(nav);
+    const grid = document.getElementById('feature-grid');
+    grid.innerHTML = cards.map((f) => `
+      <div class="card">
+        ${f.tag ? `<span class="card-tag">${f.tag}</span>` : ''}
+        <div class="card-ic">${svg(f.icon)}</div>
+        <h2>${f.title}</h2>
+        <p>${f.desc}</p>
+        ${f.subs && f.subs.length ? `<ul class="card-subs">${f.subs.map((s) => `<li>${s}</li>`).join('')}</ul>` : ''}
+        <div class="card-ctas">
+          <a class="btn btn-solid" href="${f.href}">Open →</a>
+          ${f.live ? `<a class="btn" href="${f.live.href}" target="_blank" rel="noopener" style="background:#fff;border:1px solid #16a34a;color:#16a34a;">${f.live.label}</a>` : ''}
+        </div>
+      </div>`).join('');
+  }
+
+  // auth.js is deferred (runs before DOMContentLoaded) and publishes __LC_NAV,
+  // so it's ready here; render on DOM ready and fall back gracefully.
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render);
+  else render();
 })();
 </script>
 </body>
