@@ -9,6 +9,11 @@ api/voice.js
 
 # Heavy local-only directories (never needed at runtime)
 node_modules
+# Native mobile projects (Capacitor) — built locally/CI, never on Vercel web deploy
+android
+ios
+mobile-shell
+capacitor.config.json
 competitor-intelligence-hub/node_modules
 marketing_automation/node_modules
 test-results

@@ -1,0 +1,12 @@
+{
+  "appId": "com.vahdam.lifecycleos",
+  "appName": "VAHDAM Lifecycle OS",
+  "webDir": "mobile-shell",
+  "server": {
+    "url": "https://vahdam-marketing-mailers-architect.vercel.app",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "ios": { "contentInset": "always", "backgroundColor": "#0a1410" },
+  "android": { "backgroundColor": "#0a1410" }
+}
