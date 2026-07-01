@@ -18,12 +18,20 @@
     "collect:ads": "node workers/collect-ads.js",
     "collect:landing": "node workers/collect-landing.js",
     "collect:wayback": "node workers/collect-wayback.js",
-    "seed:products": "node scripts/seed-smart-products.js"
+    "seed:products": "node scripts/seed-smart-products.js",
+    "mobile:sync": "cap sync",
+    "mobile:android": "cap sync android && cd android && ./gradlew assembleDebug",
+    "mobile:android:open": "cap open android",
+    "mobile:ios:open": "cap open ios"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.1",
     "@playwright/test": "^1.61.0"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
+    "@capacitor/ios": "^6.2.1",
     "@vercel/speed-insights": "^2.0.0",
     "google-auth-library": "^10.7.0",
     "googleapis": "^144.0.0",
