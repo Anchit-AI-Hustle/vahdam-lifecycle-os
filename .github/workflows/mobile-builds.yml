@@ -1,0 +1,96 @@
+# Mobile Builds — produces downloadable binaries for the VAHDAM Lifecycle OS super app.
+#
+# Publishes to the fixed release tag `mobile-latest`, so these links are stable:
+#   Android APK : https://github.com/Anchit-AI-Hustle/vahdam-lifecycle-os/releases/download/mobile-latest/vahdam-lifecycle-os.apk
+#   iOS IPA     : https://github.com/Anchit-AI-Hustle/vahdam-lifecycle-os/releases/download/mobile-latest/vahdam-lifecycle-os-ios-unsigned.ipa
+#
+# The apps are Capacitor WebView shells over the live deployment (server.url in
+# capacitor.config.json), so binaries stay current automatically — the app renders
+# whatever is in production. Re-run this workflow only when the native shell changes.
+#
+# The Android APK is a debug-signed build: directly installable on any Android device
+# ("install from unknown sources"). The iOS build is unsigned: sideload it with
+# AltStore/Sideloadly, or sign it with an Apple developer certificate for TestFlight.
+
+name: Mobile Builds
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'ios/**'
+      - 'capacitor.config.json'
+      - 'mobile-shell/**'
+      - '.github/workflows/mobile-builds.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Rename artifact
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk vahdam-lifecycle-os.apk
+
+      - name: Publish to the mobile-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create mobile-latest \
+            --title "VAHDAM Lifecycle OS — mobile builds (latest)" \
+            --notes "Auto-published by the Mobile Builds workflow. The apps render the live deployment, so they stay current without rebuilds. Android: install the APK directly. iOS: unsigned IPA — sideload or sign for TestFlight." \
+            || true
+          gh release upload mobile-latest vahdam-lifecycle-os.apk --clobber
+
+  ios:
+    name: iOS unsigned IPA
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install CocoaPods dependencies
+        working-directory: ios/App
+        run: pod install
+
+      - name: Build (no code signing)
+        working-directory: ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace -scheme App \
+            -configuration Release -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p Payload
+          cp -r ios/App/build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qry vahdam-lifecycle-os-ios-unsigned.ipa Payload
+
+      - name: Publish to the mobile-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create mobile-latest \
+            --title "VAHDAM Lifecycle OS — mobile builds (latest)" \
+            --notes "Auto-published by the Mobile Builds workflow." \
+            || true
+          gh release upload mobile-latest vahdam-lifecycle-os-ios-unsigned.ipa --clobber

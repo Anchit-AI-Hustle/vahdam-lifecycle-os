@@ -10,6 +10,32 @@ retention dashboard + calendar generator on top.
 
 ---
 
+## 📄 PRD & business deck
+
+- **Complete PRD (v1.0):** [`docs/PRD.md`](docs/PRD.md) — vision, origin story, every
+  feature (origin → need → purpose → how it works), architecture, milestones, roadmap.
+- **15-slide business deck (with live screenshots):** [`docs/prd-deck.html`](docs/prd-deck.html)
+  — served at [`/prd-deck`](https://vahdam-marketing-mailers-architect.vercel.app/prd-deck)
+  on the live app. Self-contained single file; arrow keys / click to navigate; print to PDF.
+
+## 📱 Mobile super apps (Android / iOS)
+
+The entire OS ships as **one mobile super app** — an installable PWA plus native
+Android/iOS Capacitor shells (`android/`, `ios/`, `mobile/` — all code in this repo).
+The shells render the live deployment, so **every web deploy is automatically a mobile
+release** — no separate app updates needed.
+
+Downloadable builds are published by the **Mobile Builds** workflow
+(Actions → Mobile Builds → Run workflow) to the fixed release tag `mobile-latest`:
+
+| Platform | Download |
+|---|---|
+| Android (APK, direct install) | https://github.com/Anchit-AI-Hustle/vahdam-lifecycle-os/releases/download/mobile-latest/vahdam-lifecycle-os.apk |
+| iOS (unsigned IPA — sideload via AltStore/Sideloadly, or sign for TestFlight) | https://github.com/Anchit-AI-Hustle/vahdam-lifecycle-os/releases/download/mobile-latest/vahdam-lifecycle-os-ios-unsigned.ipa |
+| All builds | https://github.com/Anchit-AI-Hustle/vahdam-lifecycle-os/releases/tag/mobile-latest |
+
+---
+
 ## The pipeline
 
 ```
