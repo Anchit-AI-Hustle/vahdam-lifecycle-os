@@ -37,7 +37,11 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          # @capacitor/cli 8.x hard-requires Node >=22 (not just a warning —
+          # `cap sync` refuses to run under 20). The rest of the repo targets
+          # Node 20 (package.json engines) — this workflow is the one place
+          # pinned to 22 for the Capacitor CLI's sake.
+          node-version: 22
           cache: npm
 
       - uses: actions/setup-java@v4
@@ -82,7 +86,11 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          # @capacitor/cli 8.x hard-requires Node >=22 (not just a warning —
+          # `cap sync` refuses to run under 20). The rest of the repo targets
+          # Node 20 (package.json engines) — this workflow is the one place
+          # pinned to 22 for the Capacitor CLI's sake.
+          node-version: 22
           cache: npm
 
       - run: npm ci
