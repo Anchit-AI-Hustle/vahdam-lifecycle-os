@@ -35,10 +35,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: actions/setup-node@v6
+        with:
+          # @capacitor/cli 8.x hard-requires Node >=22 (not just a warning —
+          # `cap sync` refuses to run under 20). The rest of the repo targets
+          # Node 20 (package.json engines) — this workflow is the one place
+          # pinned to 22 for the Capacitor CLI's sake.
+          node-version: 22
+          cache: npm
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          # @capacitor/android 8.x generates capacitor.build.gradle targeting
+          # JavaVersion 21 (bumped from 17 by `cap sync` below) — must match.
+          java-version: '21'
+
+      - run: npm ci
+
+      - name: cap sync android
+        # Regenerates android/capacitor-cordova-android-plugins (gitignored —
+        # gradlew fails without it) and the plugin list from node_modules.
+        run: npx cap sync android
 
       - name: Build debug APK
         working-directory: android
@@ -65,6 +83,22 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          # @capacitor/cli 8.x hard-requires Node >=22 (not just a warning —
+          # `cap sync` refuses to run under 20). The rest of the repo targets
+          # Node 20 (package.json engines) — this workflow is the one place
+          # pinned to 22 for the Capacitor CLI's sake.
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: cap sync ios
+        # ios/App/Podfile does `require_relative '../../node_modules/@capacitor/ios/...'`
+        # — needs node_modules present, plus keeps the plugin list in sync.
+        run: npx cap sync ios
 
       - name: Install CocoaPods dependencies
         working-directory: ios/App
