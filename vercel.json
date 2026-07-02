@@ -37,6 +37,7 @@
     { "source": "/ask",        "destination": "/chaigpt.html" },
     { "source": "/api/klaviyo","destination": "/api/brain?action=klaviyo" },
     { "source": "/deck",       "destination": "/docs/deck.html" },
+    { "source": "/prd-deck",   "destination": "/docs/prd-deck.html" },
     { "source": "/c/:theme/:variant", "destination": "/campaign.html?theme=:theme&variant=:variant" },
     { "source": "/studio",    "destination": "/vahdam_mailer_architect_v34.html" },
     { "source": "/app",       "destination": "/vahdam_mailer_architect_v34.html" },
