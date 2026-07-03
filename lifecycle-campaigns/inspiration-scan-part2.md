@@ -109,3 +109,15 @@ Wordmark → full-bleed magenta-to-purple gradient studio shot: coffee cup + pur
 
 **Email 3 — Athletic Greens/AG1 (GB, May 19) — £59 trial value-stack.**
 Cream bg: wordmark → sans kicker "Feel The Difference!" → big green serif "Try AG1 for just £59*" → full kit flat-lay annotated in mono caps with strikethroughs and green FREE/new-price ("AG1 POUCH £79 £59", "VITAMIN D3+K2 £25 FREE", "SHAKER, SCOOP & CANISTER £28 FREE", "TRAVEL PACKS £15 FREE") → small dark-green pill "Try AG1". Same value-stack layout as #15 with a price-led headline. Steal: lead with the trial price in the headline, let annotations carry the savings math.
+
+## 22 — 1HigNCIHYE0sO8iwejEwyv2F_nPbB7nJl
+Milled grid, 3 emails.
+
+**Email 1 — Space Goods (GB, May 19) — matcha education/listicle.**
+Wordmark → slim green-gradient code bar "10% OFF MATCHA DUST WITH CODE HELLO10" → full-bleed moody indoor photo (woman sipping green drink) with white caps listicle headline "3 SURPRISING THINGS MATCHA DOES TO YOUR BRAIN" top-left, white rectangle "LEARN MORE" bottom-left. Steal: numbered-listicle headline + LEARN MORE (not SHOP) CTA — curiosity email with the offer demoted to the code bar.
+
+**Email 2 — Grüns (US, May 18) — ingredient transparency.**
+White bg: wordmark → chunky green rounded headline "What You're Actually Getting Every Day" → yellow pill "TRY GRÜNS FOR UP TO 52% OFF" → yellow-bordered candid photo (woman eating a gummy, packs on counter). Preview: "60+ thoughtful ingredients. All in one pack." Steal: Grüns' fixed 3-block system (headline / pill CTA / bordered photo) — CTA sits ABOVE the image, so the fold always contains the offer.
+
+**Email 3 — AG1 (US, May 18) — travel packs seasonal.**
+Cream bg: wordmark → split hero: photo of open suitcase with sachets tucked in (left) + large green serif "Fit 75+ Nutrients in Your Carry On." (right) with two short sans paragraphs → full-width dark-green bar CTA "GET ON-THE-GO NUTRITION →" (mono caps). Steal: product staged inside the seasonal context object (suitcase = travel) instead of a beach cliché; benefit number ("75+") carried into the headline.
