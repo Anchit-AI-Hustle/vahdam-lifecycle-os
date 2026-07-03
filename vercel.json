@@ -46,7 +46,7 @@
     { "source": "/assets",    "destination": "/assets.html" },
     { "source": "/analytics", "destination": "/dashboard.html" },
     { "source": "/plan",      "destination": "/calendar.html" },
-    { "source": "/lifecycle-calendar", "destination": "/lifecycle-calendar.html" },
+    { "source": "/mailer-calendar", "destination": "/lifecycle-calendar.html" },
     { "source": "/competitor-benchmarking", "destination": "/competitor-benchmarking.html" },
     { "source": "/competitor", "destination": "/competitor-benchmarking.html" },
     { "source": "/ads",        "destination": "/ad-campaigns.html" },
