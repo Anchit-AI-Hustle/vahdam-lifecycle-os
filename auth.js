@@ -116,6 +116,7 @@
     studio:     '<path d="M5 3v4M3 5h4M6 17v4M4 19h4"/><path d="m13 3 2.3 6.7L22 12l-6.7 2.3L13 21l-2.3-6.7L4 12l6.7-2.3z"/>',
     insights:   '<path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 4-6"/><circle cx="7" cy="14" r="1.2"/><circle cx="10" cy="10" r="1.2"/><circle cx="13" cy="13" r="1.2"/><circle cx="17" cy="7" r="1.2"/>',
     vahdam:     '<path d="M12 21c-1-5-4-6.5-7-7 0-5 3.5-8 7-9 3.5 1 7 4 7 9-3 .5-6 2-7 7z"/><path d="M12 13c1.5-2 3.5-3 5.5-3.5"/>',
+    social:     '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.7 6.8-4.4M8.6 13.3l6.8 4.4"/>',
   };
   // Real, full-colour brand glyphs. Each is a complete <svg> with its own
   // viewBox + official brand colours, so Meta / Google / TikTok read as the
@@ -131,23 +132,30 @@
   // Benchmarking also owns brand DISCOVERY (the old "Mailer Discovery" — now
   // folded in, since discovery is exactly what benchmarking is for).
   // CREATE = where VAHDAM produces its own assets (Mailers studio, Ads, Landing).
+  // Version taxonomy (CLAUDE.md "Version taxonomy (V1 vs V2)"): `ver` badges an
+  // item V1 (legacy base app) or V2 (Lifecycle OS, 2026-07-03 additions). Where
+  // BOTH generations of the same capability exist, `draft` labels them Draft 1
+  // vs Draft 2 (e.g. Plan V1 = Draft 1 vs Mailer Calendar V2 = Draft 2 of
+  // calendaring; Mailer Studio V1 = Draft 1 vs the Mailer Calendar's built
+  // mailers = Draft 2 of mailer creation).
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
-    { id: 'chaigpt',    label: 'ChaiGPT',       href: '/chaigpt',        icon: 'vahdam',   match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
-    { id: 'brain',      label: 'Smart Brain',   href: '/brain',          icon: 'studio',   match: ['/brain', '/smart-brain', '/smart-brain.html'] },
-    { id: 'agent',      label: 'Vahdam Agent',  href: '/agent',          icon: 'vahdam',   match: ['/agent', '/agent.html'] },
-    { id: 'analysis',   label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis', match: ['/dashboard.html', '/analytics'] },
-    { id: 'assets',     label: 'Created Assets',href: '/assets',         icon: 'analysis', match: ['/assets', '/assets.html'] },
+    { id: 'chaigpt',    label: 'ChaiGPT',       href: '/chaigpt',        icon: 'vahdam',   ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
+    { id: 'brain',      label: 'Smart Brain',   href: '/brain',          icon: 'studio',   ver: 'v1', match: ['/brain', '/smart-brain', '/smart-brain.html'] },
+    { id: 'agent',      label: 'Vahdam Agent',  href: '/agent',          icon: 'vahdam',   ver: 'v1', match: ['/agent', '/agent.html'] },
+    { id: 'analysis',   label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis', ver: 'v1', match: ['/dashboard.html', '/analytics'] },
+    { id: 'assets',     label: 'Created Assets',href: '/assets',         icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
+    { id: 'social',     label: 'Social Media OS', href: '/social',       icon: 'social',   ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
 
     { section: 'Knowledge Base' },
-    { group: 'VAHDAM', icon: 'vahdam', gid: 'kb', children: [
+    { group: 'VAHDAM', icon: 'vahdam', gid: 'kb', ver: 'v1', children: [
       { id: 'kbv-mailers', label: 'Mailers',       href: '/knowledge-base.html#mailers', icon: 'mailer' },
       { id: 'kbv-meta',    label: 'Meta Ads',      href: '/knowledge-base.html#meta',    icon: 'meta' },
       { id: 'kbv-google',  label: 'Google Ads',    href: '/knowledge-base.html#google',  icon: 'google' },
       { id: 'kbv-tiktok',  label: 'TikTok Ads',    href: '/knowledge-base.html#tiktok',  icon: 'tiktok' },
       { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
     ]},
-    { group: 'Competitor Benchmarking', icon: 'competitor', gid: 'competitor', children: [
+    { group: 'Competitor Benchmarking', icon: 'competitor', gid: 'competitor', ver: 'v1', children: [
       { id: 'comp-discover',label: 'Discover Brands',href: '/competitor-benchmarking.html#discover', icon: 'discover' },
       { id: 'comp-mailers', label: 'Mailers',        href: '/competitor-benchmarking.html#mailers',  icon: 'mailer' },
       { id: 'comp-meta',    label: 'Meta Ads',       href: '/competitor-benchmarking.html#meta',     icon: 'meta' },
@@ -159,20 +167,20 @@
 
     { section: 'Create' },
     { group: 'Marketing Mailers', icon: 'mailer', gid: 'mailers', children: [
-      { id: 'calendar', label: 'Calendar',           href: '/calendar.html', icon: 'calendar', match: ['/calendar.html', '/plan'] },
-      { id: 'cohorts',  label: 'Cohort Definitions', href: '/cohort-definitions.html', icon: 'cohort', match: ['/cohort-definitions.html', '/cohorts'] },
+      { id: 'calendar', label: 'Calendar',           href: '/calendar.html', icon: 'calendar', ver: 'v1', draft: 'Draft 1', match: ['/calendar.html', '/plan'] },
+      { id: 'cohorts',  label: 'Cohort Definitions', href: '/cohort-definitions.html', icon: 'cohort', ver: 'v1', match: ['/cohort-definitions.html', '/cohorts'] },
       // Mailer Studio is an OPEN feature — works standalone without sign-in.
-      { id: 'studio',   label: 'Mailer Studio',      href: '/studio', open: true, icon: 'studio', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
-      { id: 'lifecycle', label: 'Lifecycle Calendar (UK)', href: '/mailer-calendar', icon: 'calendar', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
-      { id: 'ukhub',     label: 'UK Non-Engagers Hub',     href: '/uk-non-engagers', icon: 'insights', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
+      { id: 'studio',   label: 'Mailer Studio',      href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
+      { id: 'lifecycle', label: 'Mailer Calendar (UK)', href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
+      { id: 'ukhub',     label: 'UK Non-Engagers Hub',     href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
     ]},
-    { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', children: [
+    { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
       { id: 'ads-google',  label: 'Google Ads', href: '/ad-campaigns.html#google',   icon: 'google' },
       { id: 'ads-tiktok',  label: 'TikTok Ads', href: '/ad-campaigns.html#tiktok',   icon: 'tiktok' },
     ]},
-    { group: 'Landing Pages', icon: 'landing', gid: 'landing', children: [
+    { group: 'Landing Pages', icon: 'landing', gid: 'landing', ver: 'v1', children: [
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
       { id: 'lp-agent',   label: 'Agent Concept LP',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
       { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages.html#mailers',  icon: 'mailer' },
@@ -329,7 +337,7 @@
     },
     calendar: {
       title: 'Calendar (30-day RFM plan)',
-      what: "Generates a 30-day marketing calendar from your analytics: dated sends with segment, theme, offer mechanic, and a subject hint — festival-aware. Any planned row can be fed straight into mailer generation.",
+      what: "Generates a 30-day marketing calendar from your analytics: dated sends with segment, theme, offer mechanic, and a subject hint — festival-aware. Any planned row can be fed straight into mailer generation. This is Draft 1 (V1) of calendaring; Draft 2 is the Mailer Calendar (UK).",
       who: "The nine RFM segments from Data Analysis — Champions, Loyal, Promising, New, Need-Attention, About-to-Sleep, At-Risk, Hibernating, Lost.",
       how: "The page posts your analytics state to the calendar engine and renders the returned 30-day plan as a grid. Trigger-mailer feeds one row into the mailer engine for generation.",
       input: "Analytics state handed over from Data Analysis via localStorage (segments, insights), plus your date window.",
@@ -357,7 +365,7 @@
     },
     studio: {
       title: 'Mailer Studio',
-      what: "The main creation app: a 5-step wizard (Brief → Products → Generation → Review & Refine → Final HTML) that produces four mailer variants — A (Image · Hero close-up), B (Image · Lifestyle wide), T1 (Text · Editorial), T2 (Text · Founder note) — across 11 layout archetypes, with real catalog products and region-correct pricing.",
+      what: "The main creation app: a 5-step wizard (Brief → Products → Generation → Review & Refine → Final HTML) that produces four mailer variants — A (Image · Hero close-up), B (Image · Lifestyle wide), T1 (Text · Editorial), T2 (Text · Founder note) — across 11 layout archetypes, with real catalog products and region-correct pricing. This is Draft 1 (V1) of mailer creation; Draft 2 is the Mailer Calendar's built mailers.",
       who: "Whatever cohort the brief targets — RFM segments handed over from the Calendar, or a manually described audience. Output is a compact (~1200–1500px) Klaviyo-ready HTML mailer.",
       how: "A multi-stage AI pipeline. Text runs through the 6-provider waterfall; images cascade Gemini native → Imagen → OpenAI gpt-image → Pollinations flux. Structural divergence between variants is forced (variant B always takes an alternate archetype). Brand gates enforce the 4-colour palette, Lao MN / Proxima Nova, and the banned-phrase list.",
       input: "A campaign brief (typed, AI-autofilled, or handed over from a calendar row), your market (US/UK/Global — selects catalog and currency), and product selections.",
@@ -373,8 +381,8 @@
       ],
     },
     lifecycle: {
-      title: 'Lifecycle Calendar (UK)',
-      what: "The UK lifecycle mailer calendar: deterministically plans 14/30/45 days of sends for the two engagement cohorts by rotating a curated play library — then builds any planned send into a Klaviyo-ready mailer with exactly ONE brand-gated LLM call.",
+      title: 'Mailer Calendar (UK)',
+      what: "The UK lifecycle mailer calendar: deterministically plans 14/30/45 days of sends for the two engagement cohorts by rotating a curated play library — then builds any planned send into a Klaviyo-ready mailer with exactly ONE brand-gated LLM call. This is Draft 2 (V2 — Lifecycle OS) of both calendaring and mailer creation; Draft 1 is the 30-day Calendar plus Mailer Studio.",
       who: "Cohort A — Non-Buyers/Non-Engagers (objective: earn the open, earn the click, first purchase) and Cohort B — T&B Buyers/Non-Engagers (objective: reactivate with familiarity, cross-grade to Coffee/Supplements subscription). UK market only (vahdam.co.uk).",
       how: "Two modes. PLAN is deterministic — no LLM: it rotates plays per cohort at your cadence (default 2/week), enforcing hard product rules (T&B is one-time only; Coffee and Supplements are subscription-first; supplements are never priced; no founder voice — templates restricted to pure/visual/editorial). BUILD makes one LLM call against locked facts and renders the brand template.",
       input: "Start date, plan window (14/30/45 days), cohort checkboxes, and sends-per-cohort-per-week. Nothing runs automatically — a human clicks Generate.",
@@ -436,6 +444,23 @@
         ['Design + layout + structure', 'Section architecture in the 4-colour palette with Lao MN / Proxima Nova; hero imagery via the image cascade.'],
         ['Coding', 'Compiles to a self-contained HTML page honouring the /lp/:id serving contract.'],
         ['Final compilation + presentation', 'Stored in landing_pages_generated and served live at /lp/:campaignId.', '/api/calendar?action=lp&id=…'],
+      ],
+    },
+    social: {
+      title: 'Social Media OS',
+      what: "The daily social engine (V2 — Lifecycle OS): a 7-agent pipeline produces one complete day-package of posts across 11 platform formats — Instagram Feed, Reels and Stories, Facebook, TikTok, LinkedIn, X, Threads, Pinterest, YouTube Shorts, plus a long-form blog — every string brand-scrubbed, nothing published without a human approve.",
+      who: "Followers and prospects per platform, UK market first. The operator reviews each day-package in the /social console and approves or skips per post.",
+      how: "Seven bounded LLM agents run in sequence — each ONE call on the right provider tier, each with a deterministic fallback so the run never fails outright — inside a ~75s time box. A daily Vercel Cron (04:30 UTC) drives it; results persist to social_posts_generated in Supabase. Per-platform constraints (aspect, dims, char limits, hashtags, best time) live in a data spec, not prose. Platform push stays Phase 2 (push_status: not_integrated_phase_2).",
+      input: "Nothing daily — the cron drives it; or hit Run Today in the console. From you: approve or skip per post. Product-focus rotation and festivals come from data/*.json; links use real vahdam.co.uk handles only.",
+      pipeline: true,
+      steps: [
+        ['Ideology', "Premium-tier agent picks the day's creative theme — festival-aware, rotating product focus — maximum ideation before any data is touched.", '/api/brain?action=social-run-daily'],
+        ['Data & Hypothesis', "Reads recent-post history from the DB to avoid repetition and states a performance hypothesis for the day's angle."],
+        ['Strategy', "Locks objective, CTA, and destination link per platform — real vahdam.co.uk product handles only."],
+        ['Content', "Writes per-platform copy — captions, titles, hashtags within each platform's limits — plus the 800-1200 word blog, in brand voice with banned phrases blocked."],
+        ['Design', "Generates the hero image via the shared image cascade with per-platform crops; if generation fails it ships the exact image prompt instead."],
+        ['Audio/Video', "Builds the storyboard and requests video via video-core for Reels, TikTok, and Shorts — stubbing gracefully when no video keys exist."],
+        ['Compilation', "Fast-tier agent assembles the final day-package JSON, every string passes the brand scrub, and posts persist for review — approve or skip in the console.", '/api/brain?action=social-list · social-approve · social-skip'],
       ],
     },
   };
@@ -526,13 +551,22 @@
         `</div>`
       : '';
 
+    // V1/V2 badge (+ optional Draft 1/Draft 2 label where both generations of
+    // the same capability exist) — see CLAUDE.md "Version taxonomy (V1 vs V2)".
+    const verChip = (item) => {
+      if (!item.ver) return '';
+      const v = item.ver === 'v2' ? 'V2' : 'V1';
+      const tip = item.ver === 'v2' ? 'V2 — Lifecycle OS (second draft)' : 'V1 — legacy base app (first draft)';
+      return `<span class="lnav-ver ${item.ver}" title="${tip}">${v}${item.draft ? ' · ' + item.draft : ''}</span>`;
+    };
+
     // Build the nav markup. Internal nav stays in the same tab so the back
     // button works naturally; external links elsewhere in the app keep their
     // own target="_blank" where they're declared.
     const linkRow = (item) => {
       const isCur = item.id === cur;
       const a = `<a class="lnav-link${isCur ? ' active' : ''}" href="${item.href}" data-id="${item.id}" title="${item.label}">
-        ${svg(item.icon)}<span class="lnav-txt">${item.label}</span></a>`;
+        ${svg(item.icon)}<span class="lnav-txt">${item.label}</span>${verChip(item)}</a>`;
       if (!INFO[item.id]) return a;
       return `<div class="lnav-item">${a}${infoBtn(item.id, item.label)}</div>${infoList(item.id)}`;
     };
@@ -545,7 +579,7 @@
       if (!n.children) return linkRow(n);
       const groupActive = n.children.some((c) => c.id === cur);
       return `<div class="lnav-group open${groupActive ? ' active-group' : ''}">
-        <div class="lnav-item"><button class="lnav-ghead" type="button" title="${n.group}">${svg(n.icon)}<span class="lnav-txt">${n.group}</span><svg class="lnav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>${n.gid ? infoBtn(n.gid, n.group) : ''}</div>
+        <div class="lnav-item"><button class="lnav-ghead" type="button" title="${n.group}">${svg(n.icon)}<span class="lnav-txt">${n.group}</span>${verChip(n)}<svg class="lnav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>${n.gid ? infoBtn(n.gid, n.group) : ''}</div>
         ${n.gid ? infoList(n.gid) : ''}
         <div class="lnav-gbody">${n.children.map(linkRow).join('')}</div>
       </div>`;
@@ -673,6 +707,21 @@
           font-size: 13px; color: #9aaaa1; text-decoration: none;
           border: 1px solid transparent; transition: all .12s;
         }
+        #lifecycle-nav .lnav-link .lnav-txt {
+          flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        /* V1/V2 (+ Draft n) taxonomy badge */
+        #lifecycle-nav .lnav-ver {
+          flex-shrink: 0; font-size: 8.5px; font-weight: 700; letter-spacing: 0.08em;
+          line-height: 1.4; padding: 1.5px 5px; border-radius: 5px; white-space: nowrap;
+        }
+        #lifecycle-nav .lnav-ver.v1 {
+          color: #8b9c93; background: rgba(139,156,147,0.1); border: 1px solid rgba(139,156,147,0.28);
+        }
+        #lifecycle-nav .lnav-ver.v2 {
+          color: #AB8743; background: rgba(171,135,67,0.14); border: 1px solid rgba(171,135,67,0.45);
+        }
+        html.lnav-collapsed #lifecycle-nav .lnav-ver { display: none; }
         #lifecycle-nav .lnav-link:hover { color: #e8ede9; background: rgba(171,135,67,0.08); }
         #lifecycle-nav .lnav-link.active {
           color: #FBF5EA; background: rgba(171,135,67,0.16); border-color: rgba(171,135,67,0.35);
