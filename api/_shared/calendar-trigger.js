@@ -393,3 +393,9 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
 }
+
+// ─── Named helper exports (additive — zero behavior change) ─────────────────
+// module.exports stays the HTTP handler above; these let sibling _shared
+// modules (lifecycle-mailer-build.js) reuse the exact same brand-compliant
+// renderer instead of copying it.
+module.exports.helpers = { renderTextVariant, regionBase, lookupHandle, esc };
