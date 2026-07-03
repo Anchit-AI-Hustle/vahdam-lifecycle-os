@@ -16,7 +16,10 @@ retention dashboard + calendar generator on top.
   feature (origin → need → purpose → how it works), architecture, milestones, roadmap.
 - **15-slide business deck (with live screenshots):** [`docs/prd-deck.html`](docs/prd-deck.html)
   — served at [`/prd-deck`](https://vahdam-marketing-mailers-architect.vercel.app/prd-deck)
-  on the live app. Self-contained single file; arrow keys / click to navigate; print to PDF.
+  on the live app. Self-contained single file; arrow keys / click to navigate.
+- **PDF export of the deck:** [`docs/prd-deck.pdf`](docs/prd-deck.pdf) — served at
+  [`/prd-deck.pdf`](https://vahdam-marketing-mailers-architect.vercel.app/prd-deck.pdf).
+  Same 15 slides, widescreen (16:9), ready to send or print.
 
 ## 📱 Mobile super apps (Android / iOS)
 
