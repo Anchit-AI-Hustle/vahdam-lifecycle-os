@@ -35,12 +35,12 @@ Single source of truth for every email in this campaign. Nothing outside this fi
 ## T&B hero products (REAL handles, prices, images from UK store export)
 | Product | Handle | Price | Was | Image |
 |---|---|---|---|---|
-| Assam Spice Masala Chai, 200g loose leaf | `assam-spice-masala-chai-tea` | £12.99 | £14.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/products/assamchaispicedbt_11zon.jpg |
-| Himalayan Green Tea, 100g loose leaf | `himalayan-green-tea-3-53oz-100g` | £5.99 | £15.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/products/himalayangreentea_11zon.jpg |
-| Earl Grey Black Tea, 100 tea bags | `earl-grey-black-tea-bags-100-tea-bags` | £17.99 | £25.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/files/Earl-grey_ed481d66-3b90-4a5a-97a5-0e19a708c726.jpg |
-| Chamomile Mint Citrus Green Tea, 200g | `chamomile-mint-citrus-green-tea` | £15.99 | £17.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/products/chamomilemintcitrusgreentea_11zon.jpg |
-| Assorted Loose Leaf Sampler, 10 teas | `assorted-leaf-teas` | £12.99 | £23.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/files/71d5z4TlNaL._AC_SL1500.jpg |
-| Turmeric Ashwagandha Herbal Tisane, 100 bags | `turmeric-ashwagandha-herbal-tea-tisane-100-tea-bags` | £24.99 | £34.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/files/81zl0PJEMoL._AC_SL1500.jpg |
+| Assam Spice Masala Chai, 200g loose leaf | `assam-spice-masala-chai-tea` | £12.99 | £14.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/products/assamchaispicedbt_11zon.jpg?v=1675673061 |
+| Himalayan Green Tea, 100g loose leaf | `himalayan-green-tea-3-53oz-100g` | £5.99 | £15.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/products/himalayangreentea_11zon_2.jpg?v=1675673283 |
+| Earl Grey Black Tea, 100 tea bags | `earl-grey-black-tea-bags-100-tea-bags` | £17.99 | £25.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/files/Earl-grey_ed481d66-3b90-4a08-94a3-2ba4cb94ae5c.jpg?v=1758099441 |
+| Chamomile Mint Citrus Green Tea, 200g | `chamomile-mint-citrus-green-tea` | £15.99 | £17.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/products/chamomilemintcitrusgreentea_11zon.jpg?v=1675673420 |
+| Assorted Loose Leaf Sampler, 10 teas | `assorted-leaf-teas` | £12.99 | £23.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/files/71d5z4TlNaL._AC_SL1500.jpg?v=1682503156 |
+| Turmeric Ashwagandha Herbal Tisane, 100 bags | `turmeric-ashwagandha-herbal-tea-tisane-100-tea-bags` | £24.99 | £34.99 | https://cdn.shopify.com/s/files/1/0684/3603/3827/files/81zl0PJEMoL._AC_SL1500.jpg?v=1684996616 |
 - "Was" prices are live compare-at prices from the store export — citing them is honest, not an invented discount.
 - IMPORTANT: image URLs above may have `?v=` params stripped; use them as given here. Do NOT use any image URL not listed in this file.
 
