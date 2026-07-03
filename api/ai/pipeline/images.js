@@ -36,11 +36,13 @@ SCENE:
 const VALID_SIZES = ['1024x1024', '1536x1024', '1024x1536'];
 
 // ── Single image generation (one provider attempt) ───────────────────────────
-// Model cascade: gpt-image-2 (primary, highest quality) → gpt-image-1 (fallback)
-const IMAGE_MODELS = [
+// Model cascade mirrors api/ai/image.js: gpt-image-2 (best instruction-
+// following) auto-demotes WITHIN-PROVIDER to gpt-image-1 on model-not-found
+// (404, or 400 mentioning the model) — see isModelErr below.
+const IMAGE_MODELS = [...new Set([
   process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2',
   'gpt-image-1'
-];
+])];
 
 async function generateImage(prompt, size, openaiKey, modelOverride) {
   const safeSize = VALID_SIZES.includes(size) ? size : '1024x1024';
@@ -66,9 +68,12 @@ async function generateImage(prompt, size, openaiKey, modelOverride) {
       });
       if (!r.ok) {
         const err = await r.text().catch(() => '');
-        // Model not available → try next model in cascade
+        // Model not available → demote to next model in cascade
+        // (same detection as api/ai/image.js: 404, known phrases, or a 400
+        // whose body names the model we asked for)
         const isModelErr = r.status === 404 || err.includes('model_not_found') ||
-                           err.includes('does not exist') || err.includes('not supported');
+                           err.includes('does not exist') || err.includes('not supported') ||
+                           (r.status === 400 && err.includes(imageModel));
         if (isModelErr && modelsToTry.indexOf(imageModel) < modelsToTry.length - 1) {
           console.warn('[pipeline/images] ' + imageModel + ' unavailable — trying next model');
           lastErr = new Error('OpenAI image ' + r.status + ': ' + err.substring(0, 200));

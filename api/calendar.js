@@ -28,9 +28,17 @@
  *                              mailer + ads + landing page, persisted
  *   ?action=smart-brain-reject      → POST: reject slot, re-planned next sync
  *   ?action=lp&id=...               → GET: serve a generated landing page
+ *   ?action=lifecycle-generate      → POST: deterministic cohort-native UK
+ *                              lifecycle calendar (lifecycle-calendar-generate.js)
+ *   ?action=lifecycle-list          → GET: read persisted lifecycle_calendar_entries
+ *                              (graceful when Supabase is not configured)
+ *   ?action=lifecycle-build-mailer  → POST { id | entry }: one LLM call →
+ *                              brand-gated mailer HTML (lifecycle-mailer-build.js)
  */
 
 const generate = require('./_shared/calendar-generate.js');
+const lifecycleGen = require('./_shared/lifecycle-calendar-generate.js');
+const lifecycleBuild = require('./_shared/lifecycle-mailer-build.js');
 const triggerMailer = require('./_shared/calendar-trigger.js');
 const plan = require('./_shared/smart-brain-plan.js');
 const { runDailySmartBrain, smartConfig, schemaAssumptions, GenerationService, SmartBrainDbAdapter } = require('../lib/smart-brain/services.js');
@@ -147,10 +155,56 @@ async function smartBrain(req, res, smartAction) {
   }
 }
 
+async function lifecycle(req, res, action) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+
+  const body = readBody(req);
+  try {
+    if (action === 'lifecycle-generate') {
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+      const result = await lifecycleGen.generateLifecycleCalendar({
+        start_date: body.start_date,
+        days: body.days,
+        cohorts: body.cohorts,
+        cadence_per_week: body.cadence_per_week,
+        market: body.market || 'UK',
+      });
+      return res.status(200).json({ ok: true, ...result });
+    }
+
+    if (action === 'lifecycle-list') {
+      const q = req.query || {};
+      const result = await lifecycleGen.listEntries({
+        market: q.market || body.market || 'UK',
+        from: q.from || body.from || null,
+        to: q.to || body.to || null,
+      });
+      return res.status(200).json(result);
+    }
+
+    if (action === 'lifecycle-build-mailer') {
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+      if (!body.id && !body.entry) return res.status(400).json({ ok: false, error: 'id (lifecycle entry) or entry is required' });
+      const result = await lifecycleBuild.buildLifecycleMailer({ id: body.id || null, entry: body.entry || null });
+      return res.status(200).json(result);
+    }
+
+    return res.status(400).json({ ok: false, error: 'Unknown lifecycle action. Use lifecycle-generate|lifecycle-list|lifecycle-build-mailer' });
+  } catch (err) {
+    console.error('[api/calendar lifecycle]', err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
 module.exports = async function handler(req, res) {
   const action = (req.query?.action || '').toLowerCase();
   if (action === 'generate') return generate(req, res);
   if (action === 'trigger-mailer' || action === 'triggermailer') return triggerMailer(req, res);
+  if (action.startsWith('lifecycle-')) return lifecycle(req, res, action);
   if (action.startsWith('smart-brain-')) return smartBrain(req, res, action.replace('smart-brain-', ''));
   if (action === 'lp') {
     try {
@@ -172,5 +226,5 @@ module.exports = async function handler(req, res) {
     }
   }
   res.setHeader('Access-Control-Allow-Origin', '*');
-  return res.status(400).json({ ok: false, error: 'Use ?action=generate, ?action=trigger-mailer, ?action=lp&id=…, or ?action=smart-brain-run-daily' });
+  return res.status(400).json({ ok: false, error: 'Use ?action=generate, ?action=trigger-mailer, ?action=lp&id=…, ?action=smart-brain-run-daily, or ?action=lifecycle-generate|lifecycle-list|lifecycle-build-mailer' });
 };

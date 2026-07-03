@@ -23,7 +23,8 @@
     { "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false }
   ],
   "crons": [
-    { "path": "/api/brain?action=cron", "schedule": "30 3 * * *" }
+    { "path": "/api/brain?action=cron", "schedule": "30 3 * * *" },
+    { "path": "/api/cron/social", "schedule": "30 4 * * *" }
   ],
   "rewrites": [
     { "source": "/api/ai/pipeline/health", "destination": "/api/public-config?pipeline=1" },
@@ -36,6 +37,9 @@
     { "source": "/chai",       "destination": "/chaigpt.html" },
     { "source": "/ask",        "destination": "/chaigpt.html" },
     { "source": "/api/klaviyo","destination": "/api/brain?action=klaviyo" },
+    { "source": "/api/cron/social", "destination": "/api/brain?action=social-run-daily" },
+    { "source": "/social",       "destination": "/social-media.html" },
+    { "source": "/social-media", "destination": "/social-media.html" },
     { "source": "/deck",       "destination": "/docs/deck.html" },
     { "source": "/prd-deck",   "destination": "/docs/prd-deck.html" },
     { "source": "/prd-deck.pdf", "destination": "/docs/prd-deck.pdf" },
@@ -46,6 +50,8 @@
     { "source": "/assets",    "destination": "/assets.html" },
     { "source": "/analytics", "destination": "/dashboard.html" },
     { "source": "/plan",      "destination": "/calendar.html" },
+    { "source": "/mailer-calendar", "destination": "/lifecycle-calendar.html" },
+    { "source": "/uk-non-engagers", "destination": "/uk-non-engagers.html" },
     { "source": "/competitor-benchmarking", "destination": "/competitor-benchmarking.html" },
     { "source": "/competitor", "destination": "/competitor-benchmarking.html" },
     { "source": "/ads",        "destination": "/ad-campaigns.html" },
