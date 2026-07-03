@@ -15,6 +15,12 @@
  *   AGENTS          ?action=agents | agent-upsert (POST) | agent-sync (POST) |
  *                   agent-chat (POST) | agent-sessions
  *   CONSOLE         ?action=console-chat (POST) — chat-style brain console
+ *   VIDEO           ?action=video-generate (POST) | video-status (GET) —
+ *                   Veo 3.1 → Sora 2 → Higgsfield → Runway (_shared/video-core.js)
+ *   SOCIAL          ?action=social-run-daily (POST, or cron GET via
+ *                   /api/cron/social with CRON_SECRET) | social-list (GET) |
+ *                   social-approve | social-skip (POST {id}) —
+ *                   daily multi-agent post pipeline (_shared/social-core.js)
  *   OPS             ?action=status | config (GET/POST) | cron (daily loop)
  *
  * Daily cron: GET /api/brain?action=cron — guarded by CRON_SECRET when set
@@ -35,6 +41,8 @@ const calendarScenarios = require('./_shared/calendar-scenarios.js');
 const smartbrain = require('../lib/smart-brain/services.js');
 const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
+const video = require('./_shared/video-core.js');
+const social = require('./_shared/social-core.js');
 
 let callLLM = null;
 try { callLLM = require('./_shared/llm.js'); } catch (_) { callLLM = null; }
@@ -340,6 +348,55 @@ module.exports = async function handler(req, res) {
         return res.json(out);
       }
 
+      // ── VIDEO (Veo 3.1 → Sora 2 → Higgsfield → Runway cascade — stubs until keys set) ──
+      case 'video-generate': {
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        if (!b.prompt) return res.status(400).json({ ok: false, error: 'prompt required' });
+        const out = await video.generateVideo({
+          prompt: b.prompt,
+          duration_s: b.duration_s || b.duration || 8,
+          aspect: b.aspect || '16:9',
+          tier: b.tier || 'standard',
+        });
+        return res.json(out);
+      }
+      case 'video-status': {
+        const provider = req.query.provider || b.provider;
+        const jobId = req.query.job_id || b.job_id;
+        if (!provider || !jobId) return res.status(400).json({ ok: false, error: 'provider and job_id required' });
+        const out = await video.getVideoStatus({ provider, job_id: jobId });
+        return res.json(out);
+      }
+
+      // ── SOCIAL MEDIA OS (daily multi-agent post pipeline — _shared/social-core.js) ──
+      case 'social-run-daily': {
+        // POST from the console; GET only for the daily cron (/api/cron/social
+        // rewrite) — guarded exactly like ?action=cron.
+        if (req.method !== 'POST' && !cronAuthorized(req)) {
+          return res.status(401).json({ ok: false, error: 'unauthorized (POST from the console, or cron with CRON_SECRET)' });
+        }
+        const out = await social.runDaily({
+          date: b.date || req.query.date,
+          platforms: b.platforms,
+          dry_run: b.dry_run === true || req.query.dry_run === '1',
+        });
+        return res.json(out);
+      }
+      case 'social-list': {
+        const out = await social.listPosts({ date: req.query.date, from: req.query.from, to: req.query.to });
+        return res.json(out);
+      }
+      case 'social-approve': {
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        const out = await social.setStatus(b.id, 'approved');
+        return res.status(out.ok ? 200 : 400).json(out);
+      }
+      case 'social-skip': {
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        const out = await social.setStatus(b.id, 'skipped');
+        return res.status(out.ok ? 200 : 400).json(out);
+      }
+
       // ── TTS (ElevenLabs proxy — premium voice for the agents; clients fall
       //    back to browser speechSynthesis when not configured) ─────────────
       case 'tts': {
@@ -410,7 +467,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
       }
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'console-chat', 'cron'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'cron'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);

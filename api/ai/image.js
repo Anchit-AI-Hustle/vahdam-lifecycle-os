@@ -3,21 +3,24 @@
 // Server-side image generation with multi-provider cascade.
 // Returns base64 data URL (browser embeds directly into <img src=...>).
 //
-// Provider cascade:
-//   1. Gemini Imagen 4 (primary) → Imagen 4 Ultra → Imagen 4 Fast
-//   2. OpenAI gpt-image-2 → gpt-image-1 (fallback)
-//   3. Pollinations FLUX (free, unlimited, last resort)
+// Provider cascade (tier-ordered — blueprint docs/quality-upgrade-blueprint.md):
+//   premium/maxpower: OpenAI gpt-image-2 (auto-demotes to gpt-image-1 on
+//                     model-not-found) → Gemini gemini-3-pro-image-preview →
+//                     gemini-2.5-flash-image → Imagen fast → Pollinations
+//   standard/budget:  FREE-FIRST to protect paid quotas —
+//                     gemini-2.5-flash-image (free ~500/day) → Pollinations →
+//                     OpenAI (last paid resort)
+// Never 502s: on total failure returns 200 + on-brand placeholder data URI.
 //
 // POST body:
 //   { prompt: string, size?: '1024x1024'|'1536x1024'|'1024x1536',
-//     quality?: 'low'|'medium'|'high'|'auto', mode?: 'design'|'',
-//     tier?: 'budget'|'maxpower' }   // maxpower brings Gemini native/Imagen into the cascade first
+//     quality?: 'low'|'medium'|'high'|'auto', mode?: 'design'|'ad'|'',
+//     tier?: 'premium'|'standard'|'fast'|'budget'|'maxpower' }
 //
 // Env vars:
-//   GEMINI_API_KEY         — Google AI / Gemini key (primary)
-//   OPENAI_API_KEY         — OpenAI key (fallback)
-//   OPENAI_API_KEY_2       — second OpenAI key (optional)
-//   OPENAI_API_KEY_3       — third OpenAI key (optional)
+//   OPENAI_API_KEY / _2 / _3   — OpenAI keys (premium primary)
+//   OPENAI_IMAGE_MODEL         — default 'gpt-image-2' (demotes to gpt-image-1)
+//   GEMINI_API_KEY             — Google AI / Gemini key
 // ════════════════════════════════════════════════════════════════════════════
 
 const { brandPlaceholderDataUri } = require('../_shared/brand-placeholder.js');
@@ -76,6 +79,16 @@ const OPENAI_SIZE_MAP = {
   '1200x628': '1536x1024'    // landscape
 };
 
+const POLLINATIONS_SIZE_MAP = {
+  '1024x1024': { w: 1024, h: 1024 },
+  '1024x1536': { w: 1024, h: 1536 },
+  '1536x1024': { w: 1536, h: 1024 },
+  '1080x1080': { w: 1080, h: 1080 },
+  '1080x1920': { w: 1080, h: 1920 },
+  '1200x1200': { w: 1200, h: 1200 },
+  '1200x628':  { w: 1200, h: 628 }
+};
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -98,43 +111,33 @@ module.exports = async function handler(req, res) {
   if (validQualities.indexOf(quality) < 0) return res.status(400).json({ error: 'invalid_quality', allowed: validQualities });
 
   const mode = (body.mode || '').toString().trim();
-  // Tier dial: 'maxpower' brings the highest-quality image provider (Gemini native → Imagen)
-  // into the cascade first; 'budget' (default) keeps current behavior (Gemini OFF unless IMAGE_ENABLE_GEMINI=1).
-  const _tier = (body.tier || process.env.APP_AI_TIER || 'budget').toString().toLowerCase().trim();
-  const isMaxPower = _tier === 'maxpower' || _tier === 'max-power' || _tier === 'max' || _tier === 'output' || _tier === 'quality';
+  // Tier dial: 'premium' (legacy 'maxpower') puts OpenAI gpt-image-2 first (best
+  // instruction-following); everything else stays free-first to protect quotas.
+  const _tier = (body.tier || process.env.APP_AI_TIER || 'standard').toString().toLowerCase().trim();
+  const isPremium = _tier === 'premium' || _tier === 'maxpower' || _tier === 'max-power' || _tier === 'max' || _tier === 'output' || _tier === 'quality';
   const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE
     : (mode === 'ad') ? AD_PROMPT_PREAMBLE
     : IMAGE_PROMPT_PREAMBLE;
   // Reserve room so the quality bar always survives the 4000-char cap.
   const finalPrompt = (preamble + userPrompt).substring(0, 4000 - QUALITY_SUFFIX.length) + QUALITY_SUFFIX;
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROVIDER 1: Gemini Image Generation (primary)
-  // Two approaches:
-  //   A) Native generateContent models (gemini-2.5-flash-image, gemini-3-pro-image-preview, etc.)
-  //   B) Imagen predict models (imagen-4.0-generate-001, etc.) — requires paid plan
-  // ═══════════════════════════════════════════════════════════════════════════
   const geminiKey = process.env.GEMINI_API_KEY;
-  // Gemini image models (gemini-2.5-flash-image, Imagen) require a billing-enabled
-  // key. They're OFF by default so OpenAI gpt-image is the effective primary;
-  // set IMAGE_ENABLE_GEMINI=1 — OR pass tier:'maxpower' — to bring Gemini into the cascade (tried first).
-  if (geminiKey && (isMaxPower || process.env.IMAGE_ENABLE_GEMINI === '1')) {
+  const openaiKeys = [
+    process.env.OPENAI_API_KEY,
+    process.env.OPENAI_API_KEY_2,
+    process.env.OPENAI_API_KEY_3
+  ].filter(Boolean);
 
-    // ── A) Native Gemini image generation via generateContent ──
-    const nativeModels = [
-      'gemini-2.5-flash-image',
-      'gemini-3.1-flash-image-preview',
-      'gemini-3-pro-image-preview'
-    ];
+  let anyQuotaHit = false; // set when a paid provider fails on quota/billing
 
-    for (let mi = 0; mi < nativeModels.length; mi++) {
-      const model = nativeModels[mi];
+  // ── Rung: Gemini native image generation via generateContent ───────────────
+  async function tryGeminiNative(models) {
+    if (!geminiKey) return null;
+    for (const model of models) {
       const endpoint = GEMINI_BASE + '/' + model + ':generateContent?key=' + geminiKey;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 90000);
-
       console.log('[image] Trying Gemini native model=' + model);
-
       try {
         const fetchRes = await fetch(endpoint, {
           method: 'POST',
@@ -147,55 +150,38 @@ module.exports = async function handler(req, res) {
           signal: controller.signal
         });
         clearTimeout(timeout);
-
         if (!fetchRes.ok) {
           const errText = await fetchRes.text().catch(() => '');
           console.warn('[image] Gemini ' + model + ' → HTTP ' + fetchRes.status, errText.substring(0, 300));
+          if (fetchRes.status === 429 || /quota|billing/i.test(errText)) anyQuotaHit = true;
           continue;
         }
-
         const data = await fetchRes.json();
         const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
         if (!parts) { console.warn('[image] Gemini ' + model + ' — no parts in response'); continue; }
-
-        // Find the image part in the response
         const imgPart = parts.find(p => p.inlineData && p.inlineData.data);
         if (!imgPart) { console.warn('[image] Gemini ' + model + ' — no image part returned'); continue; }
-
         const mimeType = imgPart.inlineData.mimeType || 'image/png';
-        const dataUrl = 'data:' + mimeType + ';base64,' + imgPart.inlineData.data;
-
         console.log('[image] Success · Gemini native ' + model);
-        return res.status(200).json({
-          ok: true,
-          provider: 'gemini',
-          model: model,
-          size, quality,
-          image_data_url: dataUrl
-        });
-
+        return { provider: 'gemini', model, image_data_url: 'data:' + mimeType + ';base64,' + imgPart.inlineData.data };
       } catch (e) {
         clearTimeout(timeout);
         console.error('[image] Gemini ' + model + ' exception:', String(e.message || e).substring(0, 200));
         continue;
       }
     }
+    return null;
+  }
 
-    // ── B) Imagen predict API (paid plans only) ──
-    const imagenModels = [
-      'imagen-4.0-generate-001',
-      'imagen-4.0-fast-generate-001'
-    ];
+  // ── Rung: Imagen predict API (paid plans only — free tier 400s) ────────────
+  async function tryImagen(models) {
+    if (!geminiKey) return null;
     const aspectRatio = GEMINI_ASPECT_MAP[size] || '3:4';
-
-    for (let mi = 0; mi < imagenModels.length; mi++) {
-      const model = imagenModels[mi];
+    for (const model of models) {
       const endpoint = GEMINI_BASE + '/' + model + ':predict';
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 90000);
-
       console.log('[image] Trying Gemini Imagen model=' + model + ' aspect=' + aspectRatio);
-
       try {
         const fetchRes = await fetch(endpoint, {
           method: 'POST',
@@ -208,69 +194,43 @@ module.exports = async function handler(req, res) {
           signal: controller.signal
         });
         clearTimeout(timeout);
-
         if (!fetchRes.ok) {
           const errText = await fetchRes.text().catch(() => '');
           console.warn('[image] Gemini Imagen ' + model + ' → HTTP ' + fetchRes.status, errText.substring(0, 300));
           continue;
         }
-
         const data = await fetchRes.json();
         const prediction = data.predictions && data.predictions[0];
         if (!prediction || !prediction.bytesBase64Encoded) { continue; }
-
         const mimeType = prediction.mimeType || 'image/png';
-        const dataUrl = 'data:' + mimeType + ';base64,' + prediction.bytesBase64Encoded;
-
         console.log('[image] Success · Gemini Imagen ' + model);
-        return res.status(200).json({
-          ok: true, provider: 'gemini', model: model, size, quality,
-          image_data_url: dataUrl
-        });
-
+        return { provider: 'gemini', model, image_data_url: 'data:' + mimeType + ';base64,' + prediction.bytesBase64Encoded };
       } catch (e) {
         clearTimeout(timeout);
         console.error('[image] Gemini Imagen ' + model + ' exception:', String(e.message || e).substring(0, 200));
         continue;
       }
     }
-
-    console.warn('[image] All Gemini models failed — falling back to OpenAI');
+    return null;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROVIDER 2: OpenAI (fallback)
-  // ═══════════════════════════════════════════════════════════════════════════
-  const openaiKeys = [
-    process.env.OPENAI_API_KEY,
-    process.env.OPENAI_API_KEY_2,
-    process.env.OPENAI_API_KEY_3
-  ].filter(Boolean);
-
-  // gpt-image-1 is the real OpenAI image model (requires a verified org + credits).
-  // OPENAI_IMAGE_MODEL can override. The bogus 'gpt-image-2' default was removed —
-  // it always 404'd and wasted an attempt.
-  const imageModels = [...new Set([
-    process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1',
-    'gpt-image-1'
-  ])];
-
-  if (openaiKeys.length > 0) {
-    let allQuotaExhausted = false;
-
-    for (let mi = 0; mi < imageModels.length; mi++) {
-      const imageModel = imageModels[mi];
-      let modelUnavailable = false;
-      let exhaustedCount = 0;
-
+  // ── Rung: OpenAI images/generations with within-provider model demotion ────
+  // gpt-image-2 (default; best instruction-following) auto-demotes to
+  // gpt-image-1 on model-not-found (404, or 400 mentioning the model).
+  async function tryOpenai() {
+    if (!openaiKeys.length) return null;
+    const models = [...new Set([
+      process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2',
+      'gpt-image-1'
+    ])];
+    for (let mi = 0; mi < models.length; mi++) {
+      const imageModel = models[mi];
+      let demoteModel = false;
       for (let ki = 0; ki < openaiKeys.length; ki++) {
         const key = openaiKeys[ki];
-        const keySuffix = '...' + key.slice(-4);
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 90000);
-
-        console.log('[image] Trying OpenAI model=' + imageModel + ' key #' + (ki + 1) + ' (' + keySuffix + ') size=' + size);
-
+        console.log('[image] Trying OpenAI model=' + imageModel + ' key #' + (ki + 1) + ' (...' + key.slice(-4) + ') size=' + size);
         try {
           const fetchRes = await fetch(OPENAI_BASE + '/images/generations', {
             method: 'POST',
@@ -286,29 +246,20 @@ module.exports = async function handler(req, res) {
             console.warn('[image] OpenAI ' + imageModel + ' key #' + (ki + 1) + ' → HTTP ' + fetchRes.status, errText.substring(0, 200));
 
             const isQuota = (fetchRes.status === 429 || fetchRes.status === 402 || fetchRes.status === 400) &&
-              (errText.includes('insufficient_quota') || errText.includes('quota') || errText.includes('billing') || errText.includes('credit') || errText.includes('billing_hard_limit') || errText.includes('billing_limit'));
-            if (isQuota && ki < openaiKeys.length - 1) {
-              exhaustedCount++;
-              continue;
-            }
-            if (isQuota) {
-              exhaustedCount++;
-              allQuotaExhausted = (exhaustedCount === openaiKeys.length);
-              break;
-            }
+              /insufficient_quota|quota|billing|credit|balance/i.test(errText);
+            if (isQuota) { anyQuotaHit = true; continue; } // rotate to next key
 
             const isModelError = fetchRes.status === 404 ||
               errText.includes('model_not_found') || errText.includes('does not exist') || errText.includes('not supported') ||
               (fetchRes.status === 400 && errText.includes(imageModel));
-            if (isModelError) { modelUnavailable = true; break; }
-            if (mi < imageModels.length - 1) { modelUnavailable = true; break; }
-            // Last model, last key — fall through to Pollinations
-            break;
+            if (isModelError) { demoteModel = true; break; } // demote within-provider
+
+            continue; // other error → try next key
           }
 
           const data = await fetchRes.json();
           const imgEntry = data.data && data.data[0];
-          if (!imgEntry) { break; }
+          if (!imgEntry) { continue; }
 
           let dataUrl = '';
           if (imgEntry.b64_json) {
@@ -318,115 +269,110 @@ module.exports = async function handler(req, res) {
               const imgFetch = await fetch(imgEntry.url);
               const buf = await imgFetch.arrayBuffer();
               dataUrl = 'data:image/png;base64,' + Buffer.from(buf).toString('base64');
-            } catch (e) { break; }
-          } else { break; }
+            } catch (e) { continue; }
+          } else { continue; }
 
           console.log('[image] Success · OpenAI ' + imageModel + ' key #' + (ki + 1) + ' size=' + size);
-          return res.status(200).json({
-            ok: true, provider: 'openai', model: imageModel, size, quality,
-            image_data_url: dataUrl, key_index: ki + 1
-          });
-
+          return { provider: 'openai', model: imageModel, image_data_url: dataUrl, key_index: ki + 1 };
         } catch (e) {
           clearTimeout(timeout);
           console.error('[image] OpenAI ' + imageModel + ' key #' + (ki + 1) + ' exception:', String(e.message || e).substring(0, 200));
-          if (mi < imageModels.length - 1) { modelUnavailable = true; break; }
-          break;
+          continue;
         }
       }
-      if (!modelUnavailable && !allQuotaExhausted) {
-        if (mi === imageModels.length - 1) break;
-      }
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROVIDER 3: Pollinations (free, no auth — multiple model cascade)
-  // Models tried in quality order:
-  //   flux-pro (best quality) → flux-realism (photorealistic) → flux (standard)
-  // ═══════════════════════════════════════════════════════════════════════════
-  const hadKeys = !!(geminiKey || openaiKeys.length > 0);
-  if (hadKeys) {
-    console.warn('[image] All paid providers failed — using Pollinations free fallback');
-  }
-
-  const sizeMap = {
-    '1024x1024': { w: 1024, h: 1024 },
-    '1024x1536': { w: 1024, h: 1536 },
-    '1536x1024': { w: 1536, h: 1024 },
-    '1080x1080': { w: 1080, h: 1080 },
-    '1080x1920': { w: 1080, h: 1920 },
-    '1200x1200': { w: 1200, h: 1200 },
-    '1200x628':  { w: 1200, h: 628 }
-  };
-  const dim = sizeMap[size] || sizeMap['1024x1536'];
-  const seed = Math.floor(Math.random() * 1000000);
-
-  // Try multiple Pollinations models in quality order
-  const pollinationsModels = ['flux-pro', 'flux-realism', 'flux'];
-
-  for (let pi = 0; pi < pollinationsModels.length; pi++) {
-    const pollinationsModel = pollinationsModels[pi];
-    const pollUrl = 'https://image.pollinations.ai/prompt/' +
-      encodeURIComponent(finalPrompt.substring(0, 1500)) +
-      '?width=' + dim.w + '&height=' + dim.h +
-      '&seed=' + seed + '&nologo=true&model=' + pollinationsModel + '&enhance=true&quality=hd';
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 90000);
-
-    console.log('[image] Trying Pollinations model=' + pollinationsModel + ' size=' + dim.w + 'x' + dim.h);
-
-    try {
-      const imgFetch = await fetch(pollUrl, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (!imgFetch.ok) {
-        console.warn('[image] Pollinations ' + pollinationsModel + ' → HTTP ' + imgFetch.status);
-        continue; // Try next model
-      }
-
-      const buf = await imgFetch.arrayBuffer();
-      // Validate we got actual image data (not an error page)
-      if (buf.byteLength < 5000) {
-        console.warn('[image] Pollinations ' + pollinationsModel + ' — response too small (' + buf.byteLength + ' bytes), skipping');
+      if (demoteModel && mi < models.length - 1) {
+        console.warn('[image] OpenAI ' + imageModel + ' unavailable — demoting to ' + models[mi + 1]);
         continue;
       }
+      if (!demoteModel) break; // all keys failed for a valid model — no point retrying siblings
+    }
+    return null;
+  }
 
-      const contentType = imgFetch.headers.get('content-type') || 'image/jpeg';
-      const dataUrl = 'data:' + contentType + ';base64,' + Buffer.from(buf).toString('base64');
+  // ── Rung: Pollinations FLUX (free, no auth) ─────────────────────────────────
+  async function tryPollinations() {
+    const dim = POLLINATIONS_SIZE_MAP[size] || POLLINATIONS_SIZE_MAP['1024x1536'];
+    const seed = Math.floor(Math.random() * 1000000);
+    const models = ['flux-pro', 'flux-realism', 'flux'];
+    for (const pollinationsModel of models) {
+      const pollUrl = 'https://image.pollinations.ai/prompt/' +
+        encodeURIComponent(finalPrompt.substring(0, 1500)) +
+        '?width=' + dim.w + '&height=' + dim.h +
+        '&seed=' + seed + '&nologo=true&model=' + pollinationsModel + '&enhance=true&quality=hd';
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000);
+      console.log('[image] Trying Pollinations model=' + pollinationsModel + ' size=' + dim.w + 'x' + dim.h);
+      try {
+        const imgFetch = await fetch(pollUrl, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!imgFetch.ok) {
+          console.warn('[image] Pollinations ' + pollinationsModel + ' → HTTP ' + imgFetch.status);
+          continue;
+        }
+        const buf = await imgFetch.arrayBuffer();
+        // Validate we got actual image data (not an error page)
+        if (buf.byteLength < 5000) {
+          console.warn('[image] Pollinations ' + pollinationsModel + ' — response too small (' + buf.byteLength + ' bytes), skipping');
+          continue;
+        }
+        const contentType = imgFetch.headers.get('content-type') || 'image/jpeg';
+        console.log('[image] Success · Pollinations ' + pollinationsModel + ' (' + Math.round(buf.byteLength / 1024) + ' KB)');
+        return {
+          provider: 'pollinations', model: pollinationsModel,
+          image_data_url: 'data:' + contentType + ';base64,' + Buffer.from(buf).toString('base64')
+        };
+      } catch (e) {
+        clearTimeout(timeout);
+        console.error('[image] Pollinations ' + pollinationsModel + ' exception:', String(e.message || e).substring(0, 200));
+        continue;
+      }
+    }
+    return null;
+  }
 
-      console.log('[image] Success · Pollinations ' + pollinationsModel + ' (' + Math.round(buf.byteLength / 1024) + ' KB)');
+  // ── Tier-ordered cascade ────────────────────────────────────────────────────
+  const rungs = isPremium
+    ? [
+        tryOpenai,                                                             // gpt-image-2 → gpt-image-1
+        () => tryGeminiNative(['gemini-3-pro-image-preview', 'gemini-2.5-flash-image']),
+        () => tryImagen(['imagen-4.0-fast-generate-001']),
+        tryPollinations
+      ]
+    : [
+        () => tryGeminiNative(['gemini-2.5-flash-image']),                     // free ~500/day
+        tryPollinations,                                                       // free floor
+        tryOpenai                                                              // last paid resort
+      ];
+
+  const hadKeys = !!(geminiKey || openaiKeys.length > 0);
+  for (const rung of rungs) {
+    const hit = await rung();
+    if (hit) {
+      const usedFreeFallback = hit.provider === 'pollinations' && hadKeys;
       return res.status(200).json({
-        ok: true, provider: 'pollinations', model: pollinationsModel, size, quality,
-        image_data_url: dataUrl,
-        quota_warning: hadKeys,
-        quota_note: hadKeys
-          ? 'All paid image providers exhausted. Using Pollinations ' + pollinationsModel + ' (free). Check Gemini/OpenAI API credits.'
-          : null
+        ok: true, provider: hit.provider, model: hit.model, size, quality,
+        image_data_url: hit.image_data_url,
+        ...(hit.key_index ? { key_index: hit.key_index } : {}),
+        ...(usedFreeFallback ? {
+          quota_warning: true,
+          quota_note: 'Paid image providers unavailable this call. Using Pollinations ' + hit.model + ' (free). Check Gemini/OpenAI API credits.'
+        } : {})
       });
-    } catch (e) {
-      clearTimeout(timeout);
-      console.error('[image] Pollinations ' + pollinationsModel + ' exception:', String(e.message || e).substring(0, 200));
-      continue; // Try next model
     }
   }
 
-  // All providers failed. Pollinations is now paywalled (HTTP 402) so it no
-  // longer works as a free fallback — a working OpenAI (gpt-image-1) key with
-  // a verified org + credits is the supported path.
-  const noKeys = !(openaiKeys && openaiKeys.length);
   // Every provider failed. Do NOT 502 — a non-200 leaves the caller with a
   // broken/empty <img>. Instead return 200 with an on-brand placeholder data
   // URI so the mailer / ad / landing page always renders an intentional brand
   // panel (never a broken tile). `placeholder:true` lets callers flag it.
+  const noKeys = !hadKeys;
   console.warn('[image] All providers failed — returning on-brand placeholder');
   return res.status(200).json({
     ok: true, provider: 'placeholder', placeholder: true, size, quality,
     image_data_url: brandPlaceholderDataUri(size),
-    quota_warning: hadKeys,
+    quota_warning: hadKeys && anyQuotaHit,
     detail: noKeys
-      ? 'No OpenAI image key configured. Add OPENAI_API_KEY (verified org + image credits) in Vercel. Showing brand placeholder.'
-      : 'OpenAI gpt-image-1 failed — usually the org is not verified for image generation or has no image credits. Verify at platform.openai.com → Settings → Organization, then add credits. Showing brand placeholder. (Pollinations free fallback is now paywalled.)'
+      ? 'No image provider key configured. Add OPENAI_API_KEY (verified org + image credits) and/or GEMINI_API_KEY in Vercel. Showing brand placeholder.'
+      : 'All image providers failed (OpenAI gpt-image-2/1, Gemini, Pollinations). Usually the OpenAI org is not verified for image generation or has no credits — verify at platform.openai.com → Settings → Organization. Showing brand placeholder.'
   });
 };
