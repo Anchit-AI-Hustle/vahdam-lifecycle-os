@@ -23,13 +23,13 @@ Single source of truth for every email in this campaign. Nothing outside this fi
 - Pack of 3 subscription framing: **£59.99 = 2 × £29.99 → buy two packs, the third is free (B2G1)**.
 - **7 free gifts with EVERY order (both one-time and subscription)**: Electric Frother, Recipe Booklet, Plantable Paper, Aroma Bean Pouch, Mystery Gift (5 Tea Bags), Wooden Scoop, Stainless Steel Straw.
 - **Subscription-only hook: gifts worth more than £105 across the year, arriving with refills.**
-- Handle (BEST GUESS — verify before send): `ashwagandha-coffee` → https://vahdam.co.uk/products/ashwagandha-coffee
+- Handle (VERIFIED by user 2026-07-03): `ashwagandha-coffee` → https://vahdam.co.uk/products/ashwagandha-coffee
 - No product image available in this environment → coffee emails use typographic hero (brand palette), with an HTML comment marking where a product shot can be dropped in Klaviyo.
 
 ## Supplements (just launched — "be among the first" is TRUE and allowed)
-- Turmeric Curcumin 1800 MG — handle (BEST GUESS — verify): `turmeric-curcumin` → https://vahdam.co.uk/products/turmeric-curcumin
-- Green Burner — handle (BEST GUESS — verify): `green-burner` → https://vahdam.co.uk/products/green-burner
-- No pricing provided → NEVER state a price for supplements. CTA to product page only.
+- Turmeric Curcumin 1800 MG — handle (VERIFIED by user 2026-07-03): `turmeric-curcumin` → https://vahdam.co.uk/products/turmeric-curcumin
+- Green Burner — handle (VERIFIED by user 2026-07-03): `green-burner` → https://vahdam.co.uk/products/green-burner
+- Pricing will MIRROR the coffee model (subscription discount vs one-time) — exact numbers TBD. Until numbers arrive: NEVER state a price for supplements. CTA to product page only.
 - No product images available → typographic treatment.
 
 ## T&B hero products (REAL handles, prices, images from UK store export)
