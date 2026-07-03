@@ -15,6 +15,8 @@
  *   AGENTS          ?action=agents | agent-upsert (POST) | agent-sync (POST) |
  *                   agent-chat (POST) | agent-sessions
  *   CONSOLE         ?action=console-chat (POST) — chat-style brain console
+ *   VIDEO           ?action=video-generate (POST) | video-status (GET) —
+ *                   Veo 3.1 → Sora 2 → Higgsfield → Runway (_shared/video-core.js)
  *   OPS             ?action=status | config (GET/POST) | cron (daily loop)
  *
  * Daily cron: GET /api/brain?action=cron — guarded by CRON_SECRET when set
@@ -35,6 +37,7 @@ const calendarScenarios = require('./_shared/calendar-scenarios.js');
 const smartbrain = require('../lib/smart-brain/services.js');
 const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
+const video = require('./_shared/video-core.js');
 
 let callLLM = null;
 try { callLLM = require('./_shared/llm.js'); } catch (_) { callLLM = null; }
@@ -340,6 +343,26 @@ module.exports = async function handler(req, res) {
         return res.json(out);
       }
 
+      // ── VIDEO (Veo 3.1 → Sora 2 → Higgsfield → Runway cascade — stubs until keys set) ──
+      case 'video-generate': {
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        if (!b.prompt) return res.status(400).json({ ok: false, error: 'prompt required' });
+        const out = await video.generateVideo({
+          prompt: b.prompt,
+          duration_s: b.duration_s || b.duration || 8,
+          aspect: b.aspect || '16:9',
+          tier: b.tier || 'standard',
+        });
+        return res.json(out);
+      }
+      case 'video-status': {
+        const provider = req.query.provider || b.provider;
+        const jobId = req.query.job_id || b.job_id;
+        if (!provider || !jobId) return res.status(400).json({ ok: false, error: 'provider and job_id required' });
+        const out = await video.getVideoStatus({ provider, job_id: jobId });
+        return res.json(out);
+      }
+
       // ── TTS (ElevenLabs proxy — premium voice for the agents; clients fall
       //    back to browser speechSynthesis when not configured) ─────────────
       case 'tts': {
@@ -410,7 +433,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
       }
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'console-chat', 'cron'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'console-chat', 'cron'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);
