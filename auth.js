@@ -140,14 +140,14 @@
     { id: 'assets',     label: 'Created Assets',href: '/assets',         icon: 'analysis', match: ['/assets', '/assets.html'] },
 
     { section: 'Knowledge Base' },
-    { group: 'VAHDAM', icon: 'vahdam', children: [
+    { group: 'VAHDAM', icon: 'vahdam', gid: 'kb', children: [
       { id: 'kbv-mailers', label: 'Mailers',       href: '/knowledge-base.html#mailers', icon: 'mailer' },
       { id: 'kbv-meta',    label: 'Meta Ads',      href: '/knowledge-base.html#meta',    icon: 'meta' },
       { id: 'kbv-google',  label: 'Google Ads',    href: '/knowledge-base.html#google',  icon: 'google' },
       { id: 'kbv-tiktok',  label: 'TikTok Ads',    href: '/knowledge-base.html#tiktok',  icon: 'tiktok' },
       { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
     ]},
-    { group: 'Competitor Benchmarking', icon: 'competitor', children: [
+    { group: 'Competitor Benchmarking', icon: 'competitor', gid: 'competitor', children: [
       { id: 'comp-discover',label: 'Discover Brands',href: '/competitor-benchmarking.html#discover', icon: 'discover' },
       { id: 'comp-mailers', label: 'Mailers',        href: '/competitor-benchmarking.html#mailers',  icon: 'mailer' },
       { id: 'comp-meta',    label: 'Meta Ads',       href: '/competitor-benchmarking.html#meta',     icon: 'meta' },
@@ -158,19 +158,21 @@
     ]},
 
     { section: 'Create' },
-    { group: 'Marketing Mailers', icon: 'mailer', children: [
+    { group: 'Marketing Mailers', icon: 'mailer', gid: 'mailers', children: [
       { id: 'calendar', label: 'Calendar',           href: '/calendar.html', icon: 'calendar', match: ['/calendar.html', '/plan'] },
       { id: 'cohorts',  label: 'Cohort Definitions', href: '/cohort-definitions.html', icon: 'cohort', match: ['/cohort-definitions.html', '/cohorts'] },
       // Mailer Studio is an OPEN feature — works standalone without sign-in.
       { id: 'studio',   label: 'Mailer Studio',      href: '/studio', open: true, icon: 'studio', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
+      { id: 'lifecycle', label: 'Lifecycle Calendar (UK)', href: '/mailer-calendar', icon: 'calendar', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
+      { id: 'ukhub',     label: 'UK Non-Engagers Hub',     href: '/uk-non-engagers', icon: 'insights', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
     ]},
-    { group: 'Ad Campaigns', icon: 'ads', children: [
+    { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
       { id: 'ads-google',  label: 'Google Ads', href: '/ad-campaigns.html#google',   icon: 'google' },
       { id: 'ads-tiktok',  label: 'TikTok Ads', href: '/ad-campaigns.html#tiktok',   icon: 'tiktok' },
     ]},
-    { group: 'Landing Pages', icon: 'landing', children: [
+    { group: 'Landing Pages', icon: 'landing', gid: 'landing', children: [
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
       { id: 'lp-agent',   label: 'Agent Concept LP',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
       { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages.html#mailers',  icon: 'mailer' },
@@ -180,10 +182,269 @@
     ]},
   ];
 
+  // ─── Feature IA (standing rule — see CLAUDE.md "LHS navigation IA rule") ──
+  // EVERY feature item in this menu expands into the SAME five sub-items, in
+  // this exact order: 1 What does it do? · 2 Who is it for? · 3 How does it
+  // work? · 4 Input · 5 Step-by-Step Working. For content-producing features
+  // (mailers, ads, landing pages, campaign plans) step 5 maps to the
+  // multi-agent pipeline: Ideology → Data analysis + review + hypothesis →
+  // Business & strategy decisions → Content → Design + layout + structure →
+  // Audio/Video (where applicable) → Coding → Final compilation + presentation.
+  // Content rules: double-quoted strings only (apostrophes are fine, never use
+  // a double quote or backtick inside), text positions only (never attributes).
+  const SUBQ = [
+    ['what',  'What does it do?'],
+    ['who',   'Who is it for?'],
+    ['how',   'How does it work?'],
+    ['input', 'Input'],
+    ['steps', 'Step-by-Step Working'],
+  ];
+  // Each entry: { title, what, who, how, input, steps:[[name, detail, runsVia?]…], pipeline?:true }
+  const INFO = {
+    home: {
+      title: 'Home',
+      what: "The front door of Lifecycle OS. It mirrors every feature in this sidebar as a launch grid so the team can jump into analysis, planning, creation, or intelligence in one click.",
+      who: "The whole retention and growth team — it serves the operator, not a customer segment. Every cohort program starts from here.",
+      how: "A static page that reads the shared navigation model (window.__LC_NAV, published by auth.js) and renders one tile per feature — so the grid can never drift out of sync with this menu. Sign-in is optional.",
+      input: "Nothing. Optionally sign in with Google so Supabase-backed features (Knowledge Base, Smart Brain plans, saved work) follow you across devices.",
+      steps: [
+        ['Boot the shell', 'auth.js loads config from /api/public-config and renders this shared sidebar on every page.'],
+        ['Read the nav model', 'The homepage reads window.__LC_NAV — the exact structure of this menu.'],
+        ['Render launch tiles', 'One tile per feature, grouped like this sidebar (Knowledge Base / Create).'],
+        ['Jump in', 'Click any tile; state you build elsewhere (analytics, plans) follows via localStorage and Supabase.'],
+      ],
+    },
+    chaigpt: {
+      title: 'ChaiGPT',
+      what: "VAHDAM's own brand LLM — a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
+      who: "The operator (growth and retention team). Its recommendations span every cohort — the nine RFM segments (Champions through Lost) and the UK engagement cohorts (Non-Buyers/Non-Engagers and T&B Buyers/Non-Engagers).",
+      how: "A provider-agnostic tool-calling loop: the model emits strict JSON actions, the server executes them against the same _shared cores the public API routes use, feeds results back, and loops (default 5 steps, up to 3 tools in parallel). Because tool calls are plain JSON, it works across the whole 6-provider text waterfall, including free tiers. An evidence contract forces every recommendation to quote exact tool-sourced figures.",
+      input: "A plain-English question or instruction in the chat. Write and generate tools (generate_calendar, generate_assets_for_slot, run_agentic_campaign, klaviyo) fire only when you explicitly ask.",
+      steps: [
+        ['Prompt', 'You ask a question; the loop pins the first live LLM provider so later steps skip dead keys.', '/api/brain?action=brand-chat'],
+        ['Plan a tool call', 'The model emits a strict JSON action — one tool, or a batch of up to 3 run in parallel.'],
+        ['Execute tools', 'ask_analytics · run_analysis · list_cohorts · get_calendar · get_competitor_benchmarks · search_knowledge_base · list_campaigns · klaviyo — each reuses the exact logic behind the public routes.', '/api/brain?action=brand-tools (manifest)'],
+        ['Loop on evidence', 'Results feed back into the conversation; repeated tool+args calls are deduped; up to 5 reasoning steps.'],
+        ['Final answer', 'A final action with exact figures, target metric and expected impact, a complete hypothesis, and competitor benchmarks — shown with the full tool trace.'],
+      ],
+    },
+    brain: {
+      title: 'Smart Brain',
+      what: "The persistent daily brain of the OS: it maintains a rolling 15-day campaign plan in Supabase (smart_calendar_entries), refreshes it every morning by diff — never a wholesale rewrite — and turns every human-approved slot into a complete campaign: mailer + Meta/Google/TikTok ads + a landing page.",
+      who: "Every customer cohort gets slots — RFM segments and engagement cohorts alike. The lifecycle team supervises: nothing ships without a human approve.",
+      how: "Six services run in sequence — KB, Analysis, Competitor, Calendar, Generation, Review. A daily Vercel Cron (03:30 UTC, CRON_SECRET-protected) syncs the plan; the console at /brain lists tentative slots for approve/reject; approving generates all assets and mirrors them into ads_generated and landing_pages_generated. Platform push is Phase 2 (push_status: not_integrated_phase_2).",
+      input: "Nothing daily — the cron drives it. From you: approve or reject decisions per slot, plus optional feedback that recalibrates future planning.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'Each slot starts as a campaign concept — the occasion, the angle, the single idea the send must carry. Maximum ideation before any data is touched.'],
+        ['Data analysis + review + hypothesis', 'The KB, Analysis, and Competitor services pull owned assets, RFM and cohort signals, and competitor benchmarks, then state a testable hypothesis per slot.', '/api/calendar?action=smart-brain-sync-daily'],
+        ['Business & strategy decisions', 'The Calendar service decides cohort, product focus, offer mechanic, and send date — diff-updating the rolling 15-day plan.', '/api/calendar?action=smart-brain-plan'],
+        ['Content', 'On approval, the Generation service LLM-writes the mailer copy plus Meta, Google, and TikTok ad copy.', '/api/calendar?action=smart-brain-approve'],
+        ['Design + layout + structure', 'Brand-gated templates apply the 4-colour palette and Lao MN / Proxima Nova; hero creative comes from the image cascade.'],
+        ['Coding', 'Assets compile to production HTML — a Klaviyo-ready mailer and a landing page served at /lp/:campaignId.'],
+        ['Final compilation + presentation', 'The Review service scores the output; everything is mirrored into ads_generated and landing_pages_generated and presented in the /brain console.', '/api/brain?action=cron (daily)'],
+      ],
+    },
+    agent: {
+      title: 'Vahdam Agent',
+      what: "A customer-facing conversational concierge — talk (text or voice) to a tea and wellness expert that answers brewing and ritual questions and recommends real VAHDAM products. It is also the engine embedded in the agent landing pages at /lp/agent and /lp/best.",
+      who: "Prospective and existing customers on-site; strongest for Non-Buyers who need guidance to a first purchase. The team uses this page to configure and demo agents.",
+      how: "A chat UI over the shared 6-provider LLM waterfall, grounded in brand voice and the product catalog. Voice replies use ElevenLabs TTS with a browser-TTS fallback. Agent personas can be created, updated, and synced from this page.",
+      input: "A visitor question — taste preferences, a wellness goal, brewing method, or gifting need. For the team: agent persona settings.",
+      steps: [
+        ['Ask', 'The visitor describes what they want — calm evenings, a coffee alternative, a gift.', '/api/brain?action=agent-chat'],
+        ['Ground', 'The agent answers in brand voice, grounded in real catalog products and regional store URLs.'],
+        ['Recommend', 'It proposes specific products with honest pricing and steeping guidance.'],
+        ['Speak', 'Optional voice output via ElevenLabs, falling back to the browser voice.', '/api/brain?action=tts'],
+        ['Convert', 'CTAs deep-link to the right regional store product page (US/UK/EU/AU/IN).'],
+      ],
+    },
+    analysis: {
+      title: 'Data Analysis',
+      what: "The Retention Intelligence dashboard: computes RFM segmentation, cohort behaviour, discount exposure, and channel performance from your exported store data, then turns the numbers into prioritised insight cards, each with a concrete action.",
+      who: "It analyses ALL customers and buckets them into the nine RFM segments — Champions, Loyal, Promising, New, Need-Attention, About-to-Sleep, At-Risk, Hibernating, Lost. The insights are written for the retention team.",
+      how: "Everything runs in the browser. Upload CSV/XLSX exports; the page parses them, computes recency, frequency, and monetary value per customer, assigns segments by fixed thresholds (e.g. Champions = ordered within 30 days AND 5+ orders), and renders charts plus insight cards. Results persist to localStorage and feed the Plan and Mailer Studio steps.",
+      input: "CSV/XLSX exports — orders and customers (Shopify), campaigns (Klaviyo) — dropped into the upload modal. No server round-trip is needed to analyse.",
+      steps: [
+        ['Ingest', 'Drop CSV/XLSX exports into the upload modal; the page parses and normalises them client-side.'],
+        ['Score RFM', 'Recency, frequency, and monetary value are computed per customer; threshold rules assign one of the 9 segments.'],
+        ['Analyse cohorts', 'Cohort retention, discount dependence, and send-frequency patterns are computed per segment.'],
+        ['Generate insights', 'Prioritised cards — e.g. Champions are discount-trained — each with a measurable next action.'],
+        ['Hand off', 'State persists in localStorage so Plan (calendar) and Mailer Studio generate against the same numbers.'],
+      ],
+    },
+    assets: {
+      title: 'Created Assets',
+      what: "The output shelf: every asset this OS has produced — mailers, Meta/Google/TikTok ads, landing pages — collected in one browsable place with previews, so finished work never gets lost in the tool that made it.",
+      who: "The operator and reviewer. Each asset targets whichever cohort its originating campaign or slot was planned for.",
+      how: "It reads the generation logs and stores the creation tools write to (mailer logs, the ads store, per-channel landing-page stores) and lists everything with preview, clone, and re-prompt affordances.",
+      input: "Nothing to create here — the shelf fills up as Mailer Studio, Ad Campaigns, Landing Pages, and Smart Brain approvals produce work.",
+      steps: [
+        ['Collect', 'Assets register themselves as the creation tools save their output.'],
+        ['Browse', 'Filter by type and channel — mailers, ads per platform, landing pages.'],
+        ['Preview', 'Open any asset exactly as it will render.'],
+        ['Reuse', 'Clone or re-prompt an asset back into its creation tool for the next iteration.'],
+      ],
+    },
+    kb: {
+      title: 'Knowledge Base — VAHDAM',
+      what: "VAHDAM's own reference library: our mailers, Meta/Google/TikTok ads, and landing pages, ingested and classified so every generator in this OS can ground itself in what the brand has actually shipped.",
+      who: "The generation pipelines and the operator. It is not cohort-specific — it is the shared memory every cohort's campaigns draw on.",
+      how: "A Supabase-backed router at /api/kb. Assets are ingested by URL with tags, classified by LLM, attributed to brands, and ranked; the page browses them by channel tab (Mailers / Meta / Google / TikTok / Landing Pages).",
+      input: "URLs or captured emails to ingest, with tags. Bulk lists of top emails can be pushed in one call.",
+      steps: [
+        ['Ingest', 'Add an asset by URL with tags.', '/api/kb?action=ingest'],
+        ['Classify', 'LLM classification tags each email with its angle, offer, and structure.', '/api/kb?action=classify-emails'],
+        ['Brand-tag', 'Assets are attributed to brands, cross-referencing Competitor Benchmarking.', '/api/kb?action=brands'],
+        ['Rank', 'Top-performing emails are ranked and kept fresh.', '/api/kb?action=top-emails'],
+        ['Serve', 'Generators and ChaiGPT search this library while writing new work.', '/api/kb?action=list'],
+      ],
+    },
+    competitor: {
+      title: 'Competitor Benchmarking',
+      what: "Competitor intelligence: captures rival tea, coffee, and wellness brands' marketing emails from a dedicated Gmail inbox into a Google Sheet, renders them for side-by-side study, and distils benchmarks — cadence, offer depth, creative angles. It also owns brand discovery.",
+      who: "The strategy layer. Benchmarks feed ChaiGPT's evidence contract, Smart Brain planning, and the human planner — informing campaigns for every cohort.",
+      how: "One router dispatched by ?action=list|html|poll|sync. Poll reads the capture inbox over IMAP; parsed emails become rows (columns A–K) in the Google Sheet database; sync runs on a CRON_SECRET-protected schedule. Google auth is keyless via Workload Identity Federation (Vercel OIDC → Google STS → service-account impersonation), with a legacy JSON-key fallback.",
+      input: "Subscribe the capture inbox to competitor newsletters — the system does the rest. Optionally add brands to discover and track.",
+      steps: [
+        ['Capture', 'Competitor emails arrive in the dedicated Gmail inbox, which is subscribed to rival brands.'],
+        ['Poll', 'IMAP polling pulls new messages and parses brand, subject, offer, and full HTML.', '/api/competitor?action=poll'],
+        ['Store', 'Each email becomes a row (columns A–K) in the Google Sheet via keyless WIF auth.', '/api/competitor?action=sync (cron)'],
+        ['Browse', 'The page lists captured emails and renders their full HTML for study.', '/api/competitor?action=list · ?action=html'],
+        ['Benchmark', 'Cadence, offer, and angle insights feed ChaiGPT, Smart Brain, and human planning.'],
+      ],
+    },
+    mailers: {
+      title: 'Marketing Mailers',
+      what: "The mailer production line: define who we mail, plan when and what, then create brand-gated HTML mailers. Four tools, one flow — RFM calendar, cohort definitions, the Studio, and the UK lifecycle program.",
+      who: "RFM segments (Champions through Lost) via the RFM calendar and Studio; the UK engagement cohorts (Non-Buyers/Non-Engagers, T&B Buyers/Non-Engagers) via the lifecycle tools.",
+      how: "Cohort Definitions sets WHO. Calendar and Lifecycle Calendar set WHEN and WHAT. Mailer Studio and the lifecycle builder produce the actual Klaviyo-ready email. Each stage hands state to the next via localStorage and Supabase.",
+      input: "Analytics state from Data Analysis, or a manual brief straight into the Studio.",
+      steps: [
+        ['Define cohorts', 'Lock the audience rules every planner shares.'],
+        ['Plan the calendar', 'Allocate dated sends per cohort — RFM (30-day) or lifecycle (14/30/45-day).'],
+        ['Create the mailer', 'Generate brand-gated, Klaviyo-ready HTML in the Studio or the lifecycle builder.'],
+        ['Ship and learn', 'Paste into Klaviyo, send, and feed results back into Data Analysis.'],
+      ],
+    },
+    calendar: {
+      title: 'Calendar (30-day RFM plan)',
+      what: "Generates a 30-day marketing calendar from your analytics: dated sends with segment, theme, offer mechanic, and a subject hint — festival-aware. Any planned row can be fed straight into mailer generation.",
+      who: "The nine RFM segments from Data Analysis — Champions, Loyal, Promising, New, Need-Attention, About-to-Sleep, At-Risk, Hibernating, Lost.",
+      how: "The page posts your analytics state to the calendar engine and renders the returned 30-day plan as a grid. Trigger-mailer feeds one row into the mailer engine for generation.",
+      input: "Analytics state handed over from Data Analysis via localStorage (segments, insights), plus your date window.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'Maximum ideation on themes: festivals, rituals, and seasonal moments the brand can own inside the window.'],
+        ['Data analysis + review + hypothesis', 'RFM segment sizes, discount exposure, and recency curves define who is reachable and what each send must prove.'],
+        ['Business & strategy decisions', 'Slots are allocated across segments and offer mechanics — frequency-capped, festival-aware, revenue-weighted.', '/api/calendar?action=generate'],
+        ['Content', 'Each slot receives its campaign definition: audience, theme, angle, and subject hint.'],
+        ['Final compilation + presentation', 'The 30-day grid renders; any row hands off to mailer generation in one click.', '/api/calendar?action=trigger-mailer'],
+      ],
+    },
+    cohorts: {
+      title: 'Cohort Definitions',
+      what: "The single source of truth for WHO we mail: explicit definitions of every audience — the nine RFM segments and the UK engagement cohorts — with their rules, objectives, and voice guides.",
+      who: "It defines the cohorts themselves: RFM segments by recency/frequency thresholds (Champions through Lost), and the engagement cohorts — Cohort A: Non-Buyers/Non-Engagers, Cohort B: T&B Buyers/Non-Engagers.",
+      how: "A reference page over the same definitions the planners consume. Lifecycle cohorts carry an objective, a voice guide, and a product-mix rotation (Cohort A is coffee-heavy at 4:1:1; Cohort B is T&B-first at 3:2:1).",
+      input: "Nothing to use it. Definition changes are made in code and Supabase so every planner and generator inherits them consistently.",
+      steps: [
+        ['Define the rule', 'Each cohort is an explicit predicate — e.g. Champions = last order within 30 days AND 5+ orders; Cohort A = on the list, never purchased, not opening.'],
+        ['Attach the objective', 'Every cohort carries its job — e.g. Cohort A: earn the open, earn the click, first purchase.'],
+        ['Set the voice guide', 'Tone rules per cohort: no guilt or pressure for non-engagers; familiarity, never chasing, for lapsed buyers.'],
+        ['Feed the planners', 'Calendar, Lifecycle Calendar, and Smart Brain all plan against these exact definitions.'],
+      ],
+    },
+    studio: {
+      title: 'Mailer Studio',
+      what: "The main creation app: a 5-step wizard (Brief → Products → Generation → Review & Refine → Final HTML) that produces four mailer variants — A (Image · Hero close-up), B (Image · Lifestyle wide), T1 (Text · Editorial), T2 (Text · Founder note) — across 11 layout archetypes, with real catalog products and region-correct pricing.",
+      who: "Whatever cohort the brief targets — RFM segments handed over from the Calendar, or a manually described audience. Output is a compact (~1200–1500px) Klaviyo-ready HTML mailer.",
+      how: "A multi-stage AI pipeline. Text runs through the 6-provider waterfall; images cascade Gemini native → Imagen → OpenAI gpt-image → Pollinations flux. Structural divergence between variants is forced (variant B always takes an alternate archetype). Brand gates enforce the 4-colour palette, Lao MN / Proxima Nova, and the banned-phrase list.",
+      input: "A campaign brief (typed, AI-autofilled, or handed over from a calendar row), your market (US/UK/Global — selects catalog and currency), and product selections.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'Max-creativity concepting: the brief expands into campaign concepts and suggested angles before anything is designed.', '/api/ai/generate (create_brief · concepts · suggested_prompts)'],
+        ['Data analysis + review + hypothesis', 'Real catalog data (products, prices, handles) and analytics state ground every claim; each variant carries a hypothesis of why it should win.'],
+        ['Business & strategy decisions', 'The strategy stage locks audience, offer mechanic, archetype per variant, and the success metric.', '/api/ai/pipeline/strategy'],
+        ['Content', 'Variant copy is written — four structurally diverging variants, banned phrases blocked, brand voice enforced.', '/api/ai/pipeline/variant · /api/ai/generate (mailer_full)'],
+        ['Design + layout + structure', 'One of 11 archetypes shapes the layout; hero imagery generates through the image cascade with catalog-aware prompts.', '/api/ai/pipeline/images · /api/ai/image'],
+        ['Coding', 'Everything compiles to email-safe HTML — inline CSS, bulletproof CTAs, roughly two scrolls tall.', '/api/ai/pipeline/html'],
+        ['Final compilation + presentation', 'Review & Refine critiques the result on four dimensions and presents final HTML to copy or download.', '/api/ai/pipeline/score'],
+      ],
+    },
+    lifecycle: {
+      title: 'Lifecycle Calendar (UK)',
+      what: "The UK lifecycle mailer calendar: deterministically plans 14/30/45 days of sends for the two engagement cohorts by rotating a curated play library — then builds any planned send into a Klaviyo-ready mailer with exactly ONE brand-gated LLM call.",
+      who: "Cohort A — Non-Buyers/Non-Engagers (objective: earn the open, earn the click, first purchase) and Cohort B — T&B Buyers/Non-Engagers (objective: reactivate with familiarity, cross-grade to Coffee/Supplements subscription). UK market only (vahdam.co.uk).",
+      how: "Two modes. PLAN is deterministic — no LLM: it rotates plays per cohort at your cadence (default 2/week), enforcing hard product rules (T&B is one-time only; Coffee and Supplements are subscription-first; supplements are never priced; no founder voice — templates restricted to pure/visual/editorial). BUILD makes one LLM call against locked facts and renders the brand template.",
+      input: "Start date, plan window (14/30/45 days), cohort checkboxes, and sends-per-cohort-per-week. Nothing runs automatically — a human clicks Generate.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'The play library IS the ideation layer: every play encodes a distinct psychological angle per cohort — story introduction, win-back, unboxing math, launch news.'],
+        ['Data analysis + review + hypothesis', 'Every claim comes from locked facts — real UK handles, live prices and compare-at prices, the 7-gift list, the £105/year subscription gift value. Nothing outside the facts file may be claimed.'],
+        ['Business & strategy decisions', 'The planner rotates product types by cohort mix (A coffee-heavy, B T&B-first), applies cadence and festival awareness, and enforces purchase-mode rules per product type.', '/api/calendar?action=lifecycle-generate'],
+        ['Content', 'Build Mailer writes subject, preheader, and body in ONE brand-gated LLM call — banned phrases and founder voice hard-fail.', '/api/calendar?action=lifecycle-build-mailer'],
+        ['Design + layout + structure', 'The play declares its template style (pure / visual / editorial), rendered in the 4-colour palette with Lao MN headings; optional hero creative via the image cascade.'],
+        ['Coding', 'Output is a single centred 600px presentation table — all CSS inline, bulletproof CTAs, Klaviyo unsubscribe tags.'],
+        ['Final compilation + presentation', 'Preview in a modal, copy the HTML, or download; built slots persist to Supabase (lifecycle_calendar_entries).', '/api/calendar?action=lifecycle-list'],
+      ],
+    },
+    ukhub: {
+      title: 'UK Non-Engagers Hub',
+      what: "The Week-1 campaign hub for the UK non-engager program: 2 cohorts × 3 send slots × 2 creative variations = 12 finished, Klaviyo-paste-ready emails, with subject lines and preheaders parsed live from the actual email files.",
+      who: "Cohort A — Non-Buyers/Non-Engagers and Cohort B — T&B Buyers/Non-Engagers. Sends are planned for 09:00 UK time.",
+      how: "A static hub over the built email files (lifecycle-campaigns/2026-07-03_week1). Each slot offers V1 vs V2 — genuinely different psychological angles (e.g. sensory story vs question-led pattern-interrupt) — pick one or split-test. Preview, Copy HTML, and Download work per variation.",
+      input: "None — the emails are pre-built against the locked facts file. You only choose which variation to ship.",
+      steps: [
+        ['Pick the slot', 'Six dated slots (Jul 3 / 6 / 9 × two cohorts), each with its objective spelled out.'],
+        ['Compare angles', 'V1 vs V2 are distinct creative hypotheses, not copy tweaks — built for A/B testing.'],
+        ['Preview', 'Renders the exact HTML in a modal iframe; subjects and preheaders are parsed live from each file.'],
+        ['Copy or download', 'One click copies the full Klaviyo-ready HTML to the clipboard.'],
+        ['Ship in Klaviyo', 'Paste into a Klaviyo campaign against the matching segment, scheduled for 09:00 UK.'],
+      ],
+    },
+    ads: {
+      title: 'Ad Campaigns',
+      what: "Creates paid-social and search ad creatives — Meta, Google, TikTok — copy plus generated visuals, organised on its own calendar. Approved Smart Brain slots auto-generate their full ad set, mirrored into the ads_generated store.",
+      who: "Prospecting and retargeting audiences per platform. Each ad set inherits the cohort of the campaign slot it came from.",
+      how: "Per-platform tabs generate ad copy through the shared LLM waterfall and static creatives through the image cascade. Platform push is Phase 2 — assets are produced and reviewed here, not published automatically.",
+      input: "A campaign or slot (from Smart Brain or the calendar tab), or a manual brief with product, platform, and audience.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'Max-ideation on hooks and angles per platform — thumb-stopping concepts before any asset exists.'],
+        ['Data analysis + review + hypothesis', 'Competitor ad benchmarks and owned KB assets define what to beat; every creative states the hypothesis it tests.'],
+        ['Business & strategy decisions', 'Platform, audience, funnel stage, and offer mechanic are locked per ad set.'],
+        ['Content', 'Platform-native copy — primary text, headlines, descriptions — in brand voice with banned phrases blocked.', '/api/ai/generate'],
+        ['Design + layout + structure', 'Static creatives generate through the image cascade with catalog-aware prompts.', '/api/ai/image'],
+        ['Audio/Video', 'Video ads: scripts and scene plans; video generation rungs are scaffolded to stub gracefully until keys exist.'],
+        ['Coding', 'Assets are packaged to correct per-placement specs — ratios, durations, character limits.'],
+        ['Final compilation + presentation', 'Everything mirrors into ads_generated for review; platform push remains Phase 2.', '/api/calendar?action=smart-brain-approve'],
+      ],
+    },
+    landing: {
+      title: 'Landing Pages',
+      what: "Generates and serves brand-compliant HTML landing pages — presell and editorial pages matched to mailers and ads — including the live agent-embedded pages at /lp/best and /lp/agent.",
+      who: "Traffic from each channel: pages exist for Mailers, for Meta, for Google, and for TikTok, inheriting the cohort of the campaign that links to them.",
+      how: "Pages are LLM-generated to the /lp/:id serving contract, compiled by the LP compiler, stored in landing_pages_generated, and served live from the calendar router. Smart Brain approvals generate one automatically per campaign.",
+      input: "A campaign or slot, or a manual brief: product, angle, source channel, and market.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'Max-creativity page concepts: the presell narrative, the promise above the fold, the proof structure.'],
+        ['Data analysis + review + hypothesis', 'Real product data and competitor landing-page intel ground every claim; each page states the conversion hypothesis it tests.'],
+        ['Business & strategy decisions', 'Message matched to source channel and cohort — what the click was promised is what the page must deliver.'],
+        ['Content', 'Long-form persuasion copy in brand voice — sensory, story-driven, no banned phrases.', '/api/ai/generate'],
+        ['Design + layout + structure', 'Section architecture in the 4-colour palette with Lao MN / Proxima Nova; hero imagery via the image cascade.'],
+        ['Coding', 'Compiles to a self-contained HTML page honouring the /lp/:id serving contract.'],
+        ['Final compilation + presentation', 'Stored in landing_pages_generated and served live at /lp/:campaignId.', '/api/calendar?action=lp&id=…'],
+      ],
+    },
+  };
+
   // Expose the nav model so other pages (e.g. the homepage widget grid) can
   // mirror EVERY LHS item without drifting out of sync. Set synchronously on
   // script parse (auth.js is deferred → runs before DOMContentLoaded).
   try { window.__LC_NAV = NAV; } catch (_) {}
+  try { window.__LC_NAV_INFO = { SUBQ, INFO }; } catch (_) {}
 
   // Flatten to a list of leaf items for matching / open-page detection.
   function leafItems() {
@@ -251,13 +512,29 @@
       ? BRAND[k]
       : `<svg class="lnav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[k] || ''}</svg>`;
 
+    // Standing IA rule (CLAUDE.md "LHS navigation IA rule"): every feature
+    // item expands into the same 5 sub-items, in a fixed order. The `?` chip
+    // toggles the sub-item list; each sub-item opens the shared info panel.
+    const infoBtn = (key, label) => INFO[key]
+      ? `<button type="button" class="lnav-i" data-itoggle="${key}" title="About: ${label}" aria-label="About ${label}" aria-expanded="false">?</button>`
+      : '';
+    const infoList = (key) => INFO[key]
+      ? `<div class="lnav-info" data-ikey="${key}">` +
+          SUBQ.map(([sub, label], i) =>
+            `<button type="button" class="lnav-info-item" data-info="${key}" data-sub="${sub}"><span class="lnav-info-n">${i + 1}</span>${label}</button>`
+          ).join('') +
+        `</div>`
+      : '';
+
     // Build the nav markup. Internal nav stays in the same tab so the back
     // button works naturally; external links elsewhere in the app keep their
     // own target="_blank" where they're declared.
     const linkRow = (item) => {
       const isCur = item.id === cur;
-      return `<a class="lnav-link${isCur ? ' active' : ''}" href="${item.href}" data-id="${item.id}" title="${item.label}">
+      const a = `<a class="lnav-link${isCur ? ' active' : ''}" href="${item.href}" data-id="${item.id}" title="${item.label}">
         ${svg(item.icon)}<span class="lnav-txt">${item.label}</span></a>`;
+      if (!INFO[item.id]) return a;
+      return `<div class="lnav-item">${a}${infoBtn(item.id, item.label)}</div>${infoList(item.id)}`;
     };
     // Double-layer nav: Tier-1 = top-level features (flat items + group headers),
     // Tier-2 = each feature's sub-sections. Groups are EXPANDED by default so the
@@ -268,7 +545,8 @@
       if (!n.children) return linkRow(n);
       const groupActive = n.children.some((c) => c.id === cur);
       return `<div class="lnav-group open${groupActive ? ' active-group' : ''}">
-        <button class="lnav-ghead" type="button" title="${n.group}">${svg(n.icon)}<span class="lnav-txt">${n.group}</span><svg class="lnav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="lnav-item"><button class="lnav-ghead" type="button" title="${n.group}">${svg(n.icon)}<span class="lnav-txt">${n.group}</span><svg class="lnav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>${n.gid ? infoBtn(n.gid, n.group) : ''}</div>
+        ${n.gid ? infoList(n.gid) : ''}
         <div class="lnav-gbody">${n.children.map(linkRow).join('')}</div>
       </div>`;
     }).join('');
@@ -366,6 +644,9 @@
           html.lnav-collapsed #lifecycle-nav .lnav-ghead { justify-content: center; padding: 9px 0; }
           html.lnav-collapsed #lifecycle-nav .lnav-gbody { padding-left: 0; margin-left: 0; border-left: none; }
           html.lnav-collapsed #lifecycle-nav .lnav-user { justify-content: center; }
+          /* Icon-only rail: hide the feature-IA toggles + sub-item lists. */
+          html.lnav-collapsed #lifecycle-nav .lnav-i,
+          html.lnav-collapsed #lifecycle-nav .lnav-info { display: none; }
         }
 
         #lifecycle-nav .lnav-scroll { flex: 1; overflow-y: auto; scrollbar-width: thin; margin: 0 -4px; padding: 0 4px; }
@@ -406,14 +687,112 @@
           font-family: inherit; font-size: 13px; color: #cdd8d2; text-align: left; border-radius: 9px;
         }
         #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #e8ede9; }
-        #lifecycle-nav .lnav-group.active-group > .lnav-ghead { color: #FBF5EA; }
-        #lifecycle-nav .lnav-group.active-group > .lnav-ghead .lnav-ic { color: #AB8743; }
+        #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #FBF5EA; }
+        #lifecycle-nav .lnav-group.active-group .lnav-ghead .lnav-ic { color: #AB8743; }
         #lifecycle-nav .lnav-ghead .lnav-txt { flex: 1; }
         #lifecycle-nav .lnav-caret { width: 15px; height: 15px; color: #5d6e64; transition: transform .18s; }
         #lifecycle-nav .lnav-group.open .lnav-caret { transform: rotate(180deg); }
         #lifecycle-nav .lnav-gbody { display: none; padding-left: 14px; margin-left: 8px; border-left: 1px solid rgba(171,135,67,0.14); }
         #lifecycle-nav .lnav-group.open .lnav-gbody { display: block; }
         #lifecycle-nav .lnav-gbody .lnav-link { font-size: 12.5px; padding: 7px 10px; }
+
+        /* ── Feature IA: row wrapper + "?" toggle + 5 fixed sub-items ── */
+        #lifecycle-nav .lnav-item { display: flex; align-items: center; gap: 4px; min-width: 0; }
+        #lifecycle-nav .lnav-item > .lnav-link,
+        #lifecycle-nav .lnav-item > .lnav-ghead { flex: 1; min-width: 0; }
+        #lifecycle-nav .lnav-i {
+          flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
+          background: transparent; border: 1px solid rgba(171,135,67,0.28);
+          color: #6f8278; font-family: inherit; font-size: 10.5px; font-weight: 700; line-height: 1;
+          cursor: pointer; display: flex; align-items: center; justify-content: center;
+          transition: all .12s; padding: 0;
+        }
+        #lifecycle-nav .lnav-i:hover { border-color: #AB8743; color: #FBF5EA; }
+        #lifecycle-nav .lnav-i.on { background: rgba(171,135,67,0.2); border-color: #AB8743; color: #FBF5EA; }
+        #lifecycle-nav .lnav-info { display: none; margin: 2px 0 4px 8px; padding-left: 12px; border-left: 1px dashed rgba(171,135,67,0.28); }
+        #lifecycle-nav .lnav-info.open { display: block; }
+        #lifecycle-nav .lnav-info-item {
+          width: 100%; display: flex; align-items: center; gap: 8px;
+          background: transparent; border: none; cursor: pointer; text-align: left;
+          font-family: inherit; font-size: 11.5px; color: #8b9c93;
+          padding: 5px 8px; border-radius: 7px; transition: all .12s;
+        }
+        #lifecycle-nav .lnav-info-item:hover { color: #FBF5EA; background: rgba(171,135,67,0.08); }
+        #lifecycle-nav .lnav-info-n {
+          flex-shrink: 0; width: 15px; height: 15px; border-radius: 4px;
+          background: rgba(171,135,67,0.14); color: #AB8743;
+          font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+        }
+
+        /* ── Feature info panel (overlay) ── */
+        #lifecycle-nav .lnav-ipanel-backdrop {
+          position: fixed; inset: 0; z-index: 125; background: rgba(0,0,0,0.6);
+          display: none;
+        }
+        #lifecycle-nav .lnav-ipanel {
+          position: fixed; z-index: 126;
+          top: 50%; left: 50%; transform: translate(-50%, -50%);
+          width: min(560px, 94vw); max-height: min(78vh, 720px);
+          background: #0f1d18; border: 1px solid rgba(171,135,67,0.3);
+          border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+          display: none; flex-direction: column; overflow: hidden;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        #lifecycle-nav.ipanel-open .lnav-ipanel-backdrop { display: block; }
+        #lifecycle-nav.ipanel-open .lnav-ipanel { display: flex; }
+        #lifecycle-nav .lnav-ipanel-head {
+          display: flex; align-items: flex-start; gap: 12px;
+          padding: 18px 20px 12px; border-bottom: 1px solid rgba(171,135,67,0.16);
+        }
+        #lifecycle-nav .lnav-ipanel-eyebrow {
+          font-size: 10px; font-weight: 700; letter-spacing: 0.16em;
+          text-transform: uppercase; color: #AB8743; margin-bottom: 3px;
+        }
+        #lifecycle-nav .lnav-ipanel-title {
+          font-family: 'Lora', Georgia, serif; font-size: 18px; font-weight: 600;
+          color: #FBF5EA; letter-spacing: -0.01em; flex: 1;
+        }
+        #lifecycle-nav .lnav-ipanel-htxt { flex: 1; min-width: 0; }
+        #lifecycle-nav .lnav-ipanel-close {
+          flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+          background: transparent; border: 1px solid rgba(171,135,67,0.25);
+          color: #9aaaa1; font-size: 15px; line-height: 1; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+        }
+        #lifecycle-nav .lnav-ipanel-close:hover { border-color: #AB8743; color: #FBF5EA; }
+        #lifecycle-nav .lnav-ipanel-body {
+          padding: 16px 20px 20px; overflow-y: auto; scrollbar-width: thin;
+          font-size: 13px; line-height: 1.65; color: #cdd8d2;
+        }
+        #lifecycle-nav .lnav-ipanel-body p { margin: 0 0 10px; }
+        #lifecycle-nav .lnav-ipanel-note {
+          font-size: 11.5px; color: #AB8743; background: rgba(171,135,67,0.08);
+          border: 1px solid rgba(171,135,67,0.2); border-radius: 8px;
+          padding: 8px 12px; margin: 0 0 14px;
+        }
+        #lifecycle-nav .lnav-steps { margin: 0; padding: 0 0 0 4px; list-style: none; counter-reset: lstep; }
+        #lifecycle-nav .lnav-steps li {
+          counter-increment: lstep; position: relative;
+          padding: 0 0 14px 34px; margin: 0;
+        }
+        #lifecycle-nav .lnav-steps li::before {
+          content: counter(lstep); position: absolute; left: 0; top: 1px;
+          width: 22px; height: 22px; border-radius: 50%;
+          background: rgba(171,135,67,0.16); border: 1px solid rgba(171,135,67,0.35);
+          color: #AB8743; font-size: 10.5px; font-weight: 700;
+          display: flex; align-items: center; justify-content: center;
+        }
+        #lifecycle-nav .lnav-steps li:not(:last-child)::after {
+          content: ''; position: absolute; left: 10.5px; top: 26px; bottom: 2px;
+          width: 1px; background: rgba(171,135,67,0.18);
+        }
+        #lifecycle-nav .lnav-steps b { display: block; color: #FBF5EA; font-size: 12.5px; margin-bottom: 2px; }
+        #lifecycle-nav .lnav-steps .lnav-step-d { display: block; font-size: 12px; color: #9aaaa1; }
+        #lifecycle-nav .lnav-steps .lnav-step-via {
+          display: inline-block; margin-top: 4px; font-family: 'JetBrains Mono', monospace;
+          font-size: 10px; color: #6f8278; background: rgba(171,135,67,0.08);
+          border-radius: 5px; padding: 2px 7px;
+        }
 
         /* User footer */
         #lifecycle-nav .lnav-user {
@@ -461,6 +840,17 @@
         <div class="lnav-scroll">${navHtml}</div>
         ${userHtml}
       </aside>
+      <div class="lnav-ipanel-backdrop" id="lnav-ipanel-backdrop"></div>
+      <div class="lnav-ipanel" id="lnav-ipanel" role="dialog" aria-modal="true" aria-labelledby="lnav-ipanel-title">
+        <div class="lnav-ipanel-head">
+          <div class="lnav-ipanel-htxt">
+            <div class="lnav-ipanel-eyebrow" id="lnav-ipanel-eyebrow"></div>
+            <div class="lnav-ipanel-title" id="lnav-ipanel-title"></div>
+          </div>
+          <button type="button" class="lnav-ipanel-close" id="lnav-ipanel-close" aria-label="Close">×</button>
+        </div>
+        <div class="lnav-ipanel-body" id="lnav-ipanel-body"></div>
+      </div>
     `;
     document.body.insertBefore(wrap, document.body.firstChild);
     // Signal to embedded apps (e.g. Mailer Studio) that they're rendering
@@ -485,10 +875,73 @@
       window.addEventListener('resize', publishHeight);
     }
 
-    // Group expand/collapse
+    // Group expand/collapse (the head now sits inside a .lnav-item row, so
+    // resolve the owning .lnav-group instead of assuming parentElement).
     wrap.querySelectorAll('.lnav-ghead').forEach((btn) => {
-      btn.addEventListener('click', () => btn.parentElement.classList.toggle('open'));
+      btn.addEventListener('click', () => {
+        const g = btn.closest('.lnav-group');
+        if (g) g.classList.toggle('open');
+      });
     });
+
+    // ── Feature IA: "?" toggles the 5 fixed sub-items; a sub-item opens the
+    //    shared info panel. Everything lives inside #lifecycle-nav so page CSS
+    //    cannot collide, and it works signed-in or signed-out.
+    const ipanel = wrap.querySelector('#lnav-ipanel');
+    const ipanelBody = wrap.querySelector('#lnav-ipanel-body');
+    const ipanelTitle = wrap.querySelector('#lnav-ipanel-title');
+    const ipanelEyebrow = wrap.querySelector('#lnav-ipanel-eyebrow');
+    const closeIpanel = () => wrap.classList.remove('ipanel-open');
+    const openIpanel = (key, sub) => {
+      const f = INFO[key];
+      if (!f || !ipanel) return;
+      const q = SUBQ.find((s) => s[0] === sub);
+      ipanelEyebrow.textContent = f.title;
+      ipanelTitle.textContent = q ? q[1] : '';
+      let html = '';
+      if (sub === 'steps') {
+        if (f.pipeline) {
+          html += '<p class="lnav-ipanel-note">Multi-agent pipeline — every step runs as its own specialist agent: maximum creativity, maximum ideation, maximum business-strategic thinking before anything ships.</p>';
+        }
+        html += '<ol class="lnav-steps">' + (f.steps || []).map((st) =>
+          '<li><b></b><span class="lnav-step-d"></span>' + (st[2] ? '<span class="lnav-step-via"></span>' : '') + '</li>'
+        ).join('') + '</ol>';
+        ipanelBody.innerHTML = html;
+        // Fill step text via textContent so content never needs HTML-escaping.
+        const lis = ipanelBody.querySelectorAll('.lnav-steps li');
+        (f.steps || []).forEach((st, i) => {
+          const li = lis[i];
+          if (!li) return;
+          li.querySelector('b').textContent = st[0];
+          li.querySelector('.lnav-step-d').textContent = st[1];
+          const via = li.querySelector('.lnav-step-via');
+          if (via) via.textContent = 'Runs via: ' + st[2];
+        });
+      } else {
+        ipanelBody.innerHTML = '<p></p>';
+        ipanelBody.querySelector('p').textContent = f[sub] || '';
+      }
+      wrap.classList.add('ipanel-open');
+    };
+    wrap.querySelectorAll('.lnav-i').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const key = btn.dataset.itoggle;
+        const list = wrap.querySelector('.lnav-info[data-ikey="' + key + '"]');
+        if (!list) return;
+        const on = list.classList.toggle('open');
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+      });
+    });
+    wrap.querySelectorAll('.lnav-info-item').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openIpanel(btn.dataset.info, btn.dataset.sub);
+      });
+    });
+    wrap.querySelector('#lnav-ipanel-close')?.addEventListener('click', closeIpanel);
+    wrap.querySelector('#lnav-ipanel-backdrop')?.addEventListener('click', closeIpanel);
 
     // Re-apply active state when the URL hash changes (e.g. user clicks
     // sub-tabs on ad-campaigns.html that just flip the hash). No re-render
@@ -513,7 +966,11 @@
     const setOpen = (o) => wrap.classList.toggle('open', o);
     wrap.querySelector('#lnav-burger')?.addEventListener('click', () => setOpen(true));
     wrap.querySelector('#lnav-backdrop')?.addEventListener('click', () => setOpen(false));
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (wrap.classList.contains('ipanel-open')) { closeIpanel(); return; }
+      setOpen(false);
+    });
     // Same-tab nav clicks close the drawer.
     wrap.querySelectorAll('.lnav-link').forEach((a) => {
       if (!a.target) a.addEventListener('click', () => setOpen(false));
