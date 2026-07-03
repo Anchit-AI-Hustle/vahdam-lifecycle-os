@@ -149,7 +149,7 @@ Audience: urban professionals 30-55, health-conscious, value quality + story ove
 BANNED phrases: wellness journey / transform / liquid gold / game-changer / LIMITED TIME (caps) / Last chance / While supplies last
 PREFERRED: ritual / restore / balance / origin / single-estate / hand-picked / steep / heritage / crafted
 IMAGE STYLE: luxury editorial photography — cinematic lighting, shallow DOF, tactile textures, no stock photography look, no clutter, no artificial lighting
-IMAGE MODEL: gpt-image-2 (primary) — prompts must be photorealistic, premium editorial, no text in image, minimal props (1-2), natural lighting, realistic product context
+IMAGE GENERATION: a multi-provider cascade renders your scene prompts (exact model varies by tier/availability) — prompts must be photorealistic, premium editorial, no text in image, minimal props (1-2), natural lighting, realistic product context
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUTPUT: STRICT JSON ONLY — first char {, last char }. No markdown, no commentary.

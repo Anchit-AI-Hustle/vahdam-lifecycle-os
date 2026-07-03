@@ -1,17 +1,28 @@
 'use strict';
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared LLM caller — 6-provider waterfall (Gemini + Groq + Cerebras free tier)
+// Shared LLM caller — 6-provider waterfall with TIER ROUTING (July 2026 models)
 //
-// CASCADE ORDER (first available key wins at each tier):
-//   1. OpenAI    (OPENAI_API_KEY / _2 / _3)   — ChatGPT, highest quality
-//   2. Anthropic (ANTHROPIC_API_KEY)           — Claude, strong fallback
-//   3. Gemini    (GEMINI_API_KEY)              — free tier, multi-model
-//   4. Grok/xAI  (XAI_API_KEY)               — OpenAI-compatible fallback
-//   5. Groq      (GROQ_API_KEY)              — free 30 RPM, Llama/Mixtral
-//   6. Cerebras  (CEREBRAS_API_KEY)           — free 30 RPM, ultra-fast
+// TIERS (per-call `tier`, defaults via APP_AI_TIER; legacy values mapped):
+//   premium  (legacy 'maxpower')          — hero copy, mailer_full, ChaiGPT
+//   standard (legacy 'budget' / default)  — variants, briefs, calendars
+//   fast     (new)                        — classification, tagging, scoring
 //
-// Within each provider, quota exhaustion rotates keys/models before
-// falling to the next provider. Rate-limits also fall through.
+// PROVIDER ORDER per tier (first available key wins at each rung):
+//   premium  : anthropic(opus)   → openai(gpt-5.5)  → gemini(3.1-pro)   → grok(4.3)      → groq → cerebras
+//   standard : anthropic(sonnet) → openai(5-mini)   → gemini(3.5-flash) → grok(4.1-fast) → groq → cerebras
+//   fast     : anthropic(haiku)  → openai(5-nano)   → gemini(2.5-flash, free) → groq → cerebras
+//
+// DEMOTION RULES (blueprint docs/quality-upgrade-blueprint.md):
+//   • 429/402, 5xx, timeout, or 400 whose body matches
+//     insufficient_quota|quota|billing|credit|balance → demote (next model/provider).
+//   • Model-not-found (404, or 400 naming a model error) → demote WITHIN the
+//     provider to its next model first, then across providers.
+//   • Plain 400 without billing/model keywords = request bug → do NOT demote;
+//     the cascade aborts immediately so the bad request surfaces to the caller.
+//
+// Within OpenAI, quota exhaustion rotates keys (OPENAI_API_KEY/_2/_3) before
+// falling to the next provider. All model IDs are env-overridable:
+//   *_TEXT_MODEL_MAX (premium) · *_TEXT_MODEL (standard) · *_TEXT_MODEL_FAST (fast)
 //
 // Anti-repetition: GEN_SEED appended to every user message so identical
 // prompts cannot be served from any response cache layer.
@@ -28,11 +39,79 @@ function genSeed() {
   return Date.now().toString(36) + '-' + Math.floor(Math.random() * 0xffff).toString(16);
 }
 
+// ── Tier normalization (back-compat: 'maxpower'→premium, 'budget'/unset→standard)
+function normalizeTier(t) {
+  const s = String(t || '').toLowerCase().trim();
+  if (s === 'premium' || s === 'maxpower' || s === 'max-power' || s === 'max' || s === 'output' || s === 'quality') return 'premium';
+  if (s === 'fast') return 'fast';
+  return 'standard'; // '', 'budget', 'standard', anything unknown
+}
+
+function _dedupe(arr) {
+  const seen = new Set();
+  return arr.filter(m => { if (!m || seen.has(m)) return false; seen.add(m); return true; });
+}
+
+// ── Model tables (July 2026 — all env-overridable) ───────────────────────────
+function modelsFor(provider, tier) {
+  const env = process.env;
+  switch (provider) {
+    case 'openai':
+      if (tier === 'premium') return _dedupe([env.OPENAI_TEXT_MODEL_MAX || 'gpt-5.5', 'gpt-5-mini']);
+      if (tier === 'fast')    return _dedupe([env.OPENAI_TEXT_MODEL_FAST || 'gpt-5-nano']);
+      return _dedupe([env.OPENAI_TEXT_MODEL || 'gpt-5-mini', 'gpt-5-nano']);
+    case 'anthropic':
+      if (tier === 'premium') return _dedupe([env.ANTHROPIC_TEXT_MODEL_MAX || 'claude-opus-4-8', 'claude-sonnet-5']);
+      if (tier === 'fast')    return _dedupe([env.ANTHROPIC_TEXT_MODEL_FAST || 'claude-haiku-4-5']);
+      return _dedupe([env.ANTHROPIC_TEXT_MODEL || 'claude-sonnet-5', 'claude-haiku-4-5']);
+    case 'gemini':
+      if (tier === 'premium') return _dedupe([env.GEMINI_TEXT_MODEL_MAX || 'gemini-3.1-pro', 'gemini-3.5-flash', 'gemini-2.5-flash']);
+      if (tier === 'fast')    return _dedupe([env.GEMINI_TEXT_MODEL_FAST || 'gemini-2.5-flash']);
+      return _dedupe([env.GEMINI_TEXT_MODEL || 'gemini-3.5-flash', 'gemini-2.5-flash']);
+    case 'grok':
+      if (tier === 'premium') return _dedupe([env.GROK_TEXT_MODEL_MAX || 'grok-4.3', 'grok-4.1-fast']);
+      return _dedupe([env.GROK_TEXT_MODEL || 'grok-4.1-fast']);
+    case 'groq':
+      return _dedupe([env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile']);
+    case 'cerebras':
+      return _dedupe([env.CEREBRAS_TEXT_MODEL || 'gpt-oss-120b', 'llama-3.3-70b']);
+    default:
+      return [];
+  }
+}
+
+// Provider ORDER per tier (blueprint). Fast skips Grok (no cheap rung there).
+function providerOrder(tier) {
+  return tier === 'fast'
+    ? ['anthropic', 'openai', 'gemini', 'groq', 'cerebras']
+    : ['anthropic', 'openai', 'gemini', 'grok', 'groq', 'cerebras'];
+}
+
+// ── Failure classification (drives demotion) ─────────────────────────────────
+//   'quota'       429/402, or 400 with billing keywords → demote
+//   'model'       404, or 400 naming a model problem → within-provider demote
+//   'bad_request' plain 400 → request bug — ABORT the cascade (no demotion)
+//   'auth'        401/403 → this key/provider is dead, demote
+//   'timeout'     network abort → next provider (don't burn time on sibling models)
+//   'transient'   5xx/529/anything else → demote
+function classifyFailure(status, errBody) {
+  const body = String(errBody || '');
+  if (status === 0) return 'timeout';
+  const isBilling = /insufficient_quota|quota|billing|credit|balance/i.test(body);
+  if (status === 429 || status === 402 || (status === 400 && isBilling)) return 'quota';
+  const isModelErr = /model_not_found|model not found|does not exist|unknown model|invalid model|decommissioned|deprecated|no longer (?:available|supported)|not supported/i.test(body);
+  if (status === 404 || (status === 400 && isModelErr)) return 'model';
+  if (status === 400) return 'bad_request';
+  if (status === 401 || status === 403) return 'auth';
+  return 'transient';
+}
+
 /**
- * callLLM({ systemPrompt, userMessage, responseFormat, maxTokens, temperature, timeoutMs, stage, tier })
- *   tier: 'budget' (default — cheap/free cascade) | 'maxpower' (force premium models per provider).
+ * callLLM({ systemPrompt, userMessage, responseFormat, maxTokens, temperature, timeoutMs, stage, tier, preferProvider, userGeminiKey })
+ *   tier: 'premium' | 'standard' (default) | 'fast'
+ *         (legacy: 'maxpower'→premium, 'budget'→standard — existing callers unchanged)
  * Returns { text, provider, model, seed, quota_warning?, exhausted_keys? }
- * Throws on all providers failing.
+ * Throws on all providers failing (err._providerErrors carries per-provider detail).
  */
 module.exports = async function callLLM(opts) {
   const {
@@ -45,13 +124,10 @@ module.exports = async function callLLM(opts) {
     stage         = 'llm',
     userGeminiKey = '',
     preferProvider = '',     // per-call provider preference — same values as APP_AI_PROVIDER; lets callers pin the provider that already worked this turn
-    tier          = (process.env.APP_AI_TIER || 'budget')  // 'budget' = low-cost/free cascade | 'maxpower' = highest quality
+    tier          = (process.env.APP_AI_TIER || 'standard')
   } = opts;
 
-  // Tier dial: 'budget' keeps the existing cheap/free cascade (default — behavior unchanged);
-  // 'maxpower' forces each provider's premium model (Opus, GPT-4o-class, Gemini Pro, …). Per-request, overridable via *_MAX env vars.
-  const _tierNorm  = String(tier || 'budget').toLowerCase().trim();
-  const isMaxPower = _tierNorm === 'maxpower' || _tierNorm === 'max-power' || _tierNorm === 'max' || _tierNorm === 'output' || _tierNorm === 'quality';
+  const tierNorm = normalizeTier(tier);
 
   // Provider preference: per-call preferProvider wins over the APP_AI_PROVIDER env.
   // Values: 'gemini', 'openai', 'anthropic', 'grok', 'groq', 'cerebras', 'gemini+', or empty (default cascade)
@@ -64,14 +140,14 @@ module.exports = async function callLLM(opts) {
   ].filter(Boolean);
 
   // Strip BOM (U+FEFF), zero-width spaces, and whitespace — Vercel env can inject invisible chars
-  const _clean = s => (s || '').replace(/[﻿​ ]/g, '').trim();
+  const _clean = s => (s || '').replace(/[﻿​ ]/g, '').trim();
   const anthropicKey = _clean(process.env.ANTHROPIC_API_KEY);
   const geminiKey    = _clean(userGeminiKey) || _clean(process.env.GEMINI_API_KEY);
   const grokKey      = _clean(process.env.XAI_API_KEY);
   const groqKey      = _clean(process.env.GROQ_API_KEY);
   const cerebrasKey  = _clean(process.env.CEREBRAS_API_KEY);
   // Debug: log key presence (not values) for cascade diagnostics
-  console.log('[llm] Keys present: groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' gemini=' + !!geminiKey + ' tier=' + (isMaxPower ? 'maxpower' : 'budget'));
+  console.log('[llm] Keys present: groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' gemini=' + !!geminiKey + ' tier=' + tierNorm);
 
   if (!openaiKeys.length && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey) {
     throw new Error('No AI provider configured. Set at least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY');
@@ -79,14 +155,24 @@ module.exports = async function callLLM(opts) {
 
   // When a preferred provider is set, skip others to avoid wasting time on failed providers
   // Special: 'gemini+' means Gemini first, then Groq+Cerebras as backup (skip OpenAI/Anthropic/Grok)
-  // 'gemini+' = use Gemini + Groq + Cerebras only (skip paid providers with dead credits)
   const isGeminiPlus = preferredProvider === 'gemini+';
-  const skipOpenai    = isGeminiPlus ? true  : (preferredProvider && preferredProvider !== 'openai');
-  const skipAnthropic = isGeminiPlus ? true  : (preferredProvider && preferredProvider !== 'anthropic');
-  const skipGemini    = isGeminiPlus ? false : (preferredProvider && preferredProvider !== 'gemini');
-  const skipGrok      = isGeminiPlus ? true  : (preferredProvider && preferredProvider !== 'grok');
-  const skipGroq      = isGeminiPlus ? false : (preferredProvider && preferredProvider !== 'groq');
-  const skipCerebras  = isGeminiPlus ? false : (preferredProvider && preferredProvider !== 'cerebras');
+  const skip = {
+    openai:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'openai'),
+    anthropic: isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'anthropic'),
+    gemini:    isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'gemini'),
+    grok:      isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'grok'),
+    groq:      isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'groq'),
+    cerebras:  isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'cerebras')
+  };
+
+  const hasKey = {
+    openai:    openaiKeys.length > 0,
+    anthropic: !!anthropicKey,
+    gemini:    !!geminiKey,
+    grok:      !!grokKey,
+    groq:      !!groqKey,
+    cerebras:  !!cerebrasKey
+  };
 
   const seed             = genSeed();
   const seededUserMessage = userMessage + '\n\n<!-- gen_seed:' + seed + ' -->';
@@ -113,9 +199,7 @@ module.exports = async function callLLM(opts) {
       if (!r.ok) {
         const err = await r.text().catch(() => '');
         console.error('[llm][' + stage + '] OpenAI ' + r.status, err.substring(0, 200));
-        const isQuota = (r.status === 429 || r.status === 402 || r.status === 400) &&
-          (err.includes('insufficient_quota') || err.includes('quota') || err.includes('billing') || err.includes('billing_hard_limit') || err.includes('billing_limit') || err.includes('credit'));
-        return { ok: false, status: r.status, err, quotaExhausted: isQuota };
+        return { ok: false, status: r.status, err };
       }
       const data = await r.json();
       const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
@@ -143,7 +227,9 @@ module.exports = async function callLLM(opts) {
           'x-api-key': anthropicKey,
           'anthropic-version': '2023-06-01'
         },
-        // Newer Claude models (Opus 4.7/4.8, Fable, …) REJECT `temperature` with a 400 — only send it on legacy claude-3* models.
+        // 4.6+ Claude models reject temperature+top_p together (and some reject
+        // temperature outright) — we NEVER send top_p, and only send temperature
+        // on legacy claude-3* models (none in the default chains; env override only).
         body: JSON.stringify(Object.assign({
           model,
           max_tokens: maxTokens,
@@ -185,7 +271,7 @@ module.exports = async function callLLM(opts) {
             generationConfig: {
               temperature, maxOutputTokens: maxTokens,
               ...(responseFormat ? { responseMimeType: 'application/json' } : {}),
-              // thinkingConfig only for 2.5 thinking models — causes 400 on 2.0-flash/lite
+              // thinkingConfig only for 2.5 thinking models — causes 400 on other families
               ...(responseFormat && model.includes('2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {})
             }
           }),
@@ -212,278 +298,170 @@ module.exports = async function callLLM(opts) {
     }
   }
 
-  async function _grok(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    console.log('[llm][' + stage + '] grok model=' + model + ' seed=' + seed);
-    try {
-      const r = await fetch(GROK_BASE + '/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + grokKey },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: seededUserMessage }],
-          max_tokens: maxTokens, temperature,
-          ...(responseFormat ? { response_format: responseFormat } : {})
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) {
-        const err = await r.text().catch(() => '');
-        console.error('[llm][' + stage + '] Grok ' + r.status, err.substring(0, 200));
-        return { ok: false, status: r.status, err };
+  // Grok / Groq / Cerebras are OpenAI-compatible chat endpoints.
+  function _openaiCompatible(providerName, base, key, extra) {
+    return async function (model) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      console.log('[llm][' + stage + '] ' + providerName + ' model=' + model + ' seed=' + seed);
+      try {
+        const r = await fetch(base + '/chat/completions', {
+          method: 'POST', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+          body: JSON.stringify(Object.assign({
+            model,
+            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: seededUserMessage }],
+            temperature
+          }, extra(model))),
+          signal: ctrl.signal
+        });
+        clearTimeout(t);
+        if (!r.ok) {
+          const err = await r.text().catch(() => '');
+          console.error('[llm][' + stage + '] ' + providerName + ' ' + r.status, err.substring(0, 200));
+          return { ok: false, status: r.status, err };
+        }
+        const data = await r.json();
+        const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+        console.log('[llm][' + stage + '] ' + providerName + ' ok model=' + model + ' len=' + text.length);
+        return { ok: true, text, provider: providerName, model };
+      } catch (e) {
+        clearTimeout(t);
+        return { ok: false, status: 0, err: e.message || String(e) };
       }
-      const data = await r.json();
-      const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-      console.log('[llm][' + stage + '] grok ok model=' + model + ' len=' + text.length);
-      return { ok: true, text, provider: 'grok', model };
-    } catch (e) {
-      clearTimeout(t);
-      return { ok: false, status: 0, err: e.message || String(e) };
-    }
+    };
   }
 
-  // ── Groq (OpenAI-compatible, free 30 RPM, Llama/Mixtral) ─────────────────────
-  async function _groq(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    console.log('[llm][' + stage + '] groq model=' + model + ' seed=' + seed);
-    try {
-      const r = await fetch(GROQ_BASE + '/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + groqKey },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: seededUserMessage }],
-          max_tokens: maxTokens, temperature,
-          ...(responseFormat ? { response_format: responseFormat } : {})
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) {
-        const err = await r.text().catch(() => '');
-        console.error('[llm][' + stage + '] Groq ' + r.status, err.substring(0, 200));
-        return { ok: false, status: r.status, err };
-      }
-      const data = await r.json();
-      const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-      console.log('[llm][' + stage + '] groq ok model=' + model + ' len=' + text.length);
-      return { ok: true, text, provider: 'groq', model };
-    } catch (e) {
-      clearTimeout(t);
-      return { ok: false, status: 0, err: e.message || String(e) };
-    }
-  }
+  const _grok = _openaiCompatible('grok', GROK_BASE, grokKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
+  }));
+  const _groq = _openaiCompatible('groq', GROQ_BASE, groqKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
+  }));
+  // Cerebras: free tier caps output at 8K; no response_format support yet.
+  const _cerebras = _openaiCompatible('cerebras', CEREBRAS_BASE, cerebrasKey, () => ({
+    max_tokens: Math.min(maxTokens, 8192)
+  }));
 
-  // ── Cerebras (OpenAI-compatible, free 30 RPM, ultra-fast) ──────────────────
-  async function _cerebras(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    console.log('[llm][' + stage + '] cerebras model=' + model + ' seed=' + seed);
-    try {
-      const r = await fetch(CEREBRAS_BASE + '/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cerebrasKey },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: seededUserMessage }],
-          max_tokens: Math.min(maxTokens, 8192), // Cerebras free tier caps at 8K output
-          temperature
-          // Cerebras doesn't support response_format yet
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) {
-        const err = await r.text().catch(() => '');
-        console.error('[llm][' + stage + '] Cerebras ' + r.status, err.substring(0, 200));
-        return { ok: false, status: r.status, err };
-      }
-      const data = await r.json();
-      const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-      console.log('[llm][' + stage + '] cerebras ok model=' + model + ' len=' + text.length);
-      return { ok: true, text, provider: 'cerebras', model };
-    } catch (e) {
-      clearTimeout(t);
-      return { ok: false, status: 0, err: e.message || String(e) };
-    }
-  }
-
-  // ── Helper: is this a retryable error (rate limit / model issue) ────────────
-  function isRetryable(status) {
-    // 403 = forbidden/no-credits (Grok), 402 = payment required — both should cascade
-    return status === 429 || status === 503 || status === 404 || status === 400 || status === 529 || status === 403 || status === 402;
-  }
-
-  // ── 4-provider cascade ──────────────────────────────────────────────────────
-  let result = null;
+  // ── Tier-ordered cascade ────────────────────────────────────────────────────
   let openaiKeysExhausted = 0;
   const _providerErrors = []; // Track each provider's failure for diagnostics
 
-  // === 1. OpenAI (ChatGPT) ===
-  if (openaiKeys.length > 0 && !skipOpenai) {
-    const model = isMaxPower
-      ? (process.env.OPENAI_TEXT_MODEL_MAX || 'gpt-4o')
-      : (process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini');
-    for (let ki = 0; ki < openaiKeys.length; ki++) {
-      result = await _openai(model, openaiKeys[ki]);
-      if (result.ok) break;
-      if (result.quotaExhausted) {
-        openaiKeysExhausted++;
-        console.warn('[llm][' + stage + '] OpenAI key #' + (ki + 1) + ' quota exhausted — rotating');
-        continue;
-      }
-      // Rate limit or other error → fall to next provider
-      console.warn('[llm][' + stage + '] OpenAI ' + result.status + ' — falling through to Claude');
-      break;
-    }
-    if (result.ok) {
-      return { text: result.text, provider: result.provider, model: result.model, seed,
-               quota_warning: openaiKeysExhausted > 0, exhausted_keys: openaiKeysExhausted };
-    }
-    _providerErrors.push({ provider: 'openai', status: result.status, err: String(result.err || '').substring(0, 120) });
+  function _success(result) {
+    return { text: result.text, provider: result.provider, model: result.model, seed,
+             quota_warning: openaiKeysExhausted > 0, exhausted_keys: openaiKeysExhausted };
   }
 
-  // === 2. Anthropic (Claude) ===
-  if (anthropicKey && (!result || !result.ok) && !skipAnthropic) {
-    console.warn('[llm][' + stage + '] Trying Anthropic (Claude)');
-    const claudeModels = isMaxPower
-      ? [ process.env.ANTHROPIC_TEXT_MODEL_MAX || 'claude-opus-4-8', 'claude-sonnet-4-6' ]
-      : [ process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022' ];
-    for (const model of claudeModels) {
-      result = await _anthropic(model);
-      if (result.ok) break;
-      if (isRetryable(result.status)) {
-        console.warn('[llm][' + stage + '] Anthropic ' + result.status + ' on ' + model + ' — trying next Claude model');
-        continue;
-      }
-      break; // auth or server error
-    }
-    if (result.ok) {
-      return { text: result.text, provider: result.provider, model: result.model, seed,
-               quota_warning: openaiKeysExhausted > 0, exhausted_keys: openaiKeysExhausted };
-    }
-    _providerErrors.push({ provider: 'anthropic', status: result.status, err: String(result.err || '').substring(0, 120) });
+  function _abortBadRequest(providerName, result) {
+    // Plain 400 = request bug (blueprint: do NOT demote across providers).
+    _providerErrors.push({ provider: providerName, status: result.status, err: String(result.err || '').substring(0, 120) });
+    const err = new Error('Bad request (HTTP 400, non-billing) from ' + providerName + ' [' + stage + '] — not demoting. ' + String(result.err || '').substring(0, 250));
+    err._providerErrors = _providerErrors;
+    err._badRequest = true;
+    throw err;
   }
 
-  // === 3. Gemini (with rate-limit retry) ===
-  //    De-duplicate: env var might equal a hardcoded fallback
-  if (geminiKey && (!result || !result.ok) && !skipGemini) {
-    console.warn('[llm][' + stage + '] Trying Gemini');
-    const _gmRaw = isMaxPower
-      ? [ process.env.GEMINI_TEXT_MODEL_MAX || 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash' ]
-      : [
-          process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash',
-          'gemini-2.5-flash',
-          'gemini-2.0-flash',
-          'gemini-2.0-flash-lite'
-        ];
-    const _gmSeen = new Set();
-    const geminiModels = _gmRaw.filter(m => { if (_gmSeen.has(m)) return false; _gmSeen.add(m); return true; });
-    for (const model of geminiModels) {
-      result = await _gemini(model);
-      if (result.ok) break;
-      // Rate-limit retry: wait 4s and retry same model once before moving on
-      if (result.status === 429) {
+  // Runs one provider's model chain with within-provider demotion.
+  // Returns the last failure result, or the success result.
+  async function runChain(providerName, callFn, models) {
+    let result = null;
+    for (const model of models) {
+      result = await callFn(model);
+      if (result.ok) return result;
+      const kind = classifyFailure(result.status, result.err);
+      if (kind === 'bad_request') _abortBadRequest(providerName, result);
+      if (kind === 'model') {
+        console.warn('[llm][' + stage + '] ' + providerName + ' model-not-found on ' + model + ' — demoting within provider');
+        continue;
+      }
+      // Gemini rate-limit retry: wait 4s and retry the same model once before moving on
+      if (kind === 'quota' && providerName === 'gemini' && result.status === 429) {
         console.warn('[llm][' + stage + '] Gemini 429 on ' + model + ' — waiting 4s and retrying');
         await new Promise(r => setTimeout(r, 4000));
         result = await _gemini(model);
-        if (result.ok) break;
+        if (result.ok) return result;
       }
-      if (isRetryable(result.status)) {
-        console.warn('[llm][' + stage + '] Gemini ' + result.status + ' on ' + model + ' — trying next');
+      if (kind === 'quota' || kind === 'transient') {
+        console.warn('[llm][' + stage + '] ' + providerName + ' ' + result.status + ' (' + kind + ') on ' + model + ' — trying next model');
         continue;
       }
+      // 'auth' or 'timeout' → don't waste time on sibling models, fall to next provider
+      console.warn('[llm][' + stage + '] ' + providerName + ' ' + result.status + ' (' + kind + ') — falling to next provider');
       break;
     }
-    if (result.ok) {
-      return { text: result.text, provider: result.provider, model: result.model, seed,
-               quota_warning: openaiKeysExhausted > 0, exhausted_keys: openaiKeysExhausted };
-    }
-    _providerErrors.push({ provider: 'gemini', status: result.status, err: String(result.err || '').substring(0, 120) });
+    return result;
   }
 
-  // === 4. Grok (xAI) ===
-  if (grokKey && (!result || !result.ok) && !skipGrok) {
-    console.warn('[llm][' + stage + '] Trying Grok (xAI)');
-    const grokModels = isMaxPower
-      ? [ process.env.GROK_TEXT_MODEL_MAX || 'grok-3', 'grok-3-mini' ]
-      : [ process.env.GROK_TEXT_MODEL || 'grok-3-mini-fast', 'grok-3-mini' ];
-    for (const model of grokModels) {
-      result = await _grok(model);
-      if (result.ok) break;
-      if (isRetryable(result.status)) {
-        console.warn('[llm][' + stage + '] Grok ' + result.status + ' on ' + model + ' — trying next');
+  // OpenAI needs key rotation inside the model loop.
+  async function runOpenai(models) {
+    let result = null;
+    for (const model of models) {
+      let modelNotFound = false;
+      for (let ki = 0; ki < openaiKeys.length; ki++) {
+        result = await _openai(model, openaiKeys[ki]);
+        if (result.ok) return result;
+        const kind = classifyFailure(result.status, result.err);
+        if (kind === 'bad_request') _abortBadRequest('openai', result);
+        if (kind === 'quota') {
+          openaiKeysExhausted++;
+          console.warn('[llm][' + stage + '] OpenAI key #' + (ki + 1) + ' quota exhausted — rotating');
+          continue; // next key, same model
+        }
+        if (kind === 'auth') {
+          console.warn('[llm][' + stage + '] OpenAI key #' + (ki + 1) + ' auth failure — rotating');
+          continue; // next key, same model
+        }
+        if (kind === 'model') { modelNotFound = true; break; } // demote within-provider
+        // timeout / transient → next provider
+        console.warn('[llm][' + stage + '] OpenAI ' + result.status + ' (' + kind + ') — falling to next provider');
+        return result;
+      }
+      if (modelNotFound) {
+        console.warn('[llm][' + stage + '] OpenAI model-not-found on ' + model + ' — demoting within provider');
         continue;
       }
-      break;
+      break; // all keys quota/auth-exhausted for this model — no point trying siblings
     }
-    if (result.ok) {
-      return { text: result.text, provider: result.provider, model: result.model, seed,
-               quota_warning: openaiKeysExhausted > 0, exhausted_keys: openaiKeysExhausted };
-    }
+    return result;
   }
 
-  // === 5. Groq (free tier — Llama 3.3 70B, 30 RPM) ===
-  if (groqKey && (!result || !result.ok) && !skipGroq) {
-    console.warn('[llm][' + stage + '] Trying Groq (free tier)');
-    const groqModels = [
-      process.env.GROQ_TEXT_MODEL || 'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
-      'mixtral-8x7b-32768'
-    ];
-    for (const model of groqModels) {
-      result = await _groq(model);
-      if (result.ok) break;
-      if (isRetryable(result.status)) {
-        console.warn('[llm][' + stage + '] Groq ' + result.status + ' on ' + model + ' — trying next');
-        continue;
-      }
-      break;
-    }
-    if (result.ok) {
-      return { text: result.text, provider: result.provider, model: result.model, seed,
-               quota_warning: openaiKeysExhausted > 0, exhausted_keys: openaiKeysExhausted };
-    }
-    _providerErrors.push({ provider: 'groq', status: result.status, err: String(result.err || '').substring(0, 120) });
+  const order = providerOrder(tierNorm);
+  // Honor an explicit preferProvider even if the tier's default order omits it (e.g. grok on 'fast').
+  if (preferredProvider && !isGeminiPlus && hasKey[preferredProvider] !== undefined && order.indexOf(preferredProvider) < 0) {
+    order.push(preferredProvider);
   }
 
-  // === 6. Cerebras (free tier — Llama 3.1 70B, 30 RPM, ultra-fast) ===
-  if (cerebrasKey && (!result || !result.ok) && !skipCerebras) {
-    console.warn('[llm][' + stage + '] Trying Cerebras (free tier)');
-    const cerebrasModels = [
-      process.env.CEREBRAS_TEXT_MODEL || 'llama-3.3-70b',
-      'llama-3.1-8b'
-    ];
-    for (const model of cerebrasModels) {
-      result = await _cerebras(model);
-      if (result.ok) break;
-      if (isRetryable(result.status)) {
-        console.warn('[llm][' + stage + '] Cerebras ' + result.status + ' on ' + model + ' — trying next');
-        continue;
-      }
-      break;
+  for (const providerName of order) {
+    if (skip[providerName] || !hasKey[providerName]) continue;
+    console.warn('[llm][' + stage + '] Trying ' + providerName + ' (tier=' + tierNorm + ')');
+    const models = modelsFor(providerName, tierNorm);
+    let result;
+    if (providerName === 'openai') {
+      result = await runOpenai(models);
+    } else {
+      const fn = providerName === 'anthropic' ? _anthropic
+        : providerName === 'gemini' ? _gemini
+        : providerName === 'grok' ? _grok
+        : providerName === 'groq' ? _groq
+        : _cerebras;
+      result = await runChain(providerName, fn, models);
     }
-    if (result.ok) {
-      return { text: result.text, provider: result.provider, model: result.model, seed,
-               quota_warning: openaiKeysExhausted > 0, exhausted_keys: openaiKeysExhausted };
+    if (result && result.ok) return _success(result);
+    if (result) {
+      _providerErrors.push({ provider: providerName, status: result.status, err: String(result.err || '').substring(0, 120) });
     }
-    _providerErrors.push({ provider: 'cerebras', status: result.status, err: String(result.err || '').substring(0, 120) });
   }
 
   // === All providers exhausted — build detailed diagnostic ===
-  if (result && !result.ok) {
-    _providerErrors.push({ provider: result.provider || 'grok', status: result.status, err: String(result.err || '').substring(0, 120) });
-  }
-  const _failLog = _providerErrors.map(function(e) { return e.provider + ':' + e.status; }).join(' → ');
-  const _fullLog = _providerErrors.map(function(e) { return e.provider + '(' + e.status + '): ' + e.err; }).join(' | ');
+  const _failLog = _providerErrors.map(function (e) { return e.provider + ':' + e.status; }).join(' → ');
+  const _fullLog = _providerErrors.map(function (e) { return e.provider + '(' + e.status + '): ' + e.err; }).join(' | ');
   console.error('[llm][' + stage + '] ALL PROVIDERS FAILED: ' + _fullLog);
-  const errMsg = (result && result.err) ? String(result.err).substring(0, 250) : 'All providers exhausted';
-  const status = result && result.status;
+  const last = _providerErrors[_providerErrors.length - 1];
+  const errMsg = last ? String(last.err || '').substring(0, 250) : 'All providers exhausted';
   const err = new Error(
-    'All providers failed [' + stage + '] cascade=' + _failLog + ' | last=' + errMsg
+    'All providers failed [' + stage + '] cascade=' + (_failLog || 'none-attempted') + ' | last=' + errMsg
   );
   err._providerErrors = _providerErrors;
   throw err;
@@ -513,3 +491,8 @@ module.exports.corsHeaders = function corsHeaders(res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-user-gemini-key');
 };
+
+// Exposed for tier-aware callers/tests (not part of the legacy surface).
+module.exports.normalizeTier = normalizeTier;
+module.exports.modelsFor = modelsFor;
+module.exports.providerOrder = providerOrder;
