@@ -207,7 +207,7 @@ async function chat({ message, history = [], market = 'US', maxSteps = 5 } = {})
     // maxTokens is a cap, not a target: tool actions stay tiny, but detailed
     // evidence-backed finals get room. 20s timeout per provider keeps a hung
     // provider from stalling the turn — the cascade moves on instead.
-    const llmOpts = { systemPrompt: sys, userMessage, responseFormat: { type: 'json_object' }, maxTokens: 2200, temperature: 0.4, timeoutMs: 20000, stage: 'chaigpt' };
+    const llmOpts = { systemPrompt: sys, userMessage, responseFormat: { type: 'json_object' }, maxTokens: 2200, temperature: 0.4, timeoutMs: 20000, stage: 'chaigpt', tier: 'premium' };
     let out;
     try {
       // Sticky provider: once a provider answers, later steps of this turn go

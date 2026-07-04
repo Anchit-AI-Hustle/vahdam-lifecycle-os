@@ -909,6 +909,7 @@ async function discoverBrands(opts) {
     temperature: 0.5,
     timeoutMs: 45000,
     stage: 'competitor_discovery',
+    tier: 'fast',
   });
 
   let parsed;
