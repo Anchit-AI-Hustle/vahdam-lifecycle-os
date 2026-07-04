@@ -127,34 +127,25 @@
     tiktok: '<svg viewBox="0 0 24 24" width="18" height="18" class="lnav-ic lnav-brandic"><path fill="#25F4EE" d="M15.3 5.6a4.3 4.3 0 0 1-1-2.6h-1.9v12.4a2.4 2.4 0 1 1-2.4-2.4c.2 0 .4 0 .6.1V11a5.5 5.5 0 1 0 4.3 5.4V8.9a7.3 7.3 0 0 0 3.3 1.2V7.5a4.3 4.3 0 0 1-2.8-1.9z"/><path fill="#FE2C55" d="M17.1 6.4a4.3 4.3 0 0 1-1-2.6h-1.9v12.4a2.4 2.4 0 1 1-2.4-2.4c.2 0 .4 0 .6.1v-2.1a5.5 5.5 0 1 0 4.3 5.4V9.7A7.3 7.3 0 0 0 20 10.9V8.3a4.3 4.3 0 0 1-2.9-1.9z"/><path fill="#FFF" d="M16.2 6a4.3 4.3 0 0 1-1-2.6h-1.9v12.4a2.4 2.4 0 1 1-2.4-2.4c.2 0 .4 0 .6.1V11.4a5.5 5.5 0 1 0 4.3 5.4V9.3a7.3 7.3 0 0 0 3.3 1.2V7.9A4.3 4.3 0 0 1 16.2 6z"/></svg>',
   };
   // ─── Information architecture ───────────────────────────────────────
-  // KNOWLEDGE BASE = the reference library: VAHDAM's own assets + competitors',
-  // each across Mailers / Meta / Google / TikTok / Landing Pages. Competitor
-  // Benchmarking also owns brand DISCOVERY (the old "Mailer Discovery" — now
-  // folded in, since discovery is exactly what benchmarking is for).
-  // CREATE = where VAHDAM produces its own assets (Mailers studio, Ads, Landing).
+  // Workflow-ordered IA (product-owner rule): Home pinned on top, then the
+  // sections follow the SEQUENTIAL order a marketer actually works in —
+  //   1. RESEARCH & BENCHMARK  = what others do, what we know, what our data says.
+  //   2. PLAN                  = calendars + the UK program.
+  //   3. DESIGN & CREATE       = where VAHDAM produces its own assets.
+  //   4. SHARE & TRACK         = the export/download library of finished work.
+  //   5. ASSISTANTS            = cross-cutting conversational/autonomous helpers.
+  // Every destination stays reachable — groups nest, nothing is deleted.
   // Version taxonomy (CLAUDE.md "Version taxonomy (V1 vs V2)"): `ver` badges an
   // item V1 (legacy base app) or V2 (Lifecycle OS, 2026-07-03 additions). Where
-  // BOTH generations of the same capability exist, `draft` labels them Draft 1
-  // vs Draft 2 (e.g. Plan V1 = Draft 1 vs Mailer Calendar V2 = Draft 2 of
+  // BOTH generations of the same capability exist, `draft` records Draft 1 vs
+  // Draft 2 (e.g. Plan V1 = Draft 1 vs Mailer Calendar V2 = Draft 2 of
   // calendaring; Mailer Studio V1 = Draft 1 vs the Mailer Calendar's built
-  // mailers = Draft 2 of mailer creation).
+  // mailers = Draft 2 of mailer creation). The Draft label renders in tooltips
+  // and the sub-item info panels — not in the row — to keep rows quiet.
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
-    { id: 'chaigpt',    label: 'ChaiGPT',       href: '/chaigpt',        icon: 'vahdam',   ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
-    { id: 'brain',      label: 'Smart Brain',   href: '/brain',          icon: 'studio',   ver: 'v1', match: ['/brain', '/smart-brain', '/smart-brain.html'] },
-    { id: 'agent',      label: 'Vahdam Agent',  href: '/agent',          icon: 'vahdam',   ver: 'v1', match: ['/agent', '/agent.html'] },
-    { id: 'analysis',   label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis', ver: 'v1', match: ['/dashboard.html', '/analytics'] },
-    { id: 'assets',     label: 'Created Assets',href: '/assets',         icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
-    { id: 'social',     label: 'Social Media OS', href: '/social',       icon: 'social',   ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
 
-    { section: 'Knowledge Base' },
-    { group: 'VAHDAM', icon: 'vahdam', gid: 'kb', ver: 'v1', children: [
-      { id: 'kbv-mailers', label: 'Mailers',       href: '/knowledge-base.html#mailers', icon: 'mailer' },
-      { id: 'kbv-meta',    label: 'Meta Ads',      href: '/knowledge-base.html#meta',    icon: 'meta' },
-      { id: 'kbv-google',  label: 'Google Ads',    href: '/knowledge-base.html#google',  icon: 'google' },
-      { id: 'kbv-tiktok',  label: 'TikTok Ads',    href: '/knowledge-base.html#tiktok',  icon: 'tiktok' },
-      { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
-    ]},
+    { section: 'Research & Benchmark' },
     { group: 'Competitor Benchmarking', icon: 'competitor', gid: 'competitor', ver: 'v1', children: [
       { id: 'comp-discover',label: 'Discover Brands',href: '/competitor-benchmarking.html#discover', icon: 'discover' },
       { id: 'comp-mailers', label: 'Mailers',        href: '/competitor-benchmarking.html#mailers',  icon: 'mailer' },
@@ -164,16 +155,25 @@
       { id: 'comp-landing', label: 'Landing Pages',  href: '/competitor-benchmarking.html#landing',  icon: 'landing' },
       { id: 'comp-insights',label: 'Insights',       href: '/competitor-benchmarking.html#insights', icon: 'insights' },
     ]},
-
-    { section: 'Create' },
-    { group: 'Marketing Mailers', icon: 'mailer', gid: 'mailers', children: [
-      { id: 'calendar', label: 'Calendar',           href: '/calendar.html', icon: 'calendar', ver: 'v1', draft: 'Draft 1', match: ['/calendar.html', '/plan'] },
-      { id: 'cohorts',  label: 'Cohort Definitions', href: '/cohort-definitions.html', icon: 'cohort', ver: 'v1', match: ['/cohort-definitions.html', '/cohorts'] },
-      // Mailer Studio is an OPEN feature — works standalone without sign-in.
-      { id: 'studio',   label: 'Mailer Studio',      href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
-      { id: 'lifecycle', label: 'Mailer Calendar (UK)', href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
-      { id: 'ukhub',     label: 'UK Non-Engagers Hub',     href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
+    { group: 'Knowledge Base', icon: 'kb', gid: 'kb', ver: 'v1', children: [
+      { id: 'kbv-mailers', label: 'Mailers',       href: '/knowledge-base.html#mailers', icon: 'mailer' },
+      { id: 'kbv-meta',    label: 'Meta Ads',      href: '/knowledge-base.html#meta',    icon: 'meta' },
+      { id: 'kbv-google',  label: 'Google Ads',    href: '/knowledge-base.html#google',  icon: 'google' },
+      { id: 'kbv-tiktok',  label: 'TikTok Ads',    href: '/knowledge-base.html#tiktok',  icon: 'tiktok' },
+      { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
     ]},
+    { id: 'analysis', label: 'Data Analysis',      href: '/dashboard.html',          icon: 'analysis', ver: 'v1', match: ['/dashboard.html', '/analytics'] },
+    { id: 'cohorts',  label: 'Cohort Definitions', href: '/cohort-definitions.html', icon: 'cohort',   ver: 'v1', match: ['/cohort-definitions.html', '/cohorts'] },
+
+    { section: 'Plan' },
+    { id: 'lifecycle', label: 'Mailer Calendar',    href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
+    { id: 'calendar',  label: 'Plan Calendar',      href: '/calendar.html',   icon: 'calendar', ver: 'v1', draft: 'Draft 1', match: ['/calendar.html', '/plan'] },
+    { id: 'ukhub',     label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
+
+    { section: 'Design & Create' },
+    // Mailer Studio is an OPEN feature — works standalone without sign-in.
+    { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
+    { id: 'social', label: 'Social Media OS', href: '/social', icon: 'social', ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
@@ -188,6 +188,14 @@
       { id: 'lp-google',  label: 'For Google Ads', href: '/landing-pages.html#google',   icon: 'google' },
       { id: 'lp-tiktok',  label: 'For TikTok Ads', href: '/landing-pages.html#tiktok',   icon: 'tiktok' },
     ]},
+
+    { section: 'Share & Track' },
+    { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
+
+    { section: 'Assistants' },
+    { id: 'chaigpt', label: 'ChaiGPT',      href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
+    { id: 'brain',   label: 'Smart Brain',  href: '/brain',   icon: 'studio', ver: 'v1', match: ['/brain', '/smart-brain', '/smart-brain.html'] },
+    { id: 'agent',   label: 'Vahdam Agent', href: '/agent',   icon: 'vahdam', ver: 'v1', match: ['/agent', '/agent.html'] },
   ];
 
   // ─── Feature IA (standing rule — see CLAUDE.md "LHS navigation IA rule") ──
@@ -218,7 +226,7 @@
       steps: [
         ['Boot the shell', 'auth.js loads config from /api/public-config and renders this shared sidebar on every page.'],
         ['Read the nav model', 'The homepage reads window.__LC_NAV — the exact structure of this menu.'],
-        ['Render launch tiles', 'One tile per feature, grouped like this sidebar (Knowledge Base / Create).'],
+        ['Render launch tiles', 'One tile per feature, grouped in workflow order like this sidebar (Research & Benchmark, Plan, Design & Create, Share & Track, Assistants).'],
         ['Jump in', 'Click any tile; state you build elsewhere (analytics, plans) follows via localStorage and Supabase.'],
       ],
     },
@@ -322,21 +330,8 @@
         ['Benchmark', 'Cadence, offer, and angle insights feed ChaiGPT, Smart Brain, and human planning.'],
       ],
     },
-    mailers: {
-      title: 'Marketing Mailers',
-      what: "The mailer production line: define who we mail, plan when and what, then create brand-gated HTML mailers. Four tools, one flow — RFM calendar, cohort definitions, the Studio, and the UK lifecycle program.",
-      who: "RFM segments (Champions through Lost) via the RFM calendar and Studio; the UK engagement cohorts (Non-Buyers/Non-Engagers, T&B Buyers/Non-Engagers) via the lifecycle tools.",
-      how: "Cohort Definitions sets WHO. Calendar and Lifecycle Calendar set WHEN and WHAT. Mailer Studio and the lifecycle builder produce the actual Klaviyo-ready email. Each stage hands state to the next via localStorage and Supabase.",
-      input: "Analytics state from Data Analysis, or a manual brief straight into the Studio.",
-      steps: [
-        ['Define cohorts', 'Lock the audience rules every planner shares.'],
-        ['Plan the calendar', 'Allocate dated sends per cohort — RFM (30-day) or lifecycle (14/30/45-day).'],
-        ['Create the mailer', 'Generate brand-gated, Klaviyo-ready HTML in the Studio or the lifecycle builder.'],
-        ['Ship and learn', 'Paste into Klaviyo, send, and feed results back into Data Analysis.'],
-      ],
-    },
     calendar: {
-      title: 'Calendar (30-day RFM plan)',
+      title: 'Plan Calendar (30-day RFM plan)',
       what: "Generates a 30-day marketing calendar from your analytics: dated sends with segment, theme, offer mechanic, and a subject hint — festival-aware. Any planned row can be fed straight into mailer generation. This is Draft 1 (V1) of calendaring; Draft 2 is the Mailer Calendar (UK).",
       who: "The nine RFM segments from Data Analysis — Champions, Loyal, Promising, New, Need-Attention, About-to-Sleep, At-Risk, Hibernating, Lost.",
       how: "The page posts your analytics state to the calendar engine and renders the returned 30-day plan as a grid. Trigger-mailer feeds one row into the mailer engine for generation.",
@@ -538,28 +533,42 @@
       : `<svg class="lnav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[k] || ''}</svg>`;
 
     // Standing IA rule (CLAUDE.md "LHS navigation IA rule"): every feature
-    // item expands into the same 5 sub-items, in a fixed order. The `?` chip
-    // toggles the sub-item list; each sub-item opens the shared info panel.
+    // item expands into the same 5 sub-items, in a fixed order. Sanctioned
+    // rendering (2026-07-04) is an ACCORDION: every sub-item list starts
+    // COLLAPSED except the one for the current page, and opening one closes
+    // any other — max one open at a time. Order and presence are unchanged.
+    // The `?` chip toggles a list; each sub-item opens the shared info panel.
+
+    // The info key that auto-expands: the current item's own INFO entry, else
+    // the gid of the group that contains the current leaf.
+    let activeInfoKey = null;
+    if (INFO[cur]) activeInfoKey = cur;
+    else {
+      for (const n of NAV) {
+        if (n.children && n.gid && n.children.some((c) => c.id === cur)) { activeInfoKey = n.gid; break; }
+      }
+    }
     const infoBtn = (key, label) => INFO[key]
-      ? `<button type="button" class="lnav-i" data-itoggle="${key}" title="About: ${label}" aria-label="About ${label}" aria-expanded="true">?</button>`
+      ? `<button type="button" class="lnav-i${key === activeInfoKey ? ' on' : ''}" data-itoggle="${key}" title="About: ${label}" aria-label="About ${label}" aria-expanded="${key === activeInfoKey ? 'true' : 'false'}">?</button>`
       : '';
-    // IA rule: the 5 sub-items render OPEN by default — they ARE each item's
-    // visible sub-items, always in the fixed order. The `?` chip collapses them.
     const infoList = (key) => INFO[key]
-      ? `<div class="lnav-info open" data-ikey="${key}">` +
+      ? `<div class="lnav-info${key === activeInfoKey ? ' open' : ''}" data-ikey="${key}">` +
           SUBQ.map(([sub, label], i) =>
             `<button type="button" class="lnav-info-item" data-info="${key}" data-sub="${sub}"><span class="lnav-info-n">${i + 1}</span>${label}</button>`
           ).join('') +
         `</div>`
       : '';
 
-    // V1/V2 badge (+ optional Draft 1/Draft 2 label where both generations of
-    // the same capability exist) — see CLAUDE.md "Version taxonomy (V1 vs V2)".
+    // V1/V2 taxonomy badge — see CLAUDE.md "Version taxonomy (V1 vs V2)".
+    // Quiet by design: the row shows only V1/V2; the Draft 1/Draft 2 label
+    // (where both generations of a capability exist) lives in the tooltip and
+    // in the item's sub-item info panels, not in the row.
     const verChip = (item) => {
       if (!item.ver) return '';
       const v = item.ver === 'v2' ? 'V2' : 'V1';
-      const tip = item.ver === 'v2' ? 'V2 — Lifecycle OS (second draft)' : 'V1 — legacy base app (first draft)';
-      return `<span class="lnav-ver ${item.ver}" title="${tip}">${v}${item.draft ? ' · ' + item.draft : ''}</span>`;
+      const tip = (item.ver === 'v2' ? 'V2 — Lifecycle OS' : 'V1 — legacy base app')
+        + (item.draft ? ' · ' + item.draft : '');
+      return `<span class="lnav-ver ${item.ver}" title="${tip}">${v}</span>`;
     };
 
     // Build the nav markup. Internal nav stays in the same tab so the back
@@ -573,14 +582,14 @@
       return `<div class="lnav-item">${a}${infoBtn(item.id, item.label)}</div>${infoList(item.id)}`;
     };
     // Double-layer nav: Tier-1 = top-level features (flat items + group headers),
-    // Tier-2 = each feature's sub-sections. Groups are EXPANDED by default so the
-    // whole IA — every feature and its sub-sections — is visible at a glance on
-    // every page. The caret still lets a user collapse a group.
+    // Tier-2 = each feature's sub-sections. Groups start COLLAPSED — only the
+    // group that owns the current page opens, keeping the rail calm. The caret
+    // expands/collapses any group on demand.
     const navHtml = NAV.map((n) => {
       if (n.section) return `<div class="lnav-section">${n.section}</div>`;
       if (!n.children) return linkRow(n);
       const groupActive = n.children.some((c) => c.id === cur);
-      return `<div class="lnav-group open${groupActive ? ' active-group' : ''}">
+      return `<div class="lnav-group${groupActive ? ' open active-group' : ''}">
         <div class="lnav-item"><button class="lnav-ghead" type="button" title="${n.group}">${svg(n.icon)}<span class="lnav-txt">${n.group}</span>${verChip(n)}<svg class="lnav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>${n.gid ? infoBtn(n.gid, n.group) : ''}</div>
         ${n.gid ? infoList(n.gid) : ''}
         <div class="lnav-gbody">${n.children.map(linkRow).join('')}</div>
@@ -705,23 +714,30 @@
         }
         #lifecycle-nav .lnav-link {
           display: flex; align-items: center; gap: 11px;
-          padding: 9px 11px; margin: 2px 0; border-radius: 9px;
+          padding: 7px 11px; margin: 1px 0; border-radius: 9px;
           font-size: 13px; color: #9aaaa1; text-decoration: none;
           border: 1px solid transparent; transition: all .12s;
+        }
+        #lifecycle-nav .lnav-link:focus-visible,
+        #lifecycle-nav .lnav-ghead:focus-visible,
+        #lifecycle-nav .lnav-i:focus-visible,
+        #lifecycle-nav .lnav-info-item:focus-visible {
+          outline: 1px solid #AB8743; outline-offset: 1px;
         }
         #lifecycle-nav .lnav-link .lnav-txt {
           flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        /* V1/V2 (+ Draft n) taxonomy badge */
+        /* V1/V2 taxonomy badge — deliberately quiet (Draft info lives in the
+           tooltip + info panels, not the row). */
         #lifecycle-nav .lnav-ver {
-          flex-shrink: 0; font-size: 8.5px; font-weight: 700; letter-spacing: 0.08em;
-          line-height: 1.4; padding: 1.5px 5px; border-radius: 5px; white-space: nowrap;
+          flex-shrink: 0; font-size: 8px; font-weight: 600; letter-spacing: 0.08em;
+          line-height: 1.4; padding: 1px 4px; border-radius: 4px; white-space: nowrap;
         }
         #lifecycle-nav .lnav-ver.v1 {
-          color: #8b9c93; background: rgba(139,156,147,0.1); border: 1px solid rgba(139,156,147,0.28);
+          color: #5d6e64; background: rgba(139,156,147,0.08);
         }
         #lifecycle-nav .lnav-ver.v2 {
-          color: #AB8743; background: rgba(171,135,67,0.14); border: 1px solid rgba(171,135,67,0.45);
+          color: rgba(171,135,67,0.8); background: rgba(171,135,67,0.1);
         }
         html.lnav-collapsed #lifecycle-nav .lnav-ver { display: none; }
         #lifecycle-nav .lnav-link:hover { color: #e8ede9; background: rgba(171,135,67,0.08); }
@@ -734,7 +750,7 @@
         #lifecycle-nav .lnav-group { margin: 6px 0 2px; }
         #lifecycle-nav .lnav-ghead {
           width: 100%; display: flex; align-items: center; gap: 11px;
-          padding: 9px 11px; border: none; background: transparent; cursor: pointer;
+          padding: 7px 11px; border: none; background: transparent; cursor: pointer;
           font-family: inherit; font-size: 13px; color: #cdd8d2; text-align: left; border-radius: 9px;
         }
         #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #e8ede9; }
@@ -745,7 +761,7 @@
         #lifecycle-nav .lnav-group.open .lnav-caret { transform: rotate(180deg); }
         #lifecycle-nav .lnav-gbody { display: none; padding-left: 14px; margin-left: 8px; border-left: 1px solid rgba(171,135,67,0.14); }
         #lifecycle-nav .lnav-group.open .lnav-gbody { display: block; }
-        #lifecycle-nav .lnav-gbody .lnav-link { font-size: 12.5px; padding: 7px 10px; }
+        #lifecycle-nav .lnav-gbody .lnav-link { font-size: 12.5px; padding: 6px 10px; }
 
         /* ── Feature IA: row wrapper + "?" toggle + 5 fixed sub-items ── */
         #lifecycle-nav .lnav-item { display: flex; align-items: center; gap: 4px; min-width: 0; }
@@ -974,15 +990,30 @@
       }
       wrap.classList.add('ipanel-open');
     };
+    // True accordion: at most ONE sub-item list is open at a time. Opening a
+    // feature's 5 sub-items closes whichever other list was open.
+    const setInfoOpen = (key, on) => {
+      const list = wrap.querySelector('.lnav-info[data-ikey="' + key + '"]');
+      const btn = wrap.querySelector('.lnav-i[data-itoggle="' + key + '"]');
+      if (list) list.classList.toggle('open', on);
+      if (btn) {
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+      }
+    };
     wrap.querySelectorAll('.lnav-i').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
         const key = btn.dataset.itoggle;
         const list = wrap.querySelector('.lnav-info[data-ikey="' + key + '"]');
         if (!list) return;
-        const on = list.classList.toggle('open');
-        btn.classList.toggle('on', on);
-        btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+        const opening = !list.classList.contains('open');
+        if (opening) {
+          wrap.querySelectorAll('.lnav-info.open').forEach((other) => {
+            if (other !== list) setInfoOpen(other.dataset.ikey, false);
+          });
+        }
+        setInfoOpen(key, opening);
       });
     });
     wrap.querySelectorAll('.lnav-info-item').forEach((btn) => {

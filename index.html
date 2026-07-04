@@ -48,12 +48,12 @@
 
   .hero-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
   .kbd-hint {
-    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-    padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; font-family: inherit;
-    background: var(--panel); border: 1px solid var(--line); color: var(--ink-dim);
-    transition: border-color .15s, color .15s;
+    display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+    padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; font-family: inherit;
+    background: var(--panel); border: 1px solid var(--line-hot); color: var(--ink);
+    transition: border-color .15s, color .15s, box-shadow .15s;
   }
-  .kbd-hint:hover { border-color: var(--line-hot); color: var(--cream); }
+  .kbd-hint:hover { border-color: var(--gold); color: var(--cream); box-shadow: 0 6px 24px rgba(171,135,67,0.15); }
   .kbd-hint kbd {
     font-family: inherit; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
     padding: 2px 7px; border-radius: 5px; border: 1px solid var(--line);
@@ -307,6 +307,11 @@
     brain:      '<path d="M12 3a4 4 0 0 0-4 4v1H7a4 4 0 0 0 0 8h1v1a4 4 0 0 0 8 0v-1h1a4 4 0 0 0 0-8h-1V7a4 4 0 0 0-4-4Z"/><path d="M9 8h6M9 16h6M8 12h8"/>',
     agent:      '<path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z"/><path d="M8 10h8M8 14h5"/>',
     assets:     '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    calendar:   '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+    studio:     '<path d="M5 3v4M3 5h4M6 17v4M4 19h4"/><path d="m13 3 2.3 6.7L22 12l-6.7 2.3L13 21l-2.3-6.7L4 12l6.7-2.3z"/>',
+    social:     '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.7 6.8-4.4M8.6 13.3l6.8 4.4"/>',
+    cohort:     '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9.5" r="2.3"/><path d="M16 14.4c2.6.4 4.5 2.6 4.5 5.6"/>',
+    insights:   '<path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 4-6"/><circle cx="7" cy="14" r="1.2"/><circle cx="10" cy="10" r="1.2"/><circle cx="13" cy="13" r="1.2"/><circle cx="17" cy="7" r="1.2"/>',
   };
   const svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${IC[k]||''}</svg>`;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -328,13 +333,23 @@
                 subs: ['9 RFM segments + cohort retention', 'Top campaigns, channel mix, AOV trend', 'Auto-insights — what changed this week', 'Upload your CSV or link a database'] },
     assets:   { icon: 'assets',   desc: 'Every mailer, ad and landing page the system has generated — in one searchable library you can preview, download and reuse.',
                 subs: ['Generated mailers · ads · landing pages', 'Preview, download HTML, clone & reuse', 'Synced across devices via Supabase'] },
+    lifecycle:{ icon: 'calendar', desc: 'The V2 lifecycle mailer calendar (UK): deterministically plans 14/30/45 days of sends for the engagement cohorts, then builds any slot into a Klaviyo-ready mailer.',
+                subs: ['Deterministic plan — no LLM until you build', 'Cohort A coffee-heavy · Cohort B T&B-first', 'One brand-gated LLM call per built mailer'] },
+    calendar: { icon: 'calendar', desc: 'The 30-day RFM plan (Draft 1): dated sends with segment, theme and offer mechanic — festival-aware, fed straight from your analytics.',
+                subs: ['One month of sends across the 9 RFM segments', 'Any row hands off to mailer generation'] },
+    ukhub:    { icon: 'insights', desc: 'Week-1 campaign hub for the UK non-engager program: 12 finished, Klaviyo-paste-ready emails across 2 cohorts × 3 slots × 2 variations.',
+                subs: ['Pick a slot · compare V1 vs V2 angles', 'Preview, copy HTML or download per variation'] },
+    cohorts:  { icon: 'cohort',   desc: 'The single source of truth for WHO we mail — every RFM segment and UK engagement cohort with its rules, objective and voice guide.',
+                subs: ['9 RFM segments + 2 UK engagement cohorts', 'Every planner and generator inherits these'] },
+    studio:   { icon: 'studio',   desc: 'The 5-step mailer wizard (Draft 1): Brief → Products → Generation → Review → Final HTML, producing 4 brand-gated variants with real catalog products.',
+                subs: ['4 variants · 11 layout archetypes', 'Region-correct catalogs and pricing', 'Export-ready, Klaviyo-safe HTML'] },
+    social:   { icon: 'social',   desc: 'The V2 daily social engine: a 7-agent pipeline produces one complete day-package across 11 platform formats — nothing publishes without your approve.',
+                subs: ['Instagram · TikTok · LinkedIn · X · more', 'Daily cron or Run Today on demand', 'Approve or skip per post in the console'] },
     // groups (by group name) — title/href/icon + copy
-    'VAHDAM': { title: 'Knowledge Base', href: '/knowledge-base.html', icon: 'kb',
+    'Knowledge Base': { href: '/knowledge-base.html', icon: 'kb',
                 desc: 'The single source of truth every generator reads from — brand kit, markets, product catalog, manual references and uploaded files.' },
     'Competitor Benchmarking': { href: '/competitor-benchmarking.html', icon: 'competitor',
                 desc: 'Every competitor mailer captured automatically + live ad-library deep-links + a 60-brand registry across Tea/Coffee/Supplements × US/UK.' },
-    'Marketing Mailers': { href: '/calendar.html', icon: 'mailer',
-                desc: 'Plan the month + write the email. A cohort-aware calendar feeds the 5-step Mailer Studio that outputs export-ready HTML.' },
     'Ad Campaigns': { href: '/ad-campaigns.html', icon: 'ads',
                 desc: 'Brief and track Google + Meta + TikTok campaigns on the same calendar as your emails. AI fills every field from one prompt.' },
     'Landing Pages': { href: '/landing-pages.html', icon: 'landing',
@@ -348,18 +363,26 @@
   // keeps the homepage populated even in isolation.
   const FALLBACK_NAV = [
     { id: 'home', label: 'Home', href: '/' },
+    { section: 'Research & Benchmark' },
+    { group: 'Competitor Benchmarking', icon: 'competitor', children: [{ label: 'Discover Brands' }, { label: 'Mailers' }, { label: 'Meta / Google / TikTok Ads' }, { label: 'Insights' }] },
+    { group: 'Knowledge Base', icon: 'kb', children: [{ label: 'Mailers' }, { label: 'Meta Ads' }, { label: 'Google Ads' }, { label: 'TikTok Ads' }, { label: 'Landing Pages' }] },
+    { id: 'analysis', label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis' },
+    { id: 'cohorts', label: 'Cohort Definitions', href: '/cohort-definitions.html', icon: 'cohort' },
+    { section: 'Plan' },
+    { id: 'lifecycle', label: 'Mailer Calendar', href: '/mailer-calendar', icon: 'calendar' },
+    { id: 'calendar', label: 'Plan Calendar', href: '/calendar.html', icon: 'calendar' },
+    { id: 'ukhub', label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights' },
+    { section: 'Design & Create' },
+    { id: 'studio', label: 'Mailer Studio', href: '/studio', icon: 'studio' },
+    { id: 'social', label: 'Social Media OS', href: '/social', icon: 'social' },
+    { group: 'Ad Campaigns', icon: 'ads', children: [{ label: 'Calendar' }, { label: 'Meta Ads' }, { label: 'Google Ads' }, { label: 'TikTok Ads' }] },
+    { group: 'Landing Pages', icon: 'landing', children: [{ label: '★ Live agent page' }, { label: 'For Mailers' }, { label: 'For Meta / Google / TikTok' }] },
+    { section: 'Share & Track' },
+    { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'assets' },
+    { section: 'Assistants' },
     { id: 'chaigpt', label: 'ChaiGPT', href: '/chaigpt', icon: 'agent' },
     { id: 'brain', label: 'Smart Brain', href: '/smart-brain.html', icon: 'brain' },
     { id: 'agent', label: 'Vahdam Agent', href: '/agent', icon: 'agent' },
-    { id: 'analysis', label: 'Data Analysis', href: '/dashboard.html', icon: 'analysis' },
-    { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'assets' },
-    { section: 'Knowledge Base' },
-    { group: 'VAHDAM', icon: 'kb', children: [{ label: 'Mailers' }, { label: 'Meta Ads' }, { label: 'Google Ads' }, { label: 'TikTok Ads' }, { label: 'Landing Pages' }] },
-    { group: 'Competitor Benchmarking', icon: 'competitor', children: [{ label: 'Discover Brands' }, { label: 'Mailers' }, { label: 'Meta / Google / TikTok Ads' }, { label: 'Insights' }] },
-    { section: 'Create' },
-    { group: 'Marketing Mailers', icon: 'mailer', children: [{ label: 'Calendar' }, { label: 'Cohort Definitions' }, { label: 'Mailer Studio' }] },
-    { group: 'Ad Campaigns', icon: 'ads', children: [{ label: 'Calendar' }, { label: 'Meta Ads' }, { label: 'Google Ads' }, { label: 'TikTok Ads' }] },
-    { group: 'Landing Pages', icon: 'landing', children: [{ label: '★ Live agent page' }, { label: 'For Mailers' }, { label: 'For Meta / Google / TikTok' }] },
   ];
 
   const getNav = () => (Array.isArray(window.__LC_NAV) && window.__LC_NAV.length) ? window.__LC_NAV : FALLBACK_NAV;
