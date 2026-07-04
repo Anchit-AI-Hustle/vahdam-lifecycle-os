@@ -163,7 +163,15 @@
       { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
     ]},
     { id: 'analysis', label: 'Data Analysis',      href: '/dashboard.html',          icon: 'analysis', ver: 'v1', match: ['/dashboard.html', '/analytics'] },
-    { id: 'cohorts',  label: 'Cohort Definitions', href: '/cohort-definitions.html', icon: 'cohort',   ver: 'v1', match: ['/cohort-definitions.html', '/cohorts'] },
+    { group: 'Cohorts', icon: 'cohort', gid: 'cohorts', ver: 'v1', children: [
+      { id: 'coh-overview',   label: 'Overview',            href: '/cohorts?tab=overview',   icon: 'cohort' },
+      { id: 'coh-engagement', label: 'Engagement Cohorts',  href: '/cohorts?tab=engagement', icon: 'insights' },
+      { id: 'coh-englevel',   label: 'Engagement Levels',   href: '/cohorts?tab=englevel',   icon: 'insights' },
+      { id: 'coh-product',    label: 'Product Cohorts',     href: '/cohorts?tab=product',    icon: 'cohort' },
+      { id: 'coh-lifecycle',  label: 'Lifecycle Stages',    href: '/cohorts?tab=lifecycle',  icon: 'cohort' },
+      { id: 'coh-rfm',        label: 'RFM Segments',        href: '/cohorts?tab=rfm',        icon: 'analysis' },
+      { id: 'coh-behavioral', label: 'Behavioral',          href: '/cohorts?tab=behavioral', icon: 'cohort' },
+    ]},
 
     { section: 'Plan' },
     { id: 'lifecycle', label: 'Mailer Calendar',    href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
@@ -346,7 +354,7 @@
       ],
     },
     cohorts: {
-      title: 'Cohort Definitions',
+      title: 'Cohorts',
       what: "The single source of truth for WHO we mail: explicit definitions of every audience — the nine RFM segments and the UK engagement cohorts — with their rules, objectives, and voice guides.",
       who: "It defines the cohorts themselves: RFM segments by recency/frequency thresholds (Champions through Lost), and the engagement cohorts — Cohort A: Non-Buyers/Non-Engagers, Cohort B: T&B Buyers/Non-Engagers.",
       how: "A reference page over the same definitions the planners consume. Lifecycle cohorts carry an objective, a voice guide, and a product-mix rotation (Cohort A is coffee-heavy at 4:1:1; Cohort B is T&B-first at 3:2:1).",
