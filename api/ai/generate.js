@@ -1,19 +1,21 @@
 // ════════════════════════════════════════════════════════════════════════════
 // /api/ai/generate — Vercel serverless function
-// Server-side OpenAI text generation. Browser never sees OPENAI_API_KEY.
+// Server-side text generation. Browser never sees provider API keys.
 //
 // MODES:
 //   mode: 'concepts'      → returns 3 strategic concepts (replaces Claude path)
 //   mode: 'create_brief'  → returns 180-280-word director brief from minimal inputs
 //   mode: 'mailer_full'   → returns {strategy, creative_spec, html_plan} for variant A or B
+//   (+ suggested_prompts, audience_segment, chat, autofill)
 //
-// Env vars (set via `vercel env add`):
-//   OPENAI_API_KEY      — required
-//   OPENAI_TEXT_MODEL   — default 'gpt-4o-mini'
+// All provider calls go through the shared tier-routed 6-provider waterfall in
+// api/_shared/llm.js (premium/standard/fast — July 2026 model tables). Tier per
+// mode: mailer_full+concepts → premium · create_brief+audience_segment+autofill
+// → standard · chat+suggested_prompts → fast. An explicit body.tier overrides
+// (legacy 'maxpower'/'budget' values are normalized inside llm.js).
 // ════════════════════════════════════════════════════════════════════════════
 
-const OPENAI_BASE = 'https://api.openai.com/v1';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const callLLM = require('../_shared/llm.js');
 
 // Single source of truth for the portable master prompt + brand block.
 const { buildMasterPrompt } = require('../_shared/master-prompt.js');
@@ -298,43 +300,18 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
-  // PROVIDER WATERFALL: OpenAI → Anthropic → Gemini → Grok → Groq → Cerebras
-  // Strip BOM and non-ASCII from all API keys (Vercel env via PowerShell can inject invisible chars)
+  // Provider waterfall + tier routing live in api/_shared/llm.js. Here we only
+  // check that at least one key exists so misconfiguration stays a clean 500
+  // (same legacy response shape), and extract the optional per-user Gemini key.
+  // Strip BOM and non-ASCII (Vercel env via PowerShell can inject invisible chars).
   const _ck = s => { if (!s) return ''; return s.split('').filter(c => c.charCodeAt(0) < 128).join('').trim(); };
-  const openaiKey    = _ck(process.env.OPENAI_API_KEY);
-  const anthropicKey = _ck(process.env.ANTHROPIC_API_KEY);
   const userGeminiKey = _ck(req.headers['x-user-gemini-key']);
-  const geminiKey    = userGeminiKey || _ck(process.env.GEMINI_API_KEY);
-  const grokKey      = _ck(process.env.XAI_API_KEY);
-  const groqKey      = _ck(process.env.GROQ_API_KEY);
-  const cerebrasKey  = _ck(process.env.CEREBRAS_API_KEY);
-  if (!openaiKey && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey) {
+  const anyKey = userGeminiKey ||
+    ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'XAI_API_KEY', 'GROQ_API_KEY', 'CEREBRAS_API_KEY']
+      .some(k => _ck(process.env[k]));
+  if (!anyKey) {
     return res.status(500).json({ error: 'server_misconfigured', detail: 'No AI provider configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, or CEREBRAS_API_KEY.' });
   }
-  // APP_AI_PROVIDER: skip dead providers (e.g. 'gemini' skips OpenAI/Anthropic/Grok)
-  // 'gemini+' = Gemini first, then Groq+Cerebras as backup (skip paid providers)
-  const preferredProvider = (process.env.APP_AI_PROVIDER || '').toLowerCase().trim();
-  const isGeminiPlus = preferredProvider === 'gemini+';
-  // 'gemini+' = use Gemini + Groq + Cerebras only (skip paid providers with dead credits)
-  const skipOpenai    = isGeminiPlus ? true  : (preferredProvider && preferredProvider !== 'openai');
-  const skipAnthropic = isGeminiPlus ? true  : (preferredProvider && preferredProvider !== 'anthropic');
-  const skipGemini    = isGeminiPlus ? false : (preferredProvider && preferredProvider !== 'gemini');
-  const skipGrok      = isGeminiPlus ? true  : (preferredProvider && preferredProvider !== 'grok');
-  const skipGroq      = isGeminiPlus ? false : (preferredProvider && preferredProvider !== 'groq');
-  const skipCerebras  = isGeminiPlus ? false : (preferredProvider && preferredProvider !== 'cerebras');
-
-  const provider  = (!skipOpenai && openaiKey) ? 'openai'
-                  : (!skipAnthropic && anthropicKey) ? 'anthropic'
-                  : (!skipGemini && geminiKey) ? 'gemini'
-                  : (!skipGrok && grokKey) ? 'grok'
-                  : (!skipGroq && groqKey) ? 'groq'
-                  : 'cerebras';
-  const textModel = (!skipOpenai && openaiKey)        ? (process.env.OPENAI_TEXT_MODEL    || 'gpt-4o-mini')
-                  : (!skipAnthropic && anthropicKey)   ? (process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022')
-                  : (!skipGemini && geminiKey)          ? (process.env.GEMINI_TEXT_MODEL    || 'gemini-2.0-flash')
-                  : (!skipGrok && grokKey)              ? (process.env.GROK_TEXT_MODEL      || 'grok-3-mini-fast')
-                  : (!skipGroq && groqKey)              ? (process.env.GROQ_TEXT_MODEL      || 'llama-3.3-70b-versatile')
-                  :                                      (process.env.CEREBRAS_TEXT_MODEL   || 'llama-3.3-70b');
 
   let body = req.body;
   if (typeof body === 'string') {
@@ -352,9 +329,14 @@ module.exports = async function handler(req, res) {
   const regenerate_counter = Number(body.regenerate_counter || 0);
   const previous_outputs_summary = body.previous_outputs_summary || '';
   const season = body.season || '';
-  // Tier dial: 'budget' (default) = current cheap/free cascade; 'maxpower' = force premium models per provider. Overridable via *_MAX env vars.
-  const _tier = (body.tier || process.env.APP_AI_TIER || 'budget').toString().toLowerCase().trim();
-  const isMaxPower = _tier === 'maxpower' || _tier === 'max-power' || _tier === 'max' || _tier === 'output' || _tier === 'quality';
+  // Tier per mode (blueprint Phase C). An explicit body.tier (incl. legacy
+  // 'maxpower'/'budget' — normalized inside llm.js) overrides the mapping.
+  const TIER_BY_MODE = {
+    mailer_full: 'premium', concepts: 'premium',
+    create_brief: 'standard', audience_segment: 'standard', autofill: 'standard',
+    chat: 'fast', suggested_prompts: 'fast',
+  };
+  const tier = (body.tier || TIER_BY_MODE[mode] || 'standard').toString();
 
   let systemPrompt = SYSTEM_PROMPT_CREATE_BRIEF;
   let userMessage = '';
@@ -695,248 +677,42 @@ Target market for this autofill: ${targetMarket}.`;
   // create_brief: 4000 tokens for 450-600 word detailed production brief with full structure
   const max_tokens = mode === 'mailer_full' ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1200 : 4000)));
 
-  function isRetryable(s) { return s === 429 || s === 503 || s === 404 || s === 400 || s === 529 || s === 403 || s === 402; }
-
-  // ── Provider helpers ───────────────────────────────────────────────────────
-  async function callOpenAI(model, key) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch(OPENAI_BASE + '/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          max_tokens, temperature,
-          ...(response_format ? { response_format } : {})
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) {
-        const err = await r.text().catch(() => '');
-        const isQuota = (r.status === 429 || r.status === 402 || r.status === 400) && (err.includes('insufficient_quota') || err.includes('quota') || err.includes('billing') || err.includes('billing_hard_limit') || err.includes('billing_limit') || err.includes('credit'));
-        return { ok: false, status: r.status, error: 'openai_error', detail: err.substring(0, 400), provider: 'openai', model, quotaExhausted: isQuota };
-      }
-      const data = await r.json();
-      const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-      return { ok: true, text, provider: 'openai', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'openai_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'openai', model }; }
-  }
-
-  async function callAnthropic(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    const claudeSys = response_format
-      ? systemPrompt + '\n\nCRITICAL: Return ONLY valid JSON. First char { last char }. No markdown, no commentary.'
-      : systemPrompt;
-    try {
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
-        // Newer Claude models (Opus 4.7/4.8, Fable, …) REJECT `temperature` with a 400 — only send it on legacy claude-3* models.
-        body: JSON.stringify(Object.assign({ model, max_tokens, system: claudeSys, messages: [{ role: 'user', content: userMessage }] }, /^claude-3/.test(model) ? { temperature } : {})),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) { const err = await r.text().catch(()=>''); console.warn('[generate] Anthropic ' + r.status + ' on ' + model + ': ' + err.substring(0,200)); return { ok: false, status: r.status, error: 'anthropic_error', detail: err.substring(0,400), provider: 'anthropic', model }; }
-      const data = await r.json();
-      const text = (data.content && data.content[0] && data.content[0].text) || '';
-      return { ok: true, text, provider: 'anthropic', model };
-    } catch (e) { clearTimeout(t); console.error('[generate] Anthropic fetch exception on ' + model + ':', String(e.message||e).substring(0,200)); return { ok: false, status: 0, error: 'anthropic_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'anthropic', model }; }
-  }
-
-  async function callGemini(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch(
-        GEMINI_BASE + '/models/' + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(geminiKey),
-        {
-          method: 'POST', cache: 'no-store',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: systemPrompt + '\n\n---\nUSER REQUEST:\n' + userMessage }] }],
-            generationConfig: {
-              temperature, maxOutputTokens: max_tokens,
-              ...(response_format ? { responseMimeType: 'application/json' } : {}),
-              ...(response_format && model.includes('2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {})
-            }
-          }),
-          signal: ctrl.signal
-        }
-      );
-      clearTimeout(t);
-      if (!r.ok) {
-        const err = await r.text().catch(()=>'');
-        const retryMatch = err.match(/retry in ([\d.]+)s/i);
-        return { ok: false, status: r.status, error: 'gemini_error', detail: err.substring(0,400), provider: 'gemini', model, retry_after: retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 30 };
-      }
-      const data = await r.json();
-      const text = (data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text)||'';
-      return { ok: true, text, provider: 'gemini', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'gemini_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'gemini', model }; }
-  }
-
-  async function callGrok(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + grokKey },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          max_tokens, temperature,
-          ...(response_format ? { response_format } : {})
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) { const err = await r.text().catch(()=>''); return { ok: false, status: r.status, error: 'grok_error', detail: err.substring(0,400), provider: 'grok', model }; }
-      const data = await r.json();
-      const text = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-      return { ok: true, text, provider: 'grok', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'grok_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'grok', model }; }
-  }
-
-  // ── Groq (OpenAI-compatible, free 30 RPM) ──────────────────────────────────
-  async function callGroq(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + groqKey },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          max_tokens, temperature,
-          ...(response_format ? { response_format } : {})
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) { const err = await r.text().catch(()=>''); return { ok: false, status: r.status, error: 'groq_error', detail: err.substring(0,400), provider: 'groq', model }; }
-      const data = await r.json();
-      const text = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-      return { ok: true, text, provider: 'groq', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'groq_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'groq', model }; }
-  }
-
-  // ── Cerebras (OpenAI-compatible, free 30 RPM, ultra-fast) ─────────────────
-  async function callCerebras(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cerebrasKey },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          max_tokens: Math.min(max_tokens, 8192), temperature
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) { const err = await r.text().catch(()=>''); return { ok: false, status: r.status, error: 'cerebras_error', detail: err.substring(0,400), provider: 'cerebras', model }; }
-      const data = await r.json();
-      const text = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-      return { ok: true, text, provider: 'cerebras', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'cerebras_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'cerebras', model }; }
-  }
-
-  // ── 6-provider cascade: OpenAI → Claude → Gemini → Grok → Groq → Cerebras ─
+  // ── Shared tier-routed cascade (api/_shared/llm.js) ────────────────────────
+  // The 6-provider waterfall (OpenAI/Anthropic/Gemini/Grok/Groq/Cerebras),
+  // key rotation, demotion rules, and APP_AI_PROVIDER preference all live in
+  // llm.js now. We map its result/throw back onto the legacy `result` shape so
+  // every downstream branch (heuristic fallback, error mapping, JSON parse,
+  // autofill creative_spec) is preserved exactly.
   let result = null;
 
   try {
-    // 1. OpenAI (multi-key rotation on quota exhaustion)
-    if (openaiKey && !skipOpenai) {
-      const openaiKeys = [openaiKey, process.env.OPENAI_API_KEY_2, process.env.OPENAI_API_KEY_3].filter(Boolean);
-      const model = isMaxPower
-        ? (process.env.OPENAI_TEXT_MODEL_MAX || 'gpt-4o')
-        : (process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini');
-      for (const key of openaiKeys) {
-        result = await callOpenAI(model, key);
-        if (result.ok) break;
-        if (result.quotaExhausted) { console.warn('[generate] OpenAI key quota exhausted — rotating'); continue; }
-        console.warn('[generate] OpenAI ' + result.status + ' — falling through to Claude');
-        break;
-      }
-    }
-
-    // 2. Anthropic (Claude) — if OpenAI unavailable or failed
-    if (anthropicKey && (!result || !result.ok) && !skipAnthropic) {
-      console.warn('[generate] Trying Anthropic (Claude)');
-      const _anthModels = isMaxPower
-        ? [process.env.ANTHROPIC_TEXT_MODEL_MAX || 'claude-opus-4-8', 'claude-sonnet-4-6']
-        : [process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];
-      for (const model of _anthModels) {
-        result = await callAnthropic(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Anthropic ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
-    }
-
-    // 3. Gemini — if Claude unavailable or failed
-    //    De-duplicate models: env var might equal a hardcoded fallback
-    if (geminiKey && (!result || !result.ok) && !skipGemini) {
-      console.warn('[generate] Trying Gemini');
-      const geminiModels = [];
-      const seen = new Set();
-      const _gemSrc = isMaxPower
-        ? [process.env.GEMINI_TEXT_MODEL_MAX || 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash']
-        : [process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
-      for (const m of _gemSrc) {
-        if (!seen.has(m)) { seen.add(m); geminiModels.push(m); }
-      }
-      for (const model of geminiModels) {
-        console.log('[generate] Trying Gemini model:', model);
-        result = await callGemini(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Gemini ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
-    }
-
-    // 4. Grok (xAI)
-    if (grokKey && (!result || !result.ok) && !skipGrok) {
-      console.warn('[generate] Trying Grok (xAI)');
-      const _grokModels = isMaxPower
-        ? [process.env.GROK_TEXT_MODEL_MAX || 'grok-3', 'grok-3-mini']
-        : [process.env.GROK_TEXT_MODEL || 'grok-3-mini-fast', 'grok-3-mini'];
-      for (const model of _grokModels) {
-        result = await callGrok(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Grok ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
-    }
-
-    // 5. Groq (free tier — Llama 3.3 70B, 30 RPM)
-    if (groqKey && (!result || !result.ok) && !skipGroq) {
-      console.warn('[generate] Trying Groq (free tier)');
-      for (const model of [process.env.GROQ_TEXT_MODEL || 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) {
-        result = await callGroq(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Groq ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
-    }
-
-    // 6. Cerebras (free tier — Llama 3.3 70B, 30 RPM, ultra-fast)
-    if (cerebrasKey && (!result || !result.ok) && !skipCerebras) {
-      console.warn('[generate] Trying Cerebras (free tier)');
-      for (const model of [process.env.CEREBRAS_TEXT_MODEL || 'llama-3.3-70b', 'llama-3.1-8b']) {
-        result = await callCerebras(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Cerebras ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
+    try {
+      const out = await callLLM({
+        systemPrompt,
+        userMessage,
+        responseFormat: response_format || null,
+        maxTokens: max_tokens,
+        temperature,
+        timeoutMs: 30000,
+        stage: 'generate:' + mode,
+        tier,
+        userGeminiKey,
+      });
+      result = { ok: true, text: out.text, provider: out.provider, model: out.model };
+    } catch (llmErr) {
+      // All providers failed (or a plain-400 bad request aborted the cascade).
+      // Reconstruct the legacy failure result from the last provider error.
+      const perr = Array.isArray(llmErr && llmErr._providerErrors) ? llmErr._providerErrors : [];
+      const last = perr[perr.length - 1] || null;
+      result = {
+        ok: false,
+        status: last ? (last.status || 0) : 0,
+        error: last && last.provider ? (last.provider + '_error') : 'no_provider',
+        detail: String((last && last.err) || (llmErr && llmErr.message) || 'All providers failed').substring(0, 400),
+        provider: last ? last.provider : null,
+        model: null,
+        ...(last && last.status === 429 ? { retry_after: 30 } : {}),
+      };
     }
 
     if (!result || !result.ok) {
@@ -977,8 +753,8 @@ Target market for this autofill: ${targetMarket}.`;
       return res.status(clientStatus).json({
         error: result ? result.error : 'no_provider',
         detail: result ? result.detail : 'All providers failed',
-        provider: result ? result.provider : provider,
-        model: result ? result.model : textModel,
+        provider: result ? result.provider : null,
+        model: result ? result.model : null,
         // Include retry_after so the frontend can show a countdown and auto-retry
         ...(is429 ? { retry_after: result.retry_after || 30, rate_limited: true } : {})
       });
@@ -1035,6 +811,6 @@ Target market for this autofill: ${targetMarket}.`;
     return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text, portable_prompt });
 
   } catch (e) {
-    return res.status(500).json({ error: 'server_error', provider, detail: String(e && e.message || e).substring(0, 300) });
+    return res.status(500).json({ error: 'server_error', provider: 'cascade', detail: String(e && e.message || e).substring(0, 300) });
   }
 };
