@@ -779,6 +779,28 @@ Target market for this autofill: ${targetMarket}.`;
       if (!parsed) {
         return res.status(502).json({ error: 'json_parse_failed', provider: result.provider, raw: text.substring(0, 600) });
       }
+
+      // ── Quality loop (mailer_full only, additive) ─────────────────────────
+      // Bounded critique→revise pass (score on 'fast'; one 'premium' revision
+      // if overall < 7; 25s hard time-box). Skip-on-error by design — the
+      // response shape only GAINS a `quality` field, it never fails or changes.
+      if (mode === 'mailer_full') {
+        let data = parsed;
+        let quality = null;
+        try {
+          const ql = require('../_shared/quality-loop.js');
+          const out = await ql.runQualityLoop({ spec: parsed, brief: userMessage, userGeminiKey });
+          data = out.spec || parsed;
+          quality = out.quality || null;
+        } catch (qe) {
+          console.warn('[generate] quality loop unavailable: ' + String(qe && qe.message || qe).slice(0, 120));
+        }
+        return res.status(200).json({
+          ok: true, mode, provider: result.provider, model: result.model, data, portable_prompt,
+          ...(quality ? { quality } : {})
+        });
+      }
+
       return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: parsed, portable_prompt });
     }
 
