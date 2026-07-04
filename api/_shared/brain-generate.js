@@ -56,7 +56,7 @@ function pickCampaignHubLP(slot, products) {
 async function llmJson(system, user, maxTokens = 1800) {
   if (!callLLM) return null;
   try {
-    const out = await callLLM({ systemPrompt: system, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens, temperature: 0.7, timeoutMs: 40000, stage: 'brain-generate' });
+    const out = await callLLM({ systemPrompt: system, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens, temperature: 0.7, timeoutMs: 40000, stage: 'brain-generate', tier: 'standard' });
     const text = typeof out === 'string' ? out : (out.text || '');
     return JSON.parse(text.replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1'));
   } catch (_) { return null; }

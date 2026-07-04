@@ -310,6 +310,7 @@ Implement Variant ${variant} now. Follow the locked structure exactly. Generate 
       temperature: 0.55 + Math.min(0.2, regenerate_counter * 0.08),
       timeoutMs: 46000,        // 46s internal; vercel maxDuration 55s (9s headroom)
       stage: 'variant-' + variant + '[regen=' + regenerate_counter + ']',
+      tier: 'premium',
       userGeminiKey
     });
 

@@ -172,6 +172,7 @@ module.exports = async function handler(req, res) {
       maxTokens: 1200,
       temperature: 0.75,
       stage: 'strategy',
+      tier: 'premium',
     });
     return JSON.parse(out.text);
   }, 'strategy');
@@ -182,6 +183,28 @@ module.exports = async function handler(req, res) {
   }
 
   const S = strategy.data;
+
+  // Brand scrub — every LLM copy string passes sanitizeBrand (CLAUDE.md banned
+  // phrases → preferred lexicon) before it reaches a rendered mailer. Failure
+  // to load the scrubber never blocks the request.
+  try {
+    const { sanitizeBrand } = require('../_shared/scenario-model.js');
+    S.subject_line  = sanitizeBrand(S.subject_line);
+    S.preview_text  = sanitizeBrand(S.preview_text);
+    S.hero_headline = sanitizeBrand(S.hero_headline);
+    S.hero_subline  = sanitizeBrand(S.hero_subline);
+    S.cta_text      = sanitizeBrand(S.cta_text);
+    if (Array.isArray(S.body_blocks)) {
+      S.body_blocks = S.body_blocks.map((b) => ({
+        ...b,
+        heading: sanitizeBrand(b && b.heading),
+        body: sanitizeBrand(b && b.body),
+      }));
+    }
+  } catch (e) {
+    console.warn('[calendar-trigger] sanitizeBrand unavailable: ' + String(e && e.message || e).slice(0, 120));
+  }
+
   const ctaUrl = ctaUrlForEntry(entry, market);
 
   // ── Stage 2: EXACTLY 2 variants per region ───────────────────────────────
@@ -245,6 +268,47 @@ module.exports = async function handler(req, res) {
     },
   };
 
+  // ── OPTIONAL real hero image for the V2 visual variant ────────────────────
+  // Runs the existing image cascade in-process (creative-image.js mock-req/res
+  // shim), hard time-boxed at 30s. Failure-silent by design: any error, timeout,
+  // or missing provider keeps V2 exactly as rendered above (brand-palette hero
+  // block, no imagery). A provided hosted media URL always wins over generation.
+  if (!variants.V2.hosted_media_url) {
+    let timer = null;
+    try {
+      const { generateCreativeImage, uploadCreative } = require('../_shared/creative-image.js');
+      const gen = await Promise.race([
+        generateCreativeImage(variants.V2.hero_image_brief, { size: '1536x1024' }),
+        new Promise((resolve) => { timer = setTimeout(() => resolve(null), 30000); }),
+      ]);
+      // image.js never 502s — on total failure it returns an on-brand SVG
+      // placeholder (provider 'placeholder'). Only a REAL generated photo may
+      // upgrade the variant; placeholders keep the current no-image render.
+      const isReal = gen && gen.image &&
+        gen.provider !== 'placeholder' &&
+        String(gen.image).indexOf('data:image/svg') !== 0;
+      if (isReal) {
+        // Prefer a small hosted URL (Supabase Storage) over a multi-MB data-URL.
+        const hosted = await uploadCreative(gen.image, `calendar-v2-${slugify(entry.date || entry.segment || 'hero')}`).catch(() => null);
+        const heroImageUrl = hosted || gen.image;
+        variants.V2.hero_image_url = heroImageUrl;
+        variants.V2.hero_image_provider = gen.provider || null;
+        variants.V2.html = renderTextVariant({
+          ...sharedText, style: 'visual',
+          hero_product: entry.hero_product, hero_sku: entry.hero_sku,
+          hero_image_url: heroImageUrl,
+        });
+        runs.push({ stage: 'hero-image', ok: true, error: null });
+      } else {
+        runs.push({ stage: 'hero-image', ok: false, error: 'skipped_or_unavailable' });
+      }
+    } catch (e) {
+      runs.push({ stage: 'hero-image', ok: false, error: String(e && e.message || e).slice(0, 160) });
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   return res.status(200).json({
     ok: true,
     entry,
@@ -256,7 +320,7 @@ module.exports = async function handler(req, res) {
 };
 
 // ─── Text-variant renderer (no images, brand-compliant) ─────────────────────
-function renderTextVariant({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku }) {
+function renderTextVariant({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku, hero_image_url }) {
   // CTA points at the resolved product/collection page; the brand domain still
   // falls back per-market if no specific destination was provided.
   const baseUrl = cta_url || regionBase(market);
@@ -275,6 +339,12 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
   //    and a brand palette hero block. Visual elements stay light and on-brand.
   if (style === 'visual') {
     const heroLabel = hero_product ? esc(hero_product) : 'Today on the cupping table';
+    // Optional real hero photograph (generated or hosted). When absent the
+    // variant renders exactly as before — brand-palette hero block only.
+    const heroImgRow = hero_image_url ? `
+      <tr><td style="padding:20px 32px 0;">
+        <img src="${esc(hero_image_url)}" width="536" alt="${heroLabel}" style="display:block;width:100%;height:auto;border-radius:6px;" />
+      </td></tr>` : '';
     return `<!doctype html>
 <html><body style="margin:0;padding:0;background:${palette.cream};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.cream};">
@@ -282,7 +352,7 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #ece4d2;">
       <tr><td style="padding:24px 32px 0;text-align:center;">
         <div style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:13px;letter-spacing:3px;color:${palette.gold};text-transform:uppercase;">VAHDAM · ${esc(market)}</div>
-      </td></tr>
+      </td></tr>${heroImgRow}
       <tr><td style="padding:20px 32px 0;">
         <!-- Brand-palette hero block (no external image needed) -->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.green};border-radius:6px;">

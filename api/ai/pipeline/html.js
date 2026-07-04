@@ -757,6 +757,7 @@ Output starts <!DOCTYPE html>, ends </html>. Nothing before or after.`;
       temperature: 0.3 + Math.min(0.15, regen * 0.05), // Low = reliable HTML; slight bump on regen for variation
       timeoutMs: 80000,        // 80s internal; vercel maxDuration set to 90s (10s headroom for overhead)
       stage: 'html-' + variant + '[regen=' + regen + ']',
+      tier: 'premium',
       userGeminiKey
     });
 
