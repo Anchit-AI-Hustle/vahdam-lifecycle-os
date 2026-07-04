@@ -172,7 +172,7 @@ Rules:
     }
     const userMsg = `URL: ${urlForContext}\n\nExtracted text:\n"""\n${textBody.slice(0, 30000)}\n"""`;
     try {
-      const out = await callLLM({ systemPrompt: SYSTEM_PROMPT, userMessage: userMsg, responseFormat: { type: 'json_object' }, maxTokens: 700, temperature: 0.3, timeoutMs: 35000, stage: 'kb-ingest' });
+      const out = await callLLM({ systemPrompt: SYSTEM_PROMPT, userMessage: userMsg, responseFormat: { type: 'json_object' }, maxTokens: 700, temperature: 0.3, timeoutMs: 35000, stage: 'kb-ingest', tier: 'fast' });
       if (!out || !out.ok || !out.text) throw new Error(out && out.err ? String(out.err) : 'no LLM response');
       const json = JSON.parse(out.text.replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1'));
       return {

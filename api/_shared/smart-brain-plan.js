@@ -480,6 +480,7 @@ async function writeCopyWithLLM(entry) {
     temperature: 0.75,
     timeoutMs: 40000,
     stage: 'smart-brain-copy',
+    tier: 'premium',
   });
   const json = parseJSON(res.text);
   if (!json || !json.email || !json.landing || !json.ads) throw new Error('LLM copy JSON incomplete');
