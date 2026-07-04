@@ -379,12 +379,24 @@ function projectMetrics(plan, levers, benchmark) {
 const BANNED_RX = /wellness journey|liquid gold|game[\s-]?changer|hurry|don'?t miss out|last chance|while supplies last/gi;
 const BANNED_TRANSFORM_RX = /\btransform(ing|ed|s|ation)?\b/gi;
 const BANNED_CAPS_RX = /LIMITED TIME/g; // caps form specifically
-function sanitizeBrand(str) {
+
+// No em dashes (—) or en dashes (–) in any generated output (product-owner
+// rule 2026-07-04). Spaced dashes become " - "; bare dashes become " - " too,
+// then double spaces are collapsed so surrounding text stays clean.
+function scrubDashes(str) {
   if (str == null) return str;
   return String(str)
+    .replace(/\s[—–]\s/g, ' - ')
+    .replace(/[—–]/g, ' - ')
+    .replace(/ {2,}/g, ' ');
+}
+
+function sanitizeBrand(str) {
+  if (str == null) return str;
+  return scrubDashes(String(str)
     .replace(BANNED_CAPS_RX, 'time-bound')
     .replace(BANNED_RX, 'premium daily ritual')
-    .replace(BANNED_TRANSFORM_RX, 'restore')
+    .replace(BANNED_TRANSFORM_RX, 'restore'))
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
@@ -432,6 +444,7 @@ module.exports = {
   buildEngine2Benchmark,
   projectMetrics,
   sanitizeBrand,
+  scrubDashes,
   assertNoBanned,
   INTERNAL_KEYS,
   stripInternal,

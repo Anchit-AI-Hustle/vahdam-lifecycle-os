@@ -60,6 +60,13 @@
   .empty{color:var(--muted);font-size:14px;padding:26px;text-align:center;border:1px dashed rgba(171,135,67,.3);border-radius:14px;grid-column:1/-1}
   details.blog summary{cursor:pointer;color:var(--gold);font-size:12px;font-weight:700}
   .blogbody{font-size:13px;line-height:1.65;color:#dfe8e2;white-space:pre-wrap;max-height:340px;overflow:auto;background:#07100d;border-radius:10px;padding:12px;margin-top:8px}
+  .so-modal-ov{position:fixed;inset:0;background:rgba(4,10,8,.72);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:80;overflow:auto}
+  .so-modal-ov.open{display:flex}
+  .so-modal{background:#0f1d18;border:1px solid rgba(171,135,67,.4);border-radius:16px;max-width:760px;width:100%;padding:20px;position:relative}
+  .so-modal h2{margin:0 32px 12px 0;font-size:18px;color:var(--cream);font-family:'Lao MN','Cormorant Garamond',Georgia,serif}
+  .so-modal-body{font-size:13px;line-height:1.6;color:#dfe8e2;white-space:pre-wrap;background:#07100d;border:1px solid rgba(171,135,67,.14);border-radius:10px;padding:14px;max-height:62vh;overflow:auto;word-break:break-word}
+  .so-modal-x{position:absolute;top:12px;right:14px;background:transparent;border:1px solid rgba(171,135,67,.35);color:#d9c18f;border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer}
+  .so-modal-dl{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
   @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:680px){.grid{grid-template-columns:1fr}h1{font-size:30px}body{padding:16px}}
 </style>
@@ -83,6 +90,7 @@
     <label class="meta" for="datePick">Date</label>
     <input type="date" id="datePick">
     <label class="chk"><input type="checkbox" id="dryRun"> dry run (no save, no media render)</label>
+    <button id="dayPkgBtn" class="btn secondary sm" disabled>Download day package (.json)</button>
     <span id="runState" class="meta"></span>
   </div>
 
@@ -98,12 +106,24 @@
   </section>
 </main>
 
+<!-- Full-post preview modal (Rule: view + download the COMPLETE output before approving) -->
+<div id="soModal" class="so-modal-ov" role="dialog" aria-modal="true" aria-label="Full post preview">
+  <div class="so-modal">
+    <button id="soModalClose" class="so-modal-x" type="button">Close</button>
+    <h2 id="soModalTitle">Full post</h2>
+    <div id="soModalBody" class="so-modal-body"></div>
+    <div class="so-modal-dl" id="soModalDl"></div>
+  </div>
+</div>
+
 <script>
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var API = '/api/brain';
   var lastRun = null;
+  var currentPosts = [];   // posts currently rendered (for the day package download)
+  var currentDate = null;  // date the rendered posts belong to
 
   function todayIso() { return new Date().toISOString().slice(0, 10); }
   $('datePick').value = todayIso();
@@ -120,6 +140,96 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
   }
+
+  // ── Preview + Download helpers (complete output before approve) ──────────
+  function downloadBlob(filename, text, mime) {
+    var blob = new Blob([text], { type: mime || 'application/octet-stream' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 250);
+  }
+  function postPayload(post) { return post.payload || post; }
+  function isBlogPost(p) {
+    var c = p.copy || {};
+    return (p.platform || '') === 'blog' || !!c.body_markdown;
+  }
+  function safeName(s) { return String(s || 'post').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'post'; }
+  function postFileBase(post) {
+    var p = postPayload(post);
+    return (currentDate || todayIso()) + '_' + safeName(p.platform) + '_' + safeName(p.format || p.theme || 'post');
+  }
+  // Plain-text rendering of the COMPLETE post: copy, hashtags, alt text, media
+  // prompt / storyboard, CTA, link, status. Shown in the View-full modal.
+  function fullPostText(post) {
+    var p = postPayload(post);
+    var c = p.copy || {};
+    var lines = [];
+    function add(label, val) { if (val != null && String(val).trim() !== '') lines.push(label + ': ' + val); }
+    add('PLATFORM', (p.platform || '') + (p.format ? ' · ' + p.format : ''));
+    add('THEME', p.theme);
+    add('OBJECTIVE', p.objective);
+    add('STATUS', post.status || p.status || 'draft');
+    add('BEST TIME (UTC)', p.best_time_utc);
+    add('DIMENSIONS', p.media && p.media.dims);
+    lines.push('');
+    if (c.title) { lines.push('TITLE: ' + c.title); lines.push(''); }
+    if (c.meta_description) { lines.push('META DESCRIPTION: ' + c.meta_description); lines.push(''); }
+    if (c.body_markdown) { lines.push('FULL ARTICLE:'); lines.push(String(c.body_markdown)); lines.push(''); }
+    if (c.caption) { lines.push('CAPTION:'); lines.push(String(c.caption)); lines.push(''); }
+    if (p.hashtags && p.hashtags.length) { lines.push('HASHTAGS: ' + p.hashtags.join(' ')); lines.push(''); }
+    add('ALT TEXT', p.alt_text);
+    var m = p.media || {};
+    var prompt = m.image_prompt || (m.cover && m.cover.image_prompt);
+    var img = m.image_url || (m.cover && m.cover.image_url);
+    if (img) add('IMAGE URL', img);
+    if (prompt) { lines.push('MEDIA PROMPT:'); lines.push(String(prompt)); lines.push(''); }
+    if (m.type === 'video' && m.video && m.video.storyboard && m.video.storyboard.storyboard) {
+      lines.push('VIDEO STORYBOARD:');
+      m.video.storyboard.storyboard.forEach(function (s, i) { lines.push('  ' + (i + 1) + '. ' + s); });
+      lines.push('');
+    }
+    add('CTA', p.cta);
+    add('LINK', p.link);
+    add('PUSH', post.push_status || p.push_status);
+    return lines.join('\n');
+  }
+  function blogMarkdown(p) {
+    var c = p.copy || {};
+    var head = c.title ? '# ' + c.title + '\n\n' : '';
+    if (c.meta_description) head += '> ' + c.meta_description + '\n\n';
+    var tail = (p.hashtags && p.hashtags.length) ? '\n\n' + p.hashtags.join(' ') : '';
+    return head + String(c.body_markdown || '') + tail + '\n';
+  }
+  function downloadPost(post, kind) {
+    var p = postPayload(post);
+    var base = postFileBase(post);
+    if (kind === 'md') { downloadBlob(base + '.md', blogMarkdown(p), 'text/markdown'); return; }
+    downloadBlob(base + '.json', JSON.stringify(post, null, 2), 'application/json');
+  }
+  function openModal(post) {
+    var p = postPayload(post);
+    $('soModalTitle').textContent = (p.platform || 'post') + ' · ' + (p.format || '') + (p.theme ? ' · ' + p.theme : '');
+    $('soModalBody').textContent = fullPostText(post);
+    var dl = $('soModalDl');
+    dl.innerHTML = '';
+    var b1 = document.createElement('button');
+    b1.className = 'btn sm secondary'; b1.type = 'button'; b1.textContent = 'Download .json';
+    b1.addEventListener('click', function () { downloadPost(post, 'json'); });
+    dl.appendChild(b1);
+    if (isBlogPost(p)) {
+      var b2 = document.createElement('button');
+      b2.className = 'btn sm secondary'; b2.type = 'button'; b2.textContent = 'Download .md';
+      b2.addEventListener('click', function () { downloadPost(post, 'md'); });
+      dl.appendChild(b2);
+    }
+    $('soModal').classList.add('open');
+  }
+  function closeModal() { $('soModal').classList.remove('open'); }
+  $('soModalClose').addEventListener('click', closeModal);
+  $('soModal').addEventListener('click', function (e) { if (e.target === $('soModal')) closeModal(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
 
   function mediaHtml(media) {
     if (!media) return '';
@@ -171,11 +281,18 @@
       '<div class="meta">CTA: <b>' + esc(p.cta || '') + '</b> → <a style="color:#d9c18f" href="' + esc(p.link || '#') + '" target="_blank" rel="noopener">' + esc(p.link || '') + '</a></div>' +
       '<div class="meta">Push: ' + esc(post.push_status || p.push_status || '') + '</div>' +
       '<div class="actions">' +
+        '<button class="btn sm secondary" data-view="1">View full</button>' +
+        '<button class="btn sm secondary" data-dl="json">Download</button>' +
+        (isBlogPost(p) ? '<button class="btn sm secondary" data-dl="md">.md</button>' : '') +
         '<button class="btn sm ok" data-act="social-approve">Approve</button>' +
         '<button class="btn sm no" data-act="social-skip">Skip</button>' +
       '</div>';
     el.querySelectorAll('button[data-act]').forEach(function (btn) {
       btn.addEventListener('click', function () { decide(btn, el, id, btn.getAttribute('data-act')); });
+    });
+    el.querySelector('button[data-view]').addEventListener('click', function () { openModal(post); });
+    el.querySelectorAll('button[data-dl]').forEach(function (btn) {
+      btn.addEventListener('click', function () { downloadPost(post, btn.getAttribute('data-dl')); });
     });
     return el;
   }
@@ -183,6 +300,9 @@
   function renderPosts(posts, fromDb) {
     var box = $('cards');
     box.innerHTML = '';
+    currentPosts = posts || [];
+    currentDate = $('datePick').value || todayIso();
+    $('dayPkgBtn').disabled = !currentPosts.length;
     if (!posts || !posts.length) {
       box.innerHTML = '<div class="empty">Nothing here for this date yet.</div>';
       return;
@@ -191,6 +311,13 @@
       box.appendChild(fromDb ? card(row, row.id) : card(row, row.id));
     });
   }
+
+  function downloadDayPackage() {
+    if (!currentPosts.length) return;
+    var pkg = { date: currentDate || todayIso(), generated_at: new Date().toISOString(), post_count: currentPosts.length, posts: currentPosts };
+    downloadBlob((currentDate || todayIso()) + '_social-day-package.json', JSON.stringify(pkg, null, 2), 'application/json');
+  }
+  $('dayPkgBtn').addEventListener('click', downloadDayPackage);
 
   function renderTrace(trace) {
     var panel = $('tracePanel'), rows = $('traceRows');

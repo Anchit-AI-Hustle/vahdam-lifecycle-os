@@ -52,6 +52,7 @@ Single source of truth for every email in this campaign. Nothing outside this fi
 - **Palette — ONLY these hex values may appear anywhere in the HTML**: `#004A2B` (forest green), `#AB8743` (gold), `#171717` (near-black), `#FBF5EA` (cream). No white `#FFFFFF`, no grays, no other tints. (Case-insensitive; 3-digit shorthand also banned.)
 - **Fonts**: headings `'Lao MN','Cormorant Garamond',Georgia,serif` · body `'Proxima Nova','Helvetica Neue',Arial,sans-serif`. No other families.
 - **BANNED phrases** (any casing unless noted): "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" (caps), "hurry", "don't miss out", "last chance", "while supplies last".
+- **No em/en dashes anywhere in output copy** - use commas, colons, or plain hyphens.
 - **NO FOUNDER VOICE — HARD RULE**: no founder letters, no "from our founder/CEO", no personal-name sign-offs, no first-person-singular ("I") narration. The brand speaks as "we".
 - **No medical claims** for ashwagandha/turmeric/supplements: no disease, stress-cure, cortisol, or weight-loss claims. Softest allowed register: "calm", "steady", "balance", "a gentler kind of energy".
 - **Voice**: warm, sensory, story-driven. Preferred words: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted. Exemplar sentence: "There is a moment when the right cup of tea does more than warm your hands."
