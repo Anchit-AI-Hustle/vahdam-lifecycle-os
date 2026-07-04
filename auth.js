@@ -541,10 +541,12 @@
     // item expands into the same 5 sub-items, in a fixed order. The `?` chip
     // toggles the sub-item list; each sub-item opens the shared info panel.
     const infoBtn = (key, label) => INFO[key]
-      ? `<button type="button" class="lnav-i" data-itoggle="${key}" title="About: ${label}" aria-label="About ${label}" aria-expanded="false">?</button>`
+      ? `<button type="button" class="lnav-i" data-itoggle="${key}" title="About: ${label}" aria-label="About ${label}" aria-expanded="true">?</button>`
       : '';
+    // IA rule: the 5 sub-items render OPEN by default — they ARE each item's
+    // visible sub-items, always in the fixed order. The `?` chip collapses them.
     const infoList = (key) => INFO[key]
-      ? `<div class="lnav-info" data-ikey="${key}">` +
+      ? `<div class="lnav-info open" data-ikey="${key}">` +
           SUBQ.map(([sub, label], i) =>
             `<button type="button" class="lnav-info-item" data-info="${key}" data-sub="${sub}"><span class="lnav-info-n">${i + 1}</span>${label}</button>`
           ).join('') +
