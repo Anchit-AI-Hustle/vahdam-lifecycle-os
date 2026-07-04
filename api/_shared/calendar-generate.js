@@ -69,6 +69,9 @@ const ARCHETYPES = [
 
 const CONTENT_TYPES = ['promo', 'editorial', 'lifecycle', 'launch', 'winback', 'transactional'];
 
+// Canonical asset-type order for plan rows (additive `asset_types` field).
+const ASSET_TYPES = ['mailer', 'meta_ad', 'google_ad', 'tiktok_ad', 'landing_page', 'social_post'];
+
 // Default segment cadence — how often the same segment can be hit per week.
 const SEGMENT_CADENCE_PER_WEEK = {
   'Champions':     3,  // engaged + valuable → can sustain frequency
@@ -147,6 +150,31 @@ function stableIndex(str, n) {
   const s = String(str);
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return h % n;
+}
+
+// Deterministically choose which asset types a plan slot needs, from its
+// content_type / archetype / festival. No randomness: fixed rules plus the
+// same stableIndex hash used for hero rotation. Rules:
+//  - every slot ships a mailer
+//  - promo slots and festival slots add the paid + landing set (meta_ad, google_ad, landing_page)
+//  - launch slots add the paid + landing set plus a tiktok_ad
+//  - editorial slots and storytelling-leaning archetypes add a social_post
+//  - lifecycle / winback slots rotate a social_post onto every second slot (stableIndex on the slot key)
+function pickAssetTypes({ content_type, archetype, festival, key }) {
+  const set = new Set(['mailer']);
+  if (content_type === 'promo' || festival) {
+    set.add('meta_ad'); set.add('google_ad'); set.add('landing_page');
+  }
+  if (content_type === 'launch') {
+    set.add('meta_ad'); set.add('google_ad'); set.add('landing_page'); set.add('tiktok_ad');
+  }
+  if (content_type === 'editorial' || archetype === 'storytelling-narrative' || archetype === 'founder-note' || archetype === 'editorial-trend-roundup') {
+    set.add('social_post');
+  }
+  if ((content_type === 'lifecycle' || content_type === 'winback') && stableIndex(String(key), 2) === 0) {
+    set.add('social_post');
+  }
+  return ASSET_TYPES.filter((t) => set.has(t));
 }
 
 // productStrategy lever (from the scenario model) overrides the per-segment
@@ -282,6 +310,7 @@ function buildPlan({ startDate, days, markets, capacity, analytics, segmentsRank
       const send_hour    = pickBestSendHourUTC(market, analytics);
       const subject_hint = buildSubjectHint(segment.name, festival, hero, content_type, market);
       const rationale    = buildRationale({ segment: segment.name, festival, content_type, archetype, hero, segValueRank: segment.valueRank, market });
+      const asset_types  = pickAssetTypes({ content_type, archetype, festival, key: `${dateStr}_${market}_${segment.name}` });
 
       plan.push({
         id: `${dateStr}_${market}_${segment.name}_${plan.length}`,
@@ -300,6 +329,7 @@ function buildPlan({ startDate, days, markets, capacity, analytics, segmentsRank
         festival_weight: festival ? festival.weight : null,
         festival_tags: festival ? (festival.tags || []) : [],
         rationale,
+        asset_types,
         status: 'planned',
       });
 
@@ -314,6 +344,7 @@ function buildPlan({ startDate, days, markets, capacity, analytics, segmentsRank
     segments_used: segmentsRanked.map((s) => ({ name: s.name, valueRank: s.valueRank, revenue: s.revenue, count: s.count })),
     archetype_distribution: ARCHETYPES.reduce((mp, a) => ({ ...mp, [a]: plan.filter((p) => p.archetype === a).length }), {}),
     content_type_distribution: CONTENT_TYPES.reduce((mp, c) => ({ ...mp, [c]: plan.filter((p) => p.content_type === c).length }), {}),
+    asset_type_distribution: ASSET_TYPES.reduce((mp, t) => ({ ...mp, [t]: plan.filter((p) => (p.asset_types || []).includes(t)).length }), {}),
   };
   return { plan, meta };
 }

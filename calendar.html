@@ -61,6 +61,7 @@
   .day-fest { font-size:9px; color:#AB8743; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; margin-top:2px; }
   .entry { font-size:11px; line-height:1.35; padding:3px 6px; margin-top:4px; border-radius:4px; background:#142822; cursor:help; }
   .entry-market { font-weight:700; font-family:'JetBrains Mono',monospace; }
+  .entry-assets { font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:#AB8743; margin-left:4px; white-space:nowrap; }
   .filter-chip { padding:5px 11px; border-radius:99px; font-size:11px; font-weight:600; border:1px solid rgba(171,135,67,0.25); color:#9aaaa1; cursor:pointer; }
   .filter-chip.active { background:#AB8743; color:#0a1410; border-color:#AB8743; }
   th { font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#5d6e64; padding:10px 8px; border-bottom:1px solid rgba(171,135,67,0.18); text-align:left; }
@@ -160,6 +161,7 @@
         <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:rgba(171,135,67,0.45);"></span> Festival</span>
         <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-bright"></span> Lifecycle</span>
         <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:#fca5a5;"></span> Promo</span>
+        <span class="flex items-center gap-1" id="assetLegend">Assets: <b class="text-gold font-semibold">M</b> mailer, <b class="text-gold font-semibold">A</b> ads, <b class="text-gold font-semibold">L</b> landing page, <b class="text-gold font-semibold">S</b> social</span>
       </div>
     </div>
     <div id="calendarGrid" class="grid grid-cols-7 gap-2"></div>
@@ -193,6 +195,7 @@
       <div>
         <h2 class="text-lg font-semibold" id="mailerTitle">Mailer preview</h2>
         <p class="text-xs text-ink-dim" id="mailerSubtitle"></p>
+        <p class="text-[11px] text-gold mt-1" id="mailerAssets"></p>
       </div>
       <button class="text-ink-mute hover:text-ink text-2xl leading-none" onclick="closeMailer()">×</button>
     </div>
@@ -300,11 +303,30 @@ function humanDate(ds) {
   if (isNaN(d)) return ds;
   return MONTH_SHORT[d.getUTCMonth()] + ' ' + d.getUTCDate();
 }
+// Asset-type display helpers. Letters: M mailer, A ads (Meta, Google, TikTok),
+// L landing page, S social post. Rows without asset_types (older plans) show nothing.
+const ASSET_LABELS = { mailer:'mailer', meta_ad:'Meta ad', google_ad:'Google ad', tiktok_ad:'TikTok ad', landing_page:'landing page', social_post:'social post' };
+function assetLetter(t) {
+  if (t === 'mailer') return 'M';
+  if (t === 'landing_page') return 'L';
+  if (t === 'social_post') return 'S';
+  return 'A';
+}
+function assetLetters(e) {
+  const seen = [];
+  (e.asset_types || []).forEach((t) => { const l = assetLetter(t); if (seen.indexOf(l) === -1) seen.push(l); });
+  return seen.join('');
+}
+function assetNames(e) {
+  return (e.asset_types || []).map((t) => ASSET_LABELS[t] || String(t).replace(/_/g, ' ')).join(', ');
+}
 // Full-sentence tooltip for a calendar day chip, e.g.
-// "US market — Loyal customers — storytelling narrative email on Jul 5"
+// "US market — Loyal customers — storytelling narrative email on Jul 5. Assets: mailer, social post"
 function chipTooltip(e) {
+  const assets = assetNames(e);
   return marketName(e.market) + ' market — ' + e.segment + ' customers — '
-    + String(e.archetype || '').replace(/-/g, ' ') + ' email on ' + humanDate(e.date);
+    + String(e.archetype || '').replace(/-/g, ' ') + ' email on ' + humanDate(e.date)
+    + (assets ? '. Assets: ' + assets : '');
 }
 // Status line under the action bar, e.g. "72 emails planned across US, UK,
 // Global and India — mostly ritual journey (30) and storytelling narrative (26) formats."
@@ -325,7 +347,21 @@ function formatPlanSummary(data) {
       + friendly(dist[1][0]) + ' (' + dist[1][1] + ') formats';
   }
   const n = data.total_sends_planned;
-  return n + ' email' + (n === 1 ? '' : 's') + ' planned across ' + marketText + formatText + '.';
+  // Asset totals from the plan rows (asset_types is additive; older plans skip this).
+  const rows = data.plan || [];
+  const hasAsset = (p, t) => Array.isArray(p.asset_types) && p.asset_types.indexOf(t) !== -1;
+  const nMailers = rows.filter((p) => hasAsset(p, 'mailer')).length;
+  const nAdSets  = rows.filter((p) => hasAsset(p, 'meta_ad') || hasAsset(p, 'google_ad') || hasAsset(p, 'tiktok_ad')).length;
+  const nPages   = rows.filter((p) => hasAsset(p, 'landing_page')).length;
+  const nSocial  = rows.filter((p) => hasAsset(p, 'social_post')).length;
+  let assetText = '';
+  if (nMailers || nAdSets || nPages || nSocial) {
+    assetText = ', with ' + nMailers + ' mailer' + (nMailers === 1 ? '' : 's')
+      + ', ' + nAdSets + ' ad set' + (nAdSets === 1 ? '' : 's')
+      + ', ' + nPages + ' landing page' + (nPages === 1 ? '' : 's')
+      + ' and ' + nSocial + ' social post' + (nSocial === 1 ? '' : 's');
+  }
+  return n + ' email' + (n === 1 ? '' : 's') + ' planned across ' + marketText + formatText + assetText + '.';
 }
 
 async function generatePlan() {
