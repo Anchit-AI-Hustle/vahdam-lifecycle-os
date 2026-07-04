@@ -20,6 +20,25 @@ const callLLM = require('../_shared/llm.js');
 // Single source of truth for the portable master prompt + brand block.
 const { buildMasterPrompt } = require('../_shared/master-prompt.js');
 
+// Product-owner rule (2026-07-04): no em/en dashes in any generated output.
+const { scrubDashes } = require('../_shared/scenario-model.js');
+
+// Walk a parsed LLM JSON payload and scrub em/en dashes from every generated
+// STRING value. Object keys are never touched; URL-like values are skipped so
+// links/handles stay byte-identical.
+function deepScrubDashes(v) {
+  if (typeof v === 'string') {
+    return /^(https?:\/\/|\/)/i.test(v.trim()) ? v : scrubDashes(v);
+  }
+  if (Array.isArray(v)) return v.map(deepScrubDashes);
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const k of Object.keys(v)) out[k] = deepScrubDashes(v[k]);
+    return out;
+  }
+  return v;
+}
+
 // Static creative sizes the ad-campaigns.html compositor actually renders, per
 // surface. Mirrors CRE_CFG in ad-campaigns.html — used to build creative_spec
 // so the autofill response describes exactly the assets that get produced.
@@ -734,10 +753,10 @@ Target market for this autofill: ${targetMarket}.`;
         const codeMatch = campaign_brief.match(/(?:code|coupon)\s+([A-Z0-9]{4,15})/i);
         const promoCode = codeMatch ? codeMatch[1].toUpperCase() : 'VAHDAM' + offerPct;
 
-        const heuristicBrief = `Our next ${typeDesc} targets ${audience}, aiming for an AOV exceeding $55 by leveraging the unmatched premium provenance of our single-estate teas. We're leading with a compelling offer: experience the crisp clarity of our finest teas with up to ${offerPct}% off for a limited time using code ${promoCode}. This isn't just a discount — it's an invitation to elevate your daily ritual with garden-fresh teas, picked and packed within 72 hours of harvest.\n\nOur hero product anchoring this campaign is ${heroProduct}, a single-estate jewel perfect for a discerning morning ritual. To build a richer basket we'll feature ${supportProducts} as supporting products. These selections offer variety and cater to both the ritualistic black tea drinker and the health-conscious individual.\n\nOur audience craves moments of calm and intentionality — they're seeking authenticity and connection, a premium experience that integrates into their demanding lives. A truly authentic tea with a clear origin story tips them towards purchase.\n\nFor subject lines, test these: Your Morning Ritual, Elevated. | ${offerPct}% Off — Premium Teas, Limited Time. | Freshness From The Himalayas Awaits.`;
+        const heuristicBrief = `Our next ${typeDesc} targets ${audience}, aiming for an AOV exceeding $55 by leveraging the unmatched premium provenance of our single-estate teas. We're leading with a compelling offer: experience the crisp clarity of our finest teas with up to ${offerPct}% off for a limited time using code ${promoCode}. This isn't just a discount: it's an invitation to elevate your daily ritual with garden-fresh teas, picked and packed within 72 hours of harvest.\n\nOur hero product anchoring this campaign is ${heroProduct}, a single-estate jewel perfect for a discerning morning ritual. To build a richer basket we'll feature ${supportProducts} as supporting products. These selections offer variety and cater to both the ritualistic black tea drinker and the health-conscious individual.\n\nOur audience craves moments of calm and intentionality. They're seeking authenticity and connection, a premium experience that integrates into their demanding lives. A truly authentic tea with a clear origin story tips them towards purchase.\n\nFor subject lines, test these: Your Morning Ritual, Elevated. | ${offerPct}% Off Premium Teas, Limited Time. | Freshness From The Himalayas Awaits.`;
 
         return res.status(200).json({
-          ok: true, mode, provider: 'heuristic', model: 'fallback-v1', text: heuristicBrief,
+          ok: true, mode, provider: 'heuristic', model: 'fallback-v1', text: scrubDashes(heuristicBrief),
           portable_prompt,
           _heuristic: true,
           _llm_error: String((result && result.detail) || 'All providers failed').substring(0, 200)
@@ -796,12 +815,12 @@ Target market for this autofill: ${targetMarket}.`;
           console.warn('[generate] quality loop unavailable: ' + String(qe && qe.message || qe).slice(0, 120));
         }
         return res.status(200).json({
-          ok: true, mode, provider: result.provider, model: result.model, data, portable_prompt,
+          ok: true, mode, provider: result.provider, model: result.model, data: deepScrubDashes(data), portable_prompt,
           ...(quality ? { quality } : {})
         });
       }
 
-      return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: parsed, portable_prompt });
+      return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: deepScrubDashes(parsed), portable_prompt });
     }
 
     // ── Autofill on an ad surface: also return the portable master_prompt and a
@@ -817,6 +836,7 @@ Target market for this autofill: ${targetMarket}.`;
           const a = text.indexOf('{'), b = text.lastIndexOf('}');
           if (a !== -1 && b > a) { try { fields = JSON.parse(text.slice(a, b + 1)); } catch (_) {} }
         }
+        fields = deepScrubDashes(fields);
         const overlay = {
           headline: fields.overlay_headline || '',
           sub: fields.overlay_sub || '',
@@ -826,11 +846,11 @@ Target market for this autofill: ${targetMarket}.`;
         const targetMarket = body.market || body.region || market || 'US';
         const userPrompt = String(body.prompt || campaign_brief || '').trim().slice(0, 1600);
         const master_prompt = buildMasterPrompt({ assetType: 'ad', platform: surf, market: targetMarket, brief: userPrompt });
-        return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text, creative_spec, master_prompt, portable_prompt });
+        return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: scrubDashes(text), creative_spec, master_prompt, portable_prompt });
       }
     }
 
-    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text, portable_prompt });
+    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: scrubDashes(text), portable_prompt });
 
   } catch (e) {
     return res.status(500).json({ error: 'server_error', provider: 'cascade', detail: String(e && e.message || e).substring(0, 300) });

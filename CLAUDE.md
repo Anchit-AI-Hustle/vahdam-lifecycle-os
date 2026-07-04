@@ -99,6 +99,7 @@ US → www.vahdamteas.com | UK → uk.vahdamteas.com | IN → www.vahdamindia.co
   - Body: **Proxima Nova** — fallback `'Proxima Nova','Helvetica Neue',Arial,sans-serif`
 - ⚠️ Do NOT introduce off-palette tints (`#0f2a1c`, `#d4873a`, `#fdf6e8`, `#1a3a28`, `#1a1a1a`, `#faf8f4`) or Cormorant/DM Sans as the *primary* family — these were drift, now removed.
 - **BANNED phrases**: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (caps), hurry, don't miss out, last chance, while supplies last
+- **No em/en dashes anywhere in output copy** - use commas, colons, or plain hyphens. (Enforced by `scrubDashes()`/`sanitizeBrand()` in `api/_shared/scenario-model.js`.)
 - **PREFERRED**: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted
 - **Copy voice**: warm, sensory, emotionally resonant, story-driven ("There is a moment when the right cup of tea does more than warm your hands"). Testimonials read as tiny personal stories, not reviews.
 
