@@ -724,8 +724,13 @@
         #lifecycle-nav .lnav-info-item:focus-visible {
           outline: 1px solid #AB8743; outline-offset: 1px;
         }
-        #lifecycle-nav .lnav-link .lnav-txt {
-          flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        /* Labels wrap to at most TWO lines instead of truncating mid-word
+           ("Calen…", "UK Non-Eng…"). Shared by links AND group headers.
+           The row title attribute still carries the full name as a tooltip. */
+        #lifecycle-nav .lnav-txt {
+          flex: 1; min-width: 0; white-space: normal; overflow-wrap: break-word;
+          display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+          overflow: hidden; line-height: 1.3;
         }
         /* V1/V2 taxonomy badge — deliberately quiet (Draft info lives in the
            tooltip + info panels, not the row). */
@@ -756,7 +761,6 @@
         #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #e8ede9; }
         #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #FBF5EA; }
         #lifecycle-nav .lnav-group.active-group .lnav-ghead .lnav-ic { color: #AB8743; }
-        #lifecycle-nav .lnav-ghead .lnav-txt { flex: 1; }
         #lifecycle-nav .lnav-caret { width: 15px; height: 15px; color: #5d6e64; transition: transform .18s; }
         #lifecycle-nav .lnav-group.open .lnav-caret { transform: rotate(180deg); }
         #lifecycle-nav .lnav-gbody { display: none; padding-left: 14px; margin-left: 8px; border-left: 1px solid rgba(171,135,67,0.14); }
