@@ -169,12 +169,12 @@ module.exports = async function handler(req, res) {
         'Use VAHDAM brand voice (warm, sensory, story-driven). No banned phrases.',
       userMessage: brief,
       responseFormat: { type: 'json_object' },
-      maxTokens: 1200,
+      maxTokens: 3000,
       temperature: 0.75,
       stage: 'strategy',
       tier: 'premium',
     });
-    return JSON.parse(out.text);
+    return (llm.parseJSON ? llm.parseJSON(out.text) : JSON.parse(out.text));
   }, 'strategy');
   runs.push({ stage: 'strategy', ok: strategy.ok, error: strategy.ok ? null : strategy.error });
 

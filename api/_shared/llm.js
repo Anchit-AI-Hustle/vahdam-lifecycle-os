@@ -480,8 +480,47 @@ module.exports.parseJSON = function parseJSON(text) {
   if (bs !== -1 && be > bs) { try { return JSON.parse(text.slice(bs, be + 1)); } catch (_) {} }
   const ss = stripped.indexOf('{'), se = stripped.lastIndexOf('}');
   if (ss !== -1 && se > ss) { try { return JSON.parse(stripped.slice(ss, se + 1)); } catch (_) {} }
+  // Last resort: repair a TRUNCATED object (model hit the token limit mid-JSON).
+  // Drop any trailing incomplete token, then close open strings and brackets so
+  // the fields already generated survive instead of failing the whole build.
+  const repaired = repairTruncatedJSON(stripped.indexOf('{') !== -1 ? stripped : text);
+  if (repaired) { try { return JSON.parse(repaired); } catch (_) {} }
   throw new SyntaxError('Could not parse JSON from LLM response. First 200 chars: ' + text.substring(0, 200));
 };
+
+function repairTruncatedJSON(text) {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let s = text.slice(start);
+  const stack = [];
+  let inStr = false, esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{' || c === '[') stack.push(c === '{' ? '}' : ']');
+    else if (c === '}' || c === ']') stack.pop();
+  }
+  // Close a string left open by truncation, dropping a dangling escape first.
+  if (inStr) {
+    const m = s.match(/\\+$/);
+    if (m && m[0].length % 2 === 1) s = s.slice(0, -1);
+    s += '"';
+  }
+  s = s.replace(/\s+$/, '');
+  // Drop dangling separators / half-written keys at the tail.
+  s = s.replace(/,\s*$/, '');
+  s = s.replace(/,?\s*"[^"]*"\s*:\s*$/, '');          // "key":  with no value
+  s = s.replace(/([{,])\s*"[^"]*"\s*$/, '$1');        // bare "key" awaiting colon
+  s = s.replace(/,\s*$/, '');
+  for (let i = stack.length - 1; i >= 0; i--) s += stack[i];
+  return s.length > 1 ? s : null;
+}
 
 /**
  * corsHeaders(res) — apply standard CORS to a Vercel response.
