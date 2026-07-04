@@ -74,6 +74,7 @@
 
   /* Calendar */
   .cal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .cal-empty { border: 1px dashed rgba(171,135,67,0.35); background: rgba(171,135,67,0.06); color: #d9c18f; border-radius: 10px; padding: 11px 14px; margin-bottom: 12px; font-size: 12.5px; line-height: 1.5; }
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
   .dow { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #5d6e64; text-align: center; padding-bottom: 4px; }
   .day { background: #0f1d18; border: 1px solid rgba(171,135,67,0.16); border-radius: 9px; padding: 7px; min-height: 84px; cursor: pointer; transition: border-color .14s; }
@@ -174,6 +175,7 @@
         <h3 id="cal-title" style="font-family:'Lora',serif;font-size:18px;font-weight:600;flex:1;text-align:center"></h3>
         <button class="btn btn-ghost" id="cal-next">→</button>
       </div>
+      <div id="cal-empty" class="cal-empty" style="display:none">No ad campaigns planned yet. Click any day to add one, or approve a Smart Brain slot to auto-fill this calendar.</div>
       <div class="cal-grid" id="cal-dow"></div>
       <div class="cal-grid" id="cal-grid" style="margin-top:7px"></div>
       <p class="note" style="margin-top:12px">Click any day to schedule a campaign. Scheduled campaigns also appear in their channel tab.</p>
@@ -813,6 +815,10 @@
     }
     $('#cal-grid').innerHTML = html;
     $('#cal-grid').querySelectorAll('.day:not(.empty)').forEach((el) => el.addEventListener('click', () => openDay(el.dataset.d)));
+    // Empty-state: a blank month grid reads as "not loading" — say so explicitly.
+    const monthPrefix = `${y}-${String(m + 1).padStart(2, '0')}-`;
+    const hasMonthEntries = Object.keys(store.calendar || {}).some((k) => k.indexOf(monthPrefix) === 0 && (store.calendar[k] || []).length);
+    $('#cal-empty').style.display = hasMonthEntries ? 'none' : 'block';
   }
   $('#cal-prev').onclick = () => { calDate.setMonth(calDate.getMonth() - 1); renderCal(); };
   $('#cal-next').onclick = () => { calDate.setMonth(calDate.getMonth() + 1); renderCal(); };

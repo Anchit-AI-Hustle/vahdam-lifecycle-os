@@ -498,6 +498,18 @@ async function openMailer(entry) {
       $$('#variantTabs .filter-chip').forEach((x) => x.classList.toggle('active', x === e.target));
       $$('#variantPanels > [data-panel]').forEach((p) => p.style.display = p.dataset.panel === k ? 'block' : 'none');
     }));
+    // Download the COMPLETE built HTML of a variant before approving/sending.
+    $$('#variantPanels [data-dl-mailer]').forEach((b) => b.addEventListener('click', (e) => {
+      const k = e.target.closest('[data-panel]').dataset.panel;
+      const v = variants[k];
+      if (!v || !v.html) return;
+      const safe = (s) => String(s || '').replace(/[^A-Za-z0-9_-]+/g, '-');
+      const blob = new Blob([v.html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `vahdam-mailer-${safe(entry.date)}-${safe(entry.market)}-${k}.html`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }));
   } catch (e) {
     $('variantPanels').innerHTML = `<div class="text-red-400 text-center py-8">Pipeline error: ${e.message}</div>`;
   }
@@ -514,6 +526,9 @@ function renderVariantPanel(v, strategy, ctaUrl) {
     return `
       <div class="text-xs text-ink-dim mb-2">${v.label} · subject "${strategy.subject_line}"</div>
       <iframe class="preview" srcdoc='${v.html.replace(/'/g, "&apos;")}'></iframe>
+      <div class="flex items-center gap-2 mt-2">
+        <button data-dl-mailer="1" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink">Download HTML</button>
+      </div>
       ${ctaLine(cta)}
     `;
   }
