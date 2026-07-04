@@ -1,16 +1,22 @@
 'use strict';
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared LLM caller — 6-provider waterfall with TIER ROUTING (July 2026 models)
+// Shared LLM caller — 8-provider waterfall with TIER ROUTING (July 2026 models)
+//
+// Providers are tried in strict DESCENDING accuracy order. The first six rungs
+// require an API key; the last two are optional tail rungs that are SKIPPED
+// cleanly (never attempted, never throw) unless their env config is present:
+//   Ollama  → needs OLLAMA_BASE_URL   (auth header optional, OLLAMA_API_KEY)
+//   Sakana  → needs SAKANA_BASE_URL + SAKANA_API_KEY
 //
 // TIERS (per-call `tier`, defaults via APP_AI_TIER; legacy values mapped):
 //   premium  (legacy 'maxpower')          — hero copy, mailer_full, ChaiGPT
 //   standard (legacy 'budget' / default)  — variants, briefs, calendars
 //   fast     (new)                        — classification, tagging, scoring
 //
-// PROVIDER ORDER per tier (first available key wins at each rung):
-//   premium  : anthropic(opus)   → openai(gpt-5.5)  → gemini(3.1-pro)   → grok(4.3)      → groq → cerebras
-//   standard : anthropic(sonnet) → openai(5-mini)   → gemini(3.5-flash) → grok(4.1-fast) → groq → cerebras
-//   fast     : anthropic(haiku)  → openai(5-nano)   → gemini(2.5-flash, free) → groq → cerebras
+// PROVIDER ORDER per tier (first available/configured rung wins):
+//   premium  : anthropic(opus)   → openai(gpt-5.5)  → gemini(3.1-pro)   → grok(4.3)      → groq → cerebras → ollama → sakana
+//   standard : anthropic(sonnet) → openai(5-mini)   → gemini(3.5-flash) → grok(4.1-fast) → groq → cerebras → ollama → sakana
+//   fast     : anthropic(haiku)  → openai(5-nano)   → gemini(2.5-flash, free) → groq → cerebras → ollama → sakana
 //
 // DEMOTION RULES (blueprint docs/quality-upgrade-blueprint.md):
 //   • 429/402, 5xx, timeout, or 400 whose body matches
@@ -34,6 +40,10 @@ const GEMINI_BASE    = 'https://generativelanguage.googleapis.com/v1beta';
 const GROK_BASE      = 'https://api.x.ai/v1';
 const GROQ_BASE      = 'https://api.groq.com/openai/v1';
 const CEREBRAS_BASE  = 'https://api.cerebras.ai/v1';
+// Optional tail rungs — only active when their env config is present.
+// Ollama exposes an OpenAI-compatible API at ${OLLAMA_BASE_URL}/v1.
+const OLLAMA_BASE    = (process.env.OLLAMA_BASE_URL || '').replace(/\/+$/, '') + (process.env.OLLAMA_BASE_URL ? '/v1' : '');
+const SAKANA_BASE    = (process.env.SAKANA_BASE_URL || '').replace(/\/+$/, '') + (process.env.SAKANA_BASE_URL ? '/v1' : '');
 
 function genSeed() {
   return Date.now().toString(36) + '-' + Math.floor(Math.random() * 0xffff).toString(16);
@@ -75,6 +85,12 @@ function modelsFor(provider, tier) {
       return _dedupe([env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile']);
     case 'cerebras':
       return _dedupe([env.CEREBRAS_TEXT_MODEL || 'gpt-oss-120b', 'llama-3.3-70b']);
+    case 'ollama':
+      if (tier === 'premium') return _dedupe([env.OLLAMA_TEXT_MODEL_MAX || env.OLLAMA_TEXT_MODEL || 'llama3.3']);
+      if (tier === 'fast')    return _dedupe([env.OLLAMA_TEXT_MODEL_FAST || env.OLLAMA_TEXT_MODEL || 'llama3.2']);
+      return _dedupe([env.OLLAMA_TEXT_MODEL || 'llama3.3']);
+    case 'sakana':
+      return _dedupe([env.SAKANA_TEXT_MODEL || 'sakana-default']);
     default:
       return [];
   }
@@ -83,8 +99,8 @@ function modelsFor(provider, tier) {
 // Provider ORDER per tier (blueprint). Fast skips Grok (no cheap rung there).
 function providerOrder(tier) {
   return tier === 'fast'
-    ? ['anthropic', 'openai', 'gemini', 'groq', 'cerebras']
-    : ['anthropic', 'openai', 'gemini', 'grok', 'groq', 'cerebras'];
+    ? ['anthropic', 'openai', 'gemini', 'groq', 'cerebras', 'ollama', 'sakana']
+    : ['anthropic', 'openai', 'gemini', 'grok', 'groq', 'cerebras', 'ollama', 'sakana'];
 }
 
 // ── Failure classification (drives demotion) ─────────────────────────────────
@@ -146,6 +162,15 @@ module.exports = async function callLLM(opts) {
   const grokKey      = _clean(process.env.XAI_API_KEY);
   const groqKey      = _clean(process.env.GROQ_API_KEY);
   const cerebrasKey  = _clean(process.env.CEREBRAS_API_KEY);
+  // Optional tail rungs (skipped cleanly unless configured):
+  //   Ollama gate = OLLAMA_BASE_URL present (auth optional).
+  //   Sakana gate = both SAKANA_BASE_URL and SAKANA_API_KEY present. Forward-looking:
+  //   Sakana AI has no broadly-documented public chat API today, so this rung stays
+  //   inert until a base URL + key are supplied.
+  const ollamaKey    = _clean(process.env.OLLAMA_API_KEY) || 'ollama';
+  const ollamaOn     = !!process.env.OLLAMA_BASE_URL;
+  const sakanaKey    = _clean(process.env.SAKANA_API_KEY);
+  const sakanaOn     = !!process.env.SAKANA_BASE_URL && !!sakanaKey;
   // Debug: log key presence (not values) for cascade diagnostics
   console.log('[llm] Keys present: groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' gemini=' + !!geminiKey + ' tier=' + tierNorm);
 
@@ -162,7 +187,9 @@ module.exports = async function callLLM(opts) {
     gemini:    isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'gemini'),
     grok:      isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'grok'),
     groq:      isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'groq'),
-    cerebras:  isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'cerebras')
+    cerebras:  isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'cerebras'),
+    ollama:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'ollama'),
+    sakana:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'sakana')
   };
 
   const hasKey = {
@@ -171,7 +198,9 @@ module.exports = async function callLLM(opts) {
     gemini:    !!geminiKey,
     grok:      !!grokKey,
     groq:      !!groqKey,
-    cerebras:  !!cerebrasKey
+    cerebras:  !!cerebrasKey,
+    ollama:    ollamaOn,   // gated on OLLAMA_BASE_URL (auth optional)
+    sakana:    sakanaOn    // gated on SAKANA_BASE_URL + SAKANA_API_KEY
   };
 
   const seed             = genSeed();
@@ -344,6 +373,16 @@ module.exports = async function callLLM(opts) {
   const _cerebras = _openaiCompatible('cerebras', CEREBRAS_BASE, cerebrasKey, () => ({
     max_tokens: Math.min(maxTokens, 8192)
   }));
+  // Optional tail rungs (OpenAI-compatible). Only ever reached if configured
+  // (hasKey.ollama / hasKey.sakana gate them in the cascade loop).
+  const _ollama = _openaiCompatible('ollama', OLLAMA_BASE, ollamaKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
+  }));
+  const _sakana = _openaiCompatible('sakana', SAKANA_BASE, sakanaKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
+  }));
 
   // ── Tier-ordered cascade ────────────────────────────────────────────────────
   let openaiKeysExhausted = 0;
@@ -445,7 +484,9 @@ module.exports = async function callLLM(opts) {
         : providerName === 'gemini' ? _gemini
         : providerName === 'grok' ? _grok
         : providerName === 'groq' ? _groq
-        : _cerebras;
+        : providerName === 'cerebras' ? _cerebras
+        : providerName === 'ollama' ? _ollama
+        : _sakana;
       result = await runChain(providerName, fn, models);
     }
     if (result && result.ok) return _success(result);
@@ -480,8 +521,47 @@ module.exports.parseJSON = function parseJSON(text) {
   if (bs !== -1 && be > bs) { try { return JSON.parse(text.slice(bs, be + 1)); } catch (_) {} }
   const ss = stripped.indexOf('{'), se = stripped.lastIndexOf('}');
   if (ss !== -1 && se > ss) { try { return JSON.parse(stripped.slice(ss, se + 1)); } catch (_) {} }
+  // Last resort: repair a TRUNCATED object (model hit the token limit mid-JSON).
+  // Drop any trailing incomplete token, then close open strings and brackets so
+  // the fields already generated survive instead of failing the whole build.
+  const repaired = repairTruncatedJSON(stripped.indexOf('{') !== -1 ? stripped : text);
+  if (repaired) { try { return JSON.parse(repaired); } catch (_) {} }
   throw new SyntaxError('Could not parse JSON from LLM response. First 200 chars: ' + text.substring(0, 200));
 };
+
+function repairTruncatedJSON(text) {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let s = text.slice(start);
+  const stack = [];
+  let inStr = false, esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{' || c === '[') stack.push(c === '{' ? '}' : ']');
+    else if (c === '}' || c === ']') stack.pop();
+  }
+  // Close a string left open by truncation, dropping a dangling escape first.
+  if (inStr) {
+    const m = s.match(/\\+$/);
+    if (m && m[0].length % 2 === 1) s = s.slice(0, -1);
+    s += '"';
+  }
+  s = s.replace(/\s+$/, '');
+  // Drop dangling separators / half-written keys at the tail.
+  s = s.replace(/,\s*$/, '');
+  s = s.replace(/,?\s*"[^"]*"\s*:\s*$/, '');          // "key":  with no value
+  s = s.replace(/([{,])\s*"[^"]*"\s*$/, '$1');        // bare "key" awaiting colon
+  s = s.replace(/,\s*$/, '');
+  for (let i = stack.length - 1; i >= 0; i--) s += stack[i];
+  return s.length > 1 ? s : null;
+}
 
 /**
  * corsHeaders(res) — apply standard CORS to a Vercel response.

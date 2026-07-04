@@ -118,7 +118,7 @@ async function writeCopy(brief) {
       'no founder voice, no medical claims.',
     userMessage: brief,
     responseFormat: { type: 'json_object' },
-    maxTokens: 1200,
+    maxTokens: 3000,
     temperature: 0.7,
     timeoutMs: 40000,
     stage: 'lifecycle-mailer',
