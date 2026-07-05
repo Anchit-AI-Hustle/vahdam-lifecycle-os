@@ -103,10 +103,19 @@
     <input id="q" placeholder="Ask anything — “does ashwagandha actually work?”" autocomplete="off">
     <button class="btn send" id="send">Ask</button>
   </div>
-  <div class="toggles">
-    <label><input type="checkbox" id="speak" checked> Speak replies aloud</label>
-    <label><input type="checkbox" id="auto"> Hands-free conversation</label>
+  <div class="toggles" id="modeRow" role="group" aria-label="Interaction mode">
+    <span style="color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:10px;margin-right:2px">Mode</span>
+    <button type="button" class="modebtn" data-mode="chat" title="Text only, no audio">💬 Chat only</button>
+    <button type="button" class="modebtn" data-mode="narration" title="Types the reply and reads it aloud">🔊 Narration</button>
+    <button type="button" class="modebtn" data-mode="conversation" title="Hands-free: it speaks, then listens for your reply">🎧 Conversation</button>
+    <button type="button" class="modebtn" id="muteBtn" title="Silence audio instantly">🔇 Mute</button>
   </div>
+  <style>
+    #modeRow .modebtn{font:inherit;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(171,135,67,.35);background:transparent;color:var(--gold);border-radius:999px;padding:5px 11px;}
+    #modeRow .modebtn:hover{border-color:var(--gold);}
+    #modeRow .modebtn.active{background:var(--gold);color:#0a1410;border-color:var(--gold);}
+    #modeRow #muteBtn.on{background:#7f1d1d;color:#fff;border-color:#7f1d1d;}
+  </style>
 </div>
 
 <script src="/auth.js?v=20260617" defer></script>
@@ -118,6 +127,11 @@
   var chatEl = document.getElementById('chat');
   var qEl = document.getElementById('q');
   var micBtn = document.getElementById('mic');
+  // Interaction mode: 'chat' (text only) · 'narration' (speaks replies) ·
+  // 'conversation' (hands-free: speaks, then listens). Mute silences audio in
+  // any mode without losing the mode. Persisted per browser.
+  var MODE = (function(){ try { return localStorage.getItem('vhdAgentMode') || 'narration'; } catch(_) { return 'narration'; } })();
+  var muted = false;
 
   function el(cls, text){ var d=document.createElement('div'); d.className='msg '+cls; d.innerHTML=linkify(text); chatEl.appendChild(d); chatEl.scrollTop=chatEl.scrollHeight; return d; }
   function linkify(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/(https?:\/\/[^\s)]+)/g, function(u){ return '<a href="'+u+'" target="_blank" rel="noopener">'+u.replace(/^https?:\/\/(www\.)?/,'').slice(0,42)+'</a>'; }); }
@@ -135,7 +149,7 @@
   // ── Voice output: ElevenLabs via /api/brain?action=tts, fallback browser TTS
   var audioEl = null;
   async function maybeSpeak(text){
-    if(!document.getElementById('speak').checked) return;
+    if(muted || MODE==='chat') return;
     var clean = text.replace(/https?:\/\/\S+/g,'the product page').replace(/[*_#`]/g,'');
     try{
       var r = await fetch(API+'?action=tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:clean})});
@@ -157,7 +171,7 @@
       window.speechSynthesis.speak(u);
     }
   }
-  function maybeAutoListen(){ if(document.getElementById('auto').checked) startListening(); }
+  function maybeAutoListen(){ if(MODE==='conversation' && !muted) startListening(); }
 
   // ── Voice input: Web Speech API
   var rec=null, listening=false;
@@ -192,6 +206,25 @@
   document.getElementById('send').onclick=ask;
   qEl.addEventListener('keydown',function(e){ if(e.key==='Enter') ask(); });
   micBtn.onclick=startListening;
+
+  // ── Mode selector + mute ──────────────────────────────────────────────────
+  function stopAudio(){ try{ if(audioEl) audioEl.pause(); }catch(_){} try{ if('speechSynthesis' in window) window.speechSynthesis.cancel(); }catch(_){} }
+  function setMode(m){
+    MODE = (m==='chat'||m==='narration'||m==='conversation') ? m : 'narration';
+    try{ localStorage.setItem('vhdAgentMode', MODE); }catch(_){}
+    Array.prototype.forEach.call(document.querySelectorAll('#modeRow [data-mode]'), function(b){ b.classList.toggle('active', b.dataset.mode===MODE); });
+    if(MODE==='chat'){ stopAudio(); }
+    // Leaving conversation mode: stop listening.
+    if(MODE!=='conversation' && listening && rec){ try{ rec.stop(); }catch(_){} }
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#modeRow [data-mode]'), function(b){ b.addEventListener('click', function(){ setMode(b.dataset.mode); }); });
+  var muteBtn=document.getElementById('muteBtn');
+  muteBtn.addEventListener('click', function(){
+    muted=!muted; muteBtn.classList.toggle('on', muted);
+    muteBtn.textContent = muted ? '🔈 Unmute' : '🔇 Mute';
+    if(muted) stopAudio();
+  });
+  setMode(MODE); // apply persisted/default mode on load
 
   var FALLBACK=[{id:'agent_vahdam',name:'Vahdam',level:'brand',greeting:'Namaste! Ask me anything about our teas.',voice:{}}];
   function loadAgents(selectId){
