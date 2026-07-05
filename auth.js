@@ -21,6 +21,34 @@
   if (window.__LifecycleAuthBooted) return;
   window.__LifecycleAuthBooted = true;
 
+  // ─── Shared design system: load /theme.css once on every page ───────────
+  // theme.css is additive (design tokens + globally-safe polish + opt-in vh-*
+  // components), so it never clobbers a page's own CSS. Injected here so every
+  // page that ships auth.js inherits the system — including the Capacitor apps,
+  // which are WebView shells over production. Also ensure the viewport opts into
+  // safe-area (notch) insets so the theme's env() padding actually resolves.
+  (function ensureTheme() {
+    try {
+      var d = document;
+      if (!d.querySelector('link[data-vh-theme]')) {
+        var l = d.createElement('link');
+        l.rel = 'stylesheet';
+        l.href = '/theme.css?v=20260705';
+        l.setAttribute('data-vh-theme', '1');
+        (d.head || d.documentElement).appendChild(l);
+      }
+      var vp = d.querySelector('meta[name="viewport"]');
+      if (vp && !/viewport-fit/.test(vp.getAttribute('content') || '')) {
+        vp.setAttribute('content', vp.getAttribute('content') + ', viewport-fit=cover');
+      } else if (!vp) {
+        vp = d.createElement('meta');
+        vp.name = 'viewport';
+        vp.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+        (d.head || d.documentElement).appendChild(vp);
+      }
+    } catch (_) {}
+  })();
+
   // ─── PWA install: register the service worker once per page load ────────
   // This is what makes the address-bar install icon appear in Chrome / Edge
   // (and adds "Add to Home Screen" on iOS/Android) — alongside the manifest.
