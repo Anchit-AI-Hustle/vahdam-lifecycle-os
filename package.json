@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "node scripts/build-catalog.js",
+    "preflight": "bash scripts/preflight-credentials.sh",
     "scrape:catalog": "node scripts/scrape-catalog.js",
     "dev": "node -e \"require('http').createServer().listen(3001)\"",
     "export:complete": "node scripts/export-complete.js",
