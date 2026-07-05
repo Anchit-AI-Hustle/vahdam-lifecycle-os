@@ -29,6 +29,11 @@ const callLLM = require('./llm.js');
 const { parseJSON } = require('./llm.js');
 const { buildMasterPrompt, regionFacts } = require('./master-prompt.js');
 const SM = require('./scenario-model.js');
+// Shared mailer renderer, the SAME one the Mailer Studio / Mailer Calendar use,
+// so Smart Brain mailers come out as the same two named types (2 Text + 2 Text
+// + Visual) at the same quality. Guarded: falls back to the local single mailer.
+let renderTextVariant = null;
+try { renderTextVariant = require('./calendar-trigger.js').helpers.renderTextVariant; } catch (_) { renderTextVariant = null; }
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function nowIso() { return new Date().toISOString(); }
@@ -448,6 +453,43 @@ ${creativeUrl ? `<img src="${esc(creativeUrl)}" alt="${esc(L.hero_headline || en
 </body></html>`;
 }
 
+// Build the same mailer taxonomy as the Mailer Studio / Mailer Calendar: two
+// named types, two variants each: 2 Text (colour + type + structural elements,
+// no media) and 2 Text + Visual (with a hero image). Uses the shared
+// renderTextVariant so look + quality match across features. Returns null if the
+// shared renderer is unavailable (caller keeps the single local mailer).
+function emailPlaceholder(label, w, h) {
+  const t = String(label || 'Product image').replace(/[<&>]/g, ' ').slice(0, 42);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="#FBF5EA"/><rect x="10" y="10" width="${w - 20}" height="${h - 20}" fill="none" stroke="#AB8743" stroke-width="2" stroke-dasharray="9 7"/><text x="50%" y="45%" text-anchor="middle" fill="#004A2B" font-family="Georgia,serif" font-size="21">${t}</text><text x="50%" y="59%" text-anchor="middle" fill="#AB8743" font-family="Arial,sans-serif" font-size="13">Drop your image URL here · ${w} x ${h}</text></svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+function emailVariants(entry, copy, creativeUrl) {
+  if (!renderTextVariant) return null;
+  const E = copy.email || {};
+  const heroProduct = (entry.heroProduct && entry.heroProduct.title) || entry.theme || '';
+  const heroImg = creativeUrl || (entry.heroProduct && (entry.heroProduct.image || entry.heroProduct.image_url)) || emailPlaceholder(heroProduct, 536, 340);
+  const S = {
+    hero_headline: E.hero_headline || E.subject || heroProduct,
+    hero_subline: E.subheadline || E.preheader || '',
+    body_blocks: [
+      E.intro_paragraph ? { heading: '', body: E.intro_paragraph } : null,
+      E.body_paragraph ? { heading: '', body: E.body_paragraph } : null,
+    ].filter(Boolean),
+    cta_text: E.cta || 'Shop the edit',
+  };
+  const mk = (style, img) => renderTextVariant({
+    style, subject: E.subject, hero_headline: S.hero_headline, hero_subline: S.hero_subline,
+    body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: '{{landing_page_url}}',
+    market: entry.market, hero_product: heroProduct, hero_image_url: img || undefined,
+  });
+  return [
+    { key: 'text_a', type: 'Text', label: 'Text · Concise', html: mk('pure') },
+    { key: 'text_b', type: 'Text', label: 'Text · Editorial', html: mk('editorial') },
+    { key: 'visual_a', type: 'Text + Visual', label: 'Text + Visual · Hero', html: mk('visual', heroImg) },
+    { key: 'visual_b', type: 'Text + Visual', label: 'Text + Visual · Rich brand', html: emailHtml(entry, copy, creativeUrl) },
+  ];
+}
+
 function emailHtml(entry, copy, creativeUrl) {
   const E = copy.email;
   const heroImg = creativeUrl
@@ -493,7 +535,12 @@ function applyCopy(campaign, entry, copy, creatives = {}) {
     campaign.assets.email.subject = copy.email.subject || campaign.assets.email.subject;
     campaign.assets.email.preheader = copy.email.preheader || campaign.assets.email.preheader;
     campaign.assets.email.creative = creatives.email || { brief: copy.email.image_brief || '', image: null, provider: null };
-    campaign.assets.email.html = emailHtml(entry, copy, campaign.assets.email.creative.image);
+    const emailVars = emailVariants(entry, copy, campaign.assets.email.creative.image);
+    campaign.assets.email.variants = emailVars || null;
+    // Primary html = the Hero Text + Visual variant (shared renderer) so preview
+    // matches the Studio; falls back to the local mailer if variants are off.
+    campaign.assets.email.html = (emailVars && emailVars.find((v) => v.key === 'visual_a').html)
+      || emailHtml(entry, copy, campaign.assets.email.creative.image);
     campaign.assets.email.text = `${copy.email.subject}\n${copy.email.preheader}\n\n${copy.email.intro_paragraph}\n\n${copy.email.body_paragraph}\n\n${copy.email.cta}: {{landing_page_url}}`;
   }
   if (campaign.assets.landing_pages?.length) {
@@ -656,6 +703,7 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     campaign,
     copywriter: campaign.copywriter,
     email_html: campaign.assets.email?.html || null,
+    email_variants: campaign.assets.email?.variants || null,
     landing_html: campaign.assets.landing_pages?.[0]?.html || null,
     ads: campaign.assets.ads || [],
   };
