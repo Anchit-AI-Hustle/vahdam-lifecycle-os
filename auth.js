@@ -233,7 +233,7 @@
     // deliberately has NO 5-sub-item IA entry — it renders as a simple link.
     chaigpt: {
       title: 'ChaiGPT',
-      what: "VAHDAM's own brand LLM — a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
+      what: "INTERNAL TOOL, for the VAHDAM team only (not customer-facing). VAHDAM's own brand LLM: a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
       who: "The operator (growth and retention team). Its recommendations span every cohort — the nine RFM segments (Champions through Lost) and the UK engagement cohorts (Non-Buyers/Non-Engagers and T&B Buyers/Non-Engagers).",
       how: "A provider-agnostic tool-calling loop: the model emits strict JSON actions, the server executes them against the same _shared cores the public API routes use, feeds results back, and loops (default 5 steps, up to 3 tools in parallel). Because tool calls are plain JSON, it works across the whole 6-provider text waterfall, including free tiers. An evidence contract forces every recommendation to quote exact tool-sourced figures.",
       input: "A plain-English question or instruction in the chat. Write and generate tools (generate_calendar, generate_assets_for_slot, run_agentic_campaign, klaviyo) fire only when you explicitly ask.",
@@ -264,7 +264,7 @@
     },
     agent: {
       title: 'Vahdam Agent',
-      what: "A customer-facing conversational concierge — talk (text or voice) to a tea and wellness expert that answers brewing and ritual questions and recommends real VAHDAM products. It is also the engine embedded in the agent landing pages at /lp/agent and /lp/best.",
+      what: "CUSTOMER-FACING TOOL, the concierge your customers talk to. A conversational concierge: talk (text or voice) to a tea and wellness expert that answers brewing and ritual questions and recommends real VAHDAM products. It is also the engine embedded in the agent landing pages at /lp/agent and /lp/best.",
       who: "Prospective and existing customers on-site; strongest for Non-Buyers who need guidance to a first purchase. The team uses this page to configure and demo agents.",
       how: "A chat UI over the shared 6-provider LLM waterfall, grounded in brand voice and the product catalog. Voice replies use ElevenLabs TTS with a browser-TTS fallback. Agent personas can be created, updated, and synced from this page.",
       input: "A visitor question — taste preferences, a wellness goal, brewing method, or gifting need. For the team: agent persona settings.",
