@@ -595,25 +595,30 @@
   const ckList = document.getElementById('cmdk-list');
   let ckItems = [], ckSel = 0;
 
-  // Grouped palette model: sections → (top-level items + groups → children).
-  // Mirrors the sidebar IA so "jump to a tool" reads as groups and subgroups
-  // rather than one flat list.
+  // Grouped palette model: sections → entries, where an entry is either a
+  // stand-alone item or a group that OWNS its children (kept nested, not
+  // flattened). Mirrors the sidebar IA so "jump to a tool" reads as clear
+  // groups and subgroups rather than one flat list.
   function paletteModel() {
     const secs = [];
     let cur = null;
-    const ensure = () => { if (!cur) { cur = { section: 'App', rows: [] }; secs.push(cur); } return cur; };
+    const ensure = () => { if (!cur) { cur = { section: 'App', entries: [] }; secs.push(cur); } return cur; };
     getNav().forEach((n) => {
-      if (n.section) { cur = { section: n.section, rows: [] }; secs.push(cur); return; }
+      if (n.section) { cur = { section: n.section, entries: [] }; secs.push(cur); return; }
       if (n.group) {
         const c = COPY[n.group] || {};
-        const gHref = c.href || stripHash((n.children && n.children[0] && n.children[0].href) || '');
-        if (gHref) ensure().rows.push({ kind: 'group', label: c.title || n.group, href: gHref, icon: c.icon || n.icon || 'landing' });
-        (n.children || []).forEach((ch) => {
-          if (ch.href) ensure().rows.push({ kind: 'child', label: ch.label, href: ch.href, icon: ch.icon || c.icon || n.icon || 'landing', parent: c.title || n.group });
-        });
+        const label = c.title || n.group;
+        const children = (n.children || []).filter((ch) => ch.href).map((ch) => ({
+          kind: 'child', label: ch.label, href: ch.href,
+          icon: ch.icon || c.icon || n.icon || 'landing', parent: label,
+        }));
+        const gHref = c.href || stripHash((n.children && n.children[0] && n.children[0].href) || '') || (children[0] && children[0].href);
+        if (gHref || children.length) {
+          ensure().entries.push({ kind: 'group', label, href: gHref || '', icon: c.icon || n.icon || 'landing', children });
+        }
       } else if (n.href && n.id !== 'home') {
         const c = COPY[n.id] || {};
-        ensure().rows.push({ kind: 'item', label: c.title || n.label, href: n.href, icon: c.icon || n.icon || 'analysis' });
+        ensure().entries.push({ kind: 'item', label: c.title || n.label, href: n.href, icon: c.icon || n.icon || 'analysis' });
       }
     });
     return secs;
@@ -621,13 +626,22 @@
 
   function ckRender() {
     const q = ckInput.value.trim().toLowerCase();
-    const match = (r) => !q || r.label.toLowerCase().includes(q) || (r.parent || '').toLowerCase().includes(q);
-    // First pass: build ordered render tokens (section headers + selectable
-    // rows) and the flat ckItems list keyboard nav operates on.
+    const hit = (s) => !q || String(s || '').toLowerCase().includes(q);
+    // Build ordered render tokens (section headers + selectable rows) and the
+    // flat ckItems list keyboard nav operates on. Groups stay attached to their
+    // children: when the group name matches we show all its children; when only
+    // some children match we still show the group header for context, so an
+    // indented subgroup never orphans from its parent while searching.
     ckItems = [];
     const tokens = [];
     paletteModel().forEach((sec) => {
-      const rows = sec.rows.filter(match);
+      const rows = [];
+      sec.entries.forEach((e) => {
+        if (e.kind === 'item') { if (hit(e.label)) rows.push(e); return; }
+        const groupHit = hit(e.label);
+        const kids = groupHit ? e.children : e.children.filter((ch) => hit(ch.label));
+        if (groupHit || kids.length) { rows.push(e); kids.forEach((ch) => rows.push(ch)); }
+      });
       if (!rows.length) return;
       tokens.push({ t: 'sec', label: sec.section });
       rows.forEach((r) => { const i = ckItems.length; ckItems.push(r); tokens.push({ t: 'row', r, i }); });
@@ -637,11 +651,13 @@
       if (tok.t === 'sec') return `<div class="ck-sec">${esc(tok.label)}</div>`;
       const r = tok.r, i = tok.i;
       const cls = r.kind === 'child' ? 'ck-item ck-child' : (r.kind === 'group' ? 'ck-item ck-group' : 'ck-item');
+      const crumb = r.kind === 'group' && r.children && r.children.length
+        ? `<span class="ck-crumb">${r.children.length} inside</span>` : '';
       return `
       <div class="${cls}${i === ckSel ? ' sel' : ''}" data-i="${i}">
         <span class="ck-ic">${svg(r.icon)}</span>
         <span><b>${esc(r.label)}</b></span>
-        ${r.kind === 'group' ? '<span class="ck-crumb">Section</span>' : ''}
+        ${crumb}
       </div>`;
     }).join('')
       : '<div class="ck-empty">Nothing matches — try "mailer", "ads", "brain"…</div>';
