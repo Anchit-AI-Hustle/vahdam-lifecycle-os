@@ -546,6 +546,22 @@ async function openMailer(entry) {
       a.href = url; a.download = `vahdam-mailer-${safe(entry.date)}-${safe(entry.market)}-${k}.html`;
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }));
+    // Image-variant brief: copy + download (the variant's exportable artifact).
+    $$('#variantPanels [data-copy-brief]').forEach((b) => b.addEventListener('click', (e) => {
+      const txt = decodeURIComponent(e.target.dataset.copyBrief || '');
+      const done = (ok) => { const t = e.target.textContent; e.target.textContent = ok ? '✓ Copied' : 'Copy failed'; setTimeout(() => { e.target.textContent = t; }, 1500); };
+      try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(() => done(true), () => done(false)); return; } } catch (_) {}
+      try { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(true); } catch (_) { done(false); }
+    }));
+    $$('#variantPanels [data-dl-brief]').forEach((b) => b.addEventListener('click', (e) => {
+      const txt = decodeURIComponent(e.target.dataset.dlBrief || '');
+      const safe = (s) => String(s || '').replace(/[^A-Za-z0-9_-]+/g, '-');
+      const blob = new Blob([txt], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `vahdam-image-brief-${safe(entry.date)}-${safe(entry.market)}.txt`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }));
   } catch (e) {
     $('variantPanels').innerHTML = `<div class="text-red-400 text-center py-8">Pipeline error: ${e.message}</div>`;
   }
@@ -558,27 +574,32 @@ function ctaLine(url) {
 function renderVariantPanel(v, strategy, ctaUrl) {
   if (!v) return `<div class="text-ink-mute">Variant unavailable.</div>`;
   const cta = ctaUrl || v.cta_url || '';
+  const subj = (strategy && strategy.subject_line) || '';
   if (v.kind === 'text') {
     return `
-      <div class="text-xs text-ink-dim mb-2">${v.label} · subject "${strategy.subject_line}"</div>
-      <iframe class="preview" srcdoc='${v.html.replace(/'/g, "&apos;")}'></iframe>
+      <div class="text-xs text-ink-dim mb-2">${v.label}${subj ? ` · subject "${subj}"` : ''}</div>
+      <iframe class="preview" srcdoc='${(v.html || '').replace(/'/g, "&apos;")}'></iframe>
       <div class="flex items-center gap-2 mt-2">
         <button data-dl-mailer="1" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink">Download HTML</button>
       </div>
       ${ctaLine(cta)}
     `;
   }
-  // image variant — show the image brief + a placeholder pointing at the studio
+  // image variant — no rendered image here (gen happens in Studio), so give a
+  // clean placeholder preview + Copy/Download of the image brief so the variant
+  // is still exportable, not a dead-end text tile.
+  const brief = v.hero_image_brief || '';
+  const enc = encodeURIComponent(brief);
   return `
     <div class="space-y-2">
       <div class="text-xs uppercase tracking-wider text-gold">${v.label}</div>
+      <div style="width:100%;height:180px;border:2px dashed rgba(171,135,67,.5);border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;color:#9aaaa1;font-size:12px;background:#0f1d18">Image renders in Mailer Studio<br>(drop the brief into the image cascade)</div>
       <div class="card p-3 text-[12px] leading-relaxed">
-        <b class="text-cream">Image generation brief:</b><br>
-        ${v.hero_image_brief}
+        <b class="text-cream">Image generation brief:</b><br>${brief}
       </div>
-      <div class="text-[11px] text-ink-mute">
-        Image variants render in the full Mailer Studio (api/ai/image.js cascade: Gemini Imagen → OpenAI → Pollinations).
-        Click <b>Open in Studio</b> below to render this brief.
+      <div class="flex items-center gap-2">
+        <button data-copy-brief="${enc}" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink">Copy brief</button>
+        <button data-dl-brief="${enc}" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink">Download brief</button>
       </div>
       ${ctaLine(cta)}
     </div>
