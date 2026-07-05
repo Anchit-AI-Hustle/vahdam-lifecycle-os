@@ -16,7 +16,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="/auth.js?v=20260617" defer></script>
 <script src="/table-sort.js?v=20260530b" defer></script>
-<!-- Vercel Speed Insights — static-HTML form (bare-specifier import does not resolve in the browser) -->
+<!-- Vercel Speed Insights - static-HTML form (bare-specifier import does not resolve in the browser) -->
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <script>
   // Guarded so the page still boots if the Tailwind CDN is unreachable.
@@ -87,7 +87,7 @@
   <section class="card p-4">
     <div class="label mb-2">Program rules (hard-coded)</div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[12px] leading-relaxed text-ink-dim">
-      <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-cream">Teas &amp; Botanicals</b><br>One-time purchase only — no subscription language, ever.</div>
+      <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-cream">Teas &amp; Botanicals</b><br>One-time purchase only - no subscription language, ever.</div>
       <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-cream">Ashwagandha Coffee</b><br>Subscription-priority CTA. Pack of 1: £29.99 sub / £49.99 one-time. Pack of 3: £59.99 sub (B2G1) / £99.99.</div>
       <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-cream">Supplements</b><br>Just launched, subscription-priority. Never priced in copy. No founder voice anywhere.</div>
     </div>
@@ -128,7 +128,7 @@
       <div class="flex-1"></div>
       <button id="btnGenerate" class="text-[11px] uppercase tracking-wider font-semibold px-4 py-2 rounded bg-gold text-bg hover:opacity-90">⚡ Generate Calendar</button>
     </div>
-    <div id="planMeta" class="mt-3 text-[11px] text-ink-mute font-mono">No plan yet — pick a start date and click Generate Calendar. Nothing runs automatically.</div>
+    <div id="planMeta" class="mt-3 text-[11px] text-ink-mute font-mono">No plan yet - pick a start date and click Generate Calendar. Nothing runs automatically.</div>
   </section>
 
   <!-- Calendar grid -->
@@ -152,7 +152,7 @@
     <div class="flex items-end justify-between mb-3">
       <div>
         <h2 class="text-lg font-bold tracking-tight">All planned sends</h2>
-        <p class="text-xs text-ink-dim mt-1">Build Mailer runs ONE brand-gated LLM call and renders the play&#39;s template (never founder voice).</p>
+        <p class="text-xs text-ink-dim mt-1">Build Mailer writes two premium copy directions and renders four brand-gated variants: 2 Text (no media) and 2 Text + Visual (with a hero image). Never founder voice.</p>
       </div>
       <input id="planSearch" type="text" placeholder="Filter…" class="text-xs bg-bg-card border border-gold/20 rounded px-3 py-1.5 text-ink w-56">
     </div>
@@ -195,9 +195,9 @@ const $ = (id) => document.getElementById(id);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 const COHORT_SHORT = { non_buyers_non_engagers: 'A', tb_buyers_non_engagers: 'B' };
-const STATE = { days: 30, plan: [], currentMailer: null, currentEntry: null };
+const STATE = { days: 30, plan: [], currentMailer: null, currentEntry: null, variants: [], currentVariant: null, persistNote: '' };
 
-// Start date defaults to today — but it is ALWAYS posted explicitly so the
+// Start date defaults to today - but it is ALWAYS posted explicitly so the
 // server never silently substitutes its own clock.
 $('startInput').value = new Date().toISOString().slice(0, 10);
 
@@ -231,7 +231,7 @@ async function generatePlan() {
     STATE.plan = data.plan || [];
     const persistNote = data.persisted
       ? 'saved to Supabase (built mailers untouched)'
-      : 'NOT persisted (' + ((data.persistence && data.persistence.reason) || 'no Supabase') + ') — plan is in-memory only';
+      : 'NOT persisted (' + ((data.persistence && data.persistence.reason) || 'no Supabase') + ') - plan is in-memory only';
     $('planMeta').textContent =
       'Generated ' + data.total_sends_planned + ' sends · ' + data.start_date + ' +' + data.days + 'd · cadence ' +
       data.cadence_per_week + '/wk · ' + persistNote;
@@ -307,7 +307,7 @@ function renderTable(filter) {
       '<td class="text-[11px] ' + (p.purchase_mode === 'one_time_only' ? 'pm-one' : 'pm-sub') + '">' + (p.purchase_mode === 'one_time_only' ? 'one-time' : 'sub-first') + '</td>' +
       '<td class="text-[12px] max-w-[220px]">' + escAttr(p.hero_product || '') + (p.hero_price ? '<div class="text-[10px] text-ink-mute">' + escAttr(p.hero_price) + '</div>' : '') + (p.handle_verified === false ? '<div class="text-[10px] text-yellow-500">handle unverified</div>' : '') + '</td>' +
       '<td class="text-[12px] max-w-[240px]">' + escAttr(p.subject_hint || '') + '</td>' +
-      '<td class="text-[11px]">' + (p.festival ? '★ ' + escAttr(p.festival) : '—') + '</td>' +
+      '<td class="text-[11px]">' + (p.festival ? '★ ' + escAttr(p.festival) : ' - ') + '</td>' +
       '<td><button data-build="' + escAttr(p.id) + '" class="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-gold/20 text-gold hover:bg-gold hover:text-bg whitespace-nowrap">Build Mailer →</button></td>' +
     '</tr>'
   ).join('');
@@ -322,7 +322,7 @@ async function buildMailer(entry) {
   STATE.currentMailer = null;
   $('mailerTitle').textContent = entry.date + ' · ' + entry.cohort_label;
   $('mailerSubtitle').textContent = entry.play_key.replace(/_/g, ' ') + ' · ' + entry.product_type + ' · ' + (entry.purchase_mode === 'one_time_only' ? 'one-time only' : 'subscription-first');
-  $('mailerBody').innerHTML = '<div class="text-ink-mute text-center py-8">Writing copy (one LLM call) and rendering the brand template…</div>';
+  $('mailerBody').innerHTML = '<div class="text-ink-mute text-center py-8">Writing two premium copy directions and rendering four variants (2 Text, 2 Text + Visual)…</div>';
   $('btnCopyHtml').style.display = 'none';
   $('btnDownload').style.display = 'none';
   $('copyStatus').textContent = '';
@@ -337,14 +337,14 @@ async function buildMailer(entry) {
     const data = await res.json();
     if (!data.ok || !data.mailer) throw new Error(data.error || 'build failed');
     STATE.currentMailer = data.mailer;
-    const m = data.mailer;
-    const persistNote = data.persisted ? 'Saved — slot marked built.' : 'Not persisted (' + ((data.persistence && data.persistence.reason) || 'no Supabase') + ') — copy or download it now.';
-    $('mailerBody').innerHTML =
-      '<div class="text-xs text-ink-dim mb-1">Subject: <b class="text-cream">' + escAttr(m.subject_line) + '</b></div>' +
-      '<div class="text-xs text-ink-dim mb-2">Preheader: ' + escAttr(m.preview_text || '') + ' · CTA → <a class="text-gold hover:underline" target="_blank" rel="noopener" href="' + escAttr(m.cta_url) + '">' + escAttr(m.cta_url) + '</a></div>' +
-      '<iframe class="preview" srcdoc="' + escAttr(m.html) + '"></iframe>' +
-      (m.creative && m.creative.image ? '<div class="text-[11px] text-ink-mute mt-2">Hero creative (' + escAttr(m.creative.provider || '') + '): <a class="text-gold hover:underline" target="_blank" rel="noopener" href="' + escAttr(m.creative.image) + '">open image ↗</a> — drop it into the Klaviyo image slot.</div>' : '') +
-      '<div class="text-[11px] text-ink-mute mt-2">' + escAttr(persistNote) + (m.generated_by ? ' · written by ' + escAttr(m.generated_by) : '') + '</div>';
+    const variants = (data.variants && data.variants.length) ? data.variants
+      : (data.mailer.variants && data.mailer.variants.length) ? data.mailer.variants
+      : [data.mailer];
+    STATE.variants = variants;
+    STATE.persistNote = (data.persisted ? 'Saved - slot marked built.' : 'Not persisted (' + ((data.persistence && data.persistence.reason) || 'no Supabase') + ') - copy or download it now.')
+      + (data.mailer.generated_by ? ' · written by ' + data.mailer.generated_by : '');
+    renderVariantTabs();
+    selectVariant(0);
     $('btnCopyHtml').style.display = '';
     $('btnDownload').style.display = '';
   } catch (e) {
@@ -352,26 +352,75 @@ async function buildMailer(entry) {
   }
 }
 
-// Copy + download — same Blob / clipboard pattern as landing-pages.html.
+// Render the variant tab strip (2 Text + 2 Text + Visual), then delegate clicks.
+function renderVariantTabs() {
+  const vs = STATE.variants || [];
+  const tabs = vs.map((v, i) =>
+    '<button data-vtab="' + i + '" class="text-[11px] font-semibold px-3 py-1.5 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink whitespace-nowrap">' + escAttr(v.label || ('Variant ' + (i + 1))) + '</button>'
+  ).join('');
+  $('mailerBody').innerHTML =
+    '<div class="flex flex-wrap gap-2 mb-3" id="vtabs">' + tabs + '</div>' +
+    '<div id="vpane"></div>';
+  const strip = document.getElementById('vtabs');
+  if (strip) strip.addEventListener('click', (e) => { const b = e.target.closest('[data-vtab]'); if (b) selectVariant(parseInt(b.dataset.vtab, 10)); });
+}
+
+// Show one variant: type chip, subject/preheader, iframe preview, image note.
+function selectVariant(idx) {
+  const vs = STATE.variants || [];
+  if (!vs.length) return;
+  if (idx < 0 || idx >= vs.length) idx = 0;
+  const v = vs[idx];
+  STATE.currentVariant = v;
+  document.querySelectorAll('#vtabs [data-vtab]').forEach((b) => {
+    const on = parseInt(b.dataset.vtab, 10) === idx;
+    b.style.background = on ? '#AB8743' : 'transparent';
+    b.style.color = on ? '#0a1410' : '';
+  });
+  const ctaUrl = v.cta_url || (STATE.currentMailer && STATE.currentMailer.cta_url) || '';
+  const img = v.image;
+  const imgNote = !img
+    ? '<div class="text-[11px] text-ink-mute mt-2">Text only - colour, type and structural elements (buttons, tables, dividers). No images, video or gif.</div>'
+    : (img.mode === 'catalog'
+        ? '<div class="text-[11px] text-ink-mute mt-2">Hero: real catalog image, already embedded in the HTML.</div>'
+        : '<div class="text-[11px] text-ink-mute mt-2">Hero: on-brand placeholder (' + escAttr(img.size) + '). Replace the image src with your URL. Prompt to generate one: <span class="text-ink-dim">' + escAttr(img.prompt || '') + '</span></div>');
+  const pane = document.getElementById('vpane');
+  if (!pane) return;
+  pane.innerHTML =
+    '<div class="text-[11px] text-gold mb-1 uppercase tracking-wider">' + escAttr(v.type || '') + '</div>' +
+    '<div class="text-xs text-ink-dim mb-1">Subject: <b class="text-cream">' + escAttr(v.subject_line || '') + '</b></div>' +
+    '<div class="text-xs text-ink-dim mb-2">Preheader: ' + escAttr(v.preview_text || '') + (ctaUrl ? ' · CTA → <a class="text-gold hover:underline" target="_blank" rel="noopener" href="' + escAttr(ctaUrl) + '">' + escAttr(ctaUrl) + '</a>' : '') + '</div>' +
+    '<iframe class="preview" srcdoc="' + escAttr(v.html) + '"></iframe>' +
+    imgNote +
+    '<div class="text-[11px] text-ink-mute mt-2">' + escAttr(STATE.persistNote || '') + '</div>';
+}
+
+// Copy + download - same Blob / clipboard pattern as landing-pages.html.
 function copyText(txt, statusEl) {
-  function done(ok) { if (statusEl) statusEl.textContent = ok ? '✓ HTML copied — paste it into Klaviyo.' : 'Could not copy automatically — see console.'; if (!ok) console.log('[lifecycle] mailer HTML:\n' + txt); }
+  function done(ok) { if (statusEl) statusEl.textContent = ok ? '✓ HTML copied - paste it into Klaviyo.' : 'Could not copy automatically - see console.'; if (!ok) console.log('[lifecycle] mailer HTML:\n' + txt); }
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(function () { done(true); }, function () { done(false); }); return; }
   } catch (_) {}
   try { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(true); } catch (_) { done(false); }
 }
 
+function activeMailerHtml() {
+  return (STATE.currentVariant && STATE.currentVariant.html) || (STATE.currentMailer && STATE.currentMailer.html) || '';
+}
+
 $('btnCopyHtml').addEventListener('click', () => {
-  if (STATE.currentMailer) copyText(STATE.currentMailer.html, $('copyStatus'));
+  const html = activeMailerHtml();
+  if (html) copyText(html, $('copyStatus'));
 });
 
 $('btnDownload').addEventListener('click', () => {
-  if (!STATE.currentMailer) return;
-  const html = STATE.currentMailer.html;
+  const html = activeMailerHtml();
+  if (!html) return;
   const blob = new Blob([html], { type: 'text/html' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'vahdam-lifecycle-' + String((STATE.currentEntry && STATE.currentEntry.id) || 'mailer').replace(/[^a-z0-9_-]/gi, '') + '.html';
+  const vk = (STATE.currentVariant && STATE.currentVariant.key) ? '-' + STATE.currentVariant.key : '';
+  a.download = 'vahdam-lifecycle-' + String((STATE.currentEntry && STATE.currentEntry.id) || 'mailer').replace(/[^a-z0-9_-]/gi, '') + vk + '.html';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 60000);
 });
