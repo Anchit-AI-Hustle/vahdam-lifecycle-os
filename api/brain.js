@@ -43,6 +43,7 @@ const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
 const video = require('./_shared/video-core.js');
 const social = require('./_shared/social-core.js');
+const osb = require('./_shared/os-backbone.js');
 
 let callLLM = null;
 try { callLLM = require('./_shared/llm.js'); } catch (_) { callLLM = null; }
@@ -464,13 +465,32 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         } catch (e) { steps.generation = { error: e.message }; }
         const recal = await review.recalibrationStatus().catch(() => null);
         steps.weekly_recalibration_gate = recal;
+        // Lifecycle OS Daily Intelligence Refresh — connector health + job logs.
+        try { steps.os_daily = await osb.runDailyJob('cron'); } catch (e) { steps.os_daily = { error: e.message }; }
         const summary = { steps, ms: Date.now() - started };
         await core.logRun('cron', summary, true);
         return res.json({ ok: true, ...summary });
       }
 
+      // ── LIFECYCLE OS BACKBONE (connectors / jobs / activity / dashboard) ──
+      case 'os-connectors':
+        return res.json({ ok: true, ...(await osb.listConnectors()) });
+      case 'os-connector-sync': {
+        const id = String((req.query || {}).id || b.id || '').trim();
+        if (!id) return res.status(400).json({ ok: false, error: 'connector id required (?id=)' });
+        return res.json({ ok: true, ...(await osb.syncConnector(id, 'manual')) });
+      }
+      case 'os-run-daily-job': {
+        // Manual trigger is open; the scheduled path is CRON_SECRET-guarded.
+        const viaCron = (req.query || {}).cron === '1' || String(req.headers['user-agent'] || '').includes('vercel-cron');
+        if (viaCron && !cronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+        return res.json({ ok: true, ...(await osb.runDailyJob(viaCron ? 'cron' : 'manual')) });
+      }
+      case 'os-dashboard':
+        return res.json({ ok: true, ...(await osb.dashboard()) });
+
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'cron'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);
