@@ -130,6 +130,7 @@ async function writeCopy(brief, frameworkLine) {
     temperature: 0.7,
     timeoutMs: 40000,
     stage: 'lifecycle-mailer',
+    tier: 'premium', // single mode: lifecycle mailer copy always runs premium
   });
   const json = (llm.parseJSON ? llm.parseJSON(out.text) : JSON.parse(out.text));
   if (!json || !json.subject_line || !json.hero_headline) throw new Error('LLM copy JSON incomplete');

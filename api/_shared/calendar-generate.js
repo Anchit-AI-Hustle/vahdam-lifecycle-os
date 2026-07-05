@@ -458,10 +458,11 @@ module.exports = async function handler(req, res) {
   const markets = Array.isArray(body.markets) && body.markets.length ? body.markets : ['US', 'UK', 'Global', 'IN'];
   const capacity = +body.capacity_per_market_per_week || 4;
   const analytics = body.analytics || {};
-  // Dual-mode dial (vahdam-dual-mode-generation): budget = deterministic, zero
-  // LLM (default, byte-identical to before). maxpower may add a strategist
-  // narrative. Unknown values fall back to budget — never error.
-  const tier = String(body.tier || (req.query && req.query.tier) || 'budget').toLowerCase() === 'maxpower' ? 'maxpower' : 'budget';
+  // Single mode: maxpower is the default, so the Plan Calendar always adds the
+  // strategist narrative on top of the deterministic plan. Only an explicit
+  // tier=budget opts out (kept as a safe escape hatch); the narrative pass is
+  // time-boxed and fallback-safe, so this never errors.
+  const tier = String(body.tier || (req.query && req.query.tier) || 'maxpower').toLowerCase() === 'budget' ? 'budget' : 'maxpower';
 
   // Empty-analytics guard BEFORE building any scenario (unchanged contract).
   if (!rankSegmentsByValue(analytics).length) {
