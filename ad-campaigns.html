@@ -271,6 +271,7 @@
           <label class="label" style="margin-top:8px">Media URL (optional) — paste a hosted image / GIF / MP4 (e.g. a Shopify product video)</label>
           <input id="m-media" type="url" placeholder="https://cdn.shopify.com/…/product.mp4">
           <p class="note" id="m-cre-note">Builds platform-correct creatives (1:1 feed + 9:16 story/reel) with on-creative headline & offer.</p>
+          <p class="note" style="margin-top:4px">🎬 Video ad for Reels/Stories? Turn this brief, copy & key-frame into a finished MP4 with <a href="https://github.com/Open-Montage/OpenMontage" target="_blank" rel="noopener" style="color:#AB8743;text-decoration:none">OpenMontage →</a>, the open-source agentic video pipeline.</p>
           <div class="cre-prev" id="m-cre-prev"></div>
         </div>
         <div class="btn-row">
@@ -327,6 +328,7 @@
           <label class="label" style="margin-top:8px">Media URL (optional) — paste a hosted image / GIF / MP4 (e.g. a Shopify product video)</label>
           <input id="t-media" type="url" placeholder="https://cdn.shopify.com/…/product.mp4">
           <p class="note" id="t-cre-note">Builds a platform-correct 9:16 creative with on-creative hook & offer, safe-zoned for TikTok UI.</p>
+          <p class="note" style="margin-top:4px">🎬 Making the video ad? Turn this hook, caption & key-frame into a finished MP4 with <a href="https://github.com/Open-Montage/OpenMontage" target="_blank" rel="noopener" style="color:#AB8743;text-decoration:none">OpenMontage →</a>, the open-source agentic video pipeline.</p>
           <div class="cre-prev" id="t-cre-prev"></div>
         </div>
         <div class="btn-row">
@@ -762,7 +764,7 @@
       'The PRODUCED creative is a still, photoreal, on-palette image at each size below with the on-creative text overlay (headline + offer) BAKED INTO the image, exactly like a real ' + platform + ' ad.',
       'Platform spec: ' + (AD_SPEC[platform] || AD_SPEC.meta),
       'Deliver: (a) every text field the platform requires; (b) for EACH static size, a precise creative brief describing the still visual, the baked-in overlay wording + pixel placement + safe zones; (c) the destination URL.',
-      'VISUALS (produced asset): one still on-palette image per size with the overlay baked in. If a hosted product image/MP4 URL is supplied, its first frame is the base still. Motion (GIF/short video) is an OPTIONAL follow-up brief — never a delivered asset here.',
+      'VISUALS (produced asset): one still on-palette image per size with the overlay baked in. If a hosted product image/MP4 URL is supplied, its first frame is the base still. Motion (GIF/short video) is an OPTIONAL follow-up brief — never a delivered asset here. To produce the actual video ad, hand this brief to OpenMontage (open-source agentic video pipeline): https://github.com/Open-Montage/OpenMontage',
       '',
       'QUALITY BAR: premium, specific, sensory, zero filler. No banned phrases. No medical claims.',
     ].filter((l) => l !== null && l !== undefined).join('\n').trim();
