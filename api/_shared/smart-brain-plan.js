@@ -435,7 +435,7 @@ ${creativeUrl ? `<img src="${esc(creativeUrl)}" alt="${esc(L.hero_headline || en
 <section class="sec proof">
   <div class="wrap">
     <blockquote>“${esc(L.proof_quote || 'There is a moment when the right cup does more than warm your hands.')}”</blockquote>
-    <p class="who">— ${esc(L.proof_author || 'A VAHDAM regular')}</p>
+    <p class="who">- ${esc(L.proof_author || 'A VAHDAM regular')}</p>
   </div>
 </section>
 <div class="wrap">
@@ -527,6 +527,20 @@ async function writeCopyWithLLM(entry) {
   const json = parseJSON(res.text);
   if (!json || !json.email || !json.landing || !json.ads) throw new Error('LLM copy JSON incomplete');
   return { copy: json, provider: res.provider, model: res.model };
+}
+
+// Deep brand scrub of an LLM copy object: every string through sanitizeBrand
+// (banned phrases → preferred lexicon, em/en dashes → hyphens). Safe no-op if
+// sanitizeBrand is unavailable.
+function scrubCopyDeep(o) {
+  const clean = (s) => { try { return SM.sanitizeBrand(String(s)); } catch (_) { return s; } };
+  const walk = (v) => {
+    if (typeof v === 'string') return clean(v);
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    return v;
+  };
+  return walk(o || {});
 }
 
 function applyCopy(campaign, entry, copy, creatives = {}) {
@@ -659,7 +673,12 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
   const campaign = new GenerationService(config).generate(entry);
   let copyMeta = { provider: 'template-fallback', model: null, creatives: 'none' };
   try {
-    const { copy, provider, model } = await writeCopyWithLLM(entry);
+    const raw = await writeCopyWithLLM(entry);
+    const { provider, model } = raw;
+    // Brand scrub EVERY generated string (no banned phrases, no em/en dashes)
+    // before it is baked into the mailer, landing page and ad rows. Persisted +
+    // customer-served output must not rely on the prompt alone.
+    const copy = scrubCopyDeep(raw.copy);
     const creatives = withCreatives ? await generateCreatives(copy, entry) : {};
     applyCopy(campaign, entry, copy, creatives);
     const imgProviders = [...new Set(Object.values(creatives).map((c) => c && c.provider).filter(Boolean))];

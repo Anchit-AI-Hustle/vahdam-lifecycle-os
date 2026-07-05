@@ -19,6 +19,9 @@ function linkedDb() {
 
 module.exports = function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
+  // CORS on every branch (the bootstrap config is fetched cross-origin from
+  // preview deployments and the PWA shell).
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
   // Pipeline health mode — /api/ai/pipeline/health rewrites here as ?pipeline=1
   // (the standalone function was retired to free a Hobby function slot for /api/brain).

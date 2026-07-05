@@ -83,12 +83,12 @@ const SCRUB_TRANSFORM_RX = /\btransform(ing|ed|s|ation)?\b/i;
 const SCRUB_CAPS_RX = /LIMITED TIME/; // caps form specifically
 function scrubString(s) {
   if (typeof s !== 'string') return s;
-  if (SCRUB_RX.test(s) || SCRUB_TRANSFORM_RX.test(s) || SCRUB_CAPS_RX.test(s)) {
-    const clean = scenario.sanitizeBrand(s);
-    try { scenario.assertNoBanned(clean, 'social-core'); } catch (_) { /* tripwire only */ }
-    return clean;
-  }
-  return s;
+  // Always run sanitizeBrand so em/en dashes are scrubbed on EVERY string, not
+  // only ones that already trip a banned phrase (otherwise dashes survive on
+  // most captions/blog copy). sanitizeBrand folds in the banned-phrase rewrite.
+  const clean = scenario.sanitizeBrand(s);
+  try { scenario.assertNoBanned(clean, 'social-core'); } catch (_) { /* tripwire only */ }
+  return clean;
 }
 function deepScrub(v) {
   if (typeof v === 'string') return scrubString(v);
