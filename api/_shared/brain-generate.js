@@ -22,6 +22,10 @@ const analysis = require('./brain-analysis.js');
 
 let callLLM = null;
 try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
+// No em/en dashes in generated copy (matches the lifecycle builder). Safe no-op
+// if scenario-model is unavailable.
+let dashScrub = (s) => s;
+try { const sm = require('./scenario-model.js'); if (sm && sm.scrubDashes) dashScrub = sm.scrubDashes; } catch (_) {}
 
 // Vahdam Campaign Hub compiler (ported from marketing_automation/) — premium,
 // curated themed landing pages for the wellness/ashwagandha-coffee campaigns it
@@ -29,6 +33,10 @@ try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 // the LLM long-form landing builder below.
 let lpCompiler = null;
 try { lpCompiler = require('./lp-compiler.js'); } catch (_) { lpCompiler = null; }
+// Shared mailer renderer, the SAME one the Mailer Calendar / lifecycle builder
+// uses, so Smart Brain mailers come out as the same two named types.
+let renderTextVariant = null;
+try { renderTextVariant = require('./calendar-trigger.js').helpers.renderTextVariant; } catch (_) { renderTextVariant = null; }
 
 // Match a calendar slot to a Campaign-Hub theme by keyword overlap. Returns
 // { theme, variant } only on a real match, so a Darjeeling slot never gets a
@@ -56,7 +64,7 @@ function pickCampaignHubLP(slot, products) {
 async function llmJson(system, user, maxTokens = 1800) {
   if (!callLLM) return null;
   try {
-    const out = await callLLM({ systemPrompt: system, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens, temperature: 0.7, timeoutMs: 40000, stage: 'brain-generate', tier: 'standard' });
+    const out = await callLLM({ systemPrompt: system, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens, temperature: 0.7, timeoutMs: 40000, stage: 'brain-generate', tier: 'premium' });
     const text = typeof out === 'string' ? out : (out.text || '');
     return JSON.parse(text.replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1'));
   } catch (_) { return null; }
@@ -80,9 +88,10 @@ JSON shape:
 {"subject":"","preheader":"","headline":"","subheadline":"","body_intro":"2-3 sentence sensory opening","story":"4-5 sentence narrative for the angle","cta_primary":"","cta_secondary":"","testimonial":{"quote":"tiny personal story, 2 sentences","name":"first name + city"},"google":{"headlines":["12 short headlines ≤30 chars"],"descriptions":["4 descriptions ≤90 chars"],"callouts":["4 callouts ≤25 chars e.g. Free shipping over $35"],"sitelinks":[{"text":"≤25 chars","desc":"≤35 chars"},{"text":"","desc":""},{"text":"","desc":""},{"text":"","desc":""}]},"meta":{"primary_text":"best single primary text","primary_text_variants":["unaware-stage hook","problem-aware angle","solution-aware/offer angle"],"headline":"≤40 chars","headlines":["3 headline options ≤40 chars"],"description":"≤30 chars","creative_concept":"one-line art direction for the hero image"},"tiktok":{"hook_line":"first 2s spoken hook","script":"15s spoken script, conversational","shot_list":["4 beats: 0-2s hook / 3-6s problem / 7-11s product+proof / 12-15s CTA"],"captions":["3 on-screen caption lines"]},"landing":{"hero_eyebrow":"3-5 word kicker","hero_headline":"big emotional promise","hero_sub":"1-2 sentence support","offer_bar":"short sticky offer line e.g. Free sampler + free shipping over $35","trust_badges":["4 very short proof points"],"problem":{"headline":"name the pain","body":"3-4 sentences on what they settle for today"},"mechanism":{"headline":"why origin-fresh changes it","steps":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}]},"benefits":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}],"comparison":{"us_label":"VAHDAM","them_label":"Supermarket tea","rows":[{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""}]},"testimonials":[{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"}],"offer_stack":{"headline":"what you get","items":["3-5 included lines, each with a small value note"],"price_note":"value framing e.g. about 40c a cup","cta":"buy CTA"},"faq":[{"q":"","a":""},{"q":"","a":""},{"q":"","a":""},{"q":"","a":""}],"guarantee":{"headline":"risk reversal","body":"1-2 sentences"}}}`;
   let copy = await llmJson(sys, user, 3400);
   if (!copy || !copy.headline) copy = fallbackCopy(slot, products);
-  // brand-compliance scrub on every string
+  // brand-compliance scrub on every string: banned phrases + no em/en dashes
+  // (same no-dash rule the lifecycle builder enforces, for consistency).
   const walk = (o) => {
-    if (typeof o === 'string') return scrubBannedPhrases(o, brand);
+    if (typeof o === 'string') return dashScrub(scrubBannedPhrases(o, brand));
     if (Array.isArray(o)) return o.map(walk);
     if (o && typeof o === 'object') return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, walk(v)]));
     return o;
@@ -268,6 +277,40 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
     <div style="font-family:${body};font-size:11px;color:${P.near_black}77;margin-top:16px;line-height:1.6">VAHDAM India · Crafted at origin · Carbon &amp; plastic neutral<br>You receive this because you joined the ritual. <a href="#" style="color:${P.gold}">Preferences</a> · <a href="#" style="color:${P.gold}">Unsubscribe</a></div>
   </td></tr>
 </table></td></tr></table></body></html>`;
+}
+
+// Build the same mailer taxonomy as the Mailer Studio / Mailer Calendar:
+// two named types, two variants each: 2 Text (colour + type + structural
+// elements, no media) and 2 Text + Visual (with a real product image). Uses the
+// shared renderTextVariant so the look + quality match across features. The
+// rich brand mailer becomes one of the Text + Visual variants. Falls back to
+// just the rich mailer if the shared renderer is unavailable.
+function mailerVariants(slot, copy, products, brand, agentUrl, richHtml) {
+  if (!renderTextVariant) return null;
+  const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+  const p0 = products[0] || {};
+  const heroImg = p0.image || p0.image_url || p0.i || '';
+  const S = {
+    hero_headline: copy.headline,
+    hero_subline: copy.subheadline,
+    body_blocks: [
+      copy.body_intro ? { heading: '', body: copy.body_intro } : null,
+      copy.story ? { heading: '', body: copy.story } : null,
+      (copy.testimonial && copy.testimonial.quote) ? { heading: '', body: `"${copy.testimonial.quote}" - ${copy.testimonial.name || ''}` } : null,
+    ].filter(Boolean),
+    cta_text: copy.cta_primary || 'Shop the edit',
+  };
+  const mk = (style, img) => renderTextVariant({
+    style, subject: copy.subject, hero_headline: S.hero_headline, hero_subline: S.hero_subline,
+    body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: store, market: slot.market,
+    hero_product: p0.title || slot.theme || '', hero_image_url: img || undefined,
+  });
+  return [
+    { key: 'text_a', type: 'Text', label: 'Text · Concise', html: mk('pure') },
+    { key: 'text_b', type: 'Text', label: 'Text · Editorial', html: mk('editorial') },
+    { key: 'visual_a', type: 'Text + Visual', label: 'Text + Visual · Hero', html: mk('visual', heroImg) },
+    { key: 'visual_b', type: 'Text + Visual', label: 'Text + Visual · Rich brand', html: richHtml },
+  ];
 }
 
 function landingHtml(slot, copy, products, brand, agentUrl) {
@@ -466,7 +509,7 @@ function campaignObjects(slot, copy, cohort, products, brand) {
         type: 'campaign', name: `${slot.theme} · ${slot.market} · ${slot.slot_date}`,
         audience: aud, send_time_local: '09:30',
         message: { subject: copy.subject, preheader: copy.preheader, from_name: 'VAHDAM India', from_email: 'hello@vahdam.com', template_ref: `asset:mailer_html:${slot.id}` },
-        ab_test: { dimension: 'subject', variants: [copy.subject, `${copy.headline} — inside`], split: 0.5, metric: 'open_rate' },
+        ab_test: { dimension: 'subject', variants: [copy.subject, `${copy.headline}, inside`], split: 0.5, metric: 'open_rate' },
         followup: { trigger: 'no_open_48h', action: 'resend_new_subject' },
         utm,
       },
@@ -565,7 +608,9 @@ async function generateForSlot(slotId, { persist = true } = {}) {
   const push = (type, name, content, meta = {}) => assets.push({ id: idFor('ast', { slot: slot.id, type, name }), slot_id: slot.id, type, name, content, meta, created_at: new Date().toISOString() });
 
   if (slot.channel === 'email') {
-    push('mailer_html', `Mailer · ${slot.theme} · ${slot.market}`, mailerHtml(slot, copy, picked, brand, agentUrl), { subject: copy.subject, preheader: copy.preheader, variants: ['A: image hero', 'B: text editorial (same copy, no hero block)'] });
+    const richHtml = mailerHtml(slot, copy, picked, brand, agentUrl);
+    const variants = mailerVariants(slot, copy, picked, brand, agentUrl, richHtml);
+    push('mailer_html', `Mailer · ${slot.theme} · ${slot.market}`, richHtml, { subject: copy.subject, preheader: copy.preheader, variants: variants || ['A: image hero', 'B: text editorial'] });
   }
   if (slot.channel.startsWith('landing')) {
     const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
