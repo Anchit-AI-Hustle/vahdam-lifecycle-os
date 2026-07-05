@@ -522,7 +522,15 @@
   // forced auth on specific pages later, return `!!(item && item.open)` based
   // on a per-item flag instead of `true`.
   function isOpenPage() {
-    return true;
+    const p = (location.pathname || '').toLowerCase();
+    // Legal/consent pages are always open (Google OAuth review + never lock a
+    // user out of the privacy/terms pages).
+    if (/(^|\/)(privacy|terms)(\.html)?$/.test(p)) return true;
+    // Otherwise a page is open ONLY if its nav leaf is explicitly flagged
+    // open (Mailer Studio). Everything else requires Google sign-in.
+    const id = currentStepId();
+    const item = leafItems().find((s) => s.id === id);
+    return !!(item && item.open);
   }
 
   // ─── Left-hand sidebar (global cross-feature navigation) ────────────

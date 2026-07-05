@@ -21,15 +21,19 @@ const callLLM = require('../_shared/llm.js');
 const { buildMasterPrompt } = require('../_shared/master-prompt.js');
 
 // Product-owner rule (2026-07-04): no em/en dashes in any generated output.
-const { scrubDashes } = require('../_shared/scenario-model.js');
+const SMscen = require('../_shared/scenario-model.js');
+const scrubDashes = SMscen.scrubDashes;
+// sanitizeBrand does both: banned-phrase rewrite (transform, liquid gold, last
+// chance, …) AND em/en-dash scrub. Fall back to dash-only if unavailable.
+const brandScrub = (s) => { try { return SMscen.sanitizeBrand ? SMscen.sanitizeBrand(String(s)) : scrubDashes(s); } catch (_) { return scrubDashes(s); } };
 const CF = require('../_shared/copy-frameworks.js');
 
-// Walk a parsed LLM JSON payload and scrub em/en dashes from every generated
-// STRING value. Object keys are never touched; URL-like values are skipped so
-// links/handles stay byte-identical.
+// Walk a parsed LLM JSON payload and brand-scrub (banned phrases + em/en dashes)
+// every generated STRING value. Object keys are never touched; URL-like values
+// are skipped so links/handles stay byte-identical.
 function deepScrubDashes(v) {
   if (typeof v === 'string') {
-    return /^(https?:\/\/|\/)/i.test(v.trim()) ? v : scrubDashes(v);
+    return /^(https?:\/\/|\/)/i.test(v.trim()) ? v : brandScrub(v);
   }
   if (Array.isArray(v)) return v.map(deepScrubDashes);
   if (v && typeof v === 'object') {
@@ -62,7 +66,7 @@ const AD_FORMATS = {
 // tampered with by browser-side edits)
 // ────────────────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT_CONCEPTS = `You are a D2C growth director for VAHDAM India — premium Indian heritage tea brand. Output STRICT JSON ONLY: {"concepts":[3 concepts]}. Each concept has: id, name (2-5w), hook (≤80ch), emotional_driver, visual_direction, tone, layout_archetype (one of: hero-led-editorial|product-grid-conversion|storytelling-narrative|single-product-spotlight|gift-bundle-showcase|ritual-journey|comparison-discovery|founder-note|editorial-trend-roundup|limited-drop-countdown|subscription-anchor), hero_focus, risk_profile (safe|balanced|bold), hero_concept (2-3 sentences), section_flow (array of 5 mod sections), visual_prompt_extension (120-200ch), subject_lines [3 ≤60ch each], preheader (≤90ch no terminal period), copy {eyebrow, headline:[2 lines], sub_copy ≤200ch, cta ≤3w, section_title, ann_bar}, cta_options [3 ≤3w each], product_handles [3-5 from AVAILABLE_PRODUCTS], scores {brand_fit:1-10, conversion_potential:1-10, novelty:1-10}, performance_notes {recommended_subject_index, swap_if_low_open, personalization_token}, primary_hook (offer|benefit|origin-freshness), secondary_hook, user_emotional_state (curiosity-trust|reward-upgrade|reactivation-incentive), internal_critique {strongest_subject_index, strongest_subject_reason, weakest_section, weakest_reason, open_rate_lever, ctr_lever}, rationale.
+const SYSTEM_PROMPT_CONCEPTS = `You are a D2C growth director for VAHDAM India — premium Indian heritage tea brand. Output STRICT JSON ONLY: {"concepts":[3 concepts]}. Each concept has: id, name (2-5w), hook (≤80ch), emotional_driver, visual_direction, tone, layout_archetype (one of: hero-led-editorial|product-grid-conversion|storytelling-narrative|single-product-spotlight|gift-bundle-showcase|ritual-journey|comparison-discovery|editorial-trend-roundup|limited-drop-countdown|subscription-anchor), hero_focus, risk_profile (safe|balanced|bold), hero_concept (2-3 sentences), section_flow (array of 5 mod sections), visual_prompt_extension (120-200ch), subject_lines [3 ≤60ch each], preheader (≤90ch no terminal period), copy {eyebrow, headline:[2 lines], sub_copy ≤200ch, cta ≤3w, section_title, ann_bar}, cta_options [3 ≤3w each], product_handles [3-5 from AVAILABLE_PRODUCTS], scores {brand_fit:1-10, conversion_potential:1-10, novelty:1-10}, performance_notes {recommended_subject_index, swap_if_low_open, personalization_token}, primary_hook (offer|benefit|origin-freshness), secondary_hook, user_emotional_state (curiosity-trust|reward-upgrade|reactivation-incentive), internal_critique {strongest_subject_index, strongest_subject_reason, weakest_section, weakest_reason, open_rate_lever, ctr_lever}, rationale.
 
 MANDATORY: exactly 3 concepts; risk distribution = exactly one safe + one balanced + one bold; all 3 layout_archetype unique; products ONLY from AVAILABLE_PRODUCTS handles.
 
@@ -799,7 +803,7 @@ Target market for this autofill: ${targetMarket}.`;
         const heuristicBrief = `Our next ${typeDesc} targets ${audience}, aiming for an AOV exceeding $55 by leveraging the unmatched premium provenance of our single-estate teas. We're leading with a compelling offer: experience the crisp clarity of our finest teas with up to ${offerPct}% off for a limited time using code ${promoCode}. This isn't just a discount: it's an invitation to elevate your daily ritual with garden-fresh teas, picked and packed within 72 hours of harvest.\n\nOur hero product anchoring this campaign is ${heroProduct}, a single-estate jewel perfect for a discerning morning ritual. To build a richer basket we'll feature ${supportProducts} as supporting products. These selections offer variety and cater to both the ritualistic black tea drinker and the health-conscious individual.\n\nOur audience craves moments of calm and intentionality. They're seeking authenticity and connection, a premium experience that integrates into their demanding lives. A truly authentic tea with a clear origin story tips them towards purchase.\n\nFor subject lines, test these: Your Morning Ritual, Elevated. | ${offerPct}% Off Premium Teas, Limited Time. | Freshness From The Himalayas Awaits.`;
 
         return res.status(200).json({
-          ok: true, mode, provider: 'heuristic', model: 'fallback-v1', text: scrubDashes(heuristicBrief),
+          ok: true, mode, provider: 'heuristic', model: 'fallback-v1', text: brandScrub(heuristicBrief),
           portable_prompt,
           _heuristic: true,
           _llm_error: String((result && result.detail) || 'All providers failed').substring(0, 200)
@@ -889,11 +893,11 @@ Target market for this autofill: ${targetMarket}.`;
         const targetMarket = body.market || body.region || market || 'US';
         const userPrompt = String(body.prompt || campaign_brief || '').trim().slice(0, 1600);
         const master_prompt = buildMasterPrompt({ assetType: 'ad', platform: surf, market: targetMarket, brief: userPrompt });
-        return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: scrubDashes(text), creative_spec, master_prompt, portable_prompt });
+        return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: brandScrub(text), creative_spec, master_prompt, portable_prompt });
       }
     }
 
-    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: scrubDashes(text), portable_prompt });
+    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: brandScrub(text), portable_prompt });
 
   } catch (e) {
     return res.status(500).json({ error: 'server_error', provider: 'cascade', detail: String(e && e.message || e).substring(0, 300) });

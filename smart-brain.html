@@ -45,6 +45,7 @@
   .adimg{width:100%;max-height:420px;object-fit:cover;border-radius:8px;margin:4px 0 12px;border:1px solid rgba(171,135,67,.2);display:block}
   .pvpane{display:none}.pvpane.on{display:block}
   .pvframe{width:100%;height:560px;border:1px solid rgba(171,135,67,.22);border-radius:12px;background:#fff}
+  .pvexport{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
   .pvnote{color:#9fb3a8;font-size:12px;margin:0 0 10px}
   .adcard{background:#07100d;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;margin-bottom:10px}
   .adcard h4{margin:0 0 6px;font-size:12px;color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
@@ -222,17 +223,24 @@ function renderPreview(payload, e, i, opts){
   const pane= (id,html,on)=> panes.push(`<div class="pvpane${on?' on':''}" id="${id}">${html}</div>`);
 
   let first = true;
+  // Export registry: every previewable HTML asset gets Download + Copy controls
+  // so an approved campaign can be taken out of the tool (product rule).
+  window.__SB_EXPORTS = [];
+  const expBar = (name, html) => {
+    const idx = window.__SB_EXPORTS.push({ name, html }) - 1;
+    return `<div class="pvexport"><button class="btn sm secondary" onclick="sbDownload(${idx})">⬇ Download HTML</button> <button class="btn sm secondary" onclick="sbCopy(${idx}, this)">📋 Copy HTML</button></div>`;
+  };
   if(Array.isArray(emailVars) && emailVars.length){
     // Two named types, two variants each — same as the Mailer Studio.
     emailVars.forEach((v, vi)=>{
       const html = String(v.html||'').replace(/\{\{\s*landing_page_url\s*\}\}/g,'#');
       const id = 'pv-mail-'+(v.key||vi);
       tab(id, '✉ '+esc(v.label || ('Mailer '+(vi+1))), first);
-      pane(id, `<div class="pvnote" style="margin:0 0 8px">${esc(v.type||'')}</div><iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first);
+      pane(id, `<div class="pvnote" style="margin:0 0 8px">${esc(v.type||'')}</div>${expBar('mailer-'+(v.key||vi), html)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first);
       first=false;
     });
-  } else if(emailHtml){ const html = emailHtml.replace(/\{\{\s*landing_page_url\s*\}\}/g,'#'); tab('pv-mail','✉ Mailer',first); pane('pv-mail', `<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first); first=false; }
-  if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#8fe7b9">/lp/${esc(liveLpId)} ↗</a> once approved.</p>`:''}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
+  } else if(emailHtml){ const html = emailHtml.replace(/\{\{\s*landing_page_url\s*\}\}/g,'#'); tab('pv-mail','✉ Mailer',first); pane('pv-mail', `${expBar('mailer', html)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first); first=false; }
+  if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#8fe7b9">/lp/${esc(liveLpId)} ↗</a> once approved.</p>`:''}${expBar('landing-page', lpHtml)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
   ads.forEach(ad=>{ const id='pv-ad-'+(ad.platform||'x'); tab(id, esc((ad.platform||'ad'))+' ad', first); pane(id, renderAd(ad), first); first=false; });
   tab('pv-json','{ } Details', first); pane('pv-json', `<pre style="margin:0">${esc(JSON.stringify(campaign && campaign.campaign_id ? campaign : e, null, 2))}</pre>`, first);
 
@@ -254,6 +262,22 @@ function renderPreview(payload, e, i, opts){
   $('detail').textContent = '';
   $('preview').scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
+
+// Export an approved/previewed asset out of the tool.
+window.sbDownload = function(idx){
+  const item = (window.__SB_EXPORTS||[])[idx]; if(!item) return;
+  const blob = new Blob([item.html], { type:'text/html' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'vahdam-'+String(item.name||'asset').replace(/[^a-z0-9_-]/gi,'-')+'.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
+};
+window.sbCopy = function(idx, btn){
+  const item = (window.__SB_EXPORTS||[])[idx]; if(!item) return;
+  const done = (ok)=>{ if(btn){ const t=btn.textContent; btn.textContent = ok?'✓ Copied':'Copy failed'; setTimeout(()=>{btn.textContent=t;},1500); } };
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(item.html).then(()=>done(true),()=>done(false)); return; } }catch(_){}
+  try{ const ta=document.createElement('textarea'); ta.value=item.html; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(true); }catch(_){ done(false); }
+};
 
 async function viewEntry(i, forceRegen){
   const e = PLAN[i];
