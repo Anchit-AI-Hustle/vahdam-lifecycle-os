@@ -43,7 +43,9 @@ let lastResult = null;
 
 function authorized(req) {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // unprotected if not configured (dev)
+  // No secret: open in dev/preview, FAIL CLOSED in production (sync drives IMAP
+  // + Google Sheet writes; never leave it open to anyone).
+  if (!secret) return String(process.env.VERCEL_ENV) !== 'production';
   const auth = req.headers && req.headers.authorization;
   if (auth === `Bearer ${secret}`) return true;
   const url = new URL(req.url, 'http://x');

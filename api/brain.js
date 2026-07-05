@@ -59,7 +59,10 @@ function cronAuthorized(req) {
     const auth = req.headers.authorization || '';
     return auth === `Bearer ${secret}` || (req.query && req.query.secret === secret);
   }
-  return /vercel-cron/i.test(req.headers['user-agent'] || '') || true; // no secret configured → open (internal tool)
+  // No secret configured: open in dev/preview, but FAIL CLOSED in production so
+  // the LLM/image-spending daily loop can never be triggered by anyone.
+  if (String(process.env.VERCEL_ENV) === 'production') return false;
+  return true;
 }
 
 module.exports = async function handler(req, res) {

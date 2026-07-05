@@ -81,7 +81,11 @@ async function smartBrain(req, res, smartAction) {
       // Vercel Cron sends GET with Authorization: Bearer <CRON_SECRET> when the env var is set.
       const secret = process.env.CRON_SECRET || '';
       const auth = req.headers.authorization || '';
-      const authorized = !secret || auth === `Bearer ${secret}` || req.query?.secret === secret || req.headers['x-vercel-cron'];
+      // With a secret: require Bearer/secret (no spoofable x-vercel-cron trust).
+      // Without a secret: open in dev/preview, FAIL CLOSED in production.
+      const authorized = secret
+        ? (auth === `Bearer ${secret}` || req.query?.secret === secret)
+        : (String(process.env.VERCEL_ENV) !== 'production');
       if (!authorized) return res.status(401).json({ ok: false, error: 'Unauthorized cron call' });
       const result = await plan.syncDaily({ persist: true });
       return res.status(200).json({ ok: true, cron: true, synced_at: result.synced_at, mode: result.mode, changes: result.changes.length, persistence: result.persistence });
