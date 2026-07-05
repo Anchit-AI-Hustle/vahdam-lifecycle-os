@@ -22,6 +22,7 @@ const { buildMasterPrompt } = require('../_shared/master-prompt.js');
 
 // Product-owner rule (2026-07-04): no em/en dashes in any generated output.
 const { scrubDashes } = require('../_shared/scenario-model.js');
+const CF = require('../_shared/copy-frameworks.js');
 
 // Walk a parsed LLM JSON payload and scrub em/en dashes from every generated
 // STRING value. Object keys are never touched; URL-like values are skipped so
@@ -382,7 +383,7 @@ module.exports = async function handler(req, res) {
     const productsBlock = selected_products.slice(0, 30).map(p => `- handle:${p.handle||p.id||''} | name:${p.name||p.n||''} | category:${p.category||''} | price:${p.price||''} | compare_at:${p.compare_at||''} | image:${p.image_url||p.i||''}`).join('\n');
     userMessage = `BRIEF: ${campaign_brief.substring(0, 800)}\nMARKET: ${market}\nTYPE: ${theme}\nVARIANT: ${variant}\nREGENERATE_COUNTER: ${regenerate_counter}\n${previous_outputs_summary ? 'PREVIOUS_OUTPUT_HASH: ' + previous_outputs_summary + '\n' : ''}\nAVAILABLE_PRODUCTS:\n${productsBlock || '(none provided — use category defaults)'}\n\nGenerate the JSON now.`;
   } else if (mode === 'mailer_full') {
-    systemPrompt = SYSTEM_PROMPT_MAILER_FULL;
+    systemPrompt = SYSTEM_PROMPT_MAILER_FULL + '\n\n' + CF.frameworkMenuDirective();
     response_format = { type: 'json_object' };
     const productsBlock = selected_products.slice(0, 5).map(p => `- name:"${p.name||p.n||''}" | url:"${p.url||p.pdp_url||''}" | price:"${p.price||''}" | compare_price:"${p.compare_at||p.compare_price||''}" | image:"${p.image_url||p.i||''}"`).join('\n');
     userMessage = `INPUTS:\nmarket: ${market}\ntheme: ${theme}\ncampaign_brief: ${campaign_brief.substring(0, 1000)}\nvariant: ${variant}\nregenerate_counter: ${regenerate_counter}\n${previous_outputs_summary ? 'previous_outputs_summary: ' + previous_outputs_summary + '\n' : ''}selected_products:\n${productsBlock || '(none)'}\n\nReturn the strict JSON now.`;
@@ -607,6 +608,7 @@ Target market for this autofill: ${targetMarket}.`;
     userMessage = `USER PROMPT:\n"""\n${userPrompt}\n"""\n\n${referenceSnippet ? `REFERENCE PAGE (mirror the structure, voice, length, conversion logic — but rewrite for VAHDAM and the prompt above):\n"""\n${referenceSnippet}\n"""\n\n` : ''}Return the JSON object now. Do not include any text outside the JSON.`;
   } else {
     // create_brief mode (default)
+    systemPrompt = SYSTEM_PROMPT_CREATE_BRIEF + '\n\n' + CF.frameworkMenuDirective();
     // Market context — informs audience psychology and visual direction
     const mktContext = {
       US:     'Urban US professionals 30-55. Value origin story + morning ritual. $55+ AOV. Expect premium provenance, not discounts.',

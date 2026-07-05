@@ -17,6 +17,7 @@
 
 const llm = require('../_shared/llm.js');
 const { buildMasterPrompt } = require('../_shared/master-prompt.js');
+const CF = require('../_shared/copy-frameworks.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -90,7 +91,8 @@ function ctaUrlForEntry(entry, market) {
   return base;
 }
 
-function buildBriefFromEntry(entry) {
+function buildBriefFromEntry(entry, fw) {
+  const framework = fw || CF.pickCopyFrameworkForCalendar({ framework: entry.framework, content_type: entry.content_type, segment: entry.segment, seed: `${entry.date}_${entry.segment}` });
   const parts = [
     `Campaign date: ${entry.date}`,
     `Market: ${entry.market}`,
@@ -106,6 +108,8 @@ function buildBriefFromEntry(entry) {
     `- Match the archetype layout convention (see project brand spec).`,
     `- One CTA, one hero product, optional 2-3 supporting products.`,
     `- For ${entry.segment}: ${segmentVoiceGuide(entry.segment, entry.content_type)}`,
+    '',
+    CF.copyFrameworkBriefBlock(framework),
   ].filter(Boolean).join('\n');
 
   return parts;
@@ -155,7 +159,8 @@ module.exports = async function handler(req, res) {
 
   const market = body.market_override || entry.market;
 
-  const brief = buildBriefFromEntry(entry);
+  const framework = CF.pickCopyFrameworkForCalendar({ framework: entry.framework, content_type: entry.content_type, segment: entry.segment, seed: `${entry.date}_${entry.segment}` });
+  const brief = buildBriefFromEntry(entry, framework);
   const runs  = [];
 
   // ── Stage 1: Strategy (subject + headline + bullets + CTA) ──
@@ -166,7 +171,8 @@ module.exports = async function handler(req, res) {
         'subject_line (string, ≤ 60 chars), preview_text (string, ≤ 90 chars), ' +
         'hero_headline (string, ≤ 8 words), hero_subline (string, ≤ 18 words), ' +
         'body_blocks (array of {heading, body}), cta_text (string, ≤ 4 words). ' +
-        'Use VAHDAM brand voice (warm, sensory, story-driven). No banned phrases.',
+        'Use VAHDAM brand voice (warm, sensory, story-driven). ' +
+        CF.copyFrameworkSystemLine(framework) + ' No banned phrases.',
       userMessage: brief,
       responseFormat: { type: 'json_object' },
       maxTokens: 3000,
@@ -313,6 +319,8 @@ module.exports = async function handler(req, res) {
     ok: true,
     entry,
     strategy: S,
+    framework: framework.key,
+    framework_name: `${framework.name} (${framework.full})`,
     cta_url: ctaUrl,
     variants,
     runs,

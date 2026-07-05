@@ -182,6 +182,7 @@
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
     { id: 'social', label: 'Social Media OS', href: '/social', icon: 'social', ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
+    { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
@@ -204,6 +205,9 @@
     { id: 'chaigpt', label: 'ChaiGPT',      href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
     { id: 'brain',   label: 'Smart Brain',  href: '/brain',   icon: 'studio', ver: 'v1', match: ['/brain', '/smart-brain', '/smart-brain.html'] },
     { id: 'agent',   label: 'Vahdam Agent', href: '/agent',   icon: 'vahdam', ver: 'v1', match: ['/agent', '/agent.html'] },
+
+    { section: 'Archive' },
+    { id: 'diffversion', label: 'DIFF-VERSION', href: '/diff-version', icon: 'insights', ver: 'v2', draft: 'Frozen 3 Jul 2026 build', match: ['/diff-version', '/diff-version.html', '/diff-version/pages/mailer-calendar.html', '/diff-version/pages/uk-non-engagers.html', '/diff-version/pages/social-media.html'] },
   ];
 
   // ─── Feature IA (standing rule — see CLAUDE.md "LHS navigation IA rule") ──
