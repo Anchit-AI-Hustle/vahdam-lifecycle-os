@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lifecycle OS">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
-<script src="/auth.js?v=20260617" defer></script>
+<script src="/auth.js?v=20260705" defer></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -180,6 +180,21 @@
   #cmdk .ck-item b { color: var(--ink); font-weight: 600; }
   #cmdk .ck-item .ck-crumb { font-size: 11px; color: var(--ink-faint); margin-left: auto; }
   #cmdk .ck-item.sel { background: rgba(171,135,67,0.12); color: var(--cream); }
+  /* Grouped palette: section headers + subgroup (group → children) indent. */
+  #cmdk .ck-sec {
+    padding: 12px 12px 5px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  #cmdk .ck-sec:first-child { padding-top: 4px; }
+  #cmdk .ck-item.ck-group b { color: var(--cream); }
+  #cmdk .ck-item.ck-group .ck-crumb { text-transform: uppercase; letter-spacing: 0.1em; font-size: 9.5px;
+    color: var(--gold); opacity: 0.8; }
+  /* Children sit under their group with a guide rail so subgroups read clearly. */
+  #cmdk .ck-item.ck-child { margin-left: 20px; padding-left: 14px; border-left: 1px solid rgba(171,135,67,0.18); }
+  #cmdk .ck-item.ck-child .ck-ic { width: 24px; height: 24px; background: rgba(171,135,67,0.06); }
+  #cmdk .ck-item.ck-child .ck-ic svg { width: 14px; height: 14px; }
+  #cmdk .ck-item.ck-child b { font-weight: 500; color: var(--ink-dim); }
+  #cmdk .ck-item.ck-child.sel b { color: var(--cream); }
   #cmdk .ck-empty { padding: 22px; text-align: center; color: var(--ink-faint); font-size: 13px; }
   #cmdk .ck-foot { display: flex; gap: 14px; padding: 10px 16px; border-top: 1px solid var(--line);
     font-size: 10.5px; color: var(--ink-faint); }
@@ -209,10 +224,30 @@
   #preview-modal .pm-close { background: transparent; border: 1px solid rgba(171,135,67,0.3); color: #cdd8d2;
     width: 34px; height: 34px; border-radius: 8px; font-size: 18px; line-height: 1; }
   #preview-modal .pm-close:hover { border-color: var(--gold); color: var(--cream); }
-  #preview-modal .pm-body { flex: 1; position: relative; background: var(--bg); }
-  #preview-modal .pm-frame { width: 100%; height: 100%; border: 0; background: var(--bg); }
-  #preview-modal .pm-load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: var(--ink-faint); font-size: 13px; }
+  #preview-modal .pm-body { flex: 1; position: relative; background: var(--bg); overflow-y: auto; }
+  #preview-modal .pm-body-content { max-width: 760px; margin: 0 auto; padding: 26px 28px 40px; }
+  #preview-modal .pm-lead { font-size: 15px; line-height: 1.65; color: #cdd8d2; margin: 0 0 22px; }
+  #preview-modal .pm-sec { margin: 0 0 20px; }
+  #preview-modal .pm-sec-h { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold);
+    font-weight: 700; margin-bottom: 7px; }
+  #preview-modal .pm-sec p { font-size: 13.5px; line-height: 1.65; color: #9aaaa1; margin: 0; }
+  #preview-modal .pm-bullets { margin: 0; padding-left: 18px; color: #9aaaa1; font-size: 13.5px; line-height: 1.7; }
+  #preview-modal .pm-steps { list-style: none; margin: 4px 0 0; padding: 0; counter-reset: pmstep; }
+  #preview-modal .pm-steps li { counter-increment: pmstep; position: relative; padding: 0 0 16px 40px; }
+  #preview-modal .pm-steps li::before {
+    content: counter(pmstep); position: absolute; left: 0; top: 0;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(171,135,67,0.16); border: 1px solid rgba(171,135,67,0.35);
+    color: var(--gold); font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #preview-modal .pm-steps li:not(:last-child)::after {
+    content: ''; position: absolute; left: 12.5px; top: 30px; bottom: 2px; width: 1px; background: rgba(171,135,67,0.2);
+  }
+  #preview-modal .pm-steps b { display: block; color: var(--cream); font-size: 13.5px; margin-bottom: 2px; }
+  #preview-modal .pm-step-d { display: block; font-size: 13px; color: #9aaaa1; line-height: 1.55; }
+  #preview-modal .pm-step-via { display: inline-block; margin-top: 5px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; color: #6f8278; background: rgba(171,135,67,0.08); border-radius: 5px; padding: 2px 8px; }
 
   @media (prefers-reduced-motion: reduce) {
     .hero-aura { animation: none; }
@@ -288,8 +323,7 @@
       <button class="pm-act pm-close" id="pm-close" type="button" aria-label="Close preview">×</button>
     </div>
     <div class="pm-body">
-      <div class="pm-load" id="pm-load">Loading preview…</div>
-      <iframe class="pm-frame" id="pm-frame" title="Page preview" loading="lazy"></iframe>
+      <div class="pm-body-content" id="pm-body-content"></div>
     </div>
   </div>
 </div>
@@ -404,6 +438,8 @@
           desc: c.desc || ('Everything under ' + (c.title || n.group) + '.'),
           subs: c.subs || (n.children || []).map((x) => x.label),
           live: c.live,
+          // INFO key for the Peek preview (group id → sidebar INFO entry).
+          key: n.gid || '',
         });
       } else {
         if (n.id === 'home') return;  // Home is this page
@@ -415,6 +451,7 @@
           desc: c.desc || (n.label + '.'),
           subs: c.subs || [],
           live: c.live,
+          key: n.id || '',
         });
       }
     });
@@ -446,11 +483,15 @@
     }));
   }
 
+  // Rendered cards are kept module-level so the Peek preview can read the full
+  // card object (title, desc, subs, INFO key) by index without stuffing it all
+  // into data-attributes.
+  let CARDS = [];
   function render() {
-    const cards = widgetsFromNav(getNav());
-    renderChips(cards);
+    CARDS = widgetsFromNav(getNav());
+    renderChips(CARDS);
     const grid = document.getElementById('feature-grid');
-    grid.innerHTML = cards.map((f) => {
+    grid.innerHTML = CARDS.map((f, i) => {
       const tag = f.tag || 'Agents & Data';
       return `
       <div class="card" data-tag="${esc(tag)}">
@@ -461,7 +502,7 @@
         ${f.subs && f.subs.length ? `<ul class="card-subs">${f.subs.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}
         <div class="card-ctas">
           <a class="btn btn-solid" href="${esc(f.href)}">Open →</a>
-          <button class="btn btn-ghost" type="button" data-peek="${esc(f.href)}" data-peek-title="${esc(f.title)}">Peek</button>
+          <button class="btn btn-ghost" type="button" data-peek-idx="${i}">Peek</button>
           ${f.live ? `<a class="btn btn-live" href="${esc(f.live.href)}" target="_blank" rel="noopener">${esc(f.live.label)}</a>` : ''}
         </div>
       </div>`;
@@ -479,23 +520,73 @@
   }, { passive: true });
 
   // ─── Peek preview modal ──────────────────────────────────────────
+  // Peek is an EXPLANATORY preview: it shows WHAT the feature does, WHO it is
+  // for, HOW it works, its INPUT, and the step-by-step (multi-agent) working —
+  // sourced from the same sidebar INFO model (window.__LC_NAV_INFO). It does
+  // NOT run the feature. "Open full" navigates to the real feature for actual
+  // usage. (Previously Peek iframed the live page; the product-owner rule is
+  // that Peek previews and Open opens for real.)
   const pm = document.getElementById('preview-modal');
-  const pmFrame = document.getElementById('pm-frame');
-  const pmLoad = document.getElementById('pm-load');
-  function openPeek(href, title) {
-    document.getElementById('pm-title').textContent = title;
-    document.getElementById('pm-open').setAttribute('href', href);
-    pmLoad.style.display = 'flex';
-    pmFrame.src = href;
+  const pmBody = document.getElementById('pm-body-content');
+
+  function infoModel() {
+    const m = window.__LC_NAV_INFO;
+    return (m && m.INFO && m.SUBQ) ? m : null;
+  }
+
+  function buildPeekHtml(card) {
+    const model = infoModel();
+    const info = model && card.key ? model.INFO[card.key] : null;
+    const parts = [];
+    // Lead paragraph: prefer the card's homepage copy, else INFO.what.
+    const lead = card.desc || (info && info.what) || '';
+    if (lead) parts.push(`<p class="pm-lead">${esc(lead)}</p>`);
+
+    if (info) {
+      const block = (label, text) => text
+        ? `<div class="pm-sec"><div class="pm-sec-h">${esc(label)}</div><p>${esc(text)}</p></div>` : '';
+      // "What" is already the lead when card.desc was empty; still show it when
+      // the homepage copy differs, so nothing is lost.
+      if (info.what && info.what !== lead) parts.push(block('What does it do?', info.what));
+      parts.push(block('Who is it for?', info.who));
+      parts.push(block('How does it work?', info.how));
+      parts.push(block('Input', info.input));
+      if (Array.isArray(info.steps) && info.steps.length) {
+        parts.push(`<div class="pm-sec"><div class="pm-sec-h">${info.pipeline ? 'Step-by-step working (multi-agent pipeline)' : 'Step-by-step working'}</div>
+          <ol class="pm-steps">${info.steps.map((s) => {
+            const name = Array.isArray(s) ? s[0] : (s && s.name) || '';
+            const detail = Array.isArray(s) ? (s[1] || '') : (s && s.detail) || '';
+            const via = Array.isArray(s) ? (s[2] || '') : (s && s.via) || '';
+            return `<li><b>${esc(name)}</b><span class="pm-step-d">${esc(detail)}</span>${via ? `<span class="pm-step-via">Runs via: ${esc(via)}</span>` : ''}</li>`;
+          }).join('')}</ol></div>`);
+      }
+    } else if (card.subs && card.subs.length) {
+      // No INFO entry (e.g. a group without a gid) — fall back to the card's
+      // highlight bullets so Peek is still informative.
+      parts.push(`<div class="pm-sec"><div class="pm-sec-h">Highlights</div>
+        <ul class="pm-bullets">${card.subs.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>`);
+    }
+    return parts.join('') || '<p class="pm-lead">Open the feature to explore it.</p>';
+  }
+
+  function openPeek(idx) {
+    const card = CARDS[Number(idx)];
+    if (!card) return;
+    document.getElementById('pm-title').textContent = card.title;
+    const openBtn = document.getElementById('pm-open');
+    openBtn.setAttribute('href', card.href);
+    openBtn.textContent = 'Open for real usage →';
+    pmBody.innerHTML = buildPeekHtml(card);
+    pmBody.scrollTop = 0;
     pm.classList.add('open');
   }
-  function closePeek() { pm.classList.remove('open'); pmFrame.src = 'about:blank'; }
-  pmFrame.addEventListener('load', () => { if (pm.classList.contains('open')) pmLoad.style.display = 'none'; });
+  function closePeek() { pm.classList.remove('open'); }
   document.getElementById('pm-close').addEventListener('click', closePeek);
   pm.querySelector('.pm-backdrop').addEventListener('click', closePeek);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pm.classList.contains('open')) closePeek(); });
   document.addEventListener('click', (e) => {
-    const b = e.target.closest && e.target.closest('[data-peek]');
-    if (b) openPeek(b.dataset.peek, b.dataset.peekTitle || 'Preview');
+    const b = e.target.closest && e.target.closest('[data-peek-idx]');
+    if (b) openPeek(b.dataset.peekIdx);
   });
 
   // ─── Command palette (⌘K / Ctrl+K / "/") ─────────────────────────
@@ -504,45 +595,70 @@
   const ckList = document.getElementById('cmdk-list');
   let ckItems = [], ckSel = 0;
 
-  function paletteItems() {
-    const out = [];
-    let section = '';
+  // Grouped palette model: sections → (top-level items + groups → children).
+  // Mirrors the sidebar IA so "jump to a tool" reads as groups and subgroups
+  // rather than one flat list.
+  function paletteModel() {
+    const secs = [];
+    let cur = null;
+    const ensure = () => { if (!cur) { cur = { section: 'App', rows: [] }; secs.push(cur); } return cur; };
     getNav().forEach((n) => {
-      if (n.section) { section = n.section; return; }
+      if (n.section) { cur = { section: n.section, rows: [] }; secs.push(cur); return; }
       if (n.group) {
         const c = COPY[n.group] || {};
         const gHref = c.href || stripHash((n.children && n.children[0] && n.children[0].href) || '');
-        if (gHref) out.push({ label: c.title || n.group, crumb: section, href: gHref, icon: c.icon || n.icon || 'landing' });
+        if (gHref) ensure().rows.push({ kind: 'group', label: c.title || n.group, href: gHref, icon: c.icon || n.icon || 'landing' });
         (n.children || []).forEach((ch) => {
-          if (ch.href) out.push({ label: ch.label, crumb: c.title || n.group, href: ch.href, icon: c.icon || n.icon || 'landing' });
+          if (ch.href) ensure().rows.push({ kind: 'child', label: ch.label, href: ch.href, icon: ch.icon || c.icon || n.icon || 'landing', parent: c.title || n.group });
         });
       } else if (n.href && n.id !== 'home') {
         const c = COPY[n.id] || {};
-        out.push({ label: c.title || n.label, crumb: section || 'App', href: n.href, icon: c.icon || n.icon || 'analysis' });
+        ensure().rows.push({ kind: 'item', label: c.title || n.label, href: n.href, icon: c.icon || n.icon || 'analysis' });
       }
     });
-    return out;
+    return secs;
   }
 
   function ckRender() {
     const q = ckInput.value.trim().toLowerCase();
-    ckItems = paletteItems().filter((it) =>
-      !q || it.label.toLowerCase().includes(q) || (it.crumb || '').toLowerCase().includes(q));
+    const match = (r) => !q || r.label.toLowerCase().includes(q) || (r.parent || '').toLowerCase().includes(q);
+    // First pass: build ordered render tokens (section headers + selectable
+    // rows) and the flat ckItems list keyboard nav operates on.
+    ckItems = [];
+    const tokens = [];
+    paletteModel().forEach((sec) => {
+      const rows = sec.rows.filter(match);
+      if (!rows.length) return;
+      tokens.push({ t: 'sec', label: sec.section });
+      rows.forEach((r) => { const i = ckItems.length; ckItems.push(r); tokens.push({ t: 'row', r, i }); });
+    });
     if (ckSel >= ckItems.length) ckSel = 0;
-    ckList.innerHTML = ckItems.length ? ckItems.map((it, i) => `
-      <div class="ck-item${i === ckSel ? ' sel' : ''}" data-i="${i}">
-        <span class="ck-ic">${svg(it.icon)}</span>
-        <span><b>${esc(it.label)}</b></span>
-        <span class="ck-crumb">${esc(it.crumb || '')}</span>
-      </div>`).join('')
+    ckList.innerHTML = tokens.length ? tokens.map((tok) => {
+      if (tok.t === 'sec') return `<div class="ck-sec">${esc(tok.label)}</div>`;
+      const r = tok.r, i = tok.i;
+      const cls = r.kind === 'child' ? 'ck-item ck-child' : (r.kind === 'group' ? 'ck-item ck-group' : 'ck-item');
+      return `
+      <div class="${cls}${i === ckSel ? ' sel' : ''}" data-i="${i}">
+        <span class="ck-ic">${svg(r.icon)}</span>
+        <span><b>${esc(r.label)}</b></span>
+        ${r.kind === 'group' ? '<span class="ck-crumb">Section</span>' : ''}
+      </div>`;
+    }).join('')
       : '<div class="ck-empty">Nothing matches — try "mailer", "ads", "brain"…</div>';
     ckList.querySelectorAll('.ck-item').forEach((el) => {
       el.addEventListener('click', () => ckGo(Number(el.dataset.i)));
       el.addEventListener('pointerenter', () => { ckSel = Number(el.dataset.i); ckPaint(); });
     });
+    // Keep the selected row in view when navigating with the keyboard.
+    const selEl = ckList.querySelector('.ck-item.sel');
+    if (selEl && selEl.scrollIntoView) selEl.scrollIntoView({ block: 'nearest' });
   }
   function ckPaint() {
-    ckList.querySelectorAll('.ck-item').forEach((el) => el.classList.toggle('sel', Number(el.dataset.i) === ckSel));
+    ckList.querySelectorAll('.ck-item').forEach((el) => {
+      const on = Number(el.dataset.i) === ckSel;
+      el.classList.toggle('sel', on);
+      if (on && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    });
   }
   function ckGo(i) { const it = ckItems[i]; if (it) { location.href = it.href; } }
   function ckOpen() { ck.classList.add('open'); ckInput.value = ''; ckSel = 0; ckRender(); ckInput.focus(); }

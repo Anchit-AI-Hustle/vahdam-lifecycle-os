@@ -1112,6 +1112,7 @@
     if (signinBtn) signinBtn.onclick = (e) => {
       if (window.LifecycleAuth?.client) {
         e.preventDefault();
+        rememberReturnTo();
         window.LifecycleAuth.client.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: location.origin + location.pathname },
@@ -1247,6 +1248,7 @@
           setTimeout(() => { btn.disabled = false; btn.innerHTML = btn.dataset.original || 'Sign in with Google'; }, 1800);
           return;
         }
+        rememberReturnTo();
         const { error } = await window.LifecycleAuth.client.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: location.origin + location.pathname },
@@ -1266,6 +1268,37 @@
   function removeLoginWall() {
     const w = document.getElementById('lifecycle-loginwall');
     if (w) w.remove();
+  }
+
+  // Shown while an OAuth callback is being exchanged, so the login wall never
+  // flashes over a successful sign-in that is a beat away from resolving.
+  function injectSigningInOverlay() {
+    if (document.getElementById('lifecycle-signingin')) return;
+    const el = document.createElement('div');
+    el.id = 'lifecycle-signingin';
+    el.innerHTML = `
+      <style>
+        #lifecycle-signingin {
+          position: fixed; inset: 0; z-index: 9999; background: #0a1410;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 18px; font-family: 'Inter', system-ui, sans-serif; color: #FBF5EA;
+        }
+        #lifecycle-signingin .lsi-ring {
+          width: 40px; height: 40px; border-radius: 50%;
+          border: 3px solid rgba(171,135,67,0.25); border-top-color: #AB8743;
+          animation: lsi-spin 0.8s linear infinite;
+        }
+        @keyframes lsi-spin { to { transform: rotate(360deg); } }
+        #lifecycle-signingin .lsi-t { font-size: 13.5px; color: #9aaaa1; letter-spacing: 0.02em; }
+      </style>
+      <div class="lsi-ring"></div>
+      <div class="lsi-t">Completing sign-in…</div>
+    `;
+    document.body.appendChild(el);
+  }
+  function removeSigningInOverlay() {
+    const el = document.getElementById('lifecycle-signingin');
+    if (el) el.remove();
   }
 
   // ─── Supabase bootstrap ─────────────────────────────────────────────
@@ -1294,18 +1327,167 @@
     return null;
   }
 
+  // ─── Access mode: full (VAHDAM team) vs mock (external accounts) ─────
+  // The app is an internal retention tool. Anyone can sign in with Google,
+  // but ONLY @vahdam.com accounts get live usage. Every other domain is put
+  // into "mock mode": they can browse and see sample data (read-only GETs
+  // pass through), but any write / generation call is simulated locally so
+  // no real LLM spend, no database writes, and no sends ever happen. There
+  // is no server-side per-user auth today, so this gate lives in the shared
+  // shell that every page loads.
+  const INTERNAL_DOMAIN = 'vahdam.com';
+  function isInternalEmail(email) {
+    return new RegExp('@' + INTERNAL_DOMAIN.replace('.', '\\.') + '$', 'i').test(String(email || ''));
+  }
+
+  // A single Response for any simulated API write. The union of commonly-read
+  // fields keeps pages from crashing when they destructure the reply.
+  function mockApiResponse() {
+    const body = {
+      ok: true, mock: true, demo: true,
+      message: 'Demo mode: simulated response. Live generation and saving are limited to vahdam.com accounts.',
+      variants: [], items: [], entries: [], results: [], campaigns: [], posts: [], data: null,
+      reply: 'I am running in demo mode for non-VAHDAM accounts, so I can show you around but I will not run live tools or generation. Sign in with a vahdam.com email for the full experience.',
+      html: '<div style="padding:28px;font-family:system-ui,sans-serif;color:#5d6e64;line-height:1.6">Demo mode: sample output only.<br>Sign in with a <b>vahdam.com</b> account to generate live assets.</div>',
+    };
+    return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // Install ONCE, up front. It reads the live mockMode flag at call time, so
+  // requests fired before sign-in resolves are covered the moment the flag
+  // flips. Reads (GET) always pass through; writes/generation POSTs to /api/
+  // are simulated for mock users. public-config / health stay live so the
+  // shell can still boot.
+  function installMockFetchGuard() {
+    if (window.__lcMockFetchGuard) return;
+    window.__lcMockFetchGuard = true;
+    const orig = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+      try {
+        if (window.LifecycleAuth && window.LifecycleAuth.mockMode) {
+          const url = typeof input === 'string' ? input : (input && input.url) || '';
+          const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+          const isApi = /\/api\//.test(url);
+          const isOpenApi = /\/api\/(public-config|health)/.test(url);
+          if (isApi && method !== 'GET' && !isOpenApi) {
+            lcToast('Demo mode: this action is simulated. Sign in with a vahdam.com account for live generation.');
+            return Promise.resolve(mockApiResponse());
+          }
+        }
+      } catch (_) { /* never let the guard break a real request */ }
+      return orig(input, init);
+    };
+  }
+
+  // Recompute access mode from the signed-in user and reflect it in the UI.
+  function applyAccessMode(user) {
+    const email = (user && (user.email || (user.user_metadata && user.user_metadata.email))) || '';
+    const internal = !!user && isInternalEmail(email);
+    window.LifecycleAuth.internal = internal;
+    window.LifecycleAuth.mockMode = !!user && !internal;
+    window.__VAHDAM_MOCK__ = window.LifecycleAuth.mockMode;
+    if (window.LifecycleAuth.mockMode) showDemoBanner(email); else removeDemoBanner();
+  }
+
+  // Slim, non-blocking demo banner (bottom-fixed so it never fights the mobile
+  // top bar or the sidebar layout).
+  function showDemoBanner(email) {
+    if (document.getElementById('lc-demo-banner')) return;
+    const b = document.createElement('div');
+    b.id = 'lc-demo-banner';
+    b.innerHTML = `
+      <style>
+        #lc-demo-banner {
+          position: fixed; left: 0; right: 0; bottom: 0; z-index: 9500;
+          display: flex; align-items: center; justify-content: center; gap: 10px;
+          padding: 9px 16px calc(9px + env(safe-area-inset-bottom, 0px));
+          background: rgba(23,23,23,0.96); backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border-top: 1px solid rgba(171,135,67,0.4);
+          font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: #FBF5EA;
+          line-height: 1.4; text-align: center;
+        }
+        #lc-demo-banner b { color: #AB8743; }
+        #lc-demo-banner .lc-demo-dot {
+          width: 8px; height: 8px; border-radius: 50%; background: #AB8743; flex-shrink: 0;
+          box-shadow: 0 0 0 3px rgba(171,135,67,0.2);
+        }
+        @media (max-width: 620px) { #lc-demo-banner { font-size: 11px; } }
+      </style>
+      <span class="lc-demo-dot"></span>
+      <span><b>Demo mode:</b> sample data only. Live generation and saving need a <b>vahdam.com</b> account${email ? ' (you are signed in as ' + String(email).replace(/</g, '&lt;') + ')' : ''}.</span>
+    `;
+    document.body.appendChild(b);
+  }
+  function removeDemoBanner() {
+    const b = document.getElementById('lc-demo-banner');
+    if (b) b.remove();
+  }
+
+  // Lightweight toast used by the fetch guard.
+  function lcToast(msg) {
+    let host = document.getElementById('lc-toast-host');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'lc-toast-host';
+      host.style.cssText = 'position:fixed;left:50%;bottom:56px;transform:translateX(-50%);z-index:9600;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none';
+      document.body.appendChild(host);
+    }
+    const t = document.createElement('div');
+    t.style.cssText = 'max-width:min(90vw,420px);background:rgba(15,29,24,0.98);border:1px solid rgba(171,135,67,0.4);color:#FBF5EA;font-family:\'Inter\',system-ui,sans-serif;font-size:12.5px;line-height:1.5;padding:10px 14px;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.5);opacity:0;transition:opacity .2s;text-align:center';
+    t.textContent = msg;
+    host.appendChild(t);
+    requestAnimationFrame(() => { t.style.opacity = '1'; });
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 240); }, 3200);
+  }
+
+  // ─── OAuth redirect helpers (issue: sign-in not landing correctly) ──────
+  // True while the browser is on a Supabase OAuth callback (PKCE ?code=, an
+  // ?error=, or an implicit #access_token). During this window we must NOT
+  // flash the login wall — detectSessionInUrl is exchanging the code and
+  // onAuthStateChange will fire SIGNED_IN momentarily.
+  function oauthCallbackInProgress() {
+    try {
+      const sp = new URLSearchParams(location.search || '');
+      if (sp.has('code') || sp.has('error') || sp.has('error_description')) return true;
+      const hash = location.hash || '';
+      if (/access_token=|error=/.test(hash)) return true;
+    } catch (_) {}
+    return false;
+  }
+  // Remember where the user was so we can send them back after Google bounces
+  // them to the Supabase Site URL (which happens when the exact path is not in
+  // the redirect allow-list).
+  function rememberReturnTo() {
+    try { localStorage.setItem('lc-return-to', location.pathname + location.search + location.hash); } catch (_) {}
+  }
+  function restoreReturnTo() {
+    let target = null;
+    try { target = localStorage.getItem('lc-return-to'); localStorage.removeItem('lc-return-to'); } catch (_) {}
+    if (!target) return;
+    const targetPath = target.split('?')[0].split('#')[0];
+    // Only redirect if we actually landed somewhere else (avoid loops / no-ops).
+    if (targetPath && targetPath !== location.pathname) {
+      location.replace(target);
+    }
+  }
+
   async function init() {
     window.LifecycleAuth = {
       client: null,
       session: null,
       user: null,
+      internal: false,
+      mockMode: false,
       signOut: async () => {
         if (window.LifecycleAuth.client) await window.LifecycleAuth.client.auth.signOut();
         window.LifecycleAuth.session = null;
         window.LifecycleAuth.user = null;
+        applyAccessMode(null);
         location.reload();
       },
     };
+    installMockFetchGuard();
 
     const config = await getConfig();
     if (!config) {
@@ -1339,9 +1521,25 @@
     if (session?.user) {
       window.LifecycleAuth.session = session;
       window.LifecycleAuth.user = session.user;
+      applyAccessMode(session.user);
       injectTopbar(session.user);
+      restoreReturnTo();
       // Keep the Studio frictionless: only prompt for profile on the gated steps.
       if (!isOpenPage()) await maybeShowProfileModal(client, session.user);
+    } else if (oauthCallbackInProgress()) {
+      // Mid sign-in: the PKCE code is being exchanged by detectSessionInUrl and
+      // onAuthStateChange will fire SIGNED_IN shortly. Show a "completing" state
+      // rather than flashing the login wall. Fall back to the wall if the
+      // exchange never resolves (bad/expired code).
+      injectSigningInOverlay();
+      setTimeout(async () => {
+        const { data: { session: s2 } } = await client.auth.getSession();
+        if (!s2?.user && !window.LifecycleAuth.session) {
+          removeSigningInOverlay();
+          if (!isOpenPage()) injectLoginWall('Sign-in did not complete. Please try again.');
+          else injectTopbar(null);
+        }
+      }, 4500);
     } else if (isOpenPage()) {
       // Open feature (Mailer Studio) — no sign-in required; show nav as guest.
       injectTopbar(null);
@@ -1353,11 +1551,14 @@
     client.auth.onAuthStateChange(async (_event, sess) => {
       window.LifecycleAuth.session = sess;
       window.LifecycleAuth.user = sess?.user || null;
+      applyAccessMode(sess?.user || null);
       if (sess?.user) {
+        removeSigningInOverlay();
         removeLoginWall();
         const existing = document.getElementById('lifecycle-nav');
         if (existing) existing.remove();   // rebuild so the guest "Sign in" becomes the user chip
         injectTopbar(sess.user);
+        restoreReturnTo();
         if (!isOpenPage()) await maybeShowProfileModal(client, sess.user);
       } else {
         const tb = document.getElementById('lifecycle-nav');
