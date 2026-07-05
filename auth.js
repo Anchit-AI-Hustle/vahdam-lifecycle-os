@@ -21,6 +21,90 @@
   if (window.__LifecycleAuthBooted) return;
   window.__LifecycleAuthBooted = true;
 
+  // ─── Shared design system: load /theme.css once on every page ───────────
+  // theme.css is additive (design tokens + globally-safe polish + opt-in vh-*
+  // components), so it never clobbers a page's own CSS. Injected here so every
+  // page that ships auth.js inherits the system — including the Capacitor apps,
+  // which are WebView shells over production. Also ensure the viewport opts into
+  // safe-area (notch) insets so the theme's env() padding actually resolves.
+  (function ensureTheme() {
+    try {
+      var d = document;
+      if (!d.querySelector('link[data-vh-theme]')) {
+        var l = d.createElement('link');
+        l.rel = 'stylesheet';
+        l.href = '/theme.css?v=20260705';
+        l.setAttribute('data-vh-theme', '1');
+        (d.head || d.documentElement).appendChild(l);
+      }
+      var vp = d.querySelector('meta[name="viewport"]');
+      if (vp && !/viewport-fit/.test(vp.getAttribute('content') || '')) {
+        vp.setAttribute('content', vp.getAttribute('content') + ', viewport-fit=cover');
+      } else if (!vp) {
+        vp = d.createElement('meta');
+        vp.name = 'viewport';
+        vp.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+        (d.head || d.documentElement).appendChild(vp);
+      }
+      // Apply the saved theme variant ASAP (before paint) to avoid a flash.
+      var saved = null; try { saved = localStorage.getItem('vh-theme'); } catch (_) {}
+      var theme = (saved === 'dark' || saved === 'dusk' || saved === 'light') ? saved : 'dark';
+      d.documentElement.setAttribute('data-theme', theme);
+    } catch (_) {}
+  })();
+
+  // ─── Theme switcher (dark ⇄ dusk ⇄ light) ───────────────────────────────
+  // One shared control, injected on every page. Persists to localStorage as
+  // 'vh-theme' and flips html[data-theme]; theme.css does the rest via tokens.
+  // Dark and dusk are correct on every var-based page today; light is correct
+  // on migrated pages (per-page migration is tracked separately).
+  (function themeSwitch() {
+    var THEMES = ['dark', 'dusk', 'light'];
+    var LABEL = { dark: 'Dark', dusk: 'Dusk', light: 'Light' };
+    var ICON = { dark: '◐', dusk: '◑', light: '○' };
+    function current() {
+      var t = document.documentElement.getAttribute('data-theme');
+      return THEMES.indexOf(t) >= 0 ? t : 'dark';
+    }
+    function set(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      try { localStorage.setItem('vh-theme', t); } catch (_) {}
+      paint();
+    }
+    var btn;
+    function paint() {
+      if (!btn) return;
+      var t = current();
+      btn.innerHTML = '<span aria-hidden="true" style="font-size:14px;line-height:1">' + ICON[t] + '</span><span>' + LABEL[t] + '</span>';
+      btn.setAttribute('aria-label', 'Theme: ' + LABEL[t] + '. Click to switch.');
+    }
+    function mount() {
+      if (document.getElementById('vh-theme-switch')) return;
+      btn = document.createElement('button');
+      btn.id = 'vh-theme-switch';
+      btn.type = 'button';
+      btn.style.cssText = [
+        'position:fixed', 'z-index:9700',
+        'bottom:calc(14px + env(safe-area-inset-bottom,0px))',
+        'left:calc(14px + env(safe-area-inset-left,0px))',
+        'display:inline-flex', 'align-items:center', 'gap:7px',
+        'padding:8px 12px', 'border-radius:999px', 'cursor:pointer',
+        'font-family:inherit', 'font-size:11.5px', 'font-weight:600', 'letter-spacing:0.02em',
+        'background:var(--vh-panel,#0f1d18)', 'color:var(--vh-ink,#e8ede9)',
+        'border:1px solid var(--vh-line-hot,rgba(171,135,67,0.5))',
+        'box-shadow:0 6px 20px rgba(0,0,0,0.35)', 'transition:transform .12s'
+      ].join(';');
+      btn.addEventListener('click', function () {
+        var i = THEMES.indexOf(current());
+        set(THEMES[(i + 1) % THEMES.length]);
+      });
+      document.body.appendChild(btn);
+      paint();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+    else mount();
+  })();
+
   // ─── PWA install: register the service worker once per page load ────────
   // This is what makes the address-bar install icon appear in Chrome / Edge
   // (and adds "Add to Home Screen" on iOS/Android) — alongside the manifest.
