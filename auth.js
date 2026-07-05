@@ -181,7 +181,6 @@
     { section: 'Design & Create' },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
-    { id: 'social', label: 'Social Media OS', href: '/social', icon: 'social', ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
     { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
@@ -199,6 +198,7 @@
     ]},
 
     { section: 'Share & Track' },
+    { id: 'social', label: 'Social Media OS', href: '/social', icon: 'social', ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
     { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
 
     { section: 'Assistants' },
@@ -229,19 +229,8 @@
   ];
   // Each entry: { title, what, who, how, input, steps:[[name, detail, runsVia?]…], pipeline?:true }
   const INFO = {
-    home: {
-      title: 'Home',
-      what: "The front door of Lifecycle OS. It mirrors every feature in this sidebar as a launch grid so the team can jump into analysis, planning, creation, or intelligence in one click.",
-      who: "The whole retention and growth team — it serves the operator, not a customer segment. Every cohort program starts from here.",
-      how: "A static page that reads the shared navigation model (window.__LC_NAV, published by auth.js) and renders one tile per feature — so the grid can never drift out of sync with this menu. Sign-in is optional.",
-      input: "Nothing. Optionally sign in with Google so Supabase-backed features (Knowledge Base, Smart Brain plans, saved work) follow you across devices.",
-      steps: [
-        ['Boot the shell', 'auth.js loads config from /api/public-config and renders this shared sidebar on every page.'],
-        ['Read the nav model', 'The homepage reads window.__LC_NAV — the exact structure of this menu.'],
-        ['Render launch tiles', 'One tile per feature, grouped in workflow order like this sidebar (Research & Benchmark, Plan, Design & Create, Share & Track, Assistants).'],
-        ['Jump in', 'Click any tile; state you build elsewhere (analytics, plans) follows via localStorage and Supabase.'],
-      ],
-    },
+    // Home is a plain landing link, not a content-producing feature, so it
+    // deliberately has NO 5-sub-item IA entry — it renders as a simple link.
     chaigpt: {
       title: 'ChaiGPT',
       what: "VAHDAM's own brand LLM — a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
