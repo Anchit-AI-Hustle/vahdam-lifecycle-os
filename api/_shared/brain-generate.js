@@ -226,7 +226,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   const testiBlocks = testis.map((t) => `
     <div style="background:${P.cream};border-left:3px solid ${P.gold};padding:16px 18px;text-align:left;margin-bottom:10px">
       <div style="font-family:${heads};font-size:14px;font-style:italic;color:${P.near_black};line-height:1.6">“${esc(t.quote)}”</div>
-      <div style="font-family:${body};font-size:12px;color:${P.gold};margin-top:8px">— ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''} &nbsp;★★★★★</div>
+      <div style="font-family:${body};font-size:12px;color:${P.gold};margin-top:8px">- ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''} &nbsp;★★★★★</div>
     </div>`).join('');
   const prods = products.slice(0, 3).map((p) => `
     <td align="center" style="padding:10px;width:33%">
@@ -268,7 +268,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   <tr><td align="center" style="padding:18px 26px 8px">
     <div style="border:1px solid ${P.gold}55;border-radius:12px;padding:20px 22px;background:#ffffff">
       <div style="font-family:${heads};font-size:17px;color:${P.forest_green}">Not sure where to begin?</div>
-      <div style="font-family:${body};font-size:13px;color:${P.near_black}AA;line-height:1.6;margin-top:6px">Talk to our tea expert — ask about benefits, brewing, and which blend fits your ritual. It answers, out loud, like a call.</div>
+      <div style="font-family:${body};font-size:13px;color:${P.near_black}AA;line-height:1.6;margin-top:6px">Talk to our tea expert, ask about benefits, brewing, and which blend fits your ritual. It answers, out loud, like a call.</div>
       <a href="${agentUrl}" style="display:inline-block;margin-top:12px;background:${P.forest_green};color:${P.cream};font-family:${body};font-size:13px;font-weight:700;padding:11px 26px;border-radius:8px;text-decoration:none">Talk to the Vahdam expert →</a>
     </div>
   </td></tr>
@@ -378,7 +378,7 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
     <div class="card" style="animation-delay:${i * 80}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:24px">
       <div style="color:${P.gold};letter-spacing:2px">★★★★★</div>
       <div style="font-family:${heads};font-style:italic;font-size:16px;line-height:1.6;margin:10px 0;color:${P.near_black}">“${esc(t.quote)}”</div>
-      <div style="font-size:12.5px;color:${P.gold};font-weight:600">— ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''}</div>
+      <div style="font-size:12.5px;color:${P.gold};font-weight:600">- ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''}</div>
     </div>`).join('');
   const stackItems = (stack.items || []).map((it) => `<li style="margin:10px 0;padding-left:28px;position:relative;line-height:1.6"><span style="position:absolute;left:0;color:${P.gold}">✓</span>${esc(it)}</li>`).join('');
   const faq = faqList.map((f) => `<details style="border-bottom:1px solid ${P.gold}33;padding:16px 0"><summary style="font-family:${heads};font-size:17px;color:${P.near_black};cursor:pointer;list-style:none">${esc(f.q)}</summary><p style="color:${P.near_black}BB;line-height:1.7;margin:10px 0 0">${esc(f.a)}</p></details>`).join('');

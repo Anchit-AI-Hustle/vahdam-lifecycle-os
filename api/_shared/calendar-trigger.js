@@ -124,7 +124,7 @@ function segmentVoiceGuide(segment, contentType) {
     'Need-Attention': 'soft re-engagement, no aggressive discount yet.',
     'About-to-Sleep': 'gentle reminder + curated 3-pick. Question-based subject.',
     'At-Risk':        'one personal note, one fair offer, single CTA.',
-    Hibernating:      'short founder\'s note, no discount, link to one curated read.',
+    Hibernating:      'short brand note from the team (never a founder or personal voice), no discount, link to one curated read.',
     Lost:             'do not send.',
   };
   return map[segment] || 'professional, warm, on-brand.';
@@ -409,7 +409,7 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
         <p style="font-family:'Proxima Nova',sans-serif;font-size:14px;line-height:1.6;color:${palette.ink};margin:24px 0 6px;">
           <a href="${baseUrl}" style="color:${palette.green};text-decoration:underline;font-weight:600;">${esc(cta_text)} →</a>
         </p>
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:18px 0 0;">— the VAHDAM team</p>
+        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:18px 0 0;">The VAHDAM team</p>
       </td></tr>
     </table>
   </td></tr>
@@ -429,7 +429,7 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
       <tr><td style="padding:24px 32px 0;">
         <p style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:30px;line-height:1.25;color:${palette.green};margin:0 0 10px;font-weight:500;">${esc(hero_headline)}</p>
         <p style="font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.6;color:${palette.ink};margin:0 0 8px;">${esc(hero_subline)}</p>
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:13px;color:#7a6e5a;margin:0;">— a note from the cupping table</p>
+        <p style="font-family:'Proxima Nova',sans-serif;font-size:13px;color:#7a6e5a;margin:0;">A note from the cupping table</p>
       </td></tr>
       ${blocks}
       <tr><td style="padding:28px 32px 36px;text-align:center;">

@@ -14,6 +14,7 @@
     "api/ai/pipeline/variant.js":  { "maxDuration": 55 },
     "api/ai/pipeline/images.js":   { "maxDuration": 120 },
     "api/ai/pipeline/html.js":     { "maxDuration": 90 },
+    "api/ai/pipeline/score.js":    { "maxDuration": 45 },
     "api/calendar.js":             { "maxDuration": 90 },
     "api/competitor.js":           { "maxDuration": 60 },
     "api/kb.js":                   { "maxDuration": 60 },

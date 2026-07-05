@@ -241,10 +241,18 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
   const otherKeys = Object.keys(CF.COPY_FRAMEWORKS).filter((k) => k !== fwA.key);
   const fwB = CF.frameworkByKey(otherKeys[CF.stableIndex(`${row.id || row.date}|b`, otherKeys.length)]) || fwA;
 
-  const [rA, rB] = await Promise.all([
+  // Partial-failure tolerant: if one premium copy call fails we still ship with
+  // the one that succeeded (both diverge only by framework). Fail only if BOTH
+  // reject.
+  const [pA, pB] = await Promise.allSettled([
     writeCopy(buildBrief(row, fwA), CF.copyFrameworkSystemLine(fwA)),
     writeCopy(buildBrief(row, fwB), CF.copyFrameworkSystemLine(fwB)),
   ]);
+  if (pA.status !== 'fulfilled' && pB.status !== 'fulfilled') {
+    throw new Error('mailer copy generation failed for both variants: ' + String((pA.reason && pA.reason.message) || pA.reason));
+  }
+  const rA = pA.status === 'fulfilled' ? pA.value : pB.value;
+  const rB = pB.status === 'fulfilled' ? pB.value : pA.value;
   const SA = sanitizeCopy(rA.copy, `lifecycle-mailer:${row.id || row.play_key}:a`);
   const SB = sanitizeCopy(rB.copy, `lifecycle-mailer:${row.id || row.play_key}:b`);
 
