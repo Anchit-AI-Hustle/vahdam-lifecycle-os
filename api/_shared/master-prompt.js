@@ -13,6 +13,8 @@
  * (BRAND_BLOCK) — other prompt sites should import it rather than re-deriving it.
  */
 
+const assetSpecs = require('./asset-specs');
+
 // ── Brand constants (source of truth: Brand style guide.pdf) ────────────────
 const BRAND_BLOCK = `BRAND: VAHDAM India — premium single-estate Indian teas & wellness.
 VOICE: warm, sensory, emotionally resonant, story-driven. Testimonials read as tiny personal stories, not reviews.
@@ -85,13 +87,17 @@ ${VISUAL_CASCADE}`;
 // it produces and treat motion as an OPTIONAL hand-off brief, never a delivered
 // asset. The text fields (headlines/captions/scripts) are still authored as copy.
 function adContract(platform) {
-  const specs = {
-    google: 'Google (Responsive Search + Performance Max): 15 headlines (≤30 chars), 4 descriptions (≤90 chars), long headline (≤90), business name. PRODUCED creatives are static images at 1.91:1 (1200×628) and 1:1 (1200×1200).',
-    meta: 'Meta (Facebook/Instagram Feed + Reels + Stories): primary text (≤125 chars before truncation), headline (≤40), description. PRODUCED creatives are static images at 1:1 (1080×1080, Feed) and 9:16 (1080×1920, Story/Reel).',
-    instagram: 'Instagram (Feed + Reels + Stories): caption with hook in first line + hashtags. PRODUCED creatives are static images at 1:1 (1080×1080) and 9:16 (1080×1920).',
-    tiktok: 'TikTok (In-Feed + Spark): native-feeling video script with a 0–2s hook, on-screen text beats, brand-safe audio direction, caption, and 3 hashtag options. The PRODUCED creative is a static 9:16 (1080×1920) key-frame/cover image (the script is a brief for a separate shoot/edit).',
+  // Copy-field limits per platform (authored text). Produced creative SIZES are
+  // sourced from asset-specs.js (single source of truth) so every placement size
+  // stays canonical and complete across the whole app.
+  const copyGuide = {
+    google: 'Google (Responsive Search + Performance Max): 15 headlines (≤30 chars), 4 descriptions (≤90 chars), long headline (≤90), business name.',
+    meta: 'Meta (Facebook/Instagram Feed + Reels + Stories): primary text (≤125 chars before truncation), headline (≤40), description.',
+    instagram: 'Instagram (Feed + Reels + Stories): caption with hook in first line + hashtags.',
+    tiktok: 'TikTok (In-Feed + Spark): native-feeling video script with a 0–2s hook, on-screen text beats, brand-safe audio direction, caption, and 3 hashtag options. The produced creative is a cover keyframe (the script is a brief for a separate shoot/edit).',
   };
-  const spec = specs[platform] || specs.meta;
+  const sizeKey = assetSpecs.ADS[platform] ? platform : 'meta';
+  const spec = (copyGuide[platform] || copyGuide.meta) + ' PRODUCED at each placement — ' + assetSpecs.adSpecText(sizeKey);
   return `ASSET: Paid ad creative for ${platform.toUpperCase()} — a FULL ad, not just copy.
 The PRODUCED creative is a still, photoreal, on-palette image at each size below, with the on-creative text overlay BAKED INTO the image — exactly like a real ${platform} ad. The text is part of the rendered creative, NOT a separate caption: specify the exact overlay wording, font (Lao MN headings / Proxima Nova body), colour (use ONLY #004A2B / #AB8743 / #FBF5EA / #171717), size and pixel placement within the safe zones (on 9:16 keep all text clear of the bottom 20% platform-UI chrome), legible at a glance.
 
