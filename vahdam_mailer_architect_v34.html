@@ -6691,7 +6691,7 @@ const _ARCH_MAP={
   Sale:       {A:'product-grid-conversion',  B:'hero-led-editorial'},
   Launch:     {A:'single-product-spotlight', B:'storytelling-narrative'},
   Bestseller: {A:'product-grid-conversion',  B:'hero-led-editorial'},
-  Story:      {A:'founder-note',             B:'storytelling-narrative'},
+  Story:      {A:'hero-led-editorial',       B:'storytelling-narrative'},
   Routine:    {A:'ritual-journey',           B:'subscription-anchor'},
   Gift:       {A:'gift-bundle-showcase',     B:'storytelling-narrative'},
   Discovery:  {A:'comparison-discovery',     B:'editorial-trend-roundup'},
@@ -6755,7 +6755,7 @@ function _arch_pickArchetype(st,variant){
   if(/countdown|ends in|hours left|today only|while.{0,8}last|last.{0,8}chance/.test(p))
     return pick({conversion:'limited-drop-countdown', narrative:'storytelling-narrative'});
   if(/founder|behind the brand|our story|the people behind/.test(p))
-    return pick({conversion:'single-product-spotlight', narrative:'founder-note'});
+    return pick({conversion:'single-product-spotlight', narrative:'storytelling-narrative'});
   if(/subscri|every month|loyalty|monthly box/.test(p))
     return pick({conversion:'subscription-anchor', narrative:'ritual-journey'});
   if(/compar|\bvs\.?\s|which.{0,12}choose|side by side/.test(p))
@@ -9729,9 +9729,7 @@ document.addEventListener('DOMContentLoaded',function(){
      was removed; every /api/ai/generate + image call runs on the premium model
      cascade, and "Agentic" opens the full 8-stage flow at /brain. -->
 <div id="vhdMode" style="position:fixed;top:10px;right:12px;z-index:9000;display:flex;gap:8px;align-items:center;background:rgba(251,245,234,0.97);border:1px solid #004A2B;border-radius:999px;padding:5px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.12);font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">
-  <span title="Highest-accuracy model cascade, always on" style="font-size:11px;font-weight:700;color:#004A2B;letter-spacing:.03em">⚡ Premium</span>
-  <span style="color:#AB8743;font-weight:700">·</span>
-  <a href="/brain" title="Agentic 8-stage flow + 5-scenario calendar" style="font-size:11px;font-weight:700;text-decoration:none;border-radius:999px;padding:4px 9px;background:#AB8743;color:#FBF5EA">🤖 Agentic ↗</a>
+  <a href="/brain" title="The single mode: an agentic pipeline powered by the premium (highest-accuracy) model cascade" style="font-size:11px;font-weight:700;text-decoration:none;border-radius:999px;padding:4px 10px;background:#AB8743;color:#FBF5EA">🤖 Agentic ↗</a>
 </div>
 <script>
 (function(){

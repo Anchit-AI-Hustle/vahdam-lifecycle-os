@@ -1,18 +1,18 @@
 'use strict';
 
 /**
- * Lifecycle mailer builder — one calendar row → one brand-compliant mailer.
+ * Lifecycle mailer builder - one calendar row → one brand-compliant mailer.
  *
  * Flow:
  *   row (from lifecycle-calendar-generate.js, by id or inline)
  *   → brief (cohort voice_guide + play mechanic + locked product facts from
  *     data/product-types.json + purchase-mode-correct CTA rules + brand gates)
- *   → ONE llm() call via llm.js — same JSON contract as calendar-trigger.js:
+ *   → ONE llm() call via llm.js - same JSON contract as calendar-trigger.js:
  *     { subject_line, preview_text, hero_headline, hero_subline, body_blocks[], cta_text }
  *   → sanitizeBrand()/assertNoBanned() from scenario-model.js on every LLM string
- *     (single shared banned list — no third copy)
+ *     (single shared banned list - no third copy)
  *   → HTML via renderTextVariant imported from calendar-trigger.js helpers
- *     (style is the play's template_style: pure|visual|editorial — NEVER founder)
+ *     (style is the play's template_style: pure|visual|editorial - NEVER founder)
  *   → optional hero creative via creative-image.js (silent skip on failure)
  *   → if Supabase is configured: persist into the row's mailer JSONB, status='built'.
  */
@@ -23,7 +23,6 @@ const { helpers } = require('./calendar-trigger.js');
 const { COHORTS, PLAYS, ALLOWED_TEMPLATE_STYLES, purchaseModeForProductType } = require('./lifecycle-cohorts.js');
 const { loadProductTypes } = require('./lifecycle-calendar-generate.js');
 const CF = require('./copy-frameworks.js');
-const creative = require('./creative-image.js');
 
 // ─── Brief builder ───────────────────────────────────────────────────────────
 
@@ -31,29 +30,29 @@ function productFactsBlock(productType) {
   const PT = loadProductTypes();
   if (productType === 'tb') {
     const lines = PT.types.tb.products.map((p) =>
-      `- ${p.title} — £${p.price_gbp.toFixed(2)}${p.compare_at_gbp ? ` (compare-at £${p.compare_at_gbp.toFixed(2)}, a live store price — honest to cite)` : ''} — ${PT.store.base_url}/products/${p.handle}`);
+      `- ${p.title} - £${p.price_gbp.toFixed(2)}${p.compare_at_gbp ? ` (compare-at £${p.compare_at_gbp.toFixed(2)}, a live store price - honest to cite)` : ''} - ${PT.store.base_url}/products/${p.handle}`);
     return [
-      'PRODUCT FACTS — Teas & Botanicals (ONE-TIME PURCHASE ONLY — never use subscription language):',
+      'PRODUCT FACTS - Teas & Botanicals (ONE-TIME PURCHASE ONLY - never use subscription language):',
       ...lines,
     ].join('\n');
   }
   if (productType === 'coffee') {
     const c = PT.types.coffee;
     return [
-      'PRODUCT FACTS — Ashwagandha Coffee (SUBSCRIPTION IS THE PRIORITY CTA; one-time is the quiet secondary):',
+      'PRODUCT FACTS - Ashwagandha Coffee (SUBSCRIPTION IS THE PRIORITY CTA; one-time is the quiet secondary):',
       '- Pack of 1: £49.99 one-time / £29.99 subscription.',
-      '- Pack of 3: £99.99 one-time / £59.99 subscription. B2G1 framing: £59.99 = 2 x £29.99 — buy two packs, the third is free.',
+      '- Pack of 3: £99.99 one-time / £59.99 subscription. B2G1 framing: £59.99 = 2 x £29.99 - buy two packs, the third is free.',
       `- 7 free gifts with EVERY order (both modes): ${c.gifts.join(', ')}.`,
       `- Subscription-only hook: gifts worth more than £${c.sub_gift_value_per_year_gbp} across the year, arriving with refills.`,
-      `- Product URL: ${PT.store.base_url}/products/${c.handle} (handle is a best guess — do not invent others).`,
+      `- Product URL: ${PT.store.base_url}/products/${c.handle} (handle is a best guess - do not invent others).`,
       '- These are the ONLY prices and offers that exist. NO new discount codes may be invented.',
     ].join('\n');
   }
   const s = PT.types.supplements;
   return [
-    'PRODUCT FACTS — Supplements (just launched, zero buyers — "be among the first" is TRUE and allowed; SUBSCRIPTION IS THE PRIORITY CTA):',
-    ...s.products.map((p) => `- ${p.title} — ${PT.store.base_url}/products/${p.handle}`),
-    '- NO pricing was provided — NEVER state a price for supplements. CTA to the product page only.',
+    'PRODUCT FACTS - Supplements (just launched, zero buyers - "be among the first" is TRUE and allowed; SUBSCRIPTION IS THE PRIORITY CTA):',
+    ...s.products.map((p) => `- ${p.title} - ${PT.store.base_url}/products/${p.handle}`),
+    '- NO pricing was provided - NEVER state a price for supplements. CTA to the product page only.',
   ].join('\n');
 }
 
@@ -68,9 +67,9 @@ function brandGatesBlock() {
   return [
     'BRAND GATES (hard fail if violated):',
     '- Palette: only forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA. Never mention other colors.',
-    "- Fonts are fixed by the template (Lao MN headings, Proxima Nova body) — do not reference fonts in copy.",
+    "- Fonts are fixed by the template (Lao MN headings, Proxima Nova body) - do not reference fonts in copy.",
     '- BANNED phrases (any casing unless noted): "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" in caps, "hurry", "don\'t miss out", "last chance", "while supplies last".',
-    '- NO FOUNDER VOICE — no founder letters, no "from our founder/CEO", no personal-name sign-offs, no first-person-singular ("I") narration. The brand speaks as "we".',
+    '- NO FOUNDER VOICE - no founder letters, no "from our founder/CEO", no personal-name sign-offs, no first-person-singular ("I") narration. The brand speaks as "we".',
     '- NO medical claims for ashwagandha/turmeric/supplements: no disease, stress-cure, cortisol, or weight-loss claims. Softest allowed register: "calm", "steady", "balance", "a gentler kind of energy".',
     '- No invented discounts or codes. Only the exact prices/mechanics in the product facts.',
     '- Voice: warm, sensory, story-driven. Preferred words: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
@@ -94,8 +93,8 @@ function buildBrief(entry, fw) {
     `Play: ${play.name}`,
     `Play mechanic: ${play.mechanic}`,
     ctaFraming ? `Play CTA framing for this purchase mode: ${ctaFraming}` : null,
-    entry.festival ? `Cultural moment: ${entry.festival} (weight ${entry.festival_weight}/10) — weave it in lightly.` : null,
-    `Hero product: ${entry.hero_product}${entry.hero_price ? ` — ${entry.hero_price}` : ''}`,
+    entry.festival ? `Cultural moment: ${entry.festival} (weight ${entry.festival_weight}/10) - weave it in lightly.` : null,
+    `Hero product: ${entry.hero_product}${entry.hero_price ? ` - ${entry.hero_price}` : ''}`,
     `Subject-line direction: ${entry.subject_hint || ''}`,
     '',
     CF.strategyBriefBlock(entry.cohort_key),
@@ -122,7 +121,7 @@ async function writeCopy(brief, frameworkLine) {
       'Use VAHDAM brand voice (warm, sensory, story-driven). ' +
       (frameworkLine ? frameworkLine + ' ' : '') +
       'Obey every brand gate, ' +
-      'CTA rule and product fact in the brief exactly — no invented prices, no banned phrases, ' +
+      'CTA rule and product fact in the brief exactly - no invented prices, no banned phrases, ' +
       'no founder voice, no medical claims.',
     userMessage: brief,
     responseFormat: { type: 'json_object' },
@@ -157,23 +156,34 @@ function sanitizeCopy(copy, where) {
   return clean;
 }
 
-// ─── Optional hero creative (never blocks the mailer) ───────────────────────
+// ─── Hero image resolution - CORRECT IMAGES ONLY ────────────────────────────
+// We never ship an AI-generated hero (those can render garbled text/artifacts).
+// Text + Visual variants use the REAL catalog product image when the slot has
+// one; otherwise a clean, on-brand PLACEHOLDER of the ideal size that the user
+// drops a real image URL into (the exact prompt to generate one rides in the
+// variant metadata). This guarantees every shipped image is correct.
 
-async function heroCreative(entry) {
-  // 1. Real catalog image (T&B heroes) — free, verified, deterministic.
-  if (entry.hero_image) return { image: entry.hero_image, provider: 'catalog', brief: null };
-  // 2. Visual-style slots try one generated hero; anything else ships typographic.
-  if (entry.template_style !== 'visual') return null;
-  const brief =
-    `On-brand VAHDAM email hero for "${entry.hero_product}". Editorial product photography, ` +
-    'single-estate provenance, elegant negative space, cinematic light. Brand palette only ' +
-    '(forest #004A2B, gold #AB8743, cream #FBF5EA). Mood: warm, restrained. No on-image text.';
-  try {
-    const gen = await creative.generateCreativeImage(brief, { size: '1536x1024' });
-    if (!gen || !gen.image) return null;
-    const hosted = await creative.uploadCreative(gen.image, `lifecycle-${entry.id || 'slot'}`).catch(() => null);
-    return { image: hosted || gen.image, provider: gen.provider || null, brief };
-  } catch (_) { return null; }
+function placeholderImage(label, w, h) {
+  const t = String(label || 'Product image').replace(/[<&>]/g, ' ').slice(0, 42);
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
+    `<rect width="100%" height="100%" fill="#FBF5EA"/>` +
+    `<rect x="10" y="10" width="${w - 20}" height="${h - 20}" fill="none" stroke="#AB8743" stroke-width="2" stroke-dasharray="9 7"/>` +
+    `<text x="50%" y="45%" text-anchor="middle" fill="#004A2B" font-family="Georgia,serif" font-size="21">${t}</text>` +
+    `<text x="50%" y="59%" text-anchor="middle" fill="#AB8743" font-family="Arial,Helvetica,sans-serif" font-size="13">Drop your image URL here · ${w} x ${h}</text>` +
+    `</svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+function resolveHero(entry, w, h) {
+  if (entry.hero_image) {
+    return { url: entry.hero_image, mode: 'catalog', size: `${w}x${h}`, prompt: null };
+  }
+  const prompt =
+    `On-brand VAHDAM email hero for "${entry.hero_product || entry.product_type}". Editorial product ` +
+    `photography, single-estate provenance, elegant negative space, warm cinematic light. Brand palette ` +
+    `only (forest #004A2B, gold #AB8743, cream #FBF5EA). No text on the image. Ideal size ${w} x ${h}.`;
+  return { url: placeholderImage(entry.hero_product || 'Product image', w, h), mode: 'placeholder', size: `${w}x${h}`, prompt };
 }
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
@@ -213,12 +223,8 @@ async function persistMailer(id, mailer) {
 async function buildLifecycleMailer({ id = null, entry = null } = {}) {
   let row = entry;
   if (!row && id) row = await loadEntryById(id);
-  if (!row) throw new Error('entry not found — pass { entry } inline or an { id } that exists in lifecycle_calendar_entries');
+  if (!row) throw new Error('entry not found - pass { entry } inline or an { id } that exists in lifecycle_calendar_entries');
   if (!row.cohort_key || !row.product_type) throw new Error('entry must include cohort_key and product_type (a row from lifecycle-generate)');
-
-  // NO-FOUNDER hard gate: the founder render branch must never be reachable.
-  let style = String(row.template_style || (PLAYS[row.play_key] && PLAYS[row.play_key].template_style) || 'editorial');
-  if (!ALLOWED_TEMPLATE_STYLES.includes(style)) style = 'editorial';
 
   const PT = loadProductTypes();
   const ctaUrl = row.hero_handle
@@ -227,51 +233,74 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
         ? `${PT.store.base_url}/collections/${PT.types.coffee.collection_slug}`
         : PT.store.base_url);
 
-  const framework = CF.pickCopyFramework({ framework: row.framework, play_key: row.play_key, cohort_key: row.cohort_key, seed: row.id || row.date });
-  const brief = buildBrief(row, framework);
-  const { copy, provider, model } = await writeCopy(brief, CF.copyFrameworkSystemLine(framework));
-  const S = sanitizeCopy(copy, `lifecycle-mailer:${row.id || row.play_key}`);
+  // Two diverging framework angles → two premium copy sets, generated in
+  // parallel (same wall-clock as one call). A = the play's preferred framework;
+  // B = a deterministically-chosen different one, so the two directions read
+  // genuinely differently rather than being the same copy in two skins.
+  const fwA = CF.pickCopyFramework({ framework: row.framework, play_key: row.play_key, cohort_key: row.cohort_key, seed: row.id || row.date });
+  const otherKeys = Object.keys(CF.COPY_FRAMEWORKS).filter((k) => k !== fwA.key);
+  const fwB = CF.frameworkByKey(otherKeys[CF.stableIndex(`${row.id || row.date}|b`, otherKeys.length)]) || fwA;
 
-  const html = helpers.renderTextVariant({
-    style,
-    subject: S.subject_line,
-    hero_headline: S.hero_headline,
-    hero_subline: S.hero_subline,
-    body_blocks: S.body_blocks,
-    cta_text: S.cta_text,
-    cta_url: ctaUrl,
-    market: row.market || 'UK',
-    hero_product: row.hero_product,
+  const [rA, rB] = await Promise.all([
+    writeCopy(buildBrief(row, fwA), CF.copyFrameworkSystemLine(fwA)),
+    writeCopy(buildBrief(row, fwB), CF.copyFrameworkSystemLine(fwB)),
+  ]);
+  const SA = sanitizeCopy(rA.copy, `lifecycle-mailer:${row.id || row.play_key}:a`);
+  const SB = sanitizeCopy(rB.copy, `lifecycle-mailer:${row.id || row.play_key}:b`);
+
+  // Real catalog image if the slot has one; else a clean placeholder to fill.
+  const hero = resolveHero(row, 536, 340);
+
+  const market = row.market || 'UK';
+  const meta = (S) => ({
+    subject_line: S.subject_line, preview_text: S.preview_text,
+    hero_headline: S.hero_headline, hero_subline: S.hero_subline, cta_text: S.cta_text,
+  });
+  const render = (S, style, hero_image_url) => helpers.renderTextVariant({
+    style, subject: S.subject_line, hero_headline: S.hero_headline, hero_subline: S.hero_subline,
+    body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: ctaUrl, market,
+    hero_product: row.hero_product, hero_image_url,
   });
 
-  const heroImage = await heroCreative(row);
+  // Exactly the two named mailer types, two variants each (mailer taxonomy):
+  //   Text          = colour + type + structural elements (buttons, tables,
+  //                   dividers, badges), NO images / video / gif.
+  //   Text + Visual = the same, plus a hero image (real catalog or placeholder).
+  const variants = [
+    { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,          framework: fwA.key, image: null, ...meta(SA), html: render(SA, 'pure') },
+    { key: 'text_b',   type: 'Text',          label: `Text · ${fwB.name}`,          framework: fwB.key, image: null, ...meta(SB), html: render(SB, 'editorial') },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, image: hero, ...meta(SA), html: render(SA, 'visual', hero.url) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, image: hero, ...meta(SB), html: render(SB, 'visual', hero.url) },
+  ];
+
+  const primary = variants[2]; // visual_a, for backward-compatible top-level fields
+  const provider = rA.provider || rB.provider || null;
+  const model = rA.model || rB.model || null;
 
   const mailer = {
     built_at: new Date().toISOString(),
     entry_id: row.id || null,
     cohort_key: row.cohort_key,
     play_key: row.play_key,
-    framework: framework.key,
-    framework_name: `${framework.name} (${framework.full})`,
-    template_style: style,
+    frameworks: [fwA.key, fwB.key],
     purchase_mode: row.purchase_mode || purchaseModeForProductType(row.product_type),
-    subject_line: S.subject_line,
-    preview_text: S.preview_text,
-    hero_headline: S.hero_headline,
-    hero_subline: S.hero_subline,
-    body_blocks: S.body_blocks,
-    cta_text: S.cta_text,
+    // Backward-compatible top-level fields mirror the primary (visual A) variant.
+    subject_line: primary.subject_line,
+    preview_text: primary.preview_text,
+    hero_headline: primary.hero_headline,
+    hero_subline: primary.hero_subline,
+    cta_text: primary.cta_text,
     cta_url: ctaUrl,
-    html,
-    // Hero creative rides alongside the HTML (typographic templates stay
-    // intact); paste it into Klaviyo where the product-shot slot is marked.
-    creative: heroImage,
+    html: primary.html,
+    image: hero,
+    // The four deliverables: 2 Text + 2 Text + Visual.
+    variants,
     generated_by: provider ? `${provider}${model ? `/${model}` : ''}` : null,
   };
 
   const persistence = await persistMailer(row.id, mailer);
 
-  return { ok: true, id: row.id || null, entry: row, mailer, persisted: persistence.persisted, persistence };
+  return { ok: true, id: row.id || null, entry: row, mailer, variants, persisted: persistence.persisted, persistence };
 }
 
 module.exports = { buildLifecycleMailer, buildBrief, sanitizeCopy };

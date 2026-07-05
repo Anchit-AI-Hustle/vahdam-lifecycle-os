@@ -119,7 +119,7 @@ async function analyze({ message = '' }) {
     const hasData = (data.cohorts && data.cohorts.length) || (data.topProducts && data.topProducts.length) || (data.channelBenchmarks && Object.keys(data.channelBenchmarks).length);
     const sys = `You are VAHDAM's growth-analyst agent. Use the JSON numbers below when they answer the question — state those exact figures and NEVER invent or estimate numbers that aren't present. If the specific metric isn't in the data, say plainly it isn't wired into the dataset yet, then STILL give a genuinely useful, reasoned answer from the product catalog, brand knowledge and sound D2C lifecycle judgment. Never reply with just "I don't know" or "no data". Be concise (2-5 sentences), spoken-friendly.${hasData ? '' : '\n(Note: the analytics dataset is currently empty — reason from catalog + lifecycle best practice and say so.)'}\n\nDATA:\n${JSON.stringify(data)}`;
     try {
-      const out = await callLLM({ systemPrompt: sys, userMessage: message, maxTokens: 400, temperature: 0.4, timeoutMs: 30000, stage: 'agent-analyze' });
+      const out = await callLLM({ systemPrompt: sys, userMessage: message, maxTokens: 700, temperature: 0.4, timeoutMs: 30000, stage: 'agent-analyze', tier: 'premium' });
       answer = (typeof out === 'string' ? out : out.text || '').trim();
     } catch (_) { answer = ''; }
   }
@@ -288,7 +288,9 @@ RULES — CLEAR AND TO-THE-POINT:
   let provider = 'fallback';
   if (callLLM) {
     try {
-      const out = await callLLM({ systemPrompt: system, userMessage, maxTokens: 420, temperature: 0.7, timeoutMs: 30000, stage: 'agent-chat' });
+      // Headroom so replies never clip mid-sentence (was 420, which cut answers
+      // after a line or two). Premium tier for accurate, on-catalog answers.
+      const out = await callLLM({ systemPrompt: system, userMessage, maxTokens: 900, temperature: 0.7, timeoutMs: 30000, stage: 'agent-chat', tier: 'premium' });
       reply = (typeof out === 'string' ? out : out.text || '').trim();
       provider = typeof out === 'object' ? out.provider : 'llm';
     } catch (_) { reply = ''; }
