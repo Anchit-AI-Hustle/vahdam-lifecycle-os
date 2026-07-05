@@ -91,19 +91,18 @@
     <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
 
     <div class="card wide" id="dualmode">
-      <h2>Dual-Mode Generation</h2>
-      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation), or pull the <b>5-scenario calendar</b>. Pick a model tier.</p>
+      <h2>Agentic Generation</h2>
+      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation), or pull the <b>5-scenario calendar</b>. Always runs on the <b>Premium</b> model cascade.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-        <span class="label" style="margin-right:4px">Tier</span>
-        <button id="tierBudget" class="btn sm" onclick="setTier('budget')">💸 Budget</button>
-        <button id="tierMax" class="btn sm secondary" onclick="setTier('maxpower')">⚡ Max Power</button>
+        <span class="label" style="margin-right:4px">Mode</span>
+        <span class="btn sm" style="cursor:default;pointer-events:none">⚡ Premium + Agentic</span>
         <select id="amarket" class="btn sm secondary" style="padding:6px">
           <option value="US">US</option><option value="UK">UK</option><option value="GLOBAL">Global</option><option value="IN">IN</option><option value="EU">EU</option><option value="AU">AU</option>
         </select>
         <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
         <button id="runScenarios" class="btn secondary" onclick="loadScenarios()">🗓 5-Scenario Calendar</button>
       </div>
-      <div id="agenticOut" class="feed"><p style="color:#789">Pick a tier, then run the agentic flow or load the 5-scenario calendar.</p></div>
+      <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow or load the 5-scenario calendar.</p></div>
     </div>
 
     <div class="card wide">
@@ -121,9 +120,11 @@ let PLAN = [];
 function reviewerEmail(){ try { return window.LifecycleAuth?.session?.user?.email || null; } catch(_) { return null; } }
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-// ── Dual-Mode Generation (agentic flow + 5-scenario calendar) ─────────────
-let TIER = 'budget';
-function setTier(t){ TIER = t; $('tierBudget').className = 'btn sm' + (t==='budget'?'':' secondary'); $('tierMax').className = 'btn sm' + (t==='maxpower'?'':' secondary'); }
+// ── Agentic Generation (agentic flow + 5-scenario calendar) ────────────────
+// Single mode: premium is the only tier. setTier is kept as a no-op for any
+// legacy call site so it can never downgrade.
+const TIER = 'maxpower';
+function setTier(){ /* single mode: premium only */ }
 function scenarioCard(s){
   const def = s.key==='medium';
   return `<div class="card" style="flex:1;min-width:172px;${def?'border:2px solid #004A2B':''}">
@@ -134,9 +135,9 @@ function scenarioCard(s){
 }
 async function runAgentic(){
   const out = $('agenticOut'), market = $('amarket').value || 'US';
-  out.innerHTML = `<p>🤖 Running agentic flow — tier <b>${TIER}</b>, ${esc(market)} — 8 stages, please wait…</p>`;
+  out.innerHTML = `<p>🤖 Running agentic flow — Premium, ${esc(market)} — 8 stages, please wait…</p>`;
   try{
-    const r = await fetch('/api/brain?action=agentic-run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ market, tier: TIER, withCreatives: TIER==='maxpower' })});
+    const r = await fetch('/api/brain?action=agentic-run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ market, tier: TIER, withCreatives: true })});
     const d = await r.json();
     if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
     const stages = (d.stages||[]).map(s => `<div style="padding:6px 0;border-bottom:1px solid #eee5d2"><b>${s.ok?'✓':'✗'} ${esc(s.stage)}</b> — ${esc(s.summary||'')}</div>`).join('');

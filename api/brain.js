@@ -305,9 +305,9 @@ module.exports = async function handler(req, res) {
         const out = await agentic.runAgentic({
           market: b.market || 'US',
           brief: b.brief || b.theme || '',
-          tier: b.tier || 'budget',
+          tier: b.tier || 'maxpower',
           days: b.days ? parseInt(b.days, 10) : undefined,
-          withCreatives: b.withCreatives,
+          withCreatives: b.withCreatives != null ? b.withCreatives : true,
           maxRetries: b.maxRetries != null ? b.maxRetries : 1,
         });
         return res.json(out);
@@ -316,7 +316,7 @@ module.exports = async function handler(req, res) {
       case 'calendar-scenarios': {
         // 5-scenario calendar: best / medium(default) / conservative / emergency / instant.
         const market = b.market || req.query.market || 'US';
-        const tier = b.tier || req.query.tier || 'budget';
+        const tier = b.tier || req.query.tier || 'maxpower';
         const cfg = smartbrain.smartConfig();
         const sdb = new smartbrain.SmartBrainDbAdapter(cfg);
         const ownData = await sdb.ownData();
@@ -356,7 +356,7 @@ module.exports = async function handler(req, res) {
           prompt: b.prompt,
           duration_s: b.duration_s || b.duration || 8,
           aspect: b.aspect || '16:9',
-          tier: b.tier || 'standard',
+          tier: b.tier || 'premium',
         });
         return res.json(out);
       }

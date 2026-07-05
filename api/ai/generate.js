@@ -349,14 +349,12 @@ module.exports = async function handler(req, res) {
   const regenerate_counter = Number(body.regenerate_counter || 0);
   const previous_outputs_summary = body.previous_outputs_summary || '';
   const season = body.season || '';
-  // Tier per mode (blueprint Phase C). An explicit body.tier (incl. legacy
-  // 'maxpower'/'budget' — normalized inside llm.js) overrides the mapping.
-  const TIER_BY_MODE = {
-    mailer_full: 'premium', concepts: 'premium',
-    create_brief: 'standard', audience_segment: 'standard', autofill: 'standard',
-    chat: 'fast', suggested_prompts: 'fast',
-  };
-  const tier = (body.tier || TIER_BY_MODE[mode] || 'standard').toString();
+  // Single mode: premium is the only tier. This is the user-facing content
+  // generator (Studio, ads, landing pages), so every mode runs on the highest-
+  // accuracy cascade. The Budget / Max Power picker was removed; an incoming
+  // body.tier can no longer downgrade. (Background/bulk classifiers live in
+  // other files and keep their own cost-appropriate tiers.)
+  const tier = 'premium';
 
   let systemPrompt = SYSTEM_PROMPT_CREATE_BRIEF;
   let userMessage = '';
