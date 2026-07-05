@@ -71,27 +71,27 @@
 
   <section class="panel active" id="panel-overview" role="tabpanel">
     <div class="cards">
-      <div class="card link" data-goto="engagement"><div class="n">2</div><div class="lbl">Engagement Cohorts <span class="chip v2">V2</span></div><div class="d">The two dormant audiences driving this month's campaign.</div></div>
-      <div class="card link" data-goto="englevel"><div class="n">6</div><div class="lbl">Engagement Levels</div><div class="d">Email behaviour bands, from highly engaged to never engaged.</div></div>
-      <div class="card link" data-goto="product"><div class="n">11</div><div class="lbl">Product Cohorts</div><div class="d">By category, collection and purchase mode, tea, coffee, supplements.</div></div>
+      <div class="card link" data-goto="engagement"><div class="n">6</div><div class="lbl">Engagement Cohorts <span class="chip v2">V2</span></div><div class="d">Purchase history crossed with engagement. Cohorts A and B are the active program.</div></div>
+      <div class="card link" data-goto="englevel"><div class="n">8</div><div class="lbl">Engagement Levels</div><div class="d">Email and SMS behaviour bands, from highly engaged to suppressed.</div></div>
+      <div class="card link" data-goto="product"><div class="n">16</div><div class="lbl">Product Cohorts</div><div class="d">By category, collection and purchase mode, tea, coffee, supplements.</div></div>
       <div class="card link" data-goto="lifecycle"><div class="n">12</div><div class="lbl">Lifecycle Stages <span class="chip">V1</span></div><div class="d">The full journey, prospect to churned, across 5 stages.</div></div>
-      <div class="card link" data-goto="rfm"><div class="n">9</div><div class="lbl">RFM Segments <span class="chip">V1</span></div><div class="d">Recency, Frequency, Monetary buckets. Drives cadence.</div></div>
-      <div class="card link" data-goto="behavioral"><div class="n">8</div><div class="lbl">Behavioral</div><div class="d">Interest groups the Smart Brain uses to theme content.</div></div>
+      <div class="card link" data-goto="rfm"><div class="n">11</div><div class="lbl">RFM Segments <span class="chip">V1</span></div><div class="d">Recency, Frequency, Monetary buckets. Drives cadence.</div></div>
+      <div class="card link" data-goto="behavioral"><div class="n">11</div><div class="lbl">Behavioral</div><div class="d">Interest groups the Smart Brain uses to theme content.</div></div>
     </div>
     <div class="how">
-      <b style="color:var(--head)">How the lenses fit together.</b> Every customer sits in one <b>Lifecycle Stage</b> (where they are in the journey), one <b>RFM Segment</b> (how valuable and recent), one <b>Engagement Level</b> (how they treat our email), and one or more <b>Product Cohorts</b> (what they buy). The two <b>Engagement Cohorts</b> are the specific dormant slices we work right now: purchase history crossed with engagement level. <b>Behavioral</b> cohorts cut across everything by interest, so creative can be themed. Pick the lens the task needs: targeting starts with Engagement or Product, cadence uses RFM, journey logic uses Lifecycle Stage, and theming uses Behavioral.
+      <b style="color:var(--head)">How the lenses fit together.</b> Every customer sits in one <b>Lifecycle Stage</b> (where they are in the journey), one <b>RFM Segment</b> (how valuable and recent), one <b>Engagement Level</b> (how they treat our email), and one or more <b>Product Cohorts</b> (what they buy). The <b>Engagement Cohorts</b> are purchase history crossed with engagement level; Cohorts A and B are the specific dormant slices we work right now. <b>Behavioral</b> cohorts cut across everything by interest, so creative can be themed. Pick the lens the task needs: targeting starts with Engagement or Product, cadence uses RFM, journey logic uses Lifecycle Stage, and theming uses Behavioral.
     </div>
   </section>
 
   <section class="panel" id="panel-engagement" role="tabpanel">
     <h2>Engagement Cohorts <span class="chip v2">V2 - active program</span></h2>
-    <p class="lede">The two dormant audiences the current lifecycle program re-engages. Defined by purchase history crossed with email engagement. Goal for both: open, click, purchase. These are what the Mailer Calendar and UK Non-Engagers hub target today.</p>
+    <p class="lede">Purchase history crossed with email engagement, the full matrix. Cohorts A and B (badged V2) are the dormant audiences the current lifecycle program re-engages and what the Mailer Calendar and UK Non-Engagers hub target today. C to F cover the rest of the grid, engaged non-buyers, engaged buyers, quiet new-line buyers and multi-category near-VIPs, so every contact maps to one.</p>
     <div id="engagement"></div>
   </section>
 
   <section class="panel" id="panel-englevel" role="tabpanel">
     <h2>Engagement Levels</h2>
-    <p class="lede">How a contact treats our email, independent of whether they have bought. This band, crossed with purchase history, is what defines the two active Engagement Cohorts. It also sets send frequency: engaged contacts sustain more, disengaged ones get fewer, sharper touches to protect deliverability.</p>
+    <p class="lede">How a contact treats our messages, independent of whether they have bought. This band, crossed with purchase history, is what defines the Engagement Cohorts. It also sets send frequency: engaged contacts sustain more, disengaged ones get fewer, sharper touches to protect deliverability.</p>
     <div id="englevel"></div>
   </section>
 
@@ -136,6 +136,26 @@ const ENGAGEMENT = [
     objective:'Reactivate with familiarity, then cross-grade to Coffee / Supplements subscription.',
     voice:'Welcome back an old friend, acknowledge the relationship without guilt. Start from the teas they already know, then introduce what is new from the same tea people. Never make them feel watched or chased.',
     mix:['T&amp;B x3','Coffee x2','Supplements x1'] },
+  { code:'Cohort C', name:'Non-Buyers / Engaged', badge:'',
+    def:'On the list, opening and clicking within 90 days, but has never purchased.',
+    objective:'Convert warm interest into a first order while attention is high.',
+    voice:'Reward the curiosity. Confident, specific, low-friction. Remove the last doubt with proof and one easy first step.',
+    mix:['T&amp;B x2','Coffee x2','Supplements x1'] },
+  { code:'Cohort D', name:'T&amp;B Buyers / Engaged', badge:'',
+    def:'Bought Teas &amp; Botanicals and still open and click regularly.',
+    objective:'Sustain the habit, grow the basket, cross-grade to Coffee / Supplements subscription.',
+    voice:'Talk to a friend who is already in. Depth, range and the next ritual, never a hard sell.',
+    mix:['T&amp;B x2','Coffee x2','Supplements x2'] },
+  { code:'Cohort E', name:'Coffee / Supplement Buyers / Non-Engagers', badge:'',
+    def:'Bought Ashwagandha Coffee or a supplement, then went quiet on email.',
+    objective:'Protect the subscription window, win the reorder before the routine breaks.',
+    voice:'Steady and useful. Reorder rhythm, refill value, the gifts they already earned. No pressure.',
+    mix:['Coffee x3','Supplements x2','T&amp;B x1'] },
+  { code:'Cohort F', name:'Multi-Category / Engaged (near-VIP)', badge:'',
+    def:'Bought across two or more categories and stays engaged. The highest-potential slice.',
+    objective:'Deepen loyalty, move to subscription, invite to first-look and referral.',
+    voice:'Recognition and access. Treat as an insider, provenance and early drops over discounts.',
+    mix:['Coffee x2','T&amp;B x2','Supplements x2'] },
 ];
 const ENGLEVEL = [
   {code:'Highly Engaged', def:'Opened and clicked more than once in the last 30 days.', use:'Highest send tolerance. First look at drops, reviews and referral asks.'},
@@ -144,11 +164,15 @@ const ENGLEVEL = [
   {code:'Lapsing Engagers', def:'Engaged 90 to 180 days ago, quiet since.', use:'Reconnect early with a light, warm touch before they go fully cold.'},
   {code:'Non-Engagers', def:'No open or click in 90+ days. The dormant slice the active program targets.', use:'Short, curiosity-led subjects. Earn one open at a time, no pressure.'},
   {code:'Never Engaged', def:'On the list but has never opened a single send.', use:'Re-permission and a fresh introduction, then sunset if still silent.'},
+  {code:'SMS / Push Engaged', def:'Answers on SMS or push even when email stays quiet.', use:'Shift the touch to the channel they respond on, keep email light to protect deliverability.'},
+  {code:'Unsubscribed / Suppressed', def:'Opted out of email or suppressed for deliverability.', use:'No email. Reach only on-site or other channels, and honour the opt-out.'},
 ];
 const PROD_CAT = [
   {code:'Teas &amp; Botanicals', def:'Bought tea (loose leaf, tea bags, samplers, gifts). One-time purchase only.', use:'Replenishment and range discovery. Natural bridge into Coffee and Supplements.'},
   {code:'Coffee (Ashwagandha)', def:'Bought Ashwagandha Coffee, one-time or subscription.', use:'Subscription is the priority: gifts worth 105 pounds a year, refill rhythm, B2G1 on Pack of 3.'},
   {code:'Supplements', def:'Bought Turmeric Curcumin or Green Burner. New line, few buyers yet.', use:'Subscription-first framing, daily-rhythm story. First-to-try positioning while it is new.'},
+  {code:'Multi-Category', def:'Bought across two or more of Tea, Coffee, Supplements.', use:'Highest LTV potential. Bundle across worlds, lead with subscription and membership.'},
+  {code:'Accessories &amp; Kit', def:'Bought a frother, scoop, straw or gifting kit, with or without a consumable.', use:'Attach to a tea or coffee order as the ritual upgrade, never a standalone push.'},
 ];
 const PROD_COLL = [
   {code:'Black Tea', def:'Nilgiri, Assam, Darjeeling and breakfast blends.', use:'Bold, everyday ritual. Cross-sell chai and single-estate.'},
@@ -157,10 +181,13 @@ const PROD_COLL = [
   {code:'Herbal / Tisane', def:'Turmeric, ginger, hibiscus and caffeine-free tisanes.', use:'Wellness-curious. Cleanest bridge to Supplements and Ashwagandha Coffee.'},
   {code:'Matcha / Instant', def:'Matcha powders and instant lattes.', use:'Convenience ritual. Cross-sell frother and coffee.'},
   {code:'Gifts / Samplers', def:'Bought gift sets or tasting samplers.', use:'Occasion timing and discovery. Higher AOV, seasonal spikes.'},
+  {code:'White &amp; Oolong', def:'Delicate whites and oolongs, the premium tier.', use:'Connoisseur tone, single-estate provenance, higher AOV, gentle pours.'},
+  {code:'Wellness / Functional', def:'Turmeric-forward, sleep, immunity and calm blends.', use:'Cleanest bridge to Supplements and Ashwagandha Coffee. Non-medical benefit framing.'},
 ];
 const PROD_MODE = [
   {code:'One-Time Buyers', def:'Buy per-order, no active subscription.', use:'Show the subscription value (price, gifts, rhythm) on Coffee and Supplements. Never sub-frame T&amp;B.'},
   {code:'Subscribers', def:'Hold an active recurring order.', use:'Retention-first: rotation, easy skip/swap, surprise upgrades. Protect churn, never hard-sell.'},
+  {code:'Lapsed Subscribers', def:'Held a subscription, then cancelled or let it lapse.', use:'Win back the rhythm: what they will miss, an easy restart, and one fair incentive.'},
 ];
 const STAGES = [
   { id:'new',label:'New &amp; Prospect',desc:'Winning trust and the first (and second) order.' },
@@ -192,6 +219,8 @@ const RFM = [
   {code:'About-to-Sleep',def:'Below-average recency and frequency, cooling.',use:'Light win-back, a reason to return, watch for lapse.'},
   {code:'At-Risk',def:'Spent well once but have not returned in a while.',use:'Personalised win-back with a modest, time-bound incentive.'},
   {code:'Hibernating',def:'Low recency, low frequency, long gap since last order.',use:'Strong, specific offer plus freshness reset, then sunset if no response.'},
+  {code:'Potential Loyalists',def:'Recent buyers with more than one order and rising frequency.',use:'Encourage the next order and introduce subscription, they are on the loyalty path.'},
+  {code:'Can-not-Lose-Them',def:'Spent the most and bought often, but have not returned in a long time.',use:'Highest-priority personal win-back, the biggest revenue at risk. Concierge tone, a real reason to return.'},
   {code:'Lost',def:'Lowest recency and engagement, effectively churned.',use:'One bold re-introduction, then reduce frequency to protect deliverability.'},
 ];
 const BEHAVIORAL = [
@@ -203,6 +232,9 @@ const BEHAVIORAL = [
   {code:'At-Risk Winback',def:'Previously active, recency past their normal cycle.',use:'Familiar-blend restock plus a timely reason to return.'},
   {code:'Discount Responsive',def:'Historically convert mainly on promotions.',use:'Reserve offers for these, protect full-margin buyers from a discount habit.'},
   {code:'Engaged Non-buyers',def:'Open and click within 90 days but have never purchased.',use:'First-purchase nudges, low-risk samplers, remove friction.'},
+  {code:'Caffeine-Free Seekers',def:'Prefer herbal, tisane and decaf, avoid caffeine.',use:'Lead with caffeine-free ranges, evening ritual and calm. Never push black tea or coffee.'},
+  {code:'Convenience / Instant',def:'Buy matcha powders, instant lattes and quick formats.',use:'Speed and ease, frother and single-serve, natural coffee cross-sell.'},
+  {code:'Sustainability-Driven',def:'Motivated by B-Corp, plastic-free and ethical sourcing.',use:'Provenance, certifications and impact stories, refills over single buys.'},
 ];
 
 function renderEngagement(){
