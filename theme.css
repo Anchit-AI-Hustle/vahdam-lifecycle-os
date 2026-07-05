@@ -1,0 +1,207 @@
+/* ============================================================================
+   VAHDAM Lifecycle OS — shared design system (theme.css)
+   ----------------------------------------------------------------------------
+   One token-driven stylesheet loaded on EVERY page via auth.js. It provides:
+     1. Design tokens (palette, type scale, spacing, radius, shadow) as CSS vars
+        — restyle the whole suite by editing these, not 15 files.
+     2. Globally SAFE polish only: font smoothing, selection, focus-visible
+        rings, custom scrollbars, reduced-motion. No bare element (body/button/
+        a/table/input) is restyled, so existing per-page CSS is never clobbered.
+     3. An OPT-IN component kit under the `vh-` prefix (buttons, cards, tables,
+        inputs, chips, badges, section headers) for pages to migrate onto.
+     4. Mobile hardening: safe-area (notch) insets for the shared nav, larger
+        tap targets, and responsive helpers — improves the Capacitor apps too.
+
+   Palette is locked to the brand's four colors (Brand style guide):
+     forest #004A2B · gold #AB8743 · near-black #171717 · cream #FBF5EA.
+   Dark surfaces are derived tints of forest/near-black, not off-palette drift.
+   ========================================================================== */
+
+:root {
+  /* Brand core (locked, theme-independent accents) */
+  --vh-green:  #004A2B;
+  --vh-gold:   #AB8743;
+  --vh-black:  #171717;
+  --vh-cream:  #FBF5EA;
+
+  /* State (theme-independent) */
+  --vh-ok:   #3fa46a;
+  --vh-warn: #c9a227;
+  --vh-err:  #b0483f;
+
+  /* Type */
+  --vh-font-head: 'Lora', 'Lao MN', Georgia, serif;
+  --vh-font-body: 'Inter', 'Proxima Nova', system-ui, -apple-system, Segoe UI, sans-serif;
+  --vh-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Type scale (fluid: clamps between mobile and desktop) */
+  --vh-fs-xs:  11px;
+  --vh-fs-sm:  12.5px;
+  --vh-fs-md:  14px;
+  --vh-fs-lg:  clamp(16px, 1.4vw, 18px);
+  --vh-fs-xl:  clamp(20px, 2.4vw, 26px);
+  --vh-fs-2xl: clamp(28px, 4.4vw, 44px);
+
+  /* Spacing scale */
+  --vh-s1: 4px;  --vh-s2: 8px;  --vh-s3: 12px; --vh-s4: 16px;
+  --vh-s5: 22px; --vh-s6: 32px; --vh-s7: 48px;
+
+  /* Radius / shadow / motion */
+  --vh-r-sm: 8px; --vh-r-md: 12px; --vh-r-lg: 16px; --vh-r-pill: 999px;
+  --vh-shadow:    0 16px 40px rgba(0,0,0,0.45);
+  --vh-shadow-lg: 0 40px 100px rgba(0,0,0,0.70);
+  --vh-t-fast: .14s; --vh-t-mid: .22s;
+
+  /* Safe-area insets (notch / home indicator) surfaced as usable vars */
+  --vh-safe-top:    env(safe-area-inset-top, 0px);
+  --vh-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --vh-safe-left:   env(safe-area-inset-left, 0px);
+  --vh-safe-right:  env(safe-area-inset-right, 0px);
+}
+
+/* ============================================================================
+   THEME VARIANTS — html[data-theme="dark" | "dusk" | "light"]
+   ----------------------------------------------------------------------------
+   Each variant sets the surface + text role tokens AND aliases the two legacy
+   naming families the pages already use (family A: --bg/--panel/--ink/--ink-*;
+   family B: --forest/--surface/--card/--soft/--chip/--head). Because these are
+   attribute-qualified (higher specificity than a page's plain :root{}), they
+   win over per-page definitions, so any page that REFERENCES these names via
+   var() re-themes with the switcher — no per-page edit needed for dark/dusk.
+
+   NOTE: --cream is a brand accent AND is used by some pages as "light text."
+   In dark/dusk that is fine. In light we point the TEXT aliases at dark inks;
+   pages that still use --cream for text need per-page migration (tracked).
+   ========================================================================== */
+:root, :root[data-theme="dark"] {
+  --vh-bg: #0a1410; --vh-panel: #0f1d18; --vh-panel-2: #0b1813;
+  --vh-line: rgba(171,135,67,0.18); --vh-line-hot: rgba(171,135,67,0.50);
+  --vh-ink: #e8ede9; --vh-ink-dim: #9aaaa1; --vh-ink-faint: #5d6e64;
+  /* legacy aliases */
+  --bg: #0a1410; --panel: #0f1d18; --surface: #0f1d18; --card: #0f1d18; --soft: #0b1813; --chip: #0b1813;
+  --ink: #e8ede9; --ink-dim: #9aaaa1; --ink-faint: #5d6e64; --muted: #9aaaa1; --head: #FBF5EA;
+  --line: rgba(171,135,67,0.18); --line-hot: rgba(171,135,67,0.50);
+  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #1e3a2c; --moss-deep: #14261c;
+  color-scheme: dark;
+}
+:root[data-theme="dusk"] {
+  /* In-between: warmer, slightly lifted dark — softer than pure dark. */
+  --vh-bg: #14201a; --vh-panel: #1a2a22; --vh-panel-2: #12201a;
+  --vh-line: rgba(171,135,67,0.24); --vh-line-hot: rgba(171,135,67,0.55);
+  --vh-ink: #edf2ee; --vh-ink-dim: #b0bdb5; --vh-ink-faint: #77867d;
+  --bg: #14201a; --panel: #1a2a22; --surface: #1a2a22; --card: #1a2a22; --soft: #12201a; --chip: #12201a;
+  --ink: #edf2ee; --ink-dim: #b0bdb5; --ink-faint: #77867d; --muted: #b0bdb5; --head: #FBF5EA;
+  --line: rgba(171,135,67,0.24); --line-hot: rgba(171,135,67,0.55);
+  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #24422f; --moss-deep: #182e21;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  /* Light: cream canvas, white panels, near-black/forest text. Brand accents
+     (gold/green) unchanged. Text aliases point at dark inks so var(--ink) reads
+     correctly; --cream stays brand (see NOTE — cream-as-text needs migration). */
+  --vh-bg: #FBF5EA; --vh-panel: #FFFFFF; --vh-panel-2: #F3EBD9;
+  --vh-line: rgba(0,74,43,0.16); --vh-line-hot: rgba(171,135,67,0.55);
+  --vh-ink: #171717; --vh-ink-dim: #4a5751; --vh-ink-faint: #7d8a83;
+  --bg: #FBF5EA; --panel: #FFFFFF; --surface: #FFFFFF; --card: #FFFFFF; --soft: #F3EBD9; --chip: #F3EBD9;
+  --ink: #171717; --ink-dim: #4a5751; --ink-faint: #7d8a83; --muted: #4a5751; --head: #004A2B;
+  --line: rgba(0,74,43,0.16); --line-hot: rgba(171,135,67,0.55);
+  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #e7dcc4; --moss-deep: #d8caa9;
+  color-scheme: light;
+}
+
+/* ── Globally safe polish (no layout-affecting bare-element restyles) ─────── */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+::selection { background: rgba(171,135,67,0.30); color: var(--vh-cream); }
+
+/* Consistent, on-brand focus ring for keyboard users across every page. */
+:focus-visible {
+  outline: 2px solid var(--vh-gold);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Quiet, on-brand scrollbars (Firefox + WebKit). */
+* { scrollbar-width: thin; scrollbar-color: rgba(171,135,67,0.30) transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: rgba(171,135,67,0.28); border-radius: var(--vh-r-pill); }
+*::-webkit-scrollbar-thumb:hover { background: rgba(171,135,67,0.45); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+}
+
+/* ── Mobile hardening for the shared nav (auth.js #lifecycle-nav) ─────────── */
+/* Respect the notch / status bar and home indicator inside the Capacitor apps
+   and on modern phones, without each page needing to know about safe areas. */
+#lifecycle-nav .lnav-mbar { padding-top: var(--vh-safe-top); }
+#lifecycle-nav .lnav-side { padding-bottom: calc(var(--vh-s4) + var(--vh-safe-bottom)); }
+@media (max-width: 860px) {
+  /* Comfortable 44px tap targets on touch for the shared nav controls. */
+  #lifecycle-nav .lnav-burger,
+  #lifecycle-nav .lnav-link,
+  #lifecycle-nav .lnav-ghead { min-height: 44px; }
+}
+
+/* ── Opt-in component kit (vh-*) — pages migrate onto these ───────────────── */
+.vh-stack { display: flex; flex-direction: column; gap: var(--vh-s4); }
+.vh-row   { display: flex; align-items: center; gap: var(--vh-s3); flex-wrap: wrap; }
+.vh-muted { color: var(--vh-ink-dim); }
+.vh-faint { color: var(--vh-ink-faint); }
+
+.vh-h1 { font-family: var(--vh-font-head); font-weight: 600; font-size: var(--vh-fs-2xl); letter-spacing: -0.02em; line-height: 1.1; color: var(--vh-cream); }
+.vh-h2 { font-family: var(--vh-font-head); font-weight: 600; font-size: var(--vh-fs-xl); letter-spacing: -0.01em; color: var(--vh-cream); }
+.vh-eyebrow { font-size: var(--vh-fs-xs); text-transform: uppercase; letter-spacing: 0.22em; color: var(--vh-gold); font-weight: 600; }
+.vh-section-label { font-size: var(--vh-fs-xs); text-transform: uppercase; letter-spacing: 0.16em; color: var(--vh-ink-faint); font-weight: 600; }
+
+.vh-card {
+  background: var(--vh-panel); border: 1px solid var(--vh-line);
+  border-radius: var(--vh-r-lg); padding: var(--vh-s5);
+  transition: border-color var(--vh-t-mid), transform var(--vh-t-mid), box-shadow var(--vh-t-mid);
+}
+.vh-card:hover { border-color: var(--vh-line-hot); box-shadow: var(--vh-shadow); }
+
+.vh-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--vh-s2);
+  font-family: var(--vh-font-body); font-size: var(--vh-fs-sm); font-weight: 600; letter-spacing: 0.02em;
+  padding: 10px 16px; min-height: 40px; border-radius: var(--vh-r-sm);
+  border: 1px solid transparent; cursor: pointer; text-decoration: none;
+  transition: all var(--vh-t-fast);
+}
+.vh-btn-solid { background: var(--vh-gold); color: var(--vh-bg); }
+.vh-btn-solid:hover { filter: brightness(1.05); }
+.vh-btn-ghost { background: transparent; border-color: var(--vh-line-hot); color: var(--vh-ink); }
+.vh-btn-ghost:hover { border-color: var(--vh-gold); color: var(--vh-cream); background: rgba(171,135,67,0.06); }
+.vh-btn-green { background: var(--vh-green); color: var(--vh-cream); border-color: var(--vh-line-hot); }
+
+.vh-chip {
+  font-size: var(--vh-fs-xs); font-weight: 600; letter-spacing: 0.03em;
+  padding: 6px 13px; border-radius: var(--vh-r-pill);
+  border: 1px solid var(--vh-line); background: transparent; color: var(--vh-ink-dim);
+}
+.vh-badge {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--vh-gold); background: rgba(171,135,67,0.12);
+  padding: 3px 8px; border-radius: var(--vh-r-pill);
+}
+
+.vh-input, .vh-select, .vh-textarea {
+  width: 100%; font-family: var(--vh-font-body); font-size: var(--vh-fs-md); color: var(--vh-ink);
+  background: var(--vh-panel-2); border: 1px solid var(--vh-line); border-radius: var(--vh-r-sm);
+  padding: 10px 12px; transition: border-color var(--vh-t-fast);
+}
+.vh-input:focus, .vh-select:focus, .vh-textarea:focus { border-color: var(--vh-gold); outline: none; }
+
+.vh-table { width: 100%; border-collapse: collapse; font-size: var(--vh-fs-sm); }
+.vh-table th, .vh-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--vh-line); }
+.vh-table th { color: var(--vh-ink-faint); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: var(--vh-fs-xs); }
+.vh-table tr:hover td { background: rgba(171,135,67,0.04); }
+/* Wide tables scroll inside their own container instead of breaking the page. */
+.vh-table-wrap { overflow-x: auto; border-radius: var(--vh-r-md); border: 1px solid var(--vh-line); }
+
+/* Responsive grid helper: auto-fit cards, 1-up on small screens. */
+.vh-grid { display: grid; gap: var(--vh-s4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+
+.vh-container { max-width: 1180px; margin: 0 auto; padding-left: max(var(--vh-s4), var(--vh-safe-left)); padding-right: max(var(--vh-s4), var(--vh-safe-right)); }
