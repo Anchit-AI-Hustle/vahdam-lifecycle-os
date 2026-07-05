@@ -22,6 +22,7 @@ const SM = require('./scenario-model.js');
 const { helpers } = require('./calendar-trigger.js');
 const { COHORTS, PLAYS, ALLOWED_TEMPLATE_STYLES, purchaseModeForProductType } = require('./lifecycle-cohorts.js');
 const { loadProductTypes } = require('./lifecycle-calendar-generate.js');
+const CF = require('./copy-frameworks.js');
 const creative = require('./creative-image.js');
 
 // ─── Brief builder ───────────────────────────────────────────────────────────
@@ -77,11 +78,12 @@ function brandGatesBlock() {
   ].join('\n');
 }
 
-function buildBrief(entry) {
+function buildBrief(entry, fw) {
   const cohort = COHORTS[entry.cohort_key] || { label: entry.cohort_label || entry.cohort_key, objective: '', voice_guide: '' };
   const play = PLAYS[entry.play_key] || { name: entry.play_key, mechanic: '', cta_framing_by_purchase_mode: {} };
   const purchaseMode = entry.purchase_mode || purchaseModeForProductType(entry.product_type);
   const ctaFraming = (play.cta_framing_by_purchase_mode || {})[purchaseMode] || '';
+  const framework = fw || CF.pickCopyFramework({ framework: entry.framework, play_key: entry.play_key, cohort_key: entry.cohort_key, seed: entry.id || entry.date });
 
   return [
     `Campaign date: ${entry.date} · Market: ${entry.market || 'UK'} (store: vahdam.co.uk, currency GBP £)`,
@@ -96,9 +98,13 @@ function buildBrief(entry) {
     `Hero product: ${entry.hero_product}${entry.hero_price ? ` — ${entry.hero_price}` : ''}`,
     `Subject-line direction: ${entry.subject_hint || ''}`,
     '',
+    CF.strategyBriefBlock(entry.cohort_key),
+    '',
     productFactsBlock(entry.product_type),
     '',
     ctaRulesBlock(purchaseMode),
+    '',
+    CF.copyFrameworkBriefBlock(framework),
     '',
     brandGatesBlock(),
   ].filter(Boolean).join('\n');
@@ -106,14 +112,16 @@ function buildBrief(entry) {
 
 // ─── LLM call (single call, same contract as calendar-trigger.js) ───────────
 
-async function writeCopy(brief) {
+async function writeCopy(brief, frameworkLine) {
   const out = await llm({
     systemPrompt:
       'You are VAHDAM\'s lifecycle copywriter. Produce a strict JSON object with keys: ' +
       'subject_line (string, ≤ 60 chars), preview_text (string, ≤ 90 chars), ' +
       'hero_headline (string, ≤ 8 words), hero_subline (string, ≤ 18 words), ' +
       'body_blocks (array of {heading, body}), cta_text (string, ≤ 4 words). ' +
-      'Use VAHDAM brand voice (warm, sensory, story-driven). Obey every brand gate, ' +
+      'Use VAHDAM brand voice (warm, sensory, story-driven). ' +
+      (frameworkLine ? frameworkLine + ' ' : '') +
+      'Obey every brand gate, ' +
       'CTA rule and product fact in the brief exactly — no invented prices, no banned phrases, ' +
       'no founder voice, no medical claims.',
     userMessage: brief,
@@ -218,8 +226,9 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
         ? `${PT.store.base_url}/collections/${PT.types.coffee.collection_slug}`
         : PT.store.base_url);
 
-  const brief = buildBrief(row);
-  const { copy, provider, model } = await writeCopy(brief);
+  const framework = CF.pickCopyFramework({ framework: row.framework, play_key: row.play_key, cohort_key: row.cohort_key, seed: row.id || row.date });
+  const brief = buildBrief(row, framework);
+  const { copy, provider, model } = await writeCopy(brief, CF.copyFrameworkSystemLine(framework));
   const S = sanitizeCopy(copy, `lifecycle-mailer:${row.id || row.play_key}`);
 
   const html = helpers.renderTextVariant({
@@ -241,6 +250,8 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
     entry_id: row.id || null,
     cohort_key: row.cohort_key,
     play_key: row.play_key,
+    framework: framework.key,
+    framework_name: `${framework.name} (${framework.full})`,
     template_style: style,
     purchase_mode: row.purchase_mode || purchaseModeForProductType(row.product_type),
     subject_line: S.subject_line,

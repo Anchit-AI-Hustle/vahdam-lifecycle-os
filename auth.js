@@ -182,6 +182,7 @@
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
     { id: 'social', label: 'Social Media OS', href: '/social', icon: 'social', ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
+    { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
