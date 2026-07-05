@@ -67,6 +67,8 @@
     { "source": "/cohorts",    "destination": "/cohort-definitions.html" },
     { "source": "/discover",   "destination": "/competitor-benchmarking.html" },
     { "source": "/mailer-discovery", "destination": "/competitor-benchmarking.html" },
+    { "source": "/diff-version", "destination": "/diff-version.html" },
+    { "source": "/diff-version/comparison", "destination": "/diff-version/comparison.md" },
     { "source": "/api/health", "destination": "/api/public-config?health=1" }
   ],
   "headers": [

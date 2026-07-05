@@ -204,6 +204,9 @@
     { id: 'chaigpt', label: 'ChaiGPT',      href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
     { id: 'brain',   label: 'Smart Brain',  href: '/brain',   icon: 'studio', ver: 'v1', match: ['/brain', '/smart-brain', '/smart-brain.html'] },
     { id: 'agent',   label: 'Vahdam Agent', href: '/agent',   icon: 'vahdam', ver: 'v1', match: ['/agent', '/agent.html'] },
+
+    { section: 'Archive' },
+    { id: 'diffversion', label: 'DIFF-VERSION', href: '/diff-version', icon: 'insights', ver: 'v2', draft: 'Frozen 3 Jul 2026 build', match: ['/diff-version', '/diff-version.html', '/diff-version/pages/mailer-calendar.html', '/diff-version/pages/uk-non-engagers.html', '/diff-version/pages/social-media.html'] },
   ];
 
   // ─── Feature IA (standing rule — see CLAUDE.md "LHS navigation IA rule") ──
