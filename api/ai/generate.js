@@ -604,6 +604,49 @@ RULES:
 Target market for this autofill: ${targetMarket}.`;
 
     userMessage = `USER PROMPT:\n"""\n${userPrompt}\n"""\n\n${referenceSnippet ? `REFERENCE PAGE (mirror the structure, voice, length, conversion logic — but rewrite for VAHDAM and the prompt above):\n"""\n${referenceSnippet}\n"""\n\n` : ''}Return the JSON object now. Do not include any text outside the JSON.`;
+  } else if (mode === 'landing_page') {
+    // FULL AI-written landing page — returns ONE complete, mobile-first HTML
+    // document (no JSON). The client previews it in the inline modal and falls
+    // back to its deterministic template if this fails. response_format stays
+    // null so the model returns raw HTML; scrubDashes runs on the way out.
+    const LP_STORE = { US:'https://www.vahdamteas.com', UK:'https://uk.vahdamteas.com', IN:'https://www.vahdamindia.com', EU:'https://eu.vahdamteas.com', AU:'https://au.vahdamteas.com', ME:'https://www.vahdamteas.com', Global:'https://www.vahdamteas.com' };
+    const lpRegion = (body.region || body.market || market || 'US');
+    const lpBase = LP_STORE[lpRegion] || LP_STORE.US;
+    const lpChannel = String(body.channel || 'landing');
+    response_format = undefined;
+    systemPrompt = [
+      'You are a senior D2C conversion copywriter AND front-end developer for VAHDAM India, premium Indian heritage tea (B-Corp, single-estate, garden-fresh within 72 hours of harvest).',
+      'Output ONE complete, production-ready, single-file HTML document, from <!doctype html> to </html>, with ALL CSS inline in a <style> block and NO external dependencies (no CDNs, no web fonts, no <script>). Return ONLY the HTML, no commentary before or after, no markdown fences.',
+      '',
+      'MOBILE-FIRST (hard requirement): design for a 360px phone first, then enhance up.',
+      '- Include <meta name="viewport" content="width=device-width, initial-scale=1">.',
+      '- Fluid type with clamp(); max-width containers centered; flex/grid that WRAPS on small screens (never fixed multi-column that overflows).',
+      '- Tap targets at least 44px tall; body text at least 16px; comfortable line-height.',
+      '- A STICKY bottom CTA bar on mobile (position:fixed; bottom:0) with the primary action; hide it on wide screens if it would duplicate.',
+      '- Images use max-width:100%; height:auto. No horizontal scroll at any width.',
+      '',
+      'BRAND RULES (strict):',
+      '- Colour palette ONLY: forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA. No other colours.',
+      "- Headings in a serif stack: 'Lao MN','Cormorant Garamond',Georgia,serif. Body in a sans stack: 'Proxima Nova','Helvetica Neue',Arial,sans-serif.",
+      '- Voice: warm, sensory, story-driven, premium. Prefer: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
+      "- NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
+      '- NO founder voice or personal-name sign-offs; the brand speaks as "we". NO medical claims. NO em or en dashes anywhere (use commas, colons or plain hyphens).',
+      `- Currency and store links must match the ${lpRegion} market. Primary CTA links point to ${lpBase}/collections/best-sellers (or a more specific collection if the brief implies one). Only use offers/prices given in the brief; invent no discount codes.`,
+      '',
+      CF.frameworkMenuDirective(),
+      '',
+      'REQUIRED SECTIONS in order: announcement bar (only if an offer exists); header wordmark "V A H D A M"; hero (headline + sub + primary CTA + a product-image placeholder box labelled so the user can drop an image URL); trust strip (single-estate, garden-fresh 72h, B-Corp); 3 benefit blocks; product/offer block with the exact price/mechanic from the brief; social proof as 2 to 3 tiny personal-story testimonials (not star reviews); a short FAQ (3 Qs); final CTA; footer; and the sticky mobile CTA bar.',
+    ].join('\n');
+    userMessage = [
+      `Channel intent: ${lpChannel} (write for how this channel's visitors arrive). Market: ${lpRegion}. Store base: ${lpBase}.`,
+      `Hero headline: ${body.hero || '(write a strong, specific one)'}`,
+      `Sub-headline: ${body.sub || '(write a supporting sensory line)'}`,
+      `Offer / mechanic: ${body.offer || '(no explicit discount, sell on quality, provenance and ritual)'}`,
+      body.notes ? `Extra notes / story / audience: ${body.notes}` : '',
+      body.prompt ? `Free-text brief: ${body.prompt}` : '',
+      '',
+      'Return the complete HTML document now.',
+    ].filter(Boolean).join('\n');
   } else {
     // create_brief mode (default)
     systemPrompt = SYSTEM_PROMPT_CREATE_BRIEF + '\n\n' + CF.frameworkMenuDirective();
@@ -694,7 +737,7 @@ Target market for this autofill: ${targetMarket}.`;
   const baseTemp = mode === 'create_brief' ? 0.85 : 0.7;
   const temperature = Math.min(1.1, baseTemp + Math.min(0.25, (regenerate_counter || 0) * 0.08));
   // create_brief: 4000 tokens for 450-600 word detailed production brief with full structure
-  const max_tokens = mode === 'mailer_full' ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1200 : 4000)));
+  const max_tokens = (mode === 'mailer_full' || mode === 'landing_page') ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1200 : 4000)));
 
   // ── Shared tier-routed cascade (api/_shared/llm.js) ────────────────────────
   // The 6-provider waterfall (OpenAI/Anthropic/Gemini/Grok/Groq/Cerebras),
