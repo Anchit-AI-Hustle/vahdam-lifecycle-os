@@ -1415,118 +1415,16 @@
     return null;
   }
 
-  // ─── Access mode: full (VAHDAM team) vs mock (external accounts) ─────
-  // The app is an internal retention tool. Anyone can sign in with Google,
-  // but ONLY @vahdam.com accounts get live usage. Every other domain is put
-  // into "mock mode": they can browse and see sample data (read-only GETs
-  // pass through), but any write / generation call is simulated locally so
-  // no real LLM spend, no database writes, and no sends ever happen. There
-  // is no server-side per-user auth today, so this gate lives in the shared
-  // shell that every page loads.
-  const INTERNAL_DOMAIN = 'vahdam.com';
-  function isInternalEmail(email) {
-    return new RegExp('@' + INTERNAL_DOMAIN.replace('.', '\\.') + '$', 'i').test(String(email || ''));
-  }
-
-  // A single Response for any simulated API write. The union of commonly-read
-  // fields keeps pages from crashing when they destructure the reply.
-  function mockApiResponse() {
-    const body = {
-      ok: true, mock: true, demo: true,
-      message: 'Demo mode: simulated response. Live generation and saving are limited to vahdam.com accounts.',
-      variants: [], items: [], entries: [], results: [], campaigns: [], posts: [], data: null,
-      reply: 'I am running in demo mode for non-VAHDAM accounts, so I can show you around but I will not run live tools or generation. Sign in with a vahdam.com email for the full experience.',
-      html: '<div style="padding:28px;font-family:system-ui,sans-serif;color:#5d6e64;line-height:1.6">Demo mode: sample output only.<br>Sign in with a <b>vahdam.com</b> account to generate live assets.</div>',
-    };
-    return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  // Install ONCE, up front. It reads the live mockMode flag at call time, so
-  // requests fired before sign-in resolves are covered the moment the flag
-  // flips. Reads (GET) always pass through; writes/generation POSTs to /api/
-  // are simulated for mock users. public-config / health stay live so the
-  // shell can still boot.
-  function installMockFetchGuard() {
-    if (window.__lcMockFetchGuard) return;
-    window.__lcMockFetchGuard = true;
-    const orig = window.fetch.bind(window);
-    window.fetch = function (input, init) {
-      try {
-        if (window.LifecycleAuth && window.LifecycleAuth.mockMode) {
-          const url = typeof input === 'string' ? input : (input && input.url) || '';
-          const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
-          const isApi = /\/api\//.test(url);
-          const isOpenApi = /\/api\/(public-config|health)/.test(url);
-          if (isApi && method !== 'GET' && !isOpenApi) {
-            lcToast('Demo mode: this action is simulated. Sign in with a vahdam.com account for live generation.');
-            return Promise.resolve(mockApiResponse());
-          }
-        }
-      } catch (_) { /* never let the guard break a real request */ }
-      return orig(input, init);
-    };
-  }
-
-  // Recompute access mode from the signed-in user and reflect it in the UI.
+  // ─── Access mode ─────────────────────────────────────────────────────────
+  // Every signed-in user gets full, live access. The former demo/mock-mode
+  // gate (which simulated write/generation calls for non-vahdam.com accounts),
+  // its fetch guard, and the demo banner have been removed. The mockMode /
+  // __VAHDAM_MOCK__ flags are kept, pinned to false, so anything that still
+  // reads them simply sees "live".
   function applyAccessMode(user) {
-    const email = (user && (user.email || (user.user_metadata && user.user_metadata.email))) || '';
-    const internal = !!user && isInternalEmail(email);
-    window.LifecycleAuth.internal = internal;
-    window.LifecycleAuth.mockMode = !!user && !internal;
-    window.__VAHDAM_MOCK__ = window.LifecycleAuth.mockMode;
-    if (window.LifecycleAuth.mockMode) showDemoBanner(email); else removeDemoBanner();
-  }
-
-  // Slim, non-blocking demo banner (bottom-fixed so it never fights the mobile
-  // top bar or the sidebar layout).
-  function showDemoBanner(email) {
-    if (document.getElementById('lc-demo-banner')) return;
-    const b = document.createElement('div');
-    b.id = 'lc-demo-banner';
-    b.innerHTML = `
-      <style>
-        #lc-demo-banner {
-          position: fixed; left: 0; right: 0; bottom: 0; z-index: 9500;
-          display: flex; align-items: center; justify-content: center; gap: 10px;
-          padding: 9px 16px calc(9px + env(safe-area-inset-bottom, 0px));
-          background: rgba(23,23,23,0.96); backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-          border-top: 1px solid rgba(171,135,67,0.4);
-          font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: #FBF5EA;
-          line-height: 1.4; text-align: center;
-        }
-        #lc-demo-banner b { color: #AB8743; }
-        #lc-demo-banner .lc-demo-dot {
-          width: 8px; height: 8px; border-radius: 50%; background: #AB8743; flex-shrink: 0;
-          box-shadow: 0 0 0 3px rgba(171,135,67,0.2);
-        }
-        @media (max-width: 620px) { #lc-demo-banner { font-size: 11px; } }
-      </style>
-      <span class="lc-demo-dot"></span>
-      <span><b>Demo mode:</b> sample data only. Live generation and saving need a <b>vahdam.com</b> account${email ? ' (you are signed in as ' + String(email).replace(/</g, '&lt;') + ')' : ''}.</span>
-    `;
-    document.body.appendChild(b);
-  }
-  function removeDemoBanner() {
-    const b = document.getElementById('lc-demo-banner');
-    if (b) b.remove();
-  }
-
-  // Lightweight toast used by the fetch guard.
-  function lcToast(msg) {
-    let host = document.getElementById('lc-toast-host');
-    if (!host) {
-      host = document.createElement('div');
-      host.id = 'lc-toast-host';
-      host.style.cssText = 'position:fixed;left:50%;bottom:56px;transform:translateX(-50%);z-index:9600;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none';
-      document.body.appendChild(host);
-    }
-    const t = document.createElement('div');
-    t.style.cssText = 'max-width:min(90vw,420px);background:rgba(15,29,24,0.98);border:1px solid rgba(171,135,67,0.4);color:#FBF5EA;font-family:\'Inter\',system-ui,sans-serif;font-size:12.5px;line-height:1.5;padding:10px 14px;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.5);opacity:0;transition:opacity .2s;text-align:center';
-    t.textContent = msg;
-    host.appendChild(t);
-    requestAnimationFrame(() => { t.style.opacity = '1'; });
-    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 240); }, 3200);
+    window.LifecycleAuth.internal = !!user;
+    window.LifecycleAuth.mockMode = false;
+    window.__VAHDAM_MOCK__ = false;
   }
 
   // ─── OAuth redirect helpers (issue: sign-in not landing correctly) ──────
@@ -1575,7 +1473,6 @@
         location.reload();
       },
     };
-    installMockFetchGuard();
 
     const config = await getConfig();
     if (!config) {
