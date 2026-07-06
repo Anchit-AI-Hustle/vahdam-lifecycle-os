@@ -147,6 +147,9 @@
   .foot { margin-top: 36px; padding-top: 22px; border-top: 1px solid rgba(171,135,67,0.15);
     font-size: 11px; color: var(--ink-faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; align-items: center; }
   .foot code { font-family: 'JetBrains Mono', monospace; color: var(--gold); }
+  .foot-links { display: flex; align-items: center; gap: 8px; }
+  .foot-links a { color: var(--ink-faint); text-decoration: none; }
+  .foot-links a:hover { color: var(--gold); }
   .health { display: inline-flex; align-items: center; gap: 7px; }
   .health-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); transition: background .3s; }
   .health-dot.ok { background: #3fa46a; box-shadow: 0 0 8px rgba(63,164,106,0.7); }
@@ -297,6 +300,11 @@
 
   <footer class="foot">
     <div>© VAHDAM India · Lifecycle OS · <code>v2.1</code></div>
+    <div class="foot-links">
+      <a href="/privacy.html">Privacy Policy</a>
+      <span>·</span>
+      <a href="/terms.html">Terms of Service</a>
+    </div>
     <div class="health" id="health"><span class="health-dot" id="health-dot"></span><span id="health-txt">checking systems…</span></div>
   </footer>
 </div>
