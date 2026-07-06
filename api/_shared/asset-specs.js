@@ -53,12 +53,17 @@ const MAILER = {
 // ── Paid ads (per platform, per placement) ───────────────────────────────────
 // Each placement: { size, ratio, note?, safe? }. `copy` holds text limits.
 const ADS = {
+  // `produced: true` marks the placements the studio compositor (api/ai/
+  // generate.js) actually renders/returns today. The rest are canonical
+  // reference sizes for manual/other production — prompts that describe the
+  // compositor output must list PRODUCED ones only (see adSpecText onlyProduced)
+  // so we never claim to deliver an asset the flow does not generate.
   meta: {
     label: 'Meta (Facebook / Instagram)',
     placements: [
-      { key: 'feed_square',   size: '1080x1080', ratio: '1:1',  note: 'Feed' },
+      { key: 'feed_square',   size: '1080x1080', ratio: '1:1',  note: 'Feed', produced: true },
       { key: 'feed_portrait', size: '1080x1350', ratio: '4:5',  note: 'Feed (max real estate)' },
-      { key: 'story_reel',    size: '1080x1920', ratio: '9:16', note: 'Stories / Reels', safe: 'keep text out of top 250px and bottom 420px (UI chrome)' },
+      { key: 'story_reel',    size: '1080x1920', ratio: '9:16', note: 'Stories / Reels', produced: true, safe: 'keep text out of top 250px and bottom 420px (UI chrome)' },
       { key: 'carousel',      size: '1080x1080', ratio: '1:1',  note: 'Carousel card' },
     ],
     copy: { primaryText: 125, headline: 40, description: 30, hashtags: 0 },
@@ -66,8 +71,8 @@ const ADS = {
   google: {
     label: 'Google (Responsive Display + Performance Max)',
     placements: [
-      { key: 'landscape', size: '1200x628',  ratio: '1.91:1', note: 'Responsive landscape' },
-      { key: 'square',    size: '1200x1200', ratio: '1:1',    note: 'Responsive square' },
+      { key: 'landscape', size: '1200x628',  ratio: '1.91:1', note: 'Responsive landscape', produced: true },
+      { key: 'square',    size: '1200x1200', ratio: '1:1',    note: 'Responsive square', produced: true },
       { key: 'portrait',  size: '960x1200',  ratio: '4:5',    note: 'Responsive portrait' },
       { key: 'logo_sq',   size: '1200x1200', ratio: '1:1',    note: 'Logo square' },
       { key: 'logo_wide', size: '1200x300',  ratio: '4:1',    note: 'Logo landscape' },
@@ -84,7 +89,7 @@ const ADS = {
   tiktok: {
     label: 'TikTok (In-Feed / Spark)',
     placements: [
-      { key: 'in_feed', size: '1080x1920', ratio: '9:16', note: 'In-feed video / cover', safe: 'avoid right 120px (icons) and bottom 480px (caption/CTA)' },
+      { key: 'in_feed', size: '1080x1920', ratio: '9:16', note: 'In-feed video / cover', produced: true, safe: 'avoid right 120px (icons) and bottom 480px (caption/CTA)' },
     ],
     copy: { caption: 100, hashtags: 5, scriptHookSec: 2 },
   },
@@ -154,10 +159,16 @@ function sizesLine(placements) {
   return placements.map((p) => `${p.ratio} (${p.size}${p.note ? ', ' + p.note : ''})`).join('; ');
 }
 // Human-readable spec string for an LLM/image prompt, e.g. for an ad platform.
-function adSpecText(platform) {
+// opts.onlyProduced restricts the list to placements the compositor actually
+// renders (use this for any text that claims to describe produced output, so we
+// never over-claim deliverables). Default lists the full canonical set.
+function adSpecText(platform, opts) {
   const a = ADS[platform] || ADS.meta;
-  const sizes = sizesLine(a.placements);
-  const safe = a.placements.filter((p) => p.safe).map((p) => `${p.key}: ${p.safe}`).join(' | ');
+  const onlyProduced = !!(opts && opts.onlyProduced);
+  let list = onlyProduced ? a.placements.filter((p) => p.produced) : a.placements;
+  if (!list.length) list = a.placements; // never emit an empty list
+  const sizes = sizesLine(list);
+  const safe = list.filter((p) => p.safe).map((p) => `${p.key}: ${p.safe}`).join(' | ');
   return `${a.label} — produce the creative at each placement size: ${sizes}.` + (safe ? ` Safe zones — ${safe}.` : '');
 }
 function mailerSpecText() {

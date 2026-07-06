@@ -97,7 +97,9 @@ function adContract(platform) {
     tiktok: 'TikTok (In-Feed + Spark): native-feeling video script with a 0–2s hook, on-screen text beats, brand-safe audio direction, caption, and 3 hashtag options. The produced creative is a cover keyframe (the script is a brief for a separate shoot/edit).',
   };
   const sizeKey = assetSpecs.ADS[platform] ? platform : 'meta';
-  const spec = (copyGuide[platform] || copyGuide.meta) + ' PRODUCED at each placement — ' + assetSpecs.adSpecText(sizeKey);
+  // onlyProduced: list ONLY the sizes the compositor actually renders, so the
+  // prompt never claims deliverables the flow does not generate.
+  const spec = (copyGuide[platform] || copyGuide.meta) + ' PRODUCED at each placement — ' + assetSpecs.adSpecText(sizeKey, { onlyProduced: true });
   return `ASSET: Paid ad creative for ${platform.toUpperCase()} — a FULL ad, not just copy.
 The PRODUCED creative is a still, photoreal, on-palette image at each size below, with the on-creative text overlay BAKED INTO the image — exactly like a real ${platform} ad. The text is part of the rendered creative, NOT a separate caption: specify the exact overlay wording, font (Lao MN headings / Proxima Nova body), colour (use ONLY #004A2B / #AB8743 / #FBF5EA / #171717), size and pixel placement within the safe zones (on 9:16 keep all text clear of the bottom 20% platform-UI chrome), legible at a glance.
 
