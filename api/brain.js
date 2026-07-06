@@ -372,6 +372,39 @@ module.exports = async function handler(req, res) {
         return res.json(out);
       }
 
+      // ── MAILER ASSET AGENT (fill embedded IMAGE/VIDEO/GIF prompts — asset-agent.js) ──
+      case 'mailer-assets': {
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        const assetAgent = require('./_shared/asset-agent.js');
+        let html = b.html;
+        let entryId = b.entry_id || null;
+        if (!html && entryId) {
+          const build = require('./_shared/lifecycle-mailer-build.js');
+          const built = await build.buildLifecycleMailer({ id: entryId });
+          const v = built && built.mailer && (built.mailer.variants.find((x) => x.key === 'visual_a') || built.mailer);
+          html = v && v.html;
+        }
+        if (!html) return res.status(400).json({ ok: false, error: 'pass html or an entry_id that builds a mailer' });
+        const out = await assetAgent.fillMailerAssets(html, {
+          tier: b.tier || 'premium', market: b.market || 'UK', persist: b.persist !== false,
+          video: b.video !== false, gif: b.gif !== false,
+        });
+        return res.json({ ...out, entry_id: entryId });
+      }
+      case 'mailer-assets-status': {
+        // Poll a pending video/gif job started during mailer-assets.
+        const provider = req.query.provider || b.provider;
+        const jobId = req.query.job_id || b.job_id;
+        if (!provider || !jobId) return res.status(400).json({ ok: false, error: 'provider and job_id required' });
+        const out = await video.getVideoStatus({ provider, job_id: jobId });
+        if (out && out.status === 'completed' && out.video_url && (req.query.as === 'gif' || b.as === 'gif')) {
+          const gifCore = require('./_shared/gif-core.js');
+          const g = await gifCore.convertFromVideo({ video_url: out.video_url });
+          return res.json({ ...out, gif: g });
+        }
+        return res.json(out);
+      }
+
       // ── SOCIAL MEDIA OS (daily multi-agent post pipeline — _shared/social-core.js) ──
       case 'social-run-daily': {
         // POST from the console; GET only for the daily cron (/api/cron/social
@@ -490,7 +523,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, ...(await osb.dashboard()) });
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);

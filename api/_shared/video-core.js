@@ -32,6 +32,7 @@
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const OPENAI_BASE = 'https://api.openai.com/v1';
 const HIGGSFIELD_BASE = 'https://cloud.higgsfield.ai/v1';
+const OPENMONTAGE_BASE = (process.env.OPENMONTAGE_BASE || 'https://api.openmontage.ai/v1').replace(/\/+$/, '');
 const RUNWAY_BASE = 'https://api.dev.runwayml.com/v1';
 const RUNWAY_VERSION = '2024-11-06';
 
@@ -49,13 +50,14 @@ function keys() {
     openai: clean(process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_2 || process.env.OPENAI_API_KEY_3),
     higgsfield: clean(process.env.HIGGSFIELD_API_KEY),
     higgsfieldSecret: clean(process.env.HIGGSFIELD_API_SECRET),
+    openmontage: clean(process.env.OPENMONTAGE_API_KEY),
     runway: clean(process.env.RUNWAY_API_KEY),
   };
 }
 
 function anyKey() {
   const k = keys();
-  return !!(k.gemini || k.openai || k.higgsfield || k.runway);
+  return !!(k.gemini || k.openai || k.higgsfield || k.openmontage || k.runway);
 }
 
 // Map generic aspect ratios per provider.
@@ -118,6 +120,15 @@ function higgsfieldRequest({ prompt, duration_s, aspect }) {
     method: 'POST',
     url: HIGGSFIELD_BASE + '/text2video',
     body: { prompt, duration: Math.min(Math.max(Math.round(duration_s || 8), 3), 15), aspect_ratio: normAspect(aspect) },
+  };
+}
+
+function openMontageRequest({ prompt, duration_s, aspect }) {
+  return {
+    provider: 'openmontage',
+    method: 'POST',
+    url: OPENMONTAGE_BASE + '/text2video',
+    body: { prompt, duration_s: Math.min(Math.max(Math.round(duration_s || 8), 3), 30), aspect_ratio: normAspect(aspect) },
   };
 }
 
@@ -236,6 +247,36 @@ async function statusHiggsfield(jobId) {
   return { ok: true, provider: 'higgsfield', job_id: jobId, status: 'processing' };
 }
 
+// OpenMontage — generic async REST (bearer auth). Endpoint shape is
+// env-overridable via OPENMONTAGE_BASE; on any auth/endpoint mismatch the rung
+// simply demotes to the next provider, so it is safe to enable incrementally.
+async function runOpenMontage(opts) {
+  const k = keys();
+  const reqSpec = openMontageRequest(opts);
+  const r = await _fetchJson(reqSpec.url, {
+    method: 'POST', headers: { Authorization: 'Bearer ' + k.openmontage }, body: reqSpec.body,
+  });
+  if (!r.ok) return { ok: false, provider: 'openmontage', error: 'HTTP ' + r.status + ': ' + r.errText };
+  const id = r.data && (r.data.id || r.data.job_id || r.data.task_id);
+  const url = r.data && (r.data.video_url || (r.data.result && r.data.result.video_url));
+  if (url) return { ok: true, provider: 'openmontage', job_id: String(id || ''), status: 'completed', video_url: url };
+  if (!id) return { ok: false, provider: 'openmontage', error: 'no job id in response' };
+  return { ok: true, provider: 'openmontage', job_id: String(id), status: 'processing' };
+}
+
+async function statusOpenMontage(jobId) {
+  const k = keys();
+  if (!k.openmontage) return _notConnected({ provider: 'openmontage', method: 'GET', url: OPENMONTAGE_BASE + '/jobs/' + jobId, body: undefined });
+  const r = await _fetchJson(OPENMONTAGE_BASE + '/jobs/' + encodeURIComponent(jobId), { headers: { Authorization: 'Bearer ' + k.openmontage } });
+  if (!r.ok) return { ok: false, provider: 'openmontage', job_id: jobId, status: 'unknown', error: 'HTTP ' + r.status + ': ' + r.errText };
+  const d = r.data || {};
+  const raw = String(d.status || d.state || '').toLowerCase();
+  const url = (d.result && (d.result.url || d.result.video_url)) || d.video_url || null;
+  if (raw === 'completed' || raw === 'succeeded' || url) return { ok: true, provider: 'openmontage', job_id: jobId, status: 'completed', video_url: url };
+  if (raw === 'failed' || raw === 'error') return { ok: false, provider: 'openmontage', job_id: jobId, status: 'failed', error: d.error || raw };
+  return { ok: true, provider: 'openmontage', job_id: jobId, status: 'processing' };
+}
+
 async function runRunway(opts) {
   const k = keys();
   const reqSpec = runwayRequest(opts);
@@ -268,7 +309,7 @@ function _notConnected(wouldRequest) {
   return {
     ok: false, connected: false, not_connected: true,
     would_request: wouldRequest,
-    hint: 'Set GEMINI_API_KEY (Veo 3.1), OPENAI_API_KEY (Sora 2), HIGGSFIELD_API_KEY, or RUNWAY_API_KEY in Vercel env to execute this for real. The request shape above is what will be sent.',
+    hint: 'Set GEMINI_API_KEY (Veo 3.1), OPENAI_API_KEY (Sora 2), HIGGSFIELD_API_KEY, OPENMONTAGE_API_KEY, or RUNWAY_API_KEY in Vercel env to execute this for real. The request shape above is what will be sent.',
   };
 }
 
@@ -280,22 +321,33 @@ function _notConnected(wouldRequest) {
  * With NO keys at all, returns the Klaviyo-style { connected:false, would_request }
  * stub for the best rung (Veo 3.1).
  */
-async function generateVideo({ prompt, duration_s = 8, aspect = '16:9', tier = 'standard' } = {}) {
+async function generateVideo({ prompt, duration_s = 8, aspect = '16:9', tier = 'standard', preferProviders = null } = {}) {
   const p = String(prompt || '').trim();
   if (!p) return { ok: false, error: 'prompt required' };
   const opts = { prompt: p, duration_s, aspect };
   const k = keys();
 
   if (!anyKey()) {
-    return _notConnected(veoRequest(opts)); // best rung's exact request shape
+    // Best rung's exact request shape — honour the caller's first preference.
+    const first = (preferProviders && preferProviders[0]) || 'veo';
+    const shape = { higgsfield: higgsfieldRequest, openmontage: openMontageRequest, sora: soraRequest, runway: runwayRequest, veo: veoRequest }[first] || veoRequest;
+    return _notConnected(shape(opts));
   }
 
-  const rungs = [
+  let rungs = [
     { name: 'veo', hasKey: !!k.gemini, run: runVeo },
     { name: 'sora', hasKey: !!k.openai, run: runSora },
     { name: 'higgsfield', hasKey: !!k.higgsfield, run: runHiggsfield },
+    { name: 'openmontage', hasKey: !!k.openmontage, run: runOpenMontage },
     { name: 'runway', hasKey: !!k.runway, run: runRunway },
   ];
+
+  // Caller can reorder the cascade (e.g. the mailer asset agent pins
+  // Higgsfield + OpenMontage first per the lifecycle-OS video policy).
+  if (Array.isArray(preferProviders) && preferProviders.length) {
+    const rank = (n) => { const i = preferProviders.indexOf(n); return i === -1 ? 99 : i; };
+    rungs = rungs.slice().sort((a, b) => rank(a.name) - rank(b.name));
+  }
 
   const attempts = [];
   for (const rung of rungs) {
@@ -326,9 +378,10 @@ async function getVideoStatus({ provider, job_id } = {}) {
     case 'veo': case 'gemini': return statusVeo(id);
     case 'sora': case 'openai': return statusSora(id);
     case 'higgsfield': return statusHiggsfield(id);
+    case 'openmontage': return statusOpenMontage(id);
     case 'runway': return statusRunway(id);
     default:
-      return { ok: false, error: "Unknown video provider '" + provider + "'", available: ['veo', 'sora', 'higgsfield', 'runway'] };
+      return { ok: false, error: "Unknown video provider '" + provider + "'", available: ['veo', 'sora', 'higgsfield', 'openmontage', 'runway'] };
   }
 }
 

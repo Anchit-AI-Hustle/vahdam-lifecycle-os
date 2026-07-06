@@ -108,6 +108,23 @@ const TOOLS = {
     desc: 'Run the end-to-end agentic campaign flow (data→analysis→plan→content→assets→review). params: {brief, market?, days?, tier?(budget|maxpower), withCreatives?}',
     run: async (a) => agentic.runAgentic({ market: a.market || 'US', brief: a.brief || a.theme || '', tier: a.tier || 'budget', days: a.days ? parseInt(a.days, 10) : undefined, withCreatives: a.withCreatives === true, maxRetries: 1 }),
   },
+  generate_mailer_assets: {
+    mutates: true,
+    desc: 'Fill a mailer\'s embedded IMAGE/VIDEO/GIF GENERATION PROMPT slots with real generated assets (images via gpt-image-2/nano-banana, video via Higgsfield+OpenMontage, gif derived from a clip). params: {html} (the mailer HTML) or {entry_id} (a lifecycle_calendar_entries row to build then fill). Returns filled html + per-slot asset report.',
+    run: async (a) => {
+      const assetAgent = require('./asset-agent.js');
+      let html = a.html;
+      let built = null;
+      if (!html && a.entry_id) {
+        const b = require('./lifecycle-mailer-build.js');
+        built = await b.buildLifecycleMailer({ id: a.entry_id });
+        html = built && built.mailer && (built.mailer.variants.find((v) => v.key === 'visual_a') || built.mailer).html;
+      }
+      if (!html) return { ok: false, error: 'pass {html} or an {entry_id} that builds a mailer' };
+      const filled = await assetAgent.fillMailerAssets(html, { tier: a.tier || 'premium', market: a.market || 'UK', persist: a.persist !== false });
+      return built ? { ...filled, entry_id: a.entry_id } : filled;
+    },
+  },
   klaviyo: {
     mutates: false, // individual write ops are gated inside klaviyo-core until a key exists
     desc: `Talk to Klaviyo (email/SMS lifecycle). params: {op, ...opParams}. Ops: ${Object.keys(klaviyo.OPS).join(', ')}. Examples — list audiences: {op:'get_lists'}; segments: {op:'get_segments'}; performance: {op:'campaign_report'}; subscribe: {op:'subscribe_profiles', list_id, emails:[]}. Returns a 'not_connected' stub describing the exact API call until KLAVIYO_API_KEY is set.`,

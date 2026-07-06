@@ -264,21 +264,28 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
     subject_line: S.subject_line, preview_text: S.preview_text,
     hero_headline: S.hero_headline, hero_subline: S.hero_subline, cta_text: S.cta_text,
   });
-  const render = (S, style, hero_image_url) => helpers.renderTextVariant({
-    style, subject: S.subject_line, hero_headline: S.hero_headline, hero_subline: S.hero_subline,
+  const render = (S, style, opts = {}) => helpers.renderTextVariant({
+    style, subject: S.subject_line, preheader: S.preview_text,
+    hero_headline: S.hero_headline, hero_subline: S.hero_subline,
     body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: ctaUrl, market,
-    hero_product: row.hero_product, hero_image_url,
+    hero_product: row.hero_product, ...opts,
   });
+
+  // Only a REAL catalog photo is embedded as a live <img>. When the slot has no
+  // catalog image we pass the generation prompt so the renderer emits the
+  // gold-standard IMAGE GENERATION PROMPT comment + PASTE_IMAGE_URL_HERE slot,
+  // which the asset agent (asset-agent.js) later fills with a generated image.
+  const heroImg = hero.mode === 'catalog' ? hero.url : null;
 
   // Exactly the two named mailer types, two variants each (mailer taxonomy):
   //   Text          = colour + type + structural elements (buttons, tables,
   //                   dividers, badges), NO images / video / gif.
-  //   Text + Visual = the same, plus a hero image (real catalog or placeholder).
+  //   Text + Visual = the same, plus a hero image (real catalog or a fillable slot).
   const variants = [
     { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,          framework: fwA.key, image: null, ...meta(SA), html: render(SA, 'pure') },
     { key: 'text_b',   type: 'Text',          label: `Text · ${fwB.name}`,          framework: fwB.key, image: null, ...meta(SB), html: render(SB, 'editorial') },
-    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, image: hero, ...meta(SA), html: render(SA, 'visual', hero.url) },
-    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, image: hero, ...meta(SB), html: render(SB, 'visual', hero.url) },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, image: hero, ...meta(SA), html: render(SA, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt }) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, image: hero, ...meta(SB), html: render(SB, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt }) },
   ];
 
   const primary = variants[2]; // visual_a, for backward-compatible top-level fields

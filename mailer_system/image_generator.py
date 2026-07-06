@@ -31,7 +31,7 @@ SECTION_SPECS = {
         "size": "1792x1024",
         "quality": "high",
         "description": (
-            "Wide cinematic hero crop. Dark deep forest-green background (#0f2a1c). "
+            "Wide cinematic hero crop. Dark deep forest-green background (#004A2B). "
             "Centrally composed. Dramatic atmospheric depth. "
             "Luxury tea lifestyle or origin garden scene."
         ),
@@ -54,7 +54,7 @@ BASE_STYLE = (
     "Cinematic studio lighting — warm amber key, cool forest-green fill. "
     "Shot on Phase One medium format. "
     "Visual language of Condé Nast Traveler, Monocle, and Kinfolk magazine. "
-    "Color palette: deep forest green #0f2a1c, warm amber #d4873a, cream #fdf6e8. "
+    "Color palette: deep forest green #004A2B, warm amber #AB8743, cream #FBF5EA. "
     "Photorealistic. 8K resolution. Studio grade. "
     "No text overlays. No logos. No watermarks. No people unless specified. "
     "Rule of thirds composition. Shallow depth of field. "
