@@ -85,8 +85,9 @@ Pure-curl mirrors (`no Node needed`): `scripts/migrate-oauth.sh` and
 - `<SLUG>_SUPABASE_PROJECT_REF` — per-project Supabase ref (slug uppercased,
   non-alphanumerics → `_`); `SUPABASE_PROJECT_REF` is the fallback for the
   primary app. Same convention as `scripts/preflight-credentials.sh`.
-- `GOOGLE_OAUTH_CLIENT_ID` *(optional)* — deep-links the plan to that client.
-- `GCP_PROJECT` *(optional)* — Console-link project; else read from gcloud.
+- `GCP_PROJECT` *(optional)* — Console-link project; else read from gcloud. The
+  plan links to the project's credentials list (the web client is one click
+  away); it does not embed the client id in a logged URL.
 
 Everything is **dry-run by default** and **idempotent**: re-running only adds
 what is missing and reports `already done` once the new origin is covered.

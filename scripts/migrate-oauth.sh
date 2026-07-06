@@ -20,7 +20,6 @@
 #                                         non-alphanumeric -> underscore);
 #                                         SUPABASE_PROJECT_REF is the fallback
 #                                         for vahdam-lifecycle-os.
-#   GOOGLE_OAUTH_CLIENT_ID                optional — deep-links to that client.
 #   GCP_PROJECT                           optional — else read from gcloud config.
 #   ROOT_DOMAIN                           optional (default anchit-tandon.com)
 #
@@ -122,14 +121,11 @@ for p in $PROJECTS; do
     fi
   fi
 
-  # Google web OAuth client — plan only.
-  cid="${GOOGLE_OAUTH_CLIENT_ID:-}"
+  # Google web OAuth client — plan only. Link to the project's credentials list
+  # (not a per-client URL): the client id is user input and threading it into a
+  # logged URL adds no real value; the list page is one click from the client.
   projq=""; [ -n "$GCP_PROJECT" ] && projq="?project=${GCP_PROJECT}"
-  if [ -n "$cid" ]; then
-    link="https://console.cloud.google.com/apis/credentials/oauthclient/${cid}${projq}"
-  else
-    link="https://console.cloud.google.com/apis/credentials${projq}"
-  fi
+  link="https://console.cloud.google.com/apis/credentials${projq}"
   echo "    [google oauth client] add Authorized JavaScript origin: https://${fqdn}"
   [ -n "$ref" ] && echo "      redirect URI stays the Supabase callback (unchanged): https://${ref}.supabase.co/auth/v1/callback"
   echo "      gcloud/API cannot edit a Web-application client — do it in Console: ${link}"

@@ -45,8 +45,6 @@
  *   <SLUG>_SUPABASE_PROJECT_REF           per-project Supabase ref (see below);
  *                                         SUPABASE_PROJECT_REF is the fallback
  *                                         for vahdam-lifecycle-os.
- *   GOOGLE_OAUTH_CLIENT_ID                optional — if set, the plan deep-links
- *                                         straight to that client's edit page.
  *   GCP_PROJECT / --gcp-project=          optional — GCP project for the Console
  *                                         link; else read from gcloud config.
  *
@@ -208,18 +206,18 @@ async function reconcileSupabase(project, fqdn) {
 
 // Google web OAuth client: gcloud/API cannot mutate it — emit the exact,
 // idempotent plan + a Console deep-link so a human can finish it in seconds.
+// We link to the project's credentials LIST (not a per-client URL): the OAuth
+// client id, while not a true secret, is user-controlled input, and threading
+// it into a logged URL trips clear-text-logging scanners for no real gain —
+// the list page lands on the right project and the client is one click away.
 function googleClientPlan(project, fqdn) {
   const ref = supabaseRefFor(project);
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
   const projQ = GCP_PROJECT ? `?project=${GCP_PROJECT}` : '';
-  const consoleLink = clientId
-    ? `https://console.cloud.google.com/apis/credentials/oauthclient/${clientId}${projQ}`
-    : `https://console.cloud.google.com/apis/credentials${projQ}`;
+  const consoleLink = `https://console.cloud.google.com/apis/credentials${projQ}`;
   return {
     jsOrigin: `https://${fqdn}`,
     supabaseCallback: ref ? `https://${ref}.supabase.co/auth/v1/callback` : '(unknown — Supabase ref not set)',
     consoleLink,
-    clientId,
   };
 }
 
