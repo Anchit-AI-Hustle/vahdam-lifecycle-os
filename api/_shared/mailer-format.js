@@ -36,7 +36,7 @@ const PLACEHOLDER = {
 // Single canonical parser regex, shared with asset-agent.js.
 // Groups: 1=kind 2=slot 3=dispW 4=dispH 5=genW 6=genH 7=prompt
 const ASSET_PROMPT_RE =
-  /<!--\s*(IMAGE|VIDEO|GIF)\s+GENERATION\s+PROMPT\s*\(\s*([^,]+?)\s*,\s*displayed\s+(\d+)x(\d+)\s*-\s*generate at\s+(\d+)x(\d+)[^:]*:\s*([\s\S]*?)\s*-->/gi;
+  /<!--\s*(IMAGE|VIDEO|GIF)\s+GENERATION\s+PROMPT\s*\(\s*([^,]+?)\s*,\s*displayed\s+(\d+)x(\d+)\s*-\s*generate at\s+(\d+)x(\d+)[^:]*:\s*([\s\S]*?)\s*--!?>/gi;
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -44,7 +44,9 @@ function esc(s) {
 
 // The subject-metadata comment block. `alts` is an array (0-2 used).
 function subjectMetaBlock({ subject, alts = [], preheader = '' } = {}) {
-  const clean = (s) => String(s ?? '').replace(/-->/g, '- ->').replace(/[\r\n]+/g, ' ').trim();
+  // Neutralize BOTH HTML comment terminators (`-->` and `--!>`) so injected
+  // content cannot break out of the comment.
+  const clean = (s) => String(s ?? '').replace(/--!?>/g, '- ->').replace(/[\r\n]+/g, ' ').trim();
   const lines = ['<!--', `SUBJECT_PRIMARY: ${clean(subject)}`];
   if (alts[0]) lines.push(`SUBJECT_ALT1: ${clean(alts[0])}`);
   if (alts[1]) lines.push(`SUBJECT_ALT2: ${clean(alts[1])}`);
@@ -65,8 +67,8 @@ function assetPromptComment({ kind = 'image', slot = 'hero', displayW, displayH,
   const genW = displayW * 2;
   const genH = displayH * 2;
   const label = k === 'video' ? 'VIDEO' : k === 'gif' ? 'GIF' : 'IMAGE';
-  const body = String(prompt || '').replace(/-->/g, '- ->').trim() +
-    (negative_prompt ? ` Avoid: ${String(negative_prompt).replace(/-->/g, '- ->').trim()}.` : '');
+  const body = String(prompt || '').replace(/--!?>/g, '- ->').trim() +
+    (negative_prompt ? ` Avoid: ${String(negative_prompt).replace(/--!?>/g, '- ->').trim()}.` : '');
   return `<!-- ${label} GENERATION PROMPT (${slot}, displayed ${displayW}x${displayH} - generate at ${genW}x${genH} for retina):\n     ${body} -->`;
 }
 
