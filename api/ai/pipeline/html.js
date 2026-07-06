@@ -22,6 +22,7 @@
 
 const { corsHeaders } = require('../../_shared/llm');
 const callLLM = require('../../_shared/llm');
+const MF = require('../../_shared/mailer-format');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MASTER SYSTEM PROMPT — Steps 9-10 of the final master orchestration system
@@ -835,7 +836,7 @@ Output starts <!DOCTYPE html>, ends </html>. Nothing before or after.`;
       variant,
       provider,
       model,
-      html,
+      html: MF.withSubjectMeta(html, { subject: subjectLines[0], alts: subjectLines.slice(1, 3), preheader: plan.preheader || '' }),
       section_count: sections.length,
       subject_lines: subjectLines,
       preheader: plan.preheader || '',
@@ -1054,7 +1055,7 @@ You received this email because you signed up at vahdamteas.com<br>
       variant,
       provider: 'heuristic',
       model: 'fallback-v1',
-      html,
+      html: MF.withSubjectMeta(html, { subject: subjectLines[0], alts: subjectLines.slice(1, 3), preheader }),
       _heuristic: true,
       _llm_error: String(e.message || e).substring(0, 200),
       section_count: 8,

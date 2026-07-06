@@ -561,11 +561,11 @@ export function compileHTML(theme: ThemeContent, variant: FunnelVariant, baseOri
   <style>
     /* Premium Brand Colors & CSS Properties */
     :root {
-      --color-brand: #004B49;
-      --color-gold: #D4A373;
-      --color-cream: #FDFBF7;
+      --color-brand: #004A2B;
+      --color-gold: #AB8743;
+      --color-cream: #FBF5EA;
       --color-offset: #FBF5EA;
-      --color-charcoal: #222222;
+      --color-charcoal: #171717;
       --color-white: #FFFFFF;
     }
 
@@ -576,7 +576,7 @@ export function compileHTML(theme: ThemeContent, variant: FunnelVariant, baseOri
     }
 
     body {
-      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      font-family: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
       background-color: var(--color-cream);
       color: var(--color-charcoal);
       line-height: 1.6;
@@ -704,11 +704,11 @@ export function compileHTML(theme: ThemeContent, variant: FunnelVariant, baseOri
 
     /* Responsive Typography Customizations */
     .font-serif {
-      font-family: "Playfair Display", Georgia, serif;
+      font-family: "Lao MN", "Cormorant Garamond", Georgia, serif;
     }
 
     .font-sans {
-      font-family: "Inter", system-ui, sans-serif;
+      font-family: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
     }
 
     .font-mono {

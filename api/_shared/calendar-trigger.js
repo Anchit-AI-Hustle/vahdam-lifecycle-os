@@ -327,8 +327,19 @@ module.exports = async function handler(req, res) {
   });
 };
 
-// ─── Text-variant renderer (no images, brand-compliant) ─────────────────────
-function renderTextVariant({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku, hero_image_url }) {
+// ─── Text-variant renderer (brand-compliant) ───────────────────────────────
+// Public wrapper: renders the variant body, then stamps the gold-standard
+// subject-metadata header (mailer-format.js) so every mailer path is uniform.
+const MF = require('./mailer-format.js');
+function renderTextVariant(opts) {
+  const html = _renderVariantBody(opts || {});
+  return MF.withSubjectMeta(html, {
+    subject: opts && opts.subject,
+    alts: (opts && opts.subject_alts) || [],
+    preheader: (opts && opts.preheader) || (opts && opts.preview_text) || '',
+  });
+}
+function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku, hero_image_url, hero_prompt }) {
   // CTA points at the resolved product/collection page; the brand domain still
   // falls back per-market if no specific destination was provided.
   const baseUrl = cta_url || regionBase(market);
@@ -347,12 +358,17 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
   //    and a brand palette hero block. Visual elements stay light and on-brand.
   if (style === 'visual') {
     const heroLabel = hero_product ? esc(hero_product) : 'Today on the cupping table';
-    // Optional real hero photograph (generated or hosted). When absent the
-    // variant renders exactly as before — brand-palette hero block only.
+    // Real hero photograph if we have one; otherwise, when a generation prompt
+    // is supplied, emit the gold-standard IMAGE GENERATION PROMPT comment + a
+    // PASTE_IMAGE_URL_HERE slot the asset agent fills. With neither, the
+    // variant renders as before (brand-palette hero block only).
     const heroImgRow = hero_image_url ? `
       <tr><td style="padding:20px 32px 0;">
         <img src="${esc(hero_image_url)}" width="536" alt="${heroLabel}" style="display:block;width:100%;height:auto;border-radius:6px;" />
-      </td></tr>` : '';
+      </td></tr>` : (hero_prompt ? `
+      <tr><td style="padding:20px 32px 0;">
+        ${MF.assetSlot({ kind: 'image', slot: 'hero', displayW: 536, displayH: 340, prompt: hero_prompt, alt: hero_product || 'hero' })}
+      </td></tr>` : '');
     return `<!doctype html>
 <html><body style="margin:0;padding:0;background:${palette.cream};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.cream};">
