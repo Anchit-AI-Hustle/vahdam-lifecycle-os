@@ -27,9 +27,16 @@
   // page that ships auth.js inherits the system — including the Capacitor apps,
   // which are WebView shells over production. Also ensure the viewport opts into
   // safe-area (notch) insets so the theme's env() padding actually resolves.
+  // The frozen "diff-version" snapshot must never change — it is a pinned
+  // before/after reference (see diff-version/FROZEN_AT.txt). It is fully
+  // self-themed, so we exempt it from the shared theme system entirely: no
+  // theme.css injection, no green lock — it keeps its own dark theme.
+  var IS_FROZEN_DIFF = /(^|\/)diff-version(\/|\.html|$)/.test(location.pathname);
+
   (function ensureTheme() {
     try {
       var d = document;
+      if (IS_FROZEN_DIFF) { d.documentElement.setAttribute('data-theme', 'dark'); return; }
       if (!d.querySelector('link[data-vh-theme]')) {
         var l = d.createElement('link');
         l.rel = 'stylesheet';
