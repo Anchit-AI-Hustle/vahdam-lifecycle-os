@@ -275,7 +275,7 @@
     ]},
     { group: 'Landing Pages', icon: 'landing', gid: 'landing', ver: 'v1', children: [
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
-      { id: 'lp-agent',   label: 'Agent Concept LP',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
+      { id: 'lp-agent',   label: 'Landing Page with All-In-One Voice+Chat+Talk Agent',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
       { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages.html#mailers',  icon: 'mailer' },
       { id: 'lp-meta',    label: 'For Meta Ads',   href: '/landing-pages.html#meta',     icon: 'meta' },
       { id: 'lp-google',  label: 'For Google Ads', href: '/landing-pages.html#google',   icon: 'google' },
