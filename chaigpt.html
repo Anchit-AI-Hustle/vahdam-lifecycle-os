@@ -7,7 +7,7 @@
 <style>
   /* Brand-green canvas, consistent with the shared dark shell (theme.css).
      Background is always forest/dark green; text is cream/white + gold. */
-  :root { --green:#004A2B; --gold:#AB8743; --cream:#FBF5EA; --canvas:#0a1410; --panel:#0f1d18; --panel2:#0b1813; --ink:#e8ede9; --dim:#9aaaa1; }
+  :root { --green:#004A2B; --gold:#AB8743; --cream:#FBF5EA; --canvas:var(--bg,#004A2B); --panel:var(--surface,#075C39); --panel2:var(--soft,#003D24); --ink:var(--vh-ink,#FBF5EA); --dim:var(--ink-dim,#E4CF94); }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--canvas); font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif; color:var(--ink); }
   .shell { max-width:920px; margin:0 auto; padding:26px 18px 150px; }
