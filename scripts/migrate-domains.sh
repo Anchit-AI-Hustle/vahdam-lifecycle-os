@@ -26,11 +26,12 @@ ROOT_DOMAIN="${ROOT_DOMAIN:-anchit-tandon.com}"
 VERCEL_CNAME="cname.vercel-dns.com"
 ALL_PROJECTS="vahdam-lifecycle-os personal-ai-os the-third-eye music-gen-ai hey-yaara ai-tele-suite th-life-engine marketing-mailers-html-architect"
 
-APPLY=0; ONLY=""
+APPLY=0; ONLY=""; NO_OAUTH=0
 for a in "$@"; do
   case "$a" in
     --apply) APPLY=1 ;;
     --project=*) ONLY="${a#*=}" ;;
+    --no-oauth) NO_OAUTH=1 ;;
     *) echo "unknown arg: $a" >&2; exit 2 ;;
   esac
 done
@@ -89,4 +90,27 @@ for p in $PROJECTS; do
 done
 printf '%s\n' "------------------------------------------------------------------------"
 [ "$APPLY" = "1" ] || echo "Dry-run only. Re-run with --apply (and GoDaddy keys set) to make changes."
+
+# ── OAuth follow-through ──────────────────────────────────────────────────────
+# A domain change breaks Google sign-in until the new origin is reconciled.
+# Hand the same scope/mode to migrate-oauth.sh (skip with --no-oauth).
+if [ "$NO_OAUTH" = "1" ]; then
+  echo ""
+  echo "(--no-oauth) Skipping OAuth reconcile. Run scripts/migrate-oauth.sh separately."
+elif [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+  echo ""
+  echo "OAuth reconcile SKIPPED: SUPABASE_ACCESS_TOKEN not set. Google sign-in will 400 on the"
+  echo "new origin until the Supabase redirect allowlist is updated. Set it and run:"
+  echo "  bash scripts/migrate-oauth.sh$([ "$APPLY" = 1 ] && echo ' --apply')"
+else
+  echo ""
+  echo "########################################################################"
+  echo "# OAuth follow-through (Supabase allowlist + Google web-client plan)"
+  echo "########################################################################"
+  OAUTH_ARGS=""
+  [ "$APPLY" = "1" ] && OAUTH_ARGS="$OAUTH_ARGS --apply"
+  [ -n "$ONLY" ] && OAUTH_ARGS="$OAUTH_ARGS --project=$ONLY"
+  bash "$(dirname "$0")/migrate-oauth.sh" $OAUTH_ARGS || fail=1
+fi
+
 exit $fail

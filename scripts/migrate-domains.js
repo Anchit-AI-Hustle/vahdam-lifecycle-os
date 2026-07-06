@@ -23,8 +23,18 @@
  *   node scripts/migrate-domains.js --apply         # do it
  *   node scripts/migrate-domains.js --project=hey-yaara --apply
  *   ROOT_DOMAIN=anchit-tandon.com node scripts/migrate-domains.js
+ *
+ * OAUTH FOLLOW-THROUGH: a domain change breaks Google sign-in until the new
+ * origin is reconciled (Supabase redirect allowlist + Google web-client JS
+ * origin). This script hands each migrated project to scripts/migrate-oauth.js
+ * automatically (same --apply / dry-run mode, same --project scope). Pass
+ * --no-oauth to skip it. See that script for the full explanation of what
+ * gcloud can and cannot change.
  */
 'use strict';
+
+const { spawnSync } = require('node:child_process');
+const path = require('node:path');
 
 const ROOT_DOMAIN = process.env.ROOT_DOMAIN || 'anchit-tandon.com';
 const VERCEL_CNAME = 'cname.vercel-dns.com'; // Vercel's canonical target for subdomains
@@ -43,6 +53,7 @@ const SUBDOMAIN = {
 // ── args ─────────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 const APPLY = args.includes('--apply');
+const NO_OAUTH = args.includes('--no-oauth');
 const only = (args.find((a) => a.startsWith('--project=')) || '').split('=')[1];
 const PROJECTS = only ? [only] : ALL_PROJECTS;
 
@@ -145,6 +156,36 @@ async function run() {
   console.log('='.repeat(72));
   for (const [p, action, detail] of summary) console.log(`  ${p.padEnd(34)} ${action.padEnd(24)} ${detail}`);
   if (!APPLY) console.log('\nDry-run only. Re-run with --apply (and GoDaddy keys set) to make changes.');
+
+  runOauthFollowThrough();
+}
+
+// After the DNS/domain work, reconcile the OAuth surfaces for the same scope so
+// Google sign-in keeps working on the new origin. Delegates to migrate-oauth.js
+// (inherits --apply / dry-run and --project). Best-effort: a failure here does
+// not undo the domain migration, so we report and move on rather than throw.
+function runOauthFollowThrough() {
+  if (NO_OAUTH) {
+    console.log('\n(--no-oauth) Skipping OAuth reconcile. Run scripts/migrate-oauth.js separately.');
+    return;
+  }
+  if (!process.env.SUPABASE_ACCESS_TOKEN) {
+    console.log('\nOAuth reconcile SKIPPED: SUPABASE_ACCESS_TOKEN not set. The domain is migrated but');
+    console.log('Google sign-in will 400 on the new origin until the Supabase redirect allowlist is');
+    console.log('updated. Set SUPABASE_ACCESS_TOKEN and run: node scripts/migrate-oauth.js' + (APPLY ? ' --apply' : ''));
+    return;
+  }
+  console.log('\n' + '#'.repeat(72));
+  console.log('# OAuth follow-through (Supabase allowlist + Google web-client plan)');
+  console.log('#'.repeat(72));
+  const oauthScript = path.join(__dirname, 'migrate-oauth.js');
+  const passArgs = [oauthScript];
+  if (APPLY) passArgs.push('--apply');
+  if (only) passArgs.push(`--project=${only}`);
+  const r = spawnSync(process.execPath, passArgs, { stdio: 'inherit' });
+  if (r.error) {
+    console.log(`! OAuth reconcile could not start: ${r.error.message}. Run it manually: node scripts/migrate-oauth.js${APPLY ? ' --apply' : ''}`);
+  }
 }
 
 run().catch((e) => die(e.message || String(e)));

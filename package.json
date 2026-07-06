@@ -9,6 +9,8 @@
   "scripts": {
     "build": "node scripts/build-catalog.js",
     "preflight": "bash scripts/preflight-credentials.sh",
+    "migrate:domains": "node scripts/migrate-domains.js",
+    "migrate:oauth": "node scripts/migrate-oauth.js",
     "scrape:catalog": "node scripts/scrape-catalog.js",
     "dev": "node -e \"require('http').createServer().listen(3001)\"",
     "export:complete": "node scripts/export-complete.js",
