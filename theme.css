@@ -60,53 +60,29 @@
 }
 
 /* ============================================================================
-   THEME VARIANTS — html[data-theme="dark" | "dusk" | "light"]
+   LOCKED THEME — single green surface, golden/yellow/white text.
    ----------------------------------------------------------------------------
-   Each variant sets the surface + text role tokens AND aliases the two legacy
-   naming families the pages already use (family A: --bg/--panel/--ink/--ink-*;
-   family B: --forest/--surface/--card/--soft/--chip/--head). Because these are
-   attribute-qualified (higher specificity than a page's plain :root{}), they
-   win over per-page definitions, so any page that REFERENCES these names via
-   var() re-themes with the switcher — no per-page edit needed for dark/dusk.
-
-   NOTE: --cream is a brand accent AND is used by some pages as "light text."
-   In dark/dusk that is fine. In light we point the TEXT aliases at dark inks;
-   pages that still use --cream for text need per-page migration (tracked).
+   The dark/dusk/light switcher was removed. There is now ONE theme: a
+   forest-green (#004A2B) canvas with gold/cream text, on brand with the style
+   guide. All selectors below resolve to the SAME tokens, so any stale
+   html[data-theme="dusk|light"] value left in a browser still renders green —
+   the lock cannot be defeated by old localStorage.
    ========================================================================== */
-:root, :root[data-theme="dark"] {
-  --vh-bg: #0a1410; --vh-panel: #0f1d18; --vh-panel-2: #0b1813;
-  --vh-line: rgba(171,135,67,0.18); --vh-line-hot: rgba(171,135,67,0.50);
-  --vh-ink: #e8ede9; --vh-ink-dim: #9aaaa1; --vh-ink-faint: #5d6e64;
-  /* legacy aliases */
-  --bg: #0a1410; --panel: #0f1d18; --surface: #0f1d18; --card: #0f1d18; --soft: #0b1813; --chip: #0b1813;
-  --ink: #e8ede9; --ink-dim: #9aaaa1; --ink-faint: #5d6e64; --muted: #9aaaa1; --head: #FBF5EA;
-  --line: rgba(171,135,67,0.18); --line-hot: rgba(171,135,67,0.50);
-  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #1e3a2c; --moss-deep: #14261c;
+:root,
+:root[data-theme="dark"],
+:root[data-theme="dusk"],
+:root[data-theme="light"],
+:root[data-theme="green"] {
+  --vh-bg: #004A2B; --vh-panel: #075C39; --vh-panel-2: #003D24;
+  --vh-line: rgba(171,135,67,0.28); --vh-line-hot: rgba(171,135,67,0.55);
+  /* Text: white/cream body, warm-gold secondary, gold tertiary + headings. */
+  --vh-ink: #FBF5EA; --vh-ink-dim: #E4CF94; --vh-ink-faint: #C7A65C;
+  /* legacy aliases (family A + family B) — all point at the locked green set */
+  --bg: #004A2B; --panel: #075C39; --surface: #075C39; --card: #075C39; --soft: #003D24; --chip: #003D24;
+  --ink: #FBF5EA; --ink-dim: #E4CF94; --ink-faint: #C7A65C; --muted: #E4CF94; --head: #AB8743;
+  --line: rgba(171,135,67,0.28); --line-hot: rgba(171,135,67,0.55);
+  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #075C39; --moss-deep: #003D24;
   color-scheme: dark;
-}
-:root[data-theme="dusk"] {
-  /* In-between: warmer, slightly lifted dark — softer than pure dark. */
-  --vh-bg: #14201a; --vh-panel: #1a2a22; --vh-panel-2: #12201a;
-  --vh-line: rgba(171,135,67,0.24); --vh-line-hot: rgba(171,135,67,0.55);
-  --vh-ink: #edf2ee; --vh-ink-dim: #b0bdb5; --vh-ink-faint: #77867d;
-  --bg: #14201a; --panel: #1a2a22; --surface: #1a2a22; --card: #1a2a22; --soft: #12201a; --chip: #12201a;
-  --ink: #edf2ee; --ink-dim: #b0bdb5; --ink-faint: #77867d; --muted: #b0bdb5; --head: #FBF5EA;
-  --line: rgba(171,135,67,0.24); --line-hot: rgba(171,135,67,0.55);
-  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #24422f; --moss-deep: #182e21;
-  color-scheme: dark;
-}
-:root[data-theme="light"] {
-  /* Light: cream canvas, white panels, near-black/forest text. Brand accents
-     (gold/green) unchanged. Text aliases point at dark inks so var(--ink) reads
-     correctly; --cream stays brand (see NOTE — cream-as-text needs migration). */
-  --vh-bg: #FBF5EA; --vh-panel: #FFFFFF; --vh-panel-2: #F3EBD9;
-  --vh-line: rgba(0,74,43,0.16); --vh-line-hot: rgba(171,135,67,0.55);
-  --vh-ink: #171717; --vh-ink-dim: #4a5751; --vh-ink-faint: #7d8a83;
-  --bg: #FBF5EA; --panel: #FFFFFF; --surface: #FFFFFF; --card: #FFFFFF; --soft: #F3EBD9; --chip: #F3EBD9;
-  --ink: #171717; --ink-dim: #4a5751; --ink-faint: #7d8a83; --muted: #4a5751; --head: #004A2B;
-  --line: rgba(0,74,43,0.16); --line-hot: rgba(171,135,67,0.55);
-  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #e7dcc4; --moss-deep: #d8caa9;
-  color-scheme: light;
 }
 
 /* ── Globally safe polish (no layout-affecting bare-element restyles) ─────── */
