@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MUD\Wtr Dossier :: Vahdam Playbook</title>
+<link rel="icon" href="/favicon.png">
+<meta name="description" content="Forensic competitor dossier for MUD\Wtr: desktop vs mobile UX, wireframes, tech stack, and Vahdam SWOT battle card.">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { vahdam: { green:"#004A2B", gold:"#AB8743", ink:"#171717", cream:"#FBF5EA" } },
+    fontFamily: { head:["Lao MN","Cormorant Garamond","Georgia","serif"], body:["Proxima Nova","Helvetica Neue","Arial","sans-serif"] }
+  } } };
+</script>
+<style>
+  :root{--vahdam-green:#004A2B;--vahdam-gold:#AB8743;--vahdam-ink:#171717;--vahdam-cream:#FBF5EA;--vahdam-card:#FFFFFF;--line:rgba(23,23,23,.12);--soft:#5b5b57;}
+  html{scroll-behavior:smooth;scroll-padding-top:20px;}
+  body{background:var(--vahdam-cream);color:var(--vahdam-ink);font-family:"Proxima Nova","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3,h4,.font-head{font-family:"Lao MN","Cormorant Garamond",Georgia,serif;}
+  .nav-link{transition:background .12s,color .12s;}
+  .nav-link:hover{background:rgba(171,135,67,.16);color:var(--vahdam-cream);}
+  .nav-link.active{background:var(--vahdam-gold);color:var(--vahdam-green);font-weight:700;}
+  .card{background:var(--vahdam-card);border:1px solid var(--line);border-radius:14px;}
+  .metric{background:#fff;border:1px solid var(--line);border-radius:12px;}
+  .metric .mv{font-family:"Lao MN",Georgia,serif;color:var(--vahdam-green);}
+  table.grid-tbl{border-collapse:collapse;width:100%;font-size:13px;min-width:820px;}
+  table.grid-tbl th,table.grid-tbl td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;}
+  table.grid-tbl th{background:var(--vahdam-green);color:var(--vahdam-cream);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;}
+  table.grid-tbl tr:nth-child(even) td{background:#faf7f0;}
+  table.grid-tbl tr:last-child td{border-bottom:0;}
+  .tier-1{color:var(--vahdam-green);font-weight:700;} .tier-2{color:var(--vahdam-gold);font-weight:700;} .tier-3{color:var(--soft);font-weight:700;}
+  .tierbadge{display:inline-flex;flex-direction:column;line-height:1.12;border-radius:8px;padding:4px 9px;text-align:center;}
+  .tierbadge b{font-size:11px;font-weight:800;} .tierbadge i{font-style:normal;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;opacity:.85;}
+  .tb1{background:rgba(0,74,43,.10);color:var(--vahdam-green);} .tb2{background:rgba(171,135,67,.18);color:#8a6a2f;} .tb3{background:rgba(23,23,23,.07);color:var(--soft);}
+  td.num{font-variant-numeric:tabular-nums;font-weight:700;color:var(--vahdam-ink);white-space:nowrap;}
+  .av-card{background:var(--vahdam-card);border:1px solid var(--line);border-radius:16px;padding:22px;}
+  .av-face{width:56px;height:56px;border-radius:999px;background:var(--vahdam-green);display:inline-flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;box-shadow:0 0 0 3px rgba(171,135,67,.35);}
+  .av-quote{font-family:"Lao MN",Georgia,serif;font-style:italic;color:var(--vahdam-green);border-left:3px solid var(--vahdam-gold);padding-left:12px;margin:12px 0;}
+  .av-q{cursor:pointer;text-align:left;background:#faf6ec;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;color:var(--vahdam-ink);transition:background .12s,border-color .12s;font-family:inherit;}
+  .av-q:hover{border-color:var(--vahdam-gold);} .av-q.on{background:var(--vahdam-gold);color:var(--vahdam-green);font-weight:700;border-color:var(--vahdam-gold);}
+  .av-bubble{display:none;margin-top:12px;background:var(--vahdam-green);color:var(--vahdam-cream);border-radius:12px;border-top-left-radius:3px;padding:13px 15px;font-size:13.5px;line-height:1.55;}
+  .pill{display:inline-block;border-radius:999px;padding:2px 11px;font-size:11px;font-weight:700;border:1px solid var(--line);}
+  .btn-primary{background:var(--vahdam-green);color:var(--vahdam-cream);border-radius:10px;font-weight:700;transition:filter .12s;} .btn-primary:hover{filter:brightness(1.15);}
+  .btn-gold{background:var(--vahdam-gold);color:var(--vahdam-green);border-radius:10px;font-weight:800;transition:filter .12s;} .btn-gold:hover{filter:brightness(1.05);}
+  .wire{border:2px dashed var(--vahdam-gold);border-radius:12px;background:repeating-linear-gradient(45deg,#fff,#fff 12px,#faf6ec 12px,#faf6ec 24px);padding:16px;min-height:96px;}
+  .wire .wl{font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:11.5px;color:var(--vahdam-green);font-weight:700;letter-spacing:.02em;}
+  details.blueprint{background:var(--vahdam-ink);border-radius:12px;overflow:hidden;border:1px solid var(--line);}
+  details.blueprint>summary{list-style:none;cursor:pointer;padding:13px 18px;color:var(--vahdam-cream);font-family:"Lao MN",Georgia,serif;font-size:16px;background:var(--vahdam-green);display:flex;align-items:center;justify-content:space-between;}
+  details.blueprint>summary::-webkit-details-marker{display:none;}
+  details.blueprint[open]>summary .plus{transform:rotate(45deg);}
+  details.blueprint pre{margin:0;padding:18px;overflow-x:auto;color:#e8ede9;font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:12.5px;line-height:1.6;}
+  .code-out{font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;}
+  .flow-node{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:12.5px;}
+  a{color:var(--vahdam-green);} a:hover{color:var(--vahdam-gold);}
+  ::selection{background:var(--vahdam-gold);color:#fff;}
+  section[data-section]{scroll-margin-top:18px;}
+</style>
+</head>
+<body class="font-body">
+<div class="flex min-h-screen">
+  <aside class="hidden lg:flex flex-col w-[288px] shrink-0 sticky top-0 h-screen overflow-y-auto text-vahdam-cream" style="background:var(--vahdam-green);">
+    <div class="px-5 py-6 border-b" style="border-color:rgba(251,245,234,.14);">
+      <div class="text-[10.5px] tracking-[.18em] uppercase font-bold text-vahdam-gold">Vahdam Lifecycle OS</div>
+      <div class="font-head text-[21px] leading-tight mt-1">Growth &amp; Automation<br>Playbook</div>
+      <p class="text-[11px] mt-2" style="color:#cdd8d0;">A modular documentation and execution hub. One page per feature and per competitor.</p>
+    </div>
+    <nav class="px-3 py-4 space-y-1 text-[13px]">
+        <a href="../index.html" class="nav-link block px-3 py-2 rounded-lg"><span class="mr-2">🏠</span>Playbook Hub</a>
+        <a href="../features/market-intelligence.html" class="nav-link block px-3 py-2 rounded-lg"><span class="mr-2">📊</span>Macro Market Intelligence</a>
+        <a href="../features/competitor-index.html" class="nav-link block px-3 py-2 rounded-lg active"><span class="mr-2">🕵</span>Forensic Competitor Dossiers</a>
+        <a href="../features/knowledge-base.html" class="nav-link block px-3 py-2 rounded-lg"><span class="mr-2">📘</span>Direct-to-Origin Knowledge Base</a>
+        <a href="../features/product-avatars.html" class="nav-link block px-3 py-2 rounded-lg"><span class="mr-2">👥</span>Product Avatars</a>
+        <a href="../features/analytics-engine.html" class="nav-link block px-3 py-2 rounded-lg"><span class="mr-2">📈</span>Intraday Pace & Predictive</a>
+        <a href="../features/asset-workspace.html" class="nav-link block px-3 py-2 rounded-lg"><span class="mr-2">⚙️</span>Marketing Asset Workspace</a>
+        <a href="../features/shopify-loop.html" class="nav-link block px-3 py-2 rounded-lg"><span class="mr-2">📦</span>Shopify CDN Ingestion Loop</a>
+        <a href="../features/chaigpt-config.html" class="nav-link block px-3 py-2 rounded-lg"><span class="mr-2">🤖</span>ChaiGPT Engine Config</a>
+    </nav>
+    <div class="mt-auto px-5 py-4 text-[11px] border-t" style="border-color:rgba(251,245,234,.14);color:#cdd8d0;">
+      <a href="/all-in-one" class="underline" style="color:#cdd8d0;">OS Home</a> &nbsp;&middot;&nbsp; <a href="/research" class="underline" style="color:#cdd8d0;">Growth Book</a>
+    </div>
+  </aside>
+  <main class="flex-1 min-w-0">
+    <div class="lg:hidden sticky top-0 z-20 flex items-center justify-between px-5 py-3 text-vahdam-cream" style="background:var(--vahdam-green);"><div class="font-head text-lg">MUD\Wtr</div><a href="../index.html" class="text-xs pill" style="border-color:rgba(251,245,234,.3);color:var(--vahdam-cream);">Hub</a></div>
+    <div class="max-w-[1080px] mx-auto px-6 md:px-10 py-10 space-y-14">
+      <nav class="text-[12.5px]" style="color:var(--soft);"><a href="../index.html">Hub</a> &rsaquo; <a href="../features/competitor-index.html">Competitor Dossiers</a> &rsaquo; <span style="color:var(--vahdam-ink);">MUD\Wtr</span></nav>
+      <header class="space-y-3">
+        <span class="text-[11px] tracking-[.18em] uppercase font-bold text-vahdam-gold">Forensic Dossier</span>
+        <h1 class="font-head text-4xl md:text-5xl text-vahdam-green leading-[1.05]">MUD\Wtr</h1>
+        <p class="text-[15px] max-w-3xl" style="color:var(--soft);">Adaptogen coffee alternative. Desktop and mobile UX teardown, wireframe outlines, technical stack footprint, and a Vahdam battle card with an explicit path to progress. Intelligence is directional and labelled, not audited data.</p>
+      </header>
+      <section data-section id="snapshot" class="space-y-4">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Share tier</div><div class="mt-2"><span class="tierbadge tb1"><b>Tier 1</b><i>High</i></span></div></div><div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">AOV</div><div class="mv text-4xl mt-1">$60.00</div><div class="text-[12.5px] mt-1" style="color:var(--soft);">Estimated average order value</div></div><div class="metric p-5" style="border-color:var(--vahdam-gold);border-width:2px;"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">D-180 retention</div><div class="mv text-4xl mt-1" style="color:var(--vahdam-gold);">21.80%</div><div class="text-[12.5px] mt-1" style="color:var(--soft);">Day-180 retained rate</div></div><div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Primary hook</div><div class="text-[15px] mt-2 font-head text-vahdam-green">Aggressive alternative-ritual video</div></div>        </div>
+        <div class="card p-5"><span class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Churn strategy</span><p class="text-sm mt-1" style="color:var(--vahdam-ink);">Complimentary hardware-kit locking values</p><span class="text-[11px] uppercase tracking-[.06em] font-bold mt-3 block" style="color:var(--soft);">Core tech stack</span><p class="code-out mt-1" style="color:var(--vahdam-green);">Headless pipeline / Recharge API</p></div>
+      </section>
+      <section data-section id="viewport" class="space-y-4">
+<div><div class="text-[11px] tracking-[.16em] uppercase font-bold text-vahdam-gold">1. Viewport</div><h2 class="font-head text-3xl text-vahdam-green mt-1">Desktop vs mobile UX</h2><p class="text-sm mt-2 max-w-3xl" style="color:var(--soft);">Where the experience diverges across breakpoints, and where the gaps are.</p></div>
+        <div class="grid gap-4 md:grid-cols-2"><div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Desktop configuration</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Long-form editorial landing pages that sell the anti-jitter narrative, with a starter-kit as the primary entry offer.</p></div><div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Mobile configuration</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Best-in-class mobile bottom buy-bar and starter-kit flow; the story-first landing pages are tuned for paid social traffic.</p></div>        </div>
+      </section>
+      <section data-section id="wireframes" class="space-y-4">
+<div><div class="text-[11px] tracking-[.16em] uppercase font-bold text-vahdam-gold">2. Wireframes</div><h2 class="font-head text-3xl text-vahdam-green mt-1">High-fidelity asset outlines</h2><p class="text-sm mt-2 max-w-3xl" style="color:var(--soft);">Labelled bounding boxes standing in for layout screenshots.</p></div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="wire"><div class="wl">[SCREENSHOT: Mobile persistent buy-bar]</div><p class="text-[13px] mt-2" style="color:var(--vahdam-ink);">Fixed bottom bar with price and subscribe CTA that stays through the long landing page.</p></div>
+          <div class="wire"><div class="wl">[SCREENSHOT: Starter-kit offer block]</div><p class="text-[13px] mt-2" style="color:var(--vahdam-ink);">Bundle of base, frother, and guide framed as the ritual starting point.</p></div>
+          <div class="wire"><div class="wl">[SCREENSHOT: Long-form paid-social LP]</div><p class="text-[13px] mt-2" style="color:var(--vahdam-ink);">Story-first landing page with staged proof, testimonials, and repeated CTAs.</p></div>
+          <div class="wire"><div class="wl">[SCREENSHOT: SMS opt-in modal]</div><p class="text-[13px] mt-2" style="color:var(--vahdam-ink);">Aggressive but well-timed SMS capture tied to a first-order incentive.</p></div>
+        </div>
+      </section>
+      <section data-section id="stack" class="space-y-4">
+<div><div class="text-[11px] tracking-[.16em] uppercase font-bold text-vahdam-gold">3. Technical stack</div><h2 class="font-head text-3xl text-vahdam-green mt-1">Infrastructure footprint</h2></div>
+        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:520px;"><thead><tr><th>Layer</th><th>Tooling</th></tr></thead><tbody><tr><td>Checkout framework</td><td>Shopify Plus checkout</td></tr><tr><td>Subscription app</td><td>Stay AI</td></tr><tr><td>Analytics suite</td><td>Triple Whale</td></tr><tr><td>ESP / CRM</td><td>Klaviyo plus Postscript</td></tr><tr><td>Churn prevention hook</td><td>Starter-kit onboarding that rebrands the morning habit and a heavy SMS relationship.</td></tr></tbody></table></div>
+      </section>
+      <section data-section id="battlecard" class="space-y-4">
+<div><div class="text-[11px] tracking-[.16em] uppercase font-bold text-vahdam-gold">4. Battle card</div><h2 class="font-head text-3xl text-vahdam-green mt-1">Vahdam vs MUD\Wtr SWOT</h2><p class="text-sm mt-2 max-w-3xl" style="color:var(--soft);">The definitive read, mapped to an actionable path to progress.</p></div>
+        <div class="grid gap-4 md:grid-cols-2"><div class="card p-5"><h4 class="font-head text-vahdam-green">Strengths (MUD\Wtr)</h4><ul class="mt-1 space-y-1 text-sm list-disc pl-5" style="color:var(--vahdam-ink);"><li>Category-leading DTC funnel and SMS program</li><li>Starter-kit onboarding that lands the habit</li></ul></div><div class="card p-5"><h4 class="font-head text-vahdam-green">Weaknesses</h4><ul class="mt-1 space-y-1 text-sm list-disc pl-5" style="color:var(--vahdam-ink);"><li>Taste is an acquired-preference barrier</li><li>Caffeine-averse positioning limits coffee loyalists</li></ul></div><div class="card p-5"><h4 class="font-head text-vahdam-green">Opportunities (for Vahdam)</h4><ul class="mt-1 space-y-1 text-sm list-disc pl-5" style="color:var(--vahdam-ink);"><li>A functional coffee that keeps real coffee taste</li><li>Provenance credibility MUD\Wtr cannot claim</li></ul></div><div class="card p-5"><h4 class="font-head text-vahdam-green">Threats</h4><ul class="mt-1 space-y-1 text-sm list-disc pl-5" style="color:var(--vahdam-ink);"><li>High paid-acquisition dependence</li><li>Adaptogen-category noise</li></ul></div>        </div>
+        <div class="card p-6" style="border-color:var(--vahdam-gold);border-left-width:4px;"><h3 class="font-head text-xl text-vahdam-green">Path to Progress: how Vahdam leapfrogs MUD\Wtr</h3><ul class="mt-2 space-y-2 text-sm" style="color:var(--vahdam-ink);"><li><b style="color:var(--vahdam-green);">Step 1.</b> Copy the starter-kit onboarding and persistent mobile buy-bar for Ashwagandha Coffee.</li><li><b style="color:var(--vahdam-green);">Step 2.</b> Position as functional coffee that still tastes like coffee, capturing loyalists MUD\Wtr loses on taste.</li><li><b style="color:var(--vahdam-green);">Step 3.</b> Build an owned SMS relationship rather than leaning on discount-led paid acquisition.</li></ul></div>
+        <div class="flex flex-wrap gap-3"><a href="../features/competitor-index.html" class="btn-gold inline-block px-5 py-2.5 text-sm">Back to all dossiers</a><a href="../index.html" class="btn-primary inline-block px-5 py-2.5 text-sm">Hub</a></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1236 @@
+#!/usr/bin/env node
+/**
+ * Generator for the Vahdam Growth & Automation Playbook multi-page hub.
+ *
+ * Emits a modular, NON-SPA ecosystem under /playbook:
+ *   playbook/index.html                 -> master hub
+ *   playbook/features/*.html            -> 8 deep-dive feature pages
+ *   playbook/dossiers/*.html            -> 11 forensic competitor dossiers
+ *
+ * Every page is standalone and self-contained (Tailwind via CDN + inline
+ * brand tokens). The LHS is a clean, flat, single-level command tower.
+ * Brand-locked: 4-color palette, Lao MN + Proxima Nova, no banned phrases,
+ * no em/en dashes.
+ *
+ * Run: node scripts/gen-playbook-hub.js
+ */
+"use strict";
+const fs = require("fs");
+const path = require("path");
+
+const OUT = path.join(__dirname, "..", "playbook");
+
+/* ---------------------------------------------------------------- nav model */
+const FEATURES = [
+  { key: "hub",                 icon: "\u{1F3E0}", label: "Playbook Hub",                    file: "index.html",                     hub: true },
+  { key: "market-intelligence", icon: "\u{1F4CA}", label: "Macro Market Intelligence",       file: "features/market-intelligence.html" },
+  { key: "competitor-index",    icon: "\u{1F575}", label: "Forensic Competitor Dossiers",    file: "features/competitor-index.html" },
+  { key: "knowledge-base",      icon: "\u{1F4D8}", label: "Direct-to-Origin Knowledge Base", file: "features/knowledge-base.html" },
+  { key: "product-avatars",     icon: "\u{1F465}", label: "Product Avatars",                  file: "features/product-avatars.html" },
+  { key: "analytics-engine",    icon: "\u{1F4C8}", label: "Intraday Pace & Predictive",      file: "features/analytics-engine.html" },
+  { key: "asset-workspace",     icon: "⚙️", label: "Marketing Asset Workspace",    file: "features/asset-workspace.html" },
+  { key: "shopify-loop",        icon: "\u{1F4E6}", label: "Shopify CDN Ingestion Loop",      file: "features/shopify-loop.html" },
+  { key: "chaigpt-config",      icon: "\u{1F916}", label: "ChaiGPT Engine Config",           file: "features/chaigpt-config.html" }
+];
+
+/* ---------------------------------------------------------- shared HTML head */
+function head(title, desc) {
+  return [
+'<!DOCTYPE html>',
+'<html lang="en">',
+'<head>',
+'<meta charset="UTF-8">',
+'<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+'<title>' + title + '</title>',
+'<link rel="icon" href="/favicon.png">',
+'<meta name="description" content="' + desc + '">',
+'<script src="https://cdn.tailwindcss.com"></script>',
+'<script>',
+'  tailwind.config = { theme: { extend: {',
+'    colors: { vahdam: { green:"#004A2B", gold:"#AB8743", ink:"#171717", cream:"#FBF5EA" } },',
+'    fontFamily: { head:["Lao MN","Cormorant Garamond","Georgia","serif"], body:["Proxima Nova","Helvetica Neue","Arial","sans-serif"] }',
+'  } } };',
+'</script>',
+'<style>',
+'  :root{--vahdam-green:#004A2B;--vahdam-gold:#AB8743;--vahdam-ink:#171717;--vahdam-cream:#FBF5EA;--vahdam-card:#FFFFFF;--line:rgba(23,23,23,.12);--soft:#5b5b57;}',
+'  html{scroll-behavior:smooth;scroll-padding-top:20px;}',
+'  body{background:var(--vahdam-cream);color:var(--vahdam-ink);font-family:"Proxima Nova","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;}',
+'  h1,h2,h3,h4,.font-head{font-family:"Lao MN","Cormorant Garamond",Georgia,serif;}',
+'  .nav-link{transition:background .12s,color .12s;}',
+'  .nav-link:hover{background:rgba(171,135,67,.16);color:var(--vahdam-cream);}',
+'  .nav-link.active{background:var(--vahdam-gold);color:var(--vahdam-green);font-weight:700;}',
+'  .card{background:var(--vahdam-card);border:1px solid var(--line);border-radius:14px;}',
+'  .metric{background:#fff;border:1px solid var(--line);border-radius:12px;}',
+'  .metric .mv{font-family:"Lao MN",Georgia,serif;color:var(--vahdam-green);}',
+'  table.grid-tbl{border-collapse:collapse;width:100%;font-size:13px;min-width:820px;}',
+'  table.grid-tbl th,table.grid-tbl td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;}',
+'  table.grid-tbl th{background:var(--vahdam-green);color:var(--vahdam-cream);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;}',
+'  table.grid-tbl tr:nth-child(even) td{background:#faf7f0;}',
+'  table.grid-tbl tr:last-child td{border-bottom:0;}',
+'  .tier-1{color:var(--vahdam-green);font-weight:700;} .tier-2{color:var(--vahdam-gold);font-weight:700;} .tier-3{color:var(--soft);font-weight:700;}',
+'  .tierbadge{display:inline-flex;flex-direction:column;line-height:1.12;border-radius:8px;padding:4px 9px;text-align:center;}',
+'  .tierbadge b{font-size:11px;font-weight:800;} .tierbadge i{font-style:normal;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;opacity:.85;}',
+'  .tb1{background:rgba(0,74,43,.10);color:var(--vahdam-green);} .tb2{background:rgba(171,135,67,.18);color:#8a6a2f;} .tb3{background:rgba(23,23,23,.07);color:var(--soft);}',
+'  td.num{font-variant-numeric:tabular-nums;font-weight:700;color:var(--vahdam-ink);white-space:nowrap;}',
+'  .av-card{background:var(--vahdam-card);border:1px solid var(--line);border-radius:16px;padding:22px;}',
+'  .av-face{width:56px;height:56px;border-radius:999px;background:var(--vahdam-green);display:inline-flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;box-shadow:0 0 0 3px rgba(171,135,67,.35);}',
+'  .av-quote{font-family:"Lao MN",Georgia,serif;font-style:italic;color:var(--vahdam-green);border-left:3px solid var(--vahdam-gold);padding-left:12px;margin:12px 0;}',
+'  .av-q{cursor:pointer;text-align:left;background:#faf6ec;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;color:var(--vahdam-ink);transition:background .12s,border-color .12s;font-family:inherit;}',
+'  .av-q:hover{border-color:var(--vahdam-gold);} .av-q.on{background:var(--vahdam-gold);color:var(--vahdam-green);font-weight:700;border-color:var(--vahdam-gold);}',
+'  .av-bubble{display:none;margin-top:12px;background:var(--vahdam-green);color:var(--vahdam-cream);border-radius:12px;border-top-left-radius:3px;padding:13px 15px;font-size:13.5px;line-height:1.55;}',
+'  .pill{display:inline-block;border-radius:999px;padding:2px 11px;font-size:11px;font-weight:700;border:1px solid var(--line);}',
+'  .btn-primary{background:var(--vahdam-green);color:var(--vahdam-cream);border-radius:10px;font-weight:700;transition:filter .12s;} .btn-primary:hover{filter:brightness(1.15);}',
+'  .btn-gold{background:var(--vahdam-gold);color:var(--vahdam-green);border-radius:10px;font-weight:800;transition:filter .12s;} .btn-gold:hover{filter:brightness(1.05);}',
+'  .wire{border:2px dashed var(--vahdam-gold);border-radius:12px;background:repeating-linear-gradient(45deg,#fff,#fff 12px,#faf6ec 12px,#faf6ec 24px);padding:16px;min-height:96px;}',
+'  .wire .wl{font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:11.5px;color:var(--vahdam-green);font-weight:700;letter-spacing:.02em;}',
+'  details.blueprint{background:var(--vahdam-ink);border-radius:12px;overflow:hidden;border:1px solid var(--line);}',
+'  details.blueprint>summary{list-style:none;cursor:pointer;padding:13px 18px;color:var(--vahdam-cream);font-family:"Lao MN",Georgia,serif;font-size:16px;background:var(--vahdam-green);display:flex;align-items:center;justify-content:space-between;}',
+'  details.blueprint>summary::-webkit-details-marker{display:none;}',
+'  details.blueprint[open]>summary .plus{transform:rotate(45deg);}',
+'  details.blueprint pre{margin:0;padding:18px;overflow-x:auto;color:#e8ede9;font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:12.5px;line-height:1.6;}',
+'  .code-out{font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;}',
+'  .flow-node{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:12.5px;}',
+'  a{color:var(--vahdam-green);} a:hover{color:var(--vahdam-gold);}',
+'  ::selection{background:var(--vahdam-gold);color:#fff;}',
+'  section[data-section]{scroll-margin-top:18px;}',
+'</style>',
+'</head>'
+  ].join("\n");
+}
+
+/* ------------------------------------------------------- clean, flat sidebar */
+function sidebar(prefix, activeKey) {
+  const links = FEATURES.map(function (f) {
+    const href = prefix + f.file;
+    const active = f.key === activeKey ? " active" : "";
+    return '<a href="' + href + '" class="nav-link block px-3 py-2 rounded-lg' + active + '">' +
+           '<span class="mr-2">' + f.icon + '</span>' + f.label + '</a>';
+  }).join("\n        ");
+
+  return [
+'  <aside class="hidden lg:flex flex-col w-[288px] shrink-0 sticky top-0 h-screen overflow-y-auto text-vahdam-cream" style="background:var(--vahdam-green);">',
+'    <div class="px-5 py-6 border-b" style="border-color:rgba(251,245,234,.14);">',
+'      <div class="text-[10.5px] tracking-[.18em] uppercase font-bold text-vahdam-gold">Vahdam Lifecycle OS</div>',
+'      <div class="font-head text-[21px] leading-tight mt-1">Growth &amp; Automation<br>Playbook</div>',
+'      <p class="text-[11px] mt-2" style="color:#cdd8d0;">A modular documentation and execution hub. One page per feature and per competitor.</p>',
+'    </div>',
+'    <nav class="px-3 py-4 space-y-1 text-[13px]">',
+'        ' + links,
+'    </nav>',
+'    <div class="mt-auto px-5 py-4 text-[11px] border-t" style="border-color:rgba(251,245,234,.14);color:#cdd8d0;">',
+'      <a href="/all-in-one" class="underline" style="color:#cdd8d0;">OS Home</a> &nbsp;&middot;&nbsp; <a href="/research" class="underline" style="color:#cdd8d0;">Growth Book</a>',
+'    </div>',
+'  </aside>'
+  ].join("\n");
+}
+
+/* ------------------------------------------------------------ page assembler */
+function page(opts) {
+  // opts: {title, desc, prefix, activeKey, crumb, main, extraJS}
+  const mobileBar =
+'    <div class="lg:hidden sticky top-0 z-20 flex items-center justify-between px-5 py-3 text-vahdam-cream" style="background:var(--vahdam-green);">' +
+'<div class="font-head text-lg">' + (opts.crumb || "Playbook") + '</div>' +
+'<a href="' + opts.prefix + 'index.html" class="text-xs pill" style="border-color:rgba(251,245,234,.3);color:var(--vahdam-cream);">Hub</a></div>';
+
+  return [
+head(opts.title, opts.desc),
+'<body class="font-body">',
+'<div class="flex min-h-screen">',
+sidebar(opts.prefix, opts.activeKey),
+'  <main class="flex-1 min-w-0">',
+mobileBar,
+'    <div class="max-w-[1080px] mx-auto px-6 md:px-10 py-10 space-y-14">',
+opts.main,
+'    </div>',
+'  </main>',
+'</div>',
+(opts.extraJS ? '<script>\n' + opts.extraJS + '\n</script>' : ''),
+'</body>',
+'</html>',
+''
+  ].join("\n");
+}
+
+/* ----------------------------------------------------------- section helpers */
+function hero(eyebrow, title, lede) {
+  return [
+'      <header class="space-y-3">',
+'        <span class="text-[11px] tracking-[.18em] uppercase font-bold text-vahdam-gold">' + eyebrow + '</span>',
+'        <h1 class="font-head text-4xl md:text-5xl text-vahdam-green leading-[1.05]">' + title + '</h1>',
+'        <p class="text-[15px] max-w-3xl" style="color:var(--soft);">' + lede + '</p>',
+'      </header>'
+  ].join("\n");
+}
+function secHead(eyebrow, title, sub) {
+  return '<div><div class="text-[11px] tracking-[.16em] uppercase font-bold text-vahdam-gold">' + eyebrow + '</div>' +
+         '<h2 class="font-head text-3xl text-vahdam-green mt-1">' + title + '</h2>' +
+         (sub ? '<p class="text-sm mt-2 max-w-3xl" style="color:var(--soft);">' + sub + '</p>' : '') + '</div>';
+}
+function metricCard(label, val, note, accent) {
+  const style = accent ? ' style="border-color:var(--vahdam-' + accent + ');border-width:2px;"' : '';
+  const vstyle = accent === "gold" ? ' style="color:var(--vahdam-gold);"' : '';
+  return '<div class="metric p-5"' + style + '><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">' + label +
+         '</div><div class="mv text-4xl mt-1"' + vstyle + '>' + val + '</div>' +
+         (note ? '<div class="text-[12.5px] mt-1" style="color:var(--soft);">' + note + '</div>' : '') + '</div>';
+}
+function linkBtn(href, label, ghost) {
+  return '<a href="' + href + '" class="' + (ghost ? "btn-gold" : "btn-primary") + ' inline-block px-5 py-2.5 text-sm">' + label + '</a>';
+}
+function wireBox(label, desc) {
+  return '<div class="wire"><div class="wl">' + label + '</div><p class="text-[13px] mt-2" style="color:var(--vahdam-ink);">' + desc + '</p></div>';
+}
+
+/* ================================================================ COMPETITORS */
+const COMPETITORS = [
+  {
+    slug: "blue-bottle", name: "Blue Bottle", category: "Premium coffee", tier: 1,
+    desktopUX: "Mega-menu split by roast and brew method, sticky cart drawer, editorial PDPs rich with tasting notes. Gap: the subscription configurator sits below the fold and there is no persistent compare tray.",
+    mobileUX: "Clean typography, but the primary add-to-cart falls mid-scroll with no persistent bottom buy-bar, and heavy hero carousels slow first paint on mid-tier connections.",
+    stack: { checkout: "Shopify Plus checkout", subscription: "Recharge", analytics: "GA4 plus Fathom", esp: "Klaviyo" },
+    churnHook: "Roast-freshness cadence emails and a cafe-to-subscription bridge for lapsed in-store buyers.",
+    wires: [
+      ["[SCREENSHOT: Desktop roast mega-menu]", "Two-column flyout grouping single-origin and blends by brew method, with a featured seasonal tile on the right rail."],
+      ["[SCREENSHOT: Mobile PDP mid-scroll CTA]", "Product hero, price, then a static add-to-cart that scrolls away; no thumb-zone sticky bar keeping the buy action in reach."],
+      ["[SCREENSHOT: Subscription config modal]", "Frequency and grind selectors buried in a modal opened from below the fold, adding a step before the first subscribe decision."],
+      ["[SCREENSHOT: Slide-in cart drawer]", "Right-side drawer with upsell row and free-shipping progress meter pegged to a fixed threshold."]
+    ],
+    swot: {
+      s: ["Category-defining brand equity and cafe halo", "Editorial content that teaches brewing and justifies premium"],
+      w: ["Subscribe decision is buried below the fold", "No persistent mobile buy-bar hurts thumb-zone conversion"],
+      o: ["Functional payload storytelling they do not own", "Refill-rhythm reminders to protect the recurring base"],
+      t: ["Discount-led rivals compressing entry price", "Retail dependence dilutes first-party data"]
+    },
+    path: [
+      "Surface subscribe-first above the fold on the coffee franchise, the way Vahdam anchors Ashwagandha Coffee.",
+      "Ship a persistent mobile bottom buy-bar so the add-to-cart never leaves the thumb zone.",
+      "Own the functional-ritual story Blue Bottle cannot claim, pairing origin with a real adaptogen benefit."
+    ]
+  },
+  {
+    slug: "trade", name: "Trade Coffee", category: "Coffee marketplace", tier: 1,
+    desktopUX: "Quiz-matched roaster marketplace with a strong desktop quiz flow and clear swap-and-skip subscription controls in-account.",
+    mobileUX: "The onboarding quiz runs long on mobile with many steps, creating drop-off before the first match and checkout.",
+    stack: { checkout: "Custom headless checkout", subscription: "Recharge", analytics: "Segment plus GA4", esp: "Klaviyo" },
+    churnHook: "Quiz-matched roasts with one-tap swap and skip that keep the subscription feeling personalised.",
+    wires: [
+      ["[SCREENSHOT: Desktop match quiz]", "Progressive multi-step quiz with a visible progress bar and a results page mapping taste inputs to roaster matches."],
+      ["[SCREENSHOT: Mobile quiz drop-off point]", "Step 6 of a long mobile quiz where momentum stalls; no save-and-resume, no shortcut to browse."],
+      ["[SCREENSHOT: In-account swap and skip]", "Subscription management with prominent skip, swap, and reschedule controls on the next shipment card."],
+      ["[SCREENSHOT: Roaster spotlight PDP]", "Editorial roaster story above the buy box building trust in the marketplace curation."]
+    ],
+    swot: {
+      s: ["Personalisation via the taste quiz", "Frictionless swap and skip retention controls"],
+      w: ["Long mobile quiz creates onboarding drop-off", "Marketplace model dilutes a single brand story"],
+      o: ["Shorter mobile quiz with save-and-resume", "First-order match paired with a second-order nudge"],
+      t: ["Roaster-direct brands cutting out the marketplace", "Thin margins on a curation model"]
+    },
+    path: [
+      "Borrow the quiz-to-match idea but compress it to a two-tap cohort match on mobile.",
+      "Layer Vahdam single-estate provenance on top of personalisation, which a marketplace cannot own.",
+      "Trigger the second-order nudge immediately after the first match to lift repeat rate."
+    ]
+  },
+  {
+    slug: "onyx", name: "Onyx Coffee Lab", category: "Specialty coffee", tier: 2,
+    desktopUX: "Transparency-scored PDPs with farm-level sourcing detail and rich taste-note visuals; desktop feels like a specialty print magazine.",
+    mobileUX: "Information-dense PDPs get cramped on mobile; the sourcing detail that sells the premium is hard to scan on a small screen.",
+    stack: { checkout: "Shopify checkout", subscription: "Recharge", analytics: "GA4", esp: "Klaviyo" },
+    churnHook: "Transparency scoring and taste-note storytelling that build a connoisseur relationship.",
+    wires: [
+      ["[SCREENSHOT: Desktop transparency score]", "Sourcing transparency badge with farm-gate price and elevation, positioned beside the buy box."],
+      ["[SCREENSHOT: Mobile dense PDP]", "Long stacked specs that require heavy scrolling; the buy action is pushed far down the page."],
+      ["[SCREENSHOT: Taste-note wheel]", "Interactive flavour wheel that maps each lot to sensory descriptors."],
+      ["[SCREENSHOT: Subscription tier card]", "Curated rotating-selection subscription with a fixed cadence."]
+    ],
+    swot: {
+      s: ["Elite specialty credibility and sourcing transparency", "Strong taste-note education"],
+      w: ["Dense mobile layout buries the buy action", "Narrow to the connoisseur segment"],
+      o: ["Cleaner mobile PDP hierarchy", "Provenance storytelling for a wider premium audience"],
+      t: ["Larger premium brands with deeper media budgets", "Specialty niche caps the addressable market"]
+    },
+    path: [
+      "Match the sourcing transparency but present it in a scannable mobile-first hierarchy.",
+      "Extend provenance from a connoisseur cue to a mainstream premium hook, as Vahdam does with estate stories.",
+      "Anchor a subscription with a functional benefit rather than rotation novelty alone."
+    ]
+  },
+  {
+    slug: "four-sigmatic", name: "Four Sigmatic", category: "Functional / mushroom", tier: 1,
+    desktopUX: "Subscribe-first onboarding with a desktop bundle builder and clear benefit-led PDPs; the default path pushes subscription hard.",
+    mobileUX: "Strong mobile sticky add-to-cart and a fast bundle flow; benefit claims sometimes crowd the fold before the buy action.",
+    stack: { checkout: "Shopify Plus checkout", subscription: "Stay AI", analytics: "Triple Whale plus GA4", esp: "Klaviyo" },
+    churnHook: "Ritual-replacement copy and subscribe-first onboarding that reframe the morning coffee habit.",
+    wires: [
+      ["[SCREENSHOT: Desktop bundle builder]", "Grid selector for building a functional bundle with a live price and subscribe toggle."],
+      ["[SCREENSHOT: Mobile sticky ATC]", "Persistent bottom add-to-cart with subscribe-and-save pre-selected in the thumb zone."],
+      ["[SCREENSHOT: Benefit-led hero]", "Above-fold benefit claims with an ingredient callout and a subscribe-first CTA."],
+      ["[SCREENSHOT: Onboarding email capture]", "Post-purchase flow entry that starts the ritual-replacement education sequence."]
+    ],
+    swot: {
+      s: ["Subscribe-first funnel and strong retention app", "Clear functional benefit framing"],
+      w: ["Claim-heavy folds can crowd the buy action", "Taste polarises new triers"],
+      o: ["Provenance and single-estate credibility they lack", "Taste-forward functional coffee positioning"],
+      t: ["Crowded functional-mushroom category", "Regulatory scrutiny on benefit claims"]
+    },
+    path: [
+      "Adopt subscribe-first as the default on Ashwagandha Coffee, matching their onboarding discipline.",
+      "Win on taste and provenance where mushroom-forward brands struggle with palate acceptance.",
+      "Keep benefit claims non-medical and pair them with the origin story for differentiated trust."
+    ]
+  },
+  {
+    slug: "mudwtr", name: "MUD\\Wtr", category: "Adaptogen coffee alternative", tier: 1,
+    desktopUX: "Long-form editorial landing pages that sell the anti-jitter narrative, with a starter-kit as the primary entry offer.",
+    mobileUX: "Best-in-class mobile bottom buy-bar and starter-kit flow; the story-first landing pages are tuned for paid social traffic.",
+    stack: { checkout: "Shopify Plus checkout", subscription: "Stay AI", analytics: "Triple Whale", esp: "Klaviyo plus Postscript" },
+    churnHook: "Starter-kit onboarding that rebrands the morning habit and a heavy SMS relationship.",
+    wires: [
+      ["[SCREENSHOT: Mobile persistent buy-bar]", "Fixed bottom bar with price and subscribe CTA that stays through the long landing page."],
+      ["[SCREENSHOT: Starter-kit offer block]", "Bundle of base, frother, and guide framed as the ritual starting point."],
+      ["[SCREENSHOT: Long-form paid-social LP]", "Story-first landing page with staged proof, testimonials, and repeated CTAs."],
+      ["[SCREENSHOT: SMS opt-in modal]", "Aggressive but well-timed SMS capture tied to a first-order incentive."]
+    ],
+    swot: {
+      s: ["Category-leading DTC funnel and SMS program", "Starter-kit onboarding that lands the habit"],
+      w: ["Taste is an acquired-preference barrier", "Caffeine-averse positioning limits coffee loyalists"],
+      o: ["A functional coffee that keeps real coffee taste", "Provenance credibility MUD\\Wtr cannot claim"],
+      t: ["High paid-acquisition dependence", "Adaptogen-category noise"]
+    },
+    path: [
+      "Copy the starter-kit onboarding and persistent mobile buy-bar for Ashwagandha Coffee.",
+      "Position as functional coffee that still tastes like coffee, capturing loyalists MUD\\Wtr loses on taste.",
+      "Build an owned SMS relationship rather than leaning on discount-led paid acquisition."
+    ]
+  },
+  {
+    slug: "ryze", name: "Ryze", category: "Mushroom coffee", tier: 2,
+    desktopUX: "Simple conversion-focused site with subscribe-and-save as the default and heavy creator and review proof.",
+    mobileUX: "Lightweight and fast on mobile with subscribe pre-selected, though the brand story is thin beyond the offer.",
+    stack: { checkout: "Shopify checkout", subscription: "Skio", analytics: "GA4", esp: "Klaviyo" },
+    churnHook: "Subscribe-and-save default with strong creator proof driving first purchase.",
+    wires: [
+      ["[SCREENSHOT: Subscribe-default PDP]", "Add-to-cart with subscription pre-selected and one-time relegated to a smaller toggle."],
+      ["[SCREENSHOT: Creator proof wall]", "Grid of creator videos and reviews acting as the primary trust driver."],
+      ["[SCREENSHOT: Mobile fast checkout]", "Minimal-step express checkout optimised for paid-social first-time buyers."],
+      ["[SCREENSHOT: Amazon parity banner]", "Cross-channel reassurance for buyers who also see the brand on Amazon."]
+    ],
+    swot: {
+      s: ["High-velocity subscribe-default funnel", "Strong creator-led social proof"],
+      w: ["Thin brand narrative beyond the offer", "Heavy Amazon reliance weakens first-party data"],
+      o: ["A defensible origin and provenance story", "Owned-channel retention beyond the initial discount"],
+      t: ["Commoditised mushroom-coffee pricing wars", "Marketplace margin compression"]
+    },
+    path: [
+      "Keep subscribe-as-default but reinforce it with a provenance narrative Ryze lacks.",
+      "Move buyers off marketplace dependence into owned lifecycle flows for durable retention.",
+      "Compete on story and taste rather than the discount treadmill."
+    ]
+  },
+  {
+    slug: "vital-proteins", name: "Vital Proteins", category: "Functional supplement", tier: 1,
+    desktopUX: "Retail-grade omnichannel site with routine bundling, replenishment defaults, and a broad SKU catalog.",
+    mobileUX: "Competent mobile experience with clear reorder paths, though the wide catalog can overwhelm first-time choice.",
+    stack: { checkout: "Shopify Plus checkout", subscription: "Recharge", analytics: "GA4 plus Amplitude", esp: "Klaviyo" },
+    churnHook: "Routine bundling and replenishment reminders that anchor a daily supplement habit.",
+    wires: [
+      ["[SCREENSHOT: Routine bundle builder]", "Guided flow assembling a daily routine from complementary SKUs with a subscribe default."],
+      ["[SCREENSHOT: Replenishment reminder]", "Lifecycle email and on-site banner nudging reorder before the current supply runs out."],
+      ["[SCREENSHOT: Broad catalog grid]", "Dense product grid with filters where first-time choice can stall."],
+      ["[SCREENSHOT: Mobile reorder card]", "One-tap reorder of the last routine from the account home."]
+    ],
+    swot: {
+      s: ["Omnichannel scale and retail trust", "Mature replenishment and bundling"],
+      w: ["Broad catalog overwhelms first-time triers", "Ingredient story less origin-led"],
+      o: ["A cleaner functional-coffee entry ritual", "Origin-led trust versus generic supplement framing"],
+      t: ["Retail-scale competitors with big budgets", "Category price competition"]
+    },
+    path: [
+      "Adopt replenishment reminders tuned to the coffee refill window.",
+      "Lead with a single hero ritual rather than a broad catalog to reduce first-choice friction.",
+      "Differentiate on single-estate origin against generic supplement sourcing."
+    ]
+  },
+  {
+    slug: "obvi", name: "Obvi", category: "Collagen / wellness", tier: 2,
+    desktopUX: "Community-led, flavour-forward brand with gamified loyalty and playful desktop merchandising.",
+    mobileUX: "Mobile-first and SMS-heavy with quick add flows; loyalty mechanics are surfaced prominently in the thumb zone.",
+    stack: { checkout: "Shopify checkout", subscription: "Recharge", analytics: "GA4", esp: "Klaviyo plus Postscript" },
+    churnHook: "Community-led SMS and gamified loyalty points that make reorder feel like a game.",
+    wires: [
+      ["[SCREENSHOT: Loyalty points dock]", "Persistent loyalty widget showing points balance and next-reward progress."],
+      ["[SCREENSHOT: Mobile quick-add flavours]", "Flavour selector with fast add-to-cart tuned for repeat mobile buyers."],
+      ["[SCREENSHOT: SMS-led launch]", "Time-sensitive flavour drop announced primarily through SMS."],
+      ["[SCREENSHOT: Community UGC wall]", "User photos and reviews stacked as the core trust layer."]
+    ],
+    swot: {
+      s: ["Strong community and SMS retention", "Gamified loyalty driving repeat"],
+      w: ["Flavour-novelty dependence", "Positioning skews promotional"],
+      o: ["Premium provenance versus promo-led rivals", "Ritual depth over novelty churn"],
+      t: ["Discount-habit erosion of margin", "Crowded collagen category"]
+    },
+    path: [
+      "Borrow the community and SMS retention muscle without the discount habit.",
+      "Use loyalty to reward the ritual, protecting full-margin loyalists from a promo reflex.",
+      "Anchor identity in origin and craft rather than flavour novelty."
+    ]
+  },
+  {
+    slug: "cometeer", name: "Cometeer", category: "Frozen coffee format", tier: 3,
+    desktopUX: "Format-led narrative selling frozen coffee capsules; desktop leans on convenience proof and quality claims.",
+    mobileUX: "The freezer-shelf habit needs explaining on mobile; the novel format adds a comprehension step before purchase.",
+    stack: { checkout: "Custom subscription checkout", subscription: "Recharge", analytics: "GA4", esp: "Klaviyo" },
+    churnHook: "Convenience proof and freezer-shelf habit framing that lock in a recurring format.",
+    wires: [
+      ["[SCREENSHOT: Format explainer hero]", "Animated sequence showing capsule to cup, teaching the frozen format fast."],
+      ["[SCREENSHOT: Mobile comprehension step]", "Extra how-it-works panel on mobile before the buy action to reduce format confusion."],
+      ["[SCREENSHOT: Freezer-habit framing]", "Lifestyle imagery placing capsules in the freezer as a daily-ritual cue."],
+      ["[SCREENSHOT: Subscription cadence picker]", "Delivery frequency tuned to average consumption."]
+    ],
+    swot: {
+      s: ["Differentiated frozen format and quality story", "Strong convenience narrative"],
+      w: ["Format needs education and freezer space", "Higher logistics and price barrier"],
+      o: ["A no-new-behaviour ritual coffee", "Lower comprehension friction at purchase"],
+      t: ["Format fatigue and cold-chain cost", "Convenience rivals with simpler formats"]
+    },
+    path: [
+      "Win the buyers Cometeer loses to format friction with a familiar brew ritual.",
+      "Keep the convenience promise without asking for a new behaviour or freezer space.",
+      "Lead with taste and origin rather than a format learning curve."
+    ]
+  },
+  {
+    slug: "jot", name: "Jot", category: "Ultra-concentrate coffee", tier: 3,
+    desktopUX: "Concentrate-led site selling one-tablespoon-per-cup math; desktop is clean with a clear value-per-cup story.",
+    mobileUX: "Efficient mobile reorder with a low-friction path, though the concentrate format needs a quick usage explainer.",
+    stack: { checkout: "Shopify checkout", subscription: "Recharge", analytics: "GA4", esp: "Klaviyo" },
+    churnHook: "One-bottle-a-month math and a low-friction reorder that make replenishment feel effortless.",
+    wires: [
+      ["[SCREENSHOT: Value-per-cup calculator]", "Interactive one-bottle-equals-many-cups math driving perceived value."],
+      ["[SCREENSHOT: Mobile reorder path]", "Streamlined reorder from account with subscription cadence pre-set."],
+      ["[SCREENSHOT: Usage explainer]", "Quick how-to-pour panel teaching the concentrate ratio."],
+      ["[SCREENSHOT: Black-tie brand hero]", "Minimalist premium hero framing concentrate as an upscale staple."]
+    ],
+    swot: {
+      s: ["Compelling value-per-cup math", "Clean premium minimalism"],
+      w: ["Concentrate format needs usage education", "Narrow product range"],
+      o: ["A ready-to-brew ritual without ratio math", "Functional payload beyond convenience"],
+      t: ["Format novelty risk", "Convenience-segment price pressure"]
+    },
+    path: [
+      "Match the value-per-cup clarity while removing the ratio learning step.",
+      "Add a functional benefit on top of convenience, which Jot does not offer.",
+      "Use the same low-friction reorder mechanics for the coffee refill rhythm."
+    ]
+  },
+  {
+    slug: "bruvi", name: "Bruvi", category: "Coffee hardware and pods", tier: 3,
+    desktopUX: "Razor-and-blade model selling a brewer plus recurring pods; desktop centers on the hardware PDP and pod economics.",
+    mobileUX: "Hardware purchase is a considered mobile decision; the pod auto-ship subscription is the retention engine post-hardware.",
+    stack: { checkout: "Shopify checkout", subscription: "Recharge", analytics: "GA4", esp: "Klaviyo" },
+    churnHook: "Razor-and-blade lock-in with auto-ship pods that guarantee recurring consumable revenue.",
+    wires: [
+      ["[SCREENSHOT: Hardware PDP]", "Brewer product page with financing framing and pod-cost economics."],
+      ["[SCREENSHOT: Pod auto-ship setup]", "Post-hardware subscription setup for recurring pod replenishment."],
+      ["[SCREENSHOT: Mobile considered-purchase flow]", "Longer mobile evaluation flow for the hardware decision with specs and comparisons."],
+      ["[SCREENSHOT: Ecosystem lock-in banner]", "Messaging tying pod compatibility to the brewer to secure recurring revenue."]
+    ],
+    swot: {
+      s: ["Hardware lock-in guarantees recurring pods", "Predictable consumable revenue"],
+      w: ["High upfront hardware barrier", "Pod-format sustainability concerns"],
+      o: ["No-hardware entry with lower friction", "Sustainability and origin story"],
+      t: ["Established pod ecosystems and inertia", "Environmental sentiment against pods"]
+    },
+    path: [
+      "Offer the recurring-consumable retention without a hardware barrier to entry.",
+      "Lead on sustainability and origin against pod-waste sentiment.",
+      "Use auto-ship replenishment mechanics for coffee refills, minus the machine lock-in."
+    ]
+  }
+];
+
+/* Reference matrix data (share tier, AOV, D-180 retention, primary hook,
+   core tech stack one-liner, churn strategy) merged onto each competitor. */
+const REF = {
+  "blue-bottle":    { tier: 1, tierLabel: "High", aov: "$38.50", d180: "34.20%", hook: "Retail crossover synergy",              stackShort: "Shopify Plus / Recharge Suite",       churnShort: "48-hour interactive pre-shipment SMS" },
+  "trade":          { tier: 1, tierLabel: "High", aov: "$45.00", d180: "31.10%", hook: "Personalized algorithmic onboarding quiz", stackShort: "Headless engine / Next.js / Stripe", churnShort: "Dynamic personalized bean-profile rotations" },
+  "onyx":           { tier: 2, tierLabel: "Med",  aov: "$42.00", d180: "36.50%", hook: "Specialty roaster transparency content", stackShort: "Shopify Plus / Skio Subscription",    churnShort: "Subscriber-only vintage lot reservations" },
+  "four-sigmatic":  { tier: 1, tierLabel: "High", aov: "$52.00", d180: "22.50%", hook: "Top functional host audio endorsements", stackShort: "Shopify Plus / Stay AI Hub",          churnShort: "Down-dose optimization on exit intents" },
+  "mudwtr":         { tier: 1, tierLabel: "High", aov: "$60.00", d180: "21.80%", hook: "Aggressive alternative-ritual video",     stackShort: "Headless pipeline / Recharge API",    churnShort: "Complimentary hardware-kit locking values" },
+  "ryze":           { tier: 2, tierLabel: "Med",  aov: "$55.00", d180: "23.10%", hook: "High-frequency TikTok Shop loops",        stackShort: "Shopify Core / Skio Sub / Klaviyo",   churnShort: "Gamified milestone rewards interface" },
+  "vital-proteins": { tier: 1, tierLabel: "High", aov: "$48.00", d180: "26.80%", hook: "B2B retail programmatic integration pull", stackShort: "Salesforce Commerce / Ordergroove",  churnShort: "Cross-catalog item value bundling" },
+  "obvi":           { tier: 2, tierLabel: "Med",  aov: "$50.00", d180: "24.50%", hook: "Highly managed VIP Facebook forums",      stackShort: "Shopify Plus / Skio / Postscript",    churnShort: "Community wellness challenge onboarding" },
+  "cometeer":       { tier: 1, tierLabel: "High", aov: "$64.00", d180: "41.10%", hook: "Luxury gifting and tech pioneer seeding", stackShort: "Custom proprietary Next.js stack",    churnShort: "Hardware storage cross-subsidization" },
+  "jot":            { tier: 2, tierLabel: "Med",  aov: "$36.00", d180: "28.90%", hook: "Recipe video creative ad permutations",   stackShort: "Shopify Core / Recharge Engine",      churnShort: "Automated multi-use recipe push tracks" },
+  "bruvi":          { tier: 3, tierLabel: "Low",  aov: "$58.00", d180: "25.40%", hook: "Machine-plus-pod ecosystem seeding",      stackShort: "Shopify Core / Recharge Engine",      churnShort: "Auto-ship pod replenishment lock-in" }
+};
+COMPETITORS.forEach(function (c) {
+  const r = REF[c.slug];
+  if (r) { c.tier = r.tier; c.tierLabel = r.tierLabel; c.aov = r.aov; c.d180 = r.d180; c.hook = r.hook; c.stackShort = r.stackShort; c.churnShort = r.churnShort; }
+});
+
+function tierSpan(t) { return '<span class="tier-' + t + '">Tier ' + t + '</span>'; }
+function tierBadge(c) { return '<span class="tierbadge tb' + c.tier + '"><b>Tier ' + c.tier + '</b><i>' + c.tierLabel + '</i></span>'; }
+
+/* master competitor matrix (used on hub + competitor-index) */
+function competitorMatrix(dossierPrefix) {
+  const rows = COMPETITORS.map(function (c) {
+    const href = dossierPrefix + "dossiers/" + c.slug + ".html";
+    return '<tr>' +
+      '<td><a href="' + href + '" class="font-semibold" style="color:var(--vahdam-green);text-decoration:underline;">' + c.name + '</a><div class="text-[11px]" style="color:var(--soft);">' + c.category + '</div></td>' +
+      '<td>' + tierBadge(c) + '</td>' +
+      '<td class="num">' + c.aov + '</td>' +
+      '<td class="num">' + c.d180 + '</td>' +
+      '<td>' + c.hook + '</td>' +
+      '<td class="code-out" style="font-size:11.5px;">' + c.stackShort + '</td>' +
+      '<td>' + c.churnShort + '</td>' +
+      '<td><a href="' + href + '" class="btn-gold inline-block px-3 py-1.5 text-[12px] whitespace-nowrap">Open dossier &rarr;</a></td>' +
+    '</tr>';
+  }).join("\n              ");
+
+  return [
+'        <div class="card overflow-x-auto">',
+'          <table class="grid-tbl" style="min-width:1180px;">',
+'            <thead><tr>',
+'              <th>Brand Name</th><th>Share Tier</th><th>AOV</th><th>D-180 Ret</th><th>Primary Hook</th><th>Core Tech Stack</th><th>Churn Strategy</th><th>Deep-Dive</th>',
+'            </tr></thead>',
+'            <tbody>',
+'              ' + rows,
+'            </tbody>',
+'          </table>',
+'        </div>'
+  ].join("\n");
+}
+
+/* ------------------------------------------------------ cohort data + cards */
+const COHORTS = [
+  { id: "third-wave-purists", n: "Third-Wave Purists", tag: "Loyalist", income: "$95k to $180k", roast: "Light to medium, single-origin",
+    desc: "Buys on provenance and craft. Reads taste notes and estate names. Full-margin, protect from a discount habit. Hook: origin story and cup character." },
+  { id: "functional-optimizers", n: "Functional Optimizers", tag: "Subscriber", income: "$70k to $140k", roast: "Adaptogen blend, medium",
+    desc: "Comes for the functional payload and the routine. Highest subscription bias. Hook: refill rhythm, Ashwagandha Coffee as a daily ritual." },
+  { id: "biohacking-performers", n: "Biohacking Performers", tag: "High-intent", income: "$110k to $220k", roast: "Medium-dark, high-dose adaptogen",
+    desc: "Optimises inputs and tracks outcomes. Responds to dose, sourcing, and stacking logic. Hook: precise payload and companion supplements." },
+  { id: "routine-convenience", n: "Routine Convenience", tag: "Switcher", income: "$55k to $110k", roast: "Medium, ground or instant",
+    desc: "Buys for ease and price sensitivity. The discount-responsive switcher. Hook: convenience proof, low-friction reorder, second-order nudge." }
+];
+function cohortCards() {
+  return '<div class="grid gap-5 md:grid-cols-2">' + COHORTS.map(function (c, i) {
+    const accent = i % 2 === 0 ? "green" : "gold";
+    return '<div id="' + c.id + '" class="card p-6 border-l-4" style="border-left-color:var(--vahdam-' + accent + ');">' +
+      '<div class="flex items-center justify-between"><h3 class="font-head text-xl text-vahdam-green">' + c.n + '</h3>' +
+      '<span class="pill" style="background:var(--vahdam-cream);color:var(--vahdam-' + accent + ');">' + c.tag + '</span></div>' +
+      '<div class="grid grid-cols-2 gap-3 mt-4 text-sm">' +
+      '<div><div class="text-[11px] uppercase font-bold" style="color:var(--soft);">Income band</div><div class="mt-0.5">' + c.income + '</div></div>' +
+      '<div><div class="text-[11px] uppercase font-bold" style="color:var(--soft);">Roast preference</div><div class="mt-0.5">' + c.roast + '</div></div></div>' +
+      '<p class="text-sm mt-3" style="color:var(--vahdam-ink);">' + c.desc + '</p></div>';
+  }).join("") + '</div>';
+}
+
+/* ============================================ interactive JS (String.raw safe) */
+const JS_ANALYTICS = String.raw`
+(function(){
+  "use strict";
+  var baseHour = 10;
+  function pseudo(seed){ var x = Math.sin(seed * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  function renderPace(offset){
+    offset = offset || 0;
+    var body = document.getElementById('pace-body'); if(!body) return;
+    var rows = '', prevRev = 0, latest = null;
+    for(var i=11;i>=0;i--){
+      var seed = i + 1 + offset;
+      var rev = Math.round(900 + pseudo(seed)*1700);
+      var orders = Math.round(20 + pseudo(seed*2)*34);
+      var subs = Math.round(2 + pseudo(seed*3)*11);
+      var hr = ((baseHour - i) % 24 + 24) % 24;
+      var label = (hr<10?'0':'')+hr+':00';
+      var delta = prevRev ? Math.round(((rev-prevRev)/prevRev)*100) : 0;
+      var arrow = delta>=0 ? '&#9650; +' : '&#9660; ';
+      var col = delta>=0 ? 'var(--vahdam-green)' : '#a23b2b';
+      rows += '<tr><td>'+label+'</td><td>$'+rev.toLocaleString()+'</td><td>'+orders+'</td><td>'+subs+'</td>'+
+              '<td style="color:'+col+';font-weight:700;">'+(prevRev?arrow+Math.abs(delta)+'%':'-')+'</td></tr>';
+      prevRev = rev; latest = { rev: rev, orders: orders, subs: subs, delta: delta };
+    }
+    body.innerHTML = rows;
+    if(latest){
+      document.getElementById('pace-rev').textContent = '$'+latest.rev.toLocaleString();
+      document.getElementById('pace-vel').textContent = latest.orders;
+      document.getElementById('pace-sub').textContent = latest.subs;
+      var d = latest.delta, rd = document.getElementById('pace-rev-delta');
+      rd.textContent = (d>=0?'+':'')+d+'% vs prior hour';
+      rd.style.color = d>=0 ? 'var(--vahdam-green)' : '#a23b2b';
+    }
+  }
+  var paceOffset = 0; renderPace(0);
+  var rb = document.getElementById('pace-refresh');
+  if(rb) rb.addEventListener('click', function(){ paceOffset += 7; renderPace(paceOffset); });
+
+  function num(id){ var v = parseFloat((document.getElementById(id).value||'').replace(/[^0-9.]/g,'')); return isNaN(v)?0:v; }
+  function money(v){ return '$'+Math.round(v).toLocaleString(); }
+  var pb = document.getElementById('predict-btn');
+  if(pb) pb.addEventListener('click', function(){
+    var revNoon = num('in-rev'), ordersNoon = num('in-orders'), spend = num('in-spend');
+    var projLow = revNoon*1.55, projMid = revNoon*1.72, projHigh = revNoon*1.92;
+    var projOrders = ordersNoon*1.72, projSpend = spend*1.9;
+    var cac = projOrders ? projSpend/projOrders : 0;
+    var aov = projOrders ? projMid/projOrders : 0;
+    var churnVar = ((44 - aov)/44)*100;
+    document.getElementById('out-rev').textContent = money(projMid);
+    document.getElementById('out-rev-band').textContent = money(projLow)+' to '+money(projHigh)+' boundary';
+    var cacEl = document.getElementById('out-cac'); cacEl.textContent = '$'+cac.toFixed(2);
+    var flag = document.getElementById('out-cac-flag');
+    if(cac > 65){ flag.textContent='above target, tighten spend'; flag.style.color='#a23b2b'; }
+    else if(cac < 38){ flag.textContent='below target, room to scale'; flag.style.color='var(--vahdam-green)'; }
+    else { flag.textContent='inside $38 to $65 target'; flag.style.color='var(--vahdam-gold)'; }
+    var churnEl = document.getElementById('out-churn'); var sign = churnVar>=0?'+':'';
+    churnEl.textContent = sign+churnVar.toFixed(1)+'%';
+    churnEl.style.color = churnVar>0 ? '#a23b2b' : 'var(--vahdam-green)';
+  });
+})();
+`;
+
+const JS_WORKSPACE = String.raw`
+(function(){
+  "use strict";
+  var STORE = { US:'www.vahdamteas.com', UK:'uk.vahdamteas.com', Global:'www.vahdamteas.com' };
+  var CUR = { US:'$', UK:'£', Global:'$' };
+  var AVATAR = {
+    '001': { name:'Third-Wave Purists', hook:'origin story and cup character', hero:'Single-Estate Darjeeling First Flush', sub:'estate reserve' },
+    '002': { name:'Functional Optimizers', hook:'the daily refill rhythm', hero:'Ashwagandha Coffee', sub:'refill subscription' },
+    '003': { name:'Biohacking Performers', hook:'precise adaptogen payload', hero:'Ashwagandha Coffee, high-dose', sub:'performance stack' },
+    '004': { name:'Routine Convenience', hook:'a simpler morning', hero:'Ground Ashwagandha Coffee', sub:'auto-reorder' }
+  };
+  function mailerBlock(a, market){
+    var store = STORE[market], cur = CUR[market];
+    return [
+'<!-- Vahdam mailer :: '+a.name+' :: '+market+' -->',
+'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBF5EA;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;color:#171717;">',
+'  <tr><td align="center" style="padding:28px 16px;">',
+'    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border:1px solid rgba(23,23,23,.12);border-radius:12px;overflow:hidden;">',
+'      <tr><td style="background:#004A2B;padding:22px 28px;"><span style="font-family:Lao MN,Georgia,serif;color:#FBF5EA;font-size:24px;">Vahdam</span></td></tr>',
+'      <tr><td style="padding:34px 28px 8px;"><h1 style="margin:0;font-family:Lao MN,Georgia,serif;color:#004A2B;font-size:28px;line-height:1.15;">There is a moment when the right cup does more than warm your hands.</h1></td></tr>',
+'      <tr><td style="padding:8px 28px 20px;"><p style="margin:0;font-size:15px;line-height:1.6;color:#171717;">Made for '+a.hook+'. Steep the '+a.hero+', hand-picked and shipped garden-fresh from origin, and let the ritual restore the morning.</p></td></tr>',
+'      <tr><td style="padding:0 28px 26px;"><a href="https://'+store+'/products/ashwagandha-coffee" style="display:inline-block;background:#AB8743;color:#004A2B;font-weight:800;text-decoration:none;border-radius:9px;padding:13px 26px;font-size:14px;">Start the ritual, '+cur+'39.83</a></td></tr>',
+'      <tr><td style="border-top:1px solid rgba(23,23,23,.12);padding:16px 28px;"><p style="margin:0;font-size:12px;color:#5b5b57;">Single-estate. Hand-picked. Crafted at origin. Vahdam Teas.</p></td></tr>',
+'    </table>',
+'  </td></tr>',
+'</table>'
+    ].join('\n');
+  }
+  function socialBlock(a, market){
+    var store = STORE[market], cur = CUR[market];
+    return [
+'/* Paid social ad :: '+a.name+' :: '+market+' */',
+'PRIMARY TEXT:',
+'  Restore the morning with '+a.hero+'. Hand-picked at a single estate, crafted at origin,',
+'  and built for '+a.hook+'. This is the ritual worth keeping.',
+'',
+'HEADLINE:  Origin in every cup',
+'DESCRIPTION:  '+a.sub.charAt(0).toUpperCase()+a.sub.slice(1)+', shipped garden-fresh.',
+'CTA:  Shop now',
+'LANDING:  https://'+store+'/products/ashwagandha-coffee',
+'PRICE POINT:  '+cur+'39.83',
+'',
+'PALETTE:  #004A2B forest / #AB8743 gold / #171717 ink / #FBF5EA cream',
+'FONTS:    Lao MN (headline) / Proxima Nova (body)',
+'NOTE:     No banned phrases. Warm, sensory, story-driven register.'
+    ].join('\n');
+  }
+  function motionBlock(a, market){
+    var store = STORE[market];
+    return [
+'{',
+'  "asset_type": "motion",',
+'  "cohort": "'+a.name+'",',
+'  "market": "'+market+'",',
+'  "formats": ["mp4_9x16", "mp4_1x1", "gif_1x1"],',
+'  "duration_seconds": 8,',
+'  "palette": ["#004A2B", "#AB8743", "#171717", "#FBF5EA"],',
+'  "typography": { "headline": "Lao MN", "body": "Proxima Nova" },',
+'  "scenes": [',
+'    { "t": "0-2s", "shot": "steam rising off a fresh pour, cream background", "text": "A moment to restore" },',
+'    { "t": "2-5s", "shot": "'+a.hero+' pack, single-estate label in focus", "text": "Hand-picked at origin" },',
+'    { "t": "5-8s", "shot": "hands cradling the cup, warm light", "text": "Start the ritual" }',
+'  ],',
+'  "cta": { "label": "Shop now", "url": "https://'+store+'/products/ashwagandha-coffee" },',
+'  "hook": "'+a.hook+'"',
+'}'
+    ].join('\n');
+  }
+  var gb = document.getElementById('gen-btn');
+  if(gb) gb.addEventListener('click', function(){
+    var a = AVATAR[document.getElementById('gen-avatar').value];
+    var fmt = document.getElementById('gen-format').value;
+    var market = document.getElementById('gen-market').value;
+    var out = fmt==='mailer' ? mailerBlock(a,market) : (fmt==='social' ? socialBlock(a,market) : motionBlock(a,market));
+    document.getElementById('gen-out').value = out;
+    document.getElementById('copy-status').textContent = '';
+  });
+  var cb = document.getElementById('copy-btn');
+  if(cb) cb.addEventListener('click', function(){
+    var ta = document.getElementById('gen-out');
+    if(!ta.value){ document.getElementById('copy-status').textContent='Generate an asset first.'; return; }
+    ta.select(); var ok=false;
+    try { if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(ta.value); ok=true; } else { ok=document.execCommand('copy'); } } catch(e){ ok=false; }
+    document.getElementById('copy-status').textContent = ok ? 'Copied.' : 'Select the text and copy manually.';
+  });
+})();
+`;
+
+const JS_SHOPIFY = String.raw`
+(function(){
+  "use strict";
+  var synced = [];
+  var btn = document.getElementById('cdn-sync-btn'); if(!btn) return;
+  btn.addEventListener('click', function(){
+    var input = document.getElementById('cdn-input'), status = document.getElementById('cdn-status');
+    var url = (input.value||'').trim();
+    var valid = /^https:\/\/cdn\.shopify\.com\/.+/i.test(url);
+    if(!valid){ status.textContent='Enter a valid cdn.shopify.com URL.'; status.style.color='#a23b2b'; return; }
+    if(synced.indexOf(url)!==-1){ status.textContent='Already synced.'; status.style.color='var(--vahdam-gold)'; return; }
+    synced.push(url); status.textContent='Sync triggered.'; status.style.color='var(--vahdam-green)'; input.value='';
+    var li = document.createElement('li'); li.className='flex items-start gap-2'; li.style.wordBreak='break-all';
+    li.innerHTML = '<span style="color:var(--vahdam-green);font-weight:700;">&#10003;</span>'+
+      '<a class="code-out underline" style="color:var(--vahdam-gold);" href="'+encodeURI(url)+'" target="_blank" rel="noopener">'+url.replace(/</g,'&lt;')+'</a>';
+    document.getElementById('cdn-list').appendChild(li);
+  });
+})();
+`;
+
+/* ================================================================= PAGE BODIES */
+
+/* ---- HUB ---- */
+function buildHub() {
+  const main = [
+hero("Vahdam Lifecycle OS", "The Growth &amp; Automation Playbook",
+  "The master hub for how Vahdam grows a premium coffee and functional-beverage franchise. This is a modular, multi-page ecosystem: every feature and every competitor lives in its own deep-dive file, and this hub links out to all of them. Figures are live-engine readings or stated planning benchmarks, labelled as such."),
+
+// Feature 01
+'      <section data-section id="market" class="space-y-4">',
+secHead("Feature 01", "Macro Market Intelligence War Room", "The US coffee and functional-beverage opportunity, framed top-down."),
+'        <div class="grid gap-4 sm:grid-cols-3">',
+metricCard("TAM", "$117.94B", "Total US coffee market value, all channels."),
+metricCard("SAM", "$26.40B", "Serviceable D2C and premium/functional segment.", "gold"),
+metricCard("SOM", "$5.85B", "Obtainable US coffee D2C value at current positioning.", "green"),
+'        </div>',
+'        <div>' + linkBtn("./features/market-intelligence.html", "Open Comprehensive Market Report &rarr;") + '</div>',
+'      </section>',
+
+// Feature 02
+'      <section data-section id="competitors" class="space-y-4">',
+secHead("Feature 02", "Forensic Competitor Dossiers", "Eleven rivals across premium coffee, functional beverage, and supplements. Each brand name and deep-dive link opens its own independent dossier file covering desktop vs mobile UX, wireframes, tech stack, and a Vahdam battle card."),
+competitorMatrix("./"),
+'        <div>' + linkBtn("./features/competitor-index.html", "Open the full dossier index &rarr;") + '</div>',
+'      </section>',
+
+// Feature 03 + 04
+'      <section data-section id="knowledge" class="space-y-4">',
+secHead("Feature 03 &amp; 04", "Knowledge Base &amp; Product Avatars", "The origin truth behind the premium, and the product characters that carry it to the shopper."),
+'        <div class="grid gap-4 md:grid-cols-3">',
+'          <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Direct-to-origin speed</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">48 to 72 hours from crop harvest to vacuum processing plants, with no auction-house middlemen between estate and pack.</p></div>',
+'          <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Cryptographic tracking</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Batch-level traceability to the source garden, held to an optimum 6.5% moisture threshold at pack.</p></div>',
+'          <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Tea-to-coffee cross-sell</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Bridge herbal and turmeric buyers into Ashwagandha Coffee and supplements, the cleanest path from one-time buyer to subscriber.</p></div>',
+'        </div>',
+avatarPreview("./"),
+'        <div class="flex flex-wrap gap-3">' + linkBtn("./features/knowledge-base.html", "Open Knowledge Base &rarr;") + linkBtn("./features/product-avatars.html", "Meet the Product Avatars &rarr;", true) + '</div>',
+'      </section>',
+
+// Feature 05, 06, 07
+'      <section data-section id="engines" class="space-y-4">',
+secHead("Feature 05, 06 &amp; 07", "Operational Engines", "The daily-run tools. Each opens into its own working sub-page."),
+'        <div class="grid gap-4 md:grid-cols-3">',
+'          <a href="./features/analytics-engine.html" class="card p-5 block hover:border-vahdam-gold" style="text-decoration:none;"><div class="text-2xl">\u{1F4C8}</div><h3 class="font-head text-lg text-vahdam-green mt-1">Intraday Pace &amp; Predictive</h3><p class="text-sm mt-2" style="color:var(--soft);">Hour-over-hour pace and a midday settlement model. Mirrors the vahdam_dtc_data_engine.</p></a>',
+'          <a href="./features/asset-workspace.html" class="card p-5 block hover:border-vahdam-gold" style="text-decoration:none;"><div class="text-2xl">⚙️</div><h3 class="font-head text-lg text-vahdam-green mt-1">Marketing Asset Workspace</h3><p class="text-sm mt-2" style="color:var(--soft);">Generate brand-locked mailer, social, and motion asset source by cohort and market.</p></a>',
+'          <a href="./features/shopify-loop.html" class="card p-5 block hover:border-vahdam-gold" style="text-decoration:none;"><div class="text-2xl">\u{1F4E6}</div><h3 class="font-head text-lg text-vahdam-green mt-1">Shopify CDN Ingestion Loop</h3><p class="text-sm mt-2" style="color:var(--soft);">Upload to Shopify content files, paste the cdn.shopify.com URL back to sync.</p></a>',
+'        </div>',
+'      </section>',
+
+// Feature 08 ChaiGPT dock
+'      <section data-section id="chaigpt" class="space-y-4">',
+secHead("Feature 08", "ChaiGPT Internal Intelligence Engine Dock", "The brand LLM that operates over this entire ecosystem. Every dossier, rule, and path-to-progress document is ingested into its RAG pipeline."),
+'        <div class="card p-6" style="border-color:var(--vahdam-gold);">',
+'          <div class="grid gap-4 md:grid-cols-3">',
+'            <div><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 01</div><h4 class="font-head text-lg text-vahdam-green mt-2">100% Fact-Fidelity</h4><p class="text-sm mt-1" style="color:var(--vahdam-ink);">Responses must match injected parameters exactly. The engine is banned from guessing or generating unverified assumptions.</p></div>',
+'            <div><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 02</div><h4 class="font-head text-lg text-vahdam-green mt-2">Dynamic Web Fallback</h4><p class="text-sm mt-1" style="color:var(--vahdam-ink);">If a query needs parameters outside the multi-page knowledge base, ChaiGPT invokes live web search.</p></div>',
+'            <div><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 03</div><h4 class="font-head text-lg text-vahdam-green mt-2">Citation Integrity</h4><p class="text-sm mt-1" style="color:var(--vahdam-ink);">External results pass domain-authority parsing, and the output formats clean anchor links to every backing source.</p></div>',
+'          </div>',
+'          <div class="mt-5">' + linkBtn("./features/chaigpt-config.html", "Open ChaiGPT configuration &rarr;") + '</div>',
+'        </div>',
+'      </section>',
+
+'      <footer class="pt-8 border-t text-[12.5px]" style="border-color:var(--line);color:var(--soft);">Vahdam Growth &amp; Automation Playbook hub. Modular by design: every feature and competitor is its own file. Market figures are stated planning benchmarks; competitor intelligence is directional and labelled, not audited data.</footer>'
+  ].join("\n");
+
+  return page({ title: "Vahdam Growth & Automation Playbook", desc: "Master hub for the Vahdam growth and automation playbook: market intelligence, competitor dossiers, knowledge base, cohorts, analytics, asset workspace, Shopify loop, and ChaiGPT config.", prefix: "", activeKey: "hub", crumb: "Playbook Hub", main: main });
+}
+
+/* ---- FEATURE 01: market intelligence ---- */
+function buildMarketIntelligence() {
+  const main = [
+hero("Feature 01", "Macro Market Intelligence",
+  "The full sizing and benchmark report behind the hub summary. Top-down market frame, blended lifecycle benchmarks, and the cross-vertical read that positions Vahdam."),
+'      <section data-section id="sizing" class="space-y-4">',
+secHead("Sizing", "TAM / SAM / SOM", "Total market, the served D2C slice, and the obtainable share at current positioning."),
+'        <div class="grid gap-4 sm:grid-cols-3">',
+metricCard("TAM", "$117.94B", "Total US coffee market value, all channels and formats."),
+metricCard("SAM", "$26.40B", "Serviceable D2C and premium/functional segment.", "gold"),
+metricCard("SOM", "$5.85B", "Obtainable US coffee D2C value within reach.", "green"),
+'        </div>',
+'        <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Reading the funnel</h3><ul class="mt-2 space-y-2 text-sm" style="color:var(--vahdam-ink);">' +
+'<li><b style="color:var(--vahdam-green);">SAM is 22.4% of TAM.</b> The D2C and premium/functional slice is where provenance and a real functional payload win.</li>' +
+'<li><b style="color:var(--vahdam-green);">SOM is 22.2% of SAM.</b> Obtainable share is gated by acquisition efficiency and retention, not demand.</li>' +
+'<li><b style="color:var(--vahdam-green);">Leverage.</b> Lifting day-180 retention a few points expands realised SOM faster than raising spend.</li></ul></div>',
+'      </section>',
+'      <section data-section id="benchmarks" class="space-y-4">',
+secHead("Benchmarks", "Standard vs functional coffee D2C", "Blended lifecycle economics across the two segments Vahdam straddles."),
+'        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:560px;">' +
+'<thead><tr><th>Metric</th><th>Standard coffee D2C</th><th>Functional / wellness</th></tr></thead><tbody>' +
+'<tr><td>Blended CAC</td><td>$18 to $32</td><td>$38 to $65</td></tr>' +
+'<tr><td>Day-30 retention</td><td>34 to 42%</td><td>44 to 55%</td></tr>' +
+'<tr><td>Day-180 retention</td><td>16 to 24%</td><td>28 to 38%</td></tr>' +
+'<tr><td>AOV</td><td>$26 to $38</td><td>$42 to $68</td></tr>' +
+'<tr><td>12-month LTV</td><td>$70 to $110</td><td>$150 to $260</td></tr>' +
+'<tr><td>Subscription attach</td><td>12 to 20%</td><td>22 to 34%</td></tr>' +
+'</tbody></table></div>',
+'        <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">The Vahdam edge</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Single-estate provenance plus a genuine functional payload (Ashwagandha) is a position rivals hold only in halves. Pair ritual-replacement storytelling with a subscription anchor, and reserve discounts for the discount-responsive switcher. Figures are stated planning benchmarks.</p></div>',
+'        <div class="flex flex-wrap gap-3">' + linkBtn("./competitor-index.html", "See the competitor grid &rarr;") + linkBtn("../index.html", "Back to hub", true) + '</div>',
+'      </section>'
+  ].join("\n");
+  return page({ title: "Macro Market Intelligence :: Vahdam Playbook", desc: "TAM/SAM/SOM sizing and blended D2C lifecycle benchmarks for the US coffee and functional-beverage market.", prefix: "../", activeKey: "market-intelligence", crumb: "Market Intelligence", main: main });
+}
+
+/* ---- FEATURE 02: competitor index ---- */
+function buildCompetitorIndex() {
+  const cards = COMPETITORS.map(function (c) {
+    return '<a href="../dossiers/' + c.slug + '.html" class="card p-4 block hover:border-vahdam-gold" style="text-decoration:none;">' +
+      '<div class="flex items-center justify-between"><span class="font-head text-lg text-vahdam-green">' + c.name + '</span>' + tierSpan(c.tier) + '</div>' +
+      '<div class="text-[12px] mt-1" style="color:var(--soft);">' + c.category + '</div>' +
+      '<p class="text-[12.5px] mt-2" style="color:var(--vahdam-ink);">' + c.churnHook + '</p></a>';
+  }).join("\n        ");
+  const main = [
+hero("Feature 02", "Forensic Competitor Dossiers",
+  "The master comparison matrix plus a card for every rival. Each brand opens its own independent dossier file: desktop vs mobile UX gaps, high-fidelity wireframe outlines, the technical stack footprint, and a Vahdam vs competitor SWOT battle card with an explicit path to progress."),
+'      <section data-section id="matrix" class="space-y-4">',
+secHead("Matrix", "All eleven rivals at a glance", "Brand name and deep-dive link both open the independent dossier."),
+competitorMatrix("../"),
+'      </section>',
+'      <section data-section id="cards" class="space-y-4">',
+secHead("Dossiers", "Jump to a brand", "Each dossier is a standalone deep-dive file under ./dossiers/."),
+'        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">',
+'        ' + cards,
+'        </div>',
+'        <div>' + linkBtn("../index.html", "Back to hub", true) + '</div>',
+'      </section>'
+  ].join("\n");
+  return page({ title: "Forensic Competitor Dossiers :: Vahdam Playbook", desc: "Master competitor matrix and index of eleven independent forensic brand dossiers.", prefix: "../", activeKey: "competitor-index", crumb: "Competitor Dossiers", main: main });
+}
+
+/* ---- FEATURE 03: knowledge base ---- */
+function buildKnowledgeBase() {
+  const main = [
+hero("Feature 03", "Direct-to-Origin Knowledge Base",
+  "The provenance truth behind the premium. Every asset the OS produces quotes these figures, and ChaiGPT ingests this page as verified source."),
+'      <section data-section id="supply" class="space-y-4">',
+secHead("Supply chain", "Crop harvest to vacuum processing", "Direct-to-origin speed with no auction-house middlemen."),
+'        <div class="flex flex-wrap items-center gap-2">' +
+'<span class="flow-node">Hand-picked at single estate</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
+'<span class="flow-node">Vacuum processing in 48 to 72 hrs</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
+'<span class="flow-node">Grading and 6.5% moisture check</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
+'<span class="flow-node">Sealed garden-fresh packing</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
+'<span class="flow-node">Direct-from-source dispatch</span></div>',
+'        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">' +
+metricCard("48-72h", "Harvest to vacuum processing", "") +
+metricCard("6.5%", "Optimum moisture threshold at pack", "") +
+metricCard("0", "Auction-house middlemen", "") +
+metricCard("100%", "Batches traceable to source garden", "") +
+'        </div>',
+'      </section>',
+'      <section data-section id="verify" class="space-y-4">',
+secHead("Verification", "Ingredient source verification", "How each functional claim is backed. Rule for copy: state the verified source and payload, never a medical claim."),
+'        <div class="grid gap-4 md:grid-cols-3">' +
+'<div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Single-estate origin</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Batch records carry estate, elevation, and pick date. This is the provenance the premium rests on.</p></div>' +
+'<div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Functional payload</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Ashwagandha Coffee carries a stated adaptogen dose per serving, named in plain, non-medical language.</p></div>' +
+'<div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Certification chain</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">B-Corp and ethical-sourcing certifications sit as trust proof beside the origin story, never as the lead hook.</p></div>' +
+'        </div>',
+'      </section>',
+'      <section data-section id="crosssell" class="space-y-4">',
+secHead("Cross-sell", "Coffee / tea hybrid logic", "The bridge that turns a one-time tea buyer into a subscriber."),
+'        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:640px;">' +
+'<thead><tr><th>From (habit)</th><th>Bridge product</th><th>To (anchor)</th><th>Trigger</th></tr></thead><tbody>' +
+'<tr><td>Black tea / Chai</td><td>Turmeric or herbal blend</td><td>Ashwagandha Coffee</td><td>Second-order nudge, steep-to-brew story</td></tr>' +
+'<tr><td>Herbal / Turmeric</td><td>Ashwagandha Coffee starter</td><td>Coffee subscription</td><td>Ritual-replacement, morning-swap framing</td></tr>' +
+'<tr><td>Ashwagandha Coffee</td><td>Supplement companion</td><td>Multi-category subscription</td><td>Bundle logic, free-ship above AOV</td></tr>' +
+'<tr><td>Gift / Advent buyer</td><td>Self-purchase invitation</td><td>Personal ritual subscription</td><td>January reframe of the gift given</td></tr>' +
+'</tbody></table></div>',
+'        <div>' + linkBtn("./product-avatars.html", "Meet the product avatars these convert &rarr;") + '</div>',
+'      </section>',
+'      <section data-section id="cohorts" class="space-y-4">',
+secHead("Buyer cohorts", "The four audiences", "The demographic and behavioural segments every brief targets. Product avatars are the persuasion layer that speaks to these buyers."),
+cohortCards(),
+'        <details class="blueprint" open><summary><span>schemas/cohort-profile.json <span class="text-[11px] font-body opacity-70">JSON Schema</span></span><span class="plus text-vahdam-gold text-xl leading-none transition-transform">+</span></summary><pre>' + COHORT_SCHEMA + '</pre></details>',
+'      </section>'
+  ].join("\n");
+  return page({ title: "Direct-to-Origin Knowledge Base :: Vahdam Playbook", desc: "Vahdam supply-chain-to-origin metrics, ingredient verification, coffee/tea hybrid cross-sell logic, and the four buyer cohorts.", prefix: "../", activeKey: "knowledge-base", crumb: "Knowledge Base", main: main });
+}
+
+/* ---- FEATURE 04: cohort profiles ---- */
+/* ============================================ PRODUCT AVATARS (Feature 04) */
+/* Avatars give each hero PRODUCT a face and a voice: characters the shopper
+   talks to, that engage and persuade toward the right purchase. Not buyer
+   demographics (those live as cohorts in the Knowledge Base). */
+const PRODUCT_AVATARS = [
+  {
+    slug: "ash", face: "☕", name: "Ash", embodies: "Ashwagandha Coffee",
+    personality: "Calm, grounded, quietly confident. The steady friend who starts your morning.",
+    signature: "I am the cup that does more than wake you. Steep me, and let the morning settle.",
+    targets: "Functional Optimizers and Biohacking Performers",
+    objections: [
+      { q: "Why switch from my usual coffee?", a: "You keep the ritual you love and add a calm, functional payload. Same warm cup, single-estate origin, plus adaptogen balance. There is nothing to give up." },
+      { q: "Is it worth the price?", a: "One refill subscription at 39.83 replaces the daily buy and arrives garden-fresh. The math favours the ritual at home over the cafe queue." },
+      { q: "Will I actually like the taste?", a: "I am coffee first. Full-bodied, crafted at origin, with the adaptogen worked in so smoothly you taste the roast, not the supplement." }
+    ]
+  },
+  {
+    slug: "aria", face: "🍃", name: "Aria", embodies: "Single-Estate Darjeeling",
+    personality: "Refined, precise, a little poetic. The connoisseur who knows the garden by name.",
+    signature: "I was hand-picked on one estate, at one elevation, on one morning. Let me show you what origin tastes like.",
+    targets: "Third-Wave Purists",
+    objections: [
+      { q: "What makes you different from other tea?", a: "Provenance you can trace to a single garden and pick date. Most tea is blended from many sources. I am one place, one season, one story." },
+      { q: "Is single-estate just marketing?", a: "It is on the batch record: estate, elevation, and harvest date. Taste the first flush against a supermarket blend and the difference speaks before I do." },
+      { q: "How should I brew you?", a: "Water just off the boil, three minutes, no milk on the first cup. Let the muscatel character open. That is the moment the estate comes through." }
+    ]
+  },
+  {
+    slug: "mira", face: "✨", name: "Mira", embodies: "Turmeric and Herbal Wellness",
+    personality: "Warm, nurturing, reassuring. The one who brings the day back to centre.",
+    signature: "When the day frays, I bring it back to balance. Steep me, and restore.",
+    targets: "Functional Optimizers and Routine Convenience",
+    objections: [
+      { q: "Does it really do anything?", a: "I carry a real functional payload from hand-picked origin ingredients, described in plain terms. I restore a moment of balance in your day. No medical promises, just an honest ritual." },
+      { q: "When would I drink you?", a: "The late afternoon reset or the wind-down before evening. Caffeine-free, so I fit the hours coffee cannot." },
+      { q: "I already drink coffee in the morning.", a: "Then we are not rivals. Keep Ash for the morning and let me hold the afternoon. Together we cover the whole day." }
+    ]
+  },
+  {
+    slug: "rumi", face: "🍵", name: "Rumi", embodies: "Masala Chai",
+    personality: "Spirited, hospitable, story-rich. The host who turns a cup into a moment.",
+    signature: "I am the spice of an afternoon shared. Pour me, and stay a while.",
+    targets: "Routine Convenience and gifting buyers",
+    objections: [
+      { q: "Is this like the chai from a cafe?", a: "It is the origin version the cafe version imitates. Whole spices, single-estate black tea, blended at source. Brew it with milk and you will not go back." },
+      { q: "It sounds like a lot of effort.", a: "Five minutes on the stove, or steep and add warm milk. The ritual is part of the reward, and it fills the kitchen with the reason you started." },
+      { q: "I want to give it as a gift.", a: "I am built for that. Pair me with a mug and a note, and in January invite the recipient to keep the ritual for themselves." }
+    ]
+  }
+];
+
+/* cohort-profile JSON schema, shared with the Knowledge Base cohort section */
+const COHORT_SCHEMA = [
+'{',
+'  "$schema": "http://json-schema.org/draft-07/schema#",',
+'  "title": "CohortProfile",',
+'  "type": "object",',
+'  "required": ["id", "name", "economics", "preferences"],',
+'  "properties": {',
+'    "id":   { "type": "string" },',
+'    "name": { "type": "string" },',
+'    "economics": {',
+'      "type": "object",',
+'      "properties": {',
+'        "income_band_usd": { "type": "object", "properties": { "min": {"type":"integer"}, "max": {"type":"integer"} } },',
+'        "target_aov_usd":  { "type": "number" },',
+'        "ltv_cac_target":  { "type": "number", "minimum": 1 }',
+'      }',
+'    },',
+'    "preferences": {',
+'      "type": "object",',
+'      "properties": {',
+'        "roast":  { "type": "string", "enum": ["light","medium","medium-dark","dark","adaptogen-blend"] },',
+'        "subscription_bias": { "type": "number", "minimum": 0, "maximum": 1 }',
+'      }',
+'    }',
+'  }',
+'}'
+].join("\n");
+
+const JS_AVATARS = String.raw`
+(function(){
+  "use strict";
+  var AV = __AVDATA__;
+  document.querySelectorAll('[data-avq]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var slug = b.getAttribute('data-slug'), i = +b.getAttribute('data-avq');
+      var bubble = document.getElementById('resp-'+slug);
+      if(bubble){ bubble.textContent = AV[slug][i]; bubble.style.display='block'; }
+      var card = b.closest('.av-card');
+      if(card){ card.querySelectorAll('[data-avq]').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); }
+    });
+  });
+})();
+`;
+
+/* small face-row preview used on the hub */
+function avatarPreview(prefix) {
+  const faces = PRODUCT_AVATARS.map(function (a) {
+    return '<a href="' + prefix + 'features/product-avatars.html" class="flex items-center gap-2" style="text-decoration:none;" title="' + a.name + ' :: ' + a.embodies + '">' +
+      '<span class="av-face" style="width:40px;height:40px;font-size:20px;">' + a.face + '</span>' +
+      '<span class="text-sm"><b class="text-vahdam-green font-head">' + a.name + '</b><br><span class="text-[11px]" style="color:var(--soft);">' + a.embodies + '</span></span></a>';
+  }).join("");
+  return '<div class="card p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Product avatars</div>' +
+    '<div class="flex flex-wrap gap-5 mt-3">' + faces + '</div>' +
+    '<p class="text-[12.5px] mt-3" style="color:var(--vahdam-ink);">Each hero product has a face and a voice that engages the shopper and answers objections in character, wired to ChaiGPT for live conversation.</p></div>';
+}
+
+function buildProductAvatars() {
+  const cards = PRODUCT_AVATARS.map(function (a) {
+    const buttons = a.objections.map(function (o, i) {
+      return '<button type="button" class="av-q" data-slug="' + a.slug + '" data-avq="' + i + '">' + o.q + '</button>';
+    }).join("");
+    return [
+'          <div class="av-card">',
+'            <div class="flex items-center gap-4">',
+'              <span class="av-face">' + a.face + '</span>',
+'              <div><div class="font-head text-2xl text-vahdam-green">' + a.name + '</div>',
+'              <div class="pill mt-1" style="background:var(--vahdam-cream);color:var(--vahdam-gold);">' + a.embodies + '</div></div>',
+'            </div>',
+'            <p class="text-[13px] mt-3" style="color:var(--soft);">' + a.personality + '</p>',
+'            <p class="av-quote">' + a.signature + '</p>',
+'            <div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Talk to ' + a.name + '</div>',
+'            <div class="grid gap-2 mt-2">' + buttons + '</div>',
+'            <div class="av-bubble" id="resp-' + a.slug + '"></div>',
+'            <p class="text-[12px] mt-3" style="color:var(--soft);">Converts: <b style="color:var(--vahdam-green);">' + a.targets + '</b></p>',
+'          </div>'
+    ].join("\n");
+  }).join("\n");
+
+  // build the answer data map and inject via JSON (safe escaping)
+  const avData = {};
+  PRODUCT_AVATARS.forEach(function (a) { avData[a.slug] = a.objections.map(function (o) { return o.a; }); });
+  const js = JS_AVATARS.replace("__AVDATA__", JSON.stringify(avData));
+
+  const main = [
+hero("Feature 04", "Product Avatars",
+  "Avatars give every hero product a face and a voice. Instead of a static product page, the shopper meets a character that engages, answers objections in the brand voice, and persuades toward the right purchase. Pick an avatar, ask it the hard question, and watch it convert."),
+'      <section data-section id="gallery" class="space-y-4">',
+secHead("The cast", "Meet the product avatars", "Four hero characters. Click a question to hear each one answer in character."),
+'        <div class="grid gap-5 md:grid-cols-2">',
+cards,
+'        </div>',
+'        <div class="card p-5" style="border-color:var(--vahdam-gold);"><h3 class="font-head text-lg text-vahdam-green">Live conversation</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">These scripted answers are the avatar personalities. Wired to ChaiGPT at <a href="/chaigpt">/chaigpt</a>, each avatar holds a full live conversation, grounded in the Knowledge Base and competitor dossiers, and always closes toward the correct product outcome.</p></div>',
+'      </section>',
+'      <section data-section id="who" class="space-y-4">',
+secHead("Targeting", "Which buyer each avatar converts", "Avatars are the persuasion layer; buyer cohorts are the audience. See the full cohort model in the Knowledge Base."),
+'        <div>' + linkBtn("./knowledge-base.html", "See the buyer cohorts &rarr;") + linkBtn("../index.html", "Back to hub", true) + '</div>',
+'      </section>'
+  ].join("\n");
+  return page({ title: "Product Avatars :: Vahdam Playbook", desc: "Product avatars: hero products given a face and voice that engage and persuade shoppers, wired to ChaiGPT.", prefix: "../", activeKey: "product-avatars", crumb: "Product Avatars", main: main, extraJS: js });
+}
+
+/* ---- FEATURE 05: analytics engine ---- */
+function buildAnalyticsEngine() {
+  const main = [
+hero("Feature 05", "Intraday Pace &amp; Predictive Calculators",
+  "Rolling hour-over-hour indicators mirroring the vahdam_dtc_data_engine DuckDB instance, plus a midday model that projects the midnight settlement. Values are illustrative live-shape readings."),
+'      <section data-section id="pace" class="space-y-4">',
+secHead("Intraday", "Hour-over-hour pace", ""),
+'        <div class="grid gap-4 sm:grid-cols-3">' +
+'<div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Net revenue (this hour)</div><div class="mv text-3xl mt-1" id="pace-rev">$0</div><div class="text-[12px] mt-1" id="pace-rev-delta" style="color:var(--vahdam-green);">&nbsp;</div></div>' +
+'<div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Unit order velocity</div><div class="mv text-3xl mt-1" id="pace-vel">0</div><div class="text-[12px] mt-1" style="color:var(--soft);">orders / hr</div></div>' +
+'<div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Net new subscriptions</div><div class="mv text-3xl mt-1" id="pace-sub">0</div><div class="text-[12px] mt-1" style="color:var(--soft);">this hour</div></div>' +
+'        </div>',
+'        <div class="card p-5"><div class="flex items-center justify-between flex-wrap gap-3"><h3 class="font-head text-lg text-vahdam-green">Last 12 hours</h3><button id="pace-refresh" class="btn-gold px-4 py-2 text-sm">Refresh pace</button></div>' +
+'<div class="overflow-x-auto mt-3"><table class="grid-tbl" style="min-width:560px;"><thead><tr><th>Hour</th><th>Net revenue</th><th>Orders</th><th>New subs</th><th>vs prior hr</th></tr></thead><tbody id="pace-body"></tbody></table></div></div>',
+'      </section>',
+'      <section data-section id="midday" class="space-y-4">',
+secHead("Predictive", "Midday settlement model", "Enter what is booked by noon and read the end-of-day boundaries."),
+'        <div class="card p-6"><div class="grid gap-4 sm:grid-cols-3">' +
+'<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Revenue booked by noon ($)</span><input id="in-rev" type="text" value="18400" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"></label>' +
+'<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Orders by noon</span><input id="in-orders" type="text" value="412" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"></label>' +
+'<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Ad spend so far ($)</span><input id="in-spend" type="text" value="3100" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"></label>' +
+'</div><button id="predict-btn" class="btn-primary px-5 py-2.5 text-sm mt-4">Project midnight settlement</button>' +
+'<div class="grid gap-4 sm:grid-cols-3 mt-5">' +
+'<div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Gross daily revenue</div><div class="mv text-3xl mt-1" id="out-rev">-</div><div class="text-[12px] mt-1" id="out-rev-band" style="color:var(--soft);">settlement boundary</div></div>' +
+'<div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Blended CAC</div><div class="mv text-3xl mt-1" id="out-cac">-</div><div class="text-[12px] mt-1" id="out-cac-flag" style="color:var(--soft);">vs $38 to $65 target</div></div>' +
+'<div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Active churn variance</div><div class="mv text-3xl mt-1" id="out-churn">-</div><div class="text-[12px] mt-1" style="color:var(--soft);">vs trailing baseline</div></div>' +
+'</div></div>',
+'      </section>'
+  ].join("\n");
+  return page({ title: "Intraday Pace & Predictive :: Vahdam Playbook", desc: "Intraday hour-over-hour pace tracker and midday predictive settlement model for the Vahdam DTC data engine.", prefix: "../", activeKey: "analytics-engine", crumb: "Analytics Engine", main: main, extraJS: JS_ANALYTICS });
+}
+
+/* ---- FEATURE 06: asset workspace ---- */
+function buildAssetWorkspace() {
+  const main = [
+hero("Feature 06", "Dynamic Marketing Asset Workspace",
+  "Pick a cohort, format, and market, then generate a brand-locked, copy-pasteable asset block. Output honours the four-color palette, Lao MN and Proxima Nova, and the banned-phrase rules."),
+'      <section data-section id="workspace" class="space-y-4">',
+secHead("Generate", "Asset source builder", "Covers HTML mailer frameworks, localized social ad variants, and image / video / GIF asset configs."),
+'        <div class="card p-6"><div class="grid gap-4 sm:grid-cols-3">' +
+'<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Avatar</span><select id="gen-avatar" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="001">Cohort 001: Third-Wave Purists</option><option value="002" selected>Cohort 002: Functional Optimizers</option><option value="003">Cohort 003: Biohacking Performers</option><option value="004">Cohort 004: Routine Convenience</option></select></label>' +
+'<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Format</span><select id="gen-format" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="mailer" selected>HTML Mailer</option><option value="social">Paid Social Ad</option><option value="motion">Motion Graphic (video / GIF)</option></select></label>' +
+'<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Market</span><select id="gen-market" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="US" selected>US (www.vahdamteas.com)</option><option value="UK">UK (uk.vahdamteas.com)</option><option value="Global">Global (www.vahdamteas.com)</option></select></label>' +
+'</div><div class="flex flex-wrap gap-3 mt-4"><button id="gen-btn" class="btn-primary px-5 py-2.5 text-sm">Generate asset source</button><button id="copy-btn" class="btn-gold px-5 py-2.5 text-sm">Copy to clipboard</button><span id="copy-status" class="self-center text-sm text-vahdam-green"></span></div>' +
+'<textarea id="gen-out" spellcheck="false" class="code-out mt-4 w-full h-80 rounded-xl border p-4" style="border-color:var(--line);background:#0f1d18;color:#e8ede9;" placeholder="Your generated, copy-pasteable asset source appears here. Edit in place before shipping."></textarea></div>',
+'        <div>' + linkBtn("./shopify-loop.html", "Next: push the asset to Shopify &rarr;") + '</div>',
+'      </section>'
+  ].join("\n");
+  return page({ title: "Marketing Asset Workspace :: Vahdam Playbook", desc: "Generate brand-locked HTML mailer, paid social, and motion asset source by cohort, format, and market.", prefix: "../", activeKey: "asset-workspace", crumb: "Asset Workspace", main: main, extraJS: JS_WORKSPACE });
+}
+
+/* ---- FEATURE 07: shopify loop ---- */
+function buildShopifyLoop() {
+  const main = [
+hero("Feature 07", "Shopify CDN Asset Ingestion Loop",
+  "Open the Shopify content files area, upload the generated asset, then paste the resulting cdn.shopify.com URL back here to register it for the local activation sync."),
+'      <section data-section id="loop" class="space-y-4">',
+secHead("Pipeline", "Two-step ingestion", ""),
+'        <div class="grid gap-5 lg:grid-cols-2">' +
+'<div class="card p-6"><h3 class="font-head text-lg text-vahdam-green">1. Shopify Content CDN Route</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Direct route to the Vahdam UK store content files. Upload the generated asset there to mint a cdn.shopify.com URL.</p><a href="https://admin.shopify.com/store/vahdamuk/content/files" target="_blank" rel="noopener" class="btn-gold inline-block px-5 py-2.5 text-sm mt-4">Open Shopify content files &#8599;</a><p class="text-[12px] mt-3 code-out" style="color:var(--soft);">admin.shopify.com/store/vahdamuk/content/files</p></div>' +
+'<div class="card p-6"><h3 class="font-head text-lg text-vahdam-green">2. Live Activation Asset Sync</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Paste the CDN URL Shopify returns. It is validated for the cdn.shopify.com host, then registered below to trigger the local activation workflow.</p><label class="block text-sm mt-4"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Generated cdn.shopify.com media URL</span><input id="cdn-input" type="text" placeholder="https://cdn.shopify.com/s/files/1/..../asset.png" class="mt-1 w-full rounded-lg border px-3 py-2 code-out" style="border-color:var(--line);"></label><div class="flex flex-wrap gap-3 mt-3"><button id="cdn-sync-btn" class="btn-primary px-5 py-2.5 text-sm">Trigger sync</button><span id="cdn-status" class="self-center text-sm"></span></div><ul id="cdn-list" class="mt-4 space-y-2 text-sm"></ul></div>' +
+'        </div>',
+'        <p class="text-[12px]" style="color:var(--soft);">Sync registers assets in this session only. Wire the activation workflow endpoint to persist them to the OS.</p>',
+'      </section>'
+  ].join("\n");
+  return page({ title: "Shopify CDN Ingestion Loop :: Vahdam Playbook", desc: "Upload generated assets to Shopify content files and sync the returned cdn.shopify.com URL into the OS.", prefix: "../", activeKey: "shopify-loop", crumb: "Shopify Loop", main: main, extraJS: JS_SHOPIFY });
+}
+
+/* ---- FEATURE 08: chaigpt config ---- */
+function buildChaiGPTConfig() {
+  const sysprompt = [
+'SYSTEM: ChaiGPT :: Vahdam brand intelligence engine',
+'',
+'KNOWLEDGE BASE (RAG):',
+'  - Ingest every page in this playbook ecosystem:',
+'      index.html, features/*.html, dossiers/*.html',
+'  - Index by: feature key, brand slug, cohort id, metric label,',
+'    path-to-progress step.',
+'',
+'RULE 01  FACT FIDELITY:',
+'  Answer only from ingested parameters. Match figures exactly.',
+'  Never guess. Never invent unverified assumptions. If a value is',
+'  not in the knowledge base, say so and go to RULE 02.',
+'',
+'RULE 02  WEB FALLBACK:',
+'  When a query needs parameters outside the knowledge base,',
+'  invoke live web search before answering.',
+'',
+'RULE 03  CITATION INTEGRITY:',
+'  Parse every external result for domain authority. Reject weak',
+'  sources. Format the final output with clean anchor links to',
+'  each backing source URL so correctness can be verified.',
+'',
+'OUTPUT CONTRACT:',
+'  Every recommendation quotes exact tool-sourced figures, names the',
+'  target metric and expected impact, states a full hypothesis, and',
+'  cites competitor benchmarks by brand.'
+  ].join("\n");
+  const main = [
+hero("Feature 08", "ChaiGPT Engine Knowledge Configuration",
+  "The exact structural parameters and operational rules governing the brand intelligence engine. This whole multi-page ecosystem is its knowledge base."),
+'      <section data-section id="ingest" class="space-y-4">',
+secHead("Ingestion", "Core knowledge base RAG pipeline", "All rules, data points, individual brand dossiers, and path-to-progress documents across this ecosystem are ingested into the retrieval-augmented generation pipeline."),
+'        <div class="flex flex-wrap items-center gap-2">' +
+'<span class="flow-node">Playbook pages (hub + features + dossiers)</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
+'<span class="flow-node">Chunk + index by feature / brand / cohort</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
+'<span class="flow-node">RAG retrieval on query</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
+'<span class="flow-node">Fact-checked, cited answer</span></div>',
+'      </section>',
+'      <section data-section id="rules" class="space-y-4">',
+secHead("Rules", "The three operating rules", ""),
+'        <div class="grid gap-4 md:grid-cols-3">' +
+'<div class="card p-5" style="border-color:var(--vahdam-gold);"><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 01</div><h3 class="font-head text-lg text-vahdam-green mt-2">100% Fact-Fidelity Enforcement</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Absolute restriction requiring responses to match injected parameters. The engine is banned from guessing or generating unverified assumptions.</p></div>' +
+'<div class="card p-5" style="border-color:var(--vahdam-gold);"><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 02</div><h3 class="font-head text-lg text-vahdam-green mt-2">Dynamic Fallback Web Search</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">If a query demands parameters outside the core knowledge base, ChaiGPT dynamically invokes live web searches.</p></div>' +
+'<div class="card p-5" style="border-color:var(--vahdam-gold);"><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 03</div><h3 class="font-head text-lg text-vahdam-green mt-2">Verification &amp; Citation Integrity</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">External results undergo domain-authority parsing. The output must format clean anchor links to backing source URLs to verify correctness.</p></div>' +
+'        </div>',
+'      </section>',
+'      <section data-section id="sysprompt" class="space-y-4">',
+secHead("Contract", "System prompt skeleton", "The operational contract, machine-readable."),
+'        <details class="blueprint" open><summary><span>config/chaigpt.system.txt <span class="text-[11px] font-body opacity-70">system prompt</span></span><span class="plus text-vahdam-gold text-xl leading-none transition-transform">+</span></summary><pre>' + sysprompt + '</pre></details>',
+'        <p class="text-sm" style="color:var(--soft);">The live ChaiGPT product runs in the OS at <a href="/chaigpt">/chaigpt</a>. This page documents the knowledge configuration it reads.</p>',
+'        <div>' + linkBtn("../index.html", "Back to hub", true) + '</div>',
+'      </section>'
+  ].join("\n");
+  return page({ title: "ChaiGPT Engine Config :: Vahdam Playbook", desc: "ChaiGPT knowledge configuration: RAG ingestion of the playbook, fact-fidelity, web fallback, and citation integrity rules.", prefix: "../", activeKey: "chaigpt-config", crumb: "ChaiGPT Config", main: main });
+}
+
+/* ---- DOSSIER (per competitor) ---- */
+function buildDossier(c) {
+  function list(arr) { return '<ul class="mt-1 space-y-1 text-sm list-disc pl-5" style="color:var(--vahdam-ink);">' + arr.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul>'; }
+  const wires = c.wires.map(function (w) { return wireBox(w[0], w[1]); }).join("\n          ");
+  const steps = c.path.map(function (s, i) { return '<li><b style="color:var(--vahdam-green);">Step ' + (i + 1) + '.</b> ' + s + '</li>'; }).join("");
+  const main = [
+'      <nav class="text-[12.5px]" style="color:var(--soft);"><a href="../index.html">Hub</a> &rsaquo; <a href="../features/competitor-index.html">Competitor Dossiers</a> &rsaquo; <span style="color:var(--vahdam-ink);">' + c.name + '</span></nav>',
+hero("Forensic Dossier", c.name, c.category + ". Desktop and mobile UX teardown, wireframe outlines, technical stack footprint, and a Vahdam battle card with an explicit path to progress. Intelligence is directional and labelled, not audited data."),
+
+'      <section data-section id="snapshot" class="space-y-4">',
+'        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">' +
+'<div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Share tier</div><div class="mt-2">' + tierBadge(c) + '</div></div>' +
+metricCard("AOV", c.aov, "Estimated average order value") +
+metricCard("D-180 retention", c.d180, "Day-180 retained rate", "gold") +
+'<div class="metric p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Primary hook</div><div class="text-[15px] mt-2 font-head text-vahdam-green">' + c.hook + '</div></div>' +
+'        </div>',
+'        <div class="card p-5"><span class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">Churn strategy</span><p class="text-sm mt-1" style="color:var(--vahdam-ink);">' + c.churnShort + '</p><span class="text-[11px] uppercase tracking-[.06em] font-bold mt-3 block" style="color:var(--soft);">Core tech stack</span><p class="code-out mt-1" style="color:var(--vahdam-green);">' + c.stackShort + '</p></div>',
+'      </section>',
+
+'      <section data-section id="viewport" class="space-y-4">',
+secHead("1. Viewport", "Desktop vs mobile UX", "Where the experience diverges across breakpoints, and where the gaps are."),
+'        <div class="grid gap-4 md:grid-cols-2">' +
+'<div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Desktop configuration</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">' + c.desktopUX + '</p></div>' +
+'<div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Mobile configuration</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">' + c.mobileUX + '</p></div>' +
+'        </div>',
+'      </section>',
+
+'      <section data-section id="wireframes" class="space-y-4">',
+secHead("2. Wireframes", "High-fidelity asset outlines", "Labelled bounding boxes standing in for layout screenshots."),
+'        <div class="grid gap-4 sm:grid-cols-2">',
+'          ' + wires,
+'        </div>',
+'      </section>',
+
+'      <section data-section id="stack" class="space-y-4">',
+secHead("3. Technical stack", "Infrastructure footprint", ""),
+'        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:520px;">' +
+'<thead><tr><th>Layer</th><th>Tooling</th></tr></thead><tbody>' +
+'<tr><td>Checkout framework</td><td>' + c.stack.checkout + '</td></tr>' +
+'<tr><td>Subscription app</td><td>' + c.stack.subscription + '</td></tr>' +
+'<tr><td>Analytics suite</td><td>' + c.stack.analytics + '</td></tr>' +
+'<tr><td>ESP / CRM</td><td>' + c.stack.esp + '</td></tr>' +
+'<tr><td>Churn prevention hook</td><td>' + c.churnHook + '</td></tr>' +
+'</tbody></table></div>',
+'      </section>',
+
+'      <section data-section id="battlecard" class="space-y-4">',
+secHead("4. Battle card", "Vahdam vs " + c.name + " SWOT", "The definitive read, mapped to an actionable path to progress."),
+'        <div class="grid gap-4 md:grid-cols-2">' +
+'<div class="card p-5"><h4 class="font-head text-vahdam-green">Strengths (' + c.name + ')</h4>' + list(c.swot.s) + '</div>' +
+'<div class="card p-5"><h4 class="font-head text-vahdam-green">Weaknesses</h4>' + list(c.swot.w) + '</div>' +
+'<div class="card p-5"><h4 class="font-head text-vahdam-green">Opportunities (for Vahdam)</h4>' + list(c.swot.o) + '</div>' +
+'<div class="card p-5"><h4 class="font-head text-vahdam-green">Threats</h4>' + list(c.swot.t) + '</div>' +
+'        </div>',
+'        <div class="card p-6" style="border-color:var(--vahdam-gold);border-left-width:4px;"><h3 class="font-head text-xl text-vahdam-green">Path to Progress: how Vahdam leapfrogs ' + c.name + '</h3><ul class="mt-2 space-y-2 text-sm" style="color:var(--vahdam-ink);">' + steps + '</ul></div>',
+'        <div class="flex flex-wrap gap-3">' + linkBtn("../features/competitor-index.html", "Back to all dossiers", true) + linkBtn("../index.html", "Hub") + '</div>',
+'      </section>'
+  ].join("\n");
+  return page({ title: c.name + " Dossier :: Vahdam Playbook", desc: "Forensic competitor dossier for " + c.name + ": desktop vs mobile UX, wireframes, tech stack, and Vahdam SWOT battle card.", prefix: "../", activeKey: "competitor-index", crumb: c.name, main: main });
+}
+function tierSpanText(t) { return "Tier " + t; }
+
+/* ------------------------------------------------------------------- writeout */
+function w(rel, html) {
+  const full = path.join(OUT, rel);
+  fs.mkdirSync(path.dirname(full), { recursive: true });
+  fs.writeFileSync(full, html);
+  console.log("wrote", rel, "(" + html.length + " bytes)");
+}
+
+fs.mkdirSync(OUT, { recursive: true });
+w("index.html", buildHub());
+w("features/market-intelligence.html", buildMarketIntelligence());
+w("features/competitor-index.html", buildCompetitorIndex());
+w("features/knowledge-base.html", buildKnowledgeBase());
+w("features/product-avatars.html", buildProductAvatars());
+w("features/analytics-engine.html", buildAnalyticsEngine());
+w("features/asset-workspace.html", buildAssetWorkspace());
+w("features/shopify-loop.html", buildShopifyLoop());
+w("features/chaigpt-config.html", buildChaiGPTConfig());
+COMPETITORS.forEach(function (c) { w("dossiers/" + c.slug + ".html", buildDossier(c)); });
+console.log("\nDone. " + (9 + COMPETITORS.length) + " pages generated under /playbook.");
