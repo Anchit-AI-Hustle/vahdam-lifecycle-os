@@ -295,6 +295,12 @@ function buildBrand(b) {
 '  <p class="mt-2 max-w-3xl text-[14px]" style="color:#9fb0a8;">' + b.vertical + '. Full side-by-side comparison across products, offers, pricing, benefits, provenance, retention and UX. Pricing and tier are directional planning estimates from public storefront observation, not audited figures.</p>',
 '  <p class="mt-3"><a class="btn ghost" href="' + b.site + '" target="_blank" rel="noopener">Visit ' + b.name + ' live site &#8599;</a></p>',
 
+'  <h2 class="font-head text-[24px] mt-8 mb-2" style="color:var(--vcream);">Live storefront</h2>',
+'  <a href="' + b.site + '" target="_blank" rel="noopener" style="display:block;border:1px solid rgba(171,135,67,.3);border-radius:14px;overflow:hidden;">',
+'    <img loading="lazy" src="https://s.wordpress.com/mshots/v1/' + encodeURIComponent(b.site) + '?w=1200&h=740" alt="' + b.name + ' storefront screenshot" style="width:100%;display:block;background:#0f1d18;">',
+'  </a>',
+'  <p class="text-[11.5px] mt-2" style="color:#9fb0a8;">Live screenshot of ' + b.name + ', rendered client-side and may take a few seconds on first load. Product and ad creatives are on the live site.</p>',
+
 '  <h2 class="font-head text-[24px] mt-8 mb-2" style="color:var(--vcream);">Side-by-side comparison</h2>',
 '  <div class="card overflow-x-auto"><table class="cmp" style="min-width:720px;"><thead><tr><th>Parameter</th><th>' + b.name + '</th><th>VAHDAM</th></tr></thead><tbody>',
 '            ' + rows,

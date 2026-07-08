@@ -76,6 +76,8 @@ function head(title, desc) {
 '  .tierbadge b{font-size:11px;font-weight:800;} .tierbadge i{font-style:normal;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;opacity:.85;}',
 '  .tb1{background:rgba(0,74,43,.10);color:var(--vahdam-green);} .tb2{background:rgba(171,135,67,.18);color:#8a6a2f;} .tb3{background:rgba(23,23,23,.07);color:var(--soft);}',
 '  td.num{font-variant-numeric:tabular-nums;font-weight:700;color:var(--vahdam-ink);white-space:nowrap;}',
+'  .rtab{cursor:pointer;border:1.5px solid var(--line);background:#fff;color:var(--vahdam-ink);border-radius:999px;padding:7px 18px;font-family:inherit;font-size:13px;font-weight:700;transition:all .12s;}',
+'  .rtab:hover{border-color:var(--vahdam-gold);} .rtab.on{background:var(--vahdam-green);color:var(--vahdam-cream);border-color:var(--vahdam-green);}',
 '  .av-card{background:var(--vahdam-card);border:1px solid var(--line);border-radius:16px;padding:22px;}',
 '  .av-face{width:56px;height:56px;border-radius:999px;background:var(--vahdam-green);display:inline-flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;box-shadow:0 0 0 3px rgba(171,135,67,.35);}',
 '  .av-quote{font-family:"Lao MN",Georgia,serif;font-style:italic;color:var(--vahdam-green);border-left:3px solid var(--vahdam-gold);padding-left:12px;margin:12px 0;}',
@@ -694,6 +696,22 @@ const JS_WORKSPACE = String.raw`
 })();
 `;
 
+const JS_MARKET = String.raw`
+(function(){
+  var tabs=document.querySelectorAll('.rtab'); if(!tabs.length) return;
+  function apply(region){
+    document.querySelectorAll('[data-regions]').forEach(function(el){
+      var rs=(el.getAttribute('data-regions')||'').split(',');
+      el.style.display = rs.indexOf(region)>-1 ? '' : 'none';
+    });
+    tabs.forEach(function(t){ t.classList.toggle('on', t.getAttribute('data-region')===region); });
+    var c=document.getElementById('mktRegionLabel'); if(c) c.textContent=region;
+  }
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ apply(t.getAttribute('data-region')); }); });
+  apply('US');
+})();
+`;
+
 const JS_SHOPIFY = String.raw`
 (function(){
   "use strict";
@@ -851,6 +869,48 @@ function buildMarketStudy() {
       '</dl></div>';
   }).join("\n          ");
 
+  // ---- region-tabbed competitor set; site URLs power live client-side screenshots (mShots) ----
+  const REGIONS = ["US", "UK", "EU", "Global"];
+  const MB = [
+    { n: "Blue Bottle", s: "blue-bottle", v: "Premium whole bean / subscription", t: "Tier 1", r: ["US", "Global"], site: "bluebottlecoffee.com", aov: "$38.50", hook: "Retail crossover + roast-freshness cadence", churn: "Flexible cadence, seasonal drops, cafe halo", detail: true },
+    { n: "Trade Coffee", s: "trade", v: "Subscription marketplace", t: "Tier 1", r: ["US"], site: "drinktrade.com", aov: "$45.00", hook: "Quiz-matched roaster onboarding", churn: "Easy swap/skip, match guarantee", detail: true },
+    { n: "Onyx Coffee Lab", s: "onyx", v: "Specialty roaster", t: "Tier 2", r: ["US"], site: "onyxcoffeelab.com", aov: "$42.00", hook: "Transparency-scored sourcing", churn: "Limited lots, connoisseur loyalty", detail: true },
+    { n: "Four Sigmatic", s: "four-sigmatic", v: "Functional / mushroom", t: "Tier 1", r: ["US", "UK", "Global"], site: "foursigmatic.com", aov: "$52.00", hook: "Subscribe-first, host endorsements", churn: "Multi-SKU cross-sell, education", detail: true },
+    { n: "MUD\\WTR", s: "mudwtr", v: "Adaptogen alt-coffee", t: "Tier 1", r: ["US", "Global"], site: "mudwtr.com", aov: "$60.00", hook: "Ritual video, starter-kit funnel", churn: "Pause-not-cancel, SMS win-back", detail: true },
+    { n: "Ryze", s: "ryze", v: "Mushroom coffee", t: "Tier 2", r: ["US", "Global"], site: "ryze.co", aov: "$55.00", hook: "TikTok Shop loops, UGC proof", churn: "Subscribe-by-default, milestones", detail: true },
+    { n: "Vital Proteins", s: "vital-proteins", v: "Collagen / functional", t: "Tier 1", r: ["US", "UK", "EU", "Global"], site: "vitalproteins.com", aov: "$48.00", hook: "Retail ubiquity, routine SKUs", churn: "Multi-format routine, replenishment", detail: true },
+    { n: "Obvi", s: "obvi", v: "Collagen / wellness", t: "Tier 2", r: ["US"], site: "myobvi.com", aov: "$50.00", hook: "VIP community + flavour drops", churn: "Gamified loyalty, SMS-led winback", detail: true },
+    { n: "Cometeer", s: "cometeer", v: "Flash-frozen capsules", t: "Tier 1", r: ["US"], site: "cometeer.com", aov: "$64.00", hook: "Format innovation, premium gifting", churn: "Format lock-in, box cadence", detail: true },
+    { n: "Jot", s: "jot", v: "Ultra-concentrate", t: "Tier 2", r: ["US"], site: "jot.co", aov: "$36.00", hook: "Value-per-cup math", churn: "Low-friction reorder", detail: true },
+    { n: "Bruvi", s: "bruvi", v: "Pod hardware system", t: "Tier 3", r: ["US"], site: "bruvi.com", aov: "$58.00", hook: "Machine + pod ecosystem", churn: "Razor-and-blade pod lock-in", detail: true },
+    { n: "Grind", s: "grind", v: "Premium coffee + pods (UK)", t: "Tier 1 UK", r: ["UK"], site: "grind.co.uk", aov: "£30 (approx)", hook: "Design-led brand, compostable pods", churn: "Subscription pods, cafe halo", detail: false },
+    { n: "Pact Coffee", s: "pact", v: "Specialty subscription (UK)", t: "Tier 2 UK", r: ["UK"], site: "pactcoffee.com", aov: "£22 (approx)", hook: "Freshly roasted, personalised match", churn: "Flexible subscription, swaps", detail: false },
+    { n: "Exhale Coffee", s: "exhale", v: "Functional coffee (UK)", t: "Tier 3 UK", r: ["UK"], site: "exhalecoffee.com", aov: "£30 (approx)", hook: "High-antioxidant functional beans", churn: "Subscribe-and-save, education", detail: false },
+    { n: "London Nootropics", s: "london-nootropics", v: "Adaptogenic coffee (UK/EU)", t: "Tier 3", r: ["UK", "EU"], site: "londonnootropics.com", aov: "£25 (approx)", hook: "Adaptogen sachets, focus/calm", churn: "Subscription, sampler funnel", detail: false }
+  ];
+  const VAH_MB = { n: "VAHDAM", v: "Heritage tea + functional coffee", t: "Challenger", r: ["US", "UK", "EU", "Global"], site: "vahdamteas.com", aov: "~$39.83", hook: "Single-estate provenance + real adaptogen", churn: "Subscription anchor, refill rhythm" };
+  function shot(site) { return "https://s.wordpress.com/mshots/v1/" + encodeURIComponent("https://" + site) + "?w=1100&h=680"; }
+  function mbRow(b, vah) {
+    const nameCell = vah ? "<b>" + b.n + "</b>"
+      : (b.detail ? '<a href="../dossiers/' + b.s + '.html" style="color:var(--vahdam-green);text-decoration:underline;font-weight:600;">' + b.n + '</a>'
+        : '<a href="https://' + b.site + '" target="_blank" rel="noopener" style="color:var(--vahdam-green);text-decoration:underline;font-weight:600;">' + b.n + '</a>');
+    return '<tr data-regions="' + b.r.join(",") + '"' + (vah ? ' style="background:rgba(171,135,67,.1);"' : "") + '><td>' + nameCell + '</td><td>' + b.v + '</td><td>' + b.t + '</td><td class="num">' + b.aov + '</td><td>' + b.hook + '</td><td>' + b.churn + '</td></tr>';
+  }
+  const marketRows = MB.map(function (b) { return mbRow(b, false); }).join("\n              ") + "\n              " + mbRow(VAH_MB, true);
+  function shotCard(b) {
+    const link = b.detail ? "../dossiers/" + b.s + ".html" : "https://" + b.site;
+    const target = b.detail ? "" : ' target="_blank" rel="noopener"';
+    return '<div class="card overflow-hidden" data-regions="' + b.r.join(",") + '">' +
+      '<a href="' + link + '"' + target + ' style="text-decoration:none;display:block;">' +
+      '<img loading="lazy" src="' + shot(b.site) + '" alt="' + b.n + ' storefront screenshot" style="width:100%;height:190px;object-fit:cover;object-position:top;background:#e9e4d8;border-bottom:1px solid var(--line);">' +
+      '<div class="p-4"><div class="flex items-center justify-between gap-2"><span class="font-head text-lg text-vahdam-green">' + b.n + '</span><span class="pill" style="color:var(--vahdam-gold-ink);white-space:nowrap;">' + b.t + '</span></div>' +
+      '<div class="text-[12px] mt-1" style="color:var(--soft);">' + b.v + ' &middot; ' + b.aov + '</div>' +
+      '<p class="text-[12.5px] mt-2" style="color:var(--vahdam-ink);"><b class="text-vahdam-green">Hook:</b> ' + b.hook + '</p>' +
+      '<p class="text-[12.5px] mt-1" style="color:var(--vahdam-ink);"><b class="text-vahdam-green">Churn:</b> ' + b.churn + '</p></div></a></div>';
+  }
+  const shotCards = MB.map(shotCard).join("\n          ");
+  const regionTabs = REGIONS.map(function (r, i) { return '<button type="button" class="rtab' + (i === 0 ? " on" : "") + '" data-region="' + r + '">' + r + '</button>'; }).join("");
+
   const main = [
 hero("Feature 01b", "The Complete Market Study",
   "The full internal planning study: US coffee and functional-beverage D2C landscape for a premium heritage brand extending into Ashwagandha Coffee and functional blends. Source: docs/market-intelligence/us-coffee-d2c-landscape.md. All figures are blended analyst-style planning estimates for 2026/2027 with plus or minus 20 to 30% uncertainty, not audited numbers."),
@@ -881,10 +941,17 @@ secHead("", "Blended industry benchmarks", "Standard coffee D2C versus functiona
 '      </section>',
 
 '      <section data-section id="brandmatrix" class="space-y-4">',
-secHead("Section 2", "Cross-vertical brand matrix", "The ten rivals this study tracks. Brand names link to their forensic dossiers."),
-'        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:1000px;"><thead><tr><th>Brand</th><th>Category</th><th>Market-share tier</th><th>Primary growth channels</th><th>Retention stack</th><th>Churn mitigation</th></tr></thead><tbody>' +
-'              ' + smRows +
+secHead("Section 2", "Competitor brands by region", "Pick a region to filter the competitor set and the live screenshot gallery below. VAHDAM is shown as the challenger baseline in every region."),
+'        <div class="flex flex-wrap gap-2" id="regionTabs">' + regionTabs + '</div>',
+'        <div class="text-[12px]" style="color:var(--soft);">Showing region: <b class="text-vahdam-green" id="mktRegionLabel">US</b></div>',
+'        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:940px;"><thead><tr><th>Brand</th><th>Vertical</th><th>Tier</th><th>AOV (approx)</th><th>Primary hook</th><th>Churn strategy</th></tr></thead><tbody>' +
+'              ' + marketRows +
 '        </tbody></table></div>',
+secHead("", "Live storefront comparison", "Real screenshots of each competitor in the selected region, rendered live from their storefronts, with the hook and churn play to benchmark against. Click any card for the full detail page or live site."),
+'        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">',
+'          ' + shotCards,
+'        </div>',
+'        <p class="text-[12px]" style="color:var(--soft);">Screenshots render live via a public screenshot service and can take a few seconds to appear on first load. Pricing and tiers are directional planning estimates from public storefront observation, not audited figures.</p>',
 '        <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">What Vahdam should steal</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Take Four Sigmatic multi-SKU cross-sell and educational-flow depth (raises switching cost, answers ingredient skepticism), MUD\\WTR ritual narrative and pause-instead-of-cancel churn valve, Trade quiz-driven onboarding to lift first-bag retention, and Vital Proteins multi-format range logic (Ashwagandha coffee plus capsule plus tea equals a routine, not a product). Pair those with Vahdam unfair advantage none of them have: a verifiable single-estate heritage sourcing story that pre-empts the is-this-real-adaptogen objection inflating functional CAC. Lead acquisition with the sourcing proof, retain with the multi-format ritual, and defend the Day-180 cliff with a pause-and-swap valve wired into the Lifecycle OS.</p></div>',
 '      </section>',
 
@@ -911,7 +978,7 @@ secHead("Sources and method", "How to read these numbers", ""),
 '        <div class="flex flex-wrap gap-3">' + linkBtn("./market-intelligence.html", "Back to Market Intelligence", true) + linkBtn("./competitor-index.html", "Competitor dossiers &rarr;") + linkBtn("../index.html", "Hub", true) + '</div>',
 '      </section>'
   ].join("\n");
-  return page({ title: "Complete Market Study :: Vahdam Playbook", desc: "The full US coffee and functional-beverage D2C landscape study: sizing, benchmarks, brand matrix, cohorts, and regional spending.", prefix: "../", activeKey: "market-study", crumb: "Market Study", main: main });
+  return page({ title: "Complete Market Study :: Vahdam Playbook", desc: "The full US coffee and functional-beverage D2C landscape study: sizing, benchmarks, region-tabbed competitor dashboard with live screenshots, cohorts, and regional spending.", prefix: "../", activeKey: "market-study", crumb: "Market Study", main: main, extraJS: JS_MARKET });
 }
 
 /* ---- FEATURE 02: competitor index ---- */
