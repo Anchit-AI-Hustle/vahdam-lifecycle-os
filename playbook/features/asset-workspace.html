@@ -14,7 +14,10 @@
   } } };
 </script>
 <style>
-  :root{--vahdam-green:#004A2B;--vahdam-gold:#AB8743;--vahdam-ink:#171717;--vahdam-cream:#FBF5EA;--vahdam-card:#FFFFFF;--line:rgba(23,23,23,.12);--soft:#5b5b57;}
+  :root{--vahdam-green:#004A2B;--vahdam-gold:#AB8743;--vahdam-gold-ink:#8a6a2f;--vahdam-ink:#171717;--vahdam-cream:#FBF5EA;--vahdam-card:#FFFFFF;--line:rgba(23,23,23,.12);--soft:#5b5b57;}
+  /* brand gold #AB8743 fails WCAG as small text on cream/white; use the darker gold-ink for gold TEXT on light backgrounds */
+  .gold-ink{color:var(--vahdam-gold-ink);}
+  input::placeholder,textarea::placeholder{color:#6f6f6f;opacity:1;} #gen-out::placeholder{color:#9fb0a8;opacity:1;}
   html{scroll-behavior:smooth;scroll-padding-top:20px;}
   body{background:var(--vahdam-cream);color:var(--vahdam-ink);font-family:"Proxima Nova","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;}
   h1,h2,h3,h4,.font-head{font-family:"Lao MN","Cormorant Garamond",Georgia,serif;}
@@ -29,7 +32,7 @@
   table.grid-tbl th{background:var(--vahdam-green);color:var(--vahdam-cream);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;}
   table.grid-tbl tr:nth-child(even) td{background:#faf7f0;}
   table.grid-tbl tr:last-child td{border-bottom:0;}
-  .tier-1{color:var(--vahdam-green);font-weight:700;} .tier-2{color:var(--vahdam-gold);font-weight:700;} .tier-3{color:var(--soft);font-weight:700;}
+  .tier-1{color:var(--vahdam-green);font-weight:700;} .tier-2{color:var(--vahdam-gold-ink);font-weight:700;} .tier-3{color:var(--soft);font-weight:700;}
   .tierbadge{display:inline-flex;flex-direction:column;line-height:1.12;border-radius:8px;padding:4px 9px;text-align:center;}
   .tierbadge b{font-size:11px;font-weight:800;} .tierbadge i{font-style:normal;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;opacity:.85;}
   .tb1{background:rgba(0,74,43,.10);color:var(--vahdam-green);} .tb2{background:rgba(171,135,67,.18);color:#8a6a2f;} .tb3{background:rgba(23,23,23,.07);color:var(--soft);}
@@ -38,7 +41,7 @@
   .av-face{width:56px;height:56px;border-radius:999px;background:var(--vahdam-green);display:inline-flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;box-shadow:0 0 0 3px rgba(171,135,67,.35);}
   .av-quote{font-family:"Lao MN",Georgia,serif;font-style:italic;color:var(--vahdam-green);border-left:3px solid var(--vahdam-gold);padding-left:12px;margin:12px 0;}
   .av-q{cursor:pointer;text-align:left;background:#faf6ec;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;color:var(--vahdam-ink);transition:background .12s,border-color .12s;font-family:inherit;}
-  .av-q:hover{border-color:var(--vahdam-gold);} .av-q.on{background:var(--vahdam-gold);color:var(--vahdam-green);font-weight:700;border-color:var(--vahdam-gold);}
+  .av-q:hover{border-color:var(--vahdam-gold-ink);} .av-q.on{background:var(--vahdam-gold);color:var(--vahdam-green);font-weight:700;border-color:var(--vahdam-gold-ink);}
   .av-bubble{display:none;margin-top:12px;background:var(--vahdam-green);color:var(--vahdam-cream);border-radius:12px;border-top-left-radius:3px;padding:13px 15px;font-size:13.5px;line-height:1.55;}
   .pill{display:inline-block;border-radius:999px;padding:2px 11px;font-size:11px;font-weight:700;border:1px solid var(--line);}
   .btn-primary{background:var(--vahdam-green);color:var(--vahdam-cream);border-radius:10px;font-weight:700;transition:filter .12s;} .btn-primary:hover{filter:brightness(1.15);}
@@ -52,7 +55,7 @@
   details.blueprint pre{margin:0;padding:18px;overflow-x:auto;color:#e8ede9;font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:12.5px;line-height:1.6;}
   .code-out{font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;}
   .flow-node{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:12.5px;}
-  a{color:var(--vahdam-green);} a:hover{color:var(--vahdam-gold);}
+  a{color:var(--vahdam-green);} a:hover{color:var(--vahdam-gold-ink);}
   ::selection{background:var(--vahdam-gold);color:#fff;}
   section[data-section]{scroll-margin-top:18px;}
 </style>
@@ -85,12 +88,12 @@
     <div class="lg:hidden sticky top-0 z-20 flex items-center justify-between px-5 py-3 text-vahdam-cream" style="background:var(--vahdam-green);"><div class="font-head text-lg">Asset Workspace</div><a href="../index.html" class="text-xs pill" style="border-color:rgba(251,245,234,.3);color:var(--vahdam-cream);">Hub</a></div>
     <div class="max-w-[1080px] mx-auto px-6 md:px-10 py-10 space-y-14">
       <header class="space-y-3">
-        <span class="text-[11px] tracking-[.18em] uppercase font-bold text-vahdam-gold">Feature 06</span>
+        <span class="text-[11px] tracking-[.18em] uppercase font-bold gold-ink">Feature 06</span>
         <h1 class="font-head text-4xl md:text-5xl text-vahdam-green leading-[1.05]">Dynamic Marketing Asset Workspace</h1>
         <p class="text-[15px] max-w-3xl" style="color:var(--soft);">Pick a cohort, format, and market, then generate a brand-locked, copy-pasteable asset block. Output honours the four-color palette, Lao MN and Proxima Nova, and the banned-phrase rules.</p>
       </header>
       <section data-section id="workspace" class="space-y-4">
-<div><div class="text-[11px] tracking-[.16em] uppercase font-bold text-vahdam-gold">Generate</div><h2 class="font-head text-3xl text-vahdam-green mt-1">Asset source builder</h2><p class="text-sm mt-2 max-w-3xl" style="color:var(--soft);">Covers HTML mailer frameworks, localized social ad variants, and image / video / GIF asset configs.</p></div>
+<div><div class="text-[11px] tracking-[.16em] uppercase font-bold gold-ink">Generate</div><h2 class="font-head text-3xl text-vahdam-green mt-1">Asset source builder</h2><p class="text-sm mt-2 max-w-3xl" style="color:var(--soft);">Covers HTML mailer frameworks, localized social ad variants, and image / video / GIF asset configs.</p></div>
         <div class="card p-6"><div class="grid gap-4 sm:grid-cols-3"><label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Avatar</span><select id="gen-avatar" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="001">Cohort 001: Third-Wave Purists</option><option value="002" selected>Cohort 002: Functional Optimizers</option><option value="003">Cohort 003: Biohacking Performers</option><option value="004">Cohort 004: Routine Convenience</option></select></label><label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Format</span><select id="gen-format" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="mailer" selected>HTML Mailer</option><option value="social">Paid Social Ad</option><option value="motion">Motion Graphic (video / GIF)</option></select></label><label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Market</span><select id="gen-market" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="US" selected>US (www.vahdamteas.com)</option><option value="UK">UK (uk.vahdamteas.com)</option><option value="Global">Global (www.vahdamteas.com)</option></select></label></div><div class="flex flex-wrap gap-3 mt-4"><button id="gen-btn" class="btn-primary px-5 py-2.5 text-sm">Generate asset source</button><button id="copy-btn" class="btn-gold px-5 py-2.5 text-sm">Copy to clipboard</button><span id="copy-status" class="self-center text-sm text-vahdam-green"></span></div><textarea id="gen-out" spellcheck="false" class="code-out mt-4 w-full h-80 rounded-xl border p-4" style="border-color:var(--line);background:#0f1d18;color:#e8ede9;" placeholder="Your generated, copy-pasteable asset source appears here. Edit in place before shipping."></textarea></div>
         <div><a href="./shopify-loop.html" class="btn-primary inline-block px-5 py-2.5 text-sm">Next: push the asset to Shopify &rarr;</a></div>
       </section>
