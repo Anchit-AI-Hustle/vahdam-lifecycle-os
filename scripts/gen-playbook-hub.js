@@ -24,6 +24,7 @@ const OUT = path.join(__dirname, "..", "playbook");
 const FEATURES = [
   { key: "hub",                 icon: "\u{1F3E0}", label: "Playbook Hub",                    file: "index.html",                     hub: true },
   { key: "market-intelligence", icon: "\u{1F4CA}", label: "Macro Market Intelligence",       file: "features/market-intelligence.html" },
+  { key: "market-study",        icon: "\u{1F4DA}", label: "Complete Market Study",            file: "features/market-study.html" },
   { key: "competitor-index",    icon: "\u{1F575}", label: "Forensic Competitor Dossiers",    file: "features/competitor-index.html" },
   { key: "knowledge-base",      icon: "\u{1F4D8}", label: "Direct-to-Origin Knowledge Base", file: "features/knowledge-base.html" },
   { key: "product-avatars",     icon: "\u{1F465}", label: "Product Avatars",                  file: "features/product-avatars.html" },
@@ -711,7 +712,7 @@ metricCard("TAM", "$117.94B", "Total US coffee market value, all channels."),
 metricCard("SAM", "$26.40B", "Serviceable D2C and premium/functional segment.", "gold"),
 metricCard("SOM", "$5.85B", "Obtainable US coffee D2C value at current positioning.", "green"),
 '        </div>',
-'        <div>' + linkBtn("./features/market-intelligence.html", "Open Comprehensive Market Report &rarr;") + '</div>',
+'        <div class="flex flex-wrap gap-3">' + linkBtn("./features/market-intelligence.html", "Open Comprehensive Market Report &rarr;") + linkBtn("./features/market-study.html", "Read the Complete Market Study &rarr;", true) + '</div>',
 '      </section>',
 
 // Feature 02
@@ -791,10 +792,108 @@ secHead("Benchmarks", "Standard vs functional coffee D2C", "Blended lifecycle ec
 '<tr><td>Subscription attach</td><td>12 to 20%</td><td>22 to 34%</td></tr>' +
 '</tbody></table></div>',
 '        <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">The Vahdam edge</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Single-estate provenance plus a genuine functional payload (Ashwagandha) is a position rivals hold only in halves. Pair ritual-replacement storytelling with a subscription anchor, and reserve discounts for the discount-responsive switcher. Figures are stated planning benchmarks.</p></div>',
-'        <div class="flex flex-wrap gap-3">' + linkBtn("./competitor-index.html", "See the competitor grid &rarr;") + linkBtn("../index.html", "Back to hub", true) + '</div>',
+'        <div class="flex flex-wrap gap-3">' + linkBtn("./market-study.html", "Read the complete market study &rarr;") + linkBtn("./competitor-index.html", "See the competitor grid &rarr;", true) + '</div>',
 '      </section>'
   ].join("\n");
   return page({ title: "Macro Market Intelligence :: Vahdam Playbook", desc: "TAM/SAM/SOM sizing and blended D2C lifecycle benchmarks for the US coffee and functional-beverage market.", prefix: "../", activeKey: "market-intelligence", crumb: "Market Intelligence", main: main });
+}
+
+/* ---- FEATURE: complete market study (renders docs/market-intelligence/us-coffee-d2c-landscape.md) ---- */
+function buildMarketStudy() {
+  // brand matrix rows from the study; slug links to the dossier where one exists
+  const SM = [
+    ["Blue Bottle", "blue-bottle", "Premium whole bean / subscription", "Tier 1 (premium share leader)", "SEO, brand/retail, Meta retarget", "Recharge + Klaviyo", "Flexible cadence and curated seasonal drops keep subscribers collecting; retail halo lowers online churn"],
+    ["Trade Coffee", "trade", "Premium subscription marketplace", "Tier 1 subscription-native", "Affiliate/referral, Meta, SEO", "Recharge + Klaviyo", "Quiz-driven personalization and easy roaster swaps; match guarantee reduces first-bag churn"],
+    ["Onyx Coffee Lab", "onyx", "Premium specialty roaster", "Tier 2 (cult / high-end)", "SEO, community, Instagram", "Recharge + Klaviyo", "Scarcity and competition-grade sourcing story; loyalty via limited lots"],
+    ["Four Sigmatic", "four-sigmatic", "Functional (mushroom / nootropic)", "Tier 1 functional", "Amazon, Meta, affiliate, retail", "Recharge/Skio + Klaviyo", "Bundle and subscribe-and-save; heavy educational flows; multi-SKU cross-sell raises switching cost"],
+    ["MUD\\WTR", "mudwtr", "Functional coffee alternative", "Tier 1 functional", "Podcast/creator, Meta, DR YouTube", "Stay AI + Klaviyo", "Ritual positioning and starter-kit funnel; aggressive win-back and pause-instead-of-cancel"],
+    ["Ryze", "ryze", "Functional (mushroom coffee)", "Tier 2 (fast-scaling DR)", "TikTok, Meta DR, affiliate", "Recharge/Skio + Klaviyo", "Steep intro discount into sub; UGC-led proof to fight ingredient skepticism"],
+    ["Vital Proteins", "vital-proteins", "Functional (collagen, wellness)", "Tier 1 (category-defining)", "Retail, Amazon, Meta, influencer", "Klaviyo + native Shopify sub", "Multi-format range locks routine; Nestle-owned retail distribution"],
+    ["Cometeer", "cometeer", "Form-factor (flash-frozen capsules)", "Tier 2 (emerging premium)", "Meta, PR, referral", "Recharge + Klaviyo", "Proprietary format is hardware-style lock-in; box-cadence subscription"],
+    ["Jot", "jot", "Form-factor (ultra-concentrate)", "Tier 2", "Meta, TikTok, SEO", "Recharge + Klaviyo", "Concentrate frames a low cost per cup; replenishment predictability"],
+    ["Bruvi", "bruvi", "Form-factor (pod machine + pods)", "Tier 3 (device-led)", "Meta, retail, connected-device", "Klaviyo + native sub", "Razor-and-blade: device locks pod reorder; app-nudged replenishment"]
+  ];
+  const smRows = SM.map(function (r) {
+    return '<tr><td><a href="../dossiers/' + r[1] + '.html" style="color:var(--vahdam-green);text-decoration:underline;font-weight:600;">' + r[0] + '</a></td><td>' + r[2] + '</td><td>' + r[3] + '</td><td>' + r[4] + '</td><td>' + r[5] + '</td><td>' + r[6] + '</td></tr>';
+  }).join("\n              ");
+
+  const COH = [
+    { n: "Cohort A: The Optimizer", driver: "Functionality-driven", demo: "Age 28 to 42, 58% male / 42% female, HHI $90K to $160K. Knowledge-worker, fitness and biohacking-adjacent.", geo: "High-index: California, Washington, Colorado, Texas (Austin), Massachusetts. Urban coastal plus affluent tech-suburb.", mech: "Price elasticity low to moderate (pays a premium for proof, not hype). Core driver: functionality (cortisol/stress, focus, clean energy). High reactivation with new-benefit or lab-backed content. Churn trigger: did not feel a difference at week 3, or a louder competitor efficacy claim.", map: "Ashwagandha Coffee plus focus/adaptogen SKUs on subscription." },
+    { n: "Cohort B: The Ritualist", driver: "Routine-driven", demo: "Age 35 to 55, 63% female / 37% male, HHI $75K to $130K. Wellness-lifestyle, yoga and meditation, existing tea drinkers.", geo: "High-index: New York, New Jersey, Illinois, Oregon, North Carolina. Affluent suburban plus inner-ring urban.", mech: "Price elasticity low (routine equals habit equals sticky). Core driver: routine (morning ritual, calm energy, replaces the afternoon crash). Very high reactivation with a replenishment nudge. Churn trigger: cadence mismatch or life disruption.", map: "Coffee plus tea multi-format routine bundle." },
+    { n: "Cohort C: The Status Seeker", driver: "Status-driven", demo: "Age 30 to 50, 51% female / 49% male, HHI $140K to $300K+. Design-conscious, gifting-heavy, premium-brand collectors.", geo: "High-index: California (LA/SF), New York (Manhattan/Brooklyn), Florida (Miami), Texas (Dallas). Urban coastal luxury plus high-net-worth suburban.", mech: "Price elasticity very low (price is a signal, not a barrier). Core driver: status (heritage, single-estate provenance, limited drops, packaging). Moderate reactivation, needs a novelty hook not a discount. Churn trigger: brand feels mass, or discount-heavy messaging that cheapens the halo.", map: "Single-estate limited drops plus premium gift sets." },
+    { n: "Cohort D: The Curious Convert", driver: "Trial-driven, wellness-curious", demo: "Age 24 to 38, 60% female / 40% male, HHI $55K to $95K. First-time functional-coffee buyer, price-aware, review-driven.", geo: "Broad, indexes in Georgia, Arizona, Tennessee, Ohio, Pennsylvania. Affluent suburban plus emerging urban.", mech: "Price elasticity high (converts on an intro offer or starter kit). Core driver: functionality plus routine, gated by trust. Moderate to high reactivation if the second-order nudge lands with social proof. Churn trigger: first-bag price shock after the intro discount, unmet expectation, or choice overload.", map: "Starter kit or sampler into a second-order nudge into subscribe-and-save." }
+  ];
+  const cohCards = COH.map(function (c) {
+    return '<div class="card p-6"><div class="flex items-center justify-between flex-wrap gap-2"><h3 class="font-head text-xl text-vahdam-green">' + c.n + '</h3><span class="pill" style="background:var(--vahdam-cream);color:var(--vahdam-gold);">' + c.driver + '</span></div>' +
+      '<dl class="mt-3 text-sm grid gap-2" style="color:var(--vahdam-ink);">' +
+      '<div><dt class="text-[11px] uppercase font-bold" style="color:var(--soft);">Demographics</dt><dd class="mt-0.5">' + c.demo + '</dd></div>' +
+      '<div><dt class="text-[11px] uppercase font-bold" style="color:var(--soft);">Geography</dt><dd class="mt-0.5">' + c.geo + '</dd></div>' +
+      '<div><dt class="text-[11px] uppercase font-bold" style="color:var(--soft);">Mechanics</dt><dd class="mt-0.5">' + c.mech + '</dd></div>' +
+      '<div><dt class="text-[11px] uppercase font-bold" style="color:var(--soft);">Product mapping</dt><dd class="mt-0.5"><b style="color:var(--vahdam-green);">' + c.map + '</b></dd></div>' +
+      '</dl></div>';
+  }).join("\n          ");
+
+  const main = [
+hero("Feature 01b", "The Complete Market Study",
+  "The full internal planning study: US coffee and functional-beverage D2C landscape for a premium heritage brand extending into Ashwagandha Coffee and functional blends. Source: docs/market-intelligence/us-coffee-d2c-landscape.md. All figures are blended analyst-style planning estimates for 2026/2027 with plus or minus 20 to 30% uncertainty, not audited numbers."),
+
+'      <section data-section id="sizing" class="space-y-4">',
+secHead("Section 1", "Macro unit economics and sizing", "Top-down US sizing, then the blended lifecycle benchmarks that make the strategic case."),
+'        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:720px;"><thead><tr><th>Layer</th><th>Definition</th><th>Est. 2026/2027 value</th><th>Key assumptions</th></tr></thead><tbody>' +
+'<tr><td class="font-semibold text-vahdam-green">TAM</td><td>Total US retail coffee, in-home plus away-from-home, all channels</td><td class="num">~$28B/yr retail (~$45B incl. foodservice)</td><td>US coffee retail growing ~4 to 5% CAGR; ~66% of US adults drink coffee daily, avg spend ~$175/yr in-home.</td></tr>' +
+'<tr><td class="font-semibold text-vahdam-gold">SAM</td><td>US coffee D2C plus specialty/premium reachable online</td><td class="num">~$4.2B/yr (~15% of retail via D2C/online-specialty)</td><td>D2C plus online specialty is ~12 to 16% of retail, taking ~1.5 to 2 pts/yr from grocery; excludes pure-grocery private label.</td></tr>' +
+'<tr><td class="font-semibold text-vahdam-green">SOM (Vahdam 3-yr)</td><td>Realistic share in functional/wellness coffee</td><td class="num">~$18M to $40M/yr in 24 to 36 months</td><td>Functional coffee is ~$900M to $1.1B of the SAM, growing ~9 to 12% CAGR; capturing 2 to 4% of that niche gives $18 to 40M.</td></tr>' +
+'</tbody></table></div>',
+'        <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Sizing logic</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">The whole US coffee retail pie (~$28B) is the TAM but most of it is commoditized grocery. The winnable slice is the D2C plus online-specialty SAM (~$4.2B), and within that the fastest-growing, least price-anchored pocket is functional/wellness coffee (~$1B and compounding double-digit). Vahdam heritage-tea credibility plus an adaptogen sourcing story lets it play there rather than fighting shelf price. A 2 to 4% niche capture over three years is aggressive but defensible given an existing customer base and owned lifecycle tooling.</p></div>',
+secHead("", "Blended industry benchmarks", "Standard coffee D2C versus functional/wellness coffee."),
+'        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:620px;"><thead><tr><th>Metric</th><th>Standard coffee D2C</th><th>Functional / wellness coffee</th></tr></thead><tbody>' +
+'<tr><td>Blended CAC (paid + organic)</td><td>$28 to $42</td><td>$45 to $70</td></tr>' +
+'<tr><td>Paid-only CAC (Meta/TikTok)</td><td>$38 to $60</td><td>$65 to $95</td></tr>' +
+'<tr><td>Day-0 conversion (session to purchase)</td><td>2.4 to 3.2%</td><td>1.8 to 2.6%</td></tr>' +
+'<tr><td>Day-30 retention</td><td>32 to 40%</td><td>42 to 55%</td></tr>' +
+'<tr><td>Day-180 retention</td><td>18 to 24%</td><td>30 to 42%</td></tr>' +
+'<tr><td>Average order value</td><td>$34 to $48</td><td>$52 to $78</td></tr>' +
+'<tr><td>Subscription attach rate</td><td>22 to 30%</td><td>35 to 48%</td></tr>' +
+'<tr><td>12-month LTV (blended)</td><td>$95 to $140</td><td>$180 to $290</td></tr>' +
+'<tr><td>LTV:CAC ratio</td><td>2.8:1 to 3.6:1</td><td>3.4:1 to 4.6:1</td></tr>' +
+'<tr><td>Blended gross margin</td><td>55 to 64%</td><td>62 to 72%</td></tr>' +
+'<tr><td>Payback period (months)</td><td>3.5 to 5.5</td><td>4.0 to 6.5</td></tr>' +
+'</tbody></table></div>',
+'        <div class="card p-5" style="border-color:var(--vahdam-gold);"><h3 class="font-head text-lg text-vahdam-green">The read</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Functional coffee carries a materially higher CAC (education-heavy, ingredient-skeptic buyer) but pays it back with higher AOV, dramatically higher subscription attach, and roughly twice the Day-180 retention. That is the entire strategic case: acquire at a premium, retain like a supplement, monetize like a subscription. The Lifecycle OS should be tuned to defend the Day-30 to Day-180 retention cliff, where functional brands win or die.</p></div>',
+'      </section>',
+
+'      <section data-section id="brandmatrix" class="space-y-4">',
+secHead("Section 2", "Cross-vertical brand matrix", "The ten rivals this study tracks. Brand names link to their forensic dossiers."),
+'        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:1000px;"><thead><tr><th>Brand</th><th>Category</th><th>Market-share tier</th><th>Primary growth channels</th><th>Retention stack</th><th>Churn mitigation</th></tr></thead><tbody>' +
+'              ' + smRows +
+'        </tbody></table></div>',
+'        <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">What Vahdam should steal</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Take Four Sigmatic multi-SKU cross-sell and educational-flow depth (raises switching cost, answers ingredient skepticism), MUD\\WTR ritual narrative and pause-instead-of-cancel churn valve, Trade quiz-driven onboarding to lift first-bag retention, and Vital Proteins multi-format range logic (Ashwagandha coffee plus capsule plus tea equals a routine, not a product). Pair those with Vahdam unfair advantage none of them have: a verifiable single-estate heritage sourcing story that pre-empts the is-this-real-adaptogen objection inflating functional CAC. Lead acquisition with the sourcing proof, retain with the multi-format ritual, and defend the Day-180 cliff with a pause-and-swap valve wired into the Lifecycle OS.</p></div>',
+'      </section>',
+
+'      <section data-section id="cohorts" class="space-y-4">',
+secHead("Section 3", "Growth cohorts and behavioral segments", "Four buyer cohorts with demographics, geography, mechanics, and product mapping."),
+'        <div class="grid gap-5 md:grid-cols-2">',
+'          ' + cohCards,
+'        </div>',
+'      </section>',
+
+'      <section data-section id="regional" class="space-y-4">',
+secHead("Section 4", "Geographic spending and regional matrix", "How D2C coffee habits shift across US regions."),
+'        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:820px;"><thead><tr><th>US region</th><th>Avg monthly coffee wallet</th><th>Core product vector</th><th>Dominant acquisition hook</th><th>Primary retention driver</th></tr></thead><tbody>' +
+'<tr><td class="font-semibold text-vahdam-green">Northeast</td><td class="num">~$42 to $58/mo</td><td>Premium single-origin plus functional adaptogen</td><td>Heritage/provenance proof plus editorial SEO</td><td>Multi-format ritual bundle plus subscription cadence</td></tr>' +
+'<tr><td class="font-semibold text-vahdam-green">West Coast</td><td class="num">~$40 to $55/mo</td><td>Functional/wellness coffee (cortisol, focus, clean energy)</td><td>Efficacy proof plus creator/TikTok UGC</td><td>Lab-backed education flows plus benefit-expansion cross-sell</td></tr>' +
+'<tr><td class="font-semibold text-vahdam-green">South / Southeast</td><td class="num">~$28 to $38/mo</td><td>Value-forward functional starter kits</td><td>Intro offer plus social proof and reviews</td><td>Second-order nudge plus replenishment reminders</td></tr>' +
+'<tr><td class="font-semibold text-vahdam-green">Midwest</td><td class="num">~$26 to $36/mo</td><td>Routine/replenishment staples plus gift bundles</td><td>Convenience plus subscribe-and-save framing</td><td>Predictable replenishment plus pause-not-cancel valve</td></tr>' +
+'</tbody></table></div>',
+'      </section>',
+
+'      <section data-section id="method" class="space-y-4">',
+secHead("Sources and method", "How to read these numbers", ""),
+'        <div class="card p-5"><p class="text-sm" style="color:var(--vahdam-ink);">These figures are blended analyst-style estimates assembled for internal planning, not audited or company-reported numbers. Ranges synthesize Euromonitor and IBISWorld-style US coffee-retail sizing bands, publicly disclosed D2C benchmark reports, brand disclosures and press coverage, and typical retention-stack tooling observed on the storefronts. Market-share tiers are relative positioning judgments, not measured share. Treat all dollar figures as planning ranges with plus or minus 20 to 30% uncertainty, and validate against Vahdam own Supabase RFM and cohort data before committing budget.</p></div>',
+'        <div class="flex flex-wrap gap-3">' + linkBtn("./market-intelligence.html", "Back to Market Intelligence", true) + linkBtn("./competitor-index.html", "Competitor dossiers &rarr;") + linkBtn("../index.html", "Hub", true) + '</div>',
+'      </section>'
+  ].join("\n");
+  return page({ title: "Complete Market Study :: Vahdam Playbook", desc: "The full US coffee and functional-beverage D2C landscape study: sizing, benchmarks, brand matrix, cohorts, and regional spending.", prefix: "../", activeKey: "market-study", crumb: "Market Study", main: main });
 }
 
 /* ---- FEATURE 02: competitor index ---- */
@@ -1225,6 +1324,7 @@ function w(rel, html) {
 fs.mkdirSync(OUT, { recursive: true });
 w("index.html", buildHub());
 w("features/market-intelligence.html", buildMarketIntelligence());
+w("features/market-study.html", buildMarketStudy());
 w("features/competitor-index.html", buildCompetitorIndex());
 w("features/knowledge-base.html", buildKnowledgeBase());
 w("features/product-avatars.html", buildProductAvatars());
@@ -1233,4 +1333,4 @@ w("features/asset-workspace.html", buildAssetWorkspace());
 w("features/shopify-loop.html", buildShopifyLoop());
 w("features/chaigpt-config.html", buildChaiGPTConfig());
 COMPETITORS.forEach(function (c) { w("dossiers/" + c.slug + ".html", buildDossier(c)); });
-console.log("\nDone. " + (9 + COMPETITORS.length) + " pages generated under /playbook.");
+console.log("\nDone. " + (FEATURES.length + COMPETITORS.length) + " pages generated under /playbook.");
