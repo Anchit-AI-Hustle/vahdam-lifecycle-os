@@ -343,6 +343,31 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ── Expose the 4-variant grid the calendar modal + Studio handoff expect ──
+  // Type A (image-led) and Type B (text-led), two each. B1/B2 reuse the built
+  // text mailers so they render as full HTML previews; A1/A2 are image-led
+  // variants carrying an editorial hero brief (and the generated hero image when
+  // available) so every tab loads real content instead of "Variant unavailable".
+  const heroBriefBase = variants.V2.hero_image_brief;
+  variants.A1 = {
+    kind: 'image', type: 'A1', label: 'A1 · Image · Hero close-up',
+    cta_url: ctaUrl, preview_text: S.preview_text,
+    hero_image_url: variants.V2.hero_image_url || null,
+    hero_image_provider: variants.V2.hero_image_provider || null,
+    hero_image_brief: `${heroBriefBase} Composition: tight hero close-up of ${entry.hero_product || entry.hero_sku} on a cream linen surface, shallow depth of field, warm morning light.`,
+    master_prompt: variants.V2.master_prompt,
+  };
+  variants.A2 = {
+    kind: 'image', type: 'A2', label: 'A2 · Image · Lifestyle wide',
+    cta_url: ctaUrl, preview_text: S.preview_text,
+    hero_image_url: variants.V2.hero_image_url || null,
+    hero_image_provider: variants.V2.hero_image_provider || null,
+    hero_image_brief: `${heroBriefBase} Composition: wide lifestyle scene, the cup in a real ritual moment (kitchen window or single-estate hillside table), generous negative space, atmospheric dusk light.`,
+    master_prompt: variants.V2.master_prompt,
+  };
+  variants.B1 = { ...variants.V2, kind: 'text', type: 'B1', label: 'B1 · Text + Visual' };
+  variants.B2 = { ...variants.V1, kind: 'text', type: 'B2', label: 'B2 · Complete Text' };
+
   return res.status(200).json({
     ok: true,
     entry,
