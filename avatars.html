@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avatars (Personas) - VAHDAM Lifecycle OS</title>
+<link rel="icon" href="/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+  /* Palette locked to the /all-in-one dashboard (near-black-green canvas). */
+  :root{
+    --forest:#004A2B; --gold:#AB8743; --ink:#e8ede9; --cream:#FBF5EA;
+    --bg:#0a1410; --surface:#0f1d18; --tile:#07100d; --line:rgba(171,135,67,.18); --soft:#a7b5ad; --chip:#07100d;
+    --head:#FBF5EA; --accent:#AB8743;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.55;}
+  .wrap{max-width:1120px;margin:0 auto;padding:30px 22px 90px;}
+  h1,h2,h3{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;color:var(--head);margin:0;text-wrap:balance;}
+  h1{font-size:32px;} h2{font-size:22px;margin-top:2px;} h3{font-size:16px;}
+  .eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--accent);font-weight:700;}
+  p.lede{color:var(--soft);max-width:74ch;margin:6px 0 0;}
+  .tabs{display:flex;flex-wrap:wrap;gap:4px;margin:22px 0 8px;border-bottom:1px solid var(--line);}
+  .tab{cursor:pointer;border:0;background:transparent;color:var(--soft);font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-bottom:3px solid transparent;margin-bottom:-1px;border-radius:6px 6px 0 0;white-space:nowrap;transition:background .12s,color .12s;}
+  .tab:hover{color:var(--head);background:var(--chip);}
+  .tab.active{color:var(--cream);background:var(--forest);border-bottom-color:var(--gold);box-shadow:0 1px 0 var(--gold);}
+  .tab:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+  .panel{display:none;padding-top:20px;} .panel.active{display:block;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:18px 0;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;}
+  .card .n{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:28px;color:var(--head);font-variant-numeric:tabular-nums;line-height:1;}
+  .card .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);margin-top:5px;}
+  .card .d{color:var(--soft);font-size:13px;margin-top:8px;}
+  .card.link{cursor:pointer;transition:border-color .15s;} .card.link:hover{border-color:var(--accent);}
+  .chip{display:inline-block;background:var(--chip);color:var(--head);border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:700;letter-spacing:.03em;}
+  .v2{background:#e7f0e9;color:#004A2B;}
+  :root[data-theme="dark"] .v2{background:#1d3326;color:#9fd0ae;}
+  /* Persona cards */
+  .persona{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+  .persona .ph{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .persona .pav{width:34px;height:34px;border-radius:999px;background:var(--forest);color:var(--cream);display:inline-flex;align-items:center;justify-content:center;font-family:'Lao MN',Georgia,serif;font-size:16px;font-weight:700;flex-shrink:0;}
+  .persona .pname{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:20px;color:var(--head);font-weight:700;}
+  .persona .ptag{color:var(--accent);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.06em;}
+  .persona .pquote{color:var(--ink);font-style:italic;margin:10px 0 14px;border-left:3px solid var(--gold);padding-left:12px;}
+  .persona dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:6px 16px;}
+  .persona dt{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);font-weight:700;padding-top:2px;}
+  .persona dd{margin:0;color:var(--ink);font-size:13.5px;}
+  .mix{display:inline-flex;gap:6px;flex-wrap:wrap;} .mix span{background:var(--chip);border-radius:5px;padding:2px 8px;font-size:12px;color:var(--head);}
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:12px 0 4px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px;}
+  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{color:var(--head);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;background:var(--chip);}
+  tr:last-child td{border-bottom:0;}
+  .metric{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0;}
+  .metric .m{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .metric .mv{font-family:'Lao MN',Georgia,serif;font-size:24px;color:var(--head);}
+  .metric .ml{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-top:3px;}
+  .metric .ms{font-size:12px;color:var(--soft);margin-top:6px;}
+  .how{background:var(--chip);border-radius:8px;padding:14px 16px;margin:16px 0;color:var(--soft);font-size:13.5px;}
+  .how b{color:var(--head);}
+  a{color:var(--head);text-decoration-color:var(--accent);}
+  .filelink{font-family:ui-monospace,'JetBrains Mono',monospace;font-size:12px;color:var(--accent);}
+  .note{color:var(--soft);font-size:12.5px;border-top:1px solid var(--line);margin-top:26px;padding-top:14px;}
+  @media (max-width:560px){.persona dl{grid-template-columns:1fr;gap:2px 0;} .persona dt{margin-top:8px;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">VAHDAM Lifecycle OS - Research &amp; Benchmark</span>
+  <h1>Avatars (Personas)</h1>
+  <p class="lede">The named buyer avatars every brief targets. Built on top of the cohort dictionary and the US coffee and functional-beverage market study, each avatar bundles demographics, geography, price elasticity, core value driver, and churn triggers into one face, so copy, imagery and offers stay grounded in a real person rather than an abstract segment. Use the avatar name verbatim in a brief and every downstream tool inherits its targeting.</p>
+
+  <div class="tabs" id="tabs" role="tablist">
+    <button class="tab active" role="tab" data-tab="overview">Overview</button>
+    <button class="tab" role="tab" data-tab="personas">The Four Avatars <span class="chip v2">V2</span></button>
+    <button class="tab" role="tab" data-tab="sizing">Market Sizing</button>
+    <button class="tab" role="tab" data-tab="brands">Brand Matrix</button>
+    <button class="tab" role="tab" data-tab="regional">Regional Matrix</button>
+    <button class="tab" role="tab" data-tab="blueprint">Repo Blueprint</button>
+  </div>
+
+  <section class="panel active" id="panel-overview" role="tabpanel">
+    <div class="cards">
+      <div class="card link" data-goto="personas"><div class="n">4</div><div class="lbl">Buyer Avatars <span class="chip v2">V2</span></div><div class="d">Wellness Optimiser, Ritual Loyalist, Gifting Connector, Curious Switcher, each pinned to real cohorts.</div></div>
+      <div class="card link" data-goto="sizing"><div class="n">$28B</div><div class="lbl">US Coffee TAM</div><div class="d">Total addressable market for US coffee, with the D2C SAM and functional-coffee SOM VAHDAM plays for.</div></div>
+      <div class="card link" data-goto="brands"><div class="n">11</div><div class="lbl">Brands Benchmarked</div><div class="d">Premium subscription, functional/wellness, and form-factor innovators, with retention stack and churn strategy.</div></div>
+      <div class="card link" data-goto="regional"><div class="n">4</div><div class="lbl">US Regions</div><div class="d">Wallet share, product vector, acquisition hook and retention driver by region.</div></div>
+    </div>
+    <div class="how">
+      <b>How avatars fit the rest of the OS.</b> Cohorts (in the Cohorts feature) are the raw lenses: RFM segments, engagement cohorts, lifecycle stages, product cohorts. An <b>Avatar</b> is a curated composite of those lenses plus market truth, given a name and a face. Analytics assigns a live customer to cohorts; the avatar tells the creative team what that person <b>wants, fears and responds to</b>. The market study underneath these avatars lives at <span class="filelink">docs/market-intelligence/us-coffee-d2c-landscape.md</span>; the live profile fields are captured by <span class="filelink">schemas/cohort-profile.json</span>; the automated actions are wired in <span class="filelink">config/retention-triggers.yaml</span>.
+    </div>
+  </section>
+
+  <section class="panel" id="panel-personas" role="tabpanel">
+    <h2>The Four Avatars <span class="chip v2">V2 - active</span></h2>
+    <p class="lede">Four behavioural buyer profiles that drive VAHDAM Ashwagandha Coffee and wellness-tea growth. Each maps to specific cohorts and carries hard planning numbers so a brief can be written against a person, not a percentage.</p>
+    <div id="personas"></div>
+  </section>
+
+  <section class="panel" id="panel-sizing" role="tabpanel">
+    <h2>Macro Unit Economics &amp; Sizing</h2>
+    <p class="lede">Blended analyst-style estimates for the US coffee and functional-beverage D2C segment, 2026/2027. Figures are planning ranges, not audited numbers.</p>
+    <div class="metric" id="sizing-metrics"></div>
+    <h3 style="margin-top:20px">Blended benchmarks: standard vs functional coffee</h3>
+    <div class="tbl-wrap"><table id="bench-tbl"></table></div>
+  </section>
+
+  <section class="panel" id="panel-brands" role="tabpanel">
+    <h2>Cross-Vertical Brand Matrix</h2>
+    <p class="lede">The top US D2C brands across premium subscription, functional/wellness, and form-factor innovation, with the growth channels, retention stack and churn strategy VAHDAM benchmarks against.</p>
+    <div class="tbl-wrap"><table id="brand-tbl"></table></div>
+    <div class="how"><b>What VAHDAM should steal.</b> Functional players (Four Sigmatic, MUD\WTR, Ryze) win on ritual-replacement copy and subscription-first onboarding, not discounts; form-factor innovators (Cometeer, Jot) win on convenience proof. VAHDAM's edge is single-estate provenance plus a genuine functional payload (Ashwagandha), so it should pair Ritual-replacement storytelling with a subscription anchor and reserve discounts for the Curious Switcher only.</div>
+  </section>
+
+  <section class="panel" id="panel-regional" role="tabpanel">
+    <h2>Geographic Spending &amp; Regional Matrix</h2>
+    <p class="lede">How D2C coffee habits shift across US regions, and the acquisition hook and retention driver that index highest in each.</p>
+    <div class="tbl-wrap"><table id="region-tbl"></table></div>
+  </section>
+
+  <section class="panel" id="panel-blueprint" role="tabpanel">
+    <h2>Repository Blueprint</h2>
+    <p class="lede">Where the persona and market-intelligence layer lives in the codebase, and what each file is for.</p>
+    <div class="tbl-wrap"><table id="blueprint-tbl"></table></div>
+    <div class="how"><b>Actionable, not decorative.</b> The market study feeds these avatars; the JSON schema captures the same fields on a live customer profile; the YAML config names which automated webhooks fire for each avatar (churn risk, replenishment, win-back, VIP early access). Together they make a persona targetable end to end.</div>
+  </section>
+
+  <p class="note">One customer can resolve to different avatars over their lifetime as their cohorts change. Always target by the avatar a campaign is written for, and keep the name verbatim across mailer, ad, landing-page and social briefs. Sources: blended analyst-style estimates (Euromonitor / IBISWorld-style ranges, public brand disclosures, and D2C benchmark reports) for internal planning.</p>
+</div>
+
+<script>
+const PERSONAS = [
+  { init:'W', name:'The Wellness Optimiser', tag:'Functionality-driven',
+    quote:'I want my morning cup to actually do something, cortisol, focus, calm, not just wake me up.',
+    who:'Health-forward professionals who already use adaptogens, supplements and wearables. VAHDAM Ashwagandha Coffee is a functional upgrade to a habit they cannot skip.',
+    demo:'32 to 45, 58% female / 42% male, HHI $95K to $160K.',
+    geo:'Urban Coastal and inner-ring suburbs, high-indexing CA, NY, WA, CO, MA.',
+    driver:'Functionality, the payload matters more than the price.',
+    elasticity:'Low, will pay a premium for a proven functional benefit.',
+    reactivation:'High, responds to new-benefit and refill-rhythm messaging.',
+    churn:'Missed reorder before routine breaks; benefit fatigue if payload is not reinforced.',
+    cohorts:['RFM: Loyal / Champions','Engagement: Coffee/Supplement Buyers','Behavioral: Wellness Seekers'] },
+  { init:'R', name:'The Ritual Loyalist', tag:'Routine-driven',
+    quote:'The same cup, the same time, every day, that is the whole point.',
+    who:'Established tea and coffee drinkers with a fixed daily ritual and strong flavour loyalty. The subscription backbone.',
+    demo:'38 to 58, 55% female / 45% male, HHI $80K to $140K.',
+    geo:'Affluent Suburban nationwide, indexes in the Northeast and Midwest.',
+    driver:'Routine and consistency, disruption is the enemy.',
+    elasticity:'Low to moderate, price-tolerant while the ritual is intact.',
+    reactivation:'Moderate, best reached with your-blend-restocked and easy-restart nudges.',
+    churn:'Out-of-stock on their blend; a clumsy subscription change; a skipped shipment.',
+    cohorts:['RFM: Loyal / Can-not-Lose-Them','Engagement: Multi-Category / Engaged','Behavioral: VIP Ritualists / Chai Loyalists'] },
+  { init:'G', name:'The Gifting Connector', tag:'Status + occasion-driven',
+    quote:'I want to give something that feels considered, premium, and a little bit of a discovery.',
+    who:'Occasion buyers with higher AOV and seasonal spikes. Care about presentation, provenance and the story behind the gift.',
+    demo:'30 to 55, 64% female / 36% male, HHI $90K to $175K.',
+    geo:'Urban Coastal and Affluent Suburban, spikes around Q4 and regional festivals.',
+    driver:'Status and thoughtfulness, the gift reflects on them.',
+    elasticity:'Low on gift sets, high perceived value beats low price.',
+    reactivation:'Seasonal, re-engages sharply around occasions and holidays.',
+    churn:'Only ever bought for an occasion; never converted to a self-purchase ritual.',
+    cohorts:['RFM: Promising / Need-Attention','Engagement: T&amp;B Buyers','Behavioral: Gift Buyers'] },
+  { init:'C', name:'The Curious Switcher', tag:'Discovery-driven',
+    quote:'I am open to trying something better, but you have to give me a reason and make it easy.',
+    who:'Engaged non-buyers and one-and-done triers comparing options. Wellness-curious but not yet committed.',
+    demo:'26 to 40, 60% female / 40% male, HHI $65K to $110K.',
+    geo:'Urban Coastal renters and first-ring suburbs, TikTok and Meta discovery heavy.',
+    driver:'Discovery and low-risk trial, novelty plus proof.',
+    elasticity:'High, the one avatar where a first-order incentive earns its keep.',
+    reactivation:'High if caught early, decays fast after 60 days of silence.',
+    churn:'No compelling second-order reason; taste or price expectation missed on first try.',
+    cohorts:['RFM: New / About-to-Sleep','Engagement: Non-Buyers / Engaged','Behavioral: Engaged Non-buyers / Discount Responsive'] },
+];
+const SIZING = [
+  {mv:'~$28B', ml:'US Coffee TAM', ms:'Total US coffee retail across all channels.'},
+  {mv:'~$4.5B', ml:'US Coffee D2C SAM', ms:'Direct-to-consumer, subscription and online-first coffee.'},
+  {mv:'~$650M', ml:'Functional Coffee SOM', ms:'Adaptogen / functional coffee VAHDAM realistically competes for.'},
+  {mv:'22 to 34%', ml:'Subscription attach', ms:'Share of functional-coffee buyers on an active subscription.'},
+];
+const BENCH = {
+  head:['Metric','Standard Coffee D2C','Functional / Wellness Coffee'],
+  rows:[
+    ['Blended CAC','$18 to $32','$38 to $65'],
+    ['Day-0 retention (repeat intent)','62 to 70%','70 to 80%'],
+    ['Day-30 retention','34 to 42%','44 to 55%'],
+    ['Day-180 retention','16 to 24%','28 to 38%'],
+    ['AOV','$26 to $38','$42 to $68'],
+    ['12-month LTV','$70 to $110','$150 to $260'],
+    ['LTV:CAC','2.8 to 3.6x','3.2 to 4.5x'],
+    ['Blended gross margin','55 to 65%','62 to 74%'],
+  ],
+};
+const BRANDS = {
+  head:['Brand','Category','Share tier','Primary channels','Retention stack','Churn mitigation'],
+  rows:[
+    ['Blue Bottle','Premium subscription','Tier 1','SEO, Retail, Email','Recharge, Klaviyo','Roast-freshness cadence, cafe halo'],
+    ['Trade Coffee','Premium subscription','Tier 1','Meta, Affiliate, SEO','Recharge, Klaviyo','Quiz-matched roasts, easy swap/skip'],
+    ['Onyx Coffee Lab','Premium subscription','Tier 2','Instagram, SEO, Community','Recharge, Klaviyo','Craft storytelling, limited drops'],
+    ['Four Sigmatic','Functional / mushroom','Tier 1','Meta, TikTok, Affiliate','Stay AI, Klaviyo','Ritual-replacement copy, bundle subscribe'],
+    ['MUD\\WTR','Functional / adaptogen','Tier 1','Podcast, Meta, Affiliate','Stay AI, Klaviyo','Starter-kit onboarding, community rebrand of habit'],
+    ['Ryze','Functional / mushroom','Tier 2','TikTok, Meta, UGC','Skio, Klaviyo','Aggressive first-order offer, subscribe-and-save default'],
+    ['Vital Proteins','Collagen / functional','Tier 1','Retail, Meta, Influencer','Recharge, Klaviyo','Retail ubiquity, routine-anchored SKUs'],
+    ['Cometeer','Flash-frozen capsules','Tier 2','Meta, PR, Affiliate','Recharge, Klaviyo','Convenience proof, capsule lock-in'],
+    ['Jot','Ultra-concentrate','Tier 2','Meta, TikTok, SEO','Recharge, Klaviyo','One-bottle-per-month math, ease messaging'],
+    ['Bruvi','Pod system','Tier 3','Meta, Retail, SEO','Recharge, Klaviyo','Hardware plus pod razor-and-blade lock-in'],
+    ['VAHDAM','Heritage tea + functional coffee','Challenger','Meta, TikTok, SEO, Email','Klaviyo (Skio-ready)','Single-estate provenance, subscription anchor, refill rhythm'],
+  ],
+};
+const REGIONS = {
+  head:['US Region','Monthly coffee wallet share','Core product vector','Dominant acquisition hook','Primary retention driver'],
+  rows:[
+    ['Northeast','High ($42 to $60)','Premium + functional blends','Provenance and craft story','Ritual consistency, subscription'],
+    ['West Coast','Highest ($48 to $70)','Functional / adaptogen coffee','Wellness proof, creator UGC','Benefit reinforcement, new drops'],
+    ['South / Southeast','Moderate ($30 to $44)','Flavour-forward + gifting','Value bundles, seasonal gifting','Occasion cadence, loyalty perks'],
+    ['Midwest','Moderate ($28 to $40)','Everyday + routine staples','Convenience and free shipping','Replenishment rhythm, easy reorder'],
+  ],
+};
+const BLUEPRINT = {
+  head:['Path','Purpose'],
+  rows:[
+    ['docs/market-intelligence/us-coffee-d2c-landscape.md','The market study: TAM/SAM/SOM, benchmarks, brand matrix, cohorts, regional matrix, the source of truth these avatars are built from.'],
+    ['schemas/cohort-profile.json','JSON Schema for a live customer profile, capturing the demographics, geography, purchase vectors and lifecycle health flags each avatar describes.'],
+    ['config/retention-triggers.yaml','Automated webhook and segmentation config, the churn, replenishment, win-back and VIP triggers that fire per avatar.'],
+    ['/cohorts','The raw cohort dictionary (RFM, engagement, lifecycle, product, behavioral) each avatar composites.'],
+    ['/avatars','This page, the named persona layer briefs target.'],
+  ],
+};
+
+function esc(s){return String(s==null?'':s);}
+function renderPersonas(){
+  document.getElementById('personas').innerHTML = PERSONAS.map(p=>`
+    <div class="persona">
+      <div class="ph"><span class="pav">${esc(p.init)}</span><span class="pname">${esc(p.name)}</span><span class="ptag">${esc(p.tag)}</span></div>
+      <div class="pquote">${esc(p.quote)}</div>
+      <dl>
+        <dt>Who</dt><dd>${esc(p.who)}</dd>
+        <dt>Demographics</dt><dd>${esc(p.demo)}</dd>
+        <dt>Geography</dt><dd>${esc(p.geo)}</dd>
+        <dt>Value driver</dt><dd>${esc(p.driver)}</dd>
+        <dt>Price elasticity</dt><dd>${esc(p.elasticity)}</dd>
+        <dt>Reactivation</dt><dd>${esc(p.reactivation)}</dd>
+        <dt>Churn triggers</dt><dd>${esc(p.churn)}</dd>
+        <dt>Maps to cohorts</dt><dd><span class="mix">${p.cohorts.map(c=>`<span>${esc(c)}</span>`).join('')}</span></dd>
+      </dl>
+    </div>`).join('');
+}
+function renderMetrics(){
+  document.getElementById('sizing-metrics').innerHTML = SIZING.map(m=>`
+    <div class="m"><div class="mv">${esc(m.mv)}</div><div class="ml">${esc(m.ml)}</div><div class="ms">${esc(m.ms)}</div></div>`).join('');
+}
+function renderTable(id, data){
+  const thead = '<thead><tr>'+data.head.map(h=>`<th>${esc(h)}</th>`).join('')+'</tr></thead>';
+  const tbody = '<tbody>'+data.rows.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('')+'</tbody>';
+  document.getElementById(id).innerHTML = thead+tbody;
+}
+renderPersonas();
+renderMetrics();
+renderTable('bench-tbl', BENCH);
+renderTable('brand-tbl', BRANDS);
+renderTable('region-tbl', REGIONS);
+renderTable('blueprint-tbl', BLUEPRINT);
+
+const TAB_IDS = ['overview','personas','sizing','brands','regional','blueprint'];
+function showTab(id){
+  if(TAB_IDS.indexOf(id)===-1) id='overview';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+id));
+  try{ history.replaceState(null,'','?tab='+id); }catch(_){}
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+document.querySelectorAll('.card.link').forEach(c=>c.addEventListener('click',()=>showTab(c.dataset.goto)));
+(function(){ const q=new URLSearchParams(location.search).get('tab'); const h=(location.hash||'').replace('#',''); showTab(q||h||'overview'); })();
+</script>
+<script defer src="/auth.js"></script>
+</body>
+</html>
