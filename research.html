@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Growth Book - VAHDAM Lifecycle OS</title>
+<link rel="icon" href="/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+  /* Palette locked to the /all-in-one dashboard (near-black-green canvas). */
+  :root{
+    --forest:#004A2B; --gold:#AB8743; --ink:#e8ede9; --cream:#FBF5EA;
+    --bg:#0a1410; --surface:#0f1d18; --tile:#07100d; --line:rgba(171,135,67,.18); --soft:#a7b5ad; --chip:#07100d;
+    --head:#FBF5EA; --accent:#AB8743;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.55;}
+  .wrap{max-width:1160px;margin:0 auto;padding:28px 22px 96px;}
+  h1,h2,h3{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;color:var(--head);margin:0;text-wrap:balance;}
+  h1{font-size:34px;} h2{font-size:22px;} h3{font-size:16px;}
+  .eyebrow{text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--accent);font-weight:800;}
+  p.lede{color:var(--soft);max-width:80ch;margin:8px 0 0;}
+  .tabs{display:flex;flex-wrap:wrap;gap:4px;margin:22px 0 8px;border-bottom:1px solid var(--line);}
+  .tab{cursor:pointer;border:0;background:transparent;color:var(--soft);font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-bottom:3px solid transparent;margin-bottom:-1px;border-radius:6px 6px 0 0;white-space:nowrap;transition:background .12s,color .12s;}
+  .tab:hover{color:var(--head);background:var(--chip);}
+  .tab.active{color:var(--cream);background:var(--forest);border-bottom-color:var(--gold);box-shadow:0 1px 0 var(--gold);}
+  .tab:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+  .panel{display:none;padding-top:22px;} .panel.active{display:block;}
+  h2.sec{margin:26px 0 6px;} .sub{color:var(--soft);margin:2px 0 14px;max-width:80ch;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:16px 0;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;}
+  .card h3{margin:0 0 6px;} .card p{color:var(--soft);font-size:13.5px;margin:0;}
+  .card.link{cursor:pointer;transition:border-color .15s;} .card.link:hover{border-color:var(--accent);}
+  .metric{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:14px 0;}
+  .m{background:var(--tile);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .m .mv{font-family:'Lao MN',Georgia,serif;font-size:25px;color:var(--head);} .m .ml{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-top:3px;}
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:12px 0;}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px;}
+  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{color:var(--head);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;background:var(--chip);}
+  tr:last-child td{border-bottom:0;}
+  ul.clean{margin:8px 0;padding-left:18px;color:var(--ink);} ul.clean li{margin:6px 0;}
+  ul.clean li b{color:var(--head);}
+  .play{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:16px 18px;margin-bottom:12px;}
+  .play .pt{font-family:'Lao MN',Georgia,serif;font-size:17px;color:var(--head);font-weight:700;}
+  .play .pm{color:var(--soft);font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin:2px 0 8px;}
+  .play p{margin:0;color:var(--ink);font-size:13.5px;}
+  .pill{display:inline-block;background:var(--chip);color:var(--gold);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;margin-right:6px;}
+  a{color:var(--cream);text-decoration-color:var(--accent);}
+  .btnlink{display:inline-block;background:var(--gold);color:#0a1410;font-weight:800;text-decoration:none;border-radius:9px;padding:9px 15px;font-size:13px;margin:4px 6px 4px 0;}
+  .btnlink.ghost{background:transparent;color:var(--cream);border:1px solid var(--line);}
+  .note{color:var(--soft);font-size:12.5px;border-top:1px solid var(--line);margin-top:28px;padding-top:14px;}
+  .filelink{font-family:ui-monospace,'JetBrains Mono',monospace;font-size:12px;color:var(--accent);}
+  .engine{display:grid;grid-template-columns:1fr;gap:10px;}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0;}
+  .flow .node{background:var(--tile);border:1px solid var(--line);border-radius:8px;padding:10px 13px;font-size:12.5px;color:var(--ink);}
+  .flow .arr{color:var(--gold);font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">VAHDAM Lifecycle OS - Research &amp; Benchmark</span>
+  <h1>The Growth Book</h1>
+  <p class="lede">The single reference for how VAHDAM grows: brand truth, the US and UK market intelligence, live performance, the buyer avatars and cohort model, the retention operating principles, the growth plays we are running, and the data engine underneath it all. Every other tool in the OS pulls from what is written here.</p>
+
+  <div class="tabs" id="tabs" role="tablist">
+    <button class="tab active" role="tab" data-tab="overview">Overview</button>
+    <button class="tab" role="tab" data-tab="brand">Brand Foundation</button>
+    <button class="tab" role="tab" data-tab="market">Market Intelligence</button>
+    <button class="tab" role="tab" data-tab="performance">Live Performance</button>
+    <button class="tab" role="tab" data-tab="plays">Growth Plays</button>
+    <button class="tab" role="tab" data-tab="retention">Retention Playbooks</button>
+    <button class="tab" role="tab" data-tab="engine">Data Engine</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section class="panel active" id="panel-overview" role="tabpanel">
+    <div class="cards">
+      <div class="card link" data-goto="market"><h3>Market Intelligence</h3><p>US coffee &amp; functional-beverage D2C: TAM/SAM/SOM, blended benchmarks, and the cross-vertical brand matrix.</p></div>
+      <div class="card link" data-goto="performance"><h3>Live Performance</h3><p>Real US &amp; UK numbers straight from the market exports, with the full workbench one click away.</p></div>
+      <div class="card link" data-goto="plays"><h3>Growth Plays</h3><p>The prioritised, data-grounded moves: subscription anchor, second-order conversion, AOV recovery, win-back.</p></div>
+      <div class="card link" data-goto="engine"><h3>Data Engine</h3><p>The ingestion + competitor-capture pipeline that feeds every number in this book.</p></div>
+    </div>
+    <h2 class="sec">How this book connects to the OS</h2>
+    <p class="sub">The Growth Book is the narrative layer. The operational layers live in their own features and read from the same truth:</p>
+    <ul class="clean">
+      <li><b>Avatars (Personas)</b> — the four named buyers this book profiles: <a href="/avatars">open Avatars →</a></li>
+      <li><b>Cohorts</b> — the shared dictionary every brief targets: <a href="/cohorts">open Cohorts →</a></li>
+      <li><b>Data Analysis</b> — the full analytics workbench behind the Live Performance tab: <a href="/data-analysis">open the dashboard →</a></li>
+      <li><b>Knowledge Base</b> — brand voice, catalog, offers and creative rules in <span class="filelink">knowledge/brand/</span> and <span class="filelink">knowledge/retention/</span>.</li>
+      <li><b>Market study</b> — the full write-up in <span class="filelink">docs/market-intelligence/us-coffee-d2c-landscape.md</span>, with <span class="filelink">schemas/cohort-profile.json</span> and <span class="filelink">config/retention-triggers.yaml</span>.</li>
+    </ul>
+  </section>
+
+  <!-- BRAND -->
+  <section class="panel" id="panel-brand" role="tabpanel">
+    <h2 class="sec">Positioning</h2>
+    <p class="sub">VAHDAM is premium, single-estate Indian heritage: tea, Ashwagandha Coffee, and functional supplements, shipped garden-fresh from origin. The brand competes on provenance and a real functional payload, not price. B-Corp and ethical sourcing are proof points, not the headline.</p>
+    <h2 class="sec">Voice</h2>
+    <p class="sub">Warm, sensory, emotionally resonant, story-driven. Testimonials read as tiny personal stories, not reviews. Sample register: <i>There is a moment when the right cup of tea does more than warm your hands.</i></p>
+    <div class="cards">
+      <div class="card"><h3>Palette (only four)</h3><p>Forest green <b style="color:#AB8743">#004A2B</b> · Gold #AB8743 · Near-black #171717 · Cream #FBF5EA. On green, text is only cream or gold.</p></div>
+      <div class="card"><h3>Typography</h3><p>Headings: Lao MN (fallback Cormorant Garamond, Georgia, serif). Body: Proxima Nova (fallback Helvetica Neue, Arial). No other fonts in emailers.</p></div>
+      <div class="card"><h3>Preferred lexicon</h3><p>ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.</p></div>
+      <div class="card"><h3>Banned</h3><p>wellness journey, transform, liquid gold, game-changer, LIMITED TIME (caps), hurry, last chance, while supplies last. No em/en dashes in copy.</p></div>
+    </div>
+    <p class="sub">Full detail in the brand knowledge base: <span class="filelink">knowledge/brand/01-brand-foundation.md</span> and <span class="filelink">knowledge/brand/02-product-catalog.md</span>.</p>
+  </section>
+
+  <!-- MARKET -->
+  <section class="panel" id="panel-market" role="tabpanel">
+    <h2 class="sec">US coffee &amp; functional-beverage D2C: sizing</h2>
+    <div class="metric">
+      <div class="m"><div class="mv">~$28B</div><div class="ml">US Coffee TAM</div></div>
+      <div class="m"><div class="mv">~$4.5B</div><div class="ml">Coffee D2C SAM</div></div>
+      <div class="m"><div class="mv">~$650M</div><div class="ml">Functional coffee SOM</div></div>
+      <div class="m"><div class="mv">3.2–4.5x</div><div class="ml">Functional LTV:CAC</div></div>
+    </div>
+    <h2 class="sec">Blended benchmarks: standard vs functional coffee</h2>
+    <div class="tbl-wrap"><table>
+      <tr><th>Metric</th><th>Standard coffee D2C</th><th>Functional / wellness</th></tr>
+      <tr><td>Blended CAC</td><td>$18–$32</td><td>$38–$65</td></tr>
+      <tr><td>Day-30 retention</td><td>34–42%</td><td>44–55%</td></tr>
+      <tr><td>Day-180 retention</td><td>16–24%</td><td>28–38%</td></tr>
+      <tr><td>AOV</td><td>$26–$38</td><td>$42–$68</td></tr>
+      <tr><td>12-month LTV</td><td>$70–$110</td><td>$150–$260</td></tr>
+      <tr><td>Subscription attach</td><td>12–20%</td><td>22–34%</td></tr>
+    </table></div>
+    <h2 class="sec">Cross-vertical brand matrix</h2>
+    <p class="sub">Who VAHDAM benchmarks against, and what to steal.</p>
+    <div class="tbl-wrap"><table>
+      <tr><th>Brand</th><th>Category</th><th>Retention stack</th><th>Churn strategy to borrow</th></tr>
+      <tr><td>Four Sigmatic</td><td>Functional / mushroom</td><td>Stay AI, Klaviyo</td><td>Ritual-replacement copy, subscribe-first onboarding</td></tr>
+      <tr><td>MUD\WTR</td><td>Adaptogen</td><td>Stay AI, Klaviyo</td><td>Starter-kit onboarding, rebrand the habit</td></tr>
+      <tr><td>Ryze</td><td>Mushroom</td><td>Skio, Klaviyo</td><td>Subscribe-and-save default</td></tr>
+      <tr><td>Trade Coffee</td><td>Premium subscription</td><td>Recharge, Klaviyo</td><td>Quiz-matched roasts, easy swap/skip</td></tr>
+      <tr><td>Cometeer / Jot</td><td>Form-factor</td><td>Recharge, Klaviyo</td><td>Convenience proof, one-bottle-a-month math</td></tr>
+    </table></div>
+    <p class="sub"><b style="color:var(--head)">The VAHDAM edge:</b> single-estate provenance plus a genuine functional payload (Ashwagandha). Pair ritual-replacement storytelling with a subscription anchor; reserve discounts for the Curious Switcher only. Full study: <span class="filelink">docs/market-intelligence/us-coffee-d2c-landscape.md</span>.</p>
+  </section>
+
+  <!-- PERFORMANCE -->
+  <section class="panel" id="panel-performance" role="tabpanel">
+    <h2 class="sec">Live performance</h2>
+    <p class="sub">Straight from the market exports (trailing 12 months). Open the full workbench for every cut and drill-down.</p>
+    <div id="perf-us"></div>
+    <div id="perf-uk"></div>
+    <p style="margin-top:14px"><a class="btnlink" href="/data-analysis">Open the Data Analysis workbench →</a><a class="btnlink ghost" href="/data-analysis?mkt=UK">UK view</a></p>
+  </section>
+
+  <!-- PLAYS -->
+  <section class="panel" id="panel-plays" role="tabpanel">
+    <h2 class="sec">Growth plays</h2>
+    <p class="sub">Prioritised by leverage, each grounded in the live numbers and mapped to a buyer avatar and cohort.</p>
+    <div id="plays"></div>
+  </section>
+
+  <!-- RETENTION -->
+  <section class="panel" id="panel-retention" role="tabpanel">
+    <h2 class="sec">Retention operating principles</h2>
+    <p class="sub">The distilled playbooks in <span class="filelink">knowledge/retention/</span>, from the operators who wrote the modern D2C retention canon. Use them as the standing rules behind every lifecycle decision.</p>
+    <div id="playbooks"></div>
+  </section>
+
+  <!-- ENGINE -->
+  <section class="panel" id="panel-engine" role="tabpanel">
+    <h2 class="sec">The DTC data engine</h2>
+    <p class="sub">The upstream pipeline that feeds this book. Two halves: the owned-store ingestion (Shopify / Klaviyo / WebEngage exports compiled into the market analytics you see in Live Performance) and the competitor-mailer capture engine below.</p>
+    <p style="margin:6px 0 16px"><a class="btnlink" href="https://vahdam-dtc-data-engine.vercel.app/" target="_blank" rel="noopener">Live engine ↗</a><a class="btnlink ghost" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">Source on GitHub ↗</a></p>
+    <h3>Competitor-mailer capture flow</h3>
+    <div class="flow">
+      <span class="node">Competitor sends email</span><span class="arr">→</span>
+      <span class="node">Cloudflare Email Worker</span><span class="arr">→</span>
+      <span class="node">FastAPI /v1/incoming-mail</span><span class="arr">→</span>
+      <span class="node">Parse headers + extract HTML</span><span class="arr">→</span>
+      <span class="node">Postgres competitor_mailers + S3 snapshot</span><span class="arr">→</span>
+      <span class="node">CompetitorMailViewer (React)</span>
+    </div>
+    <ul class="clean">
+      <li><b>Cloudflare Email Worker</b> — receives inbound mail to the capture address and forwards the raw SMTP payload to the engine.</li>
+      <li><b>FastAPI capture endpoint</b> — <span class="filelink">/v1/incoming-mail</span> parses headers, extracts the high-fidelity HTML body, and archives it.</li>
+      <li><b>Postgres</b> — <span class="filelink">competitor_mailers</span> (sender, subject, received_at, extracted_html_body, s3_snapshot_url) indexed by sender and received-at.</li>
+      <li><b>Viewer</b> — a React viewer browses captured competitor mailers for the benchmarking workflow.</li>
+    </ul>
+    <p class="sub">Inside the OS this powers Competitor Benchmarking; the owned-store side powers Data Analysis. Repo: <span class="filelink">vahdam_dtc_data_engine</span>. Source detail: <span class="filelink">knowledge/brand/06-market-intelligence-summary.md</span>.</p>
+  </section>
+
+  <p class="note" id="footnote">This Growth Book is the narrative index over the OS. Numbers come from the live market exports in <span class="filelink">data/market/</span>; the market study, schemas and retention config live in <span class="filelink">docs/</span>, <span class="filelink">schemas/</span> and <span class="filelink">config/</span>.</p>
+</div>
+
+<script src="/data/analytics/market-data.js"></script>
+<script>
+(function(){
+  var A=(window.VAHDAM_ANALYTICS)||{markets:{}};
+  function money(cur,v){ v=+v||0; if(v>=1000000) return cur+(v/1000000).toFixed(2)+'M'; if(v>=1000) return cur+(v/1000).toFixed(0)+'K'; return cur+v.toFixed(0); }
+  function full(cur,v){ return cur+(+v||0).toLocaleString(undefined,{maximumFractionDigits:0}); }
+  function perf(id, mk, cur, name){
+    var m=A.markets[mk]; if(!m||!m.summary){ return; }
+    var s=m.summary;
+    document.getElementById(id).innerHTML='<h3>'+name+'</h3><div class="metric">'+
+      '<div class="m"><div class="mv">'+full(cur,s.total_sales)+'</div><div class="ml">Total sales (12 mo)</div></div>'+
+      '<div class="m"><div class="mv">'+(+s.orders).toLocaleString()+'</div><div class="ml">Orders</div></div>'+
+      '<div class="m"><div class="mv">'+cur+(+s.aov).toFixed(2)+'</div><div class="ml">Avg order value</div></div>'+
+      '<div class="m"><div class="mv">'+((s.returning_rate*100)||0).toFixed(1)+'%</div><div class="ml">Returning rate</div></div>'+
+      '<div class="m"><div class="mv">'+(+s.new_customers).toLocaleString()+'</div><div class="ml">New customers</div></div>'+
+      '</div>';
+  }
+  perf('perf-us','US','$','United States');
+  perf('perf-uk','UK','£','United Kingdom');
+
+  var PLAYS=[
+    {t:'Anchor the Ashwagandha Coffee subscription', m:'AOV + retention · Wellness Optimiser · Coffee cohort', p:'Coffee is the #1 category and Loop Subscriptions already run at a $39.83 AOV. Make subscribe-first the default on the coffee franchise (base, refill, packs, starter kit), lead with refill rhythm and gifts-worth-value, and protect the recurring base against churn before chasing new acquisition.'},
+    {t:'Win the second order', m:'Retention · Curious Switcher · New / About-to-Sleep', p:'Acquisition spikes in the Q4 gifting window but first-order revenue is low versus LTV. A dedicated second-order flow (steep guidance, a curated next-pick, a gentle replenishment nudge before the pack runs out) is the highest-leverage investment because the money is made on order 2+.'},
+    {t:'Recover AOV', m:'AOV · Ritual Loyalist · Multi-Category', p:'AOV has compressed from the low-$60s to the low-$40s as discount-led acquisition brought smaller baskets. Introduce bundle logic, free-shipping thresholds pegged just above current AOV, and system-selling (hero + 1-2 complementary blends) to lift baskets without discounting.'},
+    {t:'Discount discipline', m:'Margin · Curious Switcher only', p:'Discounted orders convert at ~26% below full-price AOV. Reserve offers for the discount-responsive Curious Switcher cohort and protect full-margin Ritual Loyalists and VIPs from a discount habit.'},
+    {t:'Cross-grade tea buyers into coffee', m:'AOV · Ritual Loyalist · T&B → Coffee', p:'Black tea, chai and herbal are the high-frequency habit categories. Bridge herbal/turmeric buyers into Ashwagandha Coffee and supplements with a functional, non-medical benefit story: the cleanest path from one-time tea buyer to subscriber.'},
+    {t:'Gifting to self-purchase conversion', m:'Retention · Gifting Connector · Promising', p:'Christmas gifts and Advent Calendars are top revenue lines but many gift buyers never convert to a ritual. Follow the gifting occasion with a self-purchase invitation in January that reframes the gift they gave as a ritual they can keep.'},
+  ];
+  document.getElementById('plays').innerHTML=PLAYS.map(function(x){return '<div class="play"><div class="pt">'+x.t+'</div><div class="pm">'+x.m+'</div><p>'+x.p+'</p></div>';}).join('');
+
+  var BOOKS=[
+    {a:'Chase Dimond', f:'01-chase-dimond', d:'Email-driven revenue: the flows-before-campaigns hierarchy and the sends that actually move money.'},
+    {a:'Eli Weiss', f:'02-eli-weiss', d:'Retention as experience and genuine customer relationships, not just discount mechanics.'},
+    {a:'Jimmy Kim', f:'03-jimmy-kim', d:'Lifecycle sequencing and the discipline of sending with intent.'},
+    {a:'Drew Sanocki', f:'04-drew-sanocki', d:'The RFM and value-based framework for prioritising who to talk to and when.'},
+    {a:'Cody Plofker', f:'05-cody-plofker', d:'Full-funnel efficiency: the interplay of acquisition, creative and retention.'},
+    {a:'Joanne Coffey', f:'06-joanne-coffey', d:'Craft in lifecycle copy and the deliverability fundamentals that protect it.'},
+    {a:'Gina Perrelli', f:'07-gina-perrelli', d:'Lifecycle strategy and building programs that compound.'},
+    {a:'Ari Murray', f:'08-ari-murray', d:'Creative and offer thinking that earns the click and the conversion.'},
+  ];
+  document.getElementById('playbooks').innerHTML='<div class="cards">'+BOOKS.map(function(b){return '<div class="card"><h3>'+b.a+'</h3><p>'+b.d+'</p><p style="margin-top:8px"><span class="filelink">knowledge/retention/'+b.f+'.md</span></p></div>';}).join('')+'</div>';
+
+  var TAB_IDS=['overview','brand','market','performance','plays','retention','engine'];
+  function showTab(id){ if(TAB_IDS.indexOf(id)===-1) id='overview';
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===id);});
+    document.querySelectorAll('.panel').forEach(function(p){p.classList.toggle('active',p.id==='panel-'+id);});
+    try{ history.replaceState(null,'','?tab='+id); }catch(_){}
+  }
+  document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){showTab(t.dataset.tab);});});
+  document.querySelectorAll('.card.link').forEach(function(c){c.addEventListener('click',function(){showTab(c.dataset.goto);});});
+  (function(){ var q=new URLSearchParams(location.search).get('tab'); var h=(location.hash||'').replace('#',''); showTab(q||h||'overview'); })();
+})();
+</script>
+<script defer src="/auth.js"></script>
+</body>
+</html>

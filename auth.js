@@ -222,6 +222,7 @@
       { id: 'coh-behavioral', label: 'Behavioral',          href: '/cohorts?tab=behavioral', icon: 'cohort' },
     ]},
     { id: 'avatars', label: 'Avatars (Personas)', href: '/avatars', icon: 'avatars', ver: 'v2', match: ['/avatars', '/personas', '/avatars.html'] },
+    { id: 'research', label: 'Growth Book', href: '/research', icon: 'kb', ver: 'v2', match: ['/research', '/growth-book', '/research.html'] },
 
     { section: 'Plan' },
     { id: 'lifecycle', label: 'Mailer Calendar',    href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
@@ -341,6 +342,20 @@
         ['Drill in', 'Any widget opens a detailed page: full data table, larger chart, and a concrete growth read.'],
         ['Cohort read', 'The retention heatmap normalises each acquisition quarter to 100% so LTV assumptions and sticky cohorts are visible.'],
         ['Hand off', 'Cuts feed cohort, RFM and lifecycle targeting; the RFM tool at /rfm scores uploaded data for the segment lens.'],
+      ],
+    },
+    research: {
+      title: 'Growth Book',
+      what: "The single narrative reference for how VAHDAM grows: brand truth, the US and UK market intelligence, live performance pulled from the market exports, the four buyer avatars and the cohort model, the retention operating principles, the growth plays currently running, and the data engine underneath it all. It is the connective story that the operational features read from.",
+      who: "The whole growth and retention team. It frames every cohort and avatar the OS targets, and turns the raw analytics into prioritised, named growth plays.",
+      how: "A self-contained page organised into tabs: Overview, Brand Foundation, Market Intelligence, Live Performance (real numbers from the compiled market data), Growth Plays, Retention Playbooks (the knowledge/retention library), and Data Engine. It links out to Avatars, Cohorts, and the Data Analysis workbench, and cites the market study, schemas and retention config.",
+      input: "Nothing to upload — the book compiles the market exports and the brand knowledge base. From you: read it before planning, and use its growth plays and avatar/cohort mapping to brief every campaign.",
+      steps: [
+        ['Brand truth', 'Positioning, voice, palette and lexicon set the non-negotiable creative frame.'],
+        ['Market intelligence', 'US coffee and functional-beverage sizing, benchmarks and the competitor brand matrix set the opportunity.'],
+        ['Live performance', 'Real US and UK numbers ground every claim; the full workbench is one click away.', '/data-analysis'],
+        ['Growth plays', 'The prioritised, data-grounded moves, each mapped to an avatar and cohort.'],
+        ['Data engine', 'The ingestion and competitor-capture pipeline (vahdam_dtc_data_engine) that feeds every number.'],
       ],
     },
     avatars: {
