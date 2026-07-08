@@ -53,7 +53,10 @@ function head(title, desc) {
 '  } } };',
 '</script>',
 '<style>',
-'  :root{--vahdam-green:#004A2B;--vahdam-gold:#AB8743;--vahdam-ink:#171717;--vahdam-cream:#FBF5EA;--vahdam-card:#FFFFFF;--line:rgba(23,23,23,.12);--soft:#5b5b57;}',
+'  :root{--vahdam-green:#004A2B;--vahdam-gold:#AB8743;--vahdam-gold-ink:#8a6a2f;--vahdam-ink:#171717;--vahdam-cream:#FBF5EA;--vahdam-card:#FFFFFF;--line:rgba(23,23,23,.12);--soft:#5b5b57;}',
+'  /* brand gold #AB8743 fails WCAG as small text on cream/white; use the darker gold-ink for gold TEXT on light backgrounds */',
+'  .gold-ink{color:var(--vahdam-gold-ink);}',
+'  input::placeholder,textarea::placeholder{color:#6f6f6f;opacity:1;} #gen-out::placeholder{color:#9fb0a8;opacity:1;}',
 '  html{scroll-behavior:smooth;scroll-padding-top:20px;}',
 '  body{background:var(--vahdam-cream);color:var(--vahdam-ink);font-family:"Proxima Nova","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;}',
 '  h1,h2,h3,h4,.font-head{font-family:"Lao MN","Cormorant Garamond",Georgia,serif;}',
@@ -68,7 +71,7 @@ function head(title, desc) {
 '  table.grid-tbl th{background:var(--vahdam-green);color:var(--vahdam-cream);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;}',
 '  table.grid-tbl tr:nth-child(even) td{background:#faf7f0;}',
 '  table.grid-tbl tr:last-child td{border-bottom:0;}',
-'  .tier-1{color:var(--vahdam-green);font-weight:700;} .tier-2{color:var(--vahdam-gold);font-weight:700;} .tier-3{color:var(--soft);font-weight:700;}',
+'  .tier-1{color:var(--vahdam-green);font-weight:700;} .tier-2{color:var(--vahdam-gold-ink);font-weight:700;} .tier-3{color:var(--soft);font-weight:700;}',
 '  .tierbadge{display:inline-flex;flex-direction:column;line-height:1.12;border-radius:8px;padding:4px 9px;text-align:center;}',
 '  .tierbadge b{font-size:11px;font-weight:800;} .tierbadge i{font-style:normal;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;opacity:.85;}',
 '  .tb1{background:rgba(0,74,43,.10);color:var(--vahdam-green);} .tb2{background:rgba(171,135,67,.18);color:#8a6a2f;} .tb3{background:rgba(23,23,23,.07);color:var(--soft);}',
@@ -77,7 +80,7 @@ function head(title, desc) {
 '  .av-face{width:56px;height:56px;border-radius:999px;background:var(--vahdam-green);display:inline-flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;box-shadow:0 0 0 3px rgba(171,135,67,.35);}',
 '  .av-quote{font-family:"Lao MN",Georgia,serif;font-style:italic;color:var(--vahdam-green);border-left:3px solid var(--vahdam-gold);padding-left:12px;margin:12px 0;}',
 '  .av-q{cursor:pointer;text-align:left;background:#faf6ec;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;color:var(--vahdam-ink);transition:background .12s,border-color .12s;font-family:inherit;}',
-'  .av-q:hover{border-color:var(--vahdam-gold);} .av-q.on{background:var(--vahdam-gold);color:var(--vahdam-green);font-weight:700;border-color:var(--vahdam-gold);}',
+'  .av-q:hover{border-color:var(--vahdam-gold-ink);} .av-q.on{background:var(--vahdam-gold);color:var(--vahdam-green);font-weight:700;border-color:var(--vahdam-gold-ink);}',
 '  .av-bubble{display:none;margin-top:12px;background:var(--vahdam-green);color:var(--vahdam-cream);border-radius:12px;border-top-left-radius:3px;padding:13px 15px;font-size:13.5px;line-height:1.55;}',
 '  .pill{display:inline-block;border-radius:999px;padding:2px 11px;font-size:11px;font-weight:700;border:1px solid var(--line);}',
 '  .btn-primary{background:var(--vahdam-green);color:var(--vahdam-cream);border-radius:10px;font-weight:700;transition:filter .12s;} .btn-primary:hover{filter:brightness(1.15);}',
@@ -91,7 +94,7 @@ function head(title, desc) {
 '  details.blueprint pre{margin:0;padding:18px;overflow-x:auto;color:#e8ede9;font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:12.5px;line-height:1.6;}',
 '  .code-out{font-family:ui-monospace,"JetBrains Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;}',
 '  .flow-node{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:12.5px;}',
-'  a{color:var(--vahdam-green);} a:hover{color:var(--vahdam-gold);}',
+'  a{color:var(--vahdam-green);} a:hover{color:var(--vahdam-gold-ink);}',
 '  ::selection{background:var(--vahdam-gold);color:#fff;}',
 '  section[data-section]{scroll-margin-top:18px;}',
 '</style>',
@@ -156,20 +159,20 @@ opts.main,
 function hero(eyebrow, title, lede) {
   return [
 '      <header class="space-y-3">',
-'        <span class="text-[11px] tracking-[.18em] uppercase font-bold text-vahdam-gold">' + eyebrow + '</span>',
+'        <span class="text-[11px] tracking-[.18em] uppercase font-bold gold-ink">' + eyebrow + '</span>',
 '        <h1 class="font-head text-4xl md:text-5xl text-vahdam-green leading-[1.05]">' + title + '</h1>',
 '        <p class="text-[15px] max-w-3xl" style="color:var(--soft);">' + lede + '</p>',
 '      </header>'
   ].join("\n");
 }
 function secHead(eyebrow, title, sub) {
-  return '<div><div class="text-[11px] tracking-[.16em] uppercase font-bold text-vahdam-gold">' + eyebrow + '</div>' +
+  return '<div><div class="text-[11px] tracking-[.16em] uppercase font-bold gold-ink">' + eyebrow + '</div>' +
          '<h2 class="font-head text-3xl text-vahdam-green mt-1">' + title + '</h2>' +
          (sub ? '<p class="text-sm mt-2 max-w-3xl" style="color:var(--soft);">' + sub + '</p>' : '') + '</div>';
 }
 function metricCard(label, val, note, accent) {
   const style = accent ? ' style="border-color:var(--vahdam-' + accent + ');border-width:2px;"' : '';
-  const vstyle = accent === "gold" ? ' style="color:var(--vahdam-gold);"' : '';
+  const vstyle = accent === "gold" ? ' style="color:var(--vahdam-gold-ink);"' : '';
   return '<div class="metric p-5"' + style + '><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">' + label +
          '</div><div class="mv text-4xl mt-1"' + vstyle + '>' + val + '</div>' +
          (note ? '<div class="text-[12.5px] mt-1" style="color:var(--soft);">' + note + '</div>' : '') + '</div>';
@@ -690,7 +693,7 @@ const JS_SHOPIFY = String.raw`
     synced.push(url); status.textContent='Sync triggered.'; status.style.color='var(--vahdam-green)'; input.value='';
     var li = document.createElement('li'); li.className='flex items-start gap-2'; li.style.wordBreak='break-all';
     li.innerHTML = '<span style="color:var(--vahdam-green);font-weight:700;">&#10003;</span>'+
-      '<a class="code-out underline" style="color:var(--vahdam-gold);" href="'+encodeURI(url)+'" target="_blank" rel="noopener">'+url.replace(/</g,'&lt;')+'</a>';
+      '<a class="code-out underline" style="color:var(--vahdam-gold-ink);" href="'+encodeURI(url)+'" target="_blank" rel="noopener">'+url.replace(/</g,'&lt;')+'</a>';
     document.getElementById('cdn-list').appendChild(li);
   });
 })();
@@ -747,7 +750,7 @@ secHead("Feature 05, 06 &amp; 07", "Operational Engines", "The daily-run tools. 
 // Feature 08 ChaiGPT dock
 '      <section data-section id="chaigpt" class="space-y-4">',
 secHead("Feature 08", "ChaiGPT Internal Intelligence Engine Dock", "The brand LLM that operates over this entire ecosystem. Every dossier, rule, and path-to-progress document is ingested into its RAG pipeline."),
-'        <div class="card p-6" style="border-color:var(--vahdam-gold);">',
+'        <div class="card p-6" style="border-color:var(--vahdam-gold-ink);">',
 '          <div class="grid gap-4 md:grid-cols-3">',
 '            <div><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 01</div><h4 class="font-head text-lg text-vahdam-green mt-2">100% Fact-Fidelity</h4><p class="text-sm mt-1" style="color:var(--vahdam-ink);">Responses must match injected parameters exactly. The engine is banned from guessing or generating unverified assumptions.</p></div>',
 '            <div><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 02</div><h4 class="font-head text-lg text-vahdam-green mt-2">Dynamic Web Fallback</h4><p class="text-sm mt-1" style="color:var(--vahdam-ink);">If a query needs parameters outside the multi-page knowledge base, ChaiGPT invokes live web search.</p></div>',
@@ -824,7 +827,7 @@ function buildMarketStudy() {
     { n: "Cohort D: The Curious Convert", driver: "Trial-driven, wellness-curious", demo: "Age 24 to 38, 60% female / 40% male, HHI $55K to $95K. First-time functional-coffee buyer, price-aware, review-driven.", geo: "Broad, indexes in Georgia, Arizona, Tennessee, Ohio, Pennsylvania. Affluent suburban plus emerging urban.", mech: "Price elasticity high (converts on an intro offer or starter kit). Core driver: functionality plus routine, gated by trust. Moderate to high reactivation if the second-order nudge lands with social proof. Churn trigger: first-bag price shock after the intro discount, unmet expectation, or choice overload.", map: "Starter kit or sampler into a second-order nudge into subscribe-and-save." }
   ];
   const cohCards = COH.map(function (c) {
-    return '<div class="card p-6"><div class="flex items-center justify-between flex-wrap gap-2"><h3 class="font-head text-xl text-vahdam-green">' + c.n + '</h3><span class="pill" style="background:var(--vahdam-cream);color:var(--vahdam-gold);">' + c.driver + '</span></div>' +
+    return '<div class="card p-6"><div class="flex items-center justify-between flex-wrap gap-2"><h3 class="font-head text-xl text-vahdam-green">' + c.n + '</h3><span class="pill" style="background:var(--vahdam-cream);color:var(--vahdam-gold-ink);">' + c.driver + '</span></div>' +
       '<dl class="mt-3 text-sm grid gap-2" style="color:var(--vahdam-ink);">' +
       '<div><dt class="text-[11px] uppercase font-bold" style="color:var(--soft);">Demographics</dt><dd class="mt-0.5">' + c.demo + '</dd></div>' +
       '<div><dt class="text-[11px] uppercase font-bold" style="color:var(--soft);">Geography</dt><dd class="mt-0.5">' + c.geo + '</dd></div>' +
@@ -841,7 +844,7 @@ hero("Feature 01b", "The Complete Market Study",
 secHead("Section 1", "Macro unit economics and sizing", "Top-down US sizing, then the blended lifecycle benchmarks that make the strategic case."),
 '        <div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:720px;"><thead><tr><th>Layer</th><th>Definition</th><th>Est. 2026/2027 value</th><th>Key assumptions</th></tr></thead><tbody>' +
 '<tr><td class="font-semibold text-vahdam-green">TAM</td><td>Total US retail coffee, in-home plus away-from-home, all channels</td><td class="num">~$28B/yr retail (~$45B incl. foodservice)</td><td>US coffee retail growing ~4 to 5% CAGR; ~66% of US adults drink coffee daily, avg spend ~$175/yr in-home.</td></tr>' +
-'<tr><td class="font-semibold text-vahdam-gold">SAM</td><td>US coffee D2C plus specialty/premium reachable online</td><td class="num">~$4.2B/yr (~15% of retail via D2C/online-specialty)</td><td>D2C plus online specialty is ~12 to 16% of retail, taking ~1.5 to 2 pts/yr from grocery; excludes pure-grocery private label.</td></tr>' +
+'<tr><td class="font-semibold gold-ink">SAM</td><td>US coffee D2C plus specialty/premium reachable online</td><td class="num">~$4.2B/yr (~15% of retail via D2C/online-specialty)</td><td>D2C plus online specialty is ~12 to 16% of retail, taking ~1.5 to 2 pts/yr from grocery; excludes pure-grocery private label.</td></tr>' +
 '<tr><td class="font-semibold text-vahdam-green">SOM (Vahdam 3-yr)</td><td>Realistic share in functional/wellness coffee</td><td class="num">~$18M to $40M/yr in 24 to 36 months</td><td>Functional coffee is ~$900M to $1.1B of the SAM, growing ~9 to 12% CAGR; capturing 2 to 4% of that niche gives $18 to 40M.</td></tr>' +
 '</tbody></table></div>',
 '        <div class="card p-5"><h3 class="font-head text-lg text-vahdam-green">Sizing logic</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">The whole US coffee retail pie (~$28B) is the TAM but most of it is commoditized grocery. The winnable slice is the D2C plus online-specialty SAM (~$4.2B), and within that the fastest-growing, least price-anchored pocket is functional/wellness coffee (~$1B and compounding double-digit). Vahdam heritage-tea credibility plus an adaptogen sourcing story lets it play there rather than fighting shelf price. A 2 to 4% niche capture over three years is aggressive but defensible given an existing customer base and owned lifecycle tooling.</p></div>',
@@ -859,7 +862,7 @@ secHead("", "Blended industry benchmarks", "Standard coffee D2C versus functiona
 '<tr><td>Blended gross margin</td><td>55 to 64%</td><td>62 to 72%</td></tr>' +
 '<tr><td>Payback period (months)</td><td>3.5 to 5.5</td><td>4.0 to 6.5</td></tr>' +
 '</tbody></table></div>',
-'        <div class="card p-5" style="border-color:var(--vahdam-gold);"><h3 class="font-head text-lg text-vahdam-green">The read</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Functional coffee carries a materially higher CAC (education-heavy, ingredient-skeptic buyer) but pays it back with higher AOV, dramatically higher subscription attach, and roughly twice the Day-180 retention. That is the entire strategic case: acquire at a premium, retain like a supplement, monetize like a subscription. The Lifecycle OS should be tuned to defend the Day-30 to Day-180 retention cliff, where functional brands win or die.</p></div>',
+'        <div class="card p-5" style="border-color:var(--vahdam-gold-ink);"><h3 class="font-head text-lg text-vahdam-green">The read</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Functional coffee carries a materially higher CAC (education-heavy, ingredient-skeptic buyer) but pays it back with higher AOV, dramatically higher subscription attach, and roughly twice the Day-180 retention. That is the entire strategic case: acquire at a premium, retain like a supplement, monetize like a subscription. The Lifecycle OS should be tuned to defend the Day-30 to Day-180 retention cliff, where functional brands win or die.</p></div>',
 '      </section>',
 
 '      <section data-section id="brandmatrix" class="space-y-4">',
@@ -930,10 +933,10 @@ hero("Feature 03", "Direct-to-Origin Knowledge Base",
 '      <section data-section id="supply" class="space-y-4">',
 secHead("Supply chain", "Crop harvest to vacuum processing", "Direct-to-origin speed with no auction-house middlemen."),
 '        <div class="flex flex-wrap items-center gap-2">' +
-'<span class="flow-node">Hand-picked at single estate</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
-'<span class="flow-node">Vacuum processing in 48 to 72 hrs</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
-'<span class="flow-node">Grading and 6.5% moisture check</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
-'<span class="flow-node">Sealed garden-fresh packing</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
+'<span class="flow-node">Hand-picked at single estate</span><span class="gold-ink font-bold">&rarr;</span>' +
+'<span class="flow-node">Vacuum processing in 48 to 72 hrs</span><span class="gold-ink font-bold">&rarr;</span>' +
+'<span class="flow-node">Grading and 6.5% moisture check</span><span class="gold-ink font-bold">&rarr;</span>' +
+'<span class="flow-node">Sealed garden-fresh packing</span><span class="gold-ink font-bold">&rarr;</span>' +
 '<span class="flow-node">Direct-from-source dispatch</span></div>',
 '        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">' +
 metricCard("48-72h", "Harvest to vacuum processing", "") +
@@ -1089,7 +1092,7 @@ function buildProductAvatars() {
 '            <div class="flex items-center gap-4">',
 '              <span class="av-face">' + a.face + '</span>',
 '              <div><div class="font-head text-2xl text-vahdam-green">' + a.name + '</div>',
-'              <div class="pill mt-1" style="background:var(--vahdam-cream);color:var(--vahdam-gold);">' + a.embodies + '</div></div>',
+'              <div class="pill mt-1" style="background:var(--vahdam-cream);color:var(--vahdam-gold-ink);">' + a.embodies + '</div></div>',
 '            </div>',
 '            <p class="text-[13px] mt-3" style="color:var(--soft);">' + a.personality + '</p>',
 '            <p class="av-quote">' + a.signature + '</p>',
@@ -1114,7 +1117,7 @@ secHead("The cast", "Meet the product avatars", "Four hero characters. Click a q
 '        <div class="grid gap-5 md:grid-cols-2">',
 cards,
 '        </div>',
-'        <div class="card p-5" style="border-color:var(--vahdam-gold);"><h3 class="font-head text-lg text-vahdam-green">Live conversation</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">These scripted answers are the avatar personalities. Wired to ChaiGPT at <a href="/chaigpt">/chaigpt</a>, each avatar holds a full live conversation, grounded in the Knowledge Base and competitor dossiers, and always closes toward the correct product outcome.</p></div>',
+'        <div class="card p-5" style="border-color:var(--vahdam-gold-ink);"><h3 class="font-head text-lg text-vahdam-green">Live conversation</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">These scripted answers are the avatar personalities. Wired to ChaiGPT at <a href="/chaigpt">/chaigpt</a>, each avatar holds a full live conversation, grounded in the Knowledge Base and competitor dossiers, and always closes toward the correct product outcome.</p></div>',
 '      </section>',
 '      <section data-section id="who" class="space-y-4">',
 secHead("Targeting", "Which buyer each avatar converts", "Avatars are the persuasion layer; buyer cohorts are the audience. See the full cohort model in the Knowledge Base."),
@@ -1228,17 +1231,17 @@ hero("Feature 08", "ChaiGPT Engine Knowledge Configuration",
 '      <section data-section id="ingest" class="space-y-4">',
 secHead("Ingestion", "Core knowledge base RAG pipeline", "All rules, data points, individual brand dossiers, and path-to-progress documents across this ecosystem are ingested into the retrieval-augmented generation pipeline."),
 '        <div class="flex flex-wrap items-center gap-2">' +
-'<span class="flow-node">Playbook pages (hub + features + dossiers)</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
-'<span class="flow-node">Chunk + index by feature / brand / cohort</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
-'<span class="flow-node">RAG retrieval on query</span><span class="text-vahdam-gold font-bold">&rarr;</span>' +
+'<span class="flow-node">Playbook pages (hub + features + dossiers)</span><span class="gold-ink font-bold">&rarr;</span>' +
+'<span class="flow-node">Chunk + index by feature / brand / cohort</span><span class="gold-ink font-bold">&rarr;</span>' +
+'<span class="flow-node">RAG retrieval on query</span><span class="gold-ink font-bold">&rarr;</span>' +
 '<span class="flow-node">Fact-checked, cited answer</span></div>',
 '      </section>',
 '      <section data-section id="rules" class="space-y-4">',
 secHead("Rules", "The three operating rules", ""),
 '        <div class="grid gap-4 md:grid-cols-3">' +
-'<div class="card p-5" style="border-color:var(--vahdam-gold);"><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 01</div><h3 class="font-head text-lg text-vahdam-green mt-2">100% Fact-Fidelity Enforcement</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Absolute restriction requiring responses to match injected parameters. The engine is banned from guessing or generating unverified assumptions.</p></div>' +
-'<div class="card p-5" style="border-color:var(--vahdam-gold);"><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 02</div><h3 class="font-head text-lg text-vahdam-green mt-2">Dynamic Fallback Web Search</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">If a query demands parameters outside the core knowledge base, ChaiGPT dynamically invokes live web searches.</p></div>' +
-'<div class="card p-5" style="border-color:var(--vahdam-gold);"><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 03</div><h3 class="font-head text-lg text-vahdam-green mt-2">Verification &amp; Citation Integrity</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">External results undergo domain-authority parsing. The output must format clean anchor links to backing source URLs to verify correctness.</p></div>' +
+'<div class="card p-5" style="border-color:var(--vahdam-gold-ink);"><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 01</div><h3 class="font-head text-lg text-vahdam-green mt-2">100% Fact-Fidelity Enforcement</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">Absolute restriction requiring responses to match injected parameters. The engine is banned from guessing or generating unverified assumptions.</p></div>' +
+'<div class="card p-5" style="border-color:var(--vahdam-gold-ink);"><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 02</div><h3 class="font-head text-lg text-vahdam-green mt-2">Dynamic Fallback Web Search</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">If a query demands parameters outside the core knowledge base, ChaiGPT dynamically invokes live web searches.</p></div>' +
+'<div class="card p-5" style="border-color:var(--vahdam-gold-ink);"><div class="pill" style="background:var(--vahdam-green);color:var(--vahdam-cream);">Rule 03</div><h3 class="font-head text-lg text-vahdam-green mt-2">Verification &amp; Citation Integrity</h3><p class="text-sm mt-2" style="color:var(--vahdam-ink);">External results undergo domain-authority parsing. The output must format clean anchor links to backing source URLs to verify correctness.</p></div>' +
 '        </div>',
 '      </section>',
 '      <section data-section id="sysprompt" class="space-y-4">',
@@ -1305,7 +1308,7 @@ secHead("4. Battle card", "Vahdam vs " + c.name + " SWOT", "The definitive read,
 '<div class="card p-5"><h4 class="font-head text-vahdam-green">Opportunities (for Vahdam)</h4>' + list(c.swot.o) + '</div>' +
 '<div class="card p-5"><h4 class="font-head text-vahdam-green">Threats</h4>' + list(c.swot.t) + '</div>' +
 '        </div>',
-'        <div class="card p-6" style="border-color:var(--vahdam-gold);border-left-width:4px;"><h3 class="font-head text-xl text-vahdam-green">Path to Progress: how Vahdam leapfrogs ' + c.name + '</h3><ul class="mt-2 space-y-2 text-sm" style="color:var(--vahdam-ink);">' + steps + '</ul></div>',
+'        <div class="card p-6" style="border-color:var(--vahdam-gold-ink);border-left-width:4px;"><h3 class="font-head text-xl text-vahdam-green">Path to Progress: how Vahdam leapfrogs ' + c.name + '</h3><ul class="mt-2 space-y-2 text-sm" style="color:var(--vahdam-ink);">' + steps + '</ul></div>',
 '        <div class="flex flex-wrap gap-3">' + linkBtn("../features/competitor-index.html", "Back to all dossiers", true) + linkBtn("../index.html", "Hub") + '</div>',
 '      </section>'
   ].join("\n");
