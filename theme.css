@@ -78,7 +78,9 @@
   /* Text: white/cream body, warm-gold secondary, gold tertiary + headings. */
   --vh-ink: #FBF5EA; --vh-ink-dim: #E4CF94; --vh-ink-faint: #C7A65C;
   /* legacy aliases (family A + family B) — all point at the locked green set */
-  --bg: #004A2B; --panel: #075C39; --surface: #075C39; --card: #075C39; --soft: #003D24; --chip: #003D24;
+  /* NOTE: --soft is used across pages as a *dim text* color (never a surface),
+     so it must stay readable on the green canvas — not a dark green. */
+  --bg: #004A2B; --panel: #075C39; --surface: #075C39; --card: #075C39; --soft: #E4CF94; --chip: #003D24;
   --ink: #FBF5EA; --ink-dim: #E4CF94; --ink-faint: #C7A65C; --muted: #E4CF94; --head: #AB8743;
   --line: rgba(171,135,67,0.28); --line-hot: rgba(171,135,67,0.55);
   --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #075C39; --moss-deep: #003D24;
