@@ -93,7 +93,7 @@
 
   <section class="panel" id="panel-personas" role="tabpanel">
     <h2>The Four Avatars <span class="chip v2">V2 - active</span></h2>
-    <p class="lede">Four behavioural buyer profiles that drive VAHDAM Ashwagandha Coffee and wellness-tea growth. Each maps to specific cohorts and carries hard planning numbers so a brief can be written against a person, not a percentage.</p>
+    <p class="lede">Four behavioural buyer profiles that drive VAHDAM Ashwagandha Coffee and wellness-tea growth. Each maps to specific cohorts, drawn verbatim from the platform <a href="/cohorts" style="color:var(--cream);text-decoration-color:var(--accent)">Cohorts dictionary</a> (Engagement Cohorts A to F, Lifecycle Stages, RFM Segments, Product and Behavioral cohorts), and carries hard planning numbers so a brief can be written against a person, not a percentage.</p>
     <div id="personas"></div>
   </section>
 
@@ -139,7 +139,7 @@ const PERSONAS = [
     elasticity:'Low, will pay a premium for a proven functional benefit.',
     reactivation:'High, responds to new-benefit and refill-rhythm messaging.',
     churn:'Missed reorder before routine breaks; benefit fatigue if payload is not reinforced.',
-    cohorts:['RFM: Loyal / Champions','Engagement: Coffee/Supplement Buyers','Behavioral: Wellness Seekers'] },
+    cohorts:['Engagement: Cohort E - Coffee / Supplement Buyers / Non-Engagers','Engagement: Cohort F - Multi-Category / Engaged (near-VIP)','Lifecycle: ACT-03 Subscriber / VIP-02 High-Value VIP','RFM: Champions / Loyal','Product: Coffee (Ashwagandha) / Supplements / Subscribers','Behavioral: Wellness Seekers'] },
   { init:'R', name:'The Ritual Loyalist', tag:'Routine-driven',
     quote:'The same cup, the same time, every day, that is the whole point.',
     who:'Established tea and coffee drinkers with a fixed daily ritual and strong flavour loyalty. The subscription backbone.',
@@ -149,7 +149,7 @@ const PERSONAS = [
     elasticity:'Low to moderate, price-tolerant while the ritual is intact.',
     reactivation:'Moderate, best reached with your-blend-restocked and easy-restart nudges.',
     churn:'Out-of-stock on their blend; a clumsy subscription change; a skipped shipment.',
-    cohorts:['RFM: Loyal / Can-not-Lose-Them','Engagement: Multi-Category / Engaged','Behavioral: VIP Ritualists / Chai Loyalists'] },
+    cohorts:['Engagement: Cohort D - T&amp;B Buyers / Engaged','Engagement: Cohort F - Multi-Category / Engaged (near-VIP)','Lifecycle: ACT-01 Repeat / Habitual / VIP-01 Loyal Core','RFM: Loyal / Can-not-Lose-Them','Product: Chai / Black Tea / Subscribers','Behavioral: VIP Ritualists / Chai Loyalists'] },
   { init:'G', name:'The Gifting Connector', tag:'Status + occasion-driven',
     quote:'I want to give something that feels considered, premium, and a little bit of a discovery.',
     who:'Occasion buyers with higher AOV and seasonal spikes. Care about presentation, provenance and the story behind the gift.',
@@ -159,7 +159,7 @@ const PERSONAS = [
     elasticity:'Low on gift sets, high perceived value beats low price.',
     reactivation:'Seasonal, re-engages sharply around occasions and holidays.',
     churn:'Only ever bought for an occasion; never converted to a self-purchase ritual.',
-    cohorts:['RFM: Promising / Need-Attention','Engagement: T&amp;B Buyers','Behavioral: Gift Buyers'] },
+    cohorts:['Engagement: Cohort B - T&amp;B Buyers / Non-Engagers','Lifecycle: NEW-01 First-Time Buyer / RISK-02 One-and-Done Stalling','RFM: Promising / Need-Attention','Product: Gifts / Samplers / One-Time Buyers','Behavioral: Gift Buyers'] },
   { init:'C', name:'The Curious Switcher', tag:'Discovery-driven',
     quote:'I am open to trying something better, but you have to give me a reason and make it easy.',
     who:'Engaged non-buyers and one-and-done triers comparing options. Wellness-curious but not yet committed.',
@@ -169,7 +169,7 @@ const PERSONAS = [
     elasticity:'High, the one avatar where a first-order incentive earns its keep.',
     reactivation:'High if caught early, decays fast after 60 days of silence.',
     churn:'No compelling second-order reason; taste or price expectation missed on first try.',
-    cohorts:['RFM: New / About-to-Sleep','Engagement: Non-Buyers / Engaged','Behavioral: Engaged Non-buyers / Discount Responsive'] },
+    cohorts:['Engagement: Cohort C - Non-Buyers / Engaged','Engagement: Cohort A - Non-Buyers / Non-Engagers','Lifecycle: NEW-00 Prospect / NEW-02 Second-Order Pending','RFM: New / About-to-Sleep','Product: Samplers / One-Time Buyers','Behavioral: Engaged Non-buyers / Discount Responsive / New Customers'] },
 ];
 const SIZING = [
   {mv:'~$28B', ml:'US Coffee TAM', ms:'Total US coffee retail across all channels.'},

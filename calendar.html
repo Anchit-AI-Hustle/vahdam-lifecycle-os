@@ -590,10 +590,13 @@ function renderVariantPanel(v, strategy, ctaUrl) {
   // is still exportable, not a dead-end text tile.
   const brief = v.hero_image_brief || '';
   const enc = encodeURIComponent(brief);
+  const preview = v.hero_image_url
+    ? `<img src="${v.hero_image_url}" alt="${v.label}" style="width:100%;max-height:260px;object-fit:cover;border-radius:8px;border:1px solid rgba(171,135,67,.3)">`
+    : `<div style="width:100%;height:180px;border:2px dashed rgba(171,135,67,.5);border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;color:#9aaaa1;font-size:12px;background:#0f1d18">Image renders in Mailer Studio<br>(drop the brief into the image cascade)</div>`;
   return `
     <div class="space-y-2">
       <div class="text-xs uppercase tracking-wider text-gold">${v.label}</div>
-      <div style="width:100%;height:180px;border:2px dashed rgba(171,135,67,.5);border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;color:#9aaaa1;font-size:12px;background:#0f1d18">Image renders in Mailer Studio<br>(drop the brief into the image cascade)</div>
+      ${preview}
       <div class="card p-3 text-[12px] leading-relaxed">
         <b class="text-cream">Image generation brief:</b><br>${brief}
       </div>
