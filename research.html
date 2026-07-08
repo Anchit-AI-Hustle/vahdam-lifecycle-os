@@ -368,7 +368,7 @@ triggers:
         <p class="text-[12.5px] text-[#9fb0a8] mb-3">The one place revenue is projected. Enter what is booked so far today and the current hour; the tool estimates the day-end settlement from today's ongoing pace, then extends it across the horizon you choose, grounded in the trailing daily run-rate from the live market exports.</p>
         <div class="card p-5">
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <label class="text-[12px] text-[#c9d4cd]">Revenue booked so far today ($)
+            <label class="text-[12px] text-[#c9d4cd]">Revenue booked so far today (<span id="pCur">$</span>)
               <input type="text" id="pRev" value="18400" class="w-full mt-1"></label>
             <label class="text-[12px] text-[#c9d4cd]">Hour of day (1 to 23)
               <input type="text" id="pHour" value="12" class="w-full mt-1"></label>
@@ -484,9 +484,15 @@ triggers:
 
   // -- Revenue projection (single source: day-end from today's pace, extended across horizons) --
   var A=(window.VAHDAM_ANALYTICS)||{markets:{}};
+  function curSym(mk){ var c=(A.currency&&A.currency[mk])||'USD'; return c==='GBP'?'£':(c==='EUR'?'€':'$'); }
+  function moneyC(v,mk){ return curSym(mk)+Math.round(v).toLocaleString(); }
   function avgDailyRevenue(mk){
-    var m=A.markets&&A.markets[mk]; if(!m||!m.monthly||!m.monthly.length) return mk==='UK'?22000:31000;
-    var last=m.monthly.slice(-3); var sales=0; last.forEach(function(x){sales+=(+x.sales||0);});
+    var m=A.markets&&A.markets[mk]; if(!m||!m.monthly||m.monthly.length<2) return mk==='UK'?22000:31000;
+    // drop the latest row (current month-to-date, partial) so it does not deflate the run-rate,
+    // then average the trailing complete months.
+    var complete=m.monthly.slice(0,-1);
+    var last=complete.slice(-3); if(!last.length) last=complete;
+    var sales=0; last.forEach(function(x){sales+=(+x.sales||0);});
     return sales/(last.length*30.4);
   }
   var HZ={1:'end of day',7:'this week',14:'two weeks',30:'one month',60:'two months',90:'three months'};
@@ -502,12 +508,13 @@ triggers:
     var total=days<=1 ? dayEnd : dayEnd + rate*(days-1);
     var bandPct=0.06+0.015*Math.sqrt(days);
     var lo=total*(1-bandPct), hi=total*(1+bandPct);
+    var cur=document.getElementById('pCur'); if(cur) cur.textContent=curSym(mk);
     document.getElementById('pHzLabel').textContent=HZ[days]||(days+' days');
-    document.getElementById('pOutRev').textContent=money(total);
-    document.getElementById('pOutBand').textContent='band '+money(lo)+' to '+money(hi);
-    document.getElementById('pOutDay').textContent=money(dayEnd);
+    document.getElementById('pOutRev').textContent=moneyC(total,mk);
+    document.getElementById('pOutBand').textContent='band '+moneyC(lo,mk)+' to '+moneyC(hi,mk);
+    document.getElementById('pOutDay').textContent=moneyC(dayEnd,mk);
     document.getElementById('pOutDayNote').textContent=(s*100).toFixed(0)+'% of day booked by hour '+Math.round(hr);
-    document.getElementById('pOutRate').textContent=money(rate)+' / day';
+    document.getElementById('pOutRate').textContent=moneyC(rate,mk)+' / day';
   }
   document.getElementById('pRun').addEventListener('click', project);
   document.getElementById('pHorizon').addEventListener('change', project);
