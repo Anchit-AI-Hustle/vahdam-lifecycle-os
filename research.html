@@ -8,6 +8,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#004A2B">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="/data/analytics/market-data.js"></script>
 <script>
   // Guard against a CDN failure so config never throws and blocks the page JS.
   if (window.tailwind) {
@@ -40,8 +41,8 @@
   .btn-outline{background:transparent;color:var(--vahdam-cream);border:1.5px solid var(--vahdam-gold);font-weight:700;border-radius:9px;padding:9px 15px;cursor:pointer;text-decoration:none;display:inline-block;}
   .metric-lg{font-family:'Lora',serif;font-size:34px;color:var(--vahdam-cream);font-weight:700;line-height:1;}
   .kicker{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--vahdam-gold);font-weight:800;}
-  table.grid{width:100%;border-collapse:collapse;font-size:12.5px;}
-  table.grid th,table.grid td{border-bottom:1px solid rgba(171,135,67,.18);padding:10px 12px;text-align:left;vertical-align:top;white-space:nowrap;}
+  table.grid{width:100%;border-collapse:collapse;font-size:12.5px;min-width:820px;table-layout:auto;}
+  table.grid th,table.grid td{border-bottom:1px solid rgba(171,135,67,.18);padding:10px 12px;text-align:left;vertical-align:top;white-space:normal;}
   table.grid th{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;position:sticky;top:0;}
   table.grid tr:nth-child(even) td{background:#07100d;}
   details.blueprint{background:#0f1d18;border:1px solid rgba(171,135,67,.35);border-radius:12px;overflow:hidden;}
@@ -94,10 +95,10 @@
           </div>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-          <div class="card p-4"><div class="kicker">Functional CAC</div><div class="text-vcream font-head text-[22px] mt-1">$38–$65</div></div>
-          <div class="card p-4"><div class="kicker">Day-180 retention</div><div class="text-vcream font-head text-[22px] mt-1">28–38%</div></div>
-          <div class="card p-4"><div class="kicker">Functional LTV</div><div class="text-vcream font-head text-[22px] mt-1">$150–$260</div></div>
-          <div class="card p-4"><div class="kicker">LTV:CAC target</div><div class="text-vcream font-head text-[22px] mt-1">3.2–4.5x</div></div>
+          <div class="card p-4"><div class="kicker">Functional CAC</div><div class="text-vcream font-head text-[22px] mt-1">$38-$65</div></div>
+          <div class="card p-4"><div class="kicker">Day-180 retention</div><div class="text-vcream font-head text-[22px] mt-1">28-38%</div></div>
+          <div class="card p-4"><div class="kicker">Functional LTV</div><div class="text-vcream font-head text-[22px] mt-1">$150-$260</div></div>
+          <div class="card p-4"><div class="kicker">LTV:CAC target</div><div class="text-vcream font-head text-[22px] mt-1">3.2-4.5x</div></div>
         </div>
       </div>
 
@@ -107,29 +108,48 @@
           <table class="grid">
             <thead><tr><th>Brand</th><th>Vertical</th><th>Market-Share Tier</th><th>Channel Mix</th><th>Infrastructure Stack</th><th>Churn Prevention</th></tr></thead>
             <tbody>
-              <tr><td>Blue Bottle</td><td>Premium whole bean</td><td>Tier 1</td><td>SEO · Retail · Email</td><td>Recharge · Klaviyo · Shopify Plus</td><td>Roast-freshness cadence, cafe halo</td></tr>
-              <tr><td>Trade Coffee</td><td>Subscription marketplace</td><td>Tier 1</td><td>Meta · Affiliate · SEO</td><td>Recharge · Klaviyo · Segment</td><td>Quiz-matched roasts, easy swap/skip</td></tr>
-              <tr><td>Onyx Coffee Lab</td><td>Craft roaster</td><td>Tier 2</td><td>Instagram · SEO · Community</td><td>Recharge · Klaviyo</td><td>Craft storytelling, limited drops</td></tr>
-              <tr><td>Four Sigmatic</td><td>Functional / mushroom</td><td>Tier 1</td><td>Meta · TikTok · Affiliate</td><td>Stay AI · Klaviyo · Gorgias</td><td>Ritual-replacement copy, bundle subscribe</td></tr>
-              <tr><td>MUD\Wtr</td><td>Adaptogen alt-coffee</td><td>Tier 1</td><td>Podcast · Meta · Affiliate</td><td>Stay AI · Klaviyo</td><td>Starter-kit onboarding, habit rebrand</td></tr>
-              <tr><td>Ryze</td><td>Mushroom coffee</td><td>Tier 2</td><td>TikTok · Meta · UGC</td><td>Skio · Klaviyo</td><td>Aggressive first-order, subscribe-by-default</td></tr>
-              <tr><td>Vital Proteins</td><td>Collagen / functional</td><td>Tier 1</td><td>Retail · Meta · Influencer</td><td>Recharge · Klaviyo</td><td>Retail ubiquity, routine-anchored SKUs</td></tr>
-              <tr><td>Obvi</td><td>Collagen / wellness</td><td>Tier 2</td><td>Meta · TikTok · Affiliate</td><td>Recharge · Klaviyo · Postscript</td><td>Community + SMS-led winback</td></tr>
-              <tr><td>Cometeer</td><td>Flash-frozen capsules</td><td>Tier 2</td><td>Meta · PR · Affiliate</td><td>Recharge · Klaviyo</td><td>Convenience proof, capsule lock-in</td></tr>
-              <tr><td>Jot</td><td>Ultra-concentrate</td><td>Tier 2</td><td>Meta · TikTok · SEO</td><td>Recharge · Klaviyo</td><td>One-bottle-a-month math, ease messaging</td></tr>
-              <tr><td>Bruvi</td><td>Pod hardware system</td><td>Tier 3</td><td>Meta · Retail · SEO</td><td>Recharge · Klaviyo</td><td>Razor-and-blade pod lock-in</td></tr>
+              <tr><td><a href="/growth-book/brands/blue-bottle.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Blue Bottle</a></td><td>Premium whole bean</td><td>Tier 1</td><td>SEO · Retail · Email</td><td>Recharge · Klaviyo · Shopify Plus</td><td>Roast-freshness cadence, cafe halo</td></tr>
+              <tr><td><a href="/growth-book/brands/trade.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Trade Coffee</a></td><td>Subscription marketplace</td><td>Tier 1</td><td>Meta · Affiliate · SEO</td><td>Recharge · Klaviyo · Segment</td><td>Quiz-matched roasts, easy swap/skip</td></tr>
+              <tr><td><a href="/growth-book/brands/onyx.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Onyx Coffee Lab</a></td><td>Craft roaster</td><td>Tier 2</td><td>Instagram · SEO · Community</td><td>Recharge · Klaviyo</td><td>Craft storytelling, limited drops</td></tr>
+              <tr><td><a href="/growth-book/brands/four-sigmatic.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Four Sigmatic</a></td><td>Functional / mushroom</td><td>Tier 1</td><td>Meta · TikTok · Affiliate</td><td>Stay AI · Klaviyo · Gorgias</td><td>Ritual-replacement copy, bundle subscribe</td></tr>
+              <tr><td><a href="/growth-book/brands/mudwtr.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">MUD\Wtr</a></td><td>Adaptogen alt-coffee</td><td>Tier 1</td><td>Podcast · Meta · Affiliate</td><td>Stay AI · Klaviyo</td><td>Starter-kit onboarding, habit rebrand</td></tr>
+              <tr><td><a href="/growth-book/brands/ryze.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Ryze</a></td><td>Mushroom coffee</td><td>Tier 2</td><td>TikTok · Meta · UGC</td><td>Skio · Klaviyo</td><td>Aggressive first-order, subscribe-by-default</td></tr>
+              <tr><td><a href="/growth-book/brands/vital-proteins.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Vital Proteins</a></td><td>Collagen / functional</td><td>Tier 1</td><td>Retail · Meta · Influencer</td><td>Recharge · Klaviyo</td><td>Retail ubiquity, routine-anchored SKUs</td></tr>
+              <tr><td><a href="/growth-book/brands/obvi.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Obvi</a></td><td>Collagen / wellness</td><td>Tier 2</td><td>Meta · TikTok · Affiliate</td><td>Recharge · Klaviyo · Postscript</td><td>Community + SMS-led winback</td></tr>
+              <tr><td><a href="/growth-book/brands/cometeer.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Cometeer</a></td><td>Flash-frozen capsules</td><td>Tier 2</td><td>Meta · PR · Affiliate</td><td>Recharge · Klaviyo</td><td>Convenience proof, capsule lock-in</td></tr>
+              <tr><td><a href="/growth-book/brands/jot.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Jot</a></td><td>Ultra-concentrate</td><td>Tier 2</td><td>Meta · TikTok · SEO</td><td>Recharge · Klaviyo</td><td>One-bottle-a-month math, ease messaging</td></tr>
+              <tr><td><a href="/growth-book/brands/bruvi.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Bruvi</a></td><td>Pod hardware system</td><td>Tier 3</td><td>Meta · Retail · SEO</td><td>Recharge · Klaviyo</td><td>Razor-and-blade pod lock-in</td></tr>
               <tr style="background:rgba(171,135,67,.1)"><td><b>VAHDAM</b></td><td>Heritage tea + functional coffee</td><td>Challenger</td><td>Meta · TikTok · SEO · Email</td><td>Loop Subs · Klaviyo (Skio-ready) · Supabase</td><td>Single-estate provenance, subscription anchor, refill rhythm</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="text-[12.5px] text-[#9fb0a8] mt-3"><b class="text-vcream">Steal-this:</b> functional players win on ritual-replacement copy + subscribe-first onboarding, not discounts. VAHDAM's moat is single-estate provenance plus a real adaptogen payload — pair ritual storytelling with a subscription anchor and reserve discounts for the discovery cohort only.</p>
+        <p class="text-[12.5px] text-[#9fb0a8] mt-3"><b class="text-vcream">Steal-this:</b> functional players win on ritual-replacement copy + subscribe-first onboarding, not discounts. VAHDAM's moat is single-estate provenance plus a real adaptogen payload, pair ritual storytelling with a subscription anchor and reserve discounts for the discovery cohort only.</p>
+        <div class="kicker mb-2 mt-8">Most Common Strategies, Compared</div>
+        <p class="text-[12.5px] text-[#9fb0a8] mb-3">Which retention and growth plays each brand runs, and where VAHDAM already competes. Open any brand for a full products, offers, pricing and benefits comparison against VAHDAM.</p>
+        <div class="card overflow-x-auto"><table class="grid" style="min-width:1040px;font-size:11.5px"><thead><tr><th>Strategy</th><th>Blue Bottle</th><th>Trade</th><th>Onyx</th><th>Four Sigmatic</th><th>MUD\WTR</th><th>Ryze</th><th>Vital Proteins</th><th>Obvi</th><th>Cometeer</th><th>Jot</th><th>Bruvi</th><th>VAHDAM</th></tr></thead><tbody>
+              <tr><td style="white-space:normal">Subscribe-first default</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td></tr>
+              <tr><td style="white-space:normal">Quiz / personalized onboarding</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#8a978f">&middot;</span></td></tr>
+              <tr><td style="white-space:normal">Starter-kit funnel</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#8a978f">&middot;</span></td></tr>
+              <tr><td style="white-space:normal">Bundle & multi-SKU cross-sell</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td></tr>
+              <tr><td style="white-space:normal">Ritual-replacement narrative</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td></tr>
+              <tr><td style="white-space:normal">Pause-instead-of-cancel</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#8a978f">&middot;</span></td></tr>
+              <tr><td style="white-space:normal">UGC / creator proof</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#8a978f">&middot;</span></td></tr>
+              <tr><td style="white-space:normal">Limited drops / scarcity</td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#8a978f">&middot;</span></td></tr>
+              <tr><td style="white-space:normal">Loyalty / gamification</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#8a978f">&middot;</span></td></tr>
+              <tr><td style="white-space:normal">SMS-led retention</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#8a978f">&middot;</span></td></tr>
+              <tr><td style="white-space:normal">Format / hardware lock-in</td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#8a978f">&middot;</span></td></tr>
+              <tr><td style="white-space:normal">Retail halo / omnichannel</td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#8a978f">&middot;</span></td></tr>
+              <tr><td style="white-space:normal">Provenance / origin proof</td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center"><span style="color:#8a978f">&middot;</span></td><td style="text-align:center;background:rgba(171,135,67,.1)"><span style="color:#4ec07a;font-weight:700">&#10003;</span></td></tr>
+</tbody></table></div>
+        <p class="mt-3"><a class="btn-outline" href="/growth-book/brands/index.html">Open all competitor detail pages &rarr;</a></p>
+
       </div>
 
       <div id="blueprints" class="scroll-mt-6 mt-8">
         <div class="kicker mb-2">Technical Configuration Blueprints</div>
         <div class="grid grid-cols-1 gap-3">
           <details class="blueprint">
-            <summary>schemas/cohort-profile.json — profile payload (JSON Schema, draft 2020-12)</summary>
+            <summary>schemas/cohort-profile.json - profile payload (JSON Schema, draft 2020-12)</summary>
             <pre>{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": ".../schemas/cohort-profile.json",
@@ -211,7 +231,7 @@
 }</pre>
           </details>
           <details class="blueprint">
-            <summary>config/retention-triggers.yaml — churn hooks &amp; segmentation logic (YAML)</summary>
+            <summary>config/retention-triggers.yaml - churn hooks &amp; segmentation logic (YAML)</summary>
             <pre>version: "1.0.0"
 
 defaults:
@@ -292,10 +312,10 @@ triggers:
         <div id="supply" class="card p-5 scroll-mt-6">
           <div class="kicker">Supply-Chain-to-Origin</div>
           <h3 class="text-vcream text-[18px] mt-1 mb-2">Harvest → cup in days, not months</h3>
-          <div class="tick"><span class="dot"></span><div><b>Day 0–2</b> — hand-picked at single-estate gardens (Darjeeling, Assam, Nilgiri).</div></div>
-          <div class="tick"><span class="dot"></span><div><b>Day 2–5</b> — processed &amp; graded at origin factories, no long warehousing.</div></div>
-          <div class="tick"><span class="dot"></span><div><b>Day 5–15</b> — sealed garden-fresh, shipped direct to regional fulfilment.</div></div>
-          <div class="tick" style="border:0"><span class="dot"></span><div><b>Freshness claim</b> — reaches the cup materially fresher than supermarket blends.</div></div>
+          <div class="tick"><span class="dot"></span><div><b>Day 0-2</b> - hand-picked at single-estate gardens (Darjeeling, Assam, Nilgiri).</div></div>
+          <div class="tick"><span class="dot"></span><div><b>Day 2-5</b> - processed &amp; graded at origin factories, no long warehousing.</div></div>
+          <div class="tick"><span class="dot"></span><div><b>Day 5-15</b> - sealed garden-fresh, shipped direct to regional fulfilment.</div></div>
+          <div class="tick" style="border:0"><span class="dot"></span><div><b>Freshness claim</b> - reaches the cup materially fresher than supermarket blends.</div></div>
         </div>
         <div id="verify" class="card p-5 scroll-mt-6">
           <div class="kicker">Ingredient Source Verification</div>
@@ -304,7 +324,7 @@ triggers:
             <li>Single-estate provenance recorded per SKU (garden, elevation, flush).</li>
             <li>Ashwagandha standardised to KSM-66® for the functional payload.</li>
             <li>Ethical / B-Corp-minded sourcing; plastic-conscious packaging.</li>
-            <li>Non-medical benefit framing only — no health claims in copy.</li>
+            <li>Non-medical benefit framing only - no health claims in copy.</li>
           </ul>
         </div>
         <div id="crosssell" class="card p-5 scroll-mt-6">
@@ -336,31 +356,41 @@ triggers:
       <div id="intraday" class="scroll-mt-6">
         <div class="kicker mb-2">Intraday Pace Tracking · Hour-over-Hour</div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="card p-5"><div class="kicker">Net revenue (this hour)</div><div class="live-num mt-1" id="rtRev">—</div><div class="text-[12px] mt-1" id="rtRevD"></div></div>
-          <div class="card p-5"><div class="kicker">Unit order velocity</div><div class="live-num mt-1" id="rtVel">—</div><div class="text-[12px] mt-1" id="rtVelD"></div></div>
-          <div class="card p-5"><div class="kicker">Net new subscriptions</div><div class="live-num mt-1" id="rtSub">—</div><div class="text-[12px] mt-1" id="rtSubD"></div></div>
+          <div class="card p-5"><div class="kicker">Net revenue (this hour)</div><div class="live-num mt-1" id="rtRev">-</div><div class="text-[12px] mt-1" id="rtRevD"></div></div>
+          <div class="card p-5"><div class="kicker">Unit order velocity</div><div class="live-num mt-1" id="rtVel">-</div><div class="text-[12px] mt-1" id="rtVelD"></div></div>
+          <div class="card p-5"><div class="kicker">Net new subscriptions</div><div class="live-num mt-1" id="rtSub">-</div><div class="text-[12px] mt-1" id="rtSubD"></div></div>
         </div>
         <div class="card p-4 mt-4"><div class="kicker mb-2">Hourly revenue trace</div><div id="rtChart"></div></div>
       </div>
 
-      <div id="predictive" class="scroll-mt-6 mt-8">
-        <div class="kicker mb-2">Midday Predictive Performance Models</div>
+            <div id="predictive" class="scroll-mt-6 mt-8">
+        <div class="kicker mb-2">Revenue Projection · Single Source</div>
+        <p class="text-[12.5px] text-[#9fb0a8] mb-3">The one place revenue is projected. Enter what is booked so far today and the current hour; the tool estimates the day-end settlement from today's ongoing pace, then extends it across the horizon you choose, grounded in the trailing daily run-rate from the live market exports.</p>
         <div class="card p-5">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <label class="text-[12px] text-[#c9d4cd]">Revenue booked so far (midday)
-              <input type="text" id="pRev" value="612480" class="w-full mt-1"></label>
-            <label class="text-[12px] text-[#c9d4cd]">Hour of day (0–23)
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <label class="text-[12px] text-[#c9d4cd]">Revenue booked so far today ($)
+              <input type="text" id="pRev" value="18400" class="w-full mt-1"></label>
+            <label class="text-[12px] text-[#c9d4cd]">Hour of day (1 to 23)
               <input type="text" id="pHour" value="12" class="w-full mt-1"></label>
-            <label class="text-[12px] text-[#c9d4cd]">Spend so far ($)
-              <input type="text" id="pSpend" value="41200" class="w-full mt-1"></label>
+            <label class="text-[12px] text-[#c9d4cd]">Market
+              <select id="pMarket" class="w-full mt-1"><option>US</option><option>UK</option></select></label>
+            <label class="text-[12px] text-[#c9d4cd]">Projection horizon
+              <select id="pHorizon" class="w-full mt-1">
+                <option value="1">End of day</option>
+                <option value="7">This week (7 days)</option>
+                <option value="14">Two weeks</option>
+                <option value="30">One month</option>
+                <option value="60">Two months</option>
+                <option value="90">Three months</option>
+              </select></label>
           </div>
-          <button class="btn-primary mt-4" id="pRun">Run midnight settlement estimate</button>
+          <button class="btn-primary mt-4" id="pRun">Project revenue</button>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
-            <div><div class="kicker">Gross daily revenue (est.)</div><div class="metric-lg mt-1" id="pOutRev">—</div><div class="text-[11px] text-[#9fb0a8]" id="pOutBand"></div></div>
-            <div><div class="kicker">Blended CAC threshold</div><div class="metric-lg mt-1" id="pOutCac">—</div></div>
-            <div><div class="kicker">Active churn variance</div><div class="metric-lg mt-1" id="pOutChurn">—</div></div>
+            <div><div class="kicker">Projected revenue (<span id="pHzLabel">end of day</span>)</div><div class="metric-lg mt-1" id="pOutRev">-</div><div class="text-[11px] text-[#9fb0a8]" id="pOutBand"></div></div>
+            <div><div class="kicker">Day-end settlement (today)</div><div class="metric-lg mt-1" id="pOutDay">-</div><div class="text-[11px] text-[#9fb0a8]" id="pOutDayNote"></div></div>
+            <div><div class="kicker">Trailing daily run-rate</div><div class="metric-lg mt-1" id="pOutRate">-</div><div class="text-[11px] text-[#9fb0a8]">from market exports</div></div>
           </div>
-          <p class="text-[11px] text-[#9fb0a8] mt-3">Model: intraday pace curve extrapolated to a midnight settlement boundary with a ±band from historical hour-of-day weightings.</p>
+          <p class="text-[11px] text-[#9fb0a8] mt-3">Method: day-end equals today booked divided by the hour-of-day cumulative share. Longer horizons add the trailing average daily revenue for each remaining day, with a band that widens over the horizon. Planning estimate, validate against live data before committing spend.</p>
         </div>
       </div>
     </section>
@@ -390,7 +420,7 @@ triggers:
             </select></label>
         </div>
         <button class="btn-gold mt-4" id="wsGen">Generate copy-pasteable asset source</button>
-        <textarea class="code-out mt-4" id="wsOut" spellcheck="false" placeholder="Generated asset source appears here — fully editable."></textarea>
+        <textarea class="code-out mt-4" id="wsOut" spellcheck="false" placeholder="Generated asset source appears here - fully editable."></textarea>
       </div>
     </section>
 
@@ -416,10 +446,10 @@ triggers:
 (function(){
   // ── Avatars ──
   var AV=[
-    {c:'Cohort 001 · Third-Wave Purists', tag:'Status · provenance', inc:'HHI $95K–$175K', roast:'Single-origin light/medium, hand-brew rituals', map:'RFM Promising/Need-Attention · Gift Buyers'},
-    {c:'Cohort 002 · Functional Optimizers', tag:'Functionality', inc:'HHI $95K–$160K', roast:'Adaptogen coffee (Ashwagandha), medium roast', map:'RFM Champions/Loyal · Wellness Seekers'},
-    {c:'Cohort 003 · Biohacking Performers', tag:'Discovery · performance', inc:'HHI $65K–$130K', roast:'Functional + nootropic stacks, dark/bold', map:'RFM New/About-to-Sleep · Discount Responsive'},
-    {c:'Cohort 004 · Routine Convenience', tag:'Routine', inc:'HHI $80K–$140K', roast:'Everyday chai/black, subscription refills', map:'RFM Loyal/Can-not-Lose-Them · VIP Ritualists'},
+    {c:'Cohort 001 · Third-Wave Purists', tag:'Status · provenance', inc:'HHI $95K-$175K', roast:'Single-origin light/medium, hand-brew rituals', map:'RFM Promising/Need-Attention · Gift Buyers'},
+    {c:'Cohort 002 · Functional Optimizers', tag:'Functionality', inc:'HHI $95K-$160K', roast:'Adaptogen coffee (Ashwagandha), medium roast', map:'RFM Champions/Loyal · Wellness Seekers'},
+    {c:'Cohort 003 · Biohacking Performers', tag:'Discovery · performance', inc:'HHI $65K-$130K', roast:'Functional + nootropic stacks, dark/bold', map:'RFM New/About-to-Sleep · Discount Responsive'},
+    {c:'Cohort 004 · Routine Convenience', tag:'Routine', inc:'HHI $80K-$140K', roast:'Everyday chai/black, subscription refills', map:'RFM Loyal/Can-not-Lose-Them · VIP Ritualists'},
   ];
   document.getElementById('avatarGrid').innerHTML=AV.map(function(a){return '<div class="card p-5"><div class="flex items-center justify-between"><span class="font-head text-vcream text-[18px] font-bold">'+a.c+'</span><span class="pill">'+a.tag+'</span></div><div class="mt-3 text-[13px] text-[#e6ece8]"><div><b class="text-vcream">Income:</b> '+a.inc+'</div><div class="mt-1"><b class="text-vcream">Roast preference:</b> '+a.roast+'</div><div class="mt-1"><b class="text-vcream">Maps to:</b> '+a.map+'</div></div></div>';}).join('');
 
@@ -452,23 +482,37 @@ triggers:
     document.getElementById('rtChart').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><path d="'+dd+'" fill="none" stroke="#004A2B" stroke-width="2.4"/><path d="'+dd+' L'+pts[pts.length-1][0].toFixed(1)+' '+(H-pad)+' L'+pad+' '+(H-pad)+' Z" fill="#AB8743" opacity="0.14"/></svg>';
   })();
 
-  // ── Midday predictive ──
-  document.getElementById('pRun').addEventListener('click', function(){
-    var rev=parseFloat(document.getElementById('pRev').value)||0;
+  // -- Revenue projection (single source: day-end from today's pace, extended across horizons) --
+  var A=(window.VAHDAM_ANALYTICS)||{markets:{}};
+  function avgDailyRevenue(mk){
+    var m=A.markets&&A.markets[mk]; if(!m||!m.monthly||!m.monthly.length) return mk==='UK'?22000:31000;
+    var last=m.monthly.slice(-3); var sales=0; last.forEach(function(x){sales+=(+x.sales||0);});
+    return sales/(last.length*30.4);
+  }
+  var HZ={1:'end of day',7:'this week',14:'two weeks',30:'one month',60:'two months',90:'three months'};
+  function project(){
+    var rev=parseFloat((document.getElementById('pRev').value||'').replace(/[^0-9.]/g,''))||0;
     var hr=Math.min(23,Math.max(1,parseFloat(document.getElementById('pHour').value)||12));
-    var spend=parseFloat(document.getElementById('pSpend').value)||0;
-    // hour-of-day cumulative share (share of day's revenue booked by end of hour hr)
+    var mk=document.getElementById('pMarket').value||'US';
+    var days=parseInt(document.getElementById('pHorizon').value,10)||1;
     var share=[0,.01,.02,.03,.04,.05,.07,.11,.17,.25,.34,.44,.53,.61,.68,.74,.80,.85,.90,.94,.97,.99,.995,1];
     var s=share[Math.round(hr)]||0.53; if(s<=0) s=0.5;
-    var est=rev/s;
-    var lo=est*0.92, hi=est*1.09;
-    var orders=Math.round(est/51.1); var cac=spend? (spend/Math.max(1,Math.round(orders*0.34))):0;
-    document.getElementById('pOutRev').textContent=money(est);
-    document.getElementById('pOutBand').textContent='±band '+money(lo)+' – '+money(hi);
-    document.getElementById('pOutCac').textContent=cac?money(cac):'—';
-    document.getElementById('pOutChurn').textContent=(2.1+(hr>15?0.6:0)).toFixed(1)+'%';
-  });
-  document.getElementById('pRun').click();
+    var dayEnd=rev/s;
+    var rate=avgDailyRevenue(mk);
+    var total=days<=1 ? dayEnd : dayEnd + rate*(days-1);
+    var bandPct=0.06+0.015*Math.sqrt(days);
+    var lo=total*(1-bandPct), hi=total*(1+bandPct);
+    document.getElementById('pHzLabel').textContent=HZ[days]||(days+' days');
+    document.getElementById('pOutRev').textContent=money(total);
+    document.getElementById('pOutBand').textContent='band '+money(lo)+' to '+money(hi);
+    document.getElementById('pOutDay').textContent=money(dayEnd);
+    document.getElementById('pOutDayNote').textContent=(s*100).toFixed(0)+'% of day booked by hour '+Math.round(hr);
+    document.getElementById('pOutRate').textContent=money(rate)+' / day';
+  }
+  document.getElementById('pRun').addEventListener('click', project);
+  document.getElementById('pHorizon').addEventListener('change', project);
+  document.getElementById('pMarket').addEventListener('change', project);
+  project();
 
   // ── Content automation generator ──
   function assetSource(avatar, format, market){
@@ -506,7 +550,7 @@ triggers:
     if(!u){ s.innerHTML='<span class="down">Paste a cdn.shopify.com URL first.</span>'; return; }
     if(!/cdn\.shopify\.com/i.test(u)){ s.innerHTML='<span class="down">That does not look like a cdn.shopify.com asset URL.</span>'; return; }
     try{ localStorage.setItem('vahdam-cdn-activation-asset', u); }catch(e){}
-    s.innerHTML='<span style="color:#4ec07a;font-weight:700">✓ Bound.</span> Activation asset synced locally — the generated creative now points at <code style="font-size:11px">'+u.replace(/</g,'&lt;')+'</code>';
+    s.innerHTML='<span style="color:#4ec07a;font-weight:700">✓ Bound.</span> Activation asset synced locally - the generated creative now points at <code style="font-size:11px">'+u.replace(/</g,'&lt;')+'</code>';
   });
 })();
 </script>
