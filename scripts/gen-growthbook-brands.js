@@ -343,18 +343,6 @@ BRANDS.forEach(function (b) { fs.writeFileSync(path.join(OUT, b.slug + ".html"),
 fs.writeFileSync(path.join(OUT, "index.html"), buildIndex());
 console.log("wrote brands/index.html");
 
-/* emit the "most common strategies" matrix HTML for injection into research.html */
-function matrix() {
-  const head = "<tr><th>Strategy</th>" + BRANDS.map(function (b) { return "<th>" + b.name.replace("Coffee", "").replace(" Lab", "").trim() + "</th>"; }).join("") + "<th>VAHDAM</th></tr>";
-  const vahStrat = ["Subscribe-first default", "Ritual-replacement narrative", "Provenance / origin proof", "Bundle & multi-SKU cross-sell"];
-  const rows = STRATEGIES.map(function (s) {
-    const cells = BRANDS.map(function (b) { return "<td style=\"text-align:center\">" + (b.strategies.indexOf(s) > -1 ? "<span style=\"color:#4ec07a;font-weight:700\">&#10003;</span>" : "<span style=\"color:#8a978f\">&middot;</span>") + "</td>"; }).join("");
-    const v = vahStrat.indexOf(s) > -1 ? "<td style=\"text-align:center;background:rgba(171,135,67,.1)\"><span style=\"color:#4ec07a;font-weight:700\">&#10003;</span></td>" : "<td style=\"text-align:center;background:rgba(171,135,67,.1)\"><span style=\"color:#8a978f\">&middot;</span></td>";
-    return "<tr><td style=\"white-space:normal\">" + s + "</td>" + cells + v + "</tr>";
-  }).join("\n              ");
-  fs.writeFileSync(path.join(__dirname, "..", "growth-book", "brands", "_matrix.html"),
-    '<div class="card overflow-x-auto"><table class="grid" style="min-width:1040px;font-size:11.5px"><thead>' + head + '</thead><tbody>\n              ' + rows + '\n</tbody></table></div>');
-  console.log("wrote brands/_matrix.html (for research.html injection)");
-}
-matrix();
-console.log("\nDone. " + (BRANDS.length + 1) + " detail pages + strategy matrix.");
+// Note: the "most common strategies" matrix is already baked into research.html;
+// no separate _matrix.html fragment is emitted (it would be a stray served file).
+console.log("\nDone. " + (BRANDS.length + 1) + " detail pages.");
