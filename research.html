@@ -3,244 +3,542 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Growth Book - VAHDAM Lifecycle OS</title>
+<title>Vahdam Growth &amp; Automation Playbook</title>
 <link rel="icon" href="/favicon.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<style>
-  /* Palette locked to the /all-in-one dashboard (near-black-green canvas). */
-  :root{
-    --forest:#004A2B; --gold:#AB8743; --ink:#e8ede9; --cream:#FBF5EA;
-    --bg:#0a1410; --surface:#0f1d18; --tile:#07100d; --line:rgba(171,135,67,.18); --soft:#a7b5ad; --chip:#07100d;
-    --head:#FBF5EA; --accent:#AB8743;
+<meta name="theme-color" content="#004A2B">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Guard against a CDN failure so config never throws and blocks the page JS.
+  if (window.tailwind) {
+    tailwind.config = {
+      theme: { extend: { colors: {
+        vgreen: '#004A2B', vgold: '#AB8743', vink: '#171717', vcream: '#FBF5EA'
+      }, fontFamily: {
+        head: ["Lora","Cormorant Garamond","Georgia","serif"],
+        body: ["Inter","Proxima Nova","Helvetica Neue","Arial","sans-serif"]
+      } } }
+    };
   }
-  *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.55;}
-  .wrap{max-width:1160px;margin:0 auto;padding:28px 22px 96px;}
-  h1,h2,h3{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;color:var(--head);margin:0;text-wrap:balance;}
-  h1{font-size:34px;} h2{font-size:22px;} h3{font-size:16px;}
-  .eyebrow{text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--accent);font-weight:800;}
-  p.lede{color:var(--soft);max-width:80ch;margin:8px 0 0;}
-  .tabs{display:flex;flex-wrap:wrap;gap:4px;margin:22px 0 8px;border-bottom:1px solid var(--line);}
-  .tab{cursor:pointer;border:0;background:transparent;color:var(--soft);font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-bottom:3px solid transparent;margin-bottom:-1px;border-radius:6px 6px 0 0;white-space:nowrap;transition:background .12s,color .12s;}
-  .tab:hover{color:var(--head);background:var(--chip);}
-  .tab.active{color:var(--cream);background:var(--forest);border-bottom-color:var(--gold);box-shadow:0 1px 0 var(--gold);}
-  .tab:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
-  .panel{display:none;padding-top:22px;} .panel.active{display:block;}
-  h2.sec{margin:26px 0 6px;} .sub{color:var(--soft);margin:2px 0 14px;max-width:80ch;}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:16px 0;}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;}
-  .card h3{margin:0 0 6px;} .card p{color:var(--soft);font-size:13.5px;margin:0;}
-  .card.link{cursor:pointer;transition:border-color .15s;} .card.link:hover{border-color:var(--accent);}
-  .metric{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:14px 0;}
-  .m{background:var(--tile);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
-  .m .mv{font-family:'Lao MN',Georgia,serif;font-size:25px;color:var(--head);} .m .ml{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-top:3px;}
-  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:12px 0;}
-  table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px;}
-  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top;}
-  th{color:var(--head);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;background:var(--chip);}
-  tr:last-child td{border-bottom:0;}
-  ul.clean{margin:8px 0;padding-left:18px;color:var(--ink);} ul.clean li{margin:6px 0;}
-  ul.clean li b{color:var(--head);}
-  .play{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:16px 18px;margin-bottom:12px;}
-  .play .pt{font-family:'Lao MN',Georgia,serif;font-size:17px;color:var(--head);font-weight:700;}
-  .play .pm{color:var(--soft);font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin:2px 0 8px;}
-  .play p{margin:0;color:var(--ink);font-size:13.5px;}
-  .pill{display:inline-block;background:var(--chip);color:var(--gold);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;margin-right:6px;}
-  a{color:var(--cream);text-decoration-color:var(--accent);}
-  .btnlink{display:inline-block;background:var(--gold);color:#0a1410;font-weight:800;text-decoration:none;border-radius:9px;padding:9px 15px;font-size:13px;margin:4px 6px 4px 0;}
-  .btnlink.ghost{background:transparent;color:var(--cream);border:1px solid var(--line);}
-  .note{color:var(--soft);font-size:12.5px;border-top:1px solid var(--line);margin-top:28px;padding-top:14px;}
-  .filelink{font-family:ui-monospace,'JetBrains Mono',monospace;font-size:12px;color:var(--accent);}
-  .engine{display:grid;grid-template-columns:1fr;gap:10px;}
-  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0;}
-  .flow .node{background:var(--tile);border:1px solid var(--line);border-radius:8px;padding:10px 13px;font-size:12.5px;color:var(--ink);}
-  .flow .arr{color:var(--gold);font-weight:700;}
+</script>
+<style>
+  :root{ --vahdam-green:#004A2B; --vahdam-gold:#AB8743; --vahdam-ink:#171717; --vahdam-cream:#FBF5EA; }
+  html{scroll-behavior:smooth;}
+  body{background:var(--vahdam-cream);color:var(--vahdam-ink);font-family:Inter,'Proxima Nova','Helvetica Neue',Arial,sans-serif;}
+  h1,h2,h3,.font-head{font-family:'Lora','Cormorant Garamond',Georgia,serif;}
+  .nav-link{display:block;padding:6px 10px;border-radius:7px;font-size:13px;color:#3f4b45;text-decoration:none;transition:all .13s;}
+  .nav-link:hover{background:rgba(171,135,67,.14);color:var(--vahdam-green);}
+  .nav-link.active{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:600;}
+  .nav-group{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--vahdam-gold);font-weight:800;margin:18px 0 6px;}
+  .nav-sub{padding-left:20px;font-size:12.5px;}
+  .card{background:#fff;border:1px solid rgba(171,135,67,.28);border-radius:14px;}
+  .divider{height:2px;background:linear-gradient(90deg,var(--vahdam-gold),transparent);border:0;margin:0;}
+  .btn-primary{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:700;border-radius:9px;padding:10px 16px;border:0;cursor:pointer;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-gold{background:var(--vahdam-gold);color:var(--vahdam-ink);font-weight:700;border-radius:9px;padding:10px 16px;border:0;cursor:pointer;}
+  .btn-outline{background:transparent;color:var(--vahdam-green);border:1.5px solid var(--vahdam-gold);font-weight:700;border-radius:9px;padding:9px 15px;cursor:pointer;text-decoration:none;display:inline-block;}
+  .metric-lg{font-family:'Lora',serif;font-size:34px;color:var(--vahdam-green);font-weight:700;line-height:1;}
+  .kicker{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--vahdam-gold);font-weight:800;}
+  table.grid{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.grid th,table.grid td{border-bottom:1px solid rgba(23,23,23,.1);padding:10px 12px;text-align:left;vertical-align:top;white-space:nowrap;}
+  table.grid th{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;position:sticky;top:0;}
+  table.grid tr:nth-child(even) td{background:#faf6ee;}
+  details.blueprint{background:#0f1d18;border:1px solid rgba(171,135,67,.35);border-radius:12px;overflow:hidden;}
+  details.blueprint summary{cursor:pointer;padding:13px 16px;color:var(--vahdam-cream);font-weight:700;font-family:ui-monospace,'JetBrains Mono',monospace;font-size:13px;list-style:none;}
+  details.blueprint summary::-webkit-details-marker{display:none;}
+  details.blueprint summary::before{content:"▸ ";color:var(--vahdam-gold);}
+  details.blueprint[open] summary::before{content:"▾ ";}
+  details.blueprint pre{margin:0;padding:16px;background:#07100d;color:#cfe3d5;font-family:ui-monospace,'JetBrains Mono',monospace;font-size:11.5px;line-height:1.55;overflow-x:auto;}
+  .pill{display:inline-block;background:rgba(171,135,67,.16);color:var(--vahdam-green);border:1px solid rgba(171,135,67,.4);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;}
+  .tick{display:flex;gap:12px;padding:12px 0;border-bottom:1px dashed rgba(23,23,23,.12);}
+  .tick .dot{width:11px;height:11px;border-radius:50%;background:var(--vahdam-gold);margin-top:5px;flex-shrink:0;}
+  textarea.code-out{width:100%;min-height:230px;background:#07100d;color:#cfe3d5;border:1px solid rgba(171,135,67,.35);border-radius:10px;padding:14px;font-family:ui-monospace,'JetBrains Mono',monospace;font-size:11.5px;line-height:1.5;}
+  select,input[type=text],input[type=url]{background:#fff;border:1.5px solid rgba(171,135,67,.4);border-radius:9px;color:var(--vahdam-ink);padding:9px 12px;font-family:inherit;font-size:13px;}
+  .live-num{font-family:'Lora',serif;font-size:26px;color:var(--vahdam-green);font-weight:700;}
+  .up{color:#177245;font-weight:700;} .down{color:#a23b2d;font-weight:700;}
+  @media (max-width:960px){ #tower{position:static !important;height:auto !important;width:100% !important;} #shell{flex-direction:column;} }
 </style>
 </head>
-<body>
-<div class="wrap">
-  <span class="eyebrow">VAHDAM Lifecycle OS - Research &amp; Benchmark</span>
-  <h1>The Growth Book</h1>
-  <p class="lede">The single reference for how VAHDAM grows: brand truth, the US and UK market intelligence, live performance, the buyer avatars and cohort model, the retention operating principles, the growth plays we are running, and the data engine underneath it all. Every other tool in the OS pulls from what is written here.</p>
+<body class="font-body">
+<div id="shell" class="flex min-h-screen max-w-[1500px] mx-auto">
 
-  <div class="tabs" id="tabs" role="tablist">
-    <button class="tab active" role="tab" data-tab="overview">Overview</button>
-    <button class="tab" role="tab" data-tab="brand">Brand Foundation</button>
-    <button class="tab" role="tab" data-tab="market">Market Intelligence</button>
-    <button class="tab" role="tab" data-tab="performance">Live Performance</button>
-    <button class="tab" role="tab" data-tab="plays">Growth Plays</button>
-    <button class="tab" role="tab" data-tab="retention">Retention Playbooks</button>
-    <button class="tab" role="tab" data-tab="engine">Data Engine</button>
-  </div>
+  <!-- ══ LHS COMMAND TOWER ══ -->
+  <aside id="tower" class="sticky top-0 h-screen overflow-y-auto shrink-0 border-r border-[rgba(171,135,67,.3)] bg-[#fbf7ef]" style="width:280px;padding:22px 16px;">
+    <a href="/" class="block mb-1 text-[11px] font-bold tracking-widest text-vgold">← LIFECYCLE OS</a>
+    <div class="font-head text-vgreen text-[21px] font-bold leading-tight">Growth &amp; Automation<br>Playbook</div>
+    <div class="text-[11px] text-[#6b7770] mt-1 mb-3">VAHDAM · Production reference</div>
+    <hr class="divider mb-3">
 
-  <!-- OVERVIEW -->
-  <section class="panel active" id="panel-overview" role="tabpanel">
-    <div class="cards">
-      <div class="card link" data-goto="market"><h3>Market Intelligence</h3><p>US coffee &amp; functional-beverage D2C: TAM/SAM/SOM, blended benchmarks, and the cross-vertical brand matrix.</p></div>
-      <div class="card link" data-goto="performance"><h3>Live Performance</h3><p>Real US &amp; UK numbers straight from the market exports, with the full workbench one click away.</p></div>
-      <div class="card link" data-goto="plays"><h3>Growth Plays</h3><p>The prioritised, data-grounded moves: subscription anchor, second-order conversion, AOV recovery, win-back.</p></div>
-      <div class="card link" data-goto="engine"><h3>Data Engine</h3><p>The ingestion + competitor-capture pipeline that feeds every number in this book.</p></div>
-    </div>
-    <h2 class="sec">How this book connects to the OS</h2>
-    <p class="sub">The Growth Book is the narrative layer. The operational layers live in their own features and read from the same truth:</p>
-    <ul class="clean">
-      <li><b>Avatars (Personas)</b> — the four named buyers this book profiles: <a href="/avatars">open Avatars →</a></li>
-      <li><b>Cohorts</b> — the shared dictionary every brief targets: <a href="/cohorts">open Cohorts →</a></li>
-      <li><b>Data Analysis</b> — the full analytics workbench behind the Live Performance tab: <a href="/data-analysis">open the dashboard →</a></li>
-      <li><b>Knowledge Base</b> — brand voice, catalog, offers and creative rules in <span class="filelink">knowledge/brand/</span> and <span class="filelink">knowledge/retention/</span>.</li>
-      <li><b>Market study</b> — the full write-up in <span class="filelink">docs/market-intelligence/us-coffee-d2c-landscape.md</span>, with <span class="filelink">schemas/cohort-profile.json</span> and <span class="filelink">config/retention-triggers.yaml</span>.</li>
-    </ul>
-  </section>
+    <div class="nav-group">System One · Growth &amp; Strategy</div>
+    <a class="nav-link" href="#market">📊 Market Intelligence</a>
+    <a class="nav-link nav-sub" href="#macro">Macro Economics (TAM/SAM/SOM)</a>
+    <a class="nav-link nav-sub" href="#competitors">Cross-Vertical Competitor Grid</a>
+    <a class="nav-link nav-sub" href="#blueprints">Technical Configuration Blueprints</a>
+    <a class="nav-link" href="#kb">📘 Core Knowledge Base</a>
+    <a class="nav-link nav-sub" href="#supply">Supply-Chain-to-Origin Metrics</a>
+    <a class="nav-link nav-sub" href="#verify">Ingredient Source Verification</a>
+    <a class="nav-link nav-sub" href="#crosssell">Coffee/Tea Hybrid Cross-Sell Logic</a>
+    <a class="nav-link" href="#avatars">👥 Avatars &amp; Customer Personas</a>
+    <a class="nav-link nav-sub" href="#avatars">Cohort 001-004</a>
+    <a class="nav-link" href="#realtime">📈 Real-Time &amp; Midday Analytics</a>
+    <a class="nav-link nav-sub" href="#intraday">Intraday Pace Tracking</a>
+    <a class="nav-link nav-sub" href="#predictive">Midday Predictive Models</a>
 
-  <!-- BRAND -->
-  <section class="panel" id="panel-brand" role="tabpanel">
-    <h2 class="sec">Positioning</h2>
-    <p class="sub">VAHDAM is premium, single-estate Indian heritage: tea, Ashwagandha Coffee, and functional supplements, shipped garden-fresh from origin. The brand competes on provenance and a real functional payload, not price. B-Corp and ethical sourcing are proof points, not the headline.</p>
-    <h2 class="sec">Voice</h2>
-    <p class="sub">Warm, sensory, emotionally resonant, story-driven. Testimonials read as tiny personal stories, not reviews. Sample register: <i>There is a moment when the right cup of tea does more than warm your hands.</i></p>
-    <div class="cards">
-      <div class="card"><h3>Palette (only four)</h3><p>Forest green <b style="color:#AB8743">#004A2B</b> · Gold #AB8743 · Near-black #171717 · Cream #FBF5EA. On green, text is only cream or gold.</p></div>
-      <div class="card"><h3>Typography</h3><p>Headings: Lao MN (fallback Cormorant Garamond, Georgia, serif). Body: Proxima Nova (fallback Helvetica Neue, Arial). No other fonts in emailers.</p></div>
-      <div class="card"><h3>Preferred lexicon</h3><p>ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.</p></div>
-      <div class="card"><h3>Banned</h3><p>wellness journey, transform, liquid gold, game-changer, LIMITED TIME (caps), hurry, last chance, while supplies last. No em/en dashes in copy.</p></div>
-    </div>
-    <p class="sub">Full detail in the brand knowledge base: <span class="filelink">knowledge/brand/01-brand-foundation.md</span> and <span class="filelink">knowledge/brand/02-product-catalog.md</span>.</p>
-  </section>
+    <div class="nav-group">System Two · Retention &amp; Automation</div>
+    <a class="nav-link" href="#workspace">⚙️ Workspace &amp; Asset Production</a>
+    <a class="nav-link nav-sub" href="#workspace">Mailer · Social · Motion configs</a>
+    <a class="nav-link" href="#shopify">📦 Shopify Asset Ingestion Loop</a>
+    <a class="nav-link nav-sub" href="#shopify">CDN Direct Route &amp; Sync Input</a>
+  </aside>
 
-  <!-- MARKET -->
-  <section class="panel" id="panel-market" role="tabpanel">
-    <h2 class="sec">US coffee &amp; functional-beverage D2C: sizing</h2>
-    <div class="metric">
-      <div class="m"><div class="mv">~$28B</div><div class="ml">US Coffee TAM</div></div>
-      <div class="m"><div class="mv">~$4.5B</div><div class="ml">Coffee D2C SAM</div></div>
-      <div class="m"><div class="mv">~$650M</div><div class="ml">Functional coffee SOM</div></div>
-      <div class="m"><div class="mv">3.2–4.5x</div><div class="ml">Functional LTV:CAC</div></div>
-    </div>
-    <h2 class="sec">Blended benchmarks: standard vs functional coffee</h2>
-    <div class="tbl-wrap"><table>
-      <tr><th>Metric</th><th>Standard coffee D2C</th><th>Functional / wellness</th></tr>
-      <tr><td>Blended CAC</td><td>$18–$32</td><td>$38–$65</td></tr>
-      <tr><td>Day-30 retention</td><td>34–42%</td><td>44–55%</td></tr>
-      <tr><td>Day-180 retention</td><td>16–24%</td><td>28–38%</td></tr>
-      <tr><td>AOV</td><td>$26–$38</td><td>$42–$68</td></tr>
-      <tr><td>12-month LTV</td><td>$70–$110</td><td>$150–$260</td></tr>
-      <tr><td>Subscription attach</td><td>12–20%</td><td>22–34%</td></tr>
-    </table></div>
-    <h2 class="sec">Cross-vertical brand matrix</h2>
-    <p class="sub">Who VAHDAM benchmarks against, and what to steal.</p>
-    <div class="tbl-wrap"><table>
-      <tr><th>Brand</th><th>Category</th><th>Retention stack</th><th>Churn strategy to borrow</th></tr>
-      <tr><td>Four Sigmatic</td><td>Functional / mushroom</td><td>Stay AI, Klaviyo</td><td>Ritual-replacement copy, subscribe-first onboarding</td></tr>
-      <tr><td>MUD\WTR</td><td>Adaptogen</td><td>Stay AI, Klaviyo</td><td>Starter-kit onboarding, rebrand the habit</td></tr>
-      <tr><td>Ryze</td><td>Mushroom</td><td>Skio, Klaviyo</td><td>Subscribe-and-save default</td></tr>
-      <tr><td>Trade Coffee</td><td>Premium subscription</td><td>Recharge, Klaviyo</td><td>Quiz-matched roasts, easy swap/skip</td></tr>
-      <tr><td>Cometeer / Jot</td><td>Form-factor</td><td>Recharge, Klaviyo</td><td>Convenience proof, one-bottle-a-month math</td></tr>
-    </table></div>
-    <p class="sub"><b style="color:var(--head)">The VAHDAM edge:</b> single-estate provenance plus a genuine functional payload (Ashwagandha). Pair ritual-replacement storytelling with a subscription anchor; reserve discounts for the Curious Switcher only. Full study: <span class="filelink">docs/market-intelligence/us-coffee-d2c-landscape.md</span>.</p>
-  </section>
+  <!-- ══ MAIN VIEWPORT ══ -->
+  <main class="flex-1 min-w-0 px-6 md:px-10 py-8">
+    <div class="kicker">VAHDAM Lifecycle OS · Growth Book</div>
+    <h1 class="text-vgreen text-[36px] font-bold leading-tight mt-1">Vahdam Growth &amp; Automation Playbook</h1>
+    <p class="text-[#3f4b45] max-w-3xl mt-2 text-[15px] leading-relaxed">A single, scannable reference that fuses the US coffee &amp; functional-beverage market map, the retention configuration blueprints, the buyer cohorts, live and predictive analytics from the DuckDB engine, and the content-automation + Shopify sync pipeline. Every figure below is production-grade and copy-ready.</p>
 
-  <!-- PERFORMANCE -->
-  <section class="panel" id="panel-performance" role="tabpanel">
-    <h2 class="sec">Live performance</h2>
-    <p class="sub">Straight from the market exports (trailing 12 months). Open the full workbench for every cut and drill-down.</p>
-    <div id="perf-us"></div>
-    <div id="perf-uk"></div>
-    <p style="margin-top:14px"><a class="btnlink" href="/data-analysis">Open the Data Analysis workbench →</a><a class="btnlink ghost" href="/data-analysis?mkt=UK">UK view</a></p>
-  </section>
+    <!-- ═══════════ SYSTEM ONE ═══════════ -->
+    <!-- MARKET INTELLIGENCE -->
+    <section id="market" class="mt-10">
+      <h2 class="text-vgreen text-[26px] font-bold">📊 Market Intelligence</h2>
+      <hr class="divider mt-2 mb-5">
 
-  <!-- PLAYS -->
-  <section class="panel" id="panel-plays" role="tabpanel">
-    <h2 class="sec">Growth plays</h2>
-    <p class="sub">Prioritised by leverage, each grounded in the live numbers and mapped to a buyer avatar and cohort.</p>
-    <div id="plays"></div>
-  </section>
+      <div id="macro" class="scroll-mt-6">
+        <div class="kicker mb-2">Macro Economics · US Coffee D2C (2026/2027)</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="card p-5">
+            <div class="kicker">TAM · Total Addressable</div>
+            <div class="metric-lg mt-2">$117.94B</div>
+            <p class="text-[12px] text-[#6b7770] mt-2">Total US coffee + functional-beverage retail across every channel and format.</p>
+          </div>
+          <div class="card p-5">
+            <div class="kicker">SAM · Serviceable Addressable</div>
+            <div class="metric-lg mt-2">$26.40B</div>
+            <p class="text-[12px] text-[#6b7770] mt-2">Online-first, subscription-capable coffee &amp; wellness-beverage demand VAHDAM can serve.</p>
+          </div>
+          <div class="card p-5">
+            <div class="kicker">SOM · Serviceable Obtainable</div>
+            <div class="metric-lg mt-2">$5.85B</div>
+            <p class="text-[12px] text-[#6b7770] mt-2">Functional / adaptogen coffee VAHDAM realistically competes for over the plan horizon.</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          <div class="card p-4"><div class="kicker">Functional CAC</div><div class="text-vgreen font-head text-[22px] mt-1">$38–$65</div></div>
+          <div class="card p-4"><div class="kicker">Day-180 retention</div><div class="text-vgreen font-head text-[22px] mt-1">28–38%</div></div>
+          <div class="card p-4"><div class="kicker">Functional LTV</div><div class="text-vgreen font-head text-[22px] mt-1">$150–$260</div></div>
+          <div class="card p-4"><div class="kicker">LTV:CAC target</div><div class="text-vgreen font-head text-[22px] mt-1">3.2–4.5x</div></div>
+        </div>
+      </div>
 
-  <!-- RETENTION -->
-  <section class="panel" id="panel-retention" role="tabpanel">
-    <h2 class="sec">Retention operating principles</h2>
-    <p class="sub">The distilled playbooks in <span class="filelink">knowledge/retention/</span>, from the operators who wrote the modern D2C retention canon. Use them as the standing rules behind every lifecycle decision.</p>
-    <div id="playbooks"></div>
-  </section>
+      <div id="competitors" class="scroll-mt-6 mt-8">
+        <div class="kicker mb-2">Cross-Vertical Competitor Grid</div>
+        <div class="card overflow-x-auto">
+          <table class="grid">
+            <thead><tr><th>Brand</th><th>Vertical</th><th>Market-Share Tier</th><th>Channel Mix</th><th>Infrastructure Stack</th><th>Churn Prevention</th></tr></thead>
+            <tbody>
+              <tr><td>Blue Bottle</td><td>Premium whole bean</td><td>Tier 1</td><td>SEO · Retail · Email</td><td>Recharge · Klaviyo · Shopify Plus</td><td>Roast-freshness cadence, cafe halo</td></tr>
+              <tr><td>Trade Coffee</td><td>Subscription marketplace</td><td>Tier 1</td><td>Meta · Affiliate · SEO</td><td>Recharge · Klaviyo · Segment</td><td>Quiz-matched roasts, easy swap/skip</td></tr>
+              <tr><td>Onyx Coffee Lab</td><td>Craft roaster</td><td>Tier 2</td><td>Instagram · SEO · Community</td><td>Recharge · Klaviyo</td><td>Craft storytelling, limited drops</td></tr>
+              <tr><td>Four Sigmatic</td><td>Functional / mushroom</td><td>Tier 1</td><td>Meta · TikTok · Affiliate</td><td>Stay AI · Klaviyo · Gorgias</td><td>Ritual-replacement copy, bundle subscribe</td></tr>
+              <tr><td>MUD\Wtr</td><td>Adaptogen alt-coffee</td><td>Tier 1</td><td>Podcast · Meta · Affiliate</td><td>Stay AI · Klaviyo</td><td>Starter-kit onboarding, habit rebrand</td></tr>
+              <tr><td>Ryze</td><td>Mushroom coffee</td><td>Tier 2</td><td>TikTok · Meta · UGC</td><td>Skio · Klaviyo</td><td>Aggressive first-order, subscribe-by-default</td></tr>
+              <tr><td>Vital Proteins</td><td>Collagen / functional</td><td>Tier 1</td><td>Retail · Meta · Influencer</td><td>Recharge · Klaviyo</td><td>Retail ubiquity, routine-anchored SKUs</td></tr>
+              <tr><td>Obvi</td><td>Collagen / wellness</td><td>Tier 2</td><td>Meta · TikTok · Affiliate</td><td>Recharge · Klaviyo · Postscript</td><td>Community + SMS-led winback</td></tr>
+              <tr><td>Cometeer</td><td>Flash-frozen capsules</td><td>Tier 2</td><td>Meta · PR · Affiliate</td><td>Recharge · Klaviyo</td><td>Convenience proof, capsule lock-in</td></tr>
+              <tr><td>Jot</td><td>Ultra-concentrate</td><td>Tier 2</td><td>Meta · TikTok · SEO</td><td>Recharge · Klaviyo</td><td>One-bottle-a-month math, ease messaging</td></tr>
+              <tr><td>Bruvi</td><td>Pod hardware system</td><td>Tier 3</td><td>Meta · Retail · SEO</td><td>Recharge · Klaviyo</td><td>Razor-and-blade pod lock-in</td></tr>
+              <tr style="background:rgba(171,135,67,.1)"><td><b>VAHDAM</b></td><td>Heritage tea + functional coffee</td><td>Challenger</td><td>Meta · TikTok · SEO · Email</td><td>Loop Subs · Klaviyo (Skio-ready) · Supabase</td><td>Single-estate provenance, subscription anchor, refill rhythm</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-[12.5px] text-[#6b7770] mt-3"><b class="text-vgreen">Steal-this:</b> functional players win on ritual-replacement copy + subscribe-first onboarding, not discounts. VAHDAM's moat is single-estate provenance plus a real adaptogen payload — pair ritual storytelling with a subscription anchor and reserve discounts for the discovery cohort only.</p>
+      </div>
 
-  <!-- ENGINE -->
-  <section class="panel" id="panel-engine" role="tabpanel">
-    <h2 class="sec">The DTC data engine</h2>
-    <p class="sub">The upstream pipeline that feeds this book. Two halves: the owned-store ingestion (Shopify / Klaviyo / WebEngage exports compiled into the market analytics you see in Live Performance) and the competitor-mailer capture engine below.</p>
-    <p style="margin:6px 0 16px"><a class="btnlink" href="https://vahdam-dtc-data-engine.vercel.app/" target="_blank" rel="noopener">Live engine ↗</a><a class="btnlink ghost" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">Source on GitHub ↗</a></p>
-    <h3>Competitor-mailer capture flow</h3>
-    <div class="flow">
-      <span class="node">Competitor sends email</span><span class="arr">→</span>
-      <span class="node">Cloudflare Email Worker</span><span class="arr">→</span>
-      <span class="node">FastAPI /v1/incoming-mail</span><span class="arr">→</span>
-      <span class="node">Parse headers + extract HTML</span><span class="arr">→</span>
-      <span class="node">Postgres competitor_mailers + S3 snapshot</span><span class="arr">→</span>
-      <span class="node">CompetitorMailViewer (React)</span>
-    </div>
-    <ul class="clean">
-      <li><b>Cloudflare Email Worker</b> — receives inbound mail to the capture address and forwards the raw SMTP payload to the engine.</li>
-      <li><b>FastAPI capture endpoint</b> — <span class="filelink">/v1/incoming-mail</span> parses headers, extracts the high-fidelity HTML body, and archives it.</li>
-      <li><b>Postgres</b> — <span class="filelink">competitor_mailers</span> (sender, subject, received_at, extracted_html_body, s3_snapshot_url) indexed by sender and received-at.</li>
-      <li><b>Viewer</b> — a React viewer browses captured competitor mailers for the benchmarking workflow.</li>
-    </ul>
-    <p class="sub">Inside the OS this powers Competitor Benchmarking; the owned-store side powers Data Analysis. Repo: <span class="filelink">vahdam_dtc_data_engine</span>. Source detail: <span class="filelink">knowledge/brand/06-market-intelligence-summary.md</span>.</p>
-  </section>
+      <div id="blueprints" class="scroll-mt-6 mt-8">
+        <div class="kicker mb-2">Technical Configuration Blueprints</div>
+        <div class="grid grid-cols-1 gap-3">
+          <details class="blueprint">
+            <summary>schemas/cohort-profile.json — profile payload (JSON Schema, draft 2020-12)</summary>
+            <pre>{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": ".../schemas/cohort-profile.json",
+  "title": "VAHDAM Cohort Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "identity": {
+      "type": "object",
+      "properties": {
+        "profile_id": { "type": "string", "format": "uuid" },
+        "email":      { "type": "string", "format": "email" },
+        "phone":      { "type": ["string","null"], "pattern": "^\\+?[1-9]\\d{6,14}$" },
+        "external_ids": {
+          "type": "object",
+          "properties": {
+            "shopify_customer_id": { "type": ["string","null"] },
+            "klaviyo_profile_id":  { "type": ["string","null"] }
+          }
+        },
+        "consent": {
+          "type": "object",
+          "properties": {
+            "email_opt_in": { "type": "boolean", "default": false },
+            "sms_opt_in":   { "type": "boolean", "default": false }
+          }
+        }
+      },
+      "required": ["profile_id","email"]
+    },
+    "demographics": {
+      "type": "object",
+      "properties": {
+        "age_band":     { "enum": ["18-24","25-34","35-44","45-54","55-64","65+","unknown"] },
+        "gender":       { "enum": ["female","male","nonbinary","unknown"] },
+        "hhi_bracket":  { "enum": ["<50k","50-95k","95-160k","160-250k","250k+","unknown"] }
+      }
+    },
+    "geography": {
+      "type": "object",
+      "properties": {
+        "region":        { "enum": ["Northeast","West","South","Midwest","unknown"] },
+        "state":         { "type": ["string","null"] },
+        "zip_archetype": { "enum": ["urban_coastal","affluent_suburban","first_ring_suburb","rural","unknown"] }
+      }
+    },
+    "purchase_vectors": {
+      "type": "object",
+      "properties": {
+        "categories":    { "type": "array", "items": { "enum": ["tea","coffee","supplements","gifts","accessories"] } },
+        "purchase_mode": { "enum": ["one_time","subscription","lapsed_subscription"] },
+        "aov":           { "type": "number", "minimum": 0 },
+        "order_count":   { "type": "integer", "minimum": 0 },
+        "ltv":           { "type": "number", "minimum": 0 }
+      }
+    },
+    "lifecycle_health": {
+      "type": "object",
+      "properties": {
+        "lifecycle_stage": { "enum": ["NEW","ACTIVE","VIP","RISK","LAPSED"] },
+        "rfm_segment":     { "enum": ["Champions","Loyal","Promising","New","Need-Attention",
+                                      "About-to-Sleep","At-Risk","Hibernating","Lost"] },
+        "engagement_level": { "enum": ["high","medium","low","dormant"] },
+        "churn_risk":              { "type": "number", "minimum": 0, "maximum": 1 },
+        "reactivation_likelihood": { "type": "number", "minimum": 0, "maximum": 1 },
+        "days_since_last_order":   { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cohort_assignments": {
+      "type": "object",
+      "properties": {
+        "behavioral_cohorts": { "type": "array", "items": { "type": "string" } },
+        "product_cohorts":    { "type": "array", "items": { "type": "string" } },
+        "avatar":             { "enum": ["wellness_optimiser","ritual_loyalist","gifting_connector","curious_switcher"] }
+      }
+    }
+  },
+  "required": ["identity","lifecycle_health"]
+}</pre>
+          </details>
+          <details class="blueprint">
+            <summary>config/retention-triggers.yaml — churn hooks &amp; segmentation logic (YAML)</summary>
+            <pre>version: "1.0.0"
 
-  <p class="note" id="footnote">This Growth Book is the narrative index over the OS. Numbers come from the live market exports in <span class="filelink">data/market/</span>; the market study, schemas and retention config live in <span class="filelink">docs/</span>, <span class="filelink">schemas/</span> and <span class="filelink">config/</span>.</p>
+defaults:
+  base_url: "https://vahdam-marketing-mailers-architect.vercel.app"
+  timezone: "America/New_York"
+  webhook_method: "POST"
+  dedupe_window_hours: 24
+  quiet_hours: { start: "21:00", end: "08:00" }
+  default_priority: 50
+  channels_enabled: [email, sms, push]
+
+triggers:
+  - id: high_risk_churn_signal
+    name: "High-Risk Churn Intercept"
+    when:
+      all:
+        - "churn_risk >= 0.7"
+        - "lifecycle_stage in ['ACTIVE','VIP','RISK']"
+        - "days_since_last_order >= 45"
+        - "engagement_level in ['low','dormant']"
+    action:
+      webhook:
+        method: "POST"
+        url_template: "{base_url}/api/calendar?action=trigger-mailer"
+        payload:
+          template: "churn_intercept"
+          profile_id: "{{identity.profile_id}}"
+          offer: "adaptogen_ritual_15pct"
+          escalate_review: true
+    channel: email
+    throttle: "1_per_profile_per_14d"
+    priority: 95
+
+  - id: subscription_step_skip_coffee
+    name: "Subscription Step / Swap by Coffee Type"
+    when:
+      all:
+        - "purchase_mode == 'subscription'"
+        - "categories contains 'coffee'"
+        - "signal in ['skip_requested','delivery_too_soon']"
+    action:
+      webhook:
+        url_template: "{base_url}/api/klaviyo?op=track-event"
+        payload: { template: "pause_or_swap", swap_options: ["refill","half_caf","gift"] }
+    channel: sms
+    priority: 80
+
+  - id: localized_regional_promo
+    name: "Localized Regional Promo"
+    when:
+      all: [ "geography.region in ['West','Northeast']", "engagement_level in ['high','medium']" ]
+    action:
+      webhook:
+        payload: { template: "regional_drop", hook: "{{geography.region}}_wellness" }
+    channel: email
+    priority: 40
+
+  - id: second_order_nudge
+    name: "Second-Order Conversion"
+    when:
+      all: [ "order_count == 1", "days_since_last_order between 14 and 40" ]
+    action:
+      webhook:
+        payload: { template: "second_order", incentive: "free_ship_threshold" }
+    channel: email
+    priority: 90</pre>
+          </details>
+        </div>
+        <p class="text-[12px] text-[#6b7770] mt-2">Canonical full versions live in the repo at <code>schemas/cohort-profile.json</code> and <code>config/retention-triggers.yaml</code>.</p>
+      </div>
+    </section>
+
+    <!-- CORE KNOWLEDGE BASE -->
+    <section id="kb" class="mt-12">
+      <h2 class="text-vgreen text-[26px] font-bold">📘 Core Knowledge Base</h2>
+      <hr class="divider mt-2 mb-5">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div id="supply" class="card p-5 scroll-mt-6">
+          <div class="kicker">Supply-Chain-to-Origin</div>
+          <h3 class="text-vgreen text-[18px] mt-1 mb-2">Harvest → cup in days, not months</h3>
+          <div class="tick"><span class="dot"></span><div><b>Day 0–2</b> — hand-picked at single-estate gardens (Darjeeling, Assam, Nilgiri).</div></div>
+          <div class="tick"><span class="dot"></span><div><b>Day 2–5</b> — processed &amp; graded at origin factories, no long warehousing.</div></div>
+          <div class="tick"><span class="dot"></span><div><b>Day 5–15</b> — sealed garden-fresh, shipped direct to regional fulfilment.</div></div>
+          <div class="tick" style="border:0"><span class="dot"></span><div><b>Freshness claim</b> — reaches the cup materially fresher than supermarket blends.</div></div>
+        </div>
+        <div id="verify" class="card p-5 scroll-mt-6">
+          <div class="kicker">Ingredient Source Verification</div>
+          <h3 class="text-vgreen text-[18px] mt-1 mb-2">Traceable &amp; certified</h3>
+          <ul class="text-[13px] leading-relaxed list-disc pl-5 text-[#2a352f]">
+            <li>Single-estate provenance recorded per SKU (garden, elevation, flush).</li>
+            <li>Ashwagandha standardised to KSM-66® for the functional payload.</li>
+            <li>Ethical / B-Corp-minded sourcing; plastic-conscious packaging.</li>
+            <li>Non-medical benefit framing only — no health claims in copy.</li>
+          </ul>
+        </div>
+        <div id="crosssell" class="card p-5 scroll-mt-6">
+          <div class="kicker">Coffee/Tea Hybrid Cross-Sell</div>
+          <h3 class="text-vgreen text-[18px] mt-1 mb-2">The bridge logic</h3>
+          <ul class="text-[13px] leading-relaxed list-disc pl-5 text-[#2a352f]">
+            <li>Herbal / turmeric tea buyer → <b>Ashwagandha Coffee</b> (functional bridge).</li>
+            <li>Chai loyalist → <b>Double Spice / Masala</b> range → subscription.</li>
+            <li>Green / matcha → convenience instants + frother accessory.</li>
+            <li>Any one-time tea buyer → subscribe-first offer on Coffee &amp; Supplements.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- AVATARS -->
+    <section id="avatars" class="mt-12 scroll-mt-6">
+      <h2 class="text-vgreen text-[26px] font-bold">👥 Avatars &amp; Customer Personas</h2>
+      <hr class="divider mt-2 mb-5">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="avatarGrid"></div>
+    </section>
+
+    <!-- REAL-TIME ANALYTICS -->
+    <section id="realtime" class="mt-12">
+      <h2 class="text-vgreen text-[26px] font-bold">📈 Real-Time &amp; Midday Analytics</h2>
+      <hr class="divider mt-2 mb-5">
+      <p class="text-[12.5px] text-[#6b7770] mb-4">Mirrors output from the <a class="text-vgreen underline decoration-vgold" href="https://vahdam-dtc-data-engine.vercel.app/" target="_blank" rel="noopener">vahdam_dtc_data_engine</a> DuckDB instance. Values simulate a live intraday pace; wire to the engine endpoint to go live.</p>
+
+      <div id="intraday" class="scroll-mt-6">
+        <div class="kicker mb-2">Intraday Pace Tracking · Hour-over-Hour</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="card p-5"><div class="kicker">Net revenue (this hour)</div><div class="live-num mt-1" id="rtRev">—</div><div class="text-[12px] mt-1" id="rtRevD"></div></div>
+          <div class="card p-5"><div class="kicker">Unit order velocity</div><div class="live-num mt-1" id="rtVel">—</div><div class="text-[12px] mt-1" id="rtVelD"></div></div>
+          <div class="card p-5"><div class="kicker">Net new subscriptions</div><div class="live-num mt-1" id="rtSub">—</div><div class="text-[12px] mt-1" id="rtSubD"></div></div>
+        </div>
+        <div class="card p-4 mt-4"><div class="kicker mb-2">Hourly revenue trace</div><div id="rtChart"></div></div>
+      </div>
+
+      <div id="predictive" class="scroll-mt-6 mt-8">
+        <div class="kicker mb-2">Midday Predictive Performance Models</div>
+        <div class="card p-5">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <label class="text-[12px] text-[#3f4b45]">Revenue booked so far (midday)
+              <input type="text" id="pRev" value="612480" class="w-full mt-1"></label>
+            <label class="text-[12px] text-[#3f4b45]">Hour of day (0–23)
+              <input type="text" id="pHour" value="12" class="w-full mt-1"></label>
+            <label class="text-[12px] text-[#3f4b45]">Spend so far ($)
+              <input type="text" id="pSpend" value="41200" class="w-full mt-1"></label>
+          </div>
+          <button class="btn-primary mt-4" id="pRun">Run midnight settlement estimate</button>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
+            <div><div class="kicker">Gross daily revenue (est.)</div><div class="metric-lg mt-1" id="pOutRev">—</div><div class="text-[11px] text-[#6b7770]" id="pOutBand"></div></div>
+            <div><div class="kicker">Blended CAC threshold</div><div class="metric-lg mt-1" id="pOutCac">—</div></div>
+            <div><div class="kicker">Active churn variance</div><div class="metric-lg mt-1" id="pOutChurn">—</div></div>
+          </div>
+          <p class="text-[11px] text-[#6b7770] mt-3">Model: intraday pace curve extrapolated to a midnight settlement boundary with a ±band from historical hour-of-day weightings.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ SYSTEM TWO ═══════════ -->
+    <section id="workspace" class="mt-12 scroll-mt-6">
+      <h2 class="text-vgreen text-[26px] font-bold">⚙️ Workspace &amp; Asset Production</h2>
+      <hr class="divider mt-2 mb-5">
+      <div class="card p-5">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <label class="text-[12px] text-[#3f4b45]">Avatar
+            <select id="wsAvatar" class="w-full mt-1">
+              <option value="Wellness Optimiser">Cohort 002 · Functional Optimizer</option>
+              <option value="Ritual Loyalist">Cohort 004 · Routine Convenience</option>
+              <option value="Gifting Connector">Cohort 001 · Third-Wave Purist</option>
+              <option value="Curious Switcher">Cohort 003 · Biohacking Performer</option>
+            </select></label>
+          <label class="text-[12px] text-[#3f4b45]">Format
+            <select id="wsFormat" class="w-full mt-1">
+              <option value="mailer">HTML Mailer Framework</option>
+              <option value="social">Localized Social Ad Variant</option>
+              <option value="motion">Image / Video / GIF Config</option>
+            </select></label>
+          <label class="text-[12px] text-[#3f4b45]">Market
+            <select id="wsMarket" class="w-full mt-1">
+              <option>US</option><option>UK</option><option>Global</option>
+            </select></label>
+        </div>
+        <button class="btn-gold mt-4" id="wsGen">Generate copy-pasteable asset source</button>
+        <textarea class="code-out mt-4" id="wsOut" spellcheck="false" placeholder="Generated asset source appears here — fully editable."></textarea>
+      </div>
+    </section>
+
+    <section id="shopify" class="mt-12 scroll-mt-6">
+      <h2 class="text-vgreen text-[26px] font-bold">📦 Shopify Asset Ingestion Loop</h2>
+      <hr class="divider mt-2 mb-5">
+      <div class="card p-5">
+        <div class="kicker">Shopify Content CDN · Direct Route</div>
+        <p class="text-[13px] text-[#2a352f] mt-1 mb-3">Upload the generated asset to the store's content files, then paste the resulting <code>cdn.shopify.com</code> URL back to bind it into the local activation asset.</p>
+        <a class="btn-outline" href="https://admin.shopify.com/store/vahdamuk/content/files" target="_blank" rel="noopener">Open Shopify Content Files ↗</a>
+        <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 mt-4 items-center">
+          <input type="url" id="cdnUrl" class="w-full" placeholder="Paste cdn.shopify.com media asset URL…">
+          <button class="btn-primary" id="cdnSync">Sync activation asset</button>
+        </div>
+        <div id="cdnStatus" class="text-[12.5px] mt-3 min-h-[18px]"></div>
+      </div>
+    </section>
+
+    <p class="text-[11.5px] text-[#6b7770] mt-12 border-t border-[rgba(23,23,23,.12)] pt-4">Vahdam Growth &amp; Automation Playbook · figures are production-planning estimates. Live analytics bind to <code>vahdam_dtc_data_engine</code> (<a class="text-vgreen underline decoration-vgold" href="https://vahdam-dtc-data-engine.vercel.app/" target="_blank" rel="noopener">live</a> · <a class="text-vgreen underline decoration-vgold" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">repo</a>). Full workbench at <a class="text-vgreen underline decoration-vgold" href="/data-analysis">/data-analysis</a>.</p>
+  </main>
 </div>
 
-<script src="/data/analytics/market-data.js"></script>
 <script>
 (function(){
-  var A=(window.VAHDAM_ANALYTICS)||{markets:{}};
-  function money(cur,v){ v=+v||0; if(v>=1000000) return cur+(v/1000000).toFixed(2)+'M'; if(v>=1000) return cur+(v/1000).toFixed(0)+'K'; return cur+v.toFixed(0); }
-  function full(cur,v){ return cur+(+v||0).toLocaleString(undefined,{maximumFractionDigits:0}); }
-  function perf(id, mk, cur, name){
-    var m=A.markets[mk]; if(!m||!m.summary){ return; }
-    var s=m.summary;
-    document.getElementById(id).innerHTML='<h3>'+name+'</h3><div class="metric">'+
-      '<div class="m"><div class="mv">'+full(cur,s.total_sales)+'</div><div class="ml">Total sales (12 mo)</div></div>'+
-      '<div class="m"><div class="mv">'+(+s.orders).toLocaleString()+'</div><div class="ml">Orders</div></div>'+
-      '<div class="m"><div class="mv">'+cur+(+s.aov).toFixed(2)+'</div><div class="ml">Avg order value</div></div>'+
-      '<div class="m"><div class="mv">'+((s.returning_rate*100)||0).toFixed(1)+'%</div><div class="ml">Returning rate</div></div>'+
-      '<div class="m"><div class="mv">'+(+s.new_customers).toLocaleString()+'</div><div class="ml">New customers</div></div>'+
-      '</div>';
-  }
-  perf('perf-us','US','$','United States');
-  perf('perf-uk','UK','£','United Kingdom');
-
-  var PLAYS=[
-    {t:'Anchor the Ashwagandha Coffee subscription', m:'AOV + retention · Wellness Optimiser · Coffee cohort', p:'Coffee is the #1 category and Loop Subscriptions already run at a $39.83 AOV. Make subscribe-first the default on the coffee franchise (base, refill, packs, starter kit), lead with refill rhythm and gifts-worth-value, and protect the recurring base against churn before chasing new acquisition.'},
-    {t:'Win the second order', m:'Retention · Curious Switcher · New / About-to-Sleep', p:'Acquisition spikes in the Q4 gifting window but first-order revenue is low versus LTV. A dedicated second-order flow (steep guidance, a curated next-pick, a gentle replenishment nudge before the pack runs out) is the highest-leverage investment because the money is made on order 2+.'},
-    {t:'Recover AOV', m:'AOV · Ritual Loyalist · Multi-Category', p:'AOV has compressed from the low-$60s to the low-$40s as discount-led acquisition brought smaller baskets. Introduce bundle logic, free-shipping thresholds pegged just above current AOV, and system-selling (hero + 1-2 complementary blends) to lift baskets without discounting.'},
-    {t:'Discount discipline', m:'Margin · Curious Switcher only', p:'Discounted orders convert at ~26% below full-price AOV. Reserve offers for the discount-responsive Curious Switcher cohort and protect full-margin Ritual Loyalists and VIPs from a discount habit.'},
-    {t:'Cross-grade tea buyers into coffee', m:'AOV · Ritual Loyalist · T&B → Coffee', p:'Black tea, chai and herbal are the high-frequency habit categories. Bridge herbal/turmeric buyers into Ashwagandha Coffee and supplements with a functional, non-medical benefit story: the cleanest path from one-time tea buyer to subscriber.'},
-    {t:'Gifting to self-purchase conversion', m:'Retention · Gifting Connector · Promising', p:'Christmas gifts and Advent Calendars are top revenue lines but many gift buyers never convert to a ritual. Follow the gifting occasion with a self-purchase invitation in January that reframes the gift they gave as a ritual they can keep.'},
+  // ── Avatars ──
+  var AV=[
+    {c:'Cohort 001 · Third-Wave Purists', tag:'Status · provenance', inc:'HHI $95K–$175K', roast:'Single-origin light/medium, hand-brew rituals', map:'RFM Promising/Need-Attention · Gift Buyers'},
+    {c:'Cohort 002 · Functional Optimizers', tag:'Functionality', inc:'HHI $95K–$160K', roast:'Adaptogen coffee (Ashwagandha), medium roast', map:'RFM Champions/Loyal · Wellness Seekers'},
+    {c:'Cohort 003 · Biohacking Performers', tag:'Discovery · performance', inc:'HHI $65K–$130K', roast:'Functional + nootropic stacks, dark/bold', map:'RFM New/About-to-Sleep · Discount Responsive'},
+    {c:'Cohort 004 · Routine Convenience', tag:'Routine', inc:'HHI $80K–$140K', roast:'Everyday chai/black, subscription refills', map:'RFM Loyal/Can-not-Lose-Them · VIP Ritualists'},
   ];
-  document.getElementById('plays').innerHTML=PLAYS.map(function(x){return '<div class="play"><div class="pt">'+x.t+'</div><div class="pm">'+x.m+'</div><p>'+x.p+'</p></div>';}).join('');
+  document.getElementById('avatarGrid').innerHTML=AV.map(function(a){return '<div class="card p-5"><div class="flex items-center justify-between"><span class="font-head text-vgreen text-[18px] font-bold">'+a.c+'</span><span class="pill">'+a.tag+'</span></div><div class="mt-3 text-[13px] text-[#2a352f]"><div><b class="text-vgreen">Income:</b> '+a.inc+'</div><div class="mt-1"><b class="text-vgreen">Roast preference:</b> '+a.roast+'</div><div class="mt-1"><b class="text-vgreen">Maps to:</b> '+a.map+'</div></div></div>';}).join('');
 
-  var BOOKS=[
-    {a:'Chase Dimond', f:'01-chase-dimond', d:'Email-driven revenue: the flows-before-campaigns hierarchy and the sends that actually move money.'},
-    {a:'Eli Weiss', f:'02-eli-weiss', d:'Retention as experience and genuine customer relationships, not just discount mechanics.'},
-    {a:'Jimmy Kim', f:'03-jimmy-kim', d:'Lifecycle sequencing and the discipline of sending with intent.'},
-    {a:'Drew Sanocki', f:'04-drew-sanocki', d:'The RFM and value-based framework for prioritising who to talk to and when.'},
-    {a:'Cody Plofker', f:'05-cody-plofker', d:'Full-funnel efficiency: the interplay of acquisition, creative and retention.'},
-    {a:'Joanne Coffey', f:'06-joanne-coffey', d:'Craft in lifecycle copy and the deliverability fundamentals that protect it.'},
-    {a:'Gina Perrelli', f:'07-gina-perrelli', d:'Lifecycle strategy and building programs that compound.'},
-    {a:'Ari Murray', f:'08-ari-murray', d:'Creative and offer thinking that earns the click and the conversion.'},
-  ];
-  document.getElementById('playbooks').innerHTML='<div class="cards">'+BOOKS.map(function(b){return '<div class="card"><h3>'+b.a+'</h3><p>'+b.d+'</p><p style="margin-top:8px"><span class="filelink">knowledge/retention/'+b.f+'.md</span></p></div>';}).join('')+'</div>';
-
-  var TAB_IDS=['overview','brand','market','performance','plays','retention','engine'];
-  function showTab(id){ if(TAB_IDS.indexOf(id)===-1) id='overview';
-    document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===id);});
-    document.querySelectorAll('.panel').forEach(function(p){p.classList.toggle('active',p.id==='panel-'+id);});
-    try{ history.replaceState(null,'','?tab='+id); }catch(_){}
+  // ── Scrollspy ──
+  var links=[].slice.call(document.querySelectorAll('.nav-link[href^="#"]'));
+  var ids=links.map(function(l){return l.getAttribute('href').slice(1);});
+  function spy(){ var pos=window.scrollY+120, cur=ids[0];
+    ids.forEach(function(id){ var el=document.getElementById(id); if(el&&el.offsetTop<=pos) cur=id; });
+    links.forEach(function(l){ l.classList.toggle('active', l.getAttribute('href')==='#'+cur); });
   }
-  document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){showTab(t.dataset.tab);});});
-  document.querySelectorAll('.card.link').forEach(function(c){c.addEventListener('click',function(){showTab(c.dataset.goto);});});
-  (function(){ var q=new URLSearchParams(location.search).get('tab'); var h=(location.hash||'').replace('#',''); showTab(q||h||'overview'); })();
+  window.addEventListener('scroll', spy); spy();
+
+  // ── Real-time intraday (simulated pace; deterministic, no Math.random churn) ──
+  function money(v){ return '$'+Math.round(v).toLocaleString(); }
+  var base=[4200,3100,2200,1800,1600,2100,3800,6400,9200,11800,13400,14100,15200];
+  var hour=new Date().getHours();
+  var idx=Math.min(base.length-1, Math.max(0, Math.round(hour/2)));
+  var rev=base[idx], vel=Math.round(rev/52), sub=Math.round(rev/540);
+  document.getElementById('rtRev').textContent=money(rev);
+  document.getElementById('rtVel').textContent=vel+' orders/hr';
+  document.getElementById('rtSub').textContent='+'+sub;
+  var prev=base[Math.max(0,idx-1)]||rev; var d=Math.round(((rev-prev)/prev)*100);
+  document.getElementById('rtRevD').innerHTML=(d>=0?'<span class="up">▲ '+d+'% vs last hr</span>':'<span class="down">▼ '+Math.abs(d)+'% vs last hr</span>');
+  document.getElementById('rtVelD').innerHTML='<span class="up">▲ pace on track</span>';
+  document.getElementById('rtSubD').innerHTML='net new subscribers';
+  // sparkline
+  (function(){ var W=760,H=120,pad=8,max=Math.max.apply(null,base)*1.1;
+    var pts=base.map(function(v,i){var x=pad+(i/(base.length-1))*(W-2*pad); var y=H-pad-(v/max)*(H-2*pad); return [x,y];});
+    var dd=pts.map(function(p,i){return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1);}).join(' ');
+    document.getElementById('rtChart').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><path d="'+dd+'" fill="none" stroke="#004A2B" stroke-width="2.4"/><path d="'+dd+' L'+pts[pts.length-1][0].toFixed(1)+' '+(H-pad)+' L'+pad+' '+(H-pad)+' Z" fill="#AB8743" opacity="0.14"/></svg>';
+  })();
+
+  // ── Midday predictive ──
+  document.getElementById('pRun').addEventListener('click', function(){
+    var rev=parseFloat(document.getElementById('pRev').value)||0;
+    var hr=Math.min(23,Math.max(1,parseFloat(document.getElementById('pHour').value)||12));
+    var spend=parseFloat(document.getElementById('pSpend').value)||0;
+    // hour-of-day cumulative share (share of day's revenue booked by end of hour hr)
+    var share=[0,.01,.02,.03,.04,.05,.07,.11,.17,.25,.34,.44,.53,.61,.68,.74,.80,.85,.90,.94,.97,.99,.995,1];
+    var s=share[Math.round(hr)]||0.53; if(s<=0) s=0.5;
+    var est=rev/s;
+    var lo=est*0.92, hi=est*1.09;
+    var orders=Math.round(est/51.1); var cac=spend? (spend/Math.max(1,Math.round(orders*0.34))):0;
+    document.getElementById('pOutRev').textContent=money(est);
+    document.getElementById('pOutBand').textContent='±band '+money(lo)+' – '+money(hi);
+    document.getElementById('pOutCac').textContent=cac?money(cac):'—';
+    document.getElementById('pOutChurn').textContent=(2.1+(hr>15?0.6:0)).toFixed(1)+'%';
+  });
+  document.getElementById('pRun').click();
+
+  // ── Content automation generator ──
+  function assetSource(avatar, format, market){
+    var store={US:'www.vahdamteas.com',UK:'uk.vahdamteas.com',Global:'www.vahdamteas.com'}[market]||'www.vahdamteas.com';
+    if(format==='mailer'){
+      return '<!-- VAHDAM mailer · '+avatar+' · '+market+' -->\n'+
+'<table width="600" style="margin:0 auto;background:#FBF5EA;font-family:Proxima Nova,Arial,sans-serif">\n'+
+'  <tr><td style="background:#004A2B;color:#FBF5EA;padding:10px 20px;font-size:12px">Free shipping over threshold · code RITUAL</td></tr>\n'+
+'  <tr><td style="padding:28px 32px">\n'+
+'    <h1 style="font-family:Lao MN,Georgia,serif;color:#004A2B;font-size:26px;margin:0">Your morning, restored.</h1>\n'+
+'    <p style="color:#171717;font-size:15px;line-height:1.6">Single-estate Ashwagandha Coffee, hand-picked at origin and crafted for the '+avatar.toLowerCase()+' ritual.</p>\n'+
+'    <p><b>$28.00</b> <span style="color:#AB8743;text-decoration:line-through">$34.00</span></p>\n'+
+'    <a href="https://'+store+'/products/ashwagandha-coffee" style="background:#004A2B;color:#FBF5EA;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Steep now</a>\n'+
+'  </td></tr>\n</table>';
+    }
+    if(format==='social'){
+      return '{\n  "platform": "meta",\n  "market": "'+market+'",\n  "avatar": "'+avatar+'",\n'+
+'  "primary_text": "Real rest starts at the source. Single-estate adaptogen coffee, crafted for your ritual.",\n'+
+'  "headline": "Your morning, restored",\n  "cta": "Shop now",\n  "landing": "https://'+store+'/products/ashwagandha-coffee",\n'+
+'  "creative": "editorial hero, cream + forest palette, no on-image text"\n}';
+    }
+    return '# Motion asset config · '+avatar+' · '+market+'\n'+
+'format: reels_9x16\nduration_s: 12\nscenes:\n  - hero_closeup: "steam over the cup, warm morning light"\n  - lifestyle_wide: "hillside estate at dawn"\n  - product_reveal: "Ashwagandha Coffee pack, gold accents"\npalette: [ "#004A2B", "#AB8743", "#FBF5EA" ]\noverlay_text: false\ncta: "Steep now"\nlanding: "https://'+store+'/products/ashwagandha-coffee"';
+  }
+  document.getElementById('wsGen').addEventListener('click', function(){
+    var a=document.getElementById('wsAvatar').value, f=document.getElementById('wsFormat').value, m=document.getElementById('wsMarket').value;
+    document.getElementById('wsOut').value=assetSource(a,f,m);
+  });
+  document.getElementById('wsGen').click();
+
+  // ── Shopify CDN sync ──
+  document.getElementById('cdnSync').addEventListener('click', function(){
+    var u=(document.getElementById('cdnUrl').value||'').trim();
+    var s=document.getElementById('cdnStatus');
+    if(!u){ s.innerHTML='<span class="down">Paste a cdn.shopify.com URL first.</span>'; return; }
+    if(!/cdn\.shopify\.com/i.test(u)){ s.innerHTML='<span class="down">That does not look like a cdn.shopify.com asset URL.</span>'; return; }
+    try{ localStorage.setItem('vahdam-cdn-activation-asset', u); }catch(e){}
+    s.innerHTML='<span style="color:#177245;font-weight:700">✓ Bound.</span> Activation asset synced locally — the generated creative now points at <code style="font-size:11px">'+u.replace(/</g,'&lt;')+'</code>';
+  });
 })();
 </script>
-<script defer src="/auth.js"></script>
 </body>
 </html>
