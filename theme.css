@@ -73,17 +73,21 @@
 :root[data-theme="dusk"],
 :root[data-theme="light"],
 :root[data-theme="green"] {
-  --vh-bg: #004A2B; --vh-panel: #075C39; --vh-panel-2: #003D24;
-  --vh-line: rgba(171,135,67,0.28); --vh-line-hot: rgba(171,135,67,0.55);
-  /* Text: white/cream body, warm-gold secondary, gold tertiary + headings. */
-  --vh-ink: #FBF5EA; --vh-ink-dim: #E4CF94; --vh-ink-faint: #C7A65C;
-  /* legacy aliases (family A + family B) — all point at the locked green set */
-  /* NOTE: --soft is used across pages as a *dim text* color (never a surface),
-     so it must stay readable on the green canvas — not a dark green. */
-  --bg: #004A2B; --panel: #075C39; --surface: #075C39; --card: #075C39; --soft: #E4CF94; --chip: #003D24;
-  --ink: #FBF5EA; --ink-dim: #E4CF94; --ink-faint: #C7A65C; --muted: #E4CF94; --head: #AB8743;
-  --line: rgba(171,135,67,0.28); --line-hot: rgba(171,135,67,0.55);
-  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #075C39; --moss-deep: #003D24;
+  /* Palette aligned to the /all-in-one dashboard: near-black-green canvas
+     #0a1410, cards #0f1d18, inner tiles #07100d, gold accents, cream metrics,
+     light body text, cool-muted secondary. This is the single source of truth
+     for the whole suite's dark surface + text pairing. */
+  --vh-bg: #0a1410; --vh-panel: #0f1d18; --vh-panel-2: #07100d;
+  --vh-line: rgba(171,135,67,0.18); --vh-line-hot: rgba(171,135,67,0.45);
+  /* Text: light body, cool-muted secondary, faint tertiary. */
+  --vh-ink: #e8ede9; --vh-ink-dim: #a7b5ad; --vh-ink-faint: #8a9a92;
+  /* legacy aliases (family A + family B) — all point at the locked dark set.
+     NOTE: --soft is used across pages as a *dim text* color (never a surface),
+     so it stays a readable muted tone on the dark canvas. */
+  --bg: #0a1410; --panel: #0f1d18; --surface: #0f1d18; --card: #0f1d18; --soft: #a7b5ad; --chip: #07100d;
+  --ink: #e8ede9; --ink-dim: #a7b5ad; --ink-faint: #8a9a92; --muted: #a7b5ad; --head: #FBF5EA;
+  --line: rgba(171,135,67,0.18); --line-hot: rgba(171,135,67,0.45);
+  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #0f1d18; --moss-deep: #07100d;
   color-scheme: dark;
 }
 

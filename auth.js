@@ -164,6 +164,7 @@
     insights:   '<path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 4-6"/><circle cx="7" cy="14" r="1.2"/><circle cx="10" cy="10" r="1.2"/><circle cx="13" cy="13" r="1.2"/><circle cx="17" cy="7" r="1.2"/>',
     vahdam:     '<path d="M12 21c-1-5-4-6.5-7-7 0-5 3.5-8 7-9 3.5 1 7 4 7 9-3 .5-6 2-7 7z"/><path d="M12 13c1.5-2 3.5-3 5.5-3.5"/>',
     social:     '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.7 6.8-4.4M8.6 13.3l6.8 4.4"/>',
+    avatars:    '<circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><path d="M12 2.2v1.4M12 12.4v1.4M17.8 8h-1.4M7.6 8H6.2"/>',
   };
   // Real, full-colour brand glyphs. Each is a complete <svg> with its own
   // viewBox + official brand colours, so Meta / Google / TikTok read as the
@@ -210,7 +211,7 @@
       { id: 'kbv-tiktok',  label: 'TikTok Ads',    href: '/knowledge-base.html#tiktok',  icon: 'tiktok' },
       { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
     ]},
-    { id: 'analysis', label: 'Data Analysis',      href: '/dashboard.html',          icon: 'analysis', ver: 'v1', match: ['/dashboard.html', '/analytics'] },
+    { id: 'analysis', label: 'Data Analysis',      href: '/data-analysis',           icon: 'analysis', ver: 'v2', match: ['/data-analysis', '/data-analysis.html', '/analytics', '/dashboard.html', '/rfm'] },
     { group: 'Cohorts', icon: 'cohort', gid: 'cohorts', ver: 'v1', children: [
       { id: 'coh-overview',   label: 'Overview',            href: '/cohorts?tab=overview',   icon: 'cohort' },
       { id: 'coh-engagement', label: 'Engagement Cohorts',  href: '/cohorts?tab=engagement', icon: 'insights' },
@@ -220,6 +221,7 @@
       { id: 'coh-rfm',        label: 'RFM Segments',        href: '/cohorts?tab=rfm',        icon: 'analysis' },
       { id: 'coh-behavioral', label: 'Behavioral',          href: '/cohorts?tab=behavioral', icon: 'cohort' },
     ]},
+    { id: 'avatars', label: 'Avatars (Personas)', href: '/avatars', icon: 'avatars', ver: 'v2', match: ['/avatars', '/personas', '/avatars.html'] },
 
     { section: 'Plan' },
     { id: 'lifecycle', label: 'Mailer Calendar',    href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
@@ -329,16 +331,30 @@
     },
     analysis: {
       title: 'Data Analysis',
-      what: "The Retention Intelligence dashboard: computes RFM segmentation, cohort behaviour, discount exposure, and channel performance from your exported store data, then turns the numbers into prioritised insight cards, each with a concrete action.",
-      who: "It analyses ALL customers and buckets them into the nine RFM segments — Champions, Loyal, Promising, New, Need-Attention, About-to-Sleep, At-Risk, Hibernating, Lost. The insights are written for the retention team.",
-      how: "Everything runs in the browser. Upload CSV/XLSX exports; the page parses them, computes recency, frequency, and monetary value per customer, assigns segments by fixed thresholds (e.g. Champions = ordered within 30 days AND 5+ orders), and renders charts plus insight cards. Results persist to localStorage and feed the Plan and Mailer Studio steps.",
-      input: "CSV/XLSX exports — orders and customers (Shopify), campaigns (Klaviyo) — dropped into the upload modal. No server round-trip is needed to analyse.",
+      what: "The full D2C growth analytics workbench, built on the live US and UK market exports. A dashboard of every analysis a growth team needs — revenue and AOV trends, sales by channel, product type and day of week, discount exposure, new-vs-returning split, returning-customer rate, customer acquisition, cohort retention, and top products — with a US/UK market toggle. Every widget drills into a detailed page with the complete data table, a bigger chart, a growth read, and a CSV download. The legacy RFM Retention Intelligence tool (upload-and-score) still lives at /rfm.",
+      who: "The growth and retention team. The dashboard analyses the whole customer base and every revenue cut; the drill-downs and cohort heatmap feed cohort, RFM and lifecycle targeting used everywhere else in the OS.",
+      how: "Data is compiled from the exported market CSVs (data/market/{us,uk}) by scripts/build-market-analytics.js into a single client-side module, so the dashboard renders real numbers with no upload and no server round-trip. The upstream ingestion and DuckDB engine that produces these exports is the vahdam_dtc_data_engine (live at vahdam-dtc-data-engine.vercel.app). The RFM tool at /rfm still parses uploaded CSV/XLSX in the browser and scores the nine RFM segments.",
+      input: "Nothing to upload for the dashboard — it reads the compiled market exports. Pick the market (US or UK) and open any widget to drill in and download its CSV. For the RFM tool: CSV/XLSX order and customer exports.",
       steps: [
-        ['Ingest', 'Drop CSV/XLSX exports into the upload modal; the page parses and normalises them client-side.'],
-        ['Score RFM', 'Recency, frequency, and monetary value are computed per customer; threshold rules assign one of the 9 segments.'],
-        ['Analyse cohorts', 'Cohort retention, discount dependence, and send-frequency patterns are computed per segment.'],
-        ['Generate insights', 'Prioritised cards — e.g. Champions are discount-trained — each with a measurable next action.'],
-        ['Hand off', 'State persists in localStorage so Plan (calendar) and Mailer Studio generate against the same numbers.'],
+        ['Compile', 'Market CSV exports are compiled into a self-contained data module by scripts/build-market-analytics.js.', 'scripts/build-market-analytics.js'],
+        ['Overview', 'KPI tiles and a widget grid render trends, mix, retention and top products for the selected market.'],
+        ['Drill in', 'Any widget opens a detailed page: full data table, larger chart, and a concrete growth read.'],
+        ['Cohort read', 'The retention heatmap normalises each acquisition quarter to 100% so LTV assumptions and sticky cohorts are visible.'],
+        ['Hand off', 'Cuts feed cohort, RFM and lifecycle targeting; the RFM tool at /rfm scores uploaded data for the segment lens.'],
+      ],
+    },
+    avatars: {
+      title: 'Avatars (Personas)',
+      what: "The customer-persona layer of the OS: named, hyper-specific buyer avatars built on top of the cohort dictionary and the US coffee and functional-beverage market study. Each avatar bundles demographics, geography, price elasticity, core value driver, and churn triggers into one face a brief can target, so copy, imagery, and offers stay grounded in a real person rather than an abstract segment.",
+      who: "The growth and creative team. The avatars translate the analytics cohorts (RFM segments, engagement cohorts, lifecycle stages) into the four behavioural buyer profiles that drive VAHDAM Ashwagandha Coffee and wellness-tea growth: the Wellness Optimiser, the Ritual Loyalist, the Gifting Connector, and the Curious Switcher.",
+      how: "Personas are derived from the market-intelligence study (docs/market-intelligence) and the cohort model: each avatar maps to specific cohorts, carries hard planning numbers (age band, HHI, AOV, LTV:CAC, reactivation likelihood), and links to the schema that captures the same fields on a live profile (schemas/cohort-profile.json) and the retention triggers that fire for it (config/retention-triggers.yaml). Use the avatar name verbatim in a brief and every downstream tool inherits its targeting.",
+      input: "Nothing to upload — the avatars are curated from the market study and the cohort dictionary. From you: pick the avatar a campaign targets, and read its value driver, elasticity, and churn triggers before writing the brief.",
+      steps: [
+        ['Read the market', 'The US coffee and functional-beverage landscape (TAM/SAM/SOM, brand matrix, regional matrix) frames who is worth winning and how they behave.'],
+        ['Map to cohorts', 'Each avatar is pinned to the RFM segments, engagement cohorts, and product cohorts it represents, so it inherits real audiences.'],
+        ['Load the profile fields', 'Demographics, geography, price elasticity, value driver, reactivation likelihood, and churn triggers are stated as hard planning numbers.'],
+        ['Wire the triggers', 'The retention-trigger config names which automated webhooks fire for the avatar (churn risk, replenishment, win-back, VIP early access).'],
+        ['Target in a brief', 'Name the avatar in any campaign and the mailer, ad, landing-page, and social tools inherit its voice, imagery, offer sensitivity, and cohort.'],
       ],
     },
     assets: {
