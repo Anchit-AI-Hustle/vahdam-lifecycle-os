@@ -536,9 +536,10 @@ const COHORTS = [
 function cohortCards() {
   return '<div class="grid gap-5 md:grid-cols-2">' + COHORTS.map(function (c, i) {
     const accent = i % 2 === 0 ? "green" : "gold";
+    const tagColor = accent === "gold" ? "var(--vahdam-gold-ink)" : "var(--vahdam-green)";
     return '<div id="' + c.id + '" class="card p-6 border-l-4" style="border-left-color:var(--vahdam-' + accent + ');">' +
       '<div class="flex items-center justify-between"><h3 class="font-head text-xl text-vahdam-green">' + c.n + '</h3>' +
-      '<span class="pill" style="background:var(--vahdam-cream);color:var(--vahdam-' + accent + ');">' + c.tag + '</span></div>' +
+      '<span class="pill" style="background:var(--vahdam-cream);color:' + tagColor + ';">' + c.tag + '</span></div>' +
       '<div class="grid grid-cols-2 gap-3 mt-4 text-sm">' +
       '<div><div class="text-[11px] uppercase font-bold" style="color:var(--soft);">Income band</div><div class="mt-0.5">' + c.income + '</div></div>' +
       '<div><div class="text-[11px] uppercase font-bold" style="color:var(--soft);">Roast preference</div><div class="mt-0.5">' + c.roast + '</div></div></div>' +
