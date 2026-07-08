@@ -24,7 +24,8 @@
 <style>
   :root{ --vahdam-green:#004A2B; --vahdam-gold:#AB8743; --vahdam-ink:#171717; --vahdam-cream:#FBF5EA; }
   html{scroll-behavior:smooth;}
-  body{background:#0a1410;color:#e8ede9;font-family:Inter,'Proxima Nova','Helvetica Neue',Arial,sans-serif;}
+  body{background:#0a1410;color:#e8ede9;font-family:Inter,'Proxima Nova','Helvetica Neue',Arial,sans-serif;padding:26px 30px;}
+  .lc-main{max-width:1080px;margin:0 auto;}
   h1,h2,h3,.font-head{font-family:'Lora','Cormorant Garamond',Georgia,serif;}
   .nav-link{display:block;padding:6px 10px;border-radius:7px;font-size:13px;color:#a7b5ad;text-decoration:none;transition:all .13s;}
   .nav-link:hover{background:rgba(171,135,67,.14);color:var(--vahdam-cream);}
@@ -60,40 +61,9 @@
   @media (max-width:960px){ #tower{position:static !important;height:auto !important;width:100% !important;} #shell{flex-direction:column;} }
 </style>
 </head>
-<body class="font-body">
-<div id="shell" class="flex min-h-screen max-w-[1500px] mx-auto">
-
-  <!-- ══ LHS COMMAND TOWER ══ -->
-  <aside id="tower" class="sticky top-0 h-screen overflow-y-auto shrink-0 border-r border-[rgba(171,135,67,.3)] bg-[#0f1d18]" style="width:280px;padding:22px 16px;">
-    <a href="/" class="block mb-1 text-[11px] font-bold tracking-widest text-vgold">← LIFECYCLE OS</a>
-    <div class="font-head text-vcream text-[21px] font-bold leading-tight">Growth &amp; Automation<br>Playbook</div>
-    <div class="text-[11px] text-[#9fb0a8] mt-1 mb-3">VAHDAM · Production reference</div>
-    <hr class="divider mb-3">
-
-    <div class="nav-group">System One · Growth &amp; Strategy</div>
-    <a class="nav-link" href="#market">📊 Market Intelligence</a>
-    <a class="nav-link nav-sub" href="#macro">Macro Economics (TAM/SAM/SOM)</a>
-    <a class="nav-link nav-sub" href="#competitors">Cross-Vertical Competitor Grid</a>
-    <a class="nav-link nav-sub" href="#blueprints">Technical Configuration Blueprints</a>
-    <a class="nav-link" href="#kb">📘 Core Knowledge Base</a>
-    <a class="nav-link nav-sub" href="#supply">Supply-Chain-to-Origin Metrics</a>
-    <a class="nav-link nav-sub" href="#verify">Ingredient Source Verification</a>
-    <a class="nav-link nav-sub" href="#crosssell">Coffee/Tea Hybrid Cross-Sell Logic</a>
-    <a class="nav-link" href="#avatars">👥 Avatars &amp; Customer Personas</a>
-    <a class="nav-link nav-sub" href="#avatars">Cohort 001-004</a>
-    <a class="nav-link" href="#realtime">📈 Real-Time &amp; Midday Analytics</a>
-    <a class="nav-link nav-sub" href="#intraday">Intraday Pace Tracking</a>
-    <a class="nav-link nav-sub" href="#predictive">Midday Predictive Models</a>
-
-    <div class="nav-group">System Two · Retention &amp; Automation</div>
-    <a class="nav-link" href="#workspace">⚙️ Workspace &amp; Asset Production</a>
-    <a class="nav-link nav-sub" href="#workspace">Mailer · Social · Motion configs</a>
-    <a class="nav-link" href="#shopify">📦 Shopify Asset Ingestion Loop</a>
-    <a class="nav-link nav-sub" href="#shopify">CDN Direct Route &amp; Sync Input</a>
-  </aside>
-
+<body>
   <!-- ══ MAIN VIEWPORT ══ -->
-  <main class="flex-1 min-w-0 px-6 md:px-10 py-8">
+  <main class="lc-main">
     <div class="kicker">VAHDAM Lifecycle OS · Growth Book</div>
     <h1 class="text-vcream text-[36px] font-bold leading-tight mt-1">Vahdam Growth &amp; Automation Playbook</h1>
     <p class="text-[#c9d4cd] max-w-3xl mt-2 text-[15px] leading-relaxed">A single, scannable reference that fuses the US coffee &amp; functional-beverage market map, the retention configuration blueprints, the buyer cohorts, live and predictive analytics from the DuckDB engine, and the content-automation + Shopify sync pipeline. Every figure below is production-grade and copy-ready.</p>
@@ -441,7 +411,6 @@ triggers:
 
     <p class="text-[11.5px] text-[#9fb0a8] mt-12 border-t border-[rgba(171,135,67,.22)] pt-4">Vahdam Growth &amp; Automation Playbook · figures are production-planning estimates. Live analytics bind to <code>vahdam_dtc_data_engine</code> (<a class="text-vcream underline decoration-vgold" href="https://vahdam-dtc-data-engine.vercel.app/" target="_blank" rel="noopener">live</a> · <a class="text-vcream underline decoration-vgold" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">repo</a>). Full workbench at <a class="text-vcream underline decoration-vgold" href="/data-analysis">/data-analysis</a>.</p>
   </main>
-</div>
 
 <script>
 (function(){
@@ -541,5 +510,6 @@ triggers:
   });
 })();
 </script>
+<script src="/auth.js?v=20260705" defer></script>
 </body>
 </html>
