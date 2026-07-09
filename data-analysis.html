@@ -378,7 +378,7 @@
   }
 
   function renderFootnote(){
-    document.getElementById('footnote').innerHTML='Source: live VAHDAM '+(MKT==='US'?'US':'UK')+' market exports in <span class="datalink">data/market/'+(MKT==='US'?'us':'uk')+'/</span>, compiled by <span class="datalink">scripts/build-market-analytics.js</span>. Trailing 12-month window. The upstream ingestion + DuckDB engine lives in <a class="datalink" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">vahdam_dtc_data_engine</a> (live: <a class="datalink" href="https://vahdam-dtc-data-engine.vercel.app/" target="_blank" rel="noopener">vahdam-dtc-data-engine.vercel.app</a>).';
+    document.getElementById('footnote').innerHTML='Source: live VAHDAM '+(MKT==='US'?'US':'UK')+' market exports in <span class="datalink">data/market/'+(MKT==='US'?'us':'uk')+'/</span>, compiled by <span class="datalink">scripts/build-market-analytics.js</span>. Trailing 12-month window. The upstream ingestion + DuckDB engine lives in <a class="datalink" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">vahdam_dtc_data_engine</a> (live: <a class="datalink" href="/data-engine">DTC Data Engine</a>).';
   }
 
   function setMarket(mk){ MKT=mk; document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===mk); }); renderKPIs(); renderGrid(); renderFootnote(); closeDetail(); }

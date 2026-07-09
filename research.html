@@ -41,10 +41,11 @@
   .btn-outline{background:transparent;color:var(--vahdam-cream);border:1.5px solid var(--vahdam-gold);font-weight:700;border-radius:9px;padding:9px 15px;cursor:pointer;text-decoration:none;display:inline-block;}
   .metric-lg{font-family:'Lora',serif;font-size:34px;color:var(--vahdam-cream);font-weight:700;line-height:1;}
   .kicker{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--vahdam-gold);font-weight:800;}
-  table.grid{width:100%;border-collapse:collapse;font-size:12.5px;min-width:820px;table-layout:auto;}
-  table.grid th,table.grid td{border-bottom:1px solid rgba(171,135,67,.18);padding:10px 12px;text-align:left;vertical-align:top;white-space:normal;}
-  table.grid th{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;position:sticky;top:0;}
+  table.grid{width:100%;border-collapse:collapse;font-size:12.5px;min-width:820px;table-layout:fixed;}
+  table.grid th,table.grid td{border-bottom:1px solid rgba(171,135,67,.18);padding:10px 12px;text-align:left;vertical-align:top;white-space:normal;overflow-wrap:anywhere;}
+  table.grid th{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;}
   table.grid tr:nth-child(even) td{background:#07100d;}
+  #stratmatrix table.grid th:first-child,#stratmatrix table.grid td:first-child{width:160px;}
   details.blueprint{background:#0f1d18;border:1px solid rgba(171,135,67,.35);border-radius:12px;overflow:hidden;}
   details.blueprint summary{cursor:pointer;padding:13px 16px;color:var(--vahdam-cream);font-weight:700;font-family:ui-monospace,'JetBrains Mono',monospace;font-size:13px;list-style:none;}
   details.blueprint summary::-webkit-details-marker{display:none;}
@@ -108,7 +109,8 @@
       <div id="competitors" class="scroll-mt-6 mt-8">
         <div class="kicker mb-2">Cross-Vertical Competitor Grid</div>
         <div class="card overflow-x-auto">
-          <table class="grid">
+          <table class="grid" style="table-layout:fixed;min-width:940px;">
+            <colgroup><col style="width:12%"><col style="width:16%"><col style="width:10%"><col style="width:16%"><col style="width:21%"><col style="width:25%"></colgroup>
             <thead><tr><th>Brand</th><th>Vertical</th><th>Market-Share Tier</th><th>Channel Mix</th><th>Infrastructure Stack</th><th>Churn Prevention</th></tr></thead>
             <tbody>
               <tr data-regions="US,Global"><td><a href="/growth-book/brands/blue-bottle.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Blue Bottle</a></td><td>Premium whole bean</td><td>Tier 1</td><td>SEO &middot; Retail &middot; Email</td><td>Recharge &middot; Klaviyo &middot; Shopify Plus</td><td>Roast-freshness cadence, cafe halo</td></tr>
@@ -358,7 +360,7 @@ triggers:
     <section id="realtime" class="mt-12">
       <h2 class="text-vcream text-[26px] font-bold">📈 Real-Time &amp; Midday Analytics</h2>
       <hr class="divider mt-2 mb-5">
-      <p class="text-[12.5px] text-[#9fb0a8] mb-4">Mirrors output from the <a class="text-vcream underline decoration-vgold" href="https://vahdam-dtc-data-engine.vercel.app/" target="_blank" rel="noopener">vahdam_dtc_data_engine</a> DuckDB instance. Values simulate a live intraday pace; wire to the engine endpoint to go live.</p>
+      <p class="text-[12.5px] text-[#9fb0a8] mb-4">Mirrors output from the <a class="text-vcream underline decoration-vgold" href="/data-engine">vahdam_dtc_data_engine</a> DuckDB instance. Values simulate a live intraday pace; wire to the engine endpoint to go live.</p>
 
       <div id="intraday" class="scroll-mt-6">
         <div class="kicker mb-2">Intraday Pace Tracking · Hour-over-Hour</div>
@@ -446,7 +448,7 @@ triggers:
       </div>
     </section>
 
-    <p class="text-[11.5px] text-[#9fb0a8] mt-12 border-t border-[rgba(171,135,67,.22)] pt-4">Vahdam Growth &amp; Automation Playbook · figures are production-planning estimates. Live analytics bind to <code>vahdam_dtc_data_engine</code> (<a class="text-vcream underline decoration-vgold" href="https://vahdam-dtc-data-engine.vercel.app/" target="_blank" rel="noopener">live</a> · <a class="text-vcream underline decoration-vgold" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">repo</a>). Full workbench at <a class="text-vcream underline decoration-vgold" href="/data-analysis">/data-analysis</a>.</p>
+    <p class="text-[11.5px] text-[#9fb0a8] mt-12 border-t border-[rgba(171,135,67,.22)] pt-4">Vahdam Growth &amp; Automation Playbook · figures are production-planning estimates. Live analytics bind to <code>vahdam_dtc_data_engine</code> (<a class="text-vcream underline decoration-vgold" href="/data-engine">live</a> · <a class="text-vcream underline decoration-vgold" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">repo</a>). Full workbench at <a class="text-vcream underline decoration-vgold" href="/data-analysis">/data-analysis</a>.</p>
   </main>
 
 <script>

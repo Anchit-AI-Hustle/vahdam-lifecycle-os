@@ -192,6 +192,7 @@
   // and the sub-item info panels — not in the row — to keep rows quiet.
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
+    { id: 'research', label: 'Market Study', href: '/research', icon: 'kb', ver: 'v2', match: ['/research', '/growth-book', '/research.html'] },
     { id: 'allinone',   label: 'All-in-One Dashboard', href: '/all-in-one', icon: 'analysis', ver: 'v2', match: ['/all-in-one', '/os', '/dashboard-os', '/all-in-one.html'] },
 
     { section: 'Research & Benchmark' },
@@ -222,7 +223,6 @@
       { id: 'coh-behavioral', label: 'Behavioral',          href: '/cohorts?tab=behavioral', icon: 'cohort' },
     ]},
     { id: 'avatars', label: 'Avatars (Personas)', href: '/avatars', icon: 'avatars', ver: 'v2', match: ['/avatars', '/personas', '/avatars.html'] },
-    { id: 'research', label: 'Market Study', href: '/research', icon: 'kb', ver: 'v2', match: ['/research', '/growth-book', '/research.html'] },
 
     { section: 'Plan' },
     { id: 'lifecycle', label: 'Mailer Calendar',    href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
@@ -247,6 +247,8 @@
       { id: 'lp-google',  label: 'For Google Ads', href: '/landing-pages.html#google',   icon: 'google' },
       { id: 'lp-tiktok',  label: 'For TikTok Ads', href: '/landing-pages.html#tiktok',   icon: 'tiktok' },
     ]},
+
+    { id: 'music', label: 'Music (Official Songs)', href: '/music', icon: 'vahdam', ver: 'v2', match: ['/music', '/music.html'] },
 
     { section: 'Share & Track' },
     { id: 'social', label: 'Social Media OS', href: '/social', icon: 'social', ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
@@ -334,7 +336,7 @@
       title: 'Data Analysis',
       what: "The full D2C growth analytics workbench, built on the live US and UK market exports. A dashboard of every analysis a growth team needs — revenue and AOV trends, sales by channel, product type and day of week, discount exposure, new-vs-returning split, returning-customer rate, customer acquisition, cohort retention, and top products — with a US/UK market toggle. Every widget drills into a detailed page with the complete data table, a bigger chart, a growth read, and a CSV download. The legacy RFM Retention Intelligence tool (upload-and-score) still lives at /rfm.",
       who: "The growth and retention team. The dashboard analyses the whole customer base and every revenue cut; the drill-downs and cohort heatmap feed cohort, RFM and lifecycle targeting used everywhere else in the OS.",
-      how: "Data is compiled from the exported market CSVs (data/market/{us,uk}) by scripts/build-market-analytics.js into a single client-side module, so the dashboard renders real numbers with no upload and no server round-trip. The upstream ingestion and DuckDB engine that produces these exports is the vahdam_dtc_data_engine (live at vahdam-dtc-data-engine.vercel.app). The RFM tool at /rfm still parses uploaded CSV/XLSX in the browser and scores the nine RFM segments.",
+      how: "Data is compiled from the exported market CSVs (data/market/{us,uk}) by scripts/build-market-analytics.js into a single client-side module, so the dashboard renders real numbers with no upload and no server round-trip. The upstream ingestion and DuckDB engine that produces these exports is the DTC Data Engine, surfaced natively in-app at /data-engine. The RFM tool at /rfm still parses uploaded CSV/XLSX in the browser and scores the nine RFM segments.",
       input: "Nothing to upload for the dashboard — it reads the compiled market exports. Pick the market (US or UK) and open any widget to drill in and download its CSV. For the RFM tool: CSV/XLSX order and customer exports.",
       steps: [
         ['Compile', 'Market CSV exports are compiled into a self-contained data module by scripts/build-market-analytics.js.', 'scripts/build-market-analytics.js'],
@@ -342,6 +344,20 @@
         ['Drill in', 'Any widget opens a detailed page: full data table, larger chart, and a concrete growth read.'],
         ['Cohort read', 'The retention heatmap normalises each acquisition quarter to 100% so LTV assumptions and sticky cohorts are visible.'],
         ['Hand off', 'Cuts feed cohort, RFM and lifecycle targeting; the RFM tool at /rfm scores uploaded data for the segment lens.'],
+      ],
+    },
+    music: {
+      title: 'Music (Official Songs)',
+      what: "The library of VAHDAM's official brand music: the branding track (with lyrics) that plays in-app and drops into ad creatives, social videos and landing pages as a native, brand-owned audio and video bed.",
+      who: "Anyone producing outward-facing content: ad creatives, Social Media OS videos, landing pages and event assets that need on-brand, cleared audio.",
+      how: "A self-contained page that streams each official track, and exposes a Use-in-ad action that copies the hosted asset URL and hands off to the Ad Campaigns builder. Tracks are served from /assets/media and are usable anywhere in the OS.",
+      input: "Nothing to upload, the official tracks are bundled with the app. From you: pick a track, preview it, then copy its URL, copy an embed snippet, or download it for the creative you are building.",
+      steps: [
+        ['Ideology', 'Brand music carries the Feel Alive voice into sound: warm, sensory, heritage-led.'],
+        ['Content', 'The branding track (with lyrics) is the first official song; more can be added to the same library.'],
+        ['Audio/Video', 'Stream and preview in-app; the file is the brand-owned audio and video bed for ads and social.'],
+        ['Coding', 'Served natively from /assets/media; copy the hosted URL or an embed snippet, or download for the target creative.', '/music'],
+        ['Compilation', 'Drop it into an ad creative or social post via the Ad Campaigns builder.', '/ads'],
       ],
     },
     research: {
