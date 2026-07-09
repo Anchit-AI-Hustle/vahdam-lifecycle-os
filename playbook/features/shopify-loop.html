@@ -128,17 +128,20 @@
   btn.addEventListener('click', function(){
     var input = document.getElementById('cdn-input'), status = document.getElementById('cdn-status');
     var url = (input.value||'').trim();
-    var valid = /^https:\/\/cdn\.shopify\.com\/.+/i.test(url);
+    var parsed, safeUrl = '';
+    try { parsed = new URL(url); } catch(e) { parsed = null; }
+    var valid = !!parsed && parsed.protocol === 'https:' && parsed.hostname.toLowerCase() === 'cdn.shopify.com';
+    if(valid){ safeUrl = parsed.href; }
     if(!valid){ status.textContent='Enter a valid cdn.shopify.com URL.'; status.style.color='#a23b2b'; return; }
-    if(synced.indexOf(url)!==-1){ status.textContent='Already synced.'; status.style.color='var(--vahdam-gold)'; return; }
-    synced.push(url); status.textContent='Sync triggered.'; status.style.color='var(--vahdam-green)'; input.value='';
+    if(synced.indexOf(safeUrl)!==-1){ status.textContent='Already synced.'; status.style.color='var(--vahdam-gold)'; return; }
+    synced.push(safeUrl); status.textContent='Sync triggered.'; status.style.color='var(--vahdam-green)'; input.value='';
     // Build the row with DOM APIs (textContent / property assignment) so the
     // user-supplied URL never flows into an HTML sink.
     var li = document.createElement('li'); li.className='flex items-start gap-2'; li.style.wordBreak='break-all';
     var tick = document.createElement('span'); tick.style.color='var(--vahdam-green)'; tick.style.fontWeight='700'; tick.textContent='✓';
     var a = document.createElement('a'); a.className='code-out underline'; a.style.color='var(--vahdam-gold-ink)';
-    a.target='_blank'; a.rel='noopener'; a.textContent=url;
-    a.href = /^https:\/\/cdn\.shopify\.com\//i.test(url) ? url : '#';
+    a.target='_blank'; a.rel='noopener'; a.textContent=safeUrl;
+    a.href = safeUrl || '#';
     li.appendChild(tick); li.appendChild(a);
     document.getElementById('cdn-list').appendChild(li);
   });
