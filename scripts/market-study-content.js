@@ -13,6 +13,8 @@
  * sourced facts, all speculative ("Guessing") content is excluded.
  */
 
+var pricing = require("./market-pricing.js");
+
 var REGIONS = ["US", "UK", "Global", "India"];
 
 var META = {
@@ -108,7 +110,7 @@ function renderNodes(nodes, mode) {
       var thead = "<tr>" + headers.map(function (h) { return "<th>" + h + "</th>"; }).join("") + "</tr>";
       var tbody = rows.map(function (r) { return "<tr>" + r.map(function (c) { return "<td>" + applyTags(c, mode) + "</td>"; }).join("") + "</tr>"; }).join("");
       if (mode === "page") {
-        var mw = headers.length >= 6 ? "920px" : (headers.length >= 4 ? "760px" : "560px");
+        var mw = headers.length >= 10 ? (headers.length * 96) + "px" : (headers.length >= 6 ? "920px" : (headers.length >= 4 ? "760px" : "560px"));
         out.push('<div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:' + mw + ';"><thead>' + thead + "</thead><tbody>" + tbody + "</tbody></table></div>" + (note ? '<p class="text-[12px] mt-1" style="color:var(--soft);">' + applyTags(note, mode) + "</p>" : ""));
       } else {
         out.push('<table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;"><thead>' + thead + "</thead><tbody>" + tbody + "</tbody></table>" + (note ? "<p><em>" + applyTags(note, mode) + "</em></p>" : ""));
@@ -1002,6 +1004,11 @@ function socialInnerHTML(region, mode) {
   return renderNodes(SOCIAL[region], mode) + "\n" + renderNodes(SOCIAL_CORE, mode);
 }
 
+// Live competitor pricing snapshot (shared across regions; US + UK rows).
+function pricingInnerHTML(mode) {
+  return renderNodes(pricing.nodes(), mode);
+}
+
 /* ---- confidence legend (page) ---- */
 function legendPage() {
   return '<div class="card p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">How to read the confidence tags</div><div class="mt-2 text-sm space-y-1" style="color:var(--vahdam-ink);">' +
@@ -1042,6 +1049,7 @@ function reportInnerHTML(region) {
     if (c[0] === "strategy") {
       ordered.push({ key: "d2c", label: "D2C growth", html: d2cInnerHTML(region, "page") });
       ordered.push({ key: "social", label: "Social &amp; content", html: blueprintBtn + "\n" + socialInnerHTML(region, "page") });
+      ordered.push({ key: "pricing", label: "Live pricing", html: pricingInnerHTML("page") });
     }
   });
   var tabs = ordered.map(function (c, i) {
@@ -1072,6 +1080,7 @@ function docHTML(region) {
     body +
     d2cInnerHTML(region, "doc") +
     socialInnerHTML(region, "doc") +
+    pricingInnerHTML("doc") +
     "</body></html>";
 }
 
@@ -1136,7 +1145,7 @@ function docxDocumentXml(region) {
   var body = pHead(m.docTitle, 34) + pItalic(m.sub) +
     pRuns(wRun("Prepared for: " + decodeEntities(m.prep) + ".  9 July 2026.  Confidence-tagged: [Certain] (cited) / [Likely] (strong multi-source inference). Speculative points excluded.")) +
     pRuns(wRun("VAHDAM position (" + region + "): ", true) + wRun(SYNTH[region]));
-  REPORTS[region].concat(D2C[region]).concat(D2C_UNIVERSAL).concat(SOCIAL[region]).concat(SOCIAL_CORE).forEach(function (n) {
+  REPORTS[region].concat(D2C[region]).concat(D2C_UNIVERSAL).concat(SOCIAL[region]).concat(SOCIAL_CORE).concat(pricing.nodes()).forEach(function (n) {
     var t = n[0];
     if (t === "sec") { body += pHead(n[1] + ". " + n[2], 28); if (n[3]) body += pItalic(n[3]); }
     else if (t === "head") { body += pHead(n[1], 28); if (n[2]) body += pItalic(n[2]); }
