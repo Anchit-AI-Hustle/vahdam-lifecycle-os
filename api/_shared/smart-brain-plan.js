@@ -561,13 +561,18 @@ function applyCopy(campaign, entry, copy, creatives = {}) {
       || emailHtml(entry, copy, campaign.assets.email.creative.image);
     campaign.assets.email.text = `${copy.email.subject}\n${copy.email.preheader}\n\n${copy.email.intro_paragraph}\n\n${copy.email.body_paragraph}\n\n${copy.email.cta}: {{landing_page_url}}`;
   }
-  if (campaign.assets.landing_pages?.length) {
-    const lp = campaign.assets.landing_pages[0];
-    lp.title = copy.landing.hero_headline || lp.title;
-    lp.creative = creatives.landing || { brief: copy.landing.image_brief || '', image: null, provider: null };
-    lp.html = lpHtml(entry, copy, campaign.campaign_id, lp.creative.image);
-    lp.path = `/lp/${campaign.campaign_id}`;
-  }
+  (campaign.assets.landing_pages || []).forEach((lp) => {
+    const isB = lp.variant === 'B';
+    // A = generated (hosted) image + the LLM headline; B = the real catalog
+    // product photo + a distinct story-led headline, so the pair is a true A/B.
+    const headline = copy.landing.hero_headline || lp.title;
+    const lpCopy = isB ? { ...copy, landing: { ...copy.landing, hero_headline: `The ritual behind ${headline}` } } : copy;
+    const img = isB ? (catalogImage.imageFor(entry, entry.market) || null) : ((creatives.landing && creatives.landing.image) || null);
+    lp.title = lpCopy.landing.hero_headline || lp.title;
+    lp.creative = { brief: copy.landing.image_brief || '', image: img, provider: isB ? 'catalog' : ((creatives.landing && creatives.landing.provider) || null) };
+    lp.html = lpHtml(entry, lpCopy, campaign.campaign_id, img);
+    lp.path = isB ? `/lp/${campaign.campaign_id}?v=b` : `/lp/${campaign.campaign_id}`;
+  });
   for (const ad of campaign.assets.ads || []) {
     const isB = ad.variant === 'B';
     // Variant A takes the LLM-written copy; variant B keeps its distinct
@@ -899,12 +904,15 @@ async function activateScenario({ scenario, reviewer = null, scope = 'all', conf
 
 // ── Landing-page resolver for /lp/:id ───────────────────────────────────────
 
-async function landingPageHtml(id, cfg = {}) {
+async function landingPageHtml(id, cfg = {}, variant = null) {
   const config = smartConfig(cfg);
   const db = new SmartBrainDbAdapter(config);
   if (!db.connected) return null;
   const camp = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
-  const html = camp?.[0]?.payload?.assets?.landing_pages?.[0]?.html;
+  const lps = camp?.[0]?.payload?.assets?.landing_pages || [];
+  // ?v=b serves the story-led B variant; default serves A (the first LP).
+  const want = /^b$/i.test(String(variant || '')) ? (lps.find((l) => l.variant === 'B') || lps[1]) : (lps.find((l) => l.variant === 'A') || lps[0]);
+  const html = want?.html;
   if (html) return html;
   // fall back to landing_pages_generated (numeric id or campaign_id in payload)
   const filters = /^\d+$/.test(String(id)) ? { id: `eq.${id}` } : { 'payload->>campaign_id': `eq.${id}` };
