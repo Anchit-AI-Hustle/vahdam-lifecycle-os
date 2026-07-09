@@ -2,7 +2,7 @@
 
 **Destination URL:** https://vahdam.co.uk/products/pack-1-starter-ashwagandha-coffee
 **CTA button:** Shop Now
-**Format:** single image / static (4:5 feed, 1080×1350) or 1:1
+**Format:** static image (4:5 feed 1080×1350, 1:1 1080×1080, 9:16 story/reel 1080×1920) + optional 6-8s Reel
 **Facts source:** `facts.md`. No claim beyond it. Structure-function only, no medical claims.
 
 ---
@@ -61,6 +61,27 @@ guarantee. Begin the ritual.
   required. No text-heavy overlay (Meta penalises it and it fights the brand's restraint).
 - **Palette + type:** brand four-colour palette only; if any type is set on-image use Lao MN for the
   line and Proxima Nova for the small print.
+
+## Placements + aspect ratios (full Meta coverage)
+
+| Placement | Ratio | Export | Use of the concept above |
+|---|---|---|---|
+| Feed (primary) | 4:5 | 1080×1350 | Hook line top, product centred, price/guarantee small print bottom |
+| Feed / Explore | 1:1 | 1080×1080 | Same, tighter crop; safe for carousel slot 1 |
+| Stories / Reels | 9:16 | 1080×1920 | Vertical: hook in the top third (clear of the profile chip), product mid-frame, CTA sticker "Start the ritual" in the bottom third clear of the caption/CTA UI safe zones (keep all copy within the centre ~1080×1420) |
+
+## Reels / Stories video brief (6-8s, optional motion variant)
+
+Vertical 9:16, 1080×1920, silent-first (captions burned in, brand palette), no voiceover required.
+
+| Timestamp | Shot | On-screen copy |
+|---|---|---|
+| 0.0-1.5s | Hard cut to a dim kitchen, phone glow, kettle steam rising fast (the rushed morning) | "Another morning on autopilot?" |
+| 1.5-4.0s | Slow push-in on the Starter Kit pack; one scoop into a cup; gold light band crosses the frame | "Real Arabica, steadied with KSM-66 Ashwagandha." |
+| 4.0-6.5s | A hand lifts the finished cup; shoulders visibly drop; unhurried | "The lift, without the morning it usually starts." |
+| 6.5-8.0s | Product + gold CTA card on forest-green | "Starter Kit · £44.99 · 90-day money-back - Start the ritual" |
+
+- Motion cadence: cuts land on an unhurried beat (no jump-cut hype). Text sits in the vertical safe zone (top/bottom ~250px kept clear of Reels UI). Structure-function wording only; no cortisol figure or medical claim.
 
 ## Brand + compliance check (this ad)
 
