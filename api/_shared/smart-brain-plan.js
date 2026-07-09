@@ -332,9 +332,9 @@ function copyPrompt(entry) {
 - Rationale: ${entry.rationale || ''}
 - Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
 
-Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules:
-- email / LP heroes: NO text/logos/UI baked into the image (text lives in the page layout) — just scene, props, light, mood; aspirational hero.
-- AD creatives (meta / google / tiktok): the headline + offer text MUST be BAKED INTO the creative (state the exact overlay wording, on-palette colour, and placement) — like a real paid ad. Sell the HAPPINESS end-state for P01 (women 45+/busy mums: calmer mornings, steady energy, "feeling like myself again"), NOT ingredients; open on a 1-second scroll-stop; meta = scroll-stopping square, google = clean landscape, tiktok = vertical native hand-held.
+Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules (ALL creatives are TEXT-FREE photographs — never describe overlaid words, headlines, prices, logos or UI in the image_brief; diffusion models cannot spell and render garbled fake letterforms, and the real ad copy is rendered natively by the platform, not painted into the pixels):
+- email / LP heroes: just scene, props, light, mood; aspirational hero.
+- AD creatives (meta / google / tiktok): a scroll-stopping TEXT-FREE photograph that sells the HAPPINESS end-state for P01 (women 45+/busy mums: calmer mornings, steady energy, "feeling like myself again"), NOT ingredients; open on a 1-second scroll-stop. Compose for the placement: meta = square, google = clean landscape, tiktok = vertical native hand-held. State only the scene, subject, light and mood - no words in the frame.
 
 Return JSON with exactly this shape:
 {
@@ -642,15 +642,18 @@ async function uploadCreative(dataUrl, name) {
 // data-URL; falls back to brief-only (image:null) if generation fails.
 async function generateCreatives(copy, entry) {
   const hero = entry.heroProduct?.title ? ` Hero product: VAHDAM ${entry.heroProduct.title}.` : '';
-  // email/LP heroes are text-free photos (copy lives in the page layout);
-  // ad channels render the headline+offer baked into the image (mode:'ad'),
-  // since this server path has no client-side canvas overlay step.
+  // ALL channels get TEXT-FREE photographs (mode:''). Diffusion models cannot
+  // spell, so baking a headline/offer into the pixels (the old mode:'ad') always
+  // produced garbled, fake-language letterforms. Real ad copy lives in the ad's
+  // primary-text/headline fields (which Meta/Google/TikTok render as native
+  // platform text), never in the image itself — which is also what those
+  // platforms recommend. Email/LP copy lives in the HTML layout as before.
   const specs = [
-    ['email',  copy.email?.image_brief,       '1536x1024', ''],
-    ['landing', copy.landing?.image_brief,    '1536x1024', ''],
-    ['meta',   copy.ads?.meta?.image_brief,   '1024x1024', 'ad'],
-    ['google', copy.ads?.google?.image_brief, '1536x1024', 'ad'],
-    ['tiktok', copy.ads?.tiktok?.image_brief, '1024x1536', 'ad'],
+    ['email',   copy.email?.image_brief,       '1536x1024', ''],
+    ['landing', copy.landing?.image_brief,     '1536x1024', ''],
+    ['meta',    copy.ads?.meta?.image_brief,   '1024x1024', ''],
+    ['google',  copy.ads?.google?.image_brief, '1536x1024', ''],
+    ['tiktok',  copy.ads?.tiktok?.image_brief, '1024x1536', ''],
   ];
   const out = {};
   await Promise.all(specs.map(async ([key, rawBrief, size, mode]) => {
@@ -722,7 +725,11 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
     if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
   }
-  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id });
+  // Fallback (slot not prebuilt yet): build copy + layout WITHOUT images. Preview
+  // must be fast — generating 5 images inline here overran the function limit and
+  // returned a non-JSON platform timeout page ("Preview failed: ... not valid
+  // JSON"). Images appear in preview once the prebuild queue has built the slot.
+  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: false });
   campaign.status = 'preview';
   return {
     ok: true,

@@ -63,7 +63,7 @@
     <div>
       <div class="eyebrow">VAHDAM Lifecycle OS · Smart Brain</div>
       <h1>Rolling Plan: Review &amp; Approve</h1>
-      <p>The brain keeps a tentative <b>15-day calendar</b> per market, re-reviewed daily against the latest data (auto via cron at 03:30 UTC, or manually below). Approving a slot generates the full funnel — mailer, Meta/Google/TikTok ads, and a hosted landing page — for final human check.</p>
+      <p>The brain keeps a tentative <b>90-day calendar</b> per market, re-reviewed daily against the latest data (auto via cron at 03:30 UTC, or manually below). Approving a slot generates the full funnel — mailer, Meta/Google/TikTok ads, and a hosted landing page — for final human check.</p>
     </div>
     <div>
       <button id="sync" class="btn">🔄 Run Daily Sync</button>
@@ -79,7 +79,7 @@
     <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div></div>
 
     <div class="card wide">
-      <h2>Rolling calendar (next 15 days · all markets)</h2>
+      <h2>Rolling calendar (next 90 days · all markets)</h2>
       <div style="overflow-x:auto">
       <table>
         <thead><tr><th>Date</th><th>Market</th><th>Cohort</th><th>Objective · Hero</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
@@ -119,6 +119,19 @@ const API = '/api/calendar';
 let PLAN = [];
 
 function reviewerEmail(){ try { return window.LifecycleAuth?.session?.user?.email || null; } catch(_) { return null; } }
+// Parse a fetch Response safely: a serverless timeout/500 returns a plaintext
+// page (not JSON), which used to blow up as "Unexpected token 'A' ... is not
+// valid JSON". Read the body as text first, then parse, with a clean message.
+async function safeJson(r){
+  const t = await r.text();
+  try { return JSON.parse(t); }
+  catch(_){
+    if (r.status === 504 || /timeout|FUNCTION_INVOCATION_TIMEOUT|took too long/i.test(t))
+      throw new Error('The server took too long and timed out. Assets may still be prebuilding in the background - try again in a moment.');
+    const snip = (t || '').trim().slice(0, 120).replace(/\s+/g, ' ');
+    throw new Error('Server returned ' + r.status + (snip ? ' (' + snip + ')' : ' (empty response)') + '. Please retry.');
+  }
+}
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 // ── Agentic Generation (agentic flow + 5-scenario calendar) ────────────────
@@ -139,7 +152,7 @@ async function runAgentic(){
   out.innerHTML = `<p>🤖 Running agentic flow — Premium, ${esc(market)} — 8 stages, please wait…</p>`;
   try{
     const r = await fetch('/api/brain?action=agentic-run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ market, tier: TIER, withCreatives: true })});
-    const d = await r.json();
+    const d = await safeJson(r);
     if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
     const stages = (d.stages||[]).map(s => `<div style="padding:6px 0;border-bottom:1px solid #eee5d2"><b>${s.ok?'✓':'✗'} ${esc(s.stage)}</b> — ${esc(s.summary||'')}</div>`).join('');
     const scs = (d.scenarios&&d.scenarios.scenarios||[]).map(scenarioCard).join('');
@@ -155,7 +168,7 @@ async function loadScenarios(){
   out.innerHTML = `<p>🗓 Building 5-scenario calendar — tier <b>${TIER}</b>, ${esc(market)}…</p>`;
   try{
     const r = await fetch(`/api/brain?action=calendar-scenarios&market=${encodeURIComponent(market)}&tier=${TIER}`);
-    const d = await r.json();
+    const d = await safeJson(r);
     if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
     const scs = (d.scenarios||[]).map(scenarioCard).join('');
     out.innerHTML = `<div class="label">${d.calendar?d.calendar.entries:0} base entries · default ${esc(d.default)}</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${scs}</div>`;
@@ -288,7 +301,7 @@ async function viewEntry(i, forceRegen){
   $('detail').textContent = '';
   try{
     const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
-    const data = await r.json();
+    const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Preview failed');
     PREVIEW_CACHE[e.id] = data;
     renderPreview(data, e, i);
@@ -299,7 +312,7 @@ window.viewEntry = viewEntry;
 async function loadPlan(){
   try{
     const r = await fetch(`${API}?action=smart-brain-plan`);
-    const data = await r.json();
+    const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Failed to load plan');
     $('mode').textContent = data.mode === 'db-linked' ? (data.stored ? 'DB-linked' : 'DB (empty)') : 'Preview';
     PLAN = data.entries || [];
@@ -312,7 +325,7 @@ async function runSync(){
   $('sync').disabled = true; $('sync').textContent = 'Reviewing latest data…';
   try{
     const r = await fetch(`${API}?action=smart-brain-sync-daily`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})});
-    const data = await r.json();
+    const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Sync failed');
     $('mode').textContent = data.mode === 'db-linked' ? 'DB-linked' : 'Preview';
     $('lastsync').textContent = new Date(data.synced_at).toLocaleString();
@@ -334,7 +347,7 @@ async function approve(i){
   $('detail').textContent = '';
   try{
     const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
-    const data = await r.json();
+    const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Approve failed');
     e.status = 'approved'; e.generated_campaign_id = data.campaign.campaign_id;
     delete PREVIEW_CACHE[e.id];
@@ -349,7 +362,7 @@ async function reject(i){
   const notes = prompt(`Why reject ${e.date} ${e.market}? (stored as feedback; slot is re-planned on next sync)`) ?? '';
   try{
     const r = await fetch(`${API}?action=smart-brain-reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, notes, reviewer: reviewerEmail() })});
-    const data = await r.json();
+    const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Reject failed');
     e.status = 'rejected';
     delete PREVIEW_CACHE[e.id];
@@ -363,7 +376,7 @@ async function showSchema(){
   clearPreview();
   const r = await fetch(`${API}?action=smart-brain-schema`);
   $('detailTitle').textContent = 'Schema contract';
-  $('detail').textContent = JSON.stringify(await r.json(), null, 2);
+  $('detail').textContent = JSON.stringify(await safeJson(r), null, 2);
 }
 
 $('sync').addEventListener('click', runSync);
