@@ -92,6 +92,9 @@ function renderNodes(nodes, mode) {
     } else if (type === "sub") {
       if (mode === "page") out.push('<div class="text-[11px] uppercase tracking-[.06em] font-bold mt-4" style="color:var(--soft);">' + n[1] + "</div>");
       else out.push("<h3>" + n[1] + "</h3>");
+    } else if (type === "head") {
+      if (mode === "page") out.push('<div class="mt-8"><h2 class="font-head text-2xl md:text-3xl text-vahdam-green mt-1">' + n[1] + "</h2>" + (n[2] ? '<p class="text-sm mt-2 max-w-3xl" style="color:var(--soft);">' + n[2] + "</p>" : "") + "</div>");
+      else out.push("<h2>" + n[1] + "</h2>" + (n[2] ? "<p><em>" + n[2] + "</em></p>" : ""));
     } else if (type === "card") {
       var paras = n[1].map(function (p) { return "<p>" + applyTags(p, mode) + "</p>"; }).join("");
       if (mode === "page") out.push('<div class="card p-5"><div class="text-sm space-y-2" style="color:var(--vahdam-ink);">' + paras + "</div></div>");
@@ -749,6 +752,159 @@ var SYNTH = {
   India: "Origin is parity at home, everyone is origin. Win on premium/single-origin, the bridge SKU (Ashwagandha Coffee across the ritual and wellness wallets), reverse-prestige (loved in 145 countries), quick-commerce and disciplined CAC."
 };
 
+/* =====================================================================
+   D2C GROWTH ENGINE, per region + a universal (all-industry) playbook.
+   Rendered in its own "D2C growth" sub-tab. Synthesised from the report
+   evidence above (sourced facts, no speculation).
+   ===================================================================== */
+var D2C_LEVERS = [
+  ["Blended + paid CAC", "Cost to acquire a customer", ""],
+  ["LTV : CAC ratio", "Whether acquisition is profitable", ""],
+  ["Subscription rate &amp; churn", "Recurring-revenue health", ""],
+  ["AOV", "Basket size per order", ""],
+  ["Repeat / reorder rate", "Loyalty and habit", ""],
+  ["First-order conversion", "Funnel efficiency", ""],
+  ["Review volume &amp; rating", "Trust proxy", ""]
+];
+function leversTbl(moveCol) {
+  var rows = D2C_LEVERS.map(function (r, i) { return [r[0], r[1], moveCol[i]]; });
+  return ["tbl", ["Lever (tracked &amp; measured)", "What it measures", "How the region's brands improve it"], rows];
+}
+
+var D2C = {
+  US: [
+    ["head", "D2C growth engine (US)", "How the US brands track, measure and grow direct-to-consumer sales, and what they have done vs are doing now."],
+    ["card", ["The US set runs on subscription economics and loud proof. Every serious player instruments the same core levers and optimises them with the standardized DTC motion (subscribe-default, guarantee, starter kit, social proof, retail crossover)."]],
+    ["sub", "Levers, how the brands track, measure and improve D2C sales"],
+    leversTbl([
+      "Starter-kit offers, quiz-style funnels, UGC/reviews; a Target retail halo that lowers paid dependence",
+      "Subscribe-default checkout + bundles/cross-sell to lift LTV against a low ~$0.80 to $3.30 serving price",
+      "Default-to-subscribe, pause-not-cancel, 5-day reminders (VAHDAM) to blunt the #1 auto-renew complaint",
+      "Bundles, gifting sets, free-frother/creamer thresholds",
+      "Taste quality (the #1 repeat driver), replenishment reminders, loyalty",
+      "30 to 90-day money-back + loud social proof (Ryze 200K+ reviews, Happy Mammoth 3.3M customers)",
+      "Review-generation flows and sampling; transparency (third-party testing, KSM-66) as trust proof"
+    ]),
+    ["sub", "What the brands have done (past plays)"],
+    ["bul", [
+      "Built DTC subscription engines as the core business model, not a feature.",
+      "Amassed review moats (Ryze 200,000+ reviews) and celebrity endorsement (AG1: Huberman, Hugh Jackman).",
+      "Educated the category (Four Sigmatic normalised mushroom coffee) and bundled free gifts (frother, tumbler) to lower first-order friction.",
+      "Used named clinical extracts (KSM-66, Shoden) and certifications (NSF, USDA Organic) to justify premium price."
+    ]],
+    ["sub", "What the brands are doing now (current plays)"],
+    ["bul", [
+      "Crossing DTC into physical retail once paid CAC bites: VAHDAM ~1,000 Target stores, Four Sigmatic national grocery, AG1 experiential.",
+      "Competing on transparency: publishing third-party testing and exact doses (Ryze dinged for not publishing results).",
+      "Leaning into taste-first positioning and diagnostic quiz funnels (Happy Mammoth 2-minute quiz) to raise conversion.",
+      "Launching RTD/format extensions (Starbucks+PepsiCo Coffee &amp; Protein) as function mainstreams."
+    ]]
+  ],
+  UK: [
+    ["head", "D2C growth engine (UK)", "How the UK brands track, measure and grow D2C sales, and what they have done vs are doing now."],
+    ["card", ["The UK set splits into two proven acquisition motions, influencer-led high-dose low-price (DIRTEA) and clinical-credibility (London Nootropics), on top of the same subscription levers. The sachet trial is the on-ramp; the ASA/CAP + MHRA regime shapes what can be claimed."]],
+    ["sub", "Levers, how the brands track, measure and improve D2C sales"],
+    leversTbl([
+      "Low-friction sachet trials, influencer discovery (TikTok Shop) or doctor-backed credibility; Amazon UK reach",
+      "Subscription + tea-house cross-sell; VAHDAM's 90-day guarantee de-risks the first order to lift conversion",
+      "Default subscription (Spacegoods), reminders; transparent billing to counter auto-renew friction",
+      "Bundles and B1/B2G1 promos (Spacegoods); gifting sets",
+      "Clean taste (real coffee vs cocoa), replenishment, practitioner repeat",
+      "Sachet trial packs + third-party testing (Spacegoods) and doctor endorsements (London Nootropics)",
+      "Published testing, named branded extracts and clinician trust cues that move conversion"
+    ]),
+    ["sub", "What the brands have done (past plays)"],
+    ["bul", [
+      "Launched via influencer marketing at aggressive per-serving prices (DIRTEA ~&pound;0.40 to 0.55).",
+      "Built clinical credibility with named, traceable extracts and doctor endorsements (London Nootropics: Rhodiolife, Hifas da Terra, KSM-66).",
+      "Raised funding to build a lifestyle brand and define the category taste expectation (Spacegoods, &pound;2.5M).",
+      "Used Amazon UK and TikTok Shop as discovery engines."
+    ]],
+    ["sub", "What the brands are doing now (current plays)"],
+    ["bul", [
+      "Leading acquisition with single-serve sachet trials, reserving bundles/subscription for the second purchase.",
+      "Picking one credibility lane (clinical vs lifestyle) rather than blurring.",
+      "Publishing third-party heavy-metal/microbial testing as a trust proxy (Spacegoods).",
+      "Tightening claims to stay ASA/CAP + MHRA compliant, and opening the practitioner/clinic channel."
+    ]]
+  ],
+  Global: [
+    ["head", "D2C growth engine (Global / rest-of-world)", "How the exporters and luxury-tea houses track, measure and grow D2C across the winnable markets, past vs now."],
+    ["card", ["Rest-of-world is won by the exporters that localise best plus the luxury-tea houses that own gifting. Because claim regimes are strict (EFSA/NHP/TGA/GCC), the growth levers lean on halo, gifting and marketplace reach rather than physiological claims."]],
+    ["sub", "Levers, how the brands track, measure and improve D2C sales"],
+    leversTbl([
+      "Press/celebrity/luxury-list halo and marketplace reach (Amazon) that lower CAC where ad-spend can't scale",
+      "Premium gifting and multi-SKU ranges to lift basket value and margin in high-income markets",
+      "Regional storefront subscriptions; localised fulfilment to reduce shipped-in latency",
+      "Premium gift sets and festive bundles (GCC, EU festive) as the high-margin, low-CAC lane",
+      "Region-localised range + loyalty; concentration on the winnable four over thin 145-country coverage",
+      "Money-back + luxury-brand trust; region-specific compliance passes before claims run",
+      "Luxury-list rankings and celebrity press as portable trust that travels across markets"
+    ]),
+    ["sub", "What the brands have done (past plays)"],
+    ["bul", [
+      "Exporters localised via regional storefronts and Amazon (Four Sigmatic, Ryze, AG1) into EU/Canada/ANZ.",
+      "Luxury-tea houses built boutique, department-store and duty-free gifting prestige (TWG, Kusmi, Palais des Thes, Mariage Freres).",
+      "VAHDAM built a global storefront shipping to ~145 countries and a celebrity/press luxury-list halo."
+    ]],
+    ["sub", "What the brands are doing now (current plays)"],
+    ["bul", [
+      "Concentrating spend on the winnable four (EU-ex-UK, Canada, ANZ, GCC) rather than chasing coverage.",
+      "Leading with halo and premium gifting over physiological claims (dodging strict EU/TGA/EFSA regimes).",
+      "Localising the compliance, not the product: one SKU, region-specific claims (halal, NHP, EFSA, TGA/FSANZ).",
+      "Spacegoods openly pushing European market leadership; luxury houses deepening gifting/mall distribution."
+    ]]
+  ],
+  India: [
+    ["head", "D2C growth engine (India)", "How the India players track, measure and grow D2C sales, and what they have done vs are doing now."],
+    ["card", ["India D2C is decided as much by distribution execution (quick-commerce) and unit economics as by demand. The Ayurvedic-D2C profitability trap (Kapiva: &#8377;69cr loss on &#8377;342cr revenue) makes CAC discipline the defining lever."]],
+    ["sub", "Levers, how the brands track, measure and improve D2C sales"],
+    leversTbl([
+      "Content/community funnels (Kapiva, OZiva), quick-commerce discovery, gifting; guard CAC as the category-killer",
+      "Retention, gifting and cross-sell to keep LTV above premium CAC (the Kapiva warning)",
+      "Subscription + replenishment; quick-commerce reorder velocity as the new recurring channel",
+      "Premium bundles and festive/corporate gift sets that suit export-grade packaging",
+      "30 to 60-day repurchase (OZiva); daily-ritual habit via the coffee format",
+      "Marketplace + quick-commerce trial; brand/design trust vs Dabur/Himalaya credibility",
+      "Community and content proof (OZiva Instagram); analyst/press validation"
+    ]),
+    ["sub", "What the brands have done (past plays)"],
+    ["bul", [
+      "Coffee-D2C raised PE/VC and educated the market on premium at-home ritual (Blue Tokai ~$180M valuation, $25M Sep 2025; Subko $10M).",
+      "Ayurveda-D2C took Ayurveda out of the pharmacy jar with content + subscription funnels (Kapiva, OZiva).",
+      "Convenience formats scaled via retail + quick-commerce (Sleepy Owl, 15K+ retail)."
+    ]],
+    ["sub", "What the brands are doing now (current plays)"],
+    ["bul", [
+      "Treating quick-commerce (Blinkit, Instamart, Zepto) as a first-class shelf where premium daily-ritual demand converts.",
+      "Guarding CAC hard as ad-led growth gives way to unit-economics scrutiny.",
+      "Leaning on gifting (festive + corporate) as a high-margin, low-CAC lane.",
+      "Premiumising the format and experience, not the (native, non-novel) ashwagandha ingredient."
+    ]]
+  ]
+};
+
+var D2C_UNIVERSAL = [
+  ["head", "Universal D2C strategy, every brand, any industry", "The non-negotiable moves that hold across regions and categories, distilled from the four studies."],
+  ["bul", [
+    "<b>Sell a relationship, not a one-off product.</b> Default-to-subscribe with genuinely easy pause/cancel and timed reminders; recurring revenue is where the economics live.",
+    "<b>Instrument the whole funnel.</b> Track CAC (blended + paid), LTV, LTV:CAC, contribution margin, cohort retention, repeat rate and AOV; decide on LTV:CAC, not vanity revenue.",
+    "<b>Guard CAC like the category-killer it is.</b> Lean on retention, referrals, owned channels and organic/UGC before scaling paid, the Kapiva loss is the warning.",
+    "<b>De-risk the first purchase.</b> A money-back guarantee, a low-friction trial or sample, and loud, specific social proof.",
+    "<b>Build a review and UGC engine.</b> Volume-of-proof is the primary trust lever in every market.",
+    "<b>Lead with one named, provable differentiator,</b> and keep every claim compliant with the local regulator, compliance is itself a trust moat.",
+    "<b>Win the real shelf of your market.</b> Retail crossover (US), quick-commerce (India), marketplaces/Amazon, wherever demand actually converts.",
+    "<b>Raise AOV and LTV deliberately</b> with bundles, cross-sell and gifting; make replenishment effortless.",
+    "<b>Own first-party data and email/SMS;</b> reduce dependence on rented audiences and shifting ad platforms.",
+    "<b>Make cancellation frictionless and billing transparent;</b> surprise auto-renewal is the top complaint in every region.",
+    "<b>Treat creative, offers and funnels as always-on experiments,</b> measure, iterate, kill what doesn't move the levers above."
+  ]]
+];
+
+function d2cInnerHTML(region, mode) {
+  return renderNodes(D2C[region], mode) + "\n" + renderNodes(D2C_UNIVERSAL, mode);
+}
+
 /* ---- confidence legend (page) ---- */
 function legendPage() {
   return '<div class="card p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">How to read the confidence tags</div><div class="mt-2 text-sm space-y-1" style="color:var(--vahdam-ink);">' +
@@ -781,12 +937,18 @@ function reportInnerHTML(region) {
 
   var groups = groupByCat(region);
   var present = CATS.filter(function (c) { return groups[c[0]] && groups[c[0]].length; });
-  var tabs = present.map(function (c, i) {
-    return '<button type="button" class="mstab' + (i === 0 ? " on" : "") + '" data-cat="' + c[0] + '">' + c[1] + "</button>";
+  // insert the synthetic "D2C growth" tab right after Strategy & white space
+  var ordered = [];
+  present.forEach(function (c) {
+    ordered.push({ key: c[0], label: c[1], html: renderNodes(groups[c[0]], "page") });
+    if (c[0] === "strategy") ordered.push({ key: "d2c", label: "D2C growth", html: d2cInnerHTML(region, "page") });
+  });
+  var tabs = ordered.map(function (c, i) {
+    return '<button type="button" class="mstab' + (i === 0 ? " on" : "") + '" data-cat="' + c.key + '">' + c.label + "</button>";
   }).join("");
   var tabbar = '<div class="flex flex-wrap gap-2 mt-4" data-ms-cattabs>' + tabs + "</div>";
-  var panels = present.map(function (c, i) {
-    return '<div data-cat-panel="' + c[0] + '" class="space-y-3 mt-4"' + (i === 0 ? "" : ' style="display:none"') + ">" + renderNodes(groups[c[0]], "page") + "</div>";
+  var panels = ordered.map(function (c, i) {
+    return '<div data-cat-panel="' + c.key + '" class="space-y-3 mt-4"' + (i === 0 ? "" : ' style="display:none"') + ">" + c.html + "</div>";
   }).join("\n");
 
   return head + "\n" + legendPage() + "\n" + synth + "\n" + tabbar + "\n" + panels;
@@ -807,6 +969,7 @@ function docHTML(region) {
     "<p>Prepared for: " + m.prep + " &middot; Date: 9 July 2026 &middot; Confidence-tagged: [Certain] (cited) / [Likely] (strong multi-source inference). Speculative points excluded.</p>" +
     '<p><strong>VAHDAM position (' + region + "):</strong> " + SYNTH[region] + "</p><hr>" +
     body +
+    d2cInnerHTML(region, "doc") +
     "</body></html>";
 }
 
@@ -871,9 +1034,10 @@ function docxDocumentXml(region) {
   var body = pHead(m.docTitle, 34) + pItalic(m.sub) +
     pRuns(wRun("Prepared for: " + decodeEntities(m.prep) + ".  9 July 2026.  Confidence-tagged: [Certain] (cited) / [Likely] (strong multi-source inference). Speculative points excluded.")) +
     pRuns(wRun("VAHDAM position (" + region + "): ", true) + wRun(SYNTH[region]));
-  REPORTS[region].forEach(function (n) {
+  REPORTS[region].concat(D2C[region]).concat(D2C_UNIVERSAL).forEach(function (n) {
     var t = n[0];
     if (t === "sec") { body += pHead(n[1] + ". " + n[2], 28); if (n[3]) body += pItalic(n[3]); }
+    else if (t === "head") { body += pHead(n[1], 28); if (n[2]) body += pItalic(n[2]); }
     else if (t === "sub") { body += pHead(n[1], 24); }
     else if (t === "card") { n[1].forEach(function (p) { body += pRuns(toRuns(p)); }); }
     else if (t === "bul") { n[1].forEach(function (it) { body += pBullet(toRuns(it)); }); }

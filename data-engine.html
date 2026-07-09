@@ -157,7 +157,9 @@
 
     document.getElementById('mktTabs').addEventListener('click', function(e){
       var b = e.target.closest ? e.target.closest('.rtab') : null; if(!b) return;
-      market = b.getAttribute('data-mkt');
+      // Resolve to a fixed, code-defined value (never route the raw DOM attribute
+      // into the render/innerHTML path) so only known markets are ever used.
+      market = (b.getAttribute('data-mkt') === 'UK') ? 'UK' : 'US';
       [].forEach.call(document.querySelectorAll('#mktTabs .rtab'), function(t){ t.classList.toggle('on', t === b); });
       render();
     });
