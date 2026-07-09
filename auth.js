@@ -248,6 +248,8 @@
       { id: 'lp-tiktok',  label: 'For TikTok Ads', href: '/landing-pages.html#tiktok',   icon: 'tiktok' },
     ]},
 
+    { id: 'music', label: 'Music (Official Songs)', href: '/music', icon: 'vahdam', ver: 'v2', match: ['/music', '/music.html'] },
+
     { section: 'Share & Track' },
     { id: 'social', label: 'Social Media OS', href: '/social', icon: 'social', ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
     { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
@@ -342,6 +344,20 @@
         ['Drill in', 'Any widget opens a detailed page: full data table, larger chart, and a concrete growth read.'],
         ['Cohort read', 'The retention heatmap normalises each acquisition quarter to 100% so LTV assumptions and sticky cohorts are visible.'],
         ['Hand off', 'Cuts feed cohort, RFM and lifecycle targeting; the RFM tool at /rfm scores uploaded data for the segment lens.'],
+      ],
+    },
+    music: {
+      title: 'Music (Official Songs)',
+      what: "The library of VAHDAM's official brand music: the branding track (with lyrics) that plays in-app and drops into ad creatives, social videos and landing pages as a native, brand-owned audio and video bed.",
+      who: "Anyone producing outward-facing content: ad creatives, Social Media OS videos, landing pages and event assets that need on-brand, cleared audio.",
+      how: "A self-contained page that streams each official track, and exposes a Use-in-ad action that copies the hosted asset URL and hands off to the Ad Campaigns builder. Tracks are served from /assets/media and are usable anywhere in the OS.",
+      input: "Nothing to upload, the official tracks are bundled with the app. From you: pick a track, preview it, then copy its URL, copy an embed snippet, or download it for the creative you are building.",
+      steps: [
+        ['Ideology', 'Brand music carries the Feel Alive voice into sound: warm, sensory, heritage-led.'],
+        ['Content', 'The branding track (with lyrics) is the first official song; more can be added to the same library.'],
+        ['Audio/Video', 'Stream and preview in-app; the file is the brand-owned audio and video bed for ads and social.'],
+        ['Coding', 'Served natively from /assets/media; copy the hosted URL or an embed snippet, or download for the target creative.', '/music'],
+        ['Compilation', 'Drop it into an ad creative or social post via the Ad Campaigns builder.', '/ads'],
       ],
     },
     research: {

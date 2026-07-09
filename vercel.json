@@ -78,6 +78,7 @@
     { "source": "/research",   "destination": "/research.html" },
     { "source": "/growth-book", "destination": "/research.html" },
     { "source": "/data-engine", "destination": "/data-engine.html" },
+    { "source": "/music", "destination": "/music.html" },
     { "source": "/playbook/", "destination": "/playbook/index.html" },
     { "source": "/playbook-single", "destination": "/playbook.html" },
     { "source": "/discover",   "destination": "/competitor-benchmarking.html" },

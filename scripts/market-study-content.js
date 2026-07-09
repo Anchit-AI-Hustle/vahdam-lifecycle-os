@@ -2,16 +2,15 @@
 /**
  * Market Study content, single source of truth for all four regional reports
  * (US, UK, Global/Rest-of-World, India). Transcribed from the final analyst
- * PDFs shared 9 July 2026.
+ * PDFs shared 9 July 2026 (the fuller 12/13-section versions).
  *
- * Two renderers over one structured content model:
- *   reportInnerHTML(region) -> the on-page report block (uses the playbook's
- *                              card / grid-tbl / gold-ink classes + confidence chips)
- *   docHTML(region)         -> a clean standalone HTML document that LibreOffice
- *                              converts to the downloadable .docx
+ *   reportInnerHTML(region) -> on-page report block (categorized sub-tabs +
+ *                              card / grid-tbl / gold-ink styling + confidence chips)
+ *   docHTML(region)         -> clean standalone HTML (reference)
+ *   docxDocumentXml(region) -> WordprocessingML body for the downloadable .docx
  *
- * Brand rules enforced here: no em/en dashes, straight quotes only, four-colour
- * palette (gold text uses the readable --vahdam-gold-ink token on the page).
+ * Brand rules: no em/en dashes, straight quotes, four-colour palette. Only
+ * sourced facts, all speculative ("Guessing") content is excluded.
  */
 
 var REGIONS = ["US", "UK", "Global", "India"];
@@ -21,28 +20,28 @@ var META = {
     file: "US_Functional_Wellness_Market_Study",
     panelTitle: "US Functional-Wellness Market Study",
     docTitle: "The U.S. Functional-Wellness Beverage &amp; Supplement Market",
-    sub: "Tea, Functional Coffee, Adaptogens, with a teardown of the US adaptogen-coffee arena",
+    sub: "Tea, Coffee, Adaptogens, Supplements, with a competitor teardown of the adaptogen-coffee arena",
     prep: "Growth &amp; Digital Production, VAHDAM (US market)"
   },
   UK: {
     file: "UK_Functional_Wellness_Market_Study",
     panelTitle: "UK Functional-Wellness Market Study",
     docTitle: "The U.K. Functional-Wellness Beverage &amp; Supplement Market",
-    sub: "Tea, Functional Coffee, Adaptogens, with a teardown of the UK adaptogen-coffee arena",
+    sub: "Tea, Functional Coffee, Adaptogens, a full competitive teardown of the UK arena",
     prep: "Growth &amp; Digital Production, VAHDAM UK (VI Consumer Ltd)"
   },
   Global: {
     file: "Global_RestOfWorld_Wellness_Market_Study",
     panelTitle: "Global (Rest-of-World) Wellness-Beverage Market Study",
     docTitle: "The Global (Rest-of-World) Wellness-Beverage Market",
-    sub: "Every region except the US, UK and India, where VAHDAM can win vs where it is merely present",
-    prep: "Growth &amp; Digital Production, VAHDAM (Global / vahdam.com international)"
+    sub: "Every region except the US, UK and India, a full teardown of where VAHDAM wins vs is merely present",
+    prep: "Growth &amp; Digital Production, VAHDAM (Global / vahdam.global)"
   },
   India: {
     file: "India_Wellness_Beverage_Market_Study",
     panelTitle: "India Wellness-Beverage &amp; Ayurveda Market Study",
     docTitle: "The India Wellness-Beverage &amp; Ayurveda Market",
-    sub: "Tea, Coffee-D2C, Ayurveda and Adaptogens, with comparisons across the major players",
+    sub: "Tea, Coffee-D2C, Ayurveda and Adaptogens, a full competitive teardown of the home market",
     prep: "Growth &amp; Digital Production, VAHDAM (India / home market)"
   }
 };
@@ -50,7 +49,7 @@ var META = {
 /* Category sub-tabs, in display order. Only categories with content render. */
 var CATS = [
   ["overview", "Overview"],
-  ["market", "Market &amp; sizing"],
+  ["market", "Market &amp; demand"],
   ["competitors", "Competitors"],
   ["strategy", "Strategy &amp; white space"],
   ["regulatory", "Regulatory"],
@@ -58,10 +57,10 @@ var CATS = [
 ];
 /* section-number -> category, per region */
 var CATMAP = {
-  US: { 1: "overview", 2: "overview", 3: "market", 4: "market", 5: "competitors", 6: "competitors", 7: "strategy", 8: "regulatory", 9: "strategy", 10: "sources" },
-  UK: { 1: "overview", 2: "overview", 3: "market", 4: "market", 5: "competitors", 6: "competitors", 7: "competitors", 8: "strategy", 9: "regulatory", 10: "strategy", 11: "sources" },
-  Global: { 1: "overview", 2: "overview", 3: "market", 4: "competitors", 5: "competitors", 6: "strategy", 7: "regulatory", 8: "strategy", 9: "sources" },
-  India: { 1: "overview", 2: "overview", 3: "market", 4: "market", 5: "competitors", 6: "competitors", 7: "competitors", 8: "competitors", 9: "strategy", 10: "regulatory", 11: "strategy", 12: "sources" }
+  US: { 1: "overview", 2: "overview", 3: "market", 4: "market", 5: "competitors", 6: "competitors", 7: "competitors", 8: "market", 9: "strategy", 10: "regulatory", 11: "strategy", 12: "sources" },
+  UK: { 1: "overview", 2: "overview", 3: "market", 4: "market", 5: "competitors", 6: "competitors", 7: "competitors", 8: "market", 9: "strategy", 10: "regulatory", 11: "strategy", 12: "sources" },
+  Global: { 1: "overview", 2: "overview", 3: "market", 4: "market", 5: "competitors", 6: "competitors", 7: "competitors", 8: "competitors", 9: "market", 10: "strategy", 11: "regulatory", 12: "strategy", 13: "sources" },
+  India: { 1: "overview", 2: "overview", 3: "market", 4: "market", 5: "competitors", 6: "competitors", 7: "competitors", 8: "market", 9: "strategy", 10: "regulatory", 11: "strategy", 12: "sources" }
 };
 
 var TAGNAME = { C: "Certain", L: "Likely" };
@@ -73,7 +72,7 @@ function tagChip(t) {
   return '<span style="display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;border-radius:6px;padding:1px 7px;margin-right:6px;vertical-align:middle;' + TAGCSS[t] + '">' + TAGNAME[t] + "</span>";
 }
 function applyTags(s, mode) {
-  return String(s).replace(/\{([CLG])\}/g, function (_, t) {
+  return String(s).replace(/\{([CL])\}/g, function (_, t) {
     return mode === "page" ? tagChip(t) : "<strong>[" + TAGNAME[t] + "]</strong> ";
   });
 }
@@ -106,7 +105,7 @@ function renderNodes(nodes, mode) {
       var thead = "<tr>" + headers.map(function (h) { return "<th>" + h + "</th>"; }).join("") + "</tr>";
       var tbody = rows.map(function (r) { return "<tr>" + r.map(function (c) { return "<td>" + applyTags(c, mode) + "</td>"; }).join("") + "</tr>"; }).join("");
       if (mode === "page") {
-        var mw = headers.length >= 6 ? "900px" : (headers.length >= 4 ? "760px" : "560px");
+        var mw = headers.length >= 6 ? "920px" : (headers.length >= 4 ? "760px" : "560px");
         out.push('<div class="card overflow-x-auto"><table class="grid-tbl" style="min-width:' + mw + ';"><thead>' + thead + "</thead><tbody>" + tbody + "</tbody></table></div>" + (note ? '<p class="text-[12px] mt-1" style="color:var(--soft);">' + applyTags(note, mode) + "</p>" : ""));
       } else {
         out.push('<table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;"><thead>' + thead + "</thead><tbody>" + tbody + "</tbody></table>" + (note ? "<p><em>" + applyTags(note, mode) + "</em></p>" : ""));
@@ -131,218 +130,389 @@ function renderNodes(nodes, mode) {
 var REPORTS = {};
 
 REPORTS.US = [
-  ["sec", 1, "Scope &amp; method"],
-  ["card", ["{C} This study covers the US functional-wellness intersection VAHDAM actually competes in: premium/wellness tea, functional and adaptogenic coffee, and the adaptogen-supplement crossover, not commodity coffee or bagged black tea."]],
-  ["bul", [
-    "Figures from named research previews and trade press; ranges shown where firms disagree.",
-    "Regulatory frame is US: FDA/DSHEA (supplements are not pre-approved) plus FTC (truth-in-advertising). Looser than UK ASA/MHRA, which shapes how aggressively rivals claim.",
-    "VAHDAM is the anchor; rivals are read for the openings they leave."
+  ["sec", 1, "Scope, method &amp; how to read this"],
+  ["card", [
+    "{C} \"Tea, coffee, or supplements\" is not one market, it is three multi-billion-dollar categories with different buyers, margins, shelf logic and regulators. This report anchors on the single arena where all three collide and where VAHDAM actually competes in the US: the functional-wellness beverage and supplement segment, premium/functional tea, adaptogen and functional coffee (especially ashwagandha and mushroom coffee), and the greens/adaptogen supplements adjacent to them.",
+    "{L} This is the highest-leverage cut because VAHDAM's US growth engine is Ashwagandha Coffee (now in ~1,000 Target stores) sitting on a premium-tea heritage."
   ]],
+  ["bul", [
+    "Market sizing for US tea, US coffee (incl. functional and mushroom coffee) and US dietary supplements/adaptogens, with the honest source-to-source variance shown.",
+    "A tiered competitive landscape and deep-dive profiles of eleven brands across the adaptogen-coffee, greens, women's-hormone and premium-tea sub-segments.",
+    "Side-by-side comparison tables: price-per-serving, caffeine, formula, positioning and DTC mechanics.",
+    "Consumer demand signals, the DTC playbook, the US regulatory frame (FDA/FTC/DSHEA) and a white-space read."
+  ]],
+  ["card", ["{C} Method: ~30 primary sources retrieved July 2026 (Mordor, Grand View, Precedence, IMARC, Fact.MR, SNS, Fortune Business Insights) plus brand pages, retailer listings and review data. Warning: market-size estimates vary enormously between firms, the same US tea market is quoted ~$1.5B to ~$3.6B by scope. Treat single-point figures as directional; the ranges and direction of travel are the reliable signal."]],
 
   ["sec", 2, "Executive summary"],
-  ["card", [
-    "{C} The US is the category's birthplace and largest arena: DTC-mature, functional-coffee-led, and defined by adaptogen-coffee challengers (Ryze, MUD\\WTR, Four Sigmatic) plus greens (AG1) and women's-hormone (Happy Mammoth).",
-    "{C} VAHDAM's origin moat is at its strongest here: rivals import ashwagandha, turmeric and chai; VAHDAM owns them at source. Crucially, VAHDAM has done what almost no pure-play challenger has, crossed from DTC into ~1,000 Target stores (Mar 2026), at an aggressive ~$0.80/serving.",
-    "{L} The dominant challengers are mushroom-led, not ashwagandha-led (Ryze's Super-6 has no ashwagandha). That leaves the ashwagandha-forward calm-energy position genuinely contestable, and it is exactly VAHDAM's formula.",
-    "{L} The category price ceiling is set by AG1 (~$79 to $99); the value floor by Everyday Dose (under $1/serving). VAHDAM sits low in the band with a fuller product range behind it."
-  ]],
-
-  ["sec", 3, "Market sizing", "Scopes differ sharply by firm; treat as magnitude, not accounting."],
-  ["tbl", ["Segment", "Size / figure", "Source &amp; note"], [
-    ["US tea market", "~$1.5 to 3.6B (firms disagree widely); herbal tea ~$3.1B (approx 62% functional-driven)", "{L} multiple firms; scope varies"],
-    ["US coffee market", "~$23.8 to 24B", "{C} range across firms"],
-    ["Global functional coffee", "$4.48B &rarr; $8.48B by 2031, ~11.2% CAGR (NA ~69%)", "{C} category's fastest sub-segment"],
-    ["US mushroom coffee", "~$618M &rarr; ~$1.09B (2035)", "{L}"],
-    ["US dietary supplements", "$60.2B &rarr; $96.5B (2034)", "{C}"],
-    ["US ashwagandha", "$0.13B &rarr; $0.39B, 11.4% CAGR; 26 to 39% of adaptogens; fastest in F&amp;B (15.6%)", "{C} the ingredient VAHDAM owns"],
-    ["Global adaptogen coffee", "~$1.1 to 1.7B (2025); ~6 to 17% CAGR by firm/scope", "{L} FMI / HTF / R&amp;M"]
-  ], "Ashwagandha is the single most-chosen adaptogen (~18 to 26% of adaptogen demand) and the fastest-growing in food and beverage, structurally favourable to VAHDAM's hero SKU."],
-
-  ["sec", 4, "Structural dynamics"],
-  ["sub", "A DTC-native, coffee-led category"],
-  ["card", ["{C} The US category grew up on DTC subscription plus social proof (Ryze cites 200K+ reviews). Functional coffee, not tea, is the acquisition engine, because it slots into an existing daily habit and removes supplement stigma."]],
-  ["sub", "Format, price and retail crossover"],
+  ["card", ["{C} The center of gravity is not tea or coffee as commodities, it is function. Across all three categories the money and growth move to products promising a benefit beyond taste or caffeine: calm energy, focus, stress/cortisol support, gut health, sleep. Functional coffee is the fastest-growing slice of the complex."]],
   ["bul", [
-    "Instant powder is the dominant format; subscription is the default purchase; 30-day money-back is table stakes.",
-    "The frontier is DTC to retail. VAHDAM's Target rollout is a genuine moat most pure-plays have not crossed, shelf presence plus trust that ad spend cannot buy overnight."
+    "<b>Fastest-growing slice, functional coffee.</b> Global functional coffee ~$4.48B (2025) growing ~11.2% CAGR to ~$8.5B by 2031, roughly 2.5x conventional coffee, North America ~69%. Ashwagandha is a headline ingredient.",
+    "<b>Ashwagandha is the breakout adaptogen.</b> ~26 to 39% of the adaptogens category by revenue; US demand ~11.4% CAGR; ashwagandha in functional food and beverage the fastest sub-segment at ~15.6% CAGR.",
+    "<b>Crowded and price-anchored.</b> Adaptogen-coffee rivals cluster ~$0.90 to $1.70/serving (Ryze, MUD\\WTR, Four Sigmatic, Everyday Dose, Spacegoods); AG1 anchors the ceiling ~$2.60 to $3.30; VAHDAM Target SRP ~$0.80 is the aggressive end.",
+    "<b>The playbook is standardized.</b> Subscription-default checkout, 30 to 90-day money-back, starter kits with free gifts/frother, loud social proof (Ryze 200K+ reviews, Happy Mammoth 3.3M customers) and, increasingly, a crossover into physical retail.",
+    "<b>VAHDAM's structural edge is under-exploited.</b> Most rivals are single-hero-SKU brands buying the same KSM-66 extract; VAHDAM owns farmer-direct Indian sourcing, a genuine tea range and origin authenticity for the exact ingredients rivals import, a moat no pure-play can copy.",
+    "<b>The compliance line is the battleground.</b> Growth rests on stress/cortisol/weight claims at the FDA/FTC structure-function boundary; staying clean is a trust-differentiation opportunity."
   ]],
-  ["sub", "Regulation (looser, not absent)"],
-  ["card", ["{C} Under DSHEA, supplements are not pre-approved; under FTC, claims must be truthful and substantiated. Quantified cortisol and weight-loss testimonials are the classic enforcement triggers, the looser regime is why US rivals claim harder than UK ones."]],
 
-  ["sec", 5, "Major players, US adaptogen and functional coffee", "VAHDAM's core competitive set. The decisive column is Ashwagandha? The leaders are mushroom-led, leaving VAHDAM's angle open."],
-  ["tbl", ["Brand", "Format", "Key actives", "Ashwagandha?", "Price/serving", "Notes"], [
-    ["<b>VAHDAM</b>", "Instant + real Arabica", "KSM-66, Lion's Mane, Turmeric 95%, Chaga", "<b>Yes, KSM-66</b>", "~$0.80 (Target SRP $15.99/20)", "In ~1,000 Target stores; 30-day MBG"],
-    ["Ryze", "Instant", "Super-6 mushroom blend", "No", "~$0.90 to 1.20", "DTC volume leader; 200K+ reviews; sub-default"],
-    ["MUD\\WTR", "Instant", "6 mushrooms + cacao + masala chai", "No", "~$1.50 to 1.70", "Coffee-alternative; free frother; ritual brand"],
-    ["Four Sigmatic", "Instant + ground", "Lion's Mane, Chaga", "No (not core)", "~$1.13 to 2.25", "Category pioneer; in grocery; lab-tested"],
-    ["Everyday Dose", "Instant", "Lion's Mane, Chaga, collagen, L-theanine", "No", "under $1", "Best value; gentle on-ramp"],
-    ["Spacegoods (UK, ships US)", "Instant, cacao-forward", "Lion's Mane, Cordyceps, Chaga, Maca, Ashwagandha", "Yes", "~$1.30-equiv", "60-day MBG; expanding into US"]
-  ], "{C} on formats/positioning; {L} on pricing (pack/subscription-dependent). Of the US-native leaders, none leads on ashwagandha, the calm-energy ashwagandha lane is VAHDAM's to take."],
+  ["sec", 3, "Market sizing (US, with global context)", "Spread across research firms shown, not hidden. 2025 base unless noted; USD."],
+  ["tbl", ["Segment", "Size", "CAGR", "Source(s)"], [
+    ["US tea (retail)", "~$1.5B to $3.6B (firms disagree widely)", "~2.8 to 6.7%", "IMARC $1.54B; MarknTel $3.11B; SNS $3.59B"],
+    ["US herbal tea", "~$3.1B", "~3.4%", "Global Growth Insights; Fact.MR"],
+    ["North America tea (incl. RTD/foodservice)", "~$42B (2025) &rarr; $44B (2026)", "~4.9%", "Mordor Intelligence"],
+    ["Global tea", "~$70B (2025)", "~6.5%", "Grand View Research"],
+    ["US coffee", "~$23.8 to 24.0B", "~3.8 to 4.5%", "Mordor $23.76B; MarketDataForecast $23.86B"],
+    ["Global functional coffee", "~$4.48B &rarr; $8.48B by 2031", "~11.2% (fastest)", "Mordor Intelligence"],
+    ["US mushroom coffee", "~$618M (2025) &rarr; $1.09B (2035)", "~5.8%", "Precedence Research"],
+    ["US dietary supplements", "~$60.2B &rarr; $96.5B by 2034", "~5.4%", "IMARC"],
+    ["Global adaptogens", "~$9.0B to $15.8B (wide range)", "~3.3 to 7.9%", "FMI $8.96B; DataM $15.84B; Fortune $11.9B"],
+    ["Global ashwagandha", "~$0.67 to 0.76B (2025)", "~9 to 10%", "SNS $0.67B; Mordor $0.76B"],
+    ["US ashwagandha", "~$0.13B (2025) &rarr; $0.39B (2035)", "~11.4% (fastest region)", "SNS Insider"]
+  ], "Ranges reflect genuine methodology differences (retail-only vs incl. RTD/foodservice). Use direction and relative size, not any single point value."],
+  ["sub", "3.1 Tea, large, slow, premiumizing"],
+  ["card", ["{C} US tea at retail is a mature low-single-digit grower, but value migrates up-market: herbal/wellness tea (~$3.1B) is where the energy is, with ~62% of US herbal-tea buyers choosing blends for a specific functional benefit. Black tea still dominates volume (~42% US share); loose-leaf and RTD grow faster. Tea is VAHDAM's credibility and margin base, not the growth story."]],
+  ["sub", "3.2 Coffee, the commodity is flat, the function is exploding"],
+  ["card", ["{C} US coffee (~$24B) grows low-single-digits, but two slices break out: specialty coffee (~7% CAGR) and functional coffee (~11%+ globally, NA ~69%). Adaptogen espresso/lattes command $8 to 12 per 12oz in cafes. Mushroom coffee alone is a ~$618M sub-market. May 2026: Starbucks+PepsiCo launched RTD Coffee &amp; Protein; Four Sigmatic moved into national grocery, function is leaving the niche."]],
+  ["sub", "3.3 Supplements &amp; adaptogens, ashwagandha the breakout"],
+  ["card", ["{C} US dietary supplements ~$60B (~5.4%). Ashwagandha is the single most important adaptogen, ~26 to 39% of adaptogen revenue and the top mood-support botanical. The decisive stat: ashwagandha in functional food and beverage is the fastest format at ~15.6% CAGR, pulling ashwagandha out of the capsule and into the cup, exactly VAHDAM's thesis. ~54 to 62% still sells as capsules today; gummies (~12.8%) and beverages (~15.6%) are the growth formats. KSM-66 and Shoden are the clinically-validated extracts credible brands standardize on."]],
 
-  ["sec", 6, "Competitor deep-dives"],
+  ["sec", 4, "Category dynamics &amp; demand trends"],
   ["cards", 2, [
-    ["VAHDAM (anchor)", "\"Feel Alive.\" Premium Indian tea plus adaptogen coffee, farmer-direct from origin. <b>Hero:</b> Ashwagandha Coffee, Arabica + KSM-66, Lion's Mane, 95%-curcumin Turmeric, Chaga; instant, 40 to 240 servings DTC. <b>Retail:</b> ~1,000 Target stores (Mar 2026), SRP $15.99/20 (~$0.80/serving). <b>Strengths:</b> owns the origin of the botanicals rivals import; retail ahead of most pure-plays; aggressive price; real range and heritage; press/celebrity credibility (Oprah, Mariah Carey). <b>Openings:</b> brand meaning split across tea, coffee and spices vs a single-minded Ryze; cortisol/weight testimonials carry FTC risk."],
-    ["Ryze", "The DTC volume leader. \"Mushroom coffee, reimagined.\" Super-6 mushroom blend (no ashwagandha); instant; sub-default; 200K+ reviews; ~$0.90 to 1.20/serving; 30-day MBG. <b>Openings:</b> mushroom-only, no ashwagandha, no tea heritage, no retail range, the ashwagandha calm-energy angle and physical shelf are both open to VAHDAM."],
-    ["MUD\\WTR", "The coffee-alternative ritual brand. Masala chai meets mushrooms. 6 mushrooms + cacao + masala chai; ~$1.50 to 1.70/serving; free frother; strong community. <b>Openings:</b> no real coffee for those who still want a caffeine ritual; pricier; VAHDAM's Arabica base plus authentic Indian chai/turmeric provenance is a stronger origin story on the same flavour territory."],
-    ["AG1 and Happy Mammoth (adjacents)", "The price ceiling and the hormone-funnel benchmark. <b>AG1:</b> 75-ingredient greens powder; NSF-certified; ~$79 to $99 (~$1.05 to $1.32/serving); 90-day MBG; celebrity-marketed. <b>Happy Mammoth:</b> Hormone Harmony capsules, KSM-66 + 12 extracts; women/menopause/cortisol; quiz funnel; 3.3M customers; ~$2.92/serving; 60-day MBG. <b>Openings:</b> neither is a coffee, VAHDAM can undercut AG1 on price and out-format Happy Mammoth (a drinkable daily ritual vs capsules) using the same KSM-66 credibility."]
+    ["Calm energy is the narrative", "{C} Almost every functional-coffee brand sells the lift of coffee without the jitters/crash plus a mood/focus/stress benefit. No jitters, no crash, calm focus is now table-stakes copy. Differentiation has moved from the promise to the proof."],
+    ["Cortisol / stress / weight adjacency", "{C} The most aggressive growth lever and the biggest compliance risk is the cortisol to stress to cravings to weight chain (Happy Mammoth, and on-site coffee testimonials). Powerful and legally hazardous."],
+    ["GLP-1 halo &amp; the stress-belly audience", "{L} The weight conversation (amplified by GLP-1 drugs) primes a large audience for cortisol/stress-belly/cravings messaging, women 35 to 55. High demand, high scrutiny."],
+    ["Clean-label &amp; the trust arms race", "{C} No fillers/additives/mycotoxins is standard. Trust proxies escalate: NSF Certified for Sport (AG1), USDA Organic (Ryze, MUD\\WTR, Four Sigmatic), third-party testing, KSM-66. Ryze is called out for NOT publishing third-party results. PFAS testing of tea is an emerging trust vector."],
+    ["DTC-first, then retail crossover", "{C} Born online (~60%+ of mushroom-coffee sales) but winners cross to shelf: Four Sigmatic grocery, VAHDAM ~1,000 Target (Mar 2026), AG1 experiential. Retail is the credibility and scale unlock once DTC CAC gets expensive."],
+    ["Subscription is the model", "{C} Default-to-subscribe, ~10 to 40% subscriber discount, reminder emails, easy pause/cancel, universal across Ryze, MUD\\WTR, Four Sigmatic, AG1, Spacegoods and VAHDAM. Surprise auto-renewal is the category's top complaint."]
   ]],
 
-  ["sec", 7, "VAHDAM US, strategic read"],
+  ["sec", 5, "Competitive landscape, the tiers", "The arena around VAHDAM's US Ashwagandha Coffee sorts into five tiers; VAHDAM straddles two."],
+  ["cards", 2, [
+    ["Tier 1, Adaptogen / functional-coffee challengers", "<b>VAHDAM's direct fight.</b> Ryze, MUD\\WTR, Four Sigmatic, Everyday Dose, Spacegoods, Laird Superfood, Om. Single-hero-SKU, DTC-native, mushroom/adaptogen + coffee. Where VAHDAM Ashwagandha Coffee lives day-to-day."],
+    ["Tier 2, Greens &amp; all-in-one giants", "<b>Aspirational ceiling.</b> AG1 (Athletic Greens), Live it Up, Amazing Grass, Your Super. Not coffee, but they compete for the one daily wellness ritual wallet and set the premium price ceiling and the influencer standard."],
+    ["Tier 3, Women's-hormone / adaptogen supplements", "<b>Shared audience, different format.</b> Happy Mammoth, Ancient Nutrition. Capsule format, but they own the cortisol/menopause/cravings narrative and the women-35-55 audience VAHDAM's testimonials chase."],
+    ["Tier 4, Premium / specialty tea DTC", "<b>VAHDAM's heritage arena.</b> Rishi, Harney &amp; Sons, Art of Tea, Tea Forte, Adagio, Tea Drops, The Republic of Tea. Origin, craft, single-estate. VAHDAM is benchmarked here by analysts."],
+    ["Tier 5, Mass wellness tea", "<b>Shelf incumbents.</b> Traditional Medicinals, Yogi, Pukka (Unilever), Celestial Seasonings, Bigelow, Numi, Twinings. Pukka reported ~27% growth in adaptogenic/Ayurvedic teas, the wellness-tea overlap with VAHDAM."]
+  ]],
+  ["card", ["{L} Where VAHDAM sits: uniquely at the intersection of Tier 1 (adaptogen coffee) and Tier 4 (premium origin tea), with the sourcing authenticity to attack Tier 3's narrative honestly. No pure-play challenger occupies that overlap."]],
+
+  ["sec", 6, "Competitor deep-dive profiles"],
+  ["cards", 2, [
+    ["VAHDAM (anchor)", "\"Feel Alive.\" Premium Indian tea + adaptogen coffee, farmer-direct from origin. <b>Hero:</b> Ashwagandha Coffee, Arabica + KSM-66, Lion's Mane, Turmeric (95% curcumin), Chaga, L-Theanine; instant, 40 to 240 servings DTC. <b>Price:</b> Target SRP $15.99/20 (~$0.80/serving); DTC bundles + subscription with 5-day reminder, 30-day money-back. <b>Retail:</b> ~1,000 Target stores (Mar 2026). <b>Strengths:</b> origin authenticity for the exact ingredients rivals import; real product breadth + heritage tea; retail ahead of most pure-plays; aggressive price; founder-origin story (Bala Sarda). <b>Openings:</b> brand meaning split across tea, coffee and spices, less single-minded than a Ryze; on-site cortisol/weight testimonials carry FTC/ASA risk."],
+    ["Ryze", "The category's DTC volume leader. \"Mushroom coffee, reimagined.\" Organic instant Arabica + Super6 mushroom blend + prebiotics; no ashwagandha. ~$0.90 to $1.20/serving; ~48mg caffeine (medium); subscription-default, 30-day MBG. Claims 200,000+ 5-star reviews, US-only shipping. <b>Openings:</b> no public third-party testing; mushroom-only leaves the ashwagandha/cortisol lane open; surprise-subscription complaints; grainier taste noted."],
+    ["MUD\\WTR", "The \"quit coffee\" purist. :rise cacao/masala-chai + 6 mushrooms + turmeric + Himalayan salt. ~$1.50 to $1.70/serving (premium end); ~35mg caffeine (lowest of the majors); free frother; 30-day MBG. Venice, CA design-led lifestyle brand, full dose transparency. <b>Openings:</b> divisive spicy/earthy taste; highest price; low caffeine won't satisfy people who still want a real lift."],
+    ["Four Sigmatic", "The pioneer / mainstream mushroom brand, now in grocery. Lion's Mane + Chaga instant/ground; broad line. ~$1.13 to $2.25/serving; ~50 to 80mg caffeine (closest to real coffee); subscription 20% + codes. <b>Openings:</b> formulation seen as lighter/less differentiated; doesn't specify individual doses (transparency gap); range sprawl dilutes focus."],
+    ["Everyday Dose", "The value-plus formulator. Lion's Mane + Chaga (fruiting-body) + L-Theanine + collagen + coffee extract. Under ~$1/serving, the strongest value-per-formula; ~45mg caffeine paired with L-theanine for calm alertness. <b>Openings:</b> lower brand awareness than Ryze/MUD\\WTR; collagen makes it non-vegan; narrower range."],
+    ["Spacegoods", "The sharpest mirror of VAHDAM. \"Coffee that does more.\" Rainbow Dust, Lion's Mane + Cordyceps + Chaga + KSM-66 + Maca, chocolate/hot-cocoa taste; publishes real doses (1,000mg each mushroom + KSM-66), ~80mg caffeine. Uses the SAME KSM-66 extract as VAHDAM. 60-day MBG; UK/EU-based, ships US via a localized store + Amazon. <b>Openings:</b> US is a shipped-in market (no US shelf); imports its ashwagandha, VAHDAM grows the story at source and is in Target."],
+    ["AG1 (Athletic Greens)", "The premium ceiling &amp; the influencer-marketing standard. AG1 Next Gen, 75+ ingredient greens powder, not coffee. $79/mo sub / $99 one-time (~$2.63 to $3.30/serving), the category ceiling; 90-day MBG; FSA/HSA. Huberman, Hugh Jackman, Lewis Hamilton; NSF Certified for Sport. <b>Openings:</b> very expensive; dietitians question nutrient-stuffing/value; not a coffee/taste ritual, leaving the functional-coffee-you-enjoy lane open."],
+    ["Happy Mammoth", "The cortisol/menopause narrative leader, capsule not cup. Hormone Harmony, KSM-66 + ~12 extracts, 3 caps/day. ~$2.92/serving; free shipping over $99; 60-day MBG on first bottle. Women 35 to 55; 2-minute quiz funnel; claims 3.3M customers / 13.4M bottles. <b>Openings:</b> capsule not an enjoyable ritual; overtly aggressive weight/hormone claims (regulatory exposure), VAHDAM can offer the same KSM-66 benefit in a cup people enjoy."],
+    ["Premium &amp; wellness tea set (Tier 4/5)", "VAHDAM's heritage arena. Premium DTC: Rishi, Harney &amp; Sons, Art of Tea, Tea Forte, Adagio, Tea Drops. Wellness/mass: Traditional Medicinals (+22% functional YoY), Yogi, Pukka/Unilever (+27% adaptogenic), Celestial, Bigelow, Numi, Twinings, Republic of Tea. Analyst read: VAHDAM differentiates via farmer-direct + origin storytelling. <b>Openings:</b> mostly slow-growth commodity-adjacent; few have cracked the adaptogen-coffee crossover, precisely VAHDAM's opening."]
+  ]],
+
+  ["sec", 7, "Side-by-side comparison tables", "Prices as retrieved Jul 2026; treat per-serving as bands. VAHDAM shown at Target SRP."],
+  ["sub", "7.1 Adaptogen-coffee arena, price, caffeine, format"],
+  ["tbl", ["Brand", "Price/serving", "Caffeine", "Format", "Signature formula"], [
+    ["<b>VAHDAM Ashwagandha Coffee</b>", "~$0.80 (Target SRP) / DTC bundles", "coffee-level (Arabica)", "Instant", "KSM-66 + Lion's Mane + Turmeric + Chaga + L-Theanine"],
+    ["Ryze", "$0.90 to $1.20", "~48mg (med)", "Instant", "Super6 mushrooms + prebiotics (no ashwagandha)"],
+    ["MUD\\WTR :rise", "~$1.50 to $1.70", "~35mg", "Powder (frother)", "6 mushrooms + cacao + masala chai + turmeric"],
+    ["Four Sigmatic", "$1.13 to $2.25", "~50 to 80mg", "Instant/Ground", "Lion's Mane + Chaga (+ Rhodiola)"],
+    ["Everyday Dose", "under ~$1.00", "~45mg", "Powder", "Lion's Mane + Chaga + L-Theanine + collagen"],
+    ["Spacegoods Rainbow Dust", "sub (B1 / B2G1)", "~80mg", "Powder", "Lion's Mane + Cordyceps + Chaga + KSM-66 + Maca"],
+    ["AG1 (context)", "$2.63 to $3.30", "none", "Powder (greens)", "75+ greens/vitamins/probiotics/adaptogens"]
+  ]],
+  ["sub", "7.2 Positioning &amp; hero claim"],
+  ["tbl", ["Brand", "Positioning", "Hero claim (paraphrased)"], [
+    ["<b>VAHDAM</b>", "Calm energy, origin-authentic", "Farmer-direct Indian KSM-66 ashwagandha coffee, clean, clinically-backed, from source"],
+    ["Ryze", "Volume leader / reimagined coffee", "Mushroom coffee with 200K+ reviews, half the caffeine, no crash"],
+    ["MUD\\WTR", "Quit coffee entirely", "Ultra-low-caffeine adaptogenic tonic; ritual &amp; lifestyle"],
+    ["Four Sigmatic", "The original, tastes like coffee", "Mushrooms in your normal coffee, mainstream &amp; in grocery"],
+    ["Everyday Dose", "Best value formula", "Coffee + lion's mane + L-theanine + collagen, calm alertness"],
+    ["Spacegoods", "Coffee that does more", "Dosed KSM-66 + mushrooms, hot-choc taste, daily ecosystem"],
+    ["AG1", "One scoop, whole-body base", "Premium all-in-one daily nutrition, celebrity-endorsed"],
+    ["Happy Mammoth", "Hormone/cortisol for women", "Balance hormones, cravings &amp; menopause, quiz-led"]
+  ]],
+  ["sub", "7.3 DTC &amp; commercial mechanics"],
+  ["tbl", ["Brand", "Subscription", "Money-back", "Acquisition offer", "Channels"], [
+    ["<b>VAHDAM</b>", "Yes (5-day reminder)", "30-day", "Starter/welcome kits + free gifts", "DTC + ~1,000 Target + 100+ countries"],
+    ["Ryze", "Yes (default)", "30-day", "Bundles, creamer, tumbler", "DTC + Amazon (US only)"],
+    ["MUD\\WTR", "Yes", "30-day", "Free frother, starter kit", "DTC + Amazon"],
+    ["Four Sigmatic", "Yes (20%+codes)", "n/a", "Sample/bundles", "DTC + national grocery"],
+    ["Everyday Dose", "Yes", "n/a", "Starter kit", "DTC"],
+    ["Spacegoods", "Yes (B1/B2G1)", "60-day", "Sample pack", "DTC (UK/EU to US shipped) + Amazon"],
+    ["AG1", "Yes", "90-day", "Welcome kit, D3+K2, travel packs", "DTC + Amazon; FSA/HSA"],
+    ["Happy Mammoth", "Yes", "60-day (1st bottle)", "Quiz to bundle funnel", "DTC + Amazon"]
+  ]],
+  ["sub", "7.4 Ashwagandha &amp; KSM-66, who actually uses it"],
+  ["tbl", ["Brand", "KSM-66 ashwagandha", "How it is used"], [
+    ["<b>VAHDAM</b>", "KSM-66 yes", "Coffee, cortisol/calm energy; sourced at origin in India"],
+    ["Spacegoods", "KSM-66 yes", "Coffee/cocoa, dosed with mushrooms; imported extract"],
+    ["Happy Mammoth", "KSM-66 yes", "Capsule, women's hormone/menopause/cravings"],
+    ["Ryze", "No (mushroom-only)", "Leaves the ashwagandha/cortisol lane open"],
+    ["MUD\\WTR", "No", "Adaptogenic spices/mushrooms, no ashwagandha hero"],
+    ["Four Sigmatic", "No (Rhodiola in some)", "Mushroom-led"],
+    ["AG1", "Trace (blend)", "Ashwagandha/Rhodiola as part of a 75-ingredient stack, not hero"]
+  ], "Strategic read: the three brands genuinely built on KSM-66 are VAHDAM, Spacegoods and Happy Mammoth. Only VAHDAM combines it with a coffee ritual, origin sourcing and US retail, the others each miss one."],
+
+  ["sec", 8, "Consumer demand signals"],
   ["bul", [
-    "<b>Press the ashwagandha lane.</b> The US leaders are mushroom-led. Own ashwagandha-forward calm energy explicitly, it is the open flank.",
-    "<b>Make the Target crossover the story.</b> \"The adaptogen coffee you can actually buy in Target\" is a trust signal no pure-play DTC brand can match.",
-    "<b>Bracket the price band.</b> Anchor against AG1's ceiling (all that ritual, a fraction of the price) while defending quality vs Everyday Dose's floor.",
-    "<b>Tighten the claims.</b> Replace quantified cortisol/weight testimonials with substantiated, hedged wording before FTC does it for you."
+    "<b>Who buys:</b> functional/mushroom-coffee demand skews 25 to 44 wellness millennials; women 35 to 55 dominate the hormone/cortisol sub-segment. Specialty coffee is ~64% weekly among 25 to 39s.",
+    "<b>Where:</b> e-commerce is ~60%+ of mushroom-coffee purchases; California, New York and Texas lead US volume; the West Coast over-indexes on specialty.",
+    "<b>Why:</b> ~62% of US herbal-tea buyers choose for a specific function; the sober-curious and reduce-sugar shifts push functional beverages as soda/energy-drink alternatives.",
+    "<b>What they pay for:</b> proof, named clinical extracts (KSM-66), organic/third-party testing, transparent dosing and taste (the #1 repeat-purchase driver; earthy/gritty is the top churn reason).",
+    "<b>Top complaint:</b> surprise subscription auto-renewal, recurring across Ryze and others. A transparent, well-timed reminder (VAHDAM does a 5-day reminder) is a retention advantage."
   ]],
-  ["card", ["{L} Net: the US is where VAHDAM's origin, range and retail advantages compound. The job is single-minded positioning (ashwagandha calm-energy) and disciplined claims, not more features."]],
 
-  ["sec", 8, "Regulatory notes (US)"],
+  ["sec", 9, "The DTC playbook, what the winners do"],
   ["bul", [
-    "<b>FDA/DSHEA:</b> dietary supplements are not pre-approved; structure/function claims allowed with the standard disclaimer; no disease claims.",
-    "<b>FTC:</b> advertising (including testimonials and influencer content) must be truthful and substantiated; quantified physiological/weight claims are the enforcement hot-spot.",
-    "<b>Practical rule:</b> keep to calm, focus, energy without jitters, stress support framing; substantiate anything quantified."
+    "<b>Sell a subscription, not a product.</b> Default-to-subscribe, 10 to 40% discount, easy pause/cancel, timed reminders to blunt churn.",
+    "<b>De-risk the first purchase.</b> 30 to 90-day money-back is universal; starter kits bundle a frother, creamer, tumbler or free gift.",
+    "<b>Weaponize social proof.</b> Ryze 200K+ reviews, Happy Mammoth 3.3M customers / 13.4M bottles, AG1 celebrity roster. Volume-of-proof is the primary trust lever.",
+    "<b>Lead with a named, dosed, clinical ingredient.</b> KSM-66, fruiting-body extracts, exact mg. Transparency now differentiates (Spacegoods/MUD\\WTR win; Ryze/Four Sigmatic dinged for opacity).",
+    "<b>Use a diagnostic funnel.</b> Happy Mammoth's 2-minute quiz personalizes the pitch and captures email, a pattern VAHDAM could adopt for the coffee.",
+    "<b>Cross into retail once DTC CAC bites.</b> Four Sigmatic (grocery), VAHDAM (Target), AG1 (experiential). Shelf = credibility + scale + lower blended CAC.",
+    "<b>Own a taste-first flavour story.</b> Spacegoods (hot chocolate), Everyday Dose (smooth, creamy) beat the mud/earthy incumbents on the #1 repeat-purchase driver."
   ]],
 
-  ["sec", 9, "White space and recommendations"],
+  ["sec", 10, "US regulatory frame (the compliance battleground)"],
+  ["card", ["{C} This category grows on claims that sit exactly on the legal line. For a compliance-conscious brand this is both the biggest risk and a trust-differentiation opportunity."]],
+  ["cards", 3, [
+    ["DSHEA &amp; structure/function", "Adaptogen coffees/supplements are regulated as dietary supplements or conventional foods. Structure/function claims (helps maintain healthy cortisol levels) need the FDA disclaimer and substantiation; disease claims (treats anxiety, cures) make it an unapproved drug. Note how carefully VAHDAM/Spacegoods hedge (help balance, support)."],
+    ["FTC substantiation", "The FTC requires competent and reliable scientific evidence for health/weight claims and polices testimonials. Weight-loss and reduces-cortisol-X% claims are high-risk. Aggressive rivals carry real exposure; a measured brand earns a durable trust edge."],
+    ["Caffeine, safety &amp; clean-label", "FDA guidance ~400mg/day; new 2025 caffeine limits prompt reformulation. Emerging ashwagandha liver-toxicity reports and a UK FSA review make clean, tested KSM-66 a defensive necessity. PFAS non-detect results are marketing assets."]
+  ]],
+  ["card", ["{L} Net: the safest growth path is measured structure/function language + visible third-party testing + a named clinical extract, which also happens to be the cleanest differentiator against louder rivals."]],
+
+  ["sec", 11, "Strategic implications &amp; white space"],
+  ["sub", "Where the open space is"],
+  ["cards", 2, [
+    ["Origin-authentic adaptogen coffee", "Every rival imports its ashwagandha/turmeric; none can credibly claim farmer-direct-from-India for the hero ingredients. A defensible, un-copyable story, lead with it harder than another mushroom coffee."],
+    ["KSM-66 coffee for the Happy Mammoth audience", "Happy Mammoth owns the cortisol/cravings/women-35-55 narrative but delivers a capsule. A KSM-66 coffee is the same benefit in a ritual people enjoy, a direct wedge if claims stay compliant."],
+    ["Taste-first + transparency", "Incumbents split into tastes-earthy (MUD\\WTR/Ryze) and opaque-dosing (Four Sigmatic). A taste-led, fully-dosed, third-party-tested KSM-66 coffee occupies the gap Spacegoods chases, but with US retail and origin they lack."],
+    ["The tea to coffee bridge", "No pure-play challenger has a real tea range. VAHDAM can cross-sell a wellness ecosystem (chai, functional herbal tea, ashwagandha coffee, spices) that raises LTV with genuine depth."]
+  ]],
+  ["sub", "Where to be careful"],
   ["bul", [
-    "Ashwagandha-forward, real-coffee, origin-owned is uncontested by the US mushroom-led leaders.",
-    "DTC to retail credibility (Target) is a differentiator to amplify, not bury.",
-    "Heritage tea range plus gifting is a cross-sell and trust asset no single-SKU challenger has.",
-    "Compliance-led marketing is a moat in an over-claiming category."
+    "<b>Claims discipline.</b> The cortisol-to-weight testimonials on-site are the category norm but the highest-risk element. Measured language is both compliant and, increasingly, a trust differentiator.",
+    "<b>Subscription CX.</b> The category's #1 complaint is surprise renewals. Make cancellation frictionless and say so, turning the weakness into a stated advantage.",
+    "<b>Don't out-spend, out-authenticate.</b> Ryze/AG1 win on ad volume and celebrity. VAHDAM competes on origin proof, transparency and product breadth, not CAC."
   ]],
 
-  ["sec", 10, "Sources"],
-  ["card", ["Research and press (2026 pulls): Grand View / Precedence / Future Market Insights / HTF / Research and Markets (functional-coffee, adaptogen, supplement and ashwagandha sizing); brand sites and trade coverage for Ryze, MUD\\WTR, Four Sigmatic, Everyday Dose, AG1, Happy Mammoth, Spacegoods; vahdam.com plus Target launch coverage. Figures are directional and scope-dependent; confidence tags reflect source strength."]]
+  ["sec", 12, "Sources &amp; notes"],
+  ["card", ["Primary sources retrieved July 2026: Mordor, Grand View, IMARC, Precedence, SNS Insider, Fact.MR, Future Market Insights, Fortune Business Insights, DataM, Global Growth Insights, Technavio, MarketDataForecast (sizing); brand pages (vahdam.com, ryzesuperfoods.com, mudwtr.com, foursigmatic.com, spacegoods.com, drinkag1.com, happymammoth.com, rishi-tea.com); BevNET (VAHDAM Target launch, $15.99/20, Mar 2026); independent reviews (1800D2C, Holistic Digest, My Subscription Addiction, SuppCo); Mamavation (PFAS); FDA/FTC/DSHEA and the UK FSA ashwagandha review. Figures are directional and scope-dependent; confidence tags reflect source strength."]]
 ];
 
 REPORTS.UK = [
-  ["sec", 1, "Scope &amp; method"],
-  ["card", ["{C} This study covers the UK arena VAHDAM UK actually competes in: premium/wellness tea, functional and adaptogenic coffee, and the adaptogen-supplement crossover, not the commodity black-tea bag war, which VAHDAM does not fight on price."]],
+  ["sec", 1, "Scope, method &amp; how to read this"],
+  ["card", ["{C} \"Tea, coffee, or supplements\" is not one market, it is several multi-billion categories with different buyers, margins, shelf logic and regulators. This report anchors on the single arena where they collide and where VAHDAM actually competes: the functional-wellness beverage and supplement segment, premium/functional tea, adaptogen and functional coffee, and the adaptogen/wellness products adjacent to them."]],
   ["bul", [
-    "Figures pulled from named market-research previews and trade press (June 2026 pull). Where firms disagree, ranges are shown, not a single false-precision number.",
-    "Regulatory frame is UK-specific: ASA/CAP (advertising claims) and MHRA (medicinal-claim boundary), materially stricter than US FTC/DSHEA.",
-    "VAHDAM UK is profiled as the anchor; rivals are read for the openings they leave."
+    "Market sizing for UK tea, UK functional/adaptogen coffee and the UK functional-mushroom / adaptogen-supplement crossover, with source-to-source variance shown.",
+    "A five-tier competitive landscape plus deep-dive profiles of eight brands across adaptogen coffee, premium wellness tea, greens and women's-hormone sub-segments.",
+    "Four side-by-side comparison tables: price-per-serving, formula, positioning/hero claim, DTC mechanics and the KSM-66 ashwagandha question.",
+    "Consumer demand signals, the UK DTC playbook, the ASA/CAP + MHRA regulatory frame and a white-space read."
   ]],
+  ["card", ["{C} Method: primary sources retrieved July 2026 (research firms, brand pages, retailer listings, review data). Warning: market-size estimates vary enormously between firms; the same category is quoted across wide ranges by retail vs foodservice vs RTD scope. Treat single-point figures as directional; ranges and direction of travel are the reliable signal."]],
 
   ["sec", 2, "Executive summary"],
-  ["card", [
-    "{C} The UK tea market is bifurcated: a saturated Red Ocean of commodity black tea (~75% of sales, owned by four legacy brands) and a fast-growing Blue Ocean of wellness/functional infusions where the legacy giants are weak.",
-    "{C} The single most important competitive fact for VAHDAM UK: your hero ingredient, KSM-66 Ashwagandha, is already used by your two sharpest UK rivals, Spacegoods and London Nootropics. In the UK you are fighting home-grown incumbents, not importers. \"Crafted in India\" is a story, not a moat, when the rival down the road buys the same branded extract.",
-    "{L} Spacegoods is the category's UK front-runner (&pound;2.5M raised, explicit ambition to be European market leader) and has effectively defined the coffee-plus adaptogen format. London Nootropics owns the clinically-credible, doctor-backed, named-extract high ground. Both sit exactly where VAHDAM wants to be.",
-    "{L} VAHDAM UK's real edges are three: (1) a genuine multi-category heritage-tea business behind the coffee, (2) a longer 90-day money-back guarantee vs rivals' 30 to 60 days, and (3) origin ownership of the actual botanicals (ashwagandha, turmeric, chai) rather than a formulation assembled from third-party extracts."
-  ]],
-
-  ["sec", 3, "Market sizing", "Segment sizes are scoped differently by each firm; treat as directional magnitude, not accounting."],
-  ["tbl", ["Segment", "Size / figure", "Source &amp; note"], [
-    ["UK tea market (retail)", "~&pound;660M+ annually; black tea ~75% of sales", "{C} UK trade/industry; scope = at-home retail"],
-    ["UK tea volume", "~100K tons (2024, +20% spike); ~+1.8% vol / +2.9% value CAGR to 2035", "{L} IndexBox"],
-    ["Europe loose-leaf tea", "$0.98B (2025) &rarr; $1.47B (2034), 4.59% CAGR", "{C} Market Data Forecast"],
-    ["Matcha adoption", "over 50% of UK under-35s consumed matcha in late 2025", "{C} Mintel"],
-    ["UK functional-mushroom market", "~$1.85B (2024), broad scope (food, extracts, powders, coffee)", "{L} DataM Intelligence"],
-    ["Global adaptogenic-mushroom market", "$10.9B (2022) &rarr; $30B (2032), ~10%/yr", "{C} Global Market Insights"],
-    ["Global mushroom-coffee market", "$1.26B (2024) &rarr; $5.56B (2035), ~7%/yr", "{L} Data Bridge / Precedence"]
-  ], "Takeaway: the wellness/functional layer is the only part of UK tea and coffee growing at double digits, and it is not yet locked down by the legacy Big Four."],
-
-  ["sec", 4, "Structural dynamics"],
-  ["sub", "Red Ocean vs Blue Ocean"],
-  ["card", [
-    "{C} Traditional black tea is a mature, slightly declining, price-competitive volume game dominated by Yorkshire Tea, PG Tips, Tetley and Twinings (together 70%+ of black tea). Margins are thin and share is won over decades. VAHDAM should not enter this fight.",
-    "{L} The wellness/functional layer, matcha, herbal functional blends, adaptogen coffee, is where younger buyers, premium price bands (&pound;10 to &pound;35/pack) and digital-first brands concentrate. This is VAHDAM's lane."
-  ]],
-  ["sub", "Format and channel"],
+  ["card", ["{C} The UK tea market is bifurcated: a saturated Red Ocean of commodity black tea (~75% of sales, owned by four legacy brands where share is won over decades) and a fast-growing Blue Ocean of wellness/functional infusions and adaptogen coffee where the legacy giants are weak. VAHDAM should never fight the first and should own a slice of the second."]],
   ["bul", [
-    "Sachets/instant is the winning acquisition format in adaptogen coffee (Spacegoods, London Nootropics, DIRTEA all lead here), it removes the supplement stigma by living inside the coffee ritual.",
-    "TikTok Shop plus Amazon UK plus DTC subscription are the growth channels; influencer-led discovery (DIRTEA) vs clinical-credibility (London Nootropics) are the two proven playbooks."
+    "<b>The KSM-66 collision is the defining fact.</b> VAHDAM's hero ingredient is already used by its two sharpest UK rivals, Spacegoods and London Nootropics. In the UK, Crafted in India / KSM-66 is parity, not a moat. VAHDAM is fighting home-grown incumbents, not importers.",
+    "<b>Spacegoods is the category front-runner.</b> UK-founded (2021), &pound;2.5M raised, openly targeting European market leadership; it defined the coffee-plus adaptogen format, but its hero is cacao-forward, not real coffee.",
+    "<b>London Nootropics owns credibility.</b> Doctor-backed, named branded extracts (Rhodiolife, Hifas da Terra, KSM-66), two targeted adaptogens per blend, the clinical high ground VAHDAM must contest, not cede.",
+    "<b>Two proven acquisition playbooks.</b> Influencer-led high-dose low-price (DIRTEA, ~&pound;0.40 to 0.55/serving) vs clinical-credibility (London Nootropics). VAHDAM currently runs neither cleanly.",
+    "<b>VAHDAM's real, copy-proof edges are three.</b> (1) a genuine multi-category heritage-tea business behind the coffee; (2) a 90-day money-back guarantee, longer than every rival (Spacegoods 60, most 30); (3) origin ownership of the botanicals rivals buy in.",
+    "<b>Claims are the battleground.</b> The ASA/CAP code and MHRA medicine boundary make the cortisol/weight testimonials that work in the US a direct UK liability, the most likely trigger for a ruling or forced takedown."
   ]],
-  ["sub", "Regulation (the real constraint)"],
-  ["card", ["{C} The MHRA polices the medicine boundary: a food supplement may not claim to diagnose, treat, cure or prevent disease. The ASA/CAP code polices advertising: health claims must be authorised and substantiated. Lowers cortisol by X%, weight-loss framing, and cures-anxiety-style testimonials are the classic triggers for a ruling."]],
 
-  ["sec", 5, "Major players, UK tea"],
-  ["tbl", ["Brand", "Owner / type", "Scale / share", "Positioning", "Read for VAHDAM"], [
-    ["Yorkshire Tea", "Taylors of Harrogate (family)", "Value leader; 36.7% of black tea (2023)", "Proper tea; bold Assam/African blend; heritage", "Owns everyday strong, not VAHDAM's fight"],
-    ["PG Tips", "Lipton Teas &amp; Infusions", "~24% share; strong in London", "Smooth everyday; plant-based bags", "Mass black, irrelevant to premium play"],
-    ["Tetley", "Tata Consumer", "~27% share (volume)", "Everyday; convenience-store lead", "Same parent-nation origin; mass tier"],
-    ["Twinings", "Associated British Foods", "Top-4; premium heritage", "Heritage English; very wide range", "Closest legacy premium comparator"],
-    ["Pukka", "Lipton Teas &amp; Infusions (2017)", "Premium organic-herbal leader", "Organic, Ayurveda-influenced, B Corp", "Direct herbal/Ayurvedic-wellness rival, watch"],
-    ["Teapigs", "Tata Consumer", "Premium whole-leaf", "Tea temples, whole-leaf", "Premium-leaf quality benchmark"],
-    ["Clipper", "Organic &amp; Fairtrade specialist", "Broad supermarket presence", "Affordable organic / ethical", "Value-organic; ethics table-stakes"]
-  ], "{C} shares from UK trade press; {L} on exact ownership where noted. Pukka is the one legacy-owned brand whose Ayurvedic-herbal positioning overlaps VAHDAM directly."],
+  ["sec", 3, "Market sizing (UK, with global context)", "Spread across firms shown. 2024/25 base; GBP or USD as noted."],
+  ["tbl", ["Segment", "Size", "CAGR", "Source(s)"], [
+    ["UK tea (retail)", "~&pound;660M+ (black tea ~75% of sales)", "low single %", "UK trade/industry"],
+    ["UK tea volume", "~100K tons (2024, +20% spike)", "~+1.8% vol / +2.9% value", "IndexBox"],
+    ["Europe loose-leaf tea", "$0.98B (2025) &rarr; $1.47B (2034)", "4.59%", "Market Data Forecast"],
+    ["UK functional-mushroom (broad)", "~$1.85B (2024)", "~10%+", "DataM Intelligence"],
+    ["Global adaptogenic mushroom", "$10.9B (2022) &rarr; $30B (2032)", "~10%", "Global Market Insights"],
+    ["Global mushroom coffee", "$1.26B (2024) &rarr; $5.56B (2035)", "~7%", "Data Bridge / Precedence"],
+    ["Global adaptogen coffee", "~$1.1 to 1.7B (2025)", "~6 to 17% (firms vary)", "FMI / HTF / Research and Markets"]
+  ], "Ranges reflect real scope differences (broad functional-mushroom incl. food/extracts vs narrow retail supplements). Use direction and relative size."],
+  ["sub", "3.1 Tea, mature, premiumising, wellness-led at the edge"],
+  ["card", ["{C} UK tea is a slightly declining volume game where value migrates up-market. Black tea still holds ~75% of sales, but the growth sits in premium herbal/wellness blends (&pound;10 to &pound;35/pack) and in matcha, over 50% of UK under-35s consumed matcha in late 2025. Tea is a credibility and margin base in the UK, not the growth story."]],
+  ["sub", "3.2 Functional coffee, the real battleground"],
+  ["card", ["{C} Mushroom/adaptogen coffee is the fastest-growing acquisition format in UK wellness, led by sachets/instant that live inside the coffee ritual and remove supplement stigma. The UK trade press explicitly points to the US (Ryze, Four Sigmatic at eight-figure revenues) as the template the UK is now following."]],
+  ["sub", "3.3 Adaptogens &amp; mushrooms, blue-ocean but crowding fast"],
+  ["card", ["{C} The broad UK functional-mushroom market (~$1.85B, DataM) spans food, extracts, powders and coffee. Lion's mane is the fastest-growing species; ashwagandha (KSM-66) is the herbal adaptogen of choice, and, critically, already the shared hero of Spacegoods and London Nootropics. The blue ocean is filling in."]],
 
-  ["sec", 6, "Major players, UK functional and adaptogen coffee", "VAHDAM UK's actual competitive set. The decisive column is Ashwagandha? Note how few own it, and that the two who do are UK-local."],
-  ["tbl", ["Brand", "Origin", "Format", "Key actives", "Ashwagandha?", "Price/serving", "Notes"], [
-    ["<b>VAHDAM UK</b>", "India-made, UK entity", "Instant + real Arabica", "KSM-66, Lion's Mane, Turmeric 95%, Chaga", "<b>Yes, KSM-66</b>", "DTC bundles (n/a per-srv)", "90-day MBG; free UK delivery"],
-    ["Spacegoods (Rainbow Dust)", "UK (2021)", "Instant, cacao-forward", "Lion's Mane, Cordyceps, Chaga, Maca, Ashwagandha", "Yes", "~&pound;1.30/sachet", "&pound;2.5M raised; 60-day MBG; category front-runner"],
-    ["London Nootropics", "UK", "Instant sachets (Flow/Zen/Mojo)", "Lion's Mane, Rhodiola (Rhodiolife), Hifas mushrooms + KSM-66", "<b>Yes, KSM-66</b>", "~&pound;0.80 to 1.25", "Doctor-backed; named branded extracts"],
-    ["DIRTEA", "UK", "Instant coffee + powders", "Lion's Mane 1000mg, Chaga, Cordyceps", "Select SKUs", "~&pound;0.40 to 0.55 (sub)", "Influencer-led; high mushroom dose"],
-    ["Four Sigmatic", "Finland (sold in UK)", "Instant + ground", "Lion's Mane, Chaga", "No (not core)", "~&pound;1.10 to 2.25", "Category pioneer; lab-tested"],
-    ["Ryze", "US (ships UK)", "Instant", "Super-6 mushroom blend", "No", "~&pound;0.90 to 1.20", "DTC volume leader; strong UK search"],
-    ["Balance Coffee", "UK roaster", "Ground / whole bean", "Lion's Mane 500mg", "No", "Higher (real coffee)", "Coffee-purist; brew-control"]
-  ], "{C} on formats/positioning; {L} on per-serving pricing (varies by pack/subscription). The strategic point: KSM-66 is shared by VAHDAM, Spacegoods and London Nootropics, differentiation must come from elsewhere."],
-
-  ["sec", 7, "Competitor deep-dives"],
+  ["sec", 4, "Category dynamics &amp; demand trends"],
   ["cards", 2, [
-    ["VAHDAM UK (anchor)", "\"Feel Alive.\" Premium Indian tea plus adaptogen coffee, crafted in India, sold to the UK. <b>Hero:</b> Ashwagandha Coffee, 100% Arabica + KSM-66, Lion's Mane, 95%-curcumin Turmeric, Chaga; 1 scoop (2.5g); 40 to 240 servings DTC. <b>Guarantee:</b> 90-day money-back, longer than every rival (Spacegoods 60, most others 30). <b>Strengths:</b> owns the origin of botanicals rivals import; deepest product range; longest guarantee; reverse-import prestige (Indian brand loved in 145 countries); 150K+ customers. <b>Openings:</b> KSM-66 is not exclusive (Spacegoods and London Nootropics use it too); cortisol/weight testimonials are an ASA/CAP plus MHRA liability; brand meaning split across tea and coffee dilutes the single-minded punch."],
-    ["Spacegoods", "The UK category front-runner. Coffee-plus, energy and focus without the crash. <b>Hero:</b> Rainbow Dust, cacao-forward instant with Lion's Mane, Cordyceps, Chaga, Maca, Ashwagandha plus B-vitamins; ~&pound;1.30/sachet; 60-day guarantee. <b>Momentum:</b> &pound;2.5M seed (Five Seasons Ventures et al.); openly targeting European leadership; publishes third-party heavy-metal/microbial testing. <b>Openings:</b> cacao-forward profile reads as functional hot chocolate, not real coffee, VAHDAM's Arabica base is a genuine wedge for coffee purists; no heritage-tea catalogue behind it."],
-    ["London Nootropics", "The credibility play. Two targeted, named-supplier adaptogens per blend. <b>Hero:</b> Flow (Lion's Mane + Rhodiola), Zen, Mojo, instant sachets with Rhodiolife Rhodiola, Hifas da Terra extracts, KSM-66 Ashwagandha, all branded and traceable; ~&pound;0.80 to 1.00/serving; doctor endorsements. <b>Openings:</b> doses sit at the lower end of studied ranges (they admit it); narrower range; less lifestyle-brand pull, VAHDAM can out-dose and out-range if it chooses."],
-    ["DIRTEA", "The influencer-led volume machine. 1000mg Lion's Mane; Chaga; Cordyceps; broad powder range; ~&pound;0.40 to 0.55/serving on subscription, the price-aggressive end. <b>Openings:</b> instant coffee base rated fine but flat; low-price positioning cedes the premium/quality story to VAHDAM."],
-    ["Four Sigmatic / Ryze (imports)", "The international pioneers with UK presence but no local ashwagandha lock. Four Sigmatic (Finnish; Lion's Mane + Chaga; lab-tested) normalised mushroom coffee; Ryze (US DTC volume leader; Super-6; no ashwagandha) has strong UK search. <b>Openings:</b> neither leads on ashwagandha; both are mushroom coffee, leaving the ashwagandha-forward calm-energy angle contestable."]
+    ["Red Ocean vs Blue Ocean", "{C} Commodity black tea is a mature, price-competitive volume game (Yorkshire, PG Tips, Tetley, Twinings = 70%+). The wellness/functional layer, matcha, herbal functional blends, adaptogen coffee, is where younger buyers, premium price bands and digital-first brands concentrate. VAHDAM belongs only in the second."],
+    ["The sachet is the acquisition weapon", "{C} Instant single-serve sachets dominate UK adaptogen-coffee acquisition (Spacegoods, London Nootropics, DIRTEA). The format lowers trial friction and reframes a supplement as a nicer coffee. VAHDAM's opportunity is a genuinely coffee-first taste vs rivals' cocoa-forward profiles."],
+    ["Two playbooks: influencer vs clinical", "{C} DIRTEA runs the influencer-led, high-dose, aggressive-price motion; London Nootropics runs the doctor-backed, named-extract, credibility motion; Spacegoods sits between with a lifestyle brand. VAHDAM must pick and commit rather than blur."],
+    ["The matcha boom &amp; the under-35 buyer", "{C} Over 50% of UK under-35s consumed matcha in late 2025 (Mintel). The same cohort drives functional coffee and clean caffeine. The demand-side wind is behind ashwagandha-coffee, the question is share capture, not category demand."],
+    ["KSM-66 parity, differentiation must move", "{L} Because VAHDAM, Spacegoods and London Nootropics all use KSM-66, the ingredient story is neutralised. Differentiation has to move to taste (real coffee), range (tea heritage), risk-reversal (90-day MBG) and provenance (owning the source)."],
+    ["Claim gravity: ASA/CAP + MHRA", "{C} The UK regime is materially stricter than the US. The MHRA polices the medicine boundary; ASA/CAP requires authorised, substantiated health claims and forbids testimonials making claims a brand couldn't make directly. Lowers-cortisol-by-X% and weight-loss testimonials are the classic triggers."]
   ]],
 
-  ["sec", 8, "VAHDAM UK, strategic read"],
-  ["card", ["{L} Stop leaning on Crafted in India / KSM-66 as the differentiator, in the UK that is parity, not advantage. Two funded local rivals say the same thing. Re-anchor on what they cannot copy."]],
+  ["sec", 5, "Competitive landscape, the tiers", "The UK arena around VAHDAM sorts into five tiers; VAHDAM straddles two."],
+  ["cards", 2, [
+    ["Tier 1, Adaptogen / functional-coffee challengers", "<b>VAHDAM's direct fight.</b> Spacegoods, London Nootropics, DIRTEA, Four Sigmatic, Ryze (ships UK), Balance Coffee. Sachet/instant, DTC-native, ashwagandha or mushroom + coffee, and where two rivals already own KSM-66."],
+    ["Tier 2, Premium wellness / herbal tea", "<b>VAHDAM's heritage overlap.</b> Pukka, Teapigs, Clipper, Yogi. Organic, Ayurvedic-influenced, whole-leaf. Pukka (Ayurvedic-herbal, B Corp) overlaps VAHDAM's wellness-tea positioning most directly."],
+    ["Tier 3, Legacy black-tea Big Four", "<b>Do not fight.</b> Yorkshire Tea, PG Tips, Tetley, Twinings. 70%+ of black tea, won on distribution and decades of brand-building. A price/volume war VAHDAM cannot and should not enter."],
+    ["Tier 4, Greens &amp; all-in-one", "<b>Aspirational ceiling.</b> AG1 (strong UK presence), Huel-adjacent daily nutrition. Not coffee, but they compete for the one daily wellness ritual wallet and set the premium ceiling and influencer standard."],
+    ["Tier 5, Women's-hormone / cortisol supplements", "<b>Shared audience.</b> Happy Mammoth (Australia-founded, strong UK), Ancient-Nutrition-style capsules. Capsule format, but they own the cortisol/menopause/cravings narrative and the women-35-55 audience."]
+  ]],
+  ["card", ["{L} Where VAHDAM sits: at the Tier 1 x Tier 2 overlap (adaptogen coffee + premium origin tea), with the sourcing to attack Tier 5's narrative honestly. No UK pure-play occupies that overlap."]],
+
+  ["sec", 6, "Competitor deep-dive profiles"],
+  ["cards", 2, [
+    ["VAHDAM UK (anchor)", "\"Feel Alive.\" Premium Indian tea + adaptogen coffee, crafted in India, sold to the UK. <b>Hero:</b> Ashwagandha Coffee, 100% Arabica + KSM-66, Lion's Mane, 95%-curcumin Turmeric, Chaga; instant, 1 scoop (2.5g), 40 to 240 servings DTC. <b>Guarantee:</b> 90-day money-back, longer than every rival, an under-marketed trust lever. 150K+ customers, free UK delivery. <b>Strengths:</b> owns the origin of botanicals rivals import; deepest product range; longest guarantee; credible reverse-import prestige. <b>Openings:</b> KSM-66 is not exclusive (Spacegoods, London Nootropics use it); cortisol/weight testimonials are an ASA/CAP + MHRA liability; split brand meaning dilutes the single-minded punch a Spacegoods lands."],
+    ["Spacegoods", "The UK category front-runner. Coffee-plus, energy and focus without the crash. Rainbow Dust, cacao-forward instant with Lion's Mane, Cordyceps, Chaga, Maca, Ashwagandha + B-vitamins; ~&pound;1.30/sachet; subscription default; 60-day guarantee; B1/B2G1 promos. &pound;2.5M seed (Five Seasons Ventures et al.); targeting European leadership; publishes third-party testing. <b>Openings:</b> cacao-forward reads as functional hot chocolate, not real coffee, VAHDAM's Arabica base is a genuine wedge; no heritage-tea catalogue behind it."],
+    ["London Nootropics", "The credibility play. Two targeted, named-supplier adaptogens per blend. Flow (Lion's Mane + Rhodiola), Zen, Mojo, instant sachets with Rhodiolife Rhodiola, Hifas da Terra extracts, KSM-66, all branded and traceable; ~&pound;0.80 to 1.25/serving; doctor endorsements; honest that doses sit at the lower clinical band. <b>Openings:</b> lower-band dosing; narrower range; less lifestyle pull than Spacegoods, VAHDAM can out-dose and out-range."],
+    ["DIRTEA", "The influencer-led volume machine. 1000mg Lion's Mane; Chaga; Cordyceps; broad powder range beyond coffee; ~&pound;0.40 to 0.55/serving on subscription, the price-aggressive end; heavy influencer marketing and retail presence. <b>Openings:</b> instant coffee base rated fine but flat; low-price positioning cedes the premium/quality story to VAHDAM."],
+    ["Four Sigmatic (import)", "The international pioneer with UK shelf presence. Lion's Mane + Chaga, instant + ground, the brand that normalised mushroom coffee globally; ~&pound;1.10 to 2.25/serving; lab-tested; across UK/EU wellness retail. <b>Openings:</b> no ashwagandha lead; mushroom coffee, leaving the ashwagandha calm-energy angle contestable."],
+    ["Ryze (US, ships UK)", "The DTC volume leader with strong UK search demand. Super-6 mushroom blend (no ashwagandha); instant; subscription-default; 200K+ reviews globally; ~&pound;0.90 to 1.20/serving-equiv. <b>Openings:</b> US brand without UK-local trust cues or ashwagandha; no tea range; auto-renew complaints."],
+    ["Pukka (Tier 2 overlap)", "The UK organic-herbal / Ayurvedic-tea incumbent. Organic, Ayurvedic-influenced herbal blends; B Corp; owned by Lipton Teas &amp; Infusions; reported strong growth in adaptogenic/Ayurvedic teas. <b>Openings:</b> tea-only, no coffee/adaptogen-coffee play; corporate-owned, less founder-origin authenticity than VAHDAM."],
+    ["Happy Mammoth (Tier 5)", "The cortisol/hormone-funnel benchmark, strong in the UK. Hormone Harmony capsules, KSM-66 + 12 extracts; women/menopause/cortisol; quiz funnel; 3.3M customers; ~$2.92-equiv/serving; 60-day MBG. <b>Openings:</b> capsules, not a daily-ritual beverage; aggressive claims carry ASA risk, VAHDAM can out-format with the same KSM-66 credibility, more cleanly."]
+  ]],
+
+  ["sec", 7, "Side-by-side comparison tables", "Formats certain; per-serving pricing varies by pack/subscription."],
+  ["sub", "7.1 Adaptogen-coffee arena, price, format, formula"],
+  ["tbl", ["Brand", "Price/serving", "Format", "Signature formula"], [
+    ["<b>VAHDAM UK</b>", "DTC bundles", "Instant + real Arabica", "KSM-66 + Lion's Mane + Turmeric 95% + Chaga"],
+    ["Spacegoods", "~&pound;1.30", "Instant, cacao-forward", "Lion's Mane, Cordyceps, Chaga, Maca, Ashwagandha, B5"],
+    ["London Nootropics", "~&pound;0.80 to 1.25", "Instant sachets", "Lion's Mane + Rhodiola + KSM-66 (2 per blend)"],
+    ["DIRTEA", "~&pound;0.40 to 0.55", "Instant + powders", "Lion's Mane 1000mg, Chaga, Cordyceps"],
+    ["Four Sigmatic", "~&pound;1.10 to 2.25", "Instant + ground", "Lion's Mane, Chaga"],
+    ["Ryze", "~&pound;0.90 to 1.20", "Instant", "Super-6 mushrooms"],
+    ["Balance Coffee", "Higher", "Ground / whole bean", "Lion's Mane 500mg + real coffee"]
+  ]],
+  ["sub", "7.2 Positioning &amp; hero claim"],
+  ["tbl", ["Brand", "Positioning", "Hero claim (paraphrased)"], [
+    ["<b>VAHDAM UK</b>", "Origin-authentic calm-energy coffee + tea house", "Crafted in India, backed by science; calm focus, no jitters"],
+    ["Spacegoods", "Lifestyle coffee-plus", "Energy, focus &amp; calm in one tasty scoop"],
+    ["London Nootropics", "Clinical, doctor-backed", "Named extracts for focus / calm / drive"],
+    ["DIRTEA", "Influencer wellness", "High-dose mushrooms, everyday ritual"],
+    ["Four Sigmatic", "Pioneer, lab-tested", "Think/immune mushroom coffee"],
+    ["Ryze", "Mass DTC", "Mushroom coffee, reimagined"]
+  ]],
+  ["sub", "7.3 DTC &amp; commercial mechanics"],
+  ["tbl", ["Brand", "Subscription", "Money-back", "Acquisition offer", "Channels"], [
+    ["<b>VAHDAM UK</b>", "Yes, 5-day reminder", "90-day", "Starter kits + free gifts", "DTC + marketplaces"],
+    ["Spacegoods", "Default", "60-day", "B1/B2G1 promos", "DTC + Amazon"],
+    ["London Nootropics", "Yes", "Standard", "Sampler / bundles", "DTC + practitioners"],
+    ["DIRTEA", "Yes", "Standard", "Sub discount, high-dose", "DTC + retail"],
+    ["Four Sigmatic", "Yes", "Standard", "Bundles", "DTC + wellness retail"],
+    ["Ryze", "Default", "30-day", "Frother, sub discount", "DTC + Amazon"]
+  ]],
+  ["sub", "7.4 Ashwagandha &amp; KSM-66, who actually uses it"],
+  ["tbl", ["Brand", "KSM-66 / ashwagandha", "How it is used"], [
+    ["<b>VAHDAM UK</b>", "Yes, KSM-66", "Hero adaptogen in the coffee blend"],
+    ["Spacegoods", "Yes, ashwagandha", "One of a 6-part broad stack"],
+    ["London Nootropics", "Yes, KSM-66", "In select blends, branded &amp; dosed"],
+    ["DIRTEA", "Select SKUs", "Mushroom-led; ashwagandha secondary"],
+    ["Four Sigmatic", "No (not core)", "Mushroom-led"],
+    ["Ryze", "No", "Mushroom-only Super-6"]
+  ], "The strategic crux: ashwagandha/KSM-66 is shared by VAHDAM, Spacegoods and London Nootropics, differentiation must come from taste, range, guarantee and provenance, not the extract."],
+
+  ["sec", 8, "Consumer demand signals"],
   ["bul", [
-    "<b>Real coffee, not cocoa.</b> Spacegoods' hero is cacao-forward. Own actual Arabica coffee you would drink black plus adaptogens, the purist wedge DIRTEA and Spacegoods leave open.",
-    "<b>Weaponise the 90-day guarantee.</b> It is the longest in category and barely marketed. Make it the headline risk-reversal.",
-    "<b>Sell the tea house behind the coffee.</b> None of the adaptogen-coffee pure-plays have a heritage tea catalogue. Cross-sell plus we have sourced from origin for years is a credibility story startups cannot manufacture.",
-    "<b>Fix the claims before the ASA does.</b> Replace lowers cortisol 27.9% / weight-loss testimonials with authorised, hedged wording. This is a when-not-if compliance exposure."
+    "<b>Matcha:</b> over 50% of UK under-35s consumed it in late 2025, the wellness-caffeine cohort is large and primed.",
+    "<b>Blue-ocean pull:</b> ~45% of UK consumers prefer flavoured/functional teas for wellness; premium bands (&pound;10 to &pound;35/pack) grow while commodity black flatlines.",
+    "<b>Channel behaviour:</b> discovery skews TikTok Shop + Amazon UK; conversion rewards clean taste and clear function. No jitters, no crash, calm focus is table-stakes copy.",
+    "<b>Trust proxies:</b> published third-party testing (Spacegoods), named branded extracts (London Nootropics) and doctor endorsements move conversion in a category wary of over-claiming.",
+    "<b>Auto-renew friction:</b> as in the US, surprise subscription renewal is a recurring complaint, a CX/retention risk and a differentiation opening for transparent billing."
   ]],
 
-  ["sec", 9, "Regulatory notes (UK)"],
+  ["sec", 9, "The UK DTC playbook, what the winners do"],
   ["bul", [
-    "<b>MHRA:</b> food supplements cannot make medicinal claims (treat/cure/prevent). Balances cortisol, framed as a health outcome, drifts toward this line.",
-    "<b>ASA/CAP:</b> advertising health claims must be authorised on the GB nutrition and health claims register and substantiated; testimonials cannot be used to make claims the brand could not make directly.",
-    "<b>Practical rule:</b> keep VAHDAM UK messaging to calm, focus, everyday wellbeing, no jitters and avoid quantified physiological or weight-loss claims."
+    "<b>Lead with a low-friction sachet trial.</b> Single-serve trial packs are the proven UK on-ramp; reserve bundles/subscription for the second purchase.",
+    "<b>Pick one credibility lane.</b> Either clinical (named extracts, doctors, testing, London Nootropics) or lifestyle/influencer (Spacegoods, DIRTEA). VAHDAM should run the clinical-plus-origin lane it can uniquely own.",
+    "<b>Make the 90-day guarantee the headline risk-reversal.</b> It beats every rival and is currently buried.",
+    "<b>Sell the real-coffee wedge.</b> Position against Spacegoods' cacao profile: actual Arabica you would drink black, plus adaptogens.",
+    "<b>Cross-sell the tea house.</b> No adaptogen-coffee pure-play has a heritage tea catalogue, use it for AOV and trust.",
+    "<b>Open the practitioner channel.</b> Where London Nootropics wins; VAHDAM's origin + testing story fits clinics and wellness studios."
   ]],
 
-  ["sec", 10, "White space and recommendations"],
+  ["sec", 10, "UK regulatory frame (the compliance battleground)"],
+  ["card", ["{C} The UK is materially stricter than the US, and getting this wrong is the single most likely cause of a forced takedown or public ruling."]],
   ["bul", [
-    "The real-coffee, high-dose, single-origin ashwagandha position is open, rivals are either cocoa-forward or lower-dose.",
-    "Heritage tea house that also makes adaptogen coffee is a defensible identity no pure-play can claim.",
-    "Practitioner / clinic channel (where London Nootropics is winning) is under-exploited by VAHDAM and rewards the origin plus testing story.",
-    "Compliance-led marketing is itself a moat in a category full of over-claiming startups, the adaptogen coffee that will not get you an ASA ruling."
+    "<b>MHRA:</b> a food supplement may not claim to diagnose, treat, cure or prevent disease. Balances cortisol, framed as a physiological outcome, drifts toward the medicine line.",
+    "<b>ASA/CAP:</b> advertised health claims must be authorised on the GB nutrition and health claims register and substantiated; testimonials cannot be used to make claims the brand couldn't make directly, exactly what quantified cortisol/weight testimonials do.",
+    "<b>Practical rule:</b> keep VAHDAM UK messaging to calm, focus, everyday wellbeing, no jitters; strip quantified physiological and weight-loss claims; audit imported US testimonials before they run in the UK."
+  ]],
+  ["card", ["{L} Turned around, compliance is a moat: the adaptogen coffee that won't get an ASA ruling is a genuine trust position in a category full of over-claiming startups."]],
+
+  ["sec", 11, "Strategic implications &amp; white space"],
+  ["card", ["{L} Stop leaning on Crafted in India / KSM-66 as the differentiator, that is parity in the UK. Re-anchor on the copy-proof edges."]],
+  ["bul", [
+    "<b>Real coffee, not cocoa,</b> the purist wedge Spacegoods and DIRTEA leave open.",
+    "<b>The 90-day guarantee</b> as headline risk-reversal (longest in category).",
+    "<b>Heritage tea house that also makes adaptogen coffee,</b> an identity no pure-play can claim.",
+    "<b>Compliance-led marketing</b> as a trust moat under ASA/CAP + MHRA.",
+    "<b>The practitioner / clinic channel,</b> under-exploited by VAHDAM and rewarding the origin + testing story."
   ]],
 
-  ["sec", 11, "Sources"],
-  ["card", ["Trade and research (June to July 2026 pulls): The Grocer (Spacegoods funding and category); Balance Journal / Balance Coffee, New Coffee Review (UK mushroom-coffee rankings, pricing, doses); London Nootropics and Spacegoods brand sites; Mintel (matcha); DataM Intelligence, Global Market Insights, Data Bridge, Precedence (market sizing); Market Data Forecast (Europe loose-leaf); IndexBox (UK tea volume); teas.co.uk, amazingfoodanddrink, Accio (UK tea shares and structure); vahdam.co.uk. Figures are directional and scope-dependent; confidence tags reflect source strength."]]
+  ["sec", 12, "Sources &amp; notes"],
+  ["card", ["Trade and research (June to July 2026 pulls): The Grocer (Spacegoods funding &amp; category); Balance Journal / Balance Coffee, New Coffee Review (UK mushroom-coffee rankings, pricing, doses); London Nootropics &amp; Spacegoods brand sites; Mintel (matcha); DataM Intelligence, Global Market Insights, Data Bridge, Precedence, FMI/HTF (sizing); Market Data Forecast (Europe loose-leaf); IndexBox (UK tea volume); teas.co.uk, amazingfoodanddrink, Accio (UK tea shares &amp; structure); vahdam.co.uk. Market-size figures vary by firm scope; confidence tags reflect source strength. No competitor copy, testimonials or named advisors are reproduced."]]
 ];
 
 REPORTS.Global = [
-  ["sec", 1, "Scope &amp; method"],
-  ["card", ["{C} Global ex-US/UK/India is not one market, it is a dozen structurally unlike ones. This study organises them by a single decision: where VAHDAM can realistically win vs where it is only present. VAHDAM already runs a dedicated Global storefront (vahdam.global) serving this set and ships to ~145 countries."]],
+  ["sec", 1, "Scope, method &amp; how to read this"],
+  ["card", [
+    "{C} \"Tea, coffee, or supplements\" is not one market, it is several multi-billion categories with different buyers, margins, shelf logic and regulators. This report anchors on the single arena where they collide: the functional-wellness beverage and supplement segment, premium/functional tea, adaptogen and functional coffee, and the adaptogen/wellness products adjacent to them.",
+    "{C} Central framing: Global ex-US/UK/India is not one market but a dozen unlike ones. This study organises them by a single decision, where VAHDAM can realistically win vs where it is only present. VAHDAM already runs a dedicated Global storefront (vahdam.global) shipping to ~145 countries."
+  ]],
   ["bul", [
-    "<b>Winnable</b> (premium-D2C viable, high disposable income, wellness-receptive): EU-ex-UK, Canada, Australia/NZ, the GCC.",
-    "<b>Present-but-not-winning</b> (tea-origin or structurally hostile to an Indian tea brand): China, Japan, much of LatAm and Africa.",
-    "Section 4 answers the all-regions-each-named-brand-is-famous-in requirement directly, via a brand-footprint matrix."
+    "Global market sizing for adaptogen coffee and adaptogenic beverages, with regional growth splits and source-to-source variance.",
+    "A five-tier competitive landscape, a global brand-footprint matrix (every named brand x the regions it is a major player in) and deep-dive profiles of eight brands.",
+    "Region-by-region analysis of EU-ex-UK, Canada, Australia/NZ, GCC, East Asia and the long tail, each with major players and a winnable/present verdict.",
+    "Consumer signals, the global go-to-market playbook, the regulatory patchwork (EFSA / NHP / TGA-FSANZ / GCC) and a white-space read."
   ]],
 
   ["sec", 2, "Executive summary"],
-  ["card", [
-    "{C} The branded adaptogen/functional set is overwhelmingly US, UK and Indian brands that export globally, Four Sigmatic, Ryze, MUD\\WTR, AG1, Spacegoods, DIRTEA, plus VAHDAM and Organic India. Outside the big three markets, VAHDAM competes less with local challengers and more with these same global exporters, alongside regional premium-tea incumbents.",
-    "{L} Regional growth in adaptogen coffee is led by Germany (~6.8% CAGR), the US (~6.7%), France (~6.5%) and China (~6.0%). Europe is the largest rest-of-world opportunity; Asia-Pacific is the fastest-growing but structurally hardest for an Indian tea brand.",
-    "{L} VAHDAM's rest-of-world edge is not origin (as at home) nor local incumbency (as in the UK), it is its press/celebrity halo and gifting equity. It already appears on global best-luxury-tea lists with a celebrity fanbase (Oprah, Mariah Carey), which travels further than performance claims in markets it cannot saturate with ad spend."
+  ["card", ["{C} The branded adaptogen/functional set is overwhelmingly US, UK and Indian brands that export globally, Four Sigmatic, Ryze, MUD\\WTR, AG1, Spacegoods, DIRTEA, plus VAHDAM and Organic India. Outside the big three markets, VAHDAM competes less with local challengers and more with these same exporters, alongside regional premium-tea incumbents."]],
+  ["bul", [
+    "<b>The competitive set travels with the brand.</b> The rivals VAHDAM meets in the US/UK reappear across EU, Canada and ANZ, so rest-of-world is familiar competition, not a new one.",
+    "<b>Growth concentrates in a few markets.</b> Adaptogen-coffee CAGR leaders: Germany ~6.8%, US ~6.7%, France ~6.5%, China ~6.0%. Europe is the largest rest-of-world opportunity; Asia-Pacific is fastest-growing but structurally hardest for an Indian tea brand.",
+    "<b>VAHDAM's edge is halo, not origin or incumbency.</b> It appears on global best-luxury-tea lists with a celebrity fanbase (Oprah, Mariah Carey). That credibility travels further than performance claims in markets it can't saturate with ad spend.",
+    "<b>The winnable four.</b> EU-ex-UK, Canada, Australia/NZ and the GCC are premium-D2C-viable, high-income and wellness-receptive. Fund these.",
+    "<b>The present-not-winning set.</b> China and Japan are tea-origin superpowers where an Indian tea brand has little structural edge; much of LatAm and Africa are poor fits. Fulfil demand; don't invest in acquisition.",
+    "<b>Ashwagandha + Arabica is the global tailwind.</b> Ashwagandha is the #1 adaptogen (~18 to 26% share) and Arabica the dominant coffee base, VAHDAM's exact combination is the lead pairing of the fastest-growing beverage sub-category worldwide, while most exporters are mushroom-led."
   ]],
 
-  ["sec", 3, "Market sizing (global)"],
-  ["tbl", ["Segment", "Size / figure", "Source &amp; note"], [
-    ["Global adaptogen coffee", "~$1.1 to 1.7B (2025) &rarr; $2.35 to 3.46B by 2030 to 33; ~6 to 17% CAGR", "{L} FMI / HTF / Research and Markets (wide scope variance)"],
-    ["Global adaptogenic beverages", "~$1.4 to 2.2B (2024 to 26) &rarr; $2.5 to 6.7B (2034); 6.5 to 14.8% CAGR", "{L} GMI / Stratistics"],
-    ["Regional CAGR leaders", "Germany 6.8% &middot; US 6.7% &middot; France 6.5% &middot; China 6.0% &middot; UK 5.1% &middot; India 5.0%", "{C} Future Market Insights"],
-    ["Regional share", "North America ~34.8% of adaptogen beverages (2025); Asia-Pacific fastest-growing", "{L} Data Bridge"],
-    ["Lead ingredient", "Ashwagandha = #1 adaptogen (~18 to 26% share); Arabica = 45% of coffee bases", "{C} FMI, favours VAHDAM's formula"],
-    ["Europe loose-leaf tea", "$0.98B (2025) &rarr; $1.47B (2034), 4.59% CAGR", "{C} Market Data Forecast"]
-  ], "The through-line: ashwagandha plus Arabica, VAHDAM's exact combination, is the lead ingredient pairing of the fastest-growing beverage sub-category worldwide."],
+  ["sec", 3, "Market sizing (global, rest-of-world context)", "Spread across firms shown. 2024 to 26 base; USD."],
+  ["tbl", ["Segment", "Size", "CAGR", "Source(s)"], [
+    ["Global adaptogen coffee", "~$1.1 to 1.7B (2025) &rarr; $2.35 to 3.46B (2030 to 33)", "~6 to 17%", "FMI / HTF / Research and Markets"],
+    ["Global adaptogenic beverages", "~$1.4 to 2.2B (2024 to 26) &rarr; $2.5 to 6.7B (2034)", "6.5 to 14.8%", "GMI / Stratistics"],
+    ["Regional CAGR leaders", "Germany 6.8 &middot; US 6.7 &middot; France 6.5 &middot; China 6.0 &middot; UK 5.1 &middot; India 5.0", "", "Future Market Insights"],
+    ["Regional share", "North America ~34.8% of adaptogen beverages (2025)", "APAC fastest", "Data Bridge"],
+    ["Lead ingredient", "Ashwagandha #1 adaptogen (~18 to 26%); Arabica 45% of bases", "", "FMI"],
+    ["Europe loose-leaf tea", "$0.98B (2025) &rarr; $1.47B (2034)", "4.59%", "Market Data Forecast"]
+  ], "Scope variance is very wide (coffee-only vs all adaptogenic beverages). Use the direction: double-digit growth, ashwagandha-led, Europe the biggest rest-of-world pool."],
+  ["sub", "3.1 Europe, the biggest rest-of-world pool"],
+  ["card", ["{C} Germany and France are the largest and fastest-growing European adaptogen-coffee markets, and Europe's premium/loose-leaf tea is a mature, design-led category ($0.98B to $1.47B by 2034). This is where rest-of-world value concentrates."]],
+  ["sub", "3.2 Asia-Pacific, fastest-growing, structurally split"],
+  ["card", ["{L} APAC grows fastest but splits sharply: Australia/NZ are wellness-receptive and winnable; China and Japan are tea-origin markets hostile to imported Indian tea. Growth here is not uniformly addressable for VAHDAM."]],
+  ["sub", "3.3 Middle East, small base, high margin, gifting-led"],
+  ["card", ["{L} The GCC is not sized large in adaptogen terms, but premium tea/coffee gifting is a high-margin cultural occasion where luxury positioning and loved-in-145-countries prestige travel well."]],
 
-  ["sec", 4, "Global brand-footprint matrix", "Where each named competitor is actually a major player, mapped to every region they are famous in, the competitive overlap VAHDAM meets outside its three core markets."],
+  ["sec", 4, "Category dynamics &amp; demand trends"],
+  ["cards", 2, [
+    ["The exporters dominate the branded set", "{C} Across the market reports the named players are almost entirely US (Four Sigmatic, Ryze, MUD\\WTR, AG1, Laird, Om, Rasa) and UK (Spacegoods, DIRTEA), plus Indian (VAHDAM, Organic India, Tata). Rest-of-world is less about local challengers and more about which exporters have localised best."],
+    ["Germany &amp; France lead European growth", "{C} Germany has the highest adaptogen-coffee CAGR (~6.8%) on a strong wellness/organic culture; France follows (~6.5%). Both have entrenched luxury-tea incumbents (Kusmi, Palais des Thes, Mariage Freres; Teekanne, Ronnefeldt, Yogi in DE)."],
+    ["Gifting is the global premium lane", "{L} Premium gift sets are high-margin and low-CAC, and play to VAHDAM's design equity, especially the GCC and European festive seasons. It is the most capital-efficient rest-of-world entry."],
+    ["Halo beats claims abroad", "{L} In markets VAHDAM can't out-spend, the press/celebrity/luxury-list credibility converts better than physiological claims, and it sidesteps the strict EU/TGA/EFSA claim regimes."],
+    ["Tea-origin Asia is structurally closed", "{L} Selling Indian tea into China (Ten Fu, vast domestic players) and Japan (Ito En, the matcha economy) means competing in the birthplace of tea with no home advantage. The only plausible wedge is adaptogen coffee to urban wellness buyers."],
+    ["The regulatory patchwork raises the bar", "{C} Rest-of-world is the strictest claims terrain: EFSA authorises very few adaptogen health claims; Canada requires NHP licensing; Australia has TGA + FSANZ; the GCC requires halal + SFDA-type labelling. One product, many claim regimes."]
+  ]],
+
+  ["sec", 5, "Competitive landscape, the tiers", "The rest-of-world arena sorts into five tiers; VAHDAM competes mainly against Tier 1 exporters and Tier 2/3 premium-tea incumbents."],
+  ["cards", 2, [
+    ["Tier 1, Global adaptogen/functional-coffee exporters", "<b>VAHDAM's direct fight.</b> Four Sigmatic, Ryze, MUD\\WTR, AG1, Spacegoods, DIRTEA. The US/UK brands that follow VAHDAM into every affluent market. Mostly mushroom-led, leaving the ashwagandha lane open."],
+    ["Tier 2, European premium / luxury tea", "<b>Heritage incumbents.</b> Yogi Tea (DE), Teekanne, Ronnefeldt, TeaGschwendner (DE); Kusmi, Palais des Thes, Mariage Freres (FR). Design-led, heritage, entrenched on European shelves and in luxury retail."],
+    ["Tier 3, Global luxury tea", "<b>Prestige &amp; gifting.</b> TWG (Singapore), Fortnum &amp; Mason, Dilmah (Sri Lanka). Own luxury-mall prestige and premium gifting across SE Asia, GCC and duty-free, VAHDAM's gifting competitors."],
+    ["Tier 4, Regional wellness / hormone brands", "<b>Shared audience.</b> Happy Mammoth (Australia-founded), regional adaptogen startups. Own the cortisol/hormone narrative in ANZ/EU; capsule format, shared women-35-55 audience."],
+    ["Tier 5, Tea-origin domestic giants", "<b>Do not fight.</b> Ten Fu (China), Ito En (Japan) and vast domestic players. Dominant at home in tea-origin markets; an Indian tea brand has no structural edge against them."]
+  ]],
+  ["card", ["{L} Where VAHDAM sits: a Tier 1 exporter by product, but with Tier 2/3 premium-tea heritage and a luxury/gifting halo, a combination most Tier 1 pure-plays lack. Its edge is strongest where premiumisation + gifting matter (EU, GCC) and weakest in tea-origin Asia."]],
+
+  ["sec", 6, "Global brand-footprint matrix", "Where each named competitor is actually a major player, the competitive overlap VAHDAM meets outside its three core markets."],
   ["tbl", ["Brand", "Home", "Also a major player in", "Category"], [
     ["Four Sigmatic", "US (Finnish roots)", "US, EU, UK, Canada, ANZ", "Mushroom coffee pioneer"],
     ["Ryze", "US", "US, UK, Canada, global DTC", "Mushroom-coffee DTC leader"],
@@ -350,7 +520,7 @@ REPORTS.Global = [
     ["AG1 (Athletic Greens)", "US", "US, UK, ANZ, Canada, EU", "Greens / daily ritual"],
     ["Happy Mammoth", "Australia", "AU, US, UK, EU", "Women's hormone / cortisol"],
     ["Spacegoods", "UK", "UK, EU; expanding US", "Adaptogen coffee"],
-    ["DIRTEA", "UK", "UK, EU", "Mushroom coffee and powders"],
+    ["DIRTEA", "UK", "UK, EU", "Mushroom coffee &amp; powders"],
     ["Yogi Tea", "Germany / US", "EU, US, global", "Wellness herbal tea"],
     ["Pukka", "UK", "UK, EU, global", "Organic / Ayurvedic herbal tea"],
     ["Kusmi, Palais des Thes, Mariage Freres", "France", "EU, global luxury retail", "Luxury French tea"],
@@ -358,161 +528,225 @@ REPORTS.Global = [
     ["Dilmah", "Sri Lanka", "Global; strong ANZ, EU, MEA", "Ceylon tea"],
     ["Ito En", "Japan", "Japan, US", "Green tea / matcha"],
     ["<b>VAHDAM</b>", "India", "~145 countries (Global storefront)", "Premium tea + adaptogen coffee"]
-  ], "{C} on home markets; {L} on also-major-in breadth. The exporters VAHDAM already meets in the US/UK reappear across EU/Canada/ANZ, the competitive set travels with the brand."],
+  ], "Home markets certain; also-major-in breadth is inference. The exporters VAHDAM meets in the US/UK reappear across EU/Canada/ANZ, the competitive set travels with the brand."],
 
-  ["sec", 5, "Region-by-region"],
+  ["sec", 7, "Region-by-region deep dive"],
   ["cards", 2, [
-    ["Europe (ex-UK), the biggest rest-of-world prize", "{C} Germany and France are the largest and fastest-growing European adaptogen-coffee markets; premium tea is a mature, design-led category with strong local incumbents. <b>Players:</b> Yogi Tea, Teekanne, Ronnefeldt, TeaGschwendner (Germany), Kusmi, Palais des Thes, Mariage Freres (France luxury); Four Sigmatic and Spacegoods lead the adaptogen push; Pukka strong in organic/Ayurvedic. <b>VAHDAM read:</b> Winnable. Origin plus design plus press halo fit the premiumisation trend; the fight is against luxury-tea incumbents and the same UK/US adaptogen exporters. EFSA health-claim rules are strict, lead with taste/ritual, not physiology."],
-    ["Canada, a US mirror", "{L} Structurally close to the US: DTC-receptive, functional-coffee-aware, bilingual. US adaptogen brands (Four Sigmatic, Ryze, AG1) already ship here; DavidsTea is the home premium-tea name; Tim Hortons owns mass. <b>VAHDAM read:</b> Winnable, low-friction, replicate the US playbook (ashwagandha calm-energy plus gifting) with minimal localisation. Watch Health Canada's NHP licensing for any functional claim."],
-    ["Australia and New Zealand, wellness-native", "{L} A disproportionately wellness-forward market; coffee is culturally central and functional/adaptogen is the fast-growing premium edge. Happy Mammoth is Australia-founded; T2 (Unilever) and Tielka lead premium tea; AG1 and Four Sigmatic are strong. <b>VAHDAM read:</b> Winnable. High wellness receptivity plus gifting culture suit VAHDAM; a sophisticated coffee palate rewards the real-Arabica angle. TGA plus FSANZ govern messaging."],
-    ["GCC / Middle East, gifting and premium ritual", "{L} Tea and coffee are deep cultural rituals (gahwa, chai) and gifting is a major, high-margin occasion. Ahmad Tea and Lipton are ubiquitous; TWG owns luxury-mall prestige. <b>VAHDAM read:</b> Winnable, gifting-led. Premium packaging, single-origin story and loved-in-145-countries prestige fit gifting and affluent expat demand. Requires halal certification and SFDA-type label compliance; keep claims conservative."],
-    ["East Asia (China and Japan), present, not winning", "{L} Tea-origin superpowers with entrenched domestic leaders, Ten Fu and vast local players in China; Ito En and the matcha economy in Japan. An Indian tea brand has little structural edge selling tea into the birthplace of tea. <b>VAHDAM read:</b> Present, not a priority. The only plausible wedge is adaptogen coffee (not tea) to urban wellness buyers, and even there local and US brands are better placed. Do not fund a tea push here."]
+    ["Europe (ex-UK), the biggest prize", "{C} Germany and France are the largest, fastest-growing European adaptogen-coffee markets; premium tea is mature and design-led. <b>Players:</b> Yogi Tea, Teekanne, Ronnefeldt, TeaGschwendner (DE), Kusmi, Palais des Thes, Mariage Freres (FR luxury); Four Sigmatic and Spacegoods lead the adaptogen push; Pukka strong in organic/Ayurvedic. <b>VAHDAM read:</b> Winnable. Origin + design + press halo fit premiumisation; EFSA rules are strict, lead with taste/ritual, not physiology."],
+    ["Canada, a US mirror", "{L} DTC-receptive, functional-coffee-aware, bilingual. US brands (Four Sigmatic, Ryze, AG1) already ship; DavidsTea is the home premium-tea name; Tim Hortons owns mass. <b>VAHDAM read:</b> Winnable, low-friction, replicate the US playbook with minimal localisation. Watch Health Canada NHP licensing for any functional claim."],
+    ["Australia &amp; New Zealand, wellness-native", "{L} Disproportionately wellness-forward with a sophisticated coffee palate (~87% of coffee still plain, functional the fast-growing premium edge). Happy Mammoth is Australia-founded; T2 (Unilever) and Tielka lead premium tea; AG1 and Four Sigmatic strong. <b>VAHDAM read:</b> Winnable. Gifting culture + a coffee-literate palate reward the real-Arabica angle. TGA + FSANZ govern messaging."],
+    ["GCC / Middle East, gifting &amp; premium ritual", "{L} Tea and coffee are deep cultural rituals (gahwa, chai); gifting is a major high-margin occasion. Ahmad Tea and Lipton are ubiquitous; TWG owns luxury-mall prestige. <b>VAHDAM read:</b> Winnable, gifting-led. Premium packaging, single-origin story and loved-in-145-countries prestige fit gifting and affluent expat demand. Requires halal + SFDA-type labelling; keep claims conservative."],
+    ["East Asia (China &amp; Japan), present, not winning", "{L} Tea-origin superpowers with entrenched domestic leaders, Ten Fu and vast local players in China; Ito En and the matcha economy in Japan. An Indian tea brand has little structural edge selling tea here. <b>VAHDAM read:</b> Present, not a priority. The only plausible wedge is adaptogen coffee to urban wellness buyers; don't fund a tea push."]
   ]],
 
-  ["sec", 6, "VAHDAM Global, strategic read"],
+  ["sec", 8, "Selected competitor profiles"],
+  ["cards", 2, [
+    ["VAHDAM Global (anchor)", "The Indian premium tea + adaptogen coffee brand, shipping to ~145 countries via a dedicated Global storefront (vahdam.global); single-origin, farmer-direct, carbon-neutral; premium gifting. On global best-luxury-tea lists; celebrity fanbase (Oprah, Mariah Carey, Ellen). Formula: Ashwagandha Coffee (KSM-66 + Lion's Mane + Turmeric 95% + Chaga), ashwagandha + Arabica, the global lead pairing. <b>Strengths:</b> premium design + gifting equity + luxury/press halo that pure-play exporters lack; the on-trend pairing already in the range. <b>Openings:</b> spread thin across 145 countries dilutes focus; must concentrate on the winnable four."],
+    ["Four Sigmatic", "The global mushroom-coffee pioneer, present in nearly every affluent market. US, EU, UK, Canada, ANZ; instant + ground; lab-tested; in grocery. <b>Strengths:</b> category legitimacy, sourcing transparency, the broadest rest-of-world retail footprint. <b>Openings:</b> mushroom-led, no ashwagandha lead, no tea heritage or gifting, the ashwagandha calm-energy + gifting lanes are open."],
+    ["Spacegoods (Europe push)", "The UK front-runner explicitly targeting European leadership. UK + EU expansion; cacao-forward Rainbow Dust; &pound;2.5M funded. <b>Strengths:</b> fast-growing, funded, defined the EU adaptogen-coffee taste expectation. <b>Openings:</b> cacao-forward, not real coffee; no tea range or luxury-gifting equity, VAHDAM's Arabica + heritage is a wedge."],
+    ["Yogi Tea", "The German-born global wellness-herbal incumbent. EU + US + global; organic herbal blends; Ayurveda-influenced. <b>Strengths:</b> deep wellness-tea trust and shelf presence across Europe. <b>Openings:</b> tea-only, no adaptogen-coffee play; mass-premium, less luxury/gifting cachet than VAHDAM."],
+    ["Kusmi / Palais des Thes / Mariage Freres", "The French luxury-tea establishment. France + EU + global luxury retail; heritage, design-led, boutique + department-store. <b>Strengths:</b> own European luxury-tea prestige, boutiques and gifting; exceptional design equity. <b>Openings:</b> no functional/adaptogen angle; premium-priced legacy, VAHDAM competes on origin freshness, value and the adaptogen twist."],
+    ["TWG Tea", "The Singapore luxury-tea house of the GCC and Asian malls. SE Asia, GCC, global luxury malls; 1,000+ varieties; ultra-premium gifting. <b>Strengths:</b> owns ultra-luxury tea prestige and mall/gifting in the GCC and Asia. <b>Openings:</b> ultra-premium price, no functional angle; VAHDAM plays a more accessible premium + wellness position."],
+    ["Happy Mammoth", "The Australia-founded cortisol/hormone-funnel brand, now global. AU, US, UK, EU; KSM-66 + 12 extracts; quiz funnel; 3.3M customers. <b>Strengths:</b> proves ashwagandha-for-cortisol converts globally; strong women-35-55 ownership. <b>Openings:</b> capsules, aggressive claims (regulatory risk under EFSA/TGA), VAHDAM can out-format with a drinkable ritual, more cleanly."],
+    ["Dilmah", "The Sri Lankan Ceylon incumbent across ANZ, EU and MEA. Global; strong Australia, EU, Middle East/Africa; single-origin Ceylon; founder-family story. <b>Strengths:</b> origin authenticity + global distribution + a founder-origin narrative similar to VAHDAM's. <b>Openings:</b> Ceylon black-tea focused, no adaptogen-coffee or Ayurveda angle; VAHDAM's functional + Indian-origin position is differentiated."]
+  ]],
+
+  ["sec", 9, "Consumer demand signals"],
+  ["bul", [
+    "<b>Wellness receptivity is uneven,</b> highest in ANZ, Germany and affluent GCC/expat segments; lowest where tea-origin tradition dominates (China, Japan).",
+    "<b>Gifting is a universal high-margin occasion,</b> strongest in the GCC and European festive seasons; suits VAHDAM's packaging equity.",
+    "<b>Matcha is a global under-35 phenomenon,</b> the wellness-caffeine cohort exists across all winnable markets.",
+    "<b>Halo converts where ads can't,</b> press/celebrity/luxury-list credibility is a rare, portable asset that lowers CAC abroad.",
+    "<b>Ashwagandha + Arabica is the demand-side sweet spot,</b> the #1 adaptogen on the dominant coffee base, exactly VAHDAM's SKU."
+  ]],
+
+  ["sec", 10, "The global go-to-market playbook"],
   ["bul", [
     "<b>Fund the winnable four.</b> Concentrate localisation and spend on EU-ex-UK, Canada, ANZ and the GCC. Treat everywhere else as fulfilment, not acquisition.",
-    "<b>Lead with halo, not physiology.</b> In markets you cannot out-spend, the press/celebrity/luxury-list credibility travels further, and dodges the strict EU/TGA/EFSA claim regimes.",
-    "<b>Make gifting the global wedge.</b> Premium gift sets are high-margin, low-CAC, and play to VAHDAM's design equity, especially GCC and EU festive.",
-    "<b>Localise the compliance, not the product.</b> One SKU, region-specific claims: halal (GCC), NHP (Canada), EFSA (EU), TGA/FSANZ (ANZ)."
+    "<b>Lead with halo, not physiology.</b> Where you can't out-spend, press/celebrity/luxury-list credibility travels further and dodges strict EU/TGA/EFSA claim regimes.",
+    "<b>Make gifting the global wedge.</b> Premium gift sets are high-margin, low-CAC and play to VAHDAM's design equity, especially GCC and EU festive.",
+    "<b>Localise the compliance, not the product.</b> One SKU, region-specific claims: halal (GCC), NHP (Canada), EFSA (EU), TGA/FSANZ (ANZ).",
+    "<b>Don't chase tea-origin Asia.</b> Fulfil opportunistic demand in China/Japan; do not fund a tea push into the birthplace of tea."
   ]],
-  ["card", ["{L} The rest-of-world story is focus: four markets to win, a gifting-and-halo playbook to win them with, and the discipline not to chase tea-origin Asia."]],
 
-  ["sec", 7, "Regulatory patchwork"],
-  ["bul", [
-    "<b>EU:</b> EFSA authorised health claims, strict; most adaptogen physiological claims are not authorised. Lead with taste/ritual.",
-    "<b>Canada:</b> Health Canada NHP licensing required for functional claims.",
-    "<b>Australia/NZ:</b> TGA (therapeutic claims) plus FSANZ (food standards).",
-    "<b>GCC:</b> halal certification plus SFDA-type labelling; conservative claims."
+  ["sec", 11, "Regulatory patchwork", "One product, many claim regimes; never port US testimonials abroad without a compliance pass."],
+  ["tbl", ["Region", "Regime", "Claim posture"], [
+    ["EU", "EFSA authorised health claims", "Strict, most adaptogen physiological claims not authorised; lead with taste/ritual"],
+    ["Canada", "Health Canada NHP licensing", "Functional claims require an NHP licence"],
+    ["Australia / NZ", "TGA (therapeutic) + FSANZ (food)", "Therapeutic claims tightly controlled"],
+    ["GCC", "Halal + SFDA-type labelling", "Halal certification required; conservative claims"]
   ]],
-  ["card", ["{L} Net: rest-of-world is the strictest claims terrain VAHDAM operates in, another reason the halo/gifting playbook beats a claims-led one abroad."]],
 
-  ["sec", 8, "White space and recommendations"],
+  ["sec", 12, "Strategic implications &amp; white space"],
   ["bul", [
-    "Ashwagandha plus Arabica is the lead global ingredient pairing, VAHDAM already makes it; most exporters are mushroom-led.",
+    "Ashwagandha + Arabica is the lead global ingredient pairing, VAHDAM already makes it; most exporters are mushroom-led.",
     "Premium gifting is an underworked, high-margin global lane suited to VAHDAM's equity.",
-    "The Indian-brand-loved-in-145-countries / by-A-listers halo is a rare rest-of-world asset, use it as the lead, not a footnote.",
+    "The Indian-brand-loved-in-145-countries / by-A-listers halo is a rare rest-of-world asset, lead with it, don't footnote it.",
     "Concentration beats coverage: winning four markets outperforms shipping to 145."
   ]],
+  ["card", ["{L} Net: the rest-of-world story is focus, four markets to win, a gifting-and-halo playbook to win them with, region-specific compliance, and the discipline not to chase tea-origin Asia."]],
 
-  ["sec", 9, "Sources"],
-  ["card", ["Research and press (2026 pulls): Future Market Insights, HTF, Research and Markets, GMI, Stratistics, Data Bridge (global adaptogen coffee/beverage sizing and regional CAGRs); Market Data Forecast (Europe loose-leaf); Mordor (Australia coffee); Luxe Digital / Modern Luxury / TasteAtlas (global luxury-tea rankings and brand footprints); Wikipedia/TeaBrands/RateTea (regional brand lists); TWG, Yogi, Kusmi, Palais des Thes brand references; vahdam.global. Figures are directional and scope-dependent; confidence tags reflect source strength."]]
+  ["sec", 13, "Sources &amp; notes"],
+  ["card", ["Research and press (2026 pulls): Future Market Insights, HTF, Research and Markets, GMI, Stratistics, Data Bridge (global adaptogen coffee/beverage sizing &amp; regional CAGRs); Market Data Forecast (Europe loose-leaf); Mordor (Australia coffee); Luxe Digital / Modern Luxury / TasteAtlas (global luxury-tea rankings &amp; brand footprints); Wikipedia / TeaBrands / RateTea (regional brand lists); TWG, Yogi, Kusmi, Palais des Thes brand references; vahdam.global. Market-size figures vary by firm scope; confidence tags reflect source strength. No competitor copy or named advisors are reproduced."]]
 ];
 
 REPORTS.India = [
-  ["sec", 1, "Scope &amp; method"],
-  ["card", ["{C} India is not a smaller version of the US/UK adaptogen-coffee market, it is a different structure, and this study is built around that. Three distinct arenas matter: (a) the mass tea duopoly, (b) the coffee-D2C surge, and (c) the Ayurveda and wellness boom, where functional is native, not imported."]],
+  ["sec", 1, "Scope, method &amp; how to read this"],
+  ["card", [
+    "{C} \"Tea, coffee, or supplements\" is not one market, it is several multi-billion categories with different buyers, margins, shelf logic and regulators. This report anchors on the single arena where they collide: the functional-wellness beverage and supplement segment, premium/functional tea, adaptogen and functional coffee, and the adaptogen/wellness products adjacent to them.",
+    "{C} Central framing: India is not a smaller US/UK adaptogen-coffee market, it is a different structure. Tea is a mass rupee-priced staple owned by a duopoly; functional/adaptogen is native Ayurveda, not imported wellness; and ashwagandha is a household commodity, which weakens VAHDAM's global origin moat at home."
+  ]],
   ["bul", [
-    "Figures from named India market-research previews and startup press (June to July 2026 pull); ranges shown where firms disagree.",
-    "Regulatory frame is FSSAI (food) plus the AYUSH ministry (Ayurvedic products/claims), a different regime from FDA/DSHEA or MHRA.",
-    "The central analytical flip: in India, ashwagandha/turmeric/chai are native commodities. VAHDAM's global origin-authenticity moat weakens at home, so the differentiator must change."
+    "Market sizing for India tea, India coffee (traditional + D2C) and the India Ayurveda / wellness-supplement pool, with source-to-source variance shown.",
+    "A five-tier competitive landscape plus deep-dive profiles of eight players across the mass-tea duopoly, premium/D2C tea, coffee-D2C, legacy Ayurveda and modern wellness-D2C.",
+    "Four comparison tables: India tea players, India coffee players, India Ayurveda/wellness players and where VAHDAM competes for which wallet.",
+    "Consumer demand signals, the India D2C playbook, the FSSAI + AYUSH regulatory frame and a white-space read."
   ]],
 
   ["sec", 2, "Executive summary"],
-  ["card", [
-    "{C} India is the world's largest tea producer and consumer; ~80% of production is consumed domestically and tea is a daily rupee-priced staple. The mass market is a Tata Consumer / Hindustan Unilever duopoly, a Red Ocean VAHDAM cannot and should not fight on price.",
-    "{L} VAHDAM's home-market position is a premium-D2C sliver of a huge, low-margin category. It secured &#8377;25cr from SIDBI Venture Capital (Mar 2025) and leans on single-origin, farmer-direct, carbon-neutral, export-grade quality, a genuine premium story in a commodity ocean.",
-    "{L} The sharp problem: VAHDAM's worldwide edge, authentic Indian origin, is table stakes in India. Everyone here is origin. So at home the differentiators must flip to (1) premiumisation and single-origin, (2) format innovation (Ashwagandha Coffee is genuinely novel against both mass tea and capsule-Ayurveda), (3) design/brand cachet including loved-in-145-countries reverse-prestige, and (4) D2C plus quick-commerce execution.",
-    "{L} VAHDAM competes for two different wallets: the premium-beverage-ritual wallet (vs Blue Tokai, premium tea, Chaayos) and the functional-wellness wallet (vs Kapiva, OZiva, Dabur/Himalaya). Ashwagandha Coffee is the rare SKU that bridges both, that intersection is the wedge."
-  ]],
-
-  ["sec", 3, "Market sizing"],
-  ["tbl", ["Segment", "Size / figure", "Source &amp; note"], [
-    ["India tea market", "~$11.7 to 11.9B (2024/25); ~3 to 4% CAGR; volume ~1.4M tons", "{C} IMARC / CMI / EMR (firms cluster here)"],
-    ["India tea structure", "Black tea 68%; loose 44%; residential 80%; largest producer and consumer, ~80% domestic", "{C} IMARC / Ken Research"],
-    ["India premium tea", "~1.20M tons (2025) &rarr; 1.81M tons (2035), 4.2% CAGR", "{C} Expert Market Research"],
-    ["India coffee market", "~$1.46B &rarr; ~$2.03B (2025 est.); packaged base ~9.9% CAGR", "{L} Mordor / CMI (scope varies widely)"],
-    ["Global Ayurveda market", "$20.42B (2025) &rarr; $85.83B (2033), 19.72% CAGR", "{C} via Open Magazine"],
-    ["India wellness D2C reach", "~44% of wellness/skincare orders now from Tier-III cities and beyond", "{C} ClickPost FY26"]
-  ], "Note the asymmetry: tea is a ~$12B commodity growing low-single-digits; Ayurveda/wellness is smaller but compounding ~20%/yr. VAHDAM's growth is in the wellness/premium layer, not the tea tonnage."],
-
-  ["sec", 4, "Structural dynamics"],
-  ["sub", "The tea duopoly and the premium sliver"],
-  ["card", ["{C} Tata Consumer (Tata Tea, Tetley, Gold, Premium) and HUL (Brooke Bond Red Label, Taj Mahal, 3 Roses, Lipton) dominate on distribution depth and rural penetration. Tata's Jan-2024 acquisition of Organic India folded a wellness-tea brand into the incumbent, the giants are now moving into VAHDAM's premium/wellness lane."]],
-  ["sub", "Coffee: at-home ritual plus D2C"],
-  ["card", ["{C} Traditional coffee is Nescafe / Bru / Tata Coffee. The growth story is at-home premium ritual led by D2C: Blue Tokai (single-origin, ~$180M valuation, $25M raised Sept 2025, 100+ cafes), Sleepy Owl (cold brew, &#8377;100cr, 15K+ retail), Rage Coffee (plant-based, vitamin-enriched, the closest functional-coffee analog), Third Wave (100+ cafes)."]],
-  ["sub", "Ayurveda as the native functional category"],
-  ["card", ["{L} What the West calls adaptogens India calls Ayurveda, and it is a trusted, mass, centuries-old category owned by Dabur, Himalaya (1930) and Patanjali, now being modernised by D2C players Kapiva and OZiva. Ashwagandha is a household word, not a novelty. That both lowers education cost and removes VAHDAM's novelty premium."]],
-  ["sub", "Where demand is growing"],
+  ["card", ["{C} India is the world's largest tea producer and consumer; ~80% of production is consumed domestically and tea is a daily staple. The mass market is a Tata Consumer / Hindustan Unilever duopoly, a Red Ocean VAHDAM cannot and should not fight on price."]],
   ["bul", [
-    "D2C wellness has jumped the metros: ~44% of wellness/skincare orders now come from Tier-III cities and beyond, smartphone plus quick-commerce led.",
-    "Premiumisation, single-origin and clean/organic are the levers pulling value up in an otherwise flat tea market."
+    "<b>VAHDAM plays in a premium sliver of a huge, low-margin category.</b> It secured &#8377;25cr from SIDBI Venture Capital (Mar 2025) and competes on single-origin, farmer-direct, carbon-neutral, export-grade quality.",
+    "<b>The origin moat inverts at home.</b> VAHDAM's worldwide edge, authentic Indian origin, is table stakes in India. Everyone here is origin; ashwagandha, turmeric and chai are native and cheap.",
+    "<b>So the differentiators flip to four.</b> (1) premiumisation &amp; single-origin; (2) format innovation (Ashwagandha Coffee is genuinely novel vs mass tea and vs capsule-Ayurveda); (3) design/brand cachet incl. loved-in-145-countries reverse-prestige; (4) D2C + quick-commerce execution.",
+    "<b>VAHDAM competes for two wallets.</b> The premium-beverage-ritual wallet (vs Blue Tokai, premium tea, Chaayos) and the functional-wellness wallet (vs Kapiva, OZiva, Dabur/Himalaya). Ashwagandha Coffee is the rare SKU bridging both, the wedge.",
+    "<b>Ayurveda is the native adaptogen category, and profit-hostile.</b> Global Ayurveda is compounding ~19.7%/yr, but ad-led D2C economics are brutal: Kapiva posted &#8377;69cr losses on &#8377;342cr revenue in FY25. CAC, not demand, is the category-killer.",
+    "<b>Coffee-D2C is the analog to watch.</b> Blue Tokai (single-origin, ~$180M valuation, $25M raised Sep 2025) owns the premium ritual; Rage Coffee (vitamin-enriched) is the closest functional coffee, neither pairs real coffee with a native adaptogen story, which VAHDAM does."
   ]],
 
-  ["sec", 5, "Major players, India tea"],
-  ["tbl", ["Brand", "Owner / type", "Scale / share", "Positioning", "Read for VAHDAM"], [
-    ["Tata Consumer", "Tata group", "Co-leader (duopoly)", "Full-spectrum; regional blends; premiumising (Gold Care); bought Organic India (2024)", "Incumbent now entering wellness/premium too"],
-    ["HUL / Brooke Bond", "Hindustan Unilever", "Co-leader (duopoly)", "Red Label, Taj Mahal, 3 Roses, Lipton; distribution depth; Taj Mahal = premium standard", "Unbeatable on reach, do not fight here"],
-    ["Wagh Bakri", "Gujarat Tea Processors &amp; Packers", "#3; strong West India", "130-yr heritage; tea lounges; experiential retail", "Regional strength plus experiential model"],
-    ["Society Tea", "Amar Tea", "Regional (Maharashtra)", "Value / regional loyalty", "Regional value, not a premium comp"],
-    ["<b>VAHDAM</b>", "VAHDAM (D2C)", "Premium-D2C sliver", "Single-origin, farmer-direct, carbon-neutral, export-grade; &#8377;25cr SIDBI (2025)", "Home turf = premium D2C / gifting"],
-    ["TeaBox", "TeaBox (D2C)", "Premium D2C", "Fresh single-estate; tech-enabled freshness", "Closest premium-D2C tea rival"],
-    ["Chaayos", "Sunshine Teahouse", "Cafe chain + retail", "Experiential chai; Meri Wali Chai customisation", "Owns the chai-ritual occasion (different model)"]
-  ], "{C} on duopoly and D2C set. VAHDAM and TeaBox are the two names analysts cite as the premium-D2C benchmark inside a mass market."],
+  ["sec", 3, "Market sizing (India, with global context)", "Spread across firms shown. 2024/25 base; USD or rupee as noted."],
+  ["tbl", ["Segment", "Size", "CAGR", "Source(s)"], [
+    ["India tea market", "~$11.7 to 11.9B (2024/25)", "~3 to 4%", "IMARC $11.86B; CMI $11.70B; EMR"],
+    ["India tea volume", "~1.40M tons (2025) &rarr; 2.17M (2035)", "", "Expert Market Research"],
+    ["India tea structure", "Black 68% &middot; loose 44% &middot; residential 80%", "", "IMARC / Ken Research"],
+    ["India premium tea", "~1.20M tons (2025) &rarr; 1.81M (2035)", "4.2%", "Expert Market Research"],
+    ["India coffee market", "~$1.46B &rarr; ~$2.03B (2025 est.)", "~9.9%", "Mordor Intelligence"],
+    ["India coffee (packaged base)", "~$552.9M (2023)", "9.87%", "Custom Market Insights"],
+    ["Global Ayurveda market", "$20.42B (2025) &rarr; $85.83B (2033)", "19.72%", "via Open Magazine"],
+    ["India wellness D2C reach", "~44% of wellness/skincare orders from Tier-III+", "", "ClickPost FY26"]
+  ], "The asymmetry: tea is a ~$12B commodity growing low-single-digits; Ayurveda/wellness is smaller but compounding ~20%/yr. VAHDAM's growth lives in the premium/wellness layer, not tea tonnage."],
+  ["sub", "3.1 Tea, vast, mass, and a duopoly"],
+  ["card", ["{C} India is the largest tea producer and consumer on earth; ~80% consumed at home, residential use ~80% of the market, black tea 68%, loose tea 44%. Tata Consumer and HUL own the mass market on distribution depth and rural penetration. The mass tea market is irrelevant to VAHDAM's economics; the premium/specialty and export-grade sliver is the entire home-market opportunity."]],
+  ["sub", "3.2 Coffee, small, southern, and D2C-disrupted"],
+  ["card", ["{C} India coffee (~$1.46 to 2.03B) is far smaller than tea and historically Nescafe/Bru/Tata Coffee. The growth story is at-home premium ritual led by D2C: Blue Tokai, Sleepy Owl, Rage, Third Wave. This is the arena VAHDAM's Ashwagandha Coffee enters, premium ritual + a functional twist none of them own."]],
+  ["sub", "3.3 Ayurveda &amp; wellness, the native functional pool"],
+  ["card", ["{L} What the West calls adaptogens, India calls Ayurveda, a trusted, mass, centuries-old category owned by Dabur, Himalaya (1930) and Patanjali, now modernised by D2C brands Kapiva and OZiva. Global Ayurveda compounds ~19.7%/yr. Ashwagandha is a household word here, which lowers education cost but removes the novelty premium VAHDAM enjoys abroad."]],
 
-  ["sec", 6, "Major players, India coffee"],
-  ["tbl", ["Brand", "Type", "Founded", "Positioning", "Scale / funding", "Read for VAHDAM"], [
-    ["Nescafe", "Traditional (Nestle)", "n/a", "Mass instant leader", "Dominant", "Owns mass instant"],
-    ["Bru", "Traditional (HUL)", "n/a", "Mass instant / filter", "Dominant", "Mass instant / South India"],
-    ["Tata Coffee", "Plantation + brands (Tata)", "n/a", "Vertically integrated grower + brands", "Large", "Integrated but not premium-D2C"],
-    ["Blue Tokai", "Specialty D2C + cafe", "2012/13", "Single-origin Indian; educates the market", "~$180M valn; $25M (Sep 2025); 100+ cafes", "Rival for the premium-beverage-ritual wallet"],
-    ["Sleepy Owl", "D2C", "2016", "Cold brew / at-home convenience", "&#8377;100cr; 15K+ retail; quick-commerce", "Convenience-led D2C benchmark"],
-    ["Rage Coffee", "D2C", "2018", "Plant-based, vitamin-enriched, functional coffee", "Growing; offline expansion", "Closest functional-coffee analog"],
-    ["Third Wave", "Cafe chain", "2016", "Specialty cafe; franchise scale", "100+ outlets", "Cafe model; owns discovery"]
-  ], "VAHDAM's Ashwagandha Coffee competes on the premium/ritual axis with Blue Tokai and on the functional/enhanced axis with Rage, but is the only one pairing real coffee with a native adaptogen story."],
-
-  ["sec", 7, "Major players, India Ayurveda and wellness"],
-  ["tbl", ["Brand", "Type", "Positioning", "Scale", "Read for VAHDAM"], [
-    ["Dabur", "Legacy FMCG-Ayurveda", "Chyawanprash, honey, Vedic range; mass authority", "Large, listed", "Ayurveda authority plus mass distribution"],
-    ["Himalaya", "Legacy (1930)", "Herbal healthcare and personal care; omni-channel, international", "Large", "Deep herbal trust; very broad"],
-    ["Patanjali", "Legacy (mass)", "Swadeshi mass Ayurveda; price-led", "Large", "Mass Ayurveda on price, not VAHDAM's lane"],
-    ["Organic India", "Now Tata (acq. 2024)", "Organic tulsi/wellness teas + supplements", "Mid; Tata-backed", "Direct wellness-tea rival, now inside the duopoly"],
-    ["Kapiva", "Modern-Ayurveda D2C", "Condition-led (gut/hair/metabolic); juices and shots", "&#8377;342cr FY25 (+50%); &#8377;69cr loss", "Ayurveda-2.0 D2C benchmark, but unprofitable"],
-    ["OZiva", "Plant-based wellness D2C", "Women's / PCOS nutrition; Instagram community", "Strong D2C brand", "Community-led wellness rival"]
-  ], "The Ayurveda arena is where adaptogen demand actually sits in India, but it is crowded, trust-driven, and margin-punishing for newer D2C entrants."],
-
-  ["sec", 8, "Competitor deep-dives"],
+  ["sec", 4, "Category dynamics &amp; demand trends"],
   ["cards", 2, [
-    ["VAHDAM India (anchor)", "Premium, export-grade Indian tea and adaptogen coffee, the global brand at home. <b>Hero:</b> single-origin teas (Darjeeling, Assam, chai, green, herbal) plus Ashwagandha Coffee (KSM-66, Lion's Mane, Turmeric, Chaga). <b>Capital:</b> &#8377;25cr from SIDBI Venture Capital (Mar 2025); scaling carbon-neutral certified exports. <b>Strengths:</b> a real global brand with premium design, quality systems and gifting equity most Indian D2C tea brands lack; Ashwagandha Coffee is a genuinely novel format bridging tea, coffee and Ayurveda. <b>Openings:</b> Indian origin is not a home-market moat, everyone here is origin; must out-execute on premium/brand/format; Ayurvedic-D2C economics are brutal."],
-    ["Tata Consumer and HUL (the duopoly)", "The two giants that own mass tea, now buying into wellness. <b>Tata:</b> Tata Tea/Tetley/Gold/Premium; acquired Organic India (2024); premiumising via Gold Care. <b>HUL:</b> Brooke Bond plus Lipton; unmatched rural and modern-trade distribution; Taj Mahal as the premium anchor. <b>Openings:</b> slow, mass, and brand-diluted at the top end; cannot deliver the curated single-origin, design-led, direct experience a focused premium brand can. VAHDAM wins on depth, not breadth."],
-    ["Blue Tokai", "India's specialty-coffee darling, the premium at-home ritual benchmark. Single-origin Indian coffee, farm-direct; educated the urban market on roast/brew; 100+ cafes plus strong online; ~$180M valuation, $25M bridge (Sep 2025). <b>Openings:</b> no functional/adaptogen angle and no tea heritage, the calm-energy adaptogen-coffee position is open for VAHDAM to take."],
-    ["Kapiva and OZiva", "The modern-Ayurveda / plant-wellness D2C benchmarks, and a cautionary tale. Kapiva: condition-led modern Ayurveda; &#8377;342cr FY25 (+50%) but &#8377;69cr loss. OZiva: plant-based women's/PCOS nutrition; category-defining Instagram community. <b>Openings:</b> structurally unprofitable at scale (heavy CAC); ingestible-supplement formats, not a daily-ritual beverage, VAHDAM's coffee format is a friendlier habit and a differentiated wedge."]
+    ["The duopoly and the premium sliver", "{C} Tata Consumer (Tata Tea, Tetley, Gold, Premium) and HUL (Brooke Bond Red Label, Taj Mahal, 3 Roses, Lipton) dominate. Tata's Jan-2024 acquisition of Organic India folded a wellness-tea brand into the incumbent, the giants are now moving into VAHDAM's premium/wellness lane."],
+    ["Coffee's at-home ritual surge", "{C} The shift from out-of-home to sophisticated at-home coffee is now permanent, funded by PE/VC: Blue Tokai raised $25M (Sep 2025), Subko $10M. Challenger brands simplified premium coffee into convenient formats, the exact behavioural shift VAHDAM's instant Ashwagandha Coffee rides."],
+    ["Ayurveda as native functional, trust without novelty", "{L} Ashwagandha needs no explanation in India, which cuts education spend but means VAHDAM can't charge a novelty premium for it. The winning move is to premiumise the format and experience, not the ingredient."],
+    ["D2C jumps to Bharat (Tier-III+)", "{C} ~44% of wellness/skincare D2C orders now come from Tier-III cities and beyond, smartphone- and quick-commerce-led. Demand for premium/wellness is no longer metro-only."],
+    ["Quick-commerce is the new shelf", "{C} Blinkit, Swiggy Instamart and Zepto are where premium daily-ritual demand now converts (Sleepy Owl is in 15K+ retail + all major quick-commerce). Distribution execution, not just DTC, decides winners."],
+    ["The Ayurvedic-D2C profitability trap", "{C} Ad-led D2C growth is giving way to hard unit-economics questions. Kapiva grew revenue 50% to &#8377;342cr in FY25 but losses widened to &#8377;69cr. Sustained marketing spend for visibility eats the P&amp;L, the central risk for any VAHDAM India scale-up."]
   ]],
 
-  ["sec", 9, "VAHDAM India, strategic read"],
-  ["card", ["{L} At home, drop authentic Indian origin as the lead differentiator, it is parity. Win on four things instead:"]],
-  ["bul", [
-    "<b>Premium and single-origin, not commodity.</b> Position explicitly above the Tata/HUL mass tier; sell provenance, freshness and design, not rupee-per-cup.",
-    "<b>Own the bridge SKU.</b> Ashwagandha Coffee is the only product that is simultaneously a premium coffee ritual (vs Blue Tokai) and a native functional/Ayurveda product (vs Kapiva/OZiva). Make it the flagship of the India story, not a side-line.",
-    "<b>Reverse-prestige the global brand.</b> The Indian tea brand loved in 145 countries is a rare aspirational angle at home, use it.",
-    "<b>Guard CAC like the category-killer it is.</b> Kapiva's losses are the warning. Lean on gifting, quick-commerce, retention and the existing global supply chain rather than pure ad-led acquisition."
+  ["sec", 5, "Competitive landscape, the tiers", "The India arena sorts into five tiers; VAHDAM straddles premium/D2C tea and, via Ashwagandha Coffee, both coffee-D2C and the functional-wellness wallet."],
+  ["cards", 2, [
+    ["Tier 1, Mass tea duopoly", "<b>Do not fight.</b> Tata Consumer, Hindustan Unilever (Brooke Bond). Own the rupee-priced daily-staple market on distribution and trust. A price/volume war VAHDAM cannot win."],
+    ["Tier 2, Premium / D2C tea", "<b>VAHDAM's home turf.</b> VAHDAM, TeaBox, Chaayos (cafe + retail), Blue Tea, Tea Trunk. Single-origin, fresh, design-led, gifting. VAHDAM and TeaBox are the analyst-cited premium-D2C benchmarks."],
+    ["Tier 3, Coffee D2C", "<b>Premium ritual + functional edge.</b> Blue Tokai, Sleepy Owl, Rage Coffee, Third Wave, Country Bean, SLAY, Subko. Where Ashwagandha Coffee competes on the premium-ritual axis (Blue Tokai) and the functional axis (Rage)."],
+    ["Tier 4, Legacy Ayurveda", "<b>Trust incumbents.</b> Dabur, Himalaya, Patanjali, Baidyanath, Organic India (Tata). Own Ayurvedic authority and mass distribution; the native adaptogen shelf VAHDAM can't out-trust or out-price."],
+    ["Tier 5, Modern Ayurveda / wellness D2C", "<b>Functional wallet.</b> Kapiva, OZiva, Plix, HealthKart, TrueBasics, The Whole Truth. Condition-led modern-Ayurveda and plant-wellness in supplement formats, the functional wallet VAHDAM's coffee also chases."]
+  ]],
+  ["card", ["{L} Where VAHDAM sits: Tier 2 by heritage, but its unique position is the Ashwagandha Coffee bridge across Tier 3 (premium ritual) and Tier 5 (functional wellness). No Indian player occupies that intersection."]],
+
+  ["sec", 6, "Competitor deep-dive profiles"],
+  ["cards", 2, [
+    ["VAHDAM India (anchor)", "Premium, export-grade Indian tea + adaptogen coffee, the global brand at home. <b>Hero:</b> single-origin teas (Darjeeling, Assam, chai, green, herbal) + Ashwagandha Coffee (KSM-66, Lion's Mane, Turmeric, Chaga). <b>Positioning:</b> single-origin, farmer-direct, carbon-neutral, export-grade; loved-across-145-countries reverse-prestige. <b>Capital:</b> &#8377;25cr from SIDBI (Mar 2025). <b>Strengths:</b> a real global brand with premium design, quality systems and gifting equity most Indian D2C tea brands lack; Ashwagandha Coffee is a novel format bridging tea, coffee and Ayurveda. <b>Openings:</b> Indian origin is not a home-market moat; Ayurvedic-D2C economics are brutal; competes against Dabur/Himalaya trust and Blue Tokai ritual at once."],
+    ["Tata Consumer Products", "Co-leader of the tea duopoly, now buying into wellness. Tata Tea, Tetley, Gold, Premium; premiumising via Gold Care; acquired Organic India (2024). Edge: vertical integration, digital demand forecasting, SKU segmentation. <b>Strengths:</b> distribution, trust and capital no D2C brand can match; now credible in premium/wellness via Organic India. <b>Openings:</b> slow and brand-diluted at the top end; cannot deliver a curated single-origin, design-led experience. VAHDAM wins on depth, not breadth."],
+    ["Hindustan Unilever (Brooke Bond)", "Co-leader on distribution depth and rural penetration. Brooke Bond Red Label, Taj Mahal, 3 Roses, Lipton; Taj Mahal = premium gold standard. Edge: scale-driven procurement, unmatched rural + modern-trade distribution. <b>Strengths:</b> ubiquity and the strongest distribution engine in Indian FMCG. <b>Openings:</b> mass-first; no premium single-origin or wellness-coffee credibility; not built for a curated D2C experience."],
+    ["Wagh Bakri", "The #3 heritage regional champion, moving experiential. 130-year Ahmedabad house, strong West India; introduced Royale premium CTC; investing in tea lounges. <b>Strengths:</b> regional loyalty, heritage, experiential retail. <b>Openings:</b> regional not national premium; not a D2C/wellness or coffee player, tangential to VAHDAM."],
+    ["Blue Tokai", "India's specialty-coffee darling, the premium at-home ritual benchmark. Single-origin Indian coffee, farm-direct; educated the urban market on roast/brew; 100+ cafes + strong online; ~$180M valuation, $25M bridge (Sep 2025). <b>Openings:</b> no functional/adaptogen angle and no tea heritage, the calm-energy adaptogen-coffee position is open for VAHDAM."],
+    ["Rage Coffee", "The closest functional-coffee analog in India. Plant-based, vitamin-enriched instant coffee (founded 2018); expanding offline. <b>Strengths:</b> proved Indian consumers will buy a functionally-enhanced coffee; strong D2C brand energy. <b>Openings:</b> vitamin-enriched, not Ayurveda/adaptogen; no origin or tea heritage, VAHDAM's KSM-66 + provenance is a stronger functional story."],
+    ["Kapiva", "The modern-Ayurveda D2C benchmark, and a cautionary tale. Condition-led modern Ayurveda (gut/hair/metabolic), juices &amp; shots; strong content/subscription funnels; &#8377;342cr FY25 revenue (+50%) but &#8377;69cr loss. <b>Strengths:</b> took Ayurveda out of the pharmacy jar for urban millennials. <b>Openings:</b> structurally unprofitable at scale (heavy CAC); ingestible-supplement formats, not a daily-ritual beverage, VAHDAM's coffee is a friendlier habit."],
+    ["OZiva", "The plant-based wellness / women's-nutrition D2C leader. Plant-based women's/PCOS, hair &amp; skin nutrition; category-defining Instagram community; 30 to 60-day repurchase. <b>Strengths:</b> built the plant-based wellness shelf; strong community-led acquisition. <b>Openings:</b> supplement formats and a specific women's-nutrition lane; not a beverage-ritual brand, VAHDAM differentiates on format and daily-use pleasure."]
   ]],
 
-  ["sec", 10, "Regulatory notes (India)"],
+  ["sec", 7, "Side-by-side comparison tables"],
+  ["sub", "7.1 India tea, players &amp; tiers"],
+  ["tbl", ["Brand", "Owner / type", "Scale", "Positioning", "Tier"], [
+    ["Tata Consumer", "Tata group", "Co-leader", "Full-spectrum; premiumising; owns Organic India", "Mass to premium"],
+    ["HUL / Brooke Bond", "Hindustan Unilever", "Co-leader", "Distribution depth; Taj Mahal premium", "Mass to premium"],
+    ["Wagh Bakri", "Gujarat Tea Processors", "#3 (West India)", "Heritage; tea lounges", "Mass to mid"],
+    ["Society Tea", "Amar Tea", "Regional", "Value / regional loyalty", "Mass"],
+    ["<b>VAHDAM</b>", "VAHDAM (D2C)", "Premium sliver", "Single-origin, export-grade, gifting", "Premium / luxury"],
+    ["TeaBox", "TeaBox (D2C)", "Premium D2C", "Fresh single-estate; tech-enabled", "Premium"],
+    ["Chaayos", "Sunshine Teahouse", "Cafe + retail", "Experiential chai; customisation", "Cafe / premium"]
+  ]],
+  ["sub", "7.2 India coffee, players"],
+  ["tbl", ["Brand", "Type", "Founded", "Positioning", "Scale / funding"], [
+    ["Nescafe / Bru", "Traditional (Nestle / HUL)", "n/a", "Mass instant leaders", "Dominant"],
+    ["Tata Coffee", "Plantation + brands", "n/a", "Vertically integrated", "Large"],
+    ["Blue Tokai", "Specialty D2C + cafe", "2012/13", "Single-origin; market educator", "~$180M valn; $25M (Sep 2025); 100+ cafes"],
+    ["Sleepy Owl", "D2C", "2016", "Cold brew / convenience", "&#8377;100cr; 15K+ retail; quick-commerce"],
+    ["Rage Coffee", "D2C", "2018", "Plant-based, vitamin-enriched", "Closest functional analog"],
+    ["Third Wave", "Cafe chain", "2016", "Specialty cafe; franchise", "100+ outlets"]
+  ]],
+  ["sub", "7.3 India Ayurveda &amp; wellness, players"],
+  ["tbl", ["Brand", "Type", "Positioning", "Scale", "Read for VAHDAM"], [
+    ["Dabur", "Legacy FMCG-Ayurveda", "Chyawanprash, honey, Vedic; mass authority", "Large, listed", "Ayurveda authority + mass reach"],
+    ["Himalaya", "Legacy (1930)", "Herbal healthcare &amp; personal care", "Large, intl", "Deep herbal trust; broad"],
+    ["Patanjali", "Legacy (mass)", "Swadeshi mass Ayurveda; price-led", "Large", "Mass on price, not VAHDAM's lane"],
+    ["Organic India", "Tata (acq. 2024)", "Organic tulsi/wellness teas + supplements", "Mid; Tata-backed", "Direct wellness-tea rival, now inside duopoly"],
+    ["Kapiva", "Modern-Ayurveda D2C", "Condition-led juices &amp; shots", "&#8377;342cr FY25; &#8377;69cr loss", "Ayurveda-2.0 benchmark, unprofitable"],
+    ["OZiva", "Plant-wellness D2C", "Women's / PCOS; Instagram community", "Strong D2C", "Community-led wellness rival"]
+  ]],
+  ["sub", "7.4 Where VAHDAM competes, the two-wallet map"],
+  ["tbl", ["Wallet", "Who owns it now", "VAHDAM's weapon", "Verdict"], [
+    ["Premium beverage ritual", "Blue Tokai; premium/D2C tea; Chaayos", "Single-origin quality + design + Arabica Ashwagandha Coffee", "<b>Winnable</b>"],
+    ["Functional / wellness", "Dabur, Himalaya, Kapiva, OZiva", "Native KSM-66 in a daily-drink format (not capsules)", "Contestable"],
+    ["Mass daily tea", "Tata, HUL", "n/a (do not enter)", "Avoid"]
+  ], "The bridge SKU (Ashwagandha Coffee) is the only product reaching both winnable wallets, make it the flagship of the India story, not a side-line."],
+
+  ["sec", 8, "Consumer demand signals"],
   ["bul", [
-    "<b>FSSAI:</b> governs food and nutraceutical labelling and permissible claims; health-supplement vs food classification affects what can be said.",
-    "<b>AYUSH ministry:</b> oversees Ayurvedic products/claims; positioning a product as Ayurvedic vs a food-with-adaptogens changes the compliance path.",
+    "<b>Chai is identity, not just a drink,</b> mass tea loyalty is cultural and near-unshakeable; premium must be an additive occasion, never a replacement message.",
+    "<b>Premiumisation is real but narrow,</b> rising incomes and health-consciousness pull value up in specialty/organic, while volume stays commodity.",
+    "<b>Wellness has reached Bharat,</b> ~44% of wellness/skincare D2C orders now originate in Tier-III cities and beyond.",
+    "<b>Quick-commerce is the conversion layer,</b> Blinkit/Instamart/Zepto now carry premium daily-ritual demand; shelf presence there rivals a DTC site.",
+    "<b>Gifting is a large, high-margin occasion,</b> festive and corporate gifting suit VAHDAM's design equity and export-grade packaging.",
+    "<b>Ashwagandha is understood, not novel,</b> low education cost, but no novelty premium; the experience must justify the price."
+  ]],
+
+  ["sec", 9, "The India D2C playbook, what wins (and what bankrupts)"],
+  ["bul", [
+    "<b>Guard CAC like the category-killer it is.</b> Kapiva's losses are the warning. Lean on retention, gifting and quick-commerce over pure ad-led acquisition.",
+    "<b>Make quick-commerce a first-class channel.</b> Match Sleepy Owl's Blinkit/Instamart/Zepto distribution for premium daily-ritual conversion.",
+    "<b>Lead with the bridge SKU.</b> Position Ashwagandha Coffee as the flagship, premium ritual (vs Blue Tokai) and native functional (vs Kapiva/OZiva) at once.",
+    "<b>Reverse-prestige the global brand.</b> The Indian tea brand loved in 145 countries / by A-listers is a rare aspirational angle at home, lead with it.",
+    "<b>Own gifting.</b> Festive + corporate gift sets are high-margin, low-CAC and play to VAHDAM's packaging equity.",
+    "<b>Premium, never mass.</b> Sell provenance, freshness and design; never compete on rupee-per-cup with Tata/HUL/Patanjali."
+  ]],
+
+  ["sec", 10, "India regulatory frame"],
+  ["bul", [
+    "<b>FSSAI:</b> governs food &amp; nutraceutical labelling and permissible claims; health-supplement vs food classification changes what may be stated.",
+    "<b>AYUSH ministry:</b> oversees Ayurvedic products/claims; positioning as Ayurvedic vs a food-with-adaptogens changes the compliance path and the claims allowed.",
     "<b>Practical rule:</b> ashwagandha as a traditional wellness ingredient is well accepted; avoid disease-cure and quantified physiological claims regardless of regime."
   ]],
+  ["card", ["{L} India's claim regime is more permissive than the UK for traditional-use language, but consumer trust (vs Dabur/Himalaya) is earned on quality and credibility, not aggressive claims."]],
 
-  ["sec", 11, "White space and recommendations"],
+  ["sec", 11, "Strategic implications &amp; white space"],
+  ["card", ["{L} At home, drop authentic Indian origin as the lead differentiator, it is parity. Win on the copy-proof edges."]],
   ["bul", [
-    "Premium adaptogen coffee is essentially uncontested in India, Blue Tokai has no functional angle; Rage is vitamin-enriched, not Ayurveda; Ayurveda brands are not in daily coffee.",
-    "Gifting plus festive is a high-margin, low-CAC lane that suits VAHDAM's design equity and export-grade packaging.",
-    "Quick-commerce (Blinkit/Instamart/Zepto) is where premium daily-ritual demand now converts, match Sleepy Owl's distribution playbook.",
-    "A curated global-quality, made-in-India premium tea plus coffee bundle has no direct equivalent across the duopoly, the coffee-D2C set, or the Ayurveda D2C set."
+    "Premium adaptogen coffee is essentially uncontested, Blue Tokai has no functional angle; Rage is vitamin-enriched, not Ayurveda; Ayurveda brands aren't in daily coffee.",
+    "The bridge SKU (Ashwagandha Coffee) uniquely reaches both winnable wallets, make it the flagship.",
+    "Gifting + festive is a high-margin, low-CAC lane suited to VAHDAM's design equity.",
+    "A curated global-quality, made-in-India premium tea + coffee bundle has no equivalent across the duopoly, coffee-D2C or Ayurveda-D2C sets."
   ]],
 
-  ["sec", 12, "Sources"],
-  ["card", ["Research and press (June to July 2026 pulls): IMARC, Custom Market Insights, Expert Market Research, Ken Research, Facts and Factors, Market Research Future (India tea sizing and structure); Mordor / CMI (India coffee); Inc42, Indian Retailer, ClickPost, Nivara (India coffee-D2C and wellness-D2C landscape and funding); Open Magazine (Ayurvedic-D2C economics and global Ayurveda size); company/press references for Tata Consumer, HUL, Wagh Bakri, Blue Tokai, Sleepy Owl, Rage, Kapiva, OZiva; vahdam.in / SIDBI funding press. Figures are directional and scope-dependent; confidence tags reflect source strength."]]
+  ["sec", 12, "Sources &amp; notes"],
+  ["card", ["Research and press (June to July 2026 pulls): IMARC, Custom Market Insights, Expert Market Research, Ken Research, Facts &amp; Factors, Market Research Future (India tea sizing &amp; structure); Mordor / CMI (India coffee); Inc42, Indian Retailer, ClickPost, Nivara (India coffee-D2C &amp; wellness-D2C landscape &amp; funding); Open Magazine (Ayurvedic-D2C economics &amp; global Ayurveda size); company/press references for Tata Consumer, HUL, Wagh Bakri, Blue Tokai, Sleepy Owl, Rage, Kapiva, OZiva; vahdam.in / SIDBI funding press. Market-size figures vary by firm scope; confidence tags reflect source strength. No competitor copy or named advisors are reproduced."]]
 ];
 
 /* one-line strategic synthesis shown per region above the report */
 var SYNTH = {
-  US: "Origin moat at its strongest. Rivals import ashwagandha; VAHDAM owns it and is already in ~1,000 Target stores. Win the ashwagandha-forward calm-energy lane the mushroom-led leaders leave open.",
-  UK: "Origin is parity, not advantage: Spacegoods and London Nootropics use the same KSM-66. Win instead on real Arabica coffee (vs cocoa), the 90-day guarantee, and the heritage tea house behind the coffee.",
+  US: "Origin moat at its strongest. Rivals import ashwagandha; VAHDAM owns it and is already in ~1,000 Target stores. Own the ashwagandha-forward calm-energy lane the mushroom-led leaders leave open, and keep claims disciplined.",
+  UK: "Origin is parity, not advantage: Spacegoods and London Nootropics use the same KSM-66. Win instead on real Arabica coffee (vs cocoa), the 90-day guarantee, the heritage tea house behind the coffee, and ASA/CAP-clean marketing.",
   Global: "Neither origin nor incumbency wins here. Lead with the press/celebrity halo and premium gifting, concentrate spend on the winnable four (EU-ex-UK, Canada, ANZ, GCC), and localise the compliance, not the product.",
-  India: "Origin is parity at home, everyone is origin. Win on premium/single-origin, the bridge SKU (Ashwagandha Coffee), reverse-prestige (loved in 145 countries), and disciplined CAC."
+  India: "Origin is parity at home, everyone is origin. Win on premium/single-origin, the bridge SKU (Ashwagandha Coffee across the ritual and wellness wallets), reverse-prestige (loved in 145 countries), quick-commerce and disciplined CAC."
 };
 
 /* ---- confidence legend (page) ---- */
@@ -558,7 +792,7 @@ function reportInnerHTML(region) {
   return head + "\n" + legendPage() + "\n" + synth + "\n" + tabbar + "\n" + panels;
 }
 
-/* ---- public: standalone HTML for the downloadable .docx ---- */
+/* ---- public: standalone HTML (reference) ---- */
 function docHTML(region) {
   var m = META[region];
   var css = "body{font-family:Georgia,'Times New Roman',serif;color:#171717;line-height:1.45;max-width:760px;margin:0 auto;padding:24px;}" +
@@ -583,7 +817,7 @@ function decodeEntities(s) {
   return String(s)
     .replace(/&#8377;/g, "₹").replace(/&rarr;/g, "→")
     .replace(/&middot;/g, "·").replace(/&pound;/g, "£")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&");
+    .replace(/&amp;/g, "&").replace(/&nbsp;/g, " ");
 }
 function xesc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function wRun(text, bold, colour) {
@@ -621,7 +855,7 @@ function wTable(headers, rows) {
     return "<w:" + e + ' w:val="single" w:sz="4" w:space="0" w:color="CCCCCC"/>';
   }).join("");
   var tblPr = '<w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="autofit"/><w:tblBorders>' + borders + "</w:tblBorders></w:tblPr>";
-  var grid = "<w:tblGrid>" + headers.map(function () { return '<w:gridCol/>'; }).join("") + "</w:tblGrid>";
+  var grid = "<w:tblGrid>" + headers.map(function () { return "<w:gridCol/>"; }).join("") + "</w:tblGrid>";
   function cell(inner, fill) {
     var shd = fill ? '<w:shd w:val="clear" w:color="auto" w:fill="' + fill + '"/>' : "";
     return "<w:tc><w:tcPr>" + shd + "</w:tcPr><w:p>" + inner + "</w:p></w:tc>";
