@@ -120,7 +120,7 @@ const DEFAULT_CONFIG = {
     landing_page: { cvr: 0.018 },
   },
   capacity: { email_per_market_per_week: 4, paid_campaigns_per_market_per_week: 5, landing_pages_per_week: 4 },
-  calendar: { days: 15, markets: ['US', 'UK'], channels: ['email', 'google', 'meta', 'tiktok'], min_gap_days_same_cohort: 2 },
+  calendar: { days: 90, markets: ['US', 'UK'], channels: ['email', 'google', 'meta', 'tiktok'], min_gap_days_same_cohort: 2 },
   review_policy: {
     launch_mode: true,
     auto_approve_min_confidence: 0.85,
