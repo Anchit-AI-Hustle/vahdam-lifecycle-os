@@ -905,6 +905,103 @@ function d2cInnerHTML(region, mode) {
   return renderNodes(D2C[region], mode) + "\n" + renderNodes(D2C_UNIVERSAL, mode);
 }
 
+/* =====================================================================
+   SOCIAL COMMERCE & SHORT-FORM VIDEO (TikTok / Reels).
+   Rendered in its own "Social & content" sub-tab. Transcribed from the
+   VAHDAM Strategic TikTok & Reels Marketing Blueprint (multi-market,
+   Jul 2026); figures reproduced as cited, brand-application points are
+   VAHDAM inferences. Shared core + a short per-region intro.
+   ===================================================================== */
+var SOCIAL_CORE = [
+  ["sub", "Beverage-wellness demand on short-form video"],
+  ["card", ["{C} The wellness consumer now treats functional beverages as tools for physical optimisation and emotional recovery, and short-form video (TikTok, Instagram Reels) has turned that habit into a visible identity statement. Consumption has shifted from a routine into a medium for personal identity, and view-volume growth across the core wellness hashtags is steep."]],
+  ["tbl", ["Trend / category", "Growth metric / global valuation", "Primary cultural driver"], [
+    ["Beverage wellness", "+427% YoY view volume", "Fusion of physical hydration and emotional self-care routines"],
+    ["Gut health", "+93% YoY view volume", "Normalisation of digestion, IBS transparency and raw herbal remedies"],
+    ["Health and wellness", "+64% YoY view volume", "The That Girl aesthetic, daily habit tracking, morning-routine vlogs"],
+    ["Global matcha market", "$2.7B (2023) to $7.1B (2033), 10.2% CAGR", "Shift from coffee to clean, crash-free cognitive focus"],
+    ["Golden milk market", "$1.6B global valuation", "Ayurvedic turmeric remedies adapted into Western daily routines"]
+  ], "Hashtag view-volume and market-valuation figures as cited in the VAHDAM TikTok / Reels blueprint (Jul 2026)."],
+  ["cards", 2, [
+    ["The hydration aesthetic &amp; Homecafe culture", "{C} Hydration is now a lifestyle statement, spawning micro-trends (#stayhydrated, #hydrationhack, #glasscupswithstraw) and the Homecafe phenomenon: calmly lit iced-drink tutorials built on macro close-ups and high-fidelity ASMR (clinking ice, pouring liquids, mixing textures). For sensory products like tea, this low-tempo aesthetic lowers purchase skepticism through pure enjoyment."],
+    ["Functional superfoods &amp; everyday rituals", "{C} The shift away from synthetic energy drinks has pushed adaptogens and herbal ingredients centre-stage: gut-health content (bloating, IBS, the Internal Shower Drink of chia, lemon and water) has billions of views; matcha crossed from tea ceremony to a camera-ready staple; and turmeric, ginger, ashwagandha and moringa are positioned as clean alternatives for stress, sleep and clarity, exactly VAHDAM's range."]
+  ]],
+  ["sub", "Multi-market cultural dynamics"],
+  ["card", ["{C} In the UK, high-velocity TikTok Shop categories mix functional wellness with indulgent treats (EHPlabs OxyShred green-tea energy drinks, Liquid Death canned water, artisanal dessert boxes), a dual pull of athletic performance and sensory reward. The Girl Dinner and ingredient-household trends across the US and UK favour simple whole-food snacking (nuts, seeds, berries, herbal teas). And after regulation let premium spirit brands target over-25s with age-gated content, cinematic influencer campaigns (Campari, Grey Goose, St-Germain) raised the visual-quality bar: wellness brands must now pair authentic storytelling with high-end aesthetic execution."]],
+  ["sub", "How challenger beverage brands win on social"],
+  ["tbl", ["Brand", "Core creative &amp; social strategy", "Operational &amp; distribution mechanics"], [
+    ["PerfectTed", "Media-first, founder-led storytelling, radical vulnerability, employee-generated content, rapid trendjacking", "DTC scaling alongside rapid retail; matcha as a clean, lifestyle-fuelled energy alternative"],
+    ["Grind Coffee", "High-tempo vertical-video ads, coffee-at-home community, multi-touch attribution modelling", "Shopify Plus + custom subscription tiers; TikTok drives proven on-site conversion"],
+    ["Bird &amp; Blend Tea Co", "Performance Max, high-impact cultural collaborations, community affiliate systems", "Omnichannel retail + web; social ad signals guide new-blend R&amp;D and niche use cases"],
+    ["Four Sigmatic &amp; MUD\\WTR", "Educational influencer campaigns, morning-ritual narratives, functional adaptogenic positioning", "Subscription-heavy DTC designed to replace the daily coffee routine with mushroom alternatives"]
+  ]],
+  ["cards", 2, [
+    ["PerfectTed, media-first &amp; founder-led", "{C} The UK matcha brand operates like a media company, not a manufacturer: content centres on the founders' real stories (managing ADHD and anxiety through matcha) and employee-generated content that humanises the team, and it reacts instantly to culture (a viral Sabrina Carpenter stunt) to win millions of organic views on small budgets."],
+    ["Grind, attribution &amp; channel synergy", "{C} Recognising that last-click undervalues top-of-funnel social discovery, Grind built multi-touch attribution blending TikTok, Google Analytics, first-party profiles and econometric data, proved TikTok's superior conversion velocity, and achieved an 11% ROAS boost and a 28% CAC reduction, pairing TikTok with subscription offers (free tins, travel tumblers)."],
+    ["Bird &amp; Blend, cultural co-branding", "{C} Limited-edition collaborations (Hello Kitty, Wallace &amp; Gromit, Tate Modern) unlock passionate sub-communities and organic unboxing/tasting content without high influencer fees, backed by a generous affiliate programme and problem-led Performance Max / Search targeting (for example alcohol-free drink alternatives)."],
+    ["Symphony AI &amp; native formats", "{L} Influencer try-on and organic UGC generate roughly twice the click-through of product slideshows; TikTok's Symphony AI suite (Image-to-Video, automated optimisation) keeps creative fresh and lowers CPA, as fashion brand Halara showed with a 44% CPA reduction."]
+  ]],
+  ["sub", "The six-step high-converting vertical-video ad"],
+  ["tbl", ["Step", "Tactical objective", "Creative execution for VAHDAM"], [
+    ["1. Hook (0 to 5s)", "Stop the scroll with visual or narrative tension", "Frustration hook (Stop drinking coffee that ruins your sleep) or a macro ASMR pour of turmeric tea over ice spheres"],
+    ["2. Native delivery", "Feel like organic, creator-led content", "Casual, conversational vertical video, creator to camera in a warm, naturally lit home kitchen"],
+    ["3. Real use case", "Show the product inside a desirable routine", "Iced matcha latte made at the desk during a mid-afternoon work slump"],
+    ["4. Single-core message", "Solve one clear problem per ad", "One benefit only: bloating relief (ginger-turmeric) or jitter-free focus (ceremonial matcha)"],
+    ["5. Proof &amp; friction reduction", "Build trust with tangible evidence", "USDA Organic / Non-GMO seals on-screen; split-screen authentic reviews on the non-bitter taste"],
+    ["6. Goal-aligned CTA", "Direct to a clear, low-friction next step", "TikTok Shop landing page with a first-time bundle or seasonal discount code"]
+  ]],
+  ["sub", "Awareness vs conversion, two proven campaigns"],
+  ["tbl", ["Dimension", "Nestle Everyday TopView (awareness)", "Frestea Nusantara O2O (conversion)"], [
+    ["Objective", "Mass awareness for tea-creamer and instant ranges", "Revive a declining tea category via offline trials during Ramadan"],
+    ["Placement &amp; format", "High-impact TopView (first video on app open)", "Full-funnel Spark Ads + Grivy notifications + gamification"],
+    ["Creative", "Premium sensory close-ups set to a brand melody", "Moment-based messaging tied to daily fast-breaks and social sharing"],
+    ["Results", "86.6M impressions, +10% value perception, +18.1% purchase intent", "66M impressions, 64% digital conversion, 90% of redemptions from new buyers"]
+  ], "Match creative to objective: sensory TopView placements for equity, Spark Ads + mobile rewards + gamification for a trackable path to physical trial."],
+  ["sub", "Camera-ready unboxing &amp; visual ASMR"],
+  ["card", ["{C} In DTC, packaging is the primary offline marketing touchpoint, and it must be designed for the vertical lens: high-end rigid boxes with vibrant interiors, spot-UV finishes and gold-foil accents, a wax-sealed founder's letter placed on top for immediate intimacy, and clean inserts that keep the gold-finished tins pristine. Engineered this way, the unboxing incentivises organic UGC and turns everyday buyers into brand evangelists."]],
+  ["bul", [
+    "<b>Pure ASMR packaging,</b> no speaking, close-ups of wrapping paper tearing, lids popping and scoops clinking against metal tins.",
+    "<b>Conversational storytelling,</b> a creator sharing the tea's origin or the TEAch Me social impact while opening the package.",
+    "<b>Aesthetic transition edits,</b> fast, rhythmic cuts to trending audio with clean, stylised product transitions."
+  ]],
+  ["card", ["{C} Production discipline matters: clean three-point or ring lighting to kill reflections on premium tins, steady overhead angles, tight B-roll of product textures, and high-fidelity ambient audio via external microphones. Keep on-screen text inside standard safe zones so localised voiceovers and translated captions can swap across US, UK and EU without re-editing the background B-roll, lowering content cost and keeping creative fresh across ad managers."]],
+  ["sub", "Actionable social programs for VAHDAM"],
+  ["cards", 2, [
+    ["Founder-led transparency", "A short-form series with founder Bala Sarda documenting real sourcing trips (Darjeeling, Assam, Nilgiris), honest farmer conversations, the R&amp;D process in Noida and climate-neutral packaging, revealing the actual people and processes behind the brand to build trust with socially conscious consumers."],
+    ["Narrative social impact", "Documentary-style vertical videos on the TEAch Me scholarships and the tea growers' children, turning abstract CSR metrics into an emotional connection that differentiates VAHDAM from traditional commercial competitors."],
+    ["Localised cultural collaborations", "Limited-edition tea and superfood blends with fitness, mindfulness and culinary creators (the Bird &amp; Blend model), promoted through aesthetic unboxing and lifestyle vlogs that position herbal and adaptogen teas as clean morning-energy alternatives."],
+    ["The ASMR &amp; Homecafe engine", "A high-volume content engine of visually striking iced-latte recipes with organic turmeric, ginger and ceremonial-grade matcha, high-fidelity ASMR and slow macro shots, with standardised layouts for low-cost US / UK deployment."],
+    ["Omnichannel attribution &amp; retention", "Multi-touch attribution linking TikTok discovery to Google search and Amazon-MCF / retail conversion, coordinated with segmented web-push and personalised email flows plus automated discount ladders to recover abandoned carts."]
+  ]],
+  ["card", ["Sources: VAHDAM Strategic TikTok &amp; Reels Marketing Blueprint (Multi-Market Creative &amp; Ad Optimization, Jul 2026), drawing on VAHDAM corporate references (Our Story, the Amazon MCF 400% case study, YourStory, Social Samosa), TikTok for Business case studies (Nestle Everyday, Frestea, Grind Coffee x Highrise), PerfectTed, Bird &amp; Blend and Grind brand references, and TikTok food-and-beverage trend analyses (Kantar, SIGEP, FindNiche, OTA). Metrics are reproduced as cited; brand-application points are VAHDAM inferences. Download the full blueprint from the button at the top of this tab."]]
+];
+
+var SOCIAL = {
+  US: [
+    ["head", "Social commerce &amp; short-form video (US)", "Brand positioning, the US social-commerce shift, and the TikTok / Reels playbook for the market that is ~50% of VAHDAM revenue."],
+    ["card", ["{C} The US is VAHDAM's largest market at ~50% of global revenue, with offline placement in Walmart, Wegmans and Nordstrom alongside DTC and Amazon MCF. Premium tea here is defined by the orthodox whole-leaf process (whole-leaf is the top quality grade), so US short-form messaging should lead on whole-leaf clarity, adaptogenic wellness and clean energy rather than the milk-and-spice CTC chai of the home market."]]
+  ],
+  UK: [
+    ["head", "Social commerce &amp; short-form video (UK)", "The UK / Europe social-commerce shift and the creator-led playbook for a region that is ~30% of VAHDAM revenue."],
+    ["card", ["{C} Europe and the UK are ~30% of VAHDAM revenue, with retail placement including Saks Fifth Avenue and Bloomingdales. The UK is where challenger beverage brands (PerfectTed, Grind, Bird &amp; Blend) built commercial engines on TikTok, and TikTok Shop is the high-velocity discovery layer. As in the US, lead on whole-leaf clarity and clean, functional energy rather than traditional milk chai."]]
+  ],
+  Global: [
+    ["head", "Social commerce &amp; short-form video (Global)", "The Western creator-led template applied across the winnable rest-of-world markets."],
+    ["card", ["{L} Across the affluent rest-of-world markets, the same short-form template travels: sensory Homecafe aesthetics, functional-superfood narratives and creator-led UGC, now held to the cinematic quality bar set by premium-spirit campaigns. It pairs naturally with VAHDAM's gifting and press / celebrity halo, and it sidesteps strict EU / TGA / EFSA claim regimes by leading on aesthetics and story rather than physiology."]]
+  ],
+  India: [
+    ["head", "Social commerce &amp; short-form video (India)", "Brand heritage, the omnichannel base, and how the Western creator playbook is tuned for the home market."],
+    ["card", [
+      "{C} VAHDAM's equity runs deep: from an 1931 Darjeeling loose-tea store, to Madhav Sarda's 1980 Kho-Cha store in Delhi, to Bala Sarda founding VAHDAM in 2015 at age 23 to cut out middlemen and pack fresh at origin. It sources from 100+ tea regions into a 100,000 sq-ft Noida facility, and Amazon Multi-Channel Fulfillment cut fulfilment cost ~15% while supporting ~400% YoY digital sales growth at peak. Trust markers include Oprah's Favorite Things, the Ellen show and a Mariah Carey collaboration, plus climate- and plastic-neutral certification and 1% of revenue to the TEAch Me initiative.",
+      "{C} India and rest-of-world is ~20% of revenue, and the home market is culturally CTC-and-chai (simmered with milk, sugar, cardamom and ginger). Key digital partners include 1mg, Blinkit and Swiggy Instamart. The Western whole-leaf, adaptogen and clean-energy framing above is the export message; at home, the same creator formats should treat the chai ritual as an additive occasion, never a replacement."
+    ]]
+  ]
+};
+
+function socialInnerHTML(region, mode) {
+  return renderNodes(SOCIAL[region], mode) + "\n" + renderNodes(SOCIAL_CORE, mode);
+}
+
 /* ---- confidence legend (page) ---- */
 function legendPage() {
   return '<div class="card p-5"><div class="text-[11px] uppercase tracking-[.06em] font-bold" style="color:var(--soft);">How to read the confidence tags</div><div class="mt-2 text-sm space-y-1" style="color:var(--vahdam-ink);">' +
@@ -939,9 +1036,13 @@ function reportInnerHTML(region) {
   var present = CATS.filter(function (c) { return groups[c[0]] && groups[c[0]].length; });
   // insert the synthetic "D2C growth" tab right after Strategy & white space
   var ordered = [];
+  var blueprintBtn = '<div class="card p-5" style="border-color:var(--vahdam-gold);"><div class="flex flex-wrap items-center gap-3"><div class="flex-1 min-w-[220px]"><div class="font-head text-lg text-vahdam-green">Strategic TikTok &amp; Reels Marketing Blueprint</div><div class="text-[12.5px]" style="color:var(--soft);">Multi-market creative &amp; ad optimization &middot; the full source document.</div></div><a class="btn-gold px-5 py-2.5 text-sm" href="/docs/market-study/VAHDAM_Social_TikTok_Reels_Blueprint.docx" download>Download blueprint (DOC)</a></div></div>';
   present.forEach(function (c) {
     ordered.push({ key: c[0], label: c[1], html: renderNodes(groups[c[0]], "page") });
-    if (c[0] === "strategy") ordered.push({ key: "d2c", label: "D2C growth", html: d2cInnerHTML(region, "page") });
+    if (c[0] === "strategy") {
+      ordered.push({ key: "d2c", label: "D2C growth", html: d2cInnerHTML(region, "page") });
+      ordered.push({ key: "social", label: "Social &amp; content", html: blueprintBtn + "\n" + socialInnerHTML(region, "page") });
+    }
   });
   var tabs = ordered.map(function (c, i) {
     return '<button type="button" class="mstab' + (i === 0 ? " on" : "") + '" data-cat="' + c.key + '">' + c.label + "</button>";
@@ -970,6 +1071,7 @@ function docHTML(region) {
     '<p><strong>VAHDAM position (' + region + "):</strong> " + SYNTH[region] + "</p><hr>" +
     body +
     d2cInnerHTML(region, "doc") +
+    socialInnerHTML(region, "doc") +
     "</body></html>";
 }
 
@@ -1034,7 +1136,7 @@ function docxDocumentXml(region) {
   var body = pHead(m.docTitle, 34) + pItalic(m.sub) +
     pRuns(wRun("Prepared for: " + decodeEntities(m.prep) + ".  9 July 2026.  Confidence-tagged: [Certain] (cited) / [Likely] (strong multi-source inference). Speculative points excluded.")) +
     pRuns(wRun("VAHDAM position (" + region + "): ", true) + wRun(SYNTH[region]));
-  REPORTS[region].concat(D2C[region]).concat(D2C_UNIVERSAL).forEach(function (n) {
+  REPORTS[region].concat(D2C[region]).concat(D2C_UNIVERSAL).concat(SOCIAL[region]).concat(SOCIAL_CORE).forEach(function (n) {
     var t = n[0];
     if (t === "sec") { body += pHead(n[1] + ". " + n[2], 28); if (n[3]) body += pItalic(n[3]); }
     else if (t === "head") { body += pHead(n[1], 28); if (n[2]) body += pItalic(n[2]); }
