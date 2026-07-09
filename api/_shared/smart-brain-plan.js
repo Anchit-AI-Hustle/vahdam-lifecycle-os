@@ -712,9 +712,17 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   const { entry } = await resolveEntry({ id, inlineEntry, config, db });
   if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
 
-  // Preview EXACTLY what approving produces: the active scenario's operational
-  // fields, internal/projection keys stripped (so numbers can't reach assets).
-  const campaign = await buildCampaign(effectiveEntry(entry), config, { id });
+  // Preview EXACTLY what approving produces. If the prebuild queue already built
+  // this slot, show that persisted bundle (instant, and identical to what ships);
+  // otherwise generate on demand. Internal/projection keys stripped so numbers
+  // can't reach the asset builders.
+  let campaign = null;
+  const prebuiltId = entry && entry[PREBUILD_MARKER] && entry[PREBUILD_MARKER].campaign_id;
+  if (db.connected && prebuiltId) {
+    const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
+    if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
+  }
+  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id });
   campaign.status = 'preview';
   return {
     ok: true,
@@ -752,30 +760,28 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     }
   }
 
+  // Reuse the FULL prebuilt campaign (LLM copy + images) when the prebuild queue
+  // already built this slot — approval then just locks + publishes, no wait, no
+  // regeneration (so what the reviewer saw in preview is exactly what ships).
+  let campaign = null;
+  const prebuiltId = entry && entry[PREBUILD_MARKER] && entry[PREBUILD_MARKER].campaign_id;
+  if (db.connected && prebuiltId) {
+    const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
+    if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
+  }
   // buildCampaign generates copy + creatives and attaches master prompts. Use
   // the ACTIVE scenario (medium unless a human switched the slot), internal keys
   // stripped so projected revenue/spend can never reach the asset builders.
-  const campaign = await buildCampaign(effectiveEntry(entry), config, { id });
-  const copyMeta = campaign.copywriter;
+  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id });
+  const copyMeta = campaign.copywriter || { provider: 'prebuilt', model: null };
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
 
   const persisted = { campaign: null, ads: null, landing: null, calendar: null };
   if (db.connected) {
-    persisted.campaign = await db.upsert(config.tableNames.generatedCampaigns, [{ id: campaign.campaign_id, payload: campaign, status: campaign.status, updated_at: nowIso() }], 'id');
-    const adRows = (campaign.assets.ads || []).map((ad) => ({
-      channel: ad.platform, name: campaign.name, market: campaign.market, objective: campaign.objective,
-      audience: campaign.audience?.name, copy: ad, creative_prompt: ad.creative_brief || ad.script || '', origin: 'smart-brain',
-      user_email: reviewer || null,
-    }));
-    if (adRows.length) persisted.ads = await db.insert(config.tableNames.adsGenerated, adRows);
-    const lp = campaign.assets.landing_pages?.[0];
-    if (lp) persisted.landing = await db.insert(config.tableNames.landingPagesGenerated, [{
-      paired_with: campaign.assets.email ? 'mailer' : (campaign.assets.ads?.[0]?.platform || 'meta'),
-      name: lp.title || campaign.name, market: campaign.market,
-      hero: lp.title || '', payload: { campaign_id: campaign.campaign_id, path: lp.path, html: lp.html, sections: lp.sections, master_prompt: lp.master_prompt },
-      origin: 'smart-brain', user_email: reviewer || null,
-    }]);
+    // Publish: store the campaign at review status + mirror ads/LP into the dashboards.
+    const p = await persistCampaignAssets(db, config, campaign, { status: campaign.status, origin: 'smart-brain', reviewer, mirror: true });
+    persisted.campaign = p.campaign; persisted.ads = p.ads; persisted.landing = p.landing;
     if (row) {
       const log = Array.isArray(row.change_log) ? row.change_log.slice(-30) : [];
       log.push({ at: nowIso(), kind: 'approved', detail: `Approved by ${reviewer || 'unknown'}; campaign ${campaign.campaign_id} generated (copy: ${copyMeta.provider}).` });
@@ -872,8 +878,107 @@ async function landingPageHtml(id, cfg = {}) {
   return lp?.[0]?.payload?.html || null;
 }
 
+// ── Convergent asset prebuild queue ─────────────────────────────────────────
+// Contract (product owner, 2026-07-09): every slot in the 90-day rolling window
+// must not merely EXIST but arrive with its FULL asset bundle already built —
+// LLM-written copy AND generated images for the mailer + Meta/Google/TikTok ads
+// + landing page — so a reviewer only ever approves, never waits on generation.
+//
+// A single serverless invocation cannot build ~180 slots (each is ~30-60s of LLM
+// copy + 5 parallel image generations), so prebuildAssets() processes a small
+// batch per call and the caller (the smart-brain cron / prebuild route) re-fires
+// it until `remaining` hits 0, then it idles. Fully idempotent + resumable: a
+// slot counts as built once its payload carries a __prebuilt marker pointing at
+// a persisted campaign. Daily sync only rewrites a slot's payload (dropping the
+// marker) when it MATERIALLY re-plans that slot, which correctly forces a rebuild
+// of the now-stale assets. Human-approved/final slots are skipped (they own a
+// real campaign already).
+const PREBUILD_MARKER = '__prebuilt';
+
+function isPrebuilt(row) {
+  const p = row && row.payload && row.payload[PREBUILD_MARKER];
+  return !!(p && p.campaign_id);
+}
+function creativeCount(campaign) {
+  let n = 0;
+  const a = campaign && campaign.assets;
+  if (!a) return 0;
+  if (a.email && a.email.creative && a.email.creative.image) n += 1;
+  for (const lp of a.landing_pages || []) if (lp && (lp.creative?.image || lp.hero_image)) n += 1;
+  for (const ad of a.ads || []) if (ad && (ad.creative?.image || ad.image)) n += 1;
+  return n;
+}
+
+// Persist a generated campaign + (optionally) mirror its ads/LP into the Ads and
+// Landing Pages dashboards. Shared by approveEntry (mirror=true — publish) and
+// prebuildAssets (mirror=false — a draft that only lands in smart_generated_campaigns,
+// so unapproved drafts never flood the dashboards; /lp/:id still resolves it via
+// landingPageHtml, which reads smart_generated_campaigns first).
+async function persistCampaignAssets(db, config, campaign, { status, origin, reviewer = null, mirror = true } = {}) {
+  const out = { campaign: null, ads: null, landing: null };
+  out.campaign = await db.upsert(config.tableNames.generatedCampaigns, [{ id: campaign.campaign_id, payload: campaign, status, updated_at: nowIso() }], 'id');
+  if (!mirror) return out;
+  const adRows = (campaign.assets.ads || []).map((ad) => ({
+    channel: ad.platform, name: campaign.name, market: campaign.market, objective: campaign.objective,
+    audience: campaign.audience?.name, copy: ad, creative_prompt: ad.creative_brief || ad.script || '', origin,
+    user_email: reviewer || null,
+  }));
+  if (adRows.length) out.ads = await db.insert(config.tableNames.adsGenerated, adRows);
+  const lp = campaign.assets.landing_pages?.[0];
+  if (lp) out.landing = await db.insert(config.tableNames.landingPagesGenerated, [{
+    paired_with: campaign.assets.email ? 'mailer' : (campaign.assets.ads?.[0]?.platform || 'meta'),
+    name: lp.title || campaign.name, market: campaign.market,
+    hero: lp.title || '', payload: { campaign_id: campaign.campaign_id, path: lp.path, html: lp.html, sections: lp.sections, master_prompt: lp.master_prompt },
+    origin, user_email: reviewer || null,
+  }]);
+  return out;
+}
+
+async function prebuildAssets({ config: cfg = {}, batchSize = 1, sinceDate = null } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  if (!db.connected) return { ok: true, skipped: true, reason: 'Supabase env not configured — nothing to prebuild.', built: [], failed: [], batch: 0, remaining: 0 };
+  const start = sinceDate || todayIso();
+  // Candidates: future, still writable (tentative/rejected — approved/final own a
+  // real campaign), nearest-date first so imminent slots build first.
+  const rows = (await db.select(config.tableNames.calendarEntries, {
+    filters: { date: `gte.${start}`, status: SYNC_WRITABLE_STATUSES },
+    order: 'date.asc', limit: 1000,
+  }).catch(() => [])) || [];
+  const pending = rows.filter((r) => !isPrebuilt(r));
+  const batch = pending.slice(0, Math.max(1, batchSize));
+  const built = [];
+  const failed = [];
+  for (const row of batch) {
+    try {
+      const entry = { ...(row.payload || {}), id: row.id };
+      // FULL build: LLM copy + generated images (withCreatives:true) for the
+      // mailer + ads + landing page — the same output an approval produces.
+      const campaign = await buildCampaign(effectiveEntry(entry), config, { id: row.id, withCreatives: true });
+      campaign.status = 'prebuilt';
+      campaign.calendar_entry_id = row.id;
+      await persistCampaignAssets(db, config, campaign, { status: 'prebuilt', origin: 'smart-brain-prebuild', mirror: false });
+      // Mark the slot built — merge the marker into the LATEST payload and guard
+      // on writable status so a human approval landing mid-build is never clobbered.
+      const fresh = (await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${row.id}` }, limit: 1 }).catch(() => []))?.[0];
+      if (fresh && (fresh.status === 'tentative' || fresh.status === 'rejected')) {
+        const payload = { ...(fresh.payload || {}) };
+        payload[PREBUILD_MARKER] = { campaign_id: campaign.campaign_id, at: nowIso(), images: creativeCount(campaign), copy: campaign.copywriter?.provider || null };
+        const log = Array.isArray(fresh.change_log) ? fresh.change_log.slice(-30) : [];
+        log.push({ at: nowIso(), kind: 'prebuilt', detail: `Assets prebuilt (mailer + ads + landing page; copy ${campaign.copywriter?.provider || 'template'}, ${creativeCount(campaign)} images); campaign ${campaign.campaign_id}.` });
+        await db.update(config.tableNames.calendarEntries, { id: `eq.${row.id}`, status: SYNC_WRITABLE_STATUSES }, { payload, change_log: log, updated_at: nowIso() });
+      }
+      built.push({ id: row.id, date: row.date, market: row.market, campaign_id: campaign.campaign_id, images: creativeCount(campaign) });
+    } catch (e) {
+      failed.push({ id: row.id, error: e.message });
+    }
+  }
+  return { ok: true, mode: 'db-linked', built, failed, batch: batch.length, remaining: Math.max(0, pending.length - built.length) };
+}
+
 module.exports = {
   syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, activateScenario, landingPageHtml, buildCampaign,
+  prebuildAssets,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
 };

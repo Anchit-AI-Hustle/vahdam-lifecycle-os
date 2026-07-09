@@ -173,7 +173,7 @@ function renderPlan(){
     <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
     <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
     <td class="conf">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}</td>
-    <td><span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}</td>
+    <td><span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.__prebuilt && e.__prebuilt.campaign_id ? `<br><span class="pill" style="background:#0c3;color:#03210f;font-size:10px" title="Full asset bundle (copy + images: mailer, ads, landing page) already built. Approve to publish.">✓ assets prebuilt</span>` : ''}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}</td>
     <td style="white-space:nowrap">
       <button class="btn sm secondary" onclick="viewEntry(${i})">View</button>
       ${e.status==='tentative' ? `<button class="btn sm ok" onclick="approve(${i})">Approve</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}

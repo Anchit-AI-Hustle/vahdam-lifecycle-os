@@ -500,6 +500,29 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         steps.weekly_recalibration_gate = recal;
         // Lifecycle OS Daily Intelligence Refresh — connector health + job logs.
         try { steps.os_daily = await osb.runDailyJob('cron'); } catch (e) { steps.os_daily = { error: e.message }; }
+        // Smart Brain rolling plan (smart_calendar_entries): refresh the 90-day
+        // window, then kick the convergent background prebuild chain so every slot
+        // keeps its FULL asset bundle (LLM copy + images) prebuilt ahead of need.
+        // Runs off this existing daily cron to avoid adding a Hobby-limited 3rd cron.
+        try {
+          const sbplan = require('./_shared/smart-brain-plan.js');
+          const sync = await sbplan.syncDaily({ persist: true });
+          let prebuildKicked = false;
+          const base = process.env.SELF_BASE_URL ? String(process.env.SELF_BASE_URL).replace(/\/$/, '')
+            : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+          if (base && typeof fetch === 'function') {
+            const secret = process.env.CRON_SECRET || '';
+            const headers = { 'Content-Type': 'application/json' };
+            if (secret) headers.Authorization = `Bearer ${secret}`;
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 3000);
+            try { await fetch(`${base}/api/calendar?action=smart-brain-prebuild`, { method: 'POST', headers, body: JSON.stringify({ _depth: 1 }), signal: ctrl.signal }); }
+            catch (_) { /* child runs longer than our handoff window — expected */ }
+            finally { clearTimeout(timer); }
+            prebuildKicked = true;
+          }
+          steps.smart_brain_plan = { synced: true, mode: sync.mode, changes: (sync.changes || []).length, prebuild_kicked: prebuildKicked };
+        } catch (e) { steps.smart_brain_plan = { error: e.message }; }
         const summary = { steps, ms: Date.now() - started };
         await core.logRun('cron', summary, true);
         return res.json({ ok: true, ...summary });
