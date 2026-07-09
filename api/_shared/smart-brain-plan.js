@@ -332,9 +332,9 @@ function copyPrompt(entry) {
 - Rationale: ${entry.rationale || ''}
 - Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
 
-Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules:
-- email / LP heroes: NO text/logos/UI baked into the image (text lives in the page layout) — just scene, props, light, mood; aspirational hero.
-- AD creatives (meta / google / tiktok): the headline + offer text MUST be BAKED INTO the creative (state the exact overlay wording, on-palette colour, and placement) — like a real paid ad. Sell the HAPPINESS end-state for P01 (women 45+/busy mums: calmer mornings, steady energy, "feeling like myself again"), NOT ingredients; open on a 1-second scroll-stop; meta = scroll-stopping square, google = clean landscape, tiktok = vertical native hand-held.
+Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules (ALL creatives are TEXT-FREE photographs — never describe overlaid words, headlines, prices, logos or UI in the image_brief; diffusion models cannot spell and render garbled fake letterforms, and the real ad copy is rendered natively by the platform, not painted into the pixels):
+- email / LP heroes: just scene, props, light, mood; aspirational hero.
+- AD creatives (meta / google / tiktok): a scroll-stopping TEXT-FREE photograph that sells the HAPPINESS end-state for P01 (women 45+/busy mums: calmer mornings, steady energy, "feeling like myself again"), NOT ingredients; open on a 1-second scroll-stop. Compose for the placement: meta = square, google = clean landscape, tiktok = vertical native hand-held. State only the scene, subject, light and mood - no words in the frame.
 
 Return JSON with exactly this shape:
 {
