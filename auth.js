@@ -222,7 +222,7 @@
       { id: 'coh-behavioral', label: 'Behavioral',          href: '/cohorts?tab=behavioral', icon: 'cohort' },
     ]},
     { id: 'avatars', label: 'Avatars (Personas)', href: '/avatars', icon: 'avatars', ver: 'v2', match: ['/avatars', '/personas', '/avatars.html'] },
-    { id: 'research', label: 'Growth Book', href: '/research', icon: 'kb', ver: 'v2', match: ['/research', '/growth-book', '/research.html'] },
+    { id: 'research', label: 'Market Study', href: '/research', icon: 'kb', ver: 'v2', match: ['/research', '/growth-book', '/research.html'] },
 
     { section: 'Plan' },
     { id: 'lifecycle', label: 'Mailer Calendar',    href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
@@ -345,7 +345,7 @@
       ],
     },
     research: {
-      title: 'Growth Book',
+      title: 'Market Study',
       what: "The single narrative reference for how VAHDAM grows: brand truth, the US and UK market intelligence, live performance pulled from the market exports, the four buyer avatars and the cohort model, the retention operating principles, the growth plays currently running, and the data engine underneath it all. It is the connective story that the operational features read from.",
       who: "The whole growth and retention team. It frames every cohort and avatar the OS targets, and turns the raw analytics into prioritised, named growth plays.",
       how: "A self-contained page organised into tabs: Overview, Brand Foundation, Market Intelligence, Live Performance (real numbers from the compiled market data), Growth Plays, Retention Playbooks (the knowledge/retention library), and Data Engine. It links out to Avatars, Cohorts, and the Data Analysis workbench, and cites the market study, schemas and retention config.",
