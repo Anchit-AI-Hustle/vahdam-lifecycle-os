@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Competitor detail :: Growth Book</title>
+<title>Competitor detail :: Market Study</title>
 <link rel="icon" href="/favicon.png">
 <meta name="description" content="Index of competitor detail pages, each comparing the brand to VAHDAM.">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -14,10 +14,11 @@
   .kicker{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--vgold);font-weight:800;}
   .card{background:#0f1d18;border:1px solid rgba(171,135,67,.2);border-radius:16px;}
   a{color:var(--vgold);} a:hover{color:#e8d9b4;}
-  table.cmp{width:100%;border-collapse:collapse;font-size:13px;}
-  table.cmp th,table.cmp td{border-bottom:1px solid rgba(171,135,67,.16);padding:11px 14px;text-align:left;vertical-align:top;}
-  table.cmp thead th{background:#004A2B;color:#FBF5EA;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;position:sticky;top:0;}
-  table.cmp td.param{color:#9fb0a8;font-weight:700;width:180px;}
+  table.cmp{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed;}
+  table.cmp th,table.cmp td{border-bottom:1px solid rgba(171,135,67,.16);padding:11px 14px;text-align:left;vertical-align:top;overflow-wrap:break-word;}
+  table.cmp thead th{background:#004A2B;color:#FBF5EA;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;}
+  table.cmp td.param,table.cmp th:first-child{width:200px;}
+  table.cmp td.param{color:#9fb0a8;font-weight:700;}
   table.cmp td.vah{background:rgba(171,135,67,.08);color:#f2ead6;}
   table.cmp tr:last-child td{border-bottom:0;}
   .pill{display:inline-block;background:rgba(171,135,67,.14);color:#f0e2bf;border:1px solid rgba(171,135,67,.38);border-radius:999px;padding:3px 11px;font-size:11px;font-weight:700;margin:0 6px 6px 0;}
@@ -27,7 +28,7 @@
 </style></head>
 <body>
 <main class="lc-main">
-  <div class="kicker">Growth Book · Competitor detail pages</div>
+  <div class="kicker">Market Study · Competitor detail pages</div>
   <h1 class="font-head text-[38px] leading-tight" style="color:var(--vcream);">Competitor detail &amp; VAHDAM comparison</h1>
   <p class="mt-2 max-w-3xl text-[14px]" style="color:#9fb0a8;">A dedicated page per brand: products, offers, pricing, benefits, provenance, retention stack, channels, cohorts and UX, each compared directly to VAHDAM.</p>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">
@@ -43,7 +44,7 @@
         <a class="card p-4 block" href="/growth-book/brands/jot.html" style="text-decoration:none;"><div class="flex items-center justify-between"><span class="font-head text-[18px]" style="color:var(--vcream);">Jot</span><span class="pill" style="margin:0;">Tier 2</span></div><div class="text-[12px] mt-1" style="color:#9fb0a8;">Ultra-concentrate coffee</div><div class="text-[12.5px] mt-2" style="color:#cdd8d0;">Low cost-per-cup convenience</div></a>
         <a class="card p-4 block" href="/growth-book/brands/bruvi.html" style="text-decoration:none;"><div class="flex items-center justify-between"><span class="font-head text-[18px]" style="color:var(--vcream);">Bruvi</span><span class="pill" style="margin:0;">Tier 3</span></div><div class="text-[12px] mt-1" style="color:#9fb0a8;">Pod machine + pods</div><div class="text-[12.5px] mt-2" style="color:#cdd8d0;">Convenience via a closed pod ecosystem</div></a>
   </div>
-  <p class="mt-8 text-[12.5px]"><a href="/research#competitors">&larr; Back to the Growth Book competitor grid</a></p>
+  <p class="mt-8 text-[12.5px]"><a href="/research#competitors">&larr; Back to the Market Study competitor grid</a></p>
 </main>
 <script src="/auth.js?v=20260705" defer></script>
 </body></html>

@@ -137,7 +137,8 @@
     var li = document.createElement('li'); li.className='flex items-start gap-2'; li.style.wordBreak='break-all';
     var tick = document.createElement('span'); tick.style.color='var(--vahdam-green)'; tick.style.fontWeight='700'; tick.textContent='✓';
     var a = document.createElement('a'); a.className='code-out underline'; a.style.color='var(--vahdam-gold-ink)';
-    a.target='_blank'; a.rel='noopener'; a.href=url; a.textContent=url;
+    a.target='_blank'; a.rel='noopener'; a.textContent=url;
+    a.href = /^https:\/\/cdn\.shopify\.com\//i.test(url) ? url : '#';
     li.appendChild(tick); li.appendChild(a);
     document.getElementById('cdn-list').appendChild(li);
   });

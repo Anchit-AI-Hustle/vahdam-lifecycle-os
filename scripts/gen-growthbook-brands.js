@@ -259,10 +259,11 @@ function page(title, desc, main) {
 '  .kicker{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--vgold);font-weight:800;}',
 '  .card{background:#0f1d18;border:1px solid rgba(171,135,67,.2);border-radius:16px;}',
 '  a{color:var(--vgold);} a:hover{color:#e8d9b4;}',
-'  table.cmp{width:100%;border-collapse:collapse;font-size:13px;}',
-'  table.cmp th,table.cmp td{border-bottom:1px solid rgba(171,135,67,.16);padding:11px 14px;text-align:left;vertical-align:top;}',
-'  table.cmp thead th{background:#004A2B;color:#FBF5EA;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;position:sticky;top:0;}',
-'  table.cmp td.param{color:#9fb0a8;font-weight:700;width:180px;}',
+'  table.cmp{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed;}',
+'  table.cmp th,table.cmp td{border-bottom:1px solid rgba(171,135,67,.16);padding:11px 14px;text-align:left;vertical-align:top;overflow-wrap:break-word;}',
+'  table.cmp thead th{background:#004A2B;color:#FBF5EA;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;}',
+'  table.cmp td.param,table.cmp th:first-child{width:200px;}',
+'  table.cmp td.param{color:#9fb0a8;font-weight:700;}',
 '  table.cmp td.vah{background:rgba(171,135,67,.08);color:#f2ead6;}',
 '  table.cmp tr:last-child td{border-bottom:0;}',
 '  .pill{display:inline-block;background:rgba(171,135,67,.14);color:#f0e2bf;border:1px solid rgba(171,135,67,.38);border-radius:999px;padding:3px 11px;font-size:11px;font-weight:700;margin:0 6px 6px 0;}',
@@ -289,28 +290,28 @@ function buildBrand(b) {
   const strat = b.strategies.map(function (s) { return '<span class="pill">' + s + '</span>'; }).join("");
   const steps = b.edge.map(function (s, i) { return '<li><b class="text-vcream">Move ' + (i + 1) + '.</b> ' + s + '</li>'; }).join("");
   const main = [
-'  <nav class="text-[12.5px] mb-3" style="color:#9fb0a8;"><a href="/research#competitors">Growth Book</a> &rsaquo; <a href="/growth-book/brands/index.html">Competitor detail</a> &rsaquo; <span style="color:#e8ede9;">' + b.name + '</span></nav>',
+'  <nav class="text-[12.5px] mb-3" style="color:#9fb0a8;"><a href="/research#competitors">Market Study</a> &rsaquo; <a href="/growth-book/brands/index.html">Competitor detail</a> &rsaquo; <span style="color:#e8ede9;">' + b.name + '</span></nav>',
 '  <div class="kicker">Competitor detail · ' + b.tier + '</div>',
 '  <h1 class="font-head text-[38px] leading-tight" style="color:var(--vcream);">' + b.name + ' vs VAHDAM</h1>',
 '  <p class="mt-2 max-w-3xl text-[14px]" style="color:#9fb0a8;">' + b.vertical + '. Full side-by-side comparison across products, offers, pricing, benefits, provenance, retention and UX. Pricing and tier are directional planning estimates from public storefront observation, not audited figures.</p>',
 '  <p class="mt-3"><a class="btn ghost" href="' + b.site + '" target="_blank" rel="noopener">Visit ' + b.name + ' live site &#8599;</a></p>',
 
-'  <h2 class="font-head text-[24px] mt-8 mb-2" style="color:var(--vcream);">Side-by-side comparison</h2>',
-'  <div class="card overflow-x-auto"><table class="cmp" style="min-width:720px;"><thead><tr><th>Parameter</th><th>' + b.name + '</th><th>VAHDAM</th></tr></thead><tbody>',
+'  <h2 class="font-head text-[24px] mt-8 mb-2" style="color:var(--vcream);">Side-by-side comparison: ' + b.name + ' vs VAHDAM</h2>',
+'  <div class="card overflow-x-auto"><table class="cmp" style="min-width:640px;"><thead><tr><th>Parameter</th><th>' + b.name + '</th><th>VAHDAM</th></tr></thead><tbody>',
 '            ' + rows,
 '  </tbody></table></div>',
 
-'  <h2 class="font-head text-[24px] mt-8 mb-2" style="color:var(--vcream);">SWOT vs VAHDAM</h2>',
+'  <h2 class="font-head text-[24px] mt-8 mb-2" style="color:var(--vcream);">SWOT Analysis of ' + b.name + ' vs VAHDAM</h2>',
 '  <div class="grid gap-4 md:grid-cols-2 swot">',
-'    <div class="card p-5"><h4 class="font-head">Strengths (' + b.name + ')</h4>' + li(b.strengths) + '</div>',
-'    <div class="card p-5"><h4 class="font-head">Weaknesses</h4>' + li(b.weaknesses) + '</div>',
-'    <div class="card p-5" style="border-color:rgba(171,135,67,.45);"><h4 class="font-head">VAHDAM path to progress</h4><ul class="mt-1 space-y-1 text-[13px]">' + steps + '</ul></div>',
-'    <div class="card p-5"><h4 class="font-head">Common strategies used</h4><div class="mt-2">' + strat + '</div></div>',
+'    <div class="card p-5"><h4 class="font-head">Strengths of ' + b.name + '</h4>' + li(b.strengths) + '</div>',
+'    <div class="card p-5"><h4 class="font-head">Weaknesses of ' + b.name + '</h4>' + li(b.weaknesses) + '</div>',
+'    <div class="card p-5" style="border-color:rgba(171,135,67,.45);"><h4 class="font-head">How VAHDAM can win vs ' + b.name + '</h4><ul class="mt-1 space-y-1 text-[13px]">' + steps + '</ul></div>',
+'    <div class="card p-5"><h4 class="font-head">Common strategies ' + b.name + ' uses</h4><div class="mt-2">' + strat + '</div></div>',
 '  </div>',
 
 '  <p class="mt-8 text-[12.5px]" style="color:#9fb0a8;"><a href="/research#competitors">&larr; Back to the competitor grid</a> · Use the Visit live site link above to see ' + b.name + '\'s current storefront, products and creatives.</p>'
   ].join("\n");
-  return page(b.name + " vs VAHDAM :: Growth Book", "Full comparison of " + b.name + " vs VAHDAM: products, offers, pricing, benefits, provenance, retention and UX.", main);
+  return page(b.name + " vs VAHDAM :: Market Study", "Full comparison of " + b.name + " vs VAHDAM: products, offers, pricing, benefits, provenance, retention and UX.", main);
 }
 
 /* index of all brand detail pages */
@@ -322,15 +323,15 @@ function buildIndex() {
       '<div class="text-[12.5px] mt-2" style="color:#cdd8d0;">' + b.benefit + '</div></a>';
   }).join("\n        ");
   const main = [
-'  <div class="kicker">Growth Book · Competitor detail pages</div>',
+'  <div class="kicker">Market Study · Competitor detail pages</div>',
 '  <h1 class="font-head text-[38px] leading-tight" style="color:var(--vcream);">Competitor detail &amp; VAHDAM comparison</h1>',
 '  <p class="mt-2 max-w-3xl text-[14px]" style="color:#9fb0a8;">A dedicated page per brand: products, offers, pricing, benefits, provenance, retention stack, channels, cohorts and UX, each compared directly to VAHDAM.</p>',
 '  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">',
 '        ' + cards,
 '  </div>',
-'  <p class="mt-8 text-[12.5px]"><a href="/research#competitors">&larr; Back to the Growth Book competitor grid</a></p>'
+'  <p class="mt-8 text-[12.5px]"><a href="/research#competitors">&larr; Back to the Market Study competitor grid</a></p>'
   ].join("\n");
-  return page("Competitor detail :: Growth Book", "Index of competitor detail pages, each comparing the brand to VAHDAM.", main);
+  return page("Competitor detail :: Market Study", "Index of competitor detail pages, each comparing the brand to VAHDAM.", main);
 }
 
 BRANDS.forEach(function (b) { fs.writeFileSync(path.join(OUT, b.slug + ".html"), buildBrand(b)); console.log("wrote brands/" + b.slug + ".html"); });

@@ -42,7 +42,7 @@
   .metric-lg{font-family:'Lora',serif;font-size:34px;color:var(--vahdam-cream);font-weight:700;line-height:1;}
   .kicker{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--vahdam-gold);font-weight:800;}
   table.grid{width:100%;border-collapse:collapse;font-size:12.5px;min-width:820px;table-layout:fixed;}
-  table.grid th,table.grid td{border-bottom:1px solid rgba(171,135,67,.18);padding:10px 12px;text-align:left;vertical-align:top;white-space:normal;overflow-wrap:anywhere;}
+  table.grid th,table.grid td{border-bottom:1px solid rgba(171,135,67,.18);padding:10px 12px;text-align:left;vertical-align:top;white-space:normal;overflow-wrap:break-word;}
   table.grid th{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;}
   table.grid tr:nth-child(even) td{background:#07100d;}
   #stratmatrix table.grid th:first-child,#stratmatrix table.grid td:first-child{width:160px;}
@@ -110,7 +110,7 @@
         <div class="kicker mb-2">Cross-Vertical Competitor Grid</div>
         <div class="card overflow-x-auto">
           <table class="grid" style="table-layout:fixed;min-width:940px;">
-            <colgroup><col style="width:12%"><col style="width:16%"><col style="width:10%"><col style="width:16%"><col style="width:21%"><col style="width:25%"></colgroup>
+            <colgroup><col style="width:11%"><col style="width:15%"><col style="width:13%"><col style="width:15%"><col style="width:22%"><col style="width:24%"></colgroup>
             <thead><tr><th>Brand</th><th>Vertical</th><th>Market-Share Tier</th><th>Channel Mix</th><th>Infrastructure Stack</th><th>Churn Prevention</th></tr></thead>
             <tbody>
               <tr data-regions="US,Global"><td><a href="/growth-book/brands/blue-bottle.html" style="color:#e8ede9;text-decoration:underline;text-decoration-color:#AB8743">Blue Bottle</a></td><td>Premium whole bean</td><td>Tier 1</td><td>SEO &middot; Retail &middot; Email</td><td>Recharge &middot; Klaviyo &middot; Shopify Plus</td><td>Roast-freshness cadence, cafe halo</td></tr>
@@ -571,6 +571,6 @@ triggers:
 })();
 </script>
 <script src="/auth.js?v=20260705" defer></script>
-<script>(function(){var tabs=document.querySelectorAll("#regionTabs .rtab");if(!tabs.length)return;function apply(rg){document.querySelectorAll("#competitors tr[data-regions]").forEach(function(tr){var d=tr.getAttribute("data-regions");tr.style.display=(d==="ALL"||d.split(",").indexOf(rg)>-1)?"":"none";});document.querySelectorAll("#stratmatrix [data-rc]").forEach(function(c){var d=c.getAttribute("data-rc");c.style.display=(d==="ALL"||d.split(",").indexOf(rg)>-1)?"":"none";});tabs.forEach(function(t){t.classList.toggle("on",t.getAttribute("data-region")===rg);});var l=document.getElementById("rgLabel");if(l)l.textContent=rg;}tabs.forEach(function(t){t.addEventListener("click",function(){apply(t.getAttribute("data-region"));});});apply("US");})();</script>
+<script>(function(){var tabs=document.querySelectorAll("#regionTabs .rtab");if(!tabs.length)return;function apply(rg){document.querySelectorAll("#competitors tr[data-regions]").forEach(function(tr){var d=tr.getAttribute("data-regions");tr.style.display=(d==="ALL"||d.split(",").indexOf(rg)>-1)?"":"none";});tabs.forEach(function(t){t.classList.toggle("on",t.getAttribute("data-region")===rg);});var l=document.getElementById("rgLabel");if(l)l.textContent=rg;}tabs.forEach(function(t){t.addEventListener("click",function(){apply(t.getAttribute("data-region"));});});apply("US");})();</script>
 </body>
 </html>
