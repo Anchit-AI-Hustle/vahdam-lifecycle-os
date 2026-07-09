@@ -41,10 +41,11 @@
   .btn-outline{background:transparent;color:var(--vahdam-cream);border:1.5px solid var(--vahdam-gold);font-weight:700;border-radius:9px;padding:9px 15px;cursor:pointer;text-decoration:none;display:inline-block;}
   .metric-lg{font-family:'Lora',serif;font-size:34px;color:var(--vahdam-cream);font-weight:700;line-height:1;}
   .kicker{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--vahdam-gold);font-weight:800;}
-  table.grid{width:100%;border-collapse:collapse;font-size:12.5px;min-width:820px;table-layout:auto;}
-  table.grid th,table.grid td{border-bottom:1px solid rgba(171,135,67,.18);padding:10px 12px;text-align:left;vertical-align:top;white-space:normal;}
-  table.grid th{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;position:sticky;top:0;}
+  table.grid{width:100%;border-collapse:collapse;font-size:12.5px;min-width:820px;table-layout:fixed;}
+  table.grid th,table.grid td{border-bottom:1px solid rgba(171,135,67,.18);padding:10px 12px;text-align:left;vertical-align:top;white-space:normal;overflow-wrap:anywhere;}
+  table.grid th{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;}
   table.grid tr:nth-child(even) td{background:#07100d;}
+  #stratmatrix table.grid th:first-child,#stratmatrix table.grid td:first-child{width:160px;}
   details.blueprint{background:#0f1d18;border:1px solid rgba(171,135,67,.35);border-radius:12px;overflow:hidden;}
   details.blueprint summary{cursor:pointer;padding:13px 16px;color:var(--vahdam-cream);font-weight:700;font-family:ui-monospace,'JetBrains Mono',monospace;font-size:13px;list-style:none;}
   details.blueprint summary::-webkit-details-marker{display:none;}

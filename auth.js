@@ -192,6 +192,7 @@
   // and the sub-item info panels — not in the row — to keep rows quiet.
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
+    { id: 'research', label: 'Market Study', href: '/research', icon: 'kb', ver: 'v2', match: ['/research', '/growth-book', '/research.html'] },
     { id: 'allinone',   label: 'All-in-One Dashboard', href: '/all-in-one', icon: 'analysis', ver: 'v2', match: ['/all-in-one', '/os', '/dashboard-os', '/all-in-one.html'] },
 
     { section: 'Research & Benchmark' },
@@ -222,7 +223,6 @@
       { id: 'coh-behavioral', label: 'Behavioral',          href: '/cohorts?tab=behavioral', icon: 'cohort' },
     ]},
     { id: 'avatars', label: 'Avatars (Personas)', href: '/avatars', icon: 'avatars', ver: 'v2', match: ['/avatars', '/personas', '/avatars.html'] },
-    { id: 'research', label: 'Market Study', href: '/research', icon: 'kb', ver: 'v2', match: ['/research', '/growth-book', '/research.html'] },
 
     { section: 'Plan' },
     { id: 'lifecycle', label: 'Mailer Calendar',    href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
