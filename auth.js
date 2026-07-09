@@ -192,7 +192,13 @@
   // and the sub-item info panels — not in the row — to keep rows quiet.
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
-    { id: 'research', label: 'Market Study', href: '/research', icon: 'kb', ver: 'v2', match: ['/research', '/growth-book', '/research.html'] },
+    { group: 'Market Study', icon: 'kb', gid: 'research', ver: 'v2', children: [
+      { id: 'research',        label: 'Overview (all regions)', href: '/research',               icon: 'kb',       match: ['/research', '/growth-book', '/research.html'] },
+      { id: 'research-us',     label: 'US Study',               href: '/research?region=us',     icon: 'insights' },
+      { id: 'research-uk',     label: 'UK Study',               href: '/research?region=uk',     icon: 'insights' },
+      { id: 'research-global', label: 'Global Study',           href: '/research?region=global', icon: 'insights' },
+      { id: 'research-india',  label: 'India Study',            href: '/research?region=india',  icon: 'insights' },
+    ]},
     { id: 'allinone',   label: 'All-in-One Dashboard', href: '/all-in-one', icon: 'analysis', ver: 'v2', match: ['/all-in-one', '/os', '/dashboard-os', '/all-in-one.html'] },
 
     { section: 'Research & Benchmark' },
