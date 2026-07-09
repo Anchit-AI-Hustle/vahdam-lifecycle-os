@@ -591,29 +591,36 @@
   //   4. PREFIX match against `match[]` — but never against `/`.
   function currentStepId() {
     const p = location.pathname.toLowerCase();
-    const h = (location.hash || '').toLowerCase();
-    const fullHref = p + h;
+    const s = (location.search || '').toLowerCase();  // e.g. ?region=us, ?tab=rfm
+    const h = (location.hash || '').toLowerCase();     // e.g. #meta, #mailers
+    const leaves = leafItems();
 
-    // 1. full href exact (preferred for hash sub-tabs)
-    for (const s of leafItems()) {
-      if (s.href && s.href.toLowerCase() === fullHref) return s.id;
+    // 1. EXACT full-href match, most-specific URL form first, so query- and
+    //    hash-scoped sub-items (/research?region=us, /ad-campaigns.html#meta,
+    //    /cohorts?tab=rfm) each light up their OWN row rather than the group's
+    //    overview. Candidates go specific -> general.
+    for (const cand of [p + s + h, p + s, p + h, p]) {
+      for (const it of leaves) {
+        if (it.href && it.href.toLowerCase() === cand) return it.id;
+      }
     }
     // 2. match[] exact on pathname
-    for (const s of leafItems()) {
-      if ((s.match || []).some((m) => p === m)) return s.id;
+    for (const it of leaves) {
+      if ((it.match || []).some((m) => p === String(m).toLowerCase())) return it.id;
     }
-    // 3. href pathname exact + no hash on URL → first sub-tab of that page
-    if (!h) {
-      for (const s of leafItems()) {
-        if (s.href) {
-          const hp = s.href.split('#')[0].toLowerCase();
-          if (hp === p) return s.id;
+    // 3. href pathname exact + URL carries no hash AND no query → first sub-tab
+    //    of that page (container open, no specific sub-tab selected yet).
+    if (!h && !s) {
+      for (const it of leaves) {
+        if (it.href) {
+          const hp = it.href.split('#')[0].split('?')[0].toLowerCase();
+          if (hp === p) return it.id;
         }
       }
     }
     // 4. match[] prefix (never `/`)
-    for (const s of leafItems()) {
-      if ((s.match || []).some((m) => m !== '/' && p.startsWith(m + '/'))) return s.id;
+    for (const it of leaves) {
+      if ((it.match || []).some((m) => m !== '/' && p.startsWith(String(m).toLowerCase() + '/'))) return it.id;
     }
     return 'home';
   }
@@ -1152,6 +1159,25 @@
     window.addEventListener('hashchange', refreshActive);
     // Also refresh on history navigation (back/forward across hash routes).
     window.addEventListener('popstate', refreshActive);
+    // AND on programmatic URL changes: region switches, detail panels, and the
+    // calendar day-view use history.replaceState/pushState, which fire NEITHER
+    // hashchange NOR popstate. Patch them once to emit a signal, and keep a
+    // single window-level listener pointed at the latest refreshActive so the
+    // highlight updates from every source without stacking listeners.
+    window.__lnavRefresh = refreshActive;
+    if (!window.__lnavHistoryPatched) {
+      window.__lnavHistoryPatched = true;
+      ['pushState', 'replaceState'].forEach((m) => {
+        const orig = history[m];
+        if (typeof orig !== 'function') return;
+        history[m] = function () {
+          const r = orig.apply(this, arguments);
+          try { window.dispatchEvent(new Event('lnav:locationchange')); } catch (_) {}
+          return r;
+        };
+      });
+      window.addEventListener('lnav:locationchange', () => { try { window.__lnavRefresh && window.__lnavRefresh(); } catch (_) {} });
+    }
 
     // Mobile drawer open/close
     const setOpen = (o) => wrap.classList.toggle('open', o);
