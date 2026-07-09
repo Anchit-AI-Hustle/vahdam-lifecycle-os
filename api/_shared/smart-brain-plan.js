@@ -569,10 +569,23 @@ function applyCopy(campaign, entry, copy, creatives = {}) {
     lp.path = `/lp/${campaign.campaign_id}`;
   }
   for (const ad of campaign.assets.ads || []) {
-    if (ad.platform === 'meta' && copy.ads.meta) Object.assign(ad, { primary_text: copy.ads.meta.primary_text || ad.primary_text, headline: copy.ads.meta.headline || ad.headline, description: copy.ads.meta.description || ad.description });
-    if (ad.platform === 'google' && copy.ads.google) Object.assign(ad, { headlines: copy.ads.google.headlines?.filter(Boolean) || ad.headlines, descriptions: copy.ads.google.descriptions?.filter(Boolean) || ad.descriptions });
-    if (ad.platform === 'tiktok' && copy.ads.tiktok) Object.assign(ad, { script: copy.ads.tiktok.script || ad.script, caption: copy.ads.tiktok.caption || ad.caption });
-    ad.creative = creatives[ad.platform] || brief(ad.platform);
+    const isB = ad.variant === 'B';
+    // Variant A takes the LLM-written copy; variant B keeps its distinct
+    // benefit-led template copy so the A/B pair genuinely differs.
+    if (!isB) {
+      if (ad.platform === 'meta' && copy.ads.meta) Object.assign(ad, { primary_text: copy.ads.meta.primary_text || ad.primary_text, headline: copy.ads.meta.headline || ad.headline, description: copy.ads.meta.description || ad.description });
+      if (ad.platform === 'google' && copy.ads.google) Object.assign(ad, { headlines: copy.ads.google.headlines?.filter(Boolean) || ad.headlines, descriptions: copy.ads.google.descriptions?.filter(Boolean) || ad.descriptions });
+      if (ad.platform === 'tiktok' && copy.ads.tiktok) Object.assign(ad, { script: copy.ads.tiktok.script || ad.script, caption: copy.ads.tiktok.caption || ad.caption });
+    }
+    // A = the generated creative; B = the real catalog product photo (hosted) so
+    // the pair is visually distinct without doubling image-generation cost. Both
+    // are hosted URLs (never a data: URI).
+    if (isB) {
+      const catImg = catalogImage.imageFor(entry, entry.market);
+      ad.creative = catImg ? { brief: ad.creative_brief || '', image: catImg, provider: 'catalog' } : (creatives[ad.platform] || brief(ad.platform));
+    } else {
+      ad.creative = creatives[ad.platform] || brief(ad.platform);
+    }
     ad.creative_brief = ad.creative.brief || ad.creative_brief || '';
   }
   return campaign;
