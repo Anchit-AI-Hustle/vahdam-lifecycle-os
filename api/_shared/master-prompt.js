@@ -43,7 +43,7 @@ function regionFacts(market) { return REGION[market] || REGION.Global; }
 // ── Product context ─────────────────────────────────────────────────────────
 function productLines(products = [], currency = '$') {
   const list = (Array.isArray(products) ? products : []).filter(Boolean).slice(0, 8);
-  if (!list.length) return '(no specific products supplied — use a representative VAHDAM single-estate tea or curated assortment).';
+  if (!list.length) return '(no specific products supplied — refer to VAHDAM offerings at CATEGORY level only, e.g. "single-estate Darjeeling" or "ashwagandha coffee". Do NOT invent a specific product name, price, or handle/URL.)';
   return list.map((p) => {
     const title = p.title || p.name || p.t || 'VAHDAM tea';
     const price = p.price ?? p.p;

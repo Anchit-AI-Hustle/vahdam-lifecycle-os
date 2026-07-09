@@ -613,7 +613,7 @@ Target market for this autofill: ${targetMarket}.`;
     // document (no JSON). The client previews it in the inline modal and falls
     // back to its deterministic template if this fails. response_format stays
     // null so the model returns raw HTML; scrubDashes runs on the way out.
-    const LP_STORE = { US:'https://www.vahdamteas.com', UK:'https://uk.vahdamteas.com', IN:'https://www.vahdamindia.com', EU:'https://eu.vahdamteas.com', AU:'https://au.vahdamteas.com', ME:'https://www.vahdamteas.com', Global:'https://www.vahdamteas.com' };
+    const LP_STORE = { US:'https://vahdam.com', UK:'https://vahdam.co.uk', IN:'https://vahdam.in', Global:'https://vahdam.global', EU:'https://vahdam.global', AU:'https://vahdam.global', ME:'https://vahdam.global' };
     const lpRegion = (body.region || body.market || market || 'US');
     const lpBase = LP_STORE[lpRegion] || LP_STORE.US;
     const lpChannel = String(body.channel || 'landing');
@@ -636,6 +636,7 @@ Target market for this autofill: ${targetMarket}.`;
       "- NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
       '- NO founder voice or personal-name sign-offs; the brand speaks as "we". NO medical claims. NO em or en dashes anywhere (use commas, colons or plain hyphens).',
       `- Currency and store links must match the ${lpRegion} market. Primary CTA links point to ${lpBase}/collections/best-sellers (or a more specific collection if the brief implies one). Only use offers/prices given in the brief; invent no discount codes.`,
+      '- Do NOT invent specific product names, prices, or product-page (/products/...) URLs. Unless the brief names a product, refer to offerings at category level ("single-estate Darjeeling", "ashwagandha coffee") and link only to collection pages on the store base above.',
       '',
       CF.frameworkMenuDirective(),
       '',
@@ -706,7 +707,7 @@ Target market for this autofill: ${targetMarket}.`;
       userAudience ? `TARGET AUDIENCE (already set by user — the brief MUST speak to this segment):\n${userAudience}` : '',
       productsBlock
         ? `PRODUCTS FROM THE LIVE VAHDAM CATALOG (use EXACT names and prices verbatim — do NOT invent SKUs or prices):\n${productsBlock}`
-        : `PRODUCTS: (none provided — infer 2-3 best-fit VAHDAM products for this market + campaign type, with realistic prices in the market currency)`,
+        : `PRODUCTS: (none provided). Do NOT invent specific product names, prices, or URLs. Refer to VAHDAM offerings at CATEGORY level only (for example "our single-estate Darjeeling", "an ashwagandha coffee", "a turmeric herbal tea") — no fabricated SKU names, no made-up prices, no product links.`,
       ``,
       `THIS GENERATION'S CREATIVE ANGLE: ${angle}.`,
       `CREATIVITY SEED: ${creativitySeed} — use this to deliberately diverge from any previous brief you've drafted for VAHDAM. Different headline phrasing, different hero pick when sensible, different subject-line angles, different opening sentence.`,
