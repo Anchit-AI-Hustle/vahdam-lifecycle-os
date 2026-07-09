@@ -639,15 +639,18 @@
       ? BRAND[k]
       : `<svg class="lnav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[k] || ''}</svg>`;
 
-    // Standing IA rule (CLAUDE.md "LHS navigation IA rule"): every feature
-    // item expands into the same 5 sub-items, in a fixed order. Sanctioned
-    // rendering (2026-07-04) is an ACCORDION: every sub-item list starts
-    // COLLAPSED except the one for the current page, and opening one closes
-    // any other — max one open at a time. Order and presence are unchanged.
-    // The `?` chip toggles a list; each sub-item opens the shared info panel.
+    // Standing IA rule (CLAUDE.md "LHS navigation IA rule"): the five common
+    // "know about this feature" questions (What does it do? / Who is it for? /
+    // How does it work? / Input / Step-by-Step Working) are the SAME for every
+    // feature, so they no longer clutter the rail. Sanctioned rendering
+    // (2026-07-09): a quiet `?` chip sits next to each feature/group label and
+    // opens a POPUP that presents all five questions as headings with their
+    // content. The rail itself now shows only the real feature links and their
+    // group sub-sections. Order and presence of the five questions are
+    // unchanged; they just live in the modal instead of an inline accordion.
 
-    // The info key that auto-expands: the current item's own INFO entry, else
-    // the gid of the group that contains the current leaf.
+    // The info key highlighted as "current": the current item's own INFO entry,
+    // else the gid of the group that contains the current leaf.
     let activeInfoKey = null;
     if (INFO[cur]) activeInfoKey = cur;
     else {
@@ -656,14 +659,7 @@
       }
     }
     const infoBtn = (key, label) => INFO[key]
-      ? `<button type="button" class="lnav-i${key === activeInfoKey ? ' on' : ''}" data-itoggle="${key}" title="About: ${label}" aria-label="About ${label}" aria-expanded="${key === activeInfoKey ? 'true' : 'false'}">?</button>`
-      : '';
-    const infoList = (key) => INFO[key]
-      ? `<div class="lnav-info${key === activeInfoKey ? ' open' : ''}" data-ikey="${key}">` +
-          SUBQ.map(([sub, label], i) =>
-            `<button type="button" class="lnav-info-item" data-info="${key}" data-sub="${sub}"><span class="lnav-info-n">${i + 1}</span>${label}</button>`
-          ).join('') +
-        `</div>`
+      ? `<button type="button" class="lnav-i${key === activeInfoKey ? ' on' : ''}" data-itoggle="${key}" title="Know about: ${label}" aria-label="Know about ${label}" aria-haspopup="dialog">?</button>`
       : '';
 
     // V1/V2 taxonomy badge — see CLAUDE.md "Version taxonomy (V1 vs V2)".
@@ -686,7 +682,7 @@
       const a = `<a class="lnav-link${isCur ? ' active' : ''}" href="${item.href}" data-id="${item.id}" title="${item.label}">
         ${svg(item.icon)}<span class="lnav-txt">${item.label}</span>${verChip(item)}</a>`;
       if (!INFO[item.id]) return a;
-      return `<div class="lnav-item">${a}${infoBtn(item.id, item.label)}</div>${infoList(item.id)}`;
+      return `<div class="lnav-item">${a}${infoBtn(item.id, item.label)}</div>`;
     };
     // Double-layer nav: Tier-1 = top-level features (flat items + group headers),
     // Tier-2 = each feature's sub-sections. Groups start COLLAPSED — only the
@@ -698,7 +694,6 @@
       const groupActive = n.children.some((c) => c.id === cur);
       return `<div class="lnav-group${groupActive ? ' open active-group' : ''}">
         <div class="lnav-item"><button class="lnav-ghead" type="button" title="${n.group}">${svg(n.icon)}<span class="lnav-txt">${n.group}</span>${verChip(n)}<svg class="lnav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>${n.gid ? infoBtn(n.gid, n.group) : ''}</div>
-        ${n.gid ? infoList(n.gid) : ''}
         <div class="lnav-gbody">${n.children.map(linkRow).join('')}</div>
       </div>`;
     }).join('');
@@ -943,6 +938,12 @@
           font-size: 13px; line-height: 1.65; color: #cdd8d2;
         }
         #lifecycle-nav .lnav-ipanel-body p { margin: 0 0 10px; }
+        #lifecycle-nav .lnav-ipanel-q {
+          font-family: 'Lora', Georgia, serif; font-size: 14.5px; font-weight: 600;
+          color: #FBF5EA; margin: 18px 0 6px; padding-top: 12px;
+          border-top: 1px solid rgba(171,135,67,0.16);
+        }
+        #lifecycle-nav .lnav-ipanel-q:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
         #lifecycle-nav .lnav-ipanel-note {
           font-size: 11.5px; color: #AB8743; background: rgba(171,135,67,0.08);
           border: 1px solid rgba(171,135,67,0.2); border-radius: 8px;
@@ -1062,79 +1063,62 @@
       });
     });
 
-    // ── Feature IA: "?" toggles the 5 fixed sub-items; a sub-item opens the
-    //    shared info panel. Everything lives inside #lifecycle-nav so page CSS
-    //    cannot collide, and it works signed-in or signed-out.
+    // ── Feature IA: the "?" chip opens a "know about this feature" popup that
+    //    lays out all five common questions as headings with their content.
+    //    Everything lives inside #lifecycle-nav so page CSS cannot collide, and
+    //    it works signed-in or signed-out. Content is written via textContent
+    //    so it never needs HTML-escaping.
     const ipanel = wrap.querySelector('#lnav-ipanel');
     const ipanelBody = wrap.querySelector('#lnav-ipanel-body');
     const ipanelTitle = wrap.querySelector('#lnav-ipanel-title');
     const ipanelEyebrow = wrap.querySelector('#lnav-ipanel-eyebrow');
     const closeIpanel = () => wrap.classList.remove('ipanel-open');
-    const openIpanel = (key, sub) => {
+    const openInfoModal = (key) => {
       const f = INFO[key];
       if (!f || !ipanel) return;
-      const q = SUBQ.find((s) => s[0] === sub);
       ipanelEyebrow.textContent = f.title;
-      ipanelTitle.textContent = q ? q[1] : '';
-      let html = '';
-      if (sub === 'steps') {
-        if (f.pipeline) {
-          html += '<p class="lnav-ipanel-note">Multi-agent pipeline — every step runs as its own specialist agent: maximum creativity, maximum ideation, maximum business-strategic thinking before anything ships.</p>';
+      ipanelTitle.textContent = 'Know about this feature';
+      ipanelBody.innerHTML = '';
+      SUBQ.forEach(([sub, label]) => {
+        const h = document.createElement('h4');
+        h.className = 'lnav-ipanel-q';
+        h.textContent = label;
+        ipanelBody.appendChild(h);
+        if (sub === 'steps') {
+          if (f.pipeline) {
+            const note = document.createElement('p');
+            note.className = 'lnav-ipanel-note';
+            note.textContent = 'Multi-agent pipeline: every step runs as its own specialist agent, maximum creativity, ideation and business-strategic thinking before anything ships.';
+            ipanelBody.appendChild(note);
+          }
+          const ol = document.createElement('ol');
+          ol.className = 'lnav-steps';
+          (f.steps || []).forEach((st) => {
+            const li = document.createElement('li');
+            const b = document.createElement('b'); b.textContent = st[0]; li.appendChild(b);
+            const d = document.createElement('span'); d.className = 'lnav-step-d'; d.textContent = st[1]; li.appendChild(d);
+            if (st[2]) { const via = document.createElement('span'); via.className = 'lnav-step-via'; via.textContent = 'Runs via: ' + st[2]; li.appendChild(via); }
+            ol.appendChild(li);
+          });
+          ipanelBody.appendChild(ol);
+        } else {
+          const p = document.createElement('p');
+          p.textContent = f[sub] || '';
+          ipanelBody.appendChild(p);
         }
-        html += '<ol class="lnav-steps">' + (f.steps || []).map((st) =>
-          '<li><b></b><span class="lnav-step-d"></span>' + (st[2] ? '<span class="lnav-step-via"></span>' : '') + '</li>'
-        ).join('') + '</ol>';
-        ipanelBody.innerHTML = html;
-        // Fill step text via textContent so content never needs HTML-escaping.
-        const lis = ipanelBody.querySelectorAll('.lnav-steps li');
-        (f.steps || []).forEach((st, i) => {
-          const li = lis[i];
-          if (!li) return;
-          li.querySelector('b').textContent = st[0];
-          li.querySelector('.lnav-step-d').textContent = st[1];
-          const via = li.querySelector('.lnav-step-via');
-          if (via) via.textContent = 'Runs via: ' + st[2];
-        });
-      } else {
-        ipanelBody.innerHTML = '<p></p>';
-        ipanelBody.querySelector('p').textContent = f[sub] || '';
-      }
+      });
+      ipanelBody.scrollTop = 0;
       wrap.classList.add('ipanel-open');
-    };
-    // True accordion: at most ONE sub-item list is open at a time. Opening a
-    // feature's 5 sub-items closes whichever other list was open.
-    const setInfoOpen = (key, on) => {
-      const list = wrap.querySelector('.lnav-info[data-ikey="' + key + '"]');
-      const btn = wrap.querySelector('.lnav-i[data-itoggle="' + key + '"]');
-      if (list) list.classList.toggle('open', on);
-      if (btn) {
-        btn.classList.toggle('on', on);
-        btn.setAttribute('aria-expanded', on ? 'true' : 'false');
-      }
     };
     wrap.querySelectorAll('.lnav-i').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
-        const key = btn.dataset.itoggle;
-        const list = wrap.querySelector('.lnav-info[data-ikey="' + key + '"]');
-        if (!list) return;
-        const opening = !list.classList.contains('open');
-        if (opening) {
-          wrap.querySelectorAll('.lnav-info.open').forEach((other) => {
-            if (other !== list) setInfoOpen(other.dataset.ikey, false);
-          });
-        }
-        setInfoOpen(key, opening);
-      });
-    });
-    wrap.querySelectorAll('.lnav-info-item').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        openIpanel(btn.dataset.info, btn.dataset.sub);
+        openInfoModal(btn.dataset.itoggle);
       });
     });
     wrap.querySelector('#lnav-ipanel-close')?.addEventListener('click', closeIpanel);
     wrap.querySelector('#lnav-ipanel-backdrop')?.addEventListener('click', closeIpanel);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeIpanel(); });
 
     // Re-apply active state when the URL hash changes (e.g. user clicks
     // sub-tabs on ad-campaigns.html that just flip the hash). No re-render
