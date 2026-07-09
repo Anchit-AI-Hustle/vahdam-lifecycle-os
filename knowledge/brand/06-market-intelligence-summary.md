@@ -38,7 +38,7 @@ Read: the UK ships more orders than the US at a lower AOV, and its bestsellers a
 VAHDAM runs a dedicated inbound competitor-mailer capture pipeline, separate from this repo's competitor router:
 
 - **Project:** `vahdam_dtc_data_engine`
-- **Live:** https://vahdam-dtc-data-engine.vercel.app/
+- **In-app route:** /data-engine (native, part of the Lifecycle OS)
 - **Repo:** https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine
 
 ### How it works
