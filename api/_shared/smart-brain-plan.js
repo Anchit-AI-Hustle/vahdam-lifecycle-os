@@ -29,6 +29,9 @@ const callLLM = require('./llm.js');
 const { parseJSON } = require('./llm.js');
 const { buildMasterPrompt, regionFacts } = require('./master-prompt.js');
 const SM = require('./scenario-model.js');
+// Guaranteed-online fallback: a real catalog product photo (Shopify CDN) so a
+// creative never ships an unrenderable data: URI when generation/upload fails.
+const catalogImage = require('./catalog-image.js');
 // Shared mailer renderer, the SAME one the Mailer Studio / Mailer Calendar use,
 // so Smart Brain mailers come out as the same two named types (2 Text + 2 Text
 // + Visual) at the same quality. Guarded: falls back to the local single mailer.
@@ -467,7 +470,7 @@ function emailVariants(entry, copy, creativeUrl) {
   if (!renderTextVariant) return null;
   const E = copy.email || {};
   const heroProduct = (entry.heroProduct && entry.heroProduct.title) || entry.theme || '';
-  const heroImg = creativeUrl || (entry.heroProduct && (entry.heroProduct.image || entry.heroProduct.image_url)) || emailPlaceholder(heroProduct, 536, 340);
+  const heroImg = creativeUrl || (entry.heroProduct && (entry.heroProduct.image || entry.heroProduct.image_url)) || catalogImage.imageFor(entry, entry.market) || emailPlaceholder(heroProduct, 536, 340);
   const S = {
     hero_headline: E.hero_headline || E.subject || heroProduct,
     hero_subline: E.subheadline || E.preheader || '',
@@ -492,8 +495,9 @@ function emailVariants(entry, copy, creativeUrl) {
 
 function emailHtml(entry, copy, creativeUrl) {
   const E = copy.email;
-  const heroImg = creativeUrl
-    ? `<img src="${creativeUrl}" alt="${String(E.hero_headline || entry.heroProduct?.title || 'VAHDAM').replace(/"/g, '')}" style="width:100%;display:block;max-height:440px;object-fit:cover"/>`
+  const img = creativeUrl || catalogImage.imageFor(entry, entry.market);
+  const heroImg = img
+    ? `<img src="${img}" alt="${String(E.hero_headline || entry.heroProduct?.title || 'VAHDAM').replace(/"/g, '')}" style="width:100%;display:block;max-height:440px;object-fit:cover"/>`
     : '';
   return `<!doctype html><html><head><meta charset="utf-8"><title>${E.subject}</title></head>
 <body style="margin:0;background:#FBF5EA;color:#171717;font-family:${FONT_BODY}">
@@ -660,8 +664,18 @@ async function generateCreatives(copy, entry) {
     const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} hero creative — warm, premium, photoreal.`;
     const gen = await generateCreativeImage(b + hero, { size, mode }).catch(() => null);
     let image = gen?.image || null;
-    if (image) image = (await uploadCreative(image, `${entry.id || 'slot'}-${key}`).catch(() => null)) || image;
-    out[key] = { brief: b, image, provider: gen?.provider || null };
+    // HOST-ALL-ASSETS: never let a data: URI reach a persisted/emailed asset
+    // (email clients strip them). Upload the generated image to Supabase Storage
+    // and use the hosted URL; if that fails (or nothing was generated), fall back
+    // to the real catalog product photo (Shopify CDN, always online). Drop the
+    // image only if even that is unavailable.
+    if (image && /^data:/i.test(image)) {
+      const hosted = await uploadCreative(image, `${entry.id || 'slot'}-${key}`).catch(() => null);
+      image = hosted || catalogImage.imageFor(entry, entry.market) || null;
+    } else if (!image) {
+      image = catalogImage.imageFor(entry, entry.market) || null;
+    }
+    out[key] = { brief: b, image, provider: gen?.provider || (image ? 'catalog-fallback' : null) };
   }));
   return out;
 }
