@@ -328,6 +328,46 @@
     landing: { name: 'Landing Pages',icon: '▦', dest: '/landing-pages.html',     destLabel: 'Open Landing Pages' },
   };
 
+  // ── Live VAHDAM ad libraries — the SAME deep-link picking Competitor
+  //    Benchmarking uses (adSources), with the brand pinned to VAHDAM. Meta is
+  //    searched by advertiser name, Google by VAHDAM's verified per-region
+  //    domain, TikTok by advertiser name + region. Per-region VAHDAM domains:
+  //    US vahdam.com · UK vahdam.co.uk · Global vahdam.global · IN vahdam.in.
+  const VAHDAM_DOMAINS = { US: 'vahdam.com', UK: 'vahdam.co.uk', Global: 'vahdam.global', IN: 'vahdam.in' };
+  const REGION_LABELS = { US: 'United States', UK: 'United Kingdom', Global: 'Global', IN: 'India' };
+  // Meta/TikTok expect ISO country codes; UK => GB, Global => worldwide.
+  const AD_COUNTRY = { US: 'US', UK: 'GB', IN: 'IN' };
+  const TT_SUPPORTED = ['GB','DE','FR','IT','ES','NL','IE','SE','DK','FI','NO','PL','AT','BE','PT','GR','CZ','RO','HU','CH'];
+  const AD_TABS = ['meta', 'google', 'tiktok'];
+  const VAHDAM_AD_NOTE = {
+    meta:   'Live <b>VAHDAM Meta (Facebook + Instagram)</b> ads via the free <b>Meta Ad Library</b>, searched by advertiser name. Open any region tile pre-filtered.',
+    google: "Live <b>VAHDAM Google</b> ads (Search, Display, YouTube) via the free <b>Google Ads Transparency Center</b>, matched by VAHDAM's verified per-region domain.",
+    tiktok: 'Live <b>VAHDAM TikTok</b> ads via the free <b>TikTok Commercial Content Library</b>, searched by advertiser name and region (library covers EEA/UK).',
+  };
+  // Returns [meta, google, tiktok] deep-link entries for VAHDAM in one region,
+  // built exactly like competitor-benchmarking.html adSources().
+  function vahdamAdSources(region) {
+    const name = 'Vahdam';
+    const domain = VAHDAM_DOMAINS[region] || 'vahdam.com';
+    const country = AD_COUNTRY[region] || 'ALL'; // Global / All => ALL
+    const metaParams = new URLSearchParams({ active_status: 'all', ad_type: 'all', country, q: name, search_type: 'keyword_unordered', media_type: 'all' });
+    const metaUrl = 'https://www.facebook.com/ads/library/?' + metaParams;
+    const googleParams = new URLSearchParams({ region: AD_COUNTRY[region] || 'anywhere' });
+    googleParams.set('domain', domain);
+    const googleUrl = 'https://adstransparency.google.com/?' + googleParams;
+    const ttEnd = Date.now();
+    const ttStart = ttEnd - 1000 * 60 * 60 * 24 * 365 * 2;
+    const ttRegion = TT_SUPPORTED.includes(country) ? country : 'all';
+    const tiktokUrl = 'https://library.tiktok.com/ads?region=' + ttRegion +
+      '&start_time=' + ttStart + '&end_time=' + ttEnd +
+      '&sort_type=last_shown_date,desc&adv_name=' + encodeURIComponent(name) + '&adv_biz_ids=&query_type=1';
+    return [
+      { label: 'Meta Ad Library', url: metaUrl, hint: 'name: ' + name + ' · ' + (country === 'ALL' ? 'worldwide' : country) },
+      { label: 'Google Ads Transparency', url: googleUrl, hint: 'domain: ' + domain },
+      { label: 'TikTok Content Library', url: tiktokUrl, hint: 'name: ' + name + ' · ' + (ttRegion === 'all' ? 'worldwide (library covers EEA/UK only)' : ttRegion) },
+    ];
+  }
+
   async function render(){
     setActive();
     loadBucketFiles();            // refresh "in this bucket" list in the add-bar
@@ -359,6 +399,24 @@
       const items = await fetchTopEmails();
       const filtered = state.region ? items.filter(x => x.market === state.region) : items;
       renderTopEmails(p, filtered);
+      return;
+    }
+
+    // ── VAHDAM → Meta / Google / TikTok ads (live deep-link libraries) ─
+    // Picks VAHDAM's live ad data the same way Competitor Benchmarking picks
+    // competitor ads: a per-region deep link into each platform's free public
+    // ad library. One tile per region (or just the selected region).
+    if(state.src==='vahdam' && AD_TABS.includes(state.chan)){
+      const idx = AD_TABS.indexOf(state.chan);
+      const regions = state.region ? [state.region] : ['US','UK','Global','IN'];
+      const tiles = regions.map(rg=>{
+        const s = vahdamAdSources(rg)[idx];
+        return `<a class="bkb" href="${s.url}" target="_blank" rel="noopener">${meta.icon} VAHDAM ${esc(meta.name)} · ${esc(REGION_LABELS[rg]||rg)} ↗<span>${esc(s.hint)}</span></a>`;
+      }).join('');
+      p.innerHTML = `<p class="count">${VAHDAM_AD_NOTE[state.chan]}</p>`
+        + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px">${tiles}</div>`
+        + `<p style="font-size:12px;color:#5d6e64;margin-top:16px">Google and TikTok do not expose a free structured ad feed, so each tile opens the official free library pre-filtered for VAHDAM. Build new creatives in the ad generator, then archive them here via the add bar above.</p>`
+        + `<div style="margin-top:12px"><a class="kb-cta" href="${meta.dest}">${esc(meta.destLabel)} →</a></div>`;
       return;
     }
 
