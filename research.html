@@ -46,6 +46,8 @@
   table.grid th{background:var(--vahdam-green);color:var(--vahdam-cream);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;}
   table.grid tr:nth-child(even) td{background:#07100d;}
   #stratmatrix table.grid th:first-child,#stratmatrix table.grid td:first-child{width:160px;}
+  /* value columns: center the header over its centered tick so headers sit directly above their values */
+  #stratmatrix table.grid th:not(:first-child),#stratmatrix table.grid td:not(:first-child){text-align:center;}
   details.blueprint{background:#0f1d18;border:1px solid rgba(171,135,67,.35);border-radius:12px;overflow:hidden;}
   details.blueprint summary{cursor:pointer;padding:13px 16px;color:var(--vahdam-cream);font-weight:700;font-family:ui-monospace,'JetBrains Mono',monospace;font-size:13px;list-style:none;}
   details.blueprint summary::-webkit-details-marker{display:none;}
