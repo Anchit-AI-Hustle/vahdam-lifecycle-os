@@ -854,8 +854,13 @@
         }
         html.lnav-collapsed #lifecycle-nav .lnav-ver { display: none; }
         #lifecycle-nav .lnav-link:hover { color: #e8ede9; background: rgba(171,135,67,0.08); }
+        /* Current item = the STRONGEST, darkest highlight: solid forest-green fill
+           with cream text (cream #FBF5EA on green #004A2B is high-contrast and fully
+           legible) plus a bold gold left-accent. Applies to the active leaf AND the
+           active sub-item, so the selected sub-item reads darker than its parent. */
         #lifecycle-nav .lnav-link.active {
-          color: #FBF5EA; background: rgba(171,135,67,0.16); border-color: rgba(171,135,67,0.35);
+          color: #FBF5EA; background: #004A2B; border-color: rgba(171,135,67,0.55);
+          box-shadow: inset 3px 0 0 #AB8743; font-weight: 600;
         }
         #lifecycle-nav .lnav-link.active .lnav-ic { color: #AB8743; }
 
@@ -867,7 +872,10 @@
           font-family: inherit; font-size: 13px; color: #cdd8d2; text-align: left; border-radius: 9px;
         }
         #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #e8ede9; }
-        #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #FBF5EA; }
+        /* Parent of the active sub-item ALSO reads as selected, but LIGHTER than
+           the sub-item: a gold-tint fill + faint gold accent, so both show and the
+           sub-item stays the darker/stronger of the two. */
+        #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #FBF5EA; background: rgba(171,135,67,0.13); box-shadow: inset 3px 0 0 rgba(171,135,67,0.55); }
         #lifecycle-nav .lnav-group.active-group .lnav-ghead .lnav-ic { color: #AB8743; }
         #lifecycle-nav .lnav-caret { width: 15px; height: 15px; color: #5d6e64; transition: transform .18s; }
         #lifecycle-nav .lnav-group.open .lnav-caret { transform: rotate(180deg); }

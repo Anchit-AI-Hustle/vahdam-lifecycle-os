@@ -102,6 +102,7 @@ function buildBriefFromEntry(entry, fw) {
     `Hero product: ${entry.hero_product || entry.hero_sku}`,
     entry.festival ? `Cultural moment: ${entry.festival} (weight ${entry.festival_weight}/10)` : null,
     `Subject-line direction: ${entry.subject_hint}`,
+    (entry.feedback && String(entry.feedback).trim()) ? `\nREVIEWER FEEDBACK to incorporate on this regeneration (highest priority, override earlier guidance where it conflicts): ${String(entry.feedback).trim()}` : null,
     '',
     'Strategist guidance:',
     `- Stay strictly on VAHDAM brand voice: warm, sensory, story-driven. No "transform", no "wellness journey", no all-caps urgency.`,
