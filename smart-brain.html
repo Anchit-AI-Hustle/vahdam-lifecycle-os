@@ -322,7 +322,29 @@ async function loadPlan(){
     PLAN = data.entries || [];
     renderPlan();
     if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; approvals will generate assets but the calendar itself is not persisted.</p>';
-  }catch(e){ $('plan').innerHTML = `<tr><td colspan="8" style="color:#e89a9a">${esc(e.message)}</td></tr>`; }
+    return data;
+  }catch(e){ $('plan').innerHTML = `<tr><td colspan="8" style="color:#e89a9a">${esc(e.message)}</td></tr>`; return null; }
+}
+
+// Autogenerate on load: the calendar should be "already generated to just load".
+// On first open, if nothing is persisted yet OR no slot has its asset bundle
+// prebuilt, kick a daily sync (which persists the rolling plan AND auto-chains
+// the convergent prebuild queue that builds every slot's mailer + ads + landing
+// page). Subsequent loads then just render the prebuilt calendar. Runs once.
+async function autoGenerateOnLoad(){
+  const data = await loadPlan();
+  if(!data) return;
+  const entries = data.entries || [];
+  const anyPrebuilt = entries.some(e => e && e.__prebuilt && e.__prebuilt.campaign_id);
+  const needsGen = data.mode === 'db-linked' && (!data.stored || !entries.length || !anyPrebuilt);
+  if(!needsGen) return;
+  // Run once per browser session: if the persist/prebuild is still converging
+  // (or failing), reloads should not re-kick a fresh sync every time.
+  let already = false; try{ already = sessionStorage.getItem('sb.autogen') === '1'; }catch(_){}
+  if(already) return;
+  try{ sessionStorage.setItem('sb.autogen', '1'); }catch(_){}
+  $('changes').innerHTML = '<p><span class="spinner"></span> Generating the rolling calendar and pre-building every slot’s assets (mailer, ads, landing page) in the background. This runs once; reopen shortly and the calendar just loads.</p>';
+  await runSync();  // persists the plan + auto-kicks the prebuild queue
 }
 
 async function runSync(){
@@ -386,7 +408,7 @@ async function showSchema(){
 $('sync').addEventListener('click', runSync);
 $('refresh').addEventListener('click', loadPlan);
 $('schema').addEventListener('click', showSchema);
-loadPlan();
+autoGenerateOnLoad();
 </script>
 </body>
 </html>
