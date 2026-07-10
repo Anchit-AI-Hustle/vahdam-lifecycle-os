@@ -239,11 +239,11 @@
     { id:'revenue', title:'Total sales over time', sub:'Monthly', span:'span8',
       mini:function(m){ var s=m.monthly.map(function(x){return {x:x.month,y:x.sales,label:mLabel(x.month)};}); return lineChart(s,{money:true,h:180}); },
       detail:function(m){
-        var mm=m.monthly; var last=mm[mm.length-1], prev=mm[mm.length-2];
+        var mm=m.monthly; var fm=fullMonths(mm); var last=fm[fm.length-1], prev=fm[fm.length-2];
         var peak=mm.reduce(function(a,b){return b.sales>a.sales?b:a;},mm[0]);
         var rows=mm.map(function(x){return [mLabel(x.month), intf(x.orders), moneyFull(x.sales), moneyFull(x.aov)];});
         return {
-          insight:'<b>Peak month was '+mLabel(peak.month)+'</b> at '+moneyFull(peak.sales)+' ('+intf(peak.orders)+' orders). Latest month '+mLabel(last.month)+' did '+moneyFull(last.sales)+', '+delta(last.sales,prev.sales)+' vs the prior month. Revenue is seasonally front-loaded into the Nov–Dec gifting window; the growth job is lifting the Jan–Jul trough with subscription and replenishment programs.',
+          insight:'<b>Peak month was '+mLabel(peak.month)+'</b> at '+moneyFull(peak.sales)+' ('+intf(peak.orders)+' orders). Most recent complete month '+mLabel(last.month)+' did '+moneyFull(last.sales)+', '+delta(last.sales,prev.sales)+' vs the prior month (a trailing partial month is excluded from this comparison). Revenue is seasonally front-loaded into the Nov to Dec gifting window; the growth job is lifting the Jan to Jul trough with subscription and replenishment programs.',
           chart:lineChart(mm.map(function(x){return {x:x.month,y:x.sales,label:mLabel(x.month)};}),{money:true,w:820,h:280}),
           table:table(['Month','Orders','Total sales','AOV'], rows, {num:[1,2,3]}),
           csv:'us_monthly_order_revenue_trend'
@@ -252,14 +252,14 @@
     { id:'kpi-orders', title:'Orders over time', sub:'Monthly volume', span:'span4',
       mini:function(m){ return barChartVertical(m.monthly.map(function(x){return {label:mLabel(x.month),v:x.orders};}),{h:180}); },
       detail:function(m){ var mm=m.monthly; var rows=mm.map(function(x){return [mLabel(x.month),intf(x.orders),moneyFull(x.aov)];});
-        var last=mm[mm.length-1],prev=mm[mm.length-2];
-        return {insight:'<b>'+intf(m.summary.orders)+' orders</b> over the trailing window. Latest month '+delta(last.orders,prev.orders)+' MoM. Order volume, not AOV, is the primary revenue lever here.',
+        var fm=fullMonths(mm); var last=fm[fm.length-1],prev=fm[fm.length-2];
+        return {insight:'<b>'+intf(m.summary.orders)+' orders</b> over the trailing window. Most recent complete month '+delta(last.orders,prev.orders)+' MoM (a trailing partial month is excluded). Order volume, not AOV, is the primary revenue lever here.',
         chart:barChartVertical(mm.map(function(x){return {label:mLabel(x.month),v:x.orders};}),{w:820,h:280}), table:table(['Month','Orders','AOV'],rows,{num:[1,2]}), csv:'us_monthly_order_revenue_trend'}; } },
     { id:'aov', title:'Average order value', sub:'Monthly', span:'span6',
       mini:function(m){ return lineChart(m.aov_trend.map(function(x){return {x:x.month,y:x.aov,label:mLabel(x.month)};}),{money:true,h:170}); },
-      detail:function(m){ var t=m.aov_trend; var first=t[0],last=t[t.length-1];
+      detail:function(m){ var t=m.aov_trend; var ft=fullMonths(t); var first=ft[0],last=ft[ft.length-1];
         var rows=t.map(function(x){return [mLabel(x.month),moneyFull(x.aov),intf(x.orders),moneyFull(x.sales)];});
-        return {insight:'<b>AOV has compressed from '+moneyFull(first.aov)+' to '+moneyFull(last.aov)+'</b> across the window, '+delta(last.aov,first.aov)+'. Falling AOV alongside rising orders signals discount-led acquisition and smaller entry baskets. The fix: bundle logic, free-shipping thresholds set just above current AOV, and subscription anchors on Ashwagandha Coffee.',
+        return {insight:'<b>AOV has compressed from '+moneyFull(first.aov)+' to '+moneyFull(last.aov)+'</b> across the window of complete months, '+delta(last.aov,first.aov)+'. Falling AOV alongside rising orders signals discount-led acquisition and smaller entry baskets. The fix: bundle logic, free-shipping thresholds set just above current AOV, and subscription anchors on Ashwagandha Coffee.',
         chart:lineChart(t.map(function(x){return {x:x.month,y:x.aov,label:mLabel(x.month)};}),{money:true,w:820,h:280}), table:table(['Month','AOV','Orders','Total sales'],rows,{num:[1,2,3]}), csv:'us_aov_trend_by_month'}; } },
     { id:'channels', title:'Total sales by channel', sub:'Where revenue comes from', span:'span6',
       mini:function(m){ var top=m.channels.slice(0,5).map(function(x){return {label:x.channel,v:x.sales,disp:money(x.sales)};}); return donut(top,{s:150})+legend(top); },
