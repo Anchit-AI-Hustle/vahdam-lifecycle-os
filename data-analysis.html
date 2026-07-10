@@ -112,6 +112,33 @@
   var MKT = (new URLSearchParams(location.search).get('mkt') || 'US').toUpperCase();
   if(!A.markets[MKT]) MKT = 'US';
 
+  // Normalise each market so a widget only appears when its data actually
+  // exists (some markets export fewer datasets than others — e.g. UK ships
+  // fewer CSVs than US). aov_trend is derivable from the monthly series
+  // (monthly rows already carry aov), so fill it when the export omits it.
+  Object.keys(A.markets).forEach(function(mk){
+    var m = A.markets[mk];
+    if(!m) return;
+    if((!m.aov_trend || !m.aov_trend.length) && m.monthly && m.monthly.length){
+      m.aov_trend = m.monthly.map(function(x){ return { month:x.month, aov:x.aov, orders:x.orders, sales:x.sales }; });
+    }
+  });
+  // Which dataset(s) each widget needs; a widget is shown only when the current
+  // market actually has that data (non-empty), so no empty/broken tiles appear.
+  var WIDGET_REQ = {
+    revenue:['monthly'], 'kpi-orders':['monthly'], aov:['aov_trend'], channels:['channels'],
+    ptype:['product_types'], discount:['discount'], dow:['day_of_week'], newret:['new_vs_returning'],
+    retrate:['returning_rate'], acq:['acquisition'], cohort:['cohort'], topprod:['top_products'],
+    topqty:['top_by_qty'], weekly:['weekly'], country:['shipping_country']
+  };
+  function nonEmpty(v){ return Array.isArray(v) ? v.length>0 : (v && typeof v==='object' ? Object.keys(v).length>0 : !!v); }
+  function widgetAvailable(w, m){
+    if(w.usOnly && MKT!=='US') return false;
+    if(w.ukOnly && MKT!=='UK') return false;
+    var req = WIDGET_REQ[w.id]; if(!req) return true;
+    return req.every(function(k){ return m && nonEmpty(m[k]); });
+  }
+
   // ── formatting ──────────────────────────────────────────────────────────
   var CUR = {US:'$', UK:'£'};
   function cur(){ return CUR[MKT] || '$'; }
@@ -340,7 +367,7 @@
   // ── grid of widget cards ─────────────────────────────────────────────────
   function renderGrid(){
     var m=d();
-    var html=WIDGETS.filter(function(w){ if(w.usOnly&&MKT!=='US')return false; if(w.ukOnly&&MKT!=='UK')return false; return true; }).map(function(w){
+    var html=WIDGETS.filter(function(w){ return widgetAvailable(w, m); }).map(function(w){
       var body='';
       try{ body=w.mini(m)||''; }catch(e){ body='<div class="empty">—</div>'; }
       return '<div class="w '+(w.span||'span6')+' link" data-wid="'+w.id+'">'+
