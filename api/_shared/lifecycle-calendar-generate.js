@@ -27,6 +27,7 @@ const fs = require('fs');
 const path = require('path');
 const { COHORTS, PLAYS, purchaseModeForProductType } = require('./lifecycle-cohorts.js');
 const { buildEntryAnalysis, explainConfidence } = require('./output-reasoning.js');
+const catalogImage = require('./catalog-image.js');
 
 // ─── Date + festival helpers (duplicated from calendar-generate.js on purpose:
 //     that module stays untouched; these are tiny and stable) ─────────────────
@@ -335,7 +336,7 @@ async function generateLifecycleCalendar(input = {}) {
         hero_handle: hero.hero_handle,
         hero_product: hero.hero_product,
         hero_price: hero.hero_price,
-        hero_image: hero.hero_image || null,
+        hero_image: hero.hero_image || catalogImage.imageFor(hero.hero_handle, market) || null,
         handle_verified: hero.handle_verified === true,
         subject_hint: buildSubjectHint({ playKey: play.key, hero, festival, cohortKey }),
         festival: festival ? festival.name : null,

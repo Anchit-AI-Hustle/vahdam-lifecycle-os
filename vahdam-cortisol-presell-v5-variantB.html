@@ -348,6 +348,15 @@ section{padding:78px 0!important;}
 @media(min-width:1180px){.weekrail-progress{display:block}}
 @media(max-width:620px){.week-card{flex-basis:250px;width:250px}.weekrail{gap:14px}}
 
+
+/* vh-table-align: data-table column alignment — header cells sit over their
+   columns (table-layout:fixed, equal width), the first column (row labels) is
+   left-aligned and every other column is centered. Scoped to tables that have
+   <th> so layout tables are never affected; element-level so a page's own
+   table.<class> alignment still wins. */
+table:has(th){table-layout:fixed;width:100%;border-collapse:collapse;}
+table:has(th) th,table:has(th) td{box-sizing:border-box;vertical-align:top;overflow-wrap:break-word;text-align:center;}
+table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
 </style></head>
 <body class="dark-theme">
 <header class="header"><div class="container header-row"><div class="header-left">4 Ingredients · Just 2 Cups A Day · Zero BS</div><div class="logo"><b>VAHDAM</b><span>Feel Alive</span></div><div class="header-buy"><img alt="" src="https://www.vahdam.co.uk/cdn/shop/files/square.jpg?v=1756794427&amp;width=1000"/><div class="txt">Save 65% · £29 / £83<small>Subscribe &amp; Save · £49 Gifts</small></div><a href="#product-1">Add To Cart</a></div></div></header>

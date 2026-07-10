@@ -102,6 +102,7 @@ function buildBriefFromEntry(entry, fw) {
     `Hero product: ${entry.hero_product || entry.hero_sku}`,
     entry.festival ? `Cultural moment: ${entry.festival} (weight ${entry.festival_weight}/10)` : null,
     `Subject-line direction: ${entry.subject_hint}`,
+    (entry.feedback && String(entry.feedback).trim()) ? `\nREVIEWER FEEDBACK to incorporate on this regeneration (highest priority, override earlier guidance where it conflicts): ${String(entry.feedback).trim()}` : null,
     '',
     'Strategist guidance:',
     `- Stay strictly on VAHDAM brand voice: warm, sensory, story-driven. No "transform", no "wellness journey", no all-caps urgency.`,
@@ -113,6 +114,28 @@ function buildBriefFromEntry(entry, fw) {
   ].filter(Boolean).join('\n');
 
   return parts;
+}
+
+// Derive on-brand copy from a calendar entry when the LLM strategy stage cannot
+// return parseable JSON. Keeps the mailer build alive instead of 503-ing.
+function heuristicStrategy(entry, market, framework) {
+  const hero = entry.hero_product || entry.hero_sku || 'our single-estate edit';
+  const seg = entry.segment || 'you';
+  const type = String(entry.content_type || '').toLowerCase();
+  const subjectHint = entry.subject_hint || '';
+  const subject = (subjectHint || `A quieter morning with ${hero}`).toString().slice(0, 60);
+  const preview = (`Single-estate, hand-picked, and steeped for the ${seg} ritual.`).slice(0, 90);
+  const headline = (subjectHint ? subjectHint.split(/[.!?]/)[0] : `The ${hero} ritual`).toString().split(/\s+/).slice(0, 8).join(' ');
+  const subline = `Origin-first tea, crafted to restore balance to your day.`;
+  const ctaText = type === 'promo' ? 'Shop the edit'
+    : type === 'launch' ? 'Discover it'
+    : type === 'winback' ? 'Come back' : 'Steep now';
+  const body_blocks = [
+    { heading: 'Where it begins', body: `Every leaf in ${hero} is hand-picked at origin and shipped garden-fresh, so what reaches your cup is the way it was meant to taste.` },
+    { heading: 'Made for your ritual', body: `Whether it opens your morning or closes your evening, this is tea built to be returned to, one unhurried cup at a time.` },
+    { heading: 'Why it matters', body: `Single-estate sourcing, heritage craft, and a story you can trace back to the hillside it grew on.` },
+  ];
+  return { subject_line: subject, preview_text: preview, hero_headline: headline, hero_subline: subline, body_blocks, cta_text: ctaText };
 }
 
 function segmentVoiceGuide(segment, contentType) {
@@ -182,13 +205,19 @@ module.exports = async function handler(req, res) {
     });
     return (llm.parseJSON ? llm.parseJSON(out.text) : JSON.parse(out.text));
   }, 'strategy');
-  runs.push({ stage: 'strategy', ok: strategy.ok, error: strategy.ok ? null : strategy.error });
 
-  if (!strategy.ok) {
-    return res.status(503).json({ ok: false, message: 'Strategy stage failed', runs });
+  // Graceful fallback: a parse/provider failure on the copy JSON must NOT dead-end
+  // the whole mailer build. Derive on-brand copy from the calendar entry itself so
+  // the mailer still renders (mirrors the heuristic fallback in ai/pipeline/strategy.js).
+  let S, strategyHeuristic = false;
+  if (strategy.ok && strategy.data && strategy.data.subject_line) {
+    S = strategy.data;
+    runs.push({ stage: 'strategy', ok: true, error: null });
+  } else {
+    strategyHeuristic = true;
+    S = heuristicStrategy(entry, market, framework);
+    runs.push({ stage: 'strategy', ok: true, error: null, heuristic: true, llm_error: strategy.ok ? 'empty_or_invalid_copy_json' : strategy.error });
   }
-
-  const S = strategy.data;
 
   // Brand scrub — every LLM copy string passes sanitizeBrand (CLAUDE.md banned
   // phrases → preferred lexicon) before it reaches a rendered mailer. Failure
@@ -315,6 +344,31 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ── Expose the 4-variant grid the calendar modal + Studio handoff expect ──
+  // Type A (image-led) and Type B (text-led), two each. B1/B2 reuse the built
+  // text mailers so they render as full HTML previews; A1/A2 are image-led
+  // variants carrying an editorial hero brief (and the generated hero image when
+  // available) so every tab loads real content instead of "Variant unavailable".
+  const heroBriefBase = variants.V2.hero_image_brief;
+  variants.A1 = {
+    kind: 'image', type: 'A1', label: 'A1 · Image · Hero close-up',
+    cta_url: ctaUrl, preview_text: S.preview_text,
+    hero_image_url: variants.V2.hero_image_url || null,
+    hero_image_provider: variants.V2.hero_image_provider || null,
+    hero_image_brief: `${heroBriefBase} Composition: tight hero close-up of ${entry.hero_product || entry.hero_sku} on a cream linen surface, shallow depth of field, warm morning light.`,
+    master_prompt: variants.V2.master_prompt,
+  };
+  variants.A2 = {
+    kind: 'image', type: 'A2', label: 'A2 · Image · Lifestyle wide',
+    cta_url: ctaUrl, preview_text: S.preview_text,
+    hero_image_url: variants.V2.hero_image_url || null,
+    hero_image_provider: variants.V2.hero_image_provider || null,
+    hero_image_brief: `${heroBriefBase} Composition: wide lifestyle scene, the cup in a real ritual moment (kitchen window or single-estate hillside table), generous negative space, atmospheric dusk light.`,
+    master_prompt: variants.V2.master_prompt,
+  };
+  variants.B1 = { ...variants.V2, kind: 'text', type: 'B1', label: 'B1 · Text + Visual' };
+  variants.B2 = { ...variants.V1, kind: 'text', type: 'B2', label: 'B2 · Complete Text' };
+
   return res.status(200).json({
     ok: true,
     entry,
@@ -324,6 +378,7 @@ module.exports = async function handler(req, res) {
     cta_url: ctaUrl,
     variants,
     runs,
+    ...(strategyHeuristic ? { strategy_heuristic: true } : {}),
   });
 };
 

@@ -29,11 +29,20 @@ const callLLM = require('./llm.js');
 const { parseJSON } = require('./llm.js');
 const { buildMasterPrompt, regionFacts } = require('./master-prompt.js');
 const SM = require('./scenario-model.js');
+// Guaranteed-online fallback: a real catalog product photo (Shopify CDN) so a
+// creative never ships an unrenderable data: URI when generation/upload fails.
+const catalogImage = require('./catalog-image.js');
 // Shared mailer renderer, the SAME one the Mailer Studio / Mailer Calendar use,
 // so Smart Brain mailers come out as the same two named types (2 Text + 2 Text
 // + Visual) at the same quality. Guarded: falls back to the local single mailer.
 let renderTextVariant = null;
 try { renderTextVariant = require('./calendar-trigger.js').helpers.renderTextVariant; } catch (_) { renderTextVariant = null; }
+// Copywriting framework library — the SAME one the Mailer Calendar uses. Two
+// diverging frameworks (A + B) drive two genuinely DIFFERENT copy directions per
+// slot, so the four mailer variants, the A/B ads and the A/B landing pages read
+// distinctly instead of being one copy in two skins. Unifies the variant styles
+// across Smart Brain, Mailer Calendar and Plan Calendar.
+const CF = require('./copy-frameworks.js');
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function nowIso() { return new Date().toISOString(); }
@@ -323,22 +332,25 @@ Voice: warm, sensory, emotionally resonant, story-driven. Prefer: ritual, restor
 NEVER use: "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" in caps, "hurry", "don't miss out", "last chance", "while supplies last".
 Return STRICT JSON only, no markdown fences.`;
 
-function copyPrompt(entry) {
+function copyPrompt(entry, fw = null) {
   const hooks = (entry.competitorContext || []).flatMap((c) => (c.trendingHooks || []).map((h) => h.hook)).slice(0, 5);
+  const fwLine = fw
+    ? `\nCOPY FRAMEWORK: structure the copy with the ${fw.name} framework (${fw.full || fw.name}); the opening beat lands in the subject + hero_headline, the middle beats across intro_paragraph and body_paragraph in order, and the final beat on the cta. Do NOT name the framework in the copy, let the structure do the work.`
+    : '';
   return `Write campaign copy for this planned slot. Context:
 - Market: ${entry.market} | Cohort: ${entry.cohort?.name} | Objective: ${entry.objective}
 - Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})
 - ${entry.festival ? `Seasonal moment: ${entry.festival.name}` : 'No festival; evergreen angle.'}
 - Rationale: ${entry.rationale || ''}
-- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
+- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}${fwLine}
 
-Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules:
-- email / LP heroes: NO text/logos/UI baked into the image (text lives in the page layout) — just scene, props, light, mood; aspirational hero.
-- AD creatives (meta / google / tiktok): the headline + offer text MUST be BAKED INTO the creative (state the exact overlay wording, on-palette colour, and placement) — like a real paid ad. Sell the HAPPINESS end-state for P01 (women 45+/busy mums: calmer mornings, steady energy, "feeling like myself again"), NOT ingredients; open on a 1-second scroll-stop; meta = scroll-stopping square, google = clean landscape, tiktok = vertical native hand-held.
+Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules (ALL creatives are TEXT-FREE photographs — never describe overlaid words, headlines, prices, logos or UI in the image_brief; diffusion models cannot spell and render garbled fake letterforms, and the real ad copy is rendered natively by the platform, not painted into the pixels):
+- email / LP heroes: just scene, props, light, mood; aspirational hero.
+- AD creatives (meta / google / tiktok): a scroll-stopping TEXT-FREE photograph that sells the HAPPINESS end-state for P01 (women 45+/busy mums: calmer mornings, steady energy, "feeling like myself again"), NOT ingredients; open on a 1-second scroll-stop. Compose for the placement: meta = square, google = clean landscape, tiktok = vertical native hand-held. State only the scene, subject, light and mood - no words in the frame.
 
 Return JSON with exactly this shape:
 {
- "email": { "subject": "", "preheader": "", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "cta": "", "image_brief": "" },
+ "email": { "subject": "", "subject_alt1": "", "subject_alt2": "", "preheader": "", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "cta": "", "image_brief": "" },
  "landing": { "hero_headline": "", "hero_sub": "", "why_title": "", "why_bullets": ["","",""], "proof_quote": "", "proof_author": "", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
  "ads": {
    "meta": { "primary_text": "", "headline": "", "description": "", "image_brief": "" },
@@ -463,37 +475,54 @@ function emailPlaceholder(label, w, h) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="#FBF5EA"/><rect x="10" y="10" width="${w - 20}" height="${h - 20}" fill="none" stroke="#AB8743" stroke-width="2" stroke-dasharray="9 7"/><text x="50%" y="45%" text-anchor="middle" fill="#004A2B" font-family="Georgia,serif" font-size="21">${t}</text><text x="50%" y="59%" text-anchor="middle" fill="#AB8743" font-family="Arial,sans-serif" font-size="13">Drop your image URL here · ${w} x ${h}</text></svg>`;
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
-function emailVariants(entry, copy, creativeUrl) {
-  if (!renderTextVariant) return null;
+function variantMeta(copy) {
+  const E = copy.email || {};
+  return {
+    subject_line: E.subject || '',
+    subject_alts: [E.subject_alt1, E.subject_alt2].filter(Boolean),
+    preview_text: E.preheader || '',
+    hero_headline: E.hero_headline || E.subject || '',
+    hero_subline: E.subheadline || E.preheader || '',
+    cta_text: E.cta || 'Shop the edit',
+  };
+}
+function renderVariant(entry, copy, style, img) {
   const E = copy.email || {};
   const heroProduct = (entry.heroProduct && entry.heroProduct.title) || entry.theme || '';
-  const heroImg = creativeUrl || (entry.heroProduct && (entry.heroProduct.image || entry.heroProduct.image_url)) || emailPlaceholder(heroProduct, 536, 340);
-  const S = {
+  return renderTextVariant({
+    style, subject: E.subject, preheader: E.preheader,
     hero_headline: E.hero_headline || E.subject || heroProduct,
     hero_subline: E.subheadline || E.preheader || '',
     body_blocks: [
       E.intro_paragraph ? { heading: '', body: E.intro_paragraph } : null,
       E.body_paragraph ? { heading: '', body: E.body_paragraph } : null,
     ].filter(Boolean),
-    cta_text: E.cta || 'Shop the edit',
-  };
-  const mk = (style, img) => renderTextVariant({
-    style, subject: E.subject, hero_headline: S.hero_headline, hero_subline: S.hero_subline,
-    body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: '{{landing_page_url}}',
+    cta_text: E.cta || 'Shop the edit', cta_url: '{{landing_page_url}}',
     market: entry.market, hero_product: heroProduct, hero_image_url: img || undefined,
   });
+}
+// Four variants in the SAME taxonomy as the Mailer Calendar: 2 Text + 2 Text +
+// Visual, each labelled by its copy framework, with copyA driving the A-slots and
+// copyB the B-slots so the two directions read genuinely differently.
+function emailVariants(entry, copyA, copyB, fwA, fwB, creativeUrl) {
+  if (!renderTextVariant) return null;
+  const heroProduct = (entry.heroProduct && entry.heroProduct.title) || entry.theme || '';
+  const heroImg = creativeUrl || catalogImage.imageFor(entry, entry.market) || emailPlaceholder(heroProduct, 536, 340);
+  const nA = (fwA && fwA.name) || 'Concise';
+  const nB = (fwB && fwB.name) || 'Editorial';
   return [
-    { key: 'text_a', type: 'Text', label: 'Text · Concise', html: mk('pure') },
-    { key: 'text_b', type: 'Text', label: 'Text · Editorial', html: mk('editorial') },
-    { key: 'visual_a', type: 'Text + Visual', label: 'Text + Visual · Hero', html: mk('visual', heroImg) },
-    { key: 'visual_b', type: 'Text + Visual', label: 'Text + Visual · Rich brand', html: emailHtml(entry, copy, creativeUrl) },
+    { key: 'text_a',   type: 'Text',          label: `Text · ${nA}`,          framework: fwA && fwA.key, ...variantMeta(copyA), html: renderVariant(entry, copyA, 'pure') },
+    { key: 'text_b',   type: 'Text',          label: `Text · ${nB}`,          framework: fwB && fwB.key, ...variantMeta(copyB), html: renderVariant(entry, copyB, 'editorial') },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${nA}`, framework: fwA && fwA.key, ...variantMeta(copyA), html: renderVariant(entry, copyA, 'visual', heroImg) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${nB}`, framework: fwB && fwB.key, ...variantMeta(copyB), html: renderVariant(entry, copyB, 'visual', heroImg) },
   ];
 }
 
 function emailHtml(entry, copy, creativeUrl) {
   const E = copy.email;
-  const heroImg = creativeUrl
-    ? `<img src="${creativeUrl}" alt="${String(E.hero_headline || entry.heroProduct?.title || 'VAHDAM').replace(/"/g, '')}" style="width:100%;display:block;max-height:440px;object-fit:cover"/>`
+  const img = creativeUrl || catalogImage.imageFor(entry, entry.market);
+  const heroImg = img
+    ? `<img src="${img}" alt="${String(E.hero_headline || entry.heroProduct?.title || 'VAHDAM').replace(/"/g, '')}" style="width:100%;display:block;max-height:440px;object-fit:cover"/>`
     : '';
   return `<!doctype html><html><head><meta charset="utf-8"><title>${E.subject}</title></head>
 <body style="margin:0;background:#FBF5EA;color:#171717;font-family:${FONT_BODY}">
@@ -513,10 +542,11 @@ function emailHtml(entry, copy, creativeUrl) {
 </body></html>`;
 }
 
-async function writeCopyWithLLM(entry) {
+async function writeCopyWithLLM(entry, fw = null) {
+  const sysLine = fw ? (() => { try { return '\n' + CF.copyFrameworkSystemLine(fw); } catch (_) { return ''; } })() : '';
   const res = await callLLM({
-    systemPrompt: BRAND_SYSTEM,
-    userMessage: copyPrompt(entry),
+    systemPrompt: BRAND_SYSTEM + sysLine,
+    userMessage: copyPrompt(entry, fw),
     responseFormat: { type: 'json_object' },
     maxTokens: 1800,
     temperature: 0.75,
@@ -543,32 +573,52 @@ function scrubCopyDeep(o) {
   return walk(o || {});
 }
 
-function applyCopy(campaign, entry, copy, creatives = {}) {
-  const brief = (k) => ({ brief: (k && copy.ads?.[k]?.image_brief) || '', image: null, provider: null });
+function applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives = {}) {
+  const briefFor = (copy, k) => ({ brief: (k && copy.ads?.[k]?.image_brief) || '', image: null, provider: null });
   if (campaign.assets.email) {
-    campaign.assets.email.subject = copy.email.subject || campaign.assets.email.subject;
-    campaign.assets.email.preheader = copy.email.preheader || campaign.assets.email.preheader;
-    campaign.assets.email.creative = creatives.email || { brief: copy.email.image_brief || '', image: null, provider: null };
-    const emailVars = emailVariants(entry, copy, campaign.assets.email.creative.image);
+    campaign.assets.email.subject = copyA.email.subject || campaign.assets.email.subject;
+    campaign.assets.email.preheader = copyA.email.preheader || campaign.assets.email.preheader;
+    campaign.assets.email.creative = creatives.email || { brief: copyA.email.image_brief || '', image: null, provider: null };
+    const heroImg = campaign.assets.email.creative.image;
+    // Four framework variants: copyA drives the A-slots, copyB the B-slots.
+    const emailVars = emailVariants(entry, copyA, copyB, fwA, fwB, heroImg);
     campaign.assets.email.variants = emailVars || null;
-    // Primary html = the Hero Text + Visual variant (shared renderer) so preview
-    // matches the Studio; falls back to the local mailer if variants are off.
+    // Primary html = the Hero Text + Visual (A) variant (shared renderer) so the
+    // preview matches the Studio; falls back to the local mailer if variants off.
     campaign.assets.email.html = (emailVars && emailVars.find((v) => v.key === 'visual_a').html)
-      || emailHtml(entry, copy, campaign.assets.email.creative.image);
-    campaign.assets.email.text = `${copy.email.subject}\n${copy.email.preheader}\n\n${copy.email.intro_paragraph}\n\n${copy.email.body_paragraph}\n\n${copy.email.cta}: {{landing_page_url}}`;
+      || emailHtml(entry, copyA, heroImg);
+    campaign.assets.email.text = `${copyA.email.subject}\n${copyA.email.preheader}\n\n${copyA.email.intro_paragraph}\n\n${copyA.email.body_paragraph}\n\n${copyA.email.cta}: {{landing_page_url}}`;
   }
-  if (campaign.assets.landing_pages?.length) {
-    const lp = campaign.assets.landing_pages[0];
-    lp.title = copy.landing.hero_headline || lp.title;
-    lp.creative = creatives.landing || { brief: copy.landing.image_brief || '', image: null, provider: null };
-    lp.html = lpHtml(entry, copy, campaign.campaign_id, lp.creative.image);
-    lp.path = `/lp/${campaign.campaign_id}`;
-  }
+  (campaign.assets.landing_pages || []).forEach((lp) => {
+    const isB = lp.variant === 'B';
+    // A and B are BOTH real LLM copy, written under different frameworks, so the
+    // pair genuinely differs (no more mechanical "The ritual behind …"). A leads
+    // with the generated hero image, B with the real catalog product photo.
+    const copy = isB ? copyB : copyA;
+    const img = isB
+      ? (catalogImage.imageFor(entry, entry.market) || (creatives.landing && creatives.landing.image) || null)
+      : ((creatives.landing && creatives.landing.image) || catalogImage.imageFor(entry, entry.market) || null);
+    lp.title = (copy.landing && copy.landing.hero_headline) || lp.title;
+    lp.creative = { brief: (copy.landing && copy.landing.image_brief) || '', image: img, provider: isB ? 'catalog' : ((creatives.landing && creatives.landing.provider) || 'catalog') };
+    lp.html = lpHtml(entry, copy, campaign.campaign_id, img);
+    lp.path = isB ? `/lp/${campaign.campaign_id}?v=b` : `/lp/${campaign.campaign_id}`;
+  });
   for (const ad of campaign.assets.ads || []) {
+    const isB = ad.variant === 'B';
+    // BOTH variants take real LLM copy now: A from copyA, B from copyB (the two
+    // framework directions). No static template strings repeated across slots.
+    const copy = isB ? copyB : copyA;
     if (ad.platform === 'meta' && copy.ads.meta) Object.assign(ad, { primary_text: copy.ads.meta.primary_text || ad.primary_text, headline: copy.ads.meta.headline || ad.headline, description: copy.ads.meta.description || ad.description });
     if (ad.platform === 'google' && copy.ads.google) Object.assign(ad, { headlines: copy.ads.google.headlines?.filter(Boolean) || ad.headlines, descriptions: copy.ads.google.descriptions?.filter(Boolean) || ad.descriptions });
     if (ad.platform === 'tiktok' && copy.ads.tiktok) Object.assign(ad, { script: copy.ads.tiktok.script || ad.script, caption: copy.ads.tiktok.caption || ad.caption });
-    ad.creative = creatives[ad.platform] || brief(ad.platform);
+    // A = the generated creative; B = the real catalog product photo (hosted) so
+    // the pair is visually distinct without doubling image-generation cost.
+    if (isB) {
+      const catImg = catalogImage.imageFor(entry, entry.market);
+      ad.creative = catImg ? { brief: ad.creative_brief || '', image: catImg, provider: 'catalog' } : (creatives[ad.platform] || briefFor(copy, ad.platform));
+    } else {
+      ad.creative = creatives[ad.platform] || briefFor(copy, ad.platform);
+    }
     ad.creative_brief = ad.creative.brief || ad.creative_brief || '';
   }
   return campaign;
@@ -642,23 +692,36 @@ async function uploadCreative(dataUrl, name) {
 // data-URL; falls back to brief-only (image:null) if generation fails.
 async function generateCreatives(copy, entry) {
   const hero = entry.heroProduct?.title ? ` Hero product: VAHDAM ${entry.heroProduct.title}.` : '';
-  // email/LP heroes are text-free photos (copy lives in the page layout);
-  // ad channels render the headline+offer baked into the image (mode:'ad'),
-  // since this server path has no client-side canvas overlay step.
+  // ALL channels get TEXT-FREE photographs (mode:''). Diffusion models cannot
+  // spell, so baking a headline/offer into the pixels (the old mode:'ad') always
+  // produced garbled, fake-language letterforms. Real ad copy lives in the ad's
+  // primary-text/headline fields (which Meta/Google/TikTok render as native
+  // platform text), never in the image itself — which is also what those
+  // platforms recommend. Email/LP copy lives in the HTML layout as before.
   const specs = [
-    ['email',  copy.email?.image_brief,       '1536x1024', ''],
-    ['landing', copy.landing?.image_brief,    '1536x1024', ''],
-    ['meta',   copy.ads?.meta?.image_brief,   '1024x1024', 'ad'],
-    ['google', copy.ads?.google?.image_brief, '1536x1024', 'ad'],
-    ['tiktok', copy.ads?.tiktok?.image_brief, '1024x1536', 'ad'],
+    ['email',   copy.email?.image_brief,       '1536x1024', ''],
+    ['landing', copy.landing?.image_brief,     '1536x1024', ''],
+    ['meta',    copy.ads?.meta?.image_brief,   '1024x1024', ''],
+    ['google',  copy.ads?.google?.image_brief, '1536x1024', ''],
+    ['tiktok',  copy.ads?.tiktok?.image_brief, '1024x1536', ''],
   ];
   const out = {};
   await Promise.all(specs.map(async ([key, rawBrief, size, mode]) => {
     const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} hero creative — warm, premium, photoreal.`;
     const gen = await generateCreativeImage(b + hero, { size, mode }).catch(() => null);
     let image = gen?.image || null;
-    if (image) image = (await uploadCreative(image, `${entry.id || 'slot'}-${key}`).catch(() => null)) || image;
-    out[key] = { brief: b, image, provider: gen?.provider || null };
+    // HOST-ALL-ASSETS: never let a data: URI reach a persisted/emailed asset
+    // (email clients strip them). Upload the generated image to Supabase Storage
+    // and use the hosted URL; if that fails (or nothing was generated), fall back
+    // to the real catalog product photo (Shopify CDN, always online). Drop the
+    // image only if even that is unavailable.
+    if (image && /^data:/i.test(image)) {
+      const hosted = await uploadCreative(image, `${entry.id || 'slot'}-${key}`).catch(() => null);
+      image = hosted || catalogImage.imageFor(entry, entry.market) || null;
+    } else if (!image) {
+      image = catalogImage.imageFor(entry, entry.market) || null;
+    }
+    out[key] = { brief: b, image, provider: gen?.provider || (image ? 'catalog-fallback' : null) };
   }));
   return out;
 }
@@ -673,16 +736,30 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
   const campaign = new GenerationService(config).generate(entry);
   let copyMeta = { provider: 'template-fallback', model: null, creatives: 'none' };
   try {
-    const raw = await writeCopyWithLLM(entry);
-    const { provider, model } = raw;
+    // Two diverging copy frameworks → two genuinely different directions, written
+    // in parallel (same wall-clock as one call). A = the objective's preferred
+    // framework; B = a deterministically-chosen different one. Partial-failure
+    // tolerant: if one call fails we ship both slots from the one that succeeded.
+    const fwA = CF.pickCopyFramework({ play_key: entry.objective || '', cohort_key: (entry.cohort && (entry.cohort.key || entry.cohort.name)) || '', seed: entry.id || entry.date || '' });
+    const otherKeys = Object.keys(CF.COPY_FRAMEWORKS).filter((k) => k !== fwA.key);
+    const fwB = CF.frameworkByKey(otherKeys[CF.stableIndex(`${entry.id || entry.date || ''}|b`, otherKeys.length)]) || fwA;
+    const [pA, pB] = await Promise.allSettled([writeCopyWithLLM(entry, fwA), writeCopyWithLLM(entry, fwB)]);
+    if (pA.status !== 'fulfilled' && pB.status !== 'fulfilled') {
+      throw new Error('copy generation failed for both directions: ' + String((pA.reason && pA.reason.message) || pA.reason));
+    }
+    const rawA = pA.status === 'fulfilled' ? pA.value : pB.value;
+    const rawB = pB.status === 'fulfilled' ? pB.value : pA.value;
+    const provider = rawA.provider || rawB.provider;
+    const model = rawA.model || rawB.model;
     // Brand scrub EVERY generated string (no banned phrases, no em/en dashes)
     // before it is baked into the mailer, landing page and ad rows. Persisted +
     // customer-served output must not rely on the prompt alone.
-    const copy = scrubCopyDeep(raw.copy);
-    const creatives = withCreatives ? await generateCreatives(copy, entry) : {};
-    applyCopy(campaign, entry, copy, creatives);
+    const copyA = scrubCopyDeep(rawA.copy);
+    const copyB = scrubCopyDeep(rawB.copy);
+    const creatives = withCreatives ? await generateCreatives(copyA, entry) : {};
+    applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives);
     const imgProviders = [...new Set(Object.values(creatives).map((c) => c && c.provider).filter(Boolean))];
-    copyMeta = { provider, model, creatives: imgProviders.length ? imgProviders.join(',') : 'briefs-only' };
+    copyMeta = { provider, model, frameworks: [fwA.key, fwB.key], creatives: imgProviders.length ? imgProviders.join(',') : 'briefs-only' };
   } catch (e) {
     console.warn('[smart-brain] LLM copy failed, using template assets:', e.message);
   }
@@ -712,9 +789,21 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   const { entry } = await resolveEntry({ id, inlineEntry, config, db });
   if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
 
-  // Preview EXACTLY what approving produces: the active scenario's operational
-  // fields, internal/projection keys stripped (so numbers can't reach assets).
-  const campaign = await buildCampaign(effectiveEntry(entry), config, { id });
+  // Preview EXACTLY what approving produces. If the prebuild queue already built
+  // this slot, show that persisted bundle (instant, and identical to what ships);
+  // otherwise generate on demand. Internal/projection keys stripped so numbers
+  // can't reach the asset builders.
+  let campaign = null;
+  const prebuiltId = entry && entry[PREBUILD_MARKER] && entry[PREBUILD_MARKER].campaign_id;
+  if (db.connected && prebuiltId) {
+    const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
+    if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
+  }
+  // Fallback (slot not prebuilt yet): build copy + layout WITHOUT images. Preview
+  // must be fast — generating 5 images inline here overran the function limit and
+  // returned a non-JSON platform timeout page ("Preview failed: ... not valid
+  // JSON"). Images appear in preview once the prebuild queue has built the slot.
+  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: false });
   campaign.status = 'preview';
   return {
     ok: true,
@@ -752,30 +841,28 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     }
   }
 
+  // Reuse the FULL prebuilt campaign (LLM copy + images) when the prebuild queue
+  // already built this slot — approval then just locks + publishes, no wait, no
+  // regeneration (so what the reviewer saw in preview is exactly what ships).
+  let campaign = null;
+  const prebuiltId = entry && entry[PREBUILD_MARKER] && entry[PREBUILD_MARKER].campaign_id;
+  if (db.connected && prebuiltId) {
+    const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
+    if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
+  }
   // buildCampaign generates copy + creatives and attaches master prompts. Use
   // the ACTIVE scenario (medium unless a human switched the slot), internal keys
   // stripped so projected revenue/spend can never reach the asset builders.
-  const campaign = await buildCampaign(effectiveEntry(entry), config, { id });
-  const copyMeta = campaign.copywriter;
+  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id });
+  const copyMeta = campaign.copywriter || { provider: 'prebuilt', model: null };
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
 
   const persisted = { campaign: null, ads: null, landing: null, calendar: null };
   if (db.connected) {
-    persisted.campaign = await db.upsert(config.tableNames.generatedCampaigns, [{ id: campaign.campaign_id, payload: campaign, status: campaign.status, updated_at: nowIso() }], 'id');
-    const adRows = (campaign.assets.ads || []).map((ad) => ({
-      channel: ad.platform, name: campaign.name, market: campaign.market, objective: campaign.objective,
-      audience: campaign.audience?.name, copy: ad, creative_prompt: ad.creative_brief || ad.script || '', origin: 'smart-brain',
-      user_email: reviewer || null,
-    }));
-    if (adRows.length) persisted.ads = await db.insert(config.tableNames.adsGenerated, adRows);
-    const lp = campaign.assets.landing_pages?.[0];
-    if (lp) persisted.landing = await db.insert(config.tableNames.landingPagesGenerated, [{
-      paired_with: campaign.assets.email ? 'mailer' : (campaign.assets.ads?.[0]?.platform || 'meta'),
-      name: lp.title || campaign.name, market: campaign.market,
-      hero: lp.title || '', payload: { campaign_id: campaign.campaign_id, path: lp.path, html: lp.html, sections: lp.sections, master_prompt: lp.master_prompt },
-      origin: 'smart-brain', user_email: reviewer || null,
-    }]);
+    // Publish: store the campaign at review status + mirror ads/LP into the dashboards.
+    const p = await persistCampaignAssets(db, config, campaign, { status: campaign.status, origin: 'smart-brain', reviewer, mirror: true });
+    persisted.campaign = p.campaign; persisted.ads = p.ads; persisted.landing = p.landing;
     if (row) {
       const log = Array.isArray(row.change_log) ? row.change_log.slice(-30) : [];
       log.push({ at: nowIso(), kind: 'approved', detail: `Approved by ${reviewer || 'unknown'}; campaign ${campaign.campaign_id} generated (copy: ${copyMeta.provider}).` });
@@ -859,12 +946,15 @@ async function activateScenario({ scenario, reviewer = null, scope = 'all', conf
 
 // ── Landing-page resolver for /lp/:id ───────────────────────────────────────
 
-async function landingPageHtml(id, cfg = {}) {
+async function landingPageHtml(id, cfg = {}, variant = null) {
   const config = smartConfig(cfg);
   const db = new SmartBrainDbAdapter(config);
   if (!db.connected) return null;
   const camp = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
-  const html = camp?.[0]?.payload?.assets?.landing_pages?.[0]?.html;
+  const lps = camp?.[0]?.payload?.assets?.landing_pages || [];
+  // ?v=b serves the story-led B variant; default serves A (the first LP).
+  const want = /^b$/i.test(String(variant || '')) ? (lps.find((l) => l.variant === 'B') || lps[1]) : (lps.find((l) => l.variant === 'A') || lps[0]);
+  const html = want?.html;
   if (html) return html;
   // fall back to landing_pages_generated (numeric id or campaign_id in payload)
   const filters = /^\d+$/.test(String(id)) ? { id: `eq.${id}` } : { 'payload->>campaign_id': `eq.${id}` };
@@ -872,8 +962,107 @@ async function landingPageHtml(id, cfg = {}) {
   return lp?.[0]?.payload?.html || null;
 }
 
+// ── Convergent asset prebuild queue ─────────────────────────────────────────
+// Contract (product owner, 2026-07-09): every slot in the 90-day rolling window
+// must not merely EXIST but arrive with its FULL asset bundle already built —
+// LLM-written copy AND generated images for the mailer + Meta/Google/TikTok ads
+// + landing page — so a reviewer only ever approves, never waits on generation.
+//
+// A single serverless invocation cannot build ~180 slots (each is ~30-60s of LLM
+// copy + 5 parallel image generations), so prebuildAssets() processes a small
+// batch per call and the caller (the smart-brain cron / prebuild route) re-fires
+// it until `remaining` hits 0, then it idles. Fully idempotent + resumable: a
+// slot counts as built once its payload carries a __prebuilt marker pointing at
+// a persisted campaign. Daily sync only rewrites a slot's payload (dropping the
+// marker) when it MATERIALLY re-plans that slot, which correctly forces a rebuild
+// of the now-stale assets. Human-approved/final slots are skipped (they own a
+// real campaign already).
+const PREBUILD_MARKER = '__prebuilt';
+
+function isPrebuilt(row) {
+  const p = row && row.payload && row.payload[PREBUILD_MARKER];
+  return !!(p && p.campaign_id);
+}
+function creativeCount(campaign) {
+  let n = 0;
+  const a = campaign && campaign.assets;
+  if (!a) return 0;
+  if (a.email && a.email.creative && a.email.creative.image) n += 1;
+  for (const lp of a.landing_pages || []) if (lp && (lp.creative?.image || lp.hero_image)) n += 1;
+  for (const ad of a.ads || []) if (ad && (ad.creative?.image || ad.image)) n += 1;
+  return n;
+}
+
+// Persist a generated campaign + (optionally) mirror its ads/LP into the Ads and
+// Landing Pages dashboards. Shared by approveEntry (mirror=true — publish) and
+// prebuildAssets (mirror=false — a draft that only lands in smart_generated_campaigns,
+// so unapproved drafts never flood the dashboards; /lp/:id still resolves it via
+// landingPageHtml, which reads smart_generated_campaigns first).
+async function persistCampaignAssets(db, config, campaign, { status, origin, reviewer = null, mirror = true } = {}) {
+  const out = { campaign: null, ads: null, landing: null };
+  out.campaign = await db.upsert(config.tableNames.generatedCampaigns, [{ id: campaign.campaign_id, payload: campaign, status, updated_at: nowIso() }], 'id');
+  if (!mirror) return out;
+  const adRows = (campaign.assets.ads || []).map((ad) => ({
+    channel: ad.platform, name: campaign.name, market: campaign.market, objective: campaign.objective,
+    audience: campaign.audience?.name, copy: ad, creative_prompt: ad.creative_brief || ad.script || '', origin,
+    user_email: reviewer || null,
+  }));
+  if (adRows.length) out.ads = await db.insert(config.tableNames.adsGenerated, adRows);
+  const lp = campaign.assets.landing_pages?.[0];
+  if (lp) out.landing = await db.insert(config.tableNames.landingPagesGenerated, [{
+    paired_with: campaign.assets.email ? 'mailer' : (campaign.assets.ads?.[0]?.platform || 'meta'),
+    name: lp.title || campaign.name, market: campaign.market,
+    hero: lp.title || '', payload: { campaign_id: campaign.campaign_id, path: lp.path, html: lp.html, sections: lp.sections, master_prompt: lp.master_prompt },
+    origin, user_email: reviewer || null,
+  }]);
+  return out;
+}
+
+async function prebuildAssets({ config: cfg = {}, batchSize = 1, sinceDate = null } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  if (!db.connected) return { ok: true, skipped: true, reason: 'Supabase env not configured — nothing to prebuild.', built: [], failed: [], batch: 0, remaining: 0 };
+  const start = sinceDate || todayIso();
+  // Candidates: future, still writable (tentative/rejected — approved/final own a
+  // real campaign), nearest-date first so imminent slots build first.
+  const rows = (await db.select(config.tableNames.calendarEntries, {
+    filters: { date: `gte.${start}`, status: SYNC_WRITABLE_STATUSES },
+    order: 'date.asc', limit: 1000,
+  }).catch(() => [])) || [];
+  const pending = rows.filter((r) => !isPrebuilt(r));
+  const batch = pending.slice(0, Math.max(1, batchSize));
+  const built = [];
+  const failed = [];
+  for (const row of batch) {
+    try {
+      const entry = { ...(row.payload || {}), id: row.id };
+      // FULL build: LLM copy + generated images (withCreatives:true) for the
+      // mailer + ads + landing page — the same output an approval produces.
+      const campaign = await buildCampaign(effectiveEntry(entry), config, { id: row.id, withCreatives: true });
+      campaign.status = 'prebuilt';
+      campaign.calendar_entry_id = row.id;
+      await persistCampaignAssets(db, config, campaign, { status: 'prebuilt', origin: 'smart-brain-prebuild', mirror: false });
+      // Mark the slot built — merge the marker into the LATEST payload and guard
+      // on writable status so a human approval landing mid-build is never clobbered.
+      const fresh = (await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${row.id}` }, limit: 1 }).catch(() => []))?.[0];
+      if (fresh && (fresh.status === 'tentative' || fresh.status === 'rejected')) {
+        const payload = { ...(fresh.payload || {}) };
+        payload[PREBUILD_MARKER] = { campaign_id: campaign.campaign_id, at: nowIso(), images: creativeCount(campaign), copy: campaign.copywriter?.provider || null };
+        const log = Array.isArray(fresh.change_log) ? fresh.change_log.slice(-30) : [];
+        log.push({ at: nowIso(), kind: 'prebuilt', detail: `Assets prebuilt (mailer + ads + landing page; copy ${campaign.copywriter?.provider || 'template'}, ${creativeCount(campaign)} images); campaign ${campaign.campaign_id}.` });
+        await db.update(config.tableNames.calendarEntries, { id: `eq.${row.id}`, status: SYNC_WRITABLE_STATUSES }, { payload, change_log: log, updated_at: nowIso() });
+      }
+      built.push({ id: row.id, date: row.date, market: row.market, campaign_id: campaign.campaign_id, images: creativeCount(campaign) });
+    } catch (e) {
+      failed.push({ id: row.id, error: e.message });
+    }
+  }
+  return { ok: true, mode: 'db-linked', built, failed, batch: batch.length, remaining: Math.max(0, pending.length - built.length) };
+}
+
 module.exports = {
   syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, activateScenario, landingPageHtml, buildCampaign,
+  prebuildAssets,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
 };

@@ -9,7 +9,7 @@
  *  - Cross-origin / non-GET: pass through to the network.
  *  - On activate: drop old caches + claim clients so updates ship immediately.
  */
-const VERSION = 'lifecycle-os-v17';
+const VERSION = 'lifecycle-os-v18';
 const SHELL = [
   '/', '/index.html', '/dashboard.html', '/calendar.html', '/cohort-definitions.html',
   '/auth.js', '/theme.css', '/table-sort.js', '/chart-enhance.js',
@@ -64,7 +64,19 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Static GETs: stale-while-revalidate.
+  // App shell (HTML, JS, CSS, manifest) = network-first, so a deploy's code and
+  // style changes reach the client on the NEXT load and are never served from a
+  // stale cache. (auth.js / theme.css are shared by every page — serving them
+  // stale made shipped fixes look "not applied" until a second visit.)
+  if (/\.(html|css|js|mjs|webmanifest)$/i.test(url.pathname)) {
+    e.respondWith(
+      fetch(req).then((r) => { safePut(req, r); return r; }).catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Other static assets (images, fonts, video, json) = stale-while-revalidate
+  // (instant load, refreshed in the background) — they change rarely.
   e.respondWith(
     caches.match(req).then((cached) => {
       const fresh = fetch(req).then((r) => { safePut(req, r); return r; }).catch(() => cached);

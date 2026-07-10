@@ -521,13 +521,54 @@ module.exports.parseJSON = function parseJSON(text) {
   if (bs !== -1 && be > bs) { try { return JSON.parse(text.slice(bs, be + 1)); } catch (_) {} }
   const ss = stripped.indexOf('{'), se = stripped.lastIndexOf('}');
   if (ss !== -1 && se > ss) { try { return JSON.parse(stripped.slice(ss, se + 1)); } catch (_) {} }
+  // Common LLM failure: raw control characters (literal newlines/tabs) inside
+  // string values, which JSON.parse rejects. Escape them, then retry the same
+  // extraction strategies before falling through to truncation repair.
+  const escaped = escapeControlCharsInStrings(text);
+  if (escaped !== text) {
+    try { return JSON.parse(escaped); } catch (_) {}
+    const es = escaped.indexOf('{'), ee = escaped.lastIndexOf('}');
+    if (es !== -1 && ee > es) { try { return JSON.parse(escaped.slice(es, ee + 1)); } catch (_) {} }
+  }
   // Last resort: repair a TRUNCATED object (model hit the token limit mid-JSON).
   // Drop any trailing incomplete token, then close open strings and brackets so
   // the fields already generated survive instead of failing the whole build.
-  const repaired = repairTruncatedJSON(stripped.indexOf('{') !== -1 ? stripped : text);
-  if (repaired) { try { return JSON.parse(repaired); } catch (_) {} }
+  const repairSource = escaped.indexOf('{') !== -1 ? escaped : (stripped.indexOf('{') !== -1 ? stripped : text);
+  const repaired = repairTruncatedJSON(repairSource);
+  if (repaired) {
+    try { return JSON.parse(repaired); } catch (_) {}
+    try { return JSON.parse(escapeControlCharsInStrings(repaired)); } catch (_) {}
+  }
   throw new SyntaxError('Could not parse JSON from LLM response. First 200 chars: ' + text.substring(0, 200));
 };
+
+/**
+ * escapeControlCharsInStrings(text) — escape raw newlines/tabs/carriage-returns
+ * that appear INSIDE JSON string values (a frequent LLM output defect that makes
+ * JSON.parse throw). Control chars outside strings (formatting whitespace) are
+ * left untouched so object structure is preserved.
+ */
+function escapeControlCharsInStrings(text) {
+  let out = '';
+  let inStr = false, esc = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (esc) { out += c; esc = false; continue; }
+      if (c === '\\') { out += c; esc = true; continue; }
+      if (c === '"') { out += c; inStr = false; continue; }
+      if (c === '\n') { out += '\\n'; continue; }
+      if (c === '\r') { out += '\\r'; continue; }
+      if (c === '\t') { out += '\\t'; continue; }
+      if (c.charCodeAt(0) < 0x20) { continue; } // drop other control chars
+      out += c;
+      continue;
+    }
+    if (c === '"') { inStr = true; out += c; continue; }
+    out += c;
+  }
+  return out;
+}
 
 function repairTruncatedJSON(text) {
   const start = text.indexOf('{');

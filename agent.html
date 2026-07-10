@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vahdam Agent — talk to our tea &amp; wellness expert</title>
 <style>
-  :root { --green:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA; }
+  :root { --green:#004A2B; --gold:#AB8743; --gold-ink:#8a6a2f; --ink:#171717; --cream:#FBF5EA; }
+  /* readable gold for TEXT on light backgrounds (brand gold #AB8743 fails contrast as small text on cream) */
+  input::placeholder, textarea::placeholder { color:#6f6f6f; opacity:1; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--cream); font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif; color:var(--ink); }
   .shell { max-width:880px; margin:0 auto; padding:26px 18px 120px; }
@@ -19,7 +21,7 @@
   .msg { max-width:78%; padding:13px 17px; border-radius:16px; font-size:14.5px; line-height:1.6; animation:pop .35s ease; white-space:pre-wrap; }
   @keyframes pop { from{opacity:0;transform:translateY(10px) scale(.98)} to{opacity:1;transform:none} }
   .msg.user { align-self:flex-end; background:var(--green); color:var(--cream); border-bottom-right-radius:4px; }
-  .msg.agent { align-self:flex-start; background:var(--cream); border:1px solid rgba(171,135,67,.3); border-bottom-left-radius:4px; }
+  .msg.agent { align-self:flex-start; background:var(--cream); color:var(--ink); border:1px solid rgba(171,135,67,.3); border-bottom-left-radius:4px; }
   .msg.agent a { color:var(--green); font-weight:600; }
   .speaking { box-shadow:0 0 0 2px var(--gold); }
   .inputrow { position:fixed; bottom:0; left:0; right:0; background:linear-gradient(transparent, var(--cream) 30%); padding:18px; }
@@ -34,7 +36,7 @@
   @keyframes pulse { 50%{opacity:.6} }
   .toggles { display:flex; gap:14px; align-items:center; max-width:860px; margin:8px auto 0; font-size:12px; color:#6b6b6b; justify-content:flex-end; }
   .toggles label { cursor:pointer; display:flex; gap:5px; align-items:center; }
-  .typing { align-self:flex-start; color:#999; font-size:13px; font-style:italic; }
+  .typing { align-self:flex-start; color:#5f5f5f; font-size:13px; font-style:italic; }
   .agent-admin { margin:2px 0 20px; }
   .agent-admin-toggle { background:none; border:1.5px dashed var(--gold); color:var(--green); padding:8px 15px; border-radius:999px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; }
   .agent-admin-toggle:hover { background:rgba(171,135,67,.1); }
@@ -52,7 +54,7 @@
 </head>
 <body>
 <div class="shell">
-  <div style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);font-weight:700">VAHDAM · Voice &amp; Chat Concierge <span style="background:#14532d;color:#bbf7d0;border-radius:999px;padding:2px 9px;font-size:10px;letter-spacing:.08em;margin-left:8px;vertical-align:middle">CUSTOMER-FACING</span></div>
+  <div style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-ink);font-weight:700">VAHDAM · Voice &amp; Chat Concierge <span style="background:#14532d;color:#bbf7d0;border-radius:999px;padding:2px 9px;font-size:10px;letter-spacing:.08em;margin-left:8px;vertical-align:middle">CUSTOMER-FACING</span></div>
   <h1>Talk to a Vahdam expert</h1>
   <div class="sub">This is the customer-facing concierge, the tool your customers talk to. Ask about benefits, brewing, how long results take, or whether a blend is worth it, by voice or text. Honest answers, zero pressure. Pick a specialist:</div>
   <div class="agentbar" id="agentbar"></div>
@@ -104,14 +106,14 @@
     <button class="btn send" id="send">Ask</button>
   </div>
   <div class="toggles" id="modeRow" role="group" aria-label="Interaction mode">
-    <span style="color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:10px;margin-right:2px">Mode</span>
+    <span style="color:var(--gold-ink);font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:10px;margin-right:2px">Mode</span>
     <button type="button" class="modebtn" data-mode="chat" title="Text only, no audio">💬 Chat only</button>
     <button type="button" class="modebtn" data-mode="narration" title="Types the reply and reads it aloud">🔊 Narration</button>
     <button type="button" class="modebtn" data-mode="conversation" title="Hands-free: it speaks, then listens for your reply">🎧 Conversation</button>
     <button type="button" class="modebtn" id="muteBtn" title="Silence audio instantly">🔇 Mute</button>
   </div>
   <style>
-    #modeRow .modebtn{font:inherit;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(171,135,67,.35);background:transparent;color:var(--gold);border-radius:999px;padding:5px 11px;}
+    #modeRow .modebtn{font:inherit;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(171,135,67,.35);background:transparent;color:var(--gold-ink);border-radius:999px;padding:5px 11px;}
     #modeRow .modebtn:hover{border-color:var(--gold);}
     #modeRow .modebtn.active{background:var(--gold);color:#0a1410;border-color:var(--gold);}
     #modeRow #muteBtn.on{background:#7f1d1d;color:#fff;border-color:#7f1d1d;}

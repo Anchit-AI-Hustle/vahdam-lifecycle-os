@@ -315,7 +315,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
   border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#6b7280;
   transition:all .2s;user-select:none;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif
 }
-.type-chip.on{background:var(--gold);color:#fff;border-color:var(--gold);box-shadow:0 2px 8px rgba(171,135,67,0.25)}
+.type-chip.on{background:var(--gold);color:#171717;border-color:var(--gold);box-shadow:0 2px 8px rgba(171,135,67,0.25)}
 .type-chip:hover:not(.on){border-color:var(--gold);color:var(--gold);background:var(--lightgold)}
 .mkt-tab-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;padding:12px 0 4px;border-bottom:1px solid var(--border)}
 .mkt-tab-btn{
@@ -557,6 +557,14 @@ html[data-theme="green"] #analyzeStatus{border-color:rgba(110,231,183,.3);color:
 html[data-theme="green"] .mkt-chip,
 html[data-theme="green"] .type-chip,
 html[data-theme="green"] .mkt-tab-btn{background:var(--panel);color:var(--muted)}
+/* Selected chips in the green theme: green-on-green is invisible, so the selected
+   state gets a bright gold ring + cream text so it always pops from the panel. */
+html[data-theme="green"] .mkt-chip.on,
+html[data-theme="green"] .mkt-tab-btn.on{background:#0C6B41;color:var(--cream);border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 2px 10px rgba(0,0,0,.35)}
+html[data-theme="green"] .type-chip.on{background:var(--gold);color:#171717;border-color:var(--gold);box-shadow:0 0 0 2px rgba(251,245,234,.35),0 2px 10px rgba(0,0,0,.35)}
+html[data-theme="green"] .mkt-chip:hover:not(.on),
+html[data-theme="green"] .type-chip:hover:not(.on),
+html[data-theme="green"] .mkt-tab-btn:hover:not(.on){border-color:var(--gold);color:var(--cream);background:#0A5A37}
 html[data-theme="green"] .sugg-hdr{background:linear-gradient(90deg,#075C39 0%,#003D24 100%)}
 html[data-theme="green"] .sugg-hdr:hover{background:linear-gradient(90deg,#12241d 0%,#0e1f18 100%)}
 html[data-theme="green"] .sugg-hdr-sub{color:var(--subtle)}

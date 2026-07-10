@@ -5,8 +5,11 @@
      1. Design tokens (palette, type scale, spacing, radius, shadow) as CSS vars
         — restyle the whole suite by editing these, not 15 files.
      2. Globally SAFE polish only: font smoothing, selection, focus-visible
-        rings, custom scrollbars, reduced-motion. No bare element (body/button/
-        a/table/input) is restyled, so existing per-page CSS is never clobbered.
+        rings, custom scrollbars, reduced-motion. Bare elements are not restyled
+        EXCEPT one intentional, lowest-specificity table-layout default (see the
+        "Global table default" block) so header cells always sit above their
+        columns; any per-page `table.<class>` rule still wins on specificity, so
+        existing per-page CSS is not clobbered.
      3. An OPT-IN component kit under the `vh-` prefix (buttons, cards, tables,
         inputs, chips, badges, section headers) for pages to migrate onto.
      4. Mobile hardening: safe-area (notch) insets for the shared nav, larger
@@ -73,21 +76,55 @@
 :root[data-theme="dusk"],
 :root[data-theme="light"],
 :root[data-theme="green"] {
-  --vh-bg: #004A2B; --vh-panel: #075C39; --vh-panel-2: #003D24;
-  --vh-line: rgba(171,135,67,0.28); --vh-line-hot: rgba(171,135,67,0.55);
-  /* Text: white/cream body, warm-gold secondary, gold tertiary + headings. */
-  --vh-ink: #FBF5EA; --vh-ink-dim: #E4CF94; --vh-ink-faint: #C7A65C;
-  /* legacy aliases (family A + family B) — all point at the locked green set */
-  --bg: #004A2B; --panel: #075C39; --surface: #075C39; --card: #075C39; --soft: #003D24; --chip: #003D24;
-  --ink: #FBF5EA; --ink-dim: #E4CF94; --ink-faint: #C7A65C; --muted: #E4CF94; --head: #AB8743;
-  --line: rgba(171,135,67,0.28); --line-hot: rgba(171,135,67,0.55);
-  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #075C39; --moss-deep: #003D24;
+  /* Palette aligned to the /all-in-one dashboard: near-black-green canvas
+     #0a1410, cards #0f1d18, inner tiles #07100d, gold accents, cream metrics,
+     light body text, cool-muted secondary. This is the single source of truth
+     for the whole suite's dark surface + text pairing. */
+  --vh-bg: #0a1410; --vh-panel: #0f1d18; --vh-panel-2: #07100d;
+  --vh-line: rgba(171,135,67,0.18); --vh-line-hot: rgba(171,135,67,0.45);
+  /* Text: light body, cool-muted secondary, faint tertiary. */
+  --vh-ink: #e8ede9; --vh-ink-dim: #a7b5ad; --vh-ink-faint: #8a9a92;
+  /* legacy aliases (family A + family B) — all point at the locked dark set.
+     NOTE: --soft is used across pages as a *dim text* color (never a surface),
+     so it stays a readable muted tone on the dark canvas. */
+  --bg: #0a1410; --panel: #0f1d18; --surface: #0f1d18; --card: #0f1d18; --soft: #a7b5ad; --chip: #07100d;
+  --ink: #e8ede9; --ink-dim: #a7b5ad; --ink-faint: #8a9a92; --muted: #a7b5ad; --head: #FBF5EA;
+  --line: rgba(171,135,67,0.18); --line-hot: rgba(171,135,67,0.45);
+  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #0f1d18; --moss-deep: #07100d;
   color-scheme: dark;
 }
 
 /* ── Globally safe polish (no layout-affecting bare-element restyles) ─────── */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* ── Global table default: header cells sit exactly above their columns ─────
+   Element-level (lowest specificity) so ANY per-page `table.<class>` rule
+   still wins and existing per-page CSS is never clobbered. This only sets a
+   sane default for otherwise-unstyled tables. `table-layout: fixed` guarantees
+   the header row and body rows share identical column widths within a single
+   <table> (columns can never drift), `width: 100%` fills the container, and
+   border-box keeps padding inside the column so data cells align to their
+   header exactly. Wide tables should sit in an `overflow-x:auto` wrapper.
+   NOTE: applies only to app pages that load theme.css (via auth.js); the
+   generated email/mailer HTML, which uses <table> for layout, never loads it. */
+table { table-layout: fixed; width: 100%; border-collapse: collapse; }
+table th, table td {
+  box-sizing: border-box;
+  vertical-align: top;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+/* Data-table column alignment. A table that has header cells is a DATA table
+   (layout/email tables use <td> only), so `:has(th)` targets exactly those and
+   never touches layout tables. The header row and body share identical column
+   widths (table-layout: fixed above), so each header sits over its column; here
+   we set the reading alignment: the first column (row labels) stays LEFT, and
+   every other column is CENTERED so the value sits centered under its header.
+   Element-level (no class), so any page that deliberately sets per-column
+   alignment via a `table.<class>` rule still wins — this is the sane default. */
+table:has(th) th, table:has(th) td { text-align: center; }
+table:has(th) th:first-child, table:has(th) td:first-child { text-align: left; }
 
 ::selection { background: rgba(171,135,67,0.30); color: var(--vh-cream); }
 

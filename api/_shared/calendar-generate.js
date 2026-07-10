@@ -477,7 +477,7 @@ module.exports = async function handler(req, res) {
   }
 
   const startDate = body.start_date ? new Date(body.start_date) : new Date();
-  const daysReq = Math.min(60, Math.max(7, +body.days || 30));
+  const daysReq = Math.min(90, Math.max(7, +body.days || 30));
   const markets = Array.isArray(body.markets) && body.markets.length ? body.markets : ['US', 'UK', 'Global', 'IN'];
   const capacity = +body.capacity_per_market_per_week || 4;
   const analytics = body.analytics || {};

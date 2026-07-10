@@ -164,6 +164,7 @@
     insights:   '<path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 4-6"/><circle cx="7" cy="14" r="1.2"/><circle cx="10" cy="10" r="1.2"/><circle cx="13" cy="13" r="1.2"/><circle cx="17" cy="7" r="1.2"/>',
     vahdam:     '<path d="M12 21c-1-5-4-6.5-7-7 0-5 3.5-8 7-9 3.5 1 7 4 7 9-3 .5-6 2-7 7z"/><path d="M12 13c1.5-2 3.5-3 5.5-3.5"/>',
     social:     '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.7 6.8-4.4M8.6 13.3l6.8 4.4"/>',
+    avatars:    '<circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><path d="M12 2.2v1.4M12 12.4v1.4M17.8 8h-1.4M7.6 8H6.2"/>',
   };
   // Real, full-colour brand glyphs. Each is a complete <svg> with its own
   // viewBox + official brand colours, so Meta / Google / TikTok read as the
@@ -191,6 +192,13 @@
   // and the sub-item info panels — not in the row — to keep rows quiet.
   const NAV = [
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
+    { group: 'Market Study', icon: 'kb', gid: 'research', ver: 'v2', children: [
+      { id: 'research',        label: 'Overview (all regions)', href: '/research',               icon: 'kb',       match: ['/research', '/growth-book', '/research.html'] },
+      { id: 'research-us',     label: 'US Study',               href: '/research?region=us',     icon: 'insights' },
+      { id: 'research-uk',     label: 'UK Study',               href: '/research?region=uk',     icon: 'insights' },
+      { id: 'research-global', label: 'Global Study',           href: '/research?region=global', icon: 'insights' },
+      { id: 'research-india',  label: 'India Study',            href: '/research?region=india',  icon: 'insights' },
+    ]},
     { id: 'allinone',   label: 'All-in-One Dashboard', href: '/all-in-one', icon: 'analysis', ver: 'v2', match: ['/all-in-one', '/os', '/dashboard-os', '/all-in-one.html'] },
 
     { section: 'Research & Benchmark' },
@@ -210,7 +218,7 @@
       { id: 'kbv-tiktok',  label: 'TikTok Ads',    href: '/knowledge-base.html#tiktok',  icon: 'tiktok' },
       { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
     ]},
-    { id: 'analysis', label: 'Data Analysis',      href: '/dashboard.html',          icon: 'analysis', ver: 'v1', match: ['/dashboard.html', '/analytics'] },
+    { id: 'analysis', label: 'Data Analysis',      href: '/data-analysis',           icon: 'analysis', ver: 'v2', match: ['/data-analysis', '/data-analysis.html', '/analytics', '/dashboard.html', '/rfm'] },
     { group: 'Cohorts', icon: 'cohort', gid: 'cohorts', ver: 'v1', children: [
       { id: 'coh-overview',   label: 'Overview',            href: '/cohorts?tab=overview',   icon: 'cohort' },
       { id: 'coh-engagement', label: 'Engagement Cohorts',  href: '/cohorts?tab=engagement', icon: 'insights' },
@@ -220,11 +228,18 @@
       { id: 'coh-rfm',        label: 'RFM Segments',        href: '/cohorts?tab=rfm',        icon: 'analysis' },
       { id: 'coh-behavioral', label: 'Behavioral',          href: '/cohorts?tab=behavioral', icon: 'cohort' },
     ]},
+    { id: 'avatars', label: 'Avatars (Personas)', href: '/avatars', icon: 'avatars', ver: 'v2', match: ['/avatars', '/personas', '/avatars.html'] },
 
     { section: 'Plan' },
-    { id: 'lifecycle', label: 'Mailer Calendar',    href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
-    { id: 'calendar',  label: 'Plan Calendar',      href: '/calendar.html',   icon: 'calendar', ver: 'v1', draft: 'Draft 1', match: ['/calendar.html', '/plan'] },
-    { id: 'ukhub',     label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
+    // Automated Calendar Creation — the ONE calendar + asset-generation feature.
+    // A single flat feature, NO sub-items: it combines the best logic of the
+    // former Smart Brain engine, the Mailer Calendar and the Plan Calendar into
+    // one automated calendar that plans every slot and pre-builds its full asset
+    // bundle (mailer + ads + landing page). The older calendar surfaces stay
+    // reachable by URL but are no longer separate nav features; this one
+    // feature's match[] also lights up for them.
+    { id: 'brain', label: 'Automated Calendar Creation', href: '/brain', icon: 'calendar', ver: 'v2', match: ['/brain', '/smart-brain', '/smart-brain.html', '/mailer-calendar', '/lifecycle-calendar.html', '/calendar.html', '/plan'] },
+    { id: 'ukhub', label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
 
     { section: 'Design & Create' },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
@@ -245,13 +260,18 @@
       { id: 'lp-tiktok',  label: 'For TikTok Ads', href: '/landing-pages.html#tiktok',   icon: 'tiktok' },
     ]},
 
+    { id: 'music', label: 'Music (Official Songs)', href: '/music', icon: 'vahdam', ver: 'v2', match: ['/music', '/music.html'] },
+
     { section: 'Share & Track' },
     { id: 'social', label: 'Social Media OS', href: '/social', icon: 'social', ver: 'v2', match: ['/social', '/social-media', '/social-media.html'] },
     { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
 
     { section: 'Assistants' },
+    // ChaiGPT (internal team chat/info tool) and Vahdam Agent (customer-facing
+    // concierge) are conversational assistants and stay here. The former Smart
+    // Brain moved to Plan and was renamed Automated Calendar Creation — it is a
+    // calendar-creation feature, not a chat assistant, so it no longer lives here.
     { id: 'chaigpt', label: 'ChaiGPT',      href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
-    { id: 'brain',   label: 'Smart Brain',  href: '/brain',   icon: 'studio', ver: 'v1', match: ['/brain', '/smart-brain', '/smart-brain.html'] },
     { id: 'agent',   label: 'Vahdam Agent', href: '/agent',   icon: 'vahdam', ver: 'v1', match: ['/agent', '/agent.html'] },
 
     { section: 'Settings' },
@@ -297,8 +317,8 @@
       ],
     },
     brain: {
-      title: 'Smart Brain',
-      what: "The persistent daily brain of the OS: it maintains a rolling 15-day campaign plan in Supabase (smart_calendar_entries), refreshes it every morning by diff — never a wholesale rewrite — and turns every human-approved slot into a complete campaign: mailer + Meta/Google/TikTok ads + a landing page.",
+      title: 'Automated Calendar Creation',
+      what: "The one calendar feature of the OS — it combines the automated engine (formerly Smart Brain), the Cohort Mailer Calendar (Draft 2) and the 30-Day Plan Calendar (Draft 1). It maintains a rolling 90-day campaign plan in Supabase (smart_calendar_entries), refreshes it every morning by diff — never a wholesale rewrite — and turns every human-approved slot into a complete campaign: mailer + Meta/Google/TikTok ads + a landing page.",
       who: "Every customer cohort gets slots — RFM segments and engagement cohorts alike. The lifecycle team supervises: nothing ships without a human approve.",
       how: "Six services run in sequence — KB, Analysis, Competitor, Calendar, Generation, Review. A daily Vercel Cron (03:30 UTC, CRON_SECRET-protected) syncs the plan; the console at /brain lists tentative slots for approve/reject; approving generates all assets and mirrors them into ads_generated and landing_pages_generated. Platform push is Phase 2 (push_status: not_integrated_phase_2).",
       input: "Nothing daily — the cron drives it. From you: approve or reject decisions per slot, plus optional feedback that recalibrates future planning.",
@@ -306,7 +326,7 @@
       steps: [
         ['Ideology', 'Each slot starts as a campaign concept — the occasion, the angle, the single idea the send must carry. Maximum ideation before any data is touched.'],
         ['Data analysis + review + hypothesis', 'The KB, Analysis, and Competitor services pull owned assets, RFM and cohort signals, and competitor benchmarks, then state a testable hypothesis per slot.', '/api/calendar?action=smart-brain-sync-daily'],
-        ['Business & strategy decisions', 'The Calendar service decides cohort, product focus, offer mechanic, and send date — diff-updating the rolling 15-day plan.', '/api/calendar?action=smart-brain-plan'],
+        ['Business & strategy decisions', 'The Calendar service decides cohort, product focus, offer mechanic, and send date — diff-updating the rolling 90-day plan.', '/api/calendar?action=smart-brain-plan'],
         ['Content', 'On approval, the Generation service LLM-writes the mailer copy plus Meta, Google, and TikTok ad copy.', '/api/calendar?action=smart-brain-approve'],
         ['Design + layout + structure', 'Brand-gated templates apply the 4-colour palette and Lao MN / Proxima Nova; hero creative comes from the image cascade.'],
         ['Coding', 'Assets compile to production HTML — a Klaviyo-ready mailer and a landing page served at /lp/:campaignId.'],
@@ -329,16 +349,58 @@
     },
     analysis: {
       title: 'Data Analysis',
-      what: "The Retention Intelligence dashboard: computes RFM segmentation, cohort behaviour, discount exposure, and channel performance from your exported store data, then turns the numbers into prioritised insight cards, each with a concrete action.",
-      who: "It analyses ALL customers and buckets them into the nine RFM segments — Champions, Loyal, Promising, New, Need-Attention, About-to-Sleep, At-Risk, Hibernating, Lost. The insights are written for the retention team.",
-      how: "Everything runs in the browser. Upload CSV/XLSX exports; the page parses them, computes recency, frequency, and monetary value per customer, assigns segments by fixed thresholds (e.g. Champions = ordered within 30 days AND 5+ orders), and renders charts plus insight cards. Results persist to localStorage and feed the Plan and Mailer Studio steps.",
-      input: "CSV/XLSX exports — orders and customers (Shopify), campaigns (Klaviyo) — dropped into the upload modal. No server round-trip is needed to analyse.",
+      what: "The full D2C growth analytics workbench, built on the live US and UK market exports. A dashboard of every analysis a growth team needs — revenue and AOV trends, sales by channel, product type and day of week, discount exposure, new-vs-returning split, returning-customer rate, customer acquisition, cohort retention, and top products — with a US/UK market toggle. Every widget drills into a detailed page with the complete data table, a bigger chart, a growth read, and a CSV download. The legacy RFM Retention Intelligence tool (upload-and-score) still lives at /rfm.",
+      who: "The growth and retention team. The dashboard analyses the whole customer base and every revenue cut; the drill-downs and cohort heatmap feed cohort, RFM and lifecycle targeting used everywhere else in the OS.",
+      how: "Data is compiled from the exported market CSVs (data/market/{us,uk}) by scripts/build-market-analytics.js into a single client-side module, so the dashboard renders real numbers with no upload and no server round-trip. The upstream ingestion and DuckDB engine that produces these exports is the DTC Data Engine, surfaced natively in-app at /data-engine. The RFM tool at /rfm still parses uploaded CSV/XLSX in the browser and scores the nine RFM segments.",
+      input: "Nothing to upload for the dashboard — it reads the compiled market exports. Pick the market (US or UK) and open any widget to drill in and download its CSV. For the RFM tool: CSV/XLSX order and customer exports.",
       steps: [
-        ['Ingest', 'Drop CSV/XLSX exports into the upload modal; the page parses and normalises them client-side.'],
-        ['Score RFM', 'Recency, frequency, and monetary value are computed per customer; threshold rules assign one of the 9 segments.'],
-        ['Analyse cohorts', 'Cohort retention, discount dependence, and send-frequency patterns are computed per segment.'],
-        ['Generate insights', 'Prioritised cards — e.g. Champions are discount-trained — each with a measurable next action.'],
-        ['Hand off', 'State persists in localStorage so Plan (calendar) and Mailer Studio generate against the same numbers.'],
+        ['Compile', 'Market CSV exports are compiled into a self-contained data module by scripts/build-market-analytics.js.', 'scripts/build-market-analytics.js'],
+        ['Overview', 'KPI tiles and a widget grid render trends, mix, retention and top products for the selected market.'],
+        ['Drill in', 'Any widget opens a detailed page: full data table, larger chart, and a concrete growth read.'],
+        ['Cohort read', 'The retention heatmap normalises each acquisition quarter to 100% so LTV assumptions and sticky cohorts are visible.'],
+        ['Hand off', 'Cuts feed cohort, RFM and lifecycle targeting; the RFM tool at /rfm scores uploaded data for the segment lens.'],
+      ],
+    },
+    music: {
+      title: 'Music (Official Songs)',
+      what: "The library of VAHDAM's official brand music: the branding track (with lyrics) that plays in-app and drops into ad creatives, social videos and landing pages as a native, brand-owned audio and video bed.",
+      who: "Anyone producing outward-facing content: ad creatives, Social Media OS videos, landing pages and event assets that need on-brand, cleared audio.",
+      how: "A self-contained page that streams each official track, and exposes a Use-in-ad action that copies the hosted asset URL and hands off to the Ad Campaigns builder. Tracks are served from /assets/media and are usable anywhere in the OS.",
+      input: "Nothing to upload, the official tracks are bundled with the app. From you: pick a track, preview it, then copy its URL, copy an embed snippet, or download it for the creative you are building.",
+      steps: [
+        ['Ideology', 'Brand music carries the Feel Alive voice into sound: warm, sensory, heritage-led.'],
+        ['Content', 'The branding track (with lyrics) is the first official song; more can be added to the same library.'],
+        ['Audio/Video', 'Stream and preview in-app; the file is the brand-owned audio and video bed for ads and social.'],
+        ['Coding', 'Served natively from /assets/media; copy the hosted URL or an embed snippet, or download for the target creative.', '/music'],
+        ['Compilation', 'Drop it into an ad creative or social post via the Ad Campaigns builder.', '/ads'],
+      ],
+    },
+    research: {
+      title: 'Market Study',
+      what: "The single narrative reference for how VAHDAM grows: brand truth, the US and UK market intelligence, live performance pulled from the market exports, the four buyer avatars and the cohort model, the retention operating principles, the growth plays currently running, and the data engine underneath it all. It is the connective story that the operational features read from.",
+      who: "The whole growth and retention team. It frames every cohort and avatar the OS targets, and turns the raw analytics into prioritised, named growth plays.",
+      how: "A self-contained page organised into tabs: Overview, Brand Foundation, Market Intelligence, Live Performance (real numbers from the compiled market data), Growth Plays, Retention Playbooks (the knowledge/retention library), and Data Engine. It links out to Avatars, Cohorts, and the Data Analysis workbench, and cites the market study, schemas and retention config.",
+      input: "Nothing to upload — the book compiles the market exports and the brand knowledge base. From you: read it before planning, and use its growth plays and avatar/cohort mapping to brief every campaign.",
+      steps: [
+        ['Brand truth', 'Positioning, voice, palette and lexicon set the non-negotiable creative frame.'],
+        ['Market intelligence', 'US coffee and functional-beverage sizing, benchmarks and the competitor brand matrix set the opportunity.'],
+        ['Live performance', 'Real US and UK numbers ground every claim; the full workbench is one click away.', '/data-analysis'],
+        ['Growth plays', 'The prioritised, data-grounded moves, each mapped to an avatar and cohort.'],
+        ['Data engine', 'The ingestion and competitor-capture pipeline (vahdam_dtc_data_engine) that feeds every number.'],
+      ],
+    },
+    avatars: {
+      title: 'Avatars (Personas)',
+      what: "The customer-persona layer of the OS: named, hyper-specific buyer avatars built on top of the cohort dictionary and the US coffee and functional-beverage market study. Each avatar bundles demographics, geography, price elasticity, core value driver, and churn triggers into one face a brief can target, so copy, imagery, and offers stay grounded in a real person rather than an abstract segment.",
+      who: "The growth and creative team. The avatars translate the analytics cohorts (RFM segments, engagement cohorts, lifecycle stages) into the four behavioural buyer profiles that drive VAHDAM Ashwagandha Coffee and wellness-tea growth: the Wellness Optimiser, the Ritual Loyalist, the Gifting Connector, and the Curious Switcher.",
+      how: "Personas are derived from the market-intelligence study (docs/market-intelligence) and the cohort model: each avatar maps to specific cohorts, carries hard planning numbers (age band, HHI, AOV, LTV:CAC, reactivation likelihood), and links to the schema that captures the same fields on a live profile (schemas/cohort-profile.json) and the retention triggers that fire for it (config/retention-triggers.yaml). Use the avatar name verbatim in a brief and every downstream tool inherits its targeting.",
+      input: "Nothing to upload — the avatars are curated from the market study and the cohort dictionary. From you: pick the avatar a campaign targets, and read its value driver, elasticity, and churn triggers before writing the brief.",
+      steps: [
+        ['Read the market', 'The US coffee and functional-beverage landscape (TAM/SAM/SOM, brand matrix, regional matrix) frames who is worth winning and how they behave.'],
+        ['Map to cohorts', 'Each avatar is pinned to the RFM segments, engagement cohorts, and product cohorts it represents, so it inherits real audiences.'],
+        ['Load the profile fields', 'Demographics, geography, price elasticity, value driver, reactivation likelihood, and churn triggers are stated as hard planning numbers.'],
+        ['Wire the triggers', 'The retention-trigger config names which automated webhooks fire for the avatar (churn risk, replenishment, win-back, VIP early access).'],
+        ['Target in a brief', 'Name the avatar in any campaign and the mailer, ad, landing-page, and social tools inherit its voice, imagery, offer sensitivity, and cohort.'],
       ],
     },
     assets: {
@@ -538,29 +600,36 @@
   //   4. PREFIX match against `match[]` — but never against `/`.
   function currentStepId() {
     const p = location.pathname.toLowerCase();
-    const h = (location.hash || '').toLowerCase();
-    const fullHref = p + h;
+    const s = (location.search || '').toLowerCase();  // e.g. ?region=us, ?tab=rfm
+    const h = (location.hash || '').toLowerCase();     // e.g. #meta, #mailers
+    const leaves = leafItems();
 
-    // 1. full href exact (preferred for hash sub-tabs)
-    for (const s of leafItems()) {
-      if (s.href && s.href.toLowerCase() === fullHref) return s.id;
+    // 1. EXACT full-href match, most-specific URL form first, so query- and
+    //    hash-scoped sub-items (/research?region=us, /ad-campaigns.html#meta,
+    //    /cohorts?tab=rfm) each light up their OWN row rather than the group's
+    //    overview. Candidates go specific -> general.
+    for (const cand of [p + s + h, p + s, p + h, p]) {
+      for (const it of leaves) {
+        if (it.href && it.href.toLowerCase() === cand) return it.id;
+      }
     }
     // 2. match[] exact on pathname
-    for (const s of leafItems()) {
-      if ((s.match || []).some((m) => p === m)) return s.id;
+    for (const it of leaves) {
+      if ((it.match || []).some((m) => p === String(m).toLowerCase())) return it.id;
     }
-    // 3. href pathname exact + no hash on URL → first sub-tab of that page
-    if (!h) {
-      for (const s of leafItems()) {
-        if (s.href) {
-          const hp = s.href.split('#')[0].toLowerCase();
-          if (hp === p) return s.id;
+    // 3. href pathname exact + URL carries no hash AND no query → first sub-tab
+    //    of that page (container open, no specific sub-tab selected yet).
+    if (!h && !s) {
+      for (const it of leaves) {
+        if (it.href) {
+          const hp = it.href.split('#')[0].split('?')[0].toLowerCase();
+          if (hp === p) return it.id;
         }
       }
     }
     // 4. match[] prefix (never `/`)
-    for (const s of leafItems()) {
-      if ((s.match || []).some((m) => m !== '/' && p.startsWith(m + '/'))) return s.id;
+    for (const it of leaves) {
+      if ((it.match || []).some((m) => m !== '/' && p.startsWith(String(m).toLowerCase() + '/'))) return it.id;
     }
     return 'home';
   }
@@ -592,15 +661,18 @@
       ? BRAND[k]
       : `<svg class="lnav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[k] || ''}</svg>`;
 
-    // Standing IA rule (CLAUDE.md "LHS navigation IA rule"): every feature
-    // item expands into the same 5 sub-items, in a fixed order. Sanctioned
-    // rendering (2026-07-04) is an ACCORDION: every sub-item list starts
-    // COLLAPSED except the one for the current page, and opening one closes
-    // any other — max one open at a time. Order and presence are unchanged.
-    // The `?` chip toggles a list; each sub-item opens the shared info panel.
+    // Standing IA rule (CLAUDE.md "LHS navigation IA rule"): the five common
+    // "know about this feature" questions (What does it do? / Who is it for? /
+    // How does it work? / Input / Step-by-Step Working) are the SAME for every
+    // feature, so they no longer clutter the rail. Sanctioned rendering
+    // (2026-07-09): a quiet `?` chip sits next to each feature/group label and
+    // opens a POPUP that presents all five questions as headings with their
+    // content. The rail itself now shows only the real feature links and their
+    // group sub-sections. Order and presence of the five questions are
+    // unchanged; they just live in the modal instead of an inline accordion.
 
-    // The info key that auto-expands: the current item's own INFO entry, else
-    // the gid of the group that contains the current leaf.
+    // The info key highlighted as "current": the current item's own INFO entry,
+    // else the gid of the group that contains the current leaf.
     let activeInfoKey = null;
     if (INFO[cur]) activeInfoKey = cur;
     else {
@@ -609,14 +681,7 @@
       }
     }
     const infoBtn = (key, label) => INFO[key]
-      ? `<button type="button" class="lnav-i${key === activeInfoKey ? ' on' : ''}" data-itoggle="${key}" title="About: ${label}" aria-label="About ${label}" aria-expanded="${key === activeInfoKey ? 'true' : 'false'}">?</button>`
-      : '';
-    const infoList = (key) => INFO[key]
-      ? `<div class="lnav-info${key === activeInfoKey ? ' open' : ''}" data-ikey="${key}">` +
-          SUBQ.map(([sub, label], i) =>
-            `<button type="button" class="lnav-info-item" data-info="${key}" data-sub="${sub}"><span class="lnav-info-n">${i + 1}</span>${label}</button>`
-          ).join('') +
-        `</div>`
+      ? `<button type="button" class="lnav-i${key === activeInfoKey ? ' on' : ''}" data-itoggle="${key}" title="Know about: ${label}" aria-label="Know about ${label}" aria-haspopup="dialog">?</button>`
       : '';
 
     // V1/V2 taxonomy badge — see CLAUDE.md "Version taxonomy (V1 vs V2)".
@@ -639,7 +704,7 @@
       const a = `<a class="lnav-link${isCur ? ' active' : ''}" href="${item.href}" data-id="${item.id}" title="${item.label}">
         ${svg(item.icon)}<span class="lnav-txt">${item.label}</span>${verChip(item)}</a>`;
       if (!INFO[item.id]) return a;
-      return `<div class="lnav-item">${a}${infoBtn(item.id, item.label)}</div>${infoList(item.id)}`;
+      return `<div class="lnav-item">${a}${infoBtn(item.id, item.label)}</div>`;
     };
     // Double-layer nav: Tier-1 = top-level features (flat items + group headers),
     // Tier-2 = each feature's sub-sections. Groups start COLLAPSED — only the
@@ -651,7 +716,6 @@
       const groupActive = n.children.some((c) => c.id === cur);
       return `<div class="lnav-group${groupActive ? ' open active-group' : ''}">
         <div class="lnav-item"><button class="lnav-ghead" type="button" title="${n.group}">${svg(n.icon)}<span class="lnav-txt">${n.group}</span>${verChip(n)}<svg class="lnav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>${n.gid ? infoBtn(n.gid, n.group) : ''}</div>
-        ${n.gid ? infoList(n.gid) : ''}
         <div class="lnav-gbody">${n.children.map(linkRow).join('')}</div>
       </div>`;
     }).join('');
@@ -806,8 +870,13 @@
         }
         html.lnav-collapsed #lifecycle-nav .lnav-ver { display: none; }
         #lifecycle-nav .lnav-link:hover { color: #e8ede9; background: rgba(171,135,67,0.08); }
+        /* Current item = the STRONGEST, darkest highlight: solid forest-green fill
+           with cream text (cream #FBF5EA on green #004A2B is high-contrast and fully
+           legible) plus a bold gold left-accent. Applies to the active leaf AND the
+           active sub-item, so the selected sub-item reads darker than its parent. */
         #lifecycle-nav .lnav-link.active {
-          color: #FBF5EA; background: rgba(171,135,67,0.16); border-color: rgba(171,135,67,0.35);
+          color: #FBF5EA; background: #004A2B; border-color: rgba(171,135,67,0.55);
+          box-shadow: inset 3px 0 0 #AB8743; font-weight: 600;
         }
         #lifecycle-nav .lnav-link.active .lnav-ic { color: #AB8743; }
 
@@ -819,7 +888,10 @@
           font-family: inherit; font-size: 13px; color: #cdd8d2; text-align: left; border-radius: 9px;
         }
         #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #e8ede9; }
-        #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #FBF5EA; }
+        /* Parent of the active sub-item ALSO reads as selected, but LIGHTER than
+           the sub-item: a gold-tint fill + faint gold accent, so both show and the
+           sub-item stays the darker/stronger of the two. */
+        #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #FBF5EA; background: rgba(171,135,67,0.13); box-shadow: inset 3px 0 0 rgba(171,135,67,0.55); }
         #lifecycle-nav .lnav-group.active-group .lnav-ghead .lnav-ic { color: #AB8743; }
         #lifecycle-nav .lnav-caret { width: 15px; height: 15px; color: #5d6e64; transition: transform .18s; }
         #lifecycle-nav .lnav-group.open .lnav-caret { transform: rotate(180deg); }
@@ -896,6 +968,12 @@
           font-size: 13px; line-height: 1.65; color: #cdd8d2;
         }
         #lifecycle-nav .lnav-ipanel-body p { margin: 0 0 10px; }
+        #lifecycle-nav .lnav-ipanel-q {
+          font-family: 'Lora', Georgia, serif; font-size: 14.5px; font-weight: 600;
+          color: #FBF5EA; margin: 18px 0 6px; padding-top: 12px;
+          border-top: 1px solid rgba(171,135,67,0.16);
+        }
+        #lifecycle-nav .lnav-ipanel-q:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
         #lifecycle-nav .lnav-ipanel-note {
           font-size: 11.5px; color: #AB8743; background: rgba(171,135,67,0.08);
           border: 1px solid rgba(171,135,67,0.2); border-radius: 8px;
@@ -1015,79 +1093,62 @@
       });
     });
 
-    // ── Feature IA: "?" toggles the 5 fixed sub-items; a sub-item opens the
-    //    shared info panel. Everything lives inside #lifecycle-nav so page CSS
-    //    cannot collide, and it works signed-in or signed-out.
+    // ── Feature IA: the "?" chip opens a "know about this feature" popup that
+    //    lays out all five common questions as headings with their content.
+    //    Everything lives inside #lifecycle-nav so page CSS cannot collide, and
+    //    it works signed-in or signed-out. Content is written via textContent
+    //    so it never needs HTML-escaping.
     const ipanel = wrap.querySelector('#lnav-ipanel');
     const ipanelBody = wrap.querySelector('#lnav-ipanel-body');
     const ipanelTitle = wrap.querySelector('#lnav-ipanel-title');
     const ipanelEyebrow = wrap.querySelector('#lnav-ipanel-eyebrow');
     const closeIpanel = () => wrap.classList.remove('ipanel-open');
-    const openIpanel = (key, sub) => {
+    const openInfoModal = (key) => {
       const f = INFO[key];
       if (!f || !ipanel) return;
-      const q = SUBQ.find((s) => s[0] === sub);
       ipanelEyebrow.textContent = f.title;
-      ipanelTitle.textContent = q ? q[1] : '';
-      let html = '';
-      if (sub === 'steps') {
-        if (f.pipeline) {
-          html += '<p class="lnav-ipanel-note">Multi-agent pipeline — every step runs as its own specialist agent: maximum creativity, maximum ideation, maximum business-strategic thinking before anything ships.</p>';
+      ipanelTitle.textContent = 'Know about this feature';
+      ipanelBody.innerHTML = '';
+      SUBQ.forEach(([sub, label]) => {
+        const h = document.createElement('h4');
+        h.className = 'lnav-ipanel-q';
+        h.textContent = label;
+        ipanelBody.appendChild(h);
+        if (sub === 'steps') {
+          if (f.pipeline) {
+            const note = document.createElement('p');
+            note.className = 'lnav-ipanel-note';
+            note.textContent = 'Multi-agent pipeline: every step runs as its own specialist agent, maximum creativity, ideation and business-strategic thinking before anything ships.';
+            ipanelBody.appendChild(note);
+          }
+          const ol = document.createElement('ol');
+          ol.className = 'lnav-steps';
+          (f.steps || []).forEach((st) => {
+            const li = document.createElement('li');
+            const b = document.createElement('b'); b.textContent = st[0]; li.appendChild(b);
+            const d = document.createElement('span'); d.className = 'lnav-step-d'; d.textContent = st[1]; li.appendChild(d);
+            if (st[2]) { const via = document.createElement('span'); via.className = 'lnav-step-via'; via.textContent = 'Runs via: ' + st[2]; li.appendChild(via); }
+            ol.appendChild(li);
+          });
+          ipanelBody.appendChild(ol);
+        } else {
+          const p = document.createElement('p');
+          p.textContent = f[sub] || '';
+          ipanelBody.appendChild(p);
         }
-        html += '<ol class="lnav-steps">' + (f.steps || []).map((st) =>
-          '<li><b></b><span class="lnav-step-d"></span>' + (st[2] ? '<span class="lnav-step-via"></span>' : '') + '</li>'
-        ).join('') + '</ol>';
-        ipanelBody.innerHTML = html;
-        // Fill step text via textContent so content never needs HTML-escaping.
-        const lis = ipanelBody.querySelectorAll('.lnav-steps li');
-        (f.steps || []).forEach((st, i) => {
-          const li = lis[i];
-          if (!li) return;
-          li.querySelector('b').textContent = st[0];
-          li.querySelector('.lnav-step-d').textContent = st[1];
-          const via = li.querySelector('.lnav-step-via');
-          if (via) via.textContent = 'Runs via: ' + st[2];
-        });
-      } else {
-        ipanelBody.innerHTML = '<p></p>';
-        ipanelBody.querySelector('p').textContent = f[sub] || '';
-      }
+      });
+      ipanelBody.scrollTop = 0;
       wrap.classList.add('ipanel-open');
-    };
-    // True accordion: at most ONE sub-item list is open at a time. Opening a
-    // feature's 5 sub-items closes whichever other list was open.
-    const setInfoOpen = (key, on) => {
-      const list = wrap.querySelector('.lnav-info[data-ikey="' + key + '"]');
-      const btn = wrap.querySelector('.lnav-i[data-itoggle="' + key + '"]');
-      if (list) list.classList.toggle('open', on);
-      if (btn) {
-        btn.classList.toggle('on', on);
-        btn.setAttribute('aria-expanded', on ? 'true' : 'false');
-      }
     };
     wrap.querySelectorAll('.lnav-i').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
-        const key = btn.dataset.itoggle;
-        const list = wrap.querySelector('.lnav-info[data-ikey="' + key + '"]');
-        if (!list) return;
-        const opening = !list.classList.contains('open');
-        if (opening) {
-          wrap.querySelectorAll('.lnav-info.open').forEach((other) => {
-            if (other !== list) setInfoOpen(other.dataset.ikey, false);
-          });
-        }
-        setInfoOpen(key, opening);
-      });
-    });
-    wrap.querySelectorAll('.lnav-info-item').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        openIpanel(btn.dataset.info, btn.dataset.sub);
+        openInfoModal(btn.dataset.itoggle);
       });
     });
     wrap.querySelector('#lnav-ipanel-close')?.addEventListener('click', closeIpanel);
     wrap.querySelector('#lnav-ipanel-backdrop')?.addEventListener('click', closeIpanel);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeIpanel(); });
 
     // Re-apply active state when the URL hash changes (e.g. user clicks
     // sub-tabs on ad-campaigns.html that just flip the hash). No re-render
@@ -1107,6 +1168,25 @@
     window.addEventListener('hashchange', refreshActive);
     // Also refresh on history navigation (back/forward across hash routes).
     window.addEventListener('popstate', refreshActive);
+    // AND on programmatic URL changes: region switches, detail panels, and the
+    // calendar day-view use history.replaceState/pushState, which fire NEITHER
+    // hashchange NOR popstate. Patch them once to emit a signal, and keep a
+    // single window-level listener pointed at the latest refreshActive so the
+    // highlight updates from every source without stacking listeners.
+    window.__lnavRefresh = refreshActive;
+    if (!window.__lnavHistoryPatched) {
+      window.__lnavHistoryPatched = true;
+      ['pushState', 'replaceState'].forEach((m) => {
+        const orig = history[m];
+        if (typeof orig !== 'function') return;
+        history[m] = function () {
+          const r = orig.apply(this, arguments);
+          try { window.dispatchEvent(new Event('lnav:locationchange')); } catch (_) {}
+          return r;
+        };
+      });
+      window.addEventListener('lnav:locationchange', () => { try { window.__lnavRefresh && window.__lnavRefresh(); } catch (_) {} });
+    }
 
     // Mobile drawer open/close
     const setOpen = (o) => wrap.classList.toggle('open', o);

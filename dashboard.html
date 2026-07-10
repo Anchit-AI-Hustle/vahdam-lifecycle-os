@@ -177,6 +177,10 @@
   .filter-chip.active { background:#AB8743; color:#0a1410; border-color:#AB8743; }
   .view { display:none; }
   .view.active { display:block; animation: fadeIn .25s ease; }
+  /* Honest empty state — shown when no real data is connected/uploaded. */
+  #emptyState { display:none; }
+  body.no-data #emptyState { display:block; animation: fadeIn .25s ease; }
+  body.no-data .view.active { display:none; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
   .insight { padding:14px 16px; border-radius:10px; border:1px solid rgba(171,135,67,0.2); background:#0f1d18; }
   .insight.crit { border-color:rgba(239,68,68,0.35); background:rgba(239,68,68,0.04); }
@@ -279,7 +283,7 @@
         ↓ Export…
       </button>
       <div class="text-[10px] text-ink-mute mt-3 font-mono leading-snug">
-        Data source: <span id="dataSourceLabel">seed (synthetic)</span><br>
+        Data source: <span id="dataSourceLabel">no data — link a database or upload</span><br>
         Last refresh: <span id="lastRefresh">—</span>
       </div>
     </div>
@@ -325,6 +329,19 @@
 
     <!-- Views -->
     <div class="p-6 space-y-6" id="viewContainer">
+      <!-- Empty state: no real data connected yet -->
+      <section id="emptyState">
+        <div class="rounded-xl border border-gold/25 bg-panel/60 p-10 text-center max-w-2xl mx-auto mt-6">
+          <div class="text-4xl mb-3">📊</div>
+          <h2 class="font-head text-2xl text-ink mb-2" style="color:var(--gold)">Connect your data to begin</h2>
+          <p class="text-sm text-ink-dim leading-relaxed mb-6">This dashboard runs on your real customer, order and campaign data only. It does not display sample or synthetic numbers. Link a Supabase database or upload CSV / XLSX exports to compute RFM segments, cohorts and campaign KPIs.</p>
+          <div class="flex flex-wrap gap-3 justify-center">
+            <button id="emptyLinkDb" class="text-[12px] uppercase tracking-wider font-semibold px-4 py-2 rounded border border-gold/40 text-ink hover:border-gold transition">⛓ Link database</button>
+            <button id="emptyUpload" class="text-[12px] uppercase tracking-wider font-semibold px-4 py-2 rounded bg-gold text-bg hover:opacity-90 transition">⬆ Upload data</button>
+          </div>
+          <p class="text-[11px] text-ink-mute mt-5">Expected columns: customers (last_order_at, orders_count, total_spent, region), orders (ordered_at, region, total, product), campaigns (sent_at, sends, opens, clicks, conversions, revenue, region, channel, content_type).</p>
+        </div>
+      </section>
       <!-- 1. Executive Overview -->
       <section class="view active" data-view="exec">
         <div class="flex items-end justify-between mb-5">
@@ -1037,7 +1054,18 @@ function genSeed() {
   return { campaigns, customers, orders, products: PRODUCTS };
 }
 
-let DATA = genSeed();
+// The dashboard renders ONLY real data: a linked Supabase database or an
+// uploaded CSV/XLSX. It never fabricates numbers. Until a source is
+// connected it shows an empty "connect your data" state. genSeed() (the old
+// synthetic generator, defined above) is retained but deliberately never
+// called, so no fabricated data can reach any displayed metric.
+function emptyData() {
+  return { campaigns: [], customers: [], orders: [], products: PRODUCTS };
+}
+function hasData() {
+  return !!(DATA && (DATA.customers.length || DATA.orders.length || DATA.campaigns.length));
+}
+let DATA = emptyData();
 
 /* ╔═══════════════════════════════════════════════════════════════════════
  * ║ FILTER + STATE
@@ -1155,15 +1183,31 @@ function calcProductKpis() {
 /* ╔═══════════════════════════════════════════════════════════════════════
  * ║ RFM SEGMENTATION
  * ╚═══════════════════════════════════════════════════════════════════════ */
+// Monetary quintile scorer: returns a function value -> 1..5 based on the
+// distribution of the loaded customer base (quintile cut-points). No hardcoded
+// dollar thresholds — the tiers adapt to whatever real data is connected.
+function quintileScorer(values) {
+  const sorted = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
+  if (sorted.length < 5) return () => 3; // too few rows to quintile meaningfully
+  const q = (p) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
+  const cuts = [q(0.2), q(0.4), q(0.6), q(0.8)];
+  return (v) => (v <= cuts[0] ? 1 : v <= cuts[1] ? 2 : v <= cuts[2] ? 3 : v <= cuts[3] ? 4 : 5);
+}
+
 function computeSegments() {
   const custs = filteredCustomers();
   const now = Date.now();
+  // Monetary score from the base distribution, so "RFM" genuinely uses M.
+  const mScore = quintileScorer(custs.map((c) => c.total_spent));
   const out = custs.map((c) => {
     const recency = (now - new Date(c.last_order_at).getTime()) / 86_400_000; // days
     const frequency = c.orders_count;
     const monetary = c.total_spent;
+    const mQuintile = mScore(monetary); // 1..5 (5 = top spenders)
     let segment;
-    if (recency <= 30 && frequency >= 5)             segment = 'Champions';
+    // Champions must be recent, frequent AND high-value (top two monetary
+    // quintiles); an otherwise-qualifying but low-spend buyer falls to Loyal.
+    if (recency <= 30 && frequency >= 5 && mQuintile >= 4) segment = 'Champions';
     else if (recency <= 60 && frequency >= 3)        segment = 'Loyal';
     else if (recency <= 30 && frequency === 2)       segment = 'Promising';
     else if (recency <= 30 && frequency === 1)       segment = 'New';
@@ -1172,7 +1216,7 @@ function computeSegments() {
     else if (recency <= 180 && frequency >= 2)       segment = 'At-Risk';
     else if (recency > 180 && frequency >= 1)        segment = 'Hibernating';
     else                                              segment = 'Lost';
-    return { ...c, recency, frequency, monetary, segment };
+    return { ...c, recency, frequency, monetary, mQuintile, segment };
   });
   return out;
 }
@@ -1308,8 +1352,8 @@ function computeInsights() {
       sev: 'warn',
       title: 'Champions are discount-trained',
       body: `Your top "Champions" segment averages a ${fmtPct(champs.avgDiscount, 0)} discount rate. The very segment that should be paying full price has been conditioned to wait for promos.`,
-      why: `${fmtInt(champs.count)} customers, ${fmtCur(champs.revenue)} revenue. Mathematically: their LTV is suppressed by ~${fmtCur(champs.revenue * champs.avgDiscount * 0.4)} we never captured.`,
-      impact: `Margin recovery: ${fmtCur(champs.revenue * 0.06)}/window if discount rate drops 6pp.`,
+      why: `${fmtInt(champs.count)} customers, ${fmtCur(champs.revenue)} revenue at a ${fmtPct(champs.avgDiscount, 0)} average discount. Every point of discount on the segment that would buy anyway is margin given away.`,
+      impact: `Each 1pp cut in this segment's discount rate flows straight to margin on ${fmtCur(champs.revenue)} of revenue.`,
       action: 'Switch Champions onto loyalty-tier rewards (free shipping, early access, free 50g sampler) instead of % discounts. A/B test for 30 days.',
     });
   }
@@ -1323,7 +1367,7 @@ function computeInsights() {
       title: `${orphan.length} product${orphan.length>1?'s':''} promoted heavily, barely purchased`,
       body: orphan.map((p) => `<b>${p.title}</b> — ${p.promos} campaigns, only ${fmtInt(p.units)} units sold`).join(' · '),
       why: 'Either the price, positioning, or audience targeting is wrong. Continuing to push wastes attention.',
-      impact: 'Recover send capacity = ~' + fmtInt(orphan.reduce((s, p) => s + p.promos * 12000, 0)) + ' impressions/window that could go to higher-converting SKUs.',
+      impact: 'Recover the send slots these ' + fmtInt(orphan.reduce((s, p) => s + p.promos, 0)) + ' campaigns occupy and redirect them to higher-converting SKUs.',
       action: 'Drop these from the next 2 send cycles. Run a small ($500) Meta ads test on each — if CVR matches catalog avg, it\'s an audience issue, not a product one.',
     });
   }
@@ -1340,7 +1384,7 @@ function computeInsights() {
       title: `Strong cross-sell signal: ${bestCross.x} → ${bestCross.y}`,
       body: `Customers who buy <b>${bestCross.x}</b> have a <b>${fmtPct(bestCross.p, 0)}</b> probability of buying <b>${bestCross.y}</b> within 30 days. There is no automated flow capturing this.`,
       why: 'This is organic affinity — we are not actively suggesting it. Adding a post-purchase email at day 7 captures the signal.',
-      impact: 'Estimated lift: +' + fmtPct(bestCross.p * 0.25, 1) + ' incremental conversion on that flow, ~' + fmtCur(bestCross.p * 0.25 * 18000) + ' / month at current send volume.',
+      impact: 'A day-7 post-purchase flow can capture this ' + fmtPct(bestCross.p, 0) + ' affinity that currently has no automation behind it.',
       action: `Build a Klaviyo flow: trigger = order contains ${bestCross.x} · delay 7 days · email with curated ${bestCross.y} bundle · 10% incentive only after 2 weeks no-action.`,
     });
   }
@@ -1376,7 +1420,7 @@ function computeInsights() {
       title: `${ranked[0].type[0].toUpperCase() + ranked[0].type.slice(1)} sends have ${fmtPct(ranked[0].rate, 2)} unsubscribe rate`,
       body: `That's ${(ranked[0].rate / (ranked[ranked.length - 1].rate || 0.001)).toFixed(1)}× higher than the best-performing content type (${ranked[ranked.length - 1].type}). Above industry benchmark of 0.2%.`,
       why: 'High unsub on a content type means the audience is wrong, the frequency is wrong, or the value proposition is unclear.',
-      impact: `~${fmtInt(ranked[0].rate * 50000)} unsubs/month at current send volume — those subscribers are unrecoverable.`,
+      impact: `At ${fmtPct(ranked[0].rate, 2)} this content type sheds subscribers far faster than the rest, and unsubscribes are unrecoverable.`,
       action: 'Pause this content type for one cycle. Survey unsubscribers (Klaviyo exit poll). Re-launch with revised positioning + smaller test audience first.',
     });
   }
@@ -1394,7 +1438,7 @@ function computeInsights() {
       title: `${thinSend.region} is under-targeted vs revenue potential`,
       body: `${thinSend.region} customers receive ${(thinSend.sendsPerCust / richRegion.sendsPerCust).toFixed(2)}× the sends of ${richRegion.region}, yet their revenue-per-customer is ${fmtCur(thinSend.revPerCust)} (vs ${fmtCur(richRegion.revPerCust)}).`,
       why: 'Email + SMS frequency is conservative there. We are leaving capacity on the table.',
-      impact: 'Doubling send frequency to baseline = est. ' + fmtCur(thinSend.revPerCust * (byRegion[thinSend.region]?.custs || 0) * 0.08) + ' incremental in next window.',
+      impact: 'This region earns ' + fmtCur(thinSend.revPerCust) + ' revenue-per-customer on well-below-baseline send frequency, headroom to raise cadence toward ' + richRegion.region + '.',
       action: `Build a ${thinSend.region}-localised content track (currency, shipping, festive moments). Test +2 sends/week for 30 days.`,
     });
   }
@@ -1405,9 +1449,9 @@ function computeInsights() {
     out.push({
       sev: 'crit',
       title: 'Lifecycle / replenishment flow underbuilt',
-      body: `Only ${lifecycleCount} of ${camps.length} sends (${fmtPct(lifecycleCount / camps.length, 0)}) are lifecycle / replenishment messages. Consumable categories (tea, coffee, supplements) should be at 25–35%.`,
+      body: `Only ${lifecycleCount} of ${camps.length} sends (${fmtPct(lifecycleCount / camps.length, 0)}) are lifecycle / replenishment messages. Consumable categories (tea, coffee, supplements) should be at 25 to 35%.`,
       why: 'A 50g tea tin lasts ~6 weeks of daily use. Without a replenishment trigger, repurchase is left to memory.',
-      impact: 'Industry benchmark: lifecycle flows drive 28–40% of retention revenue. Even capturing half of that = ' + fmtCur(kpis.totalRevenue * 0.12) + ' incremental.',
+      impact: 'Industry benchmark: lifecycle / replenishment flows drive 28 to 40% of retention revenue, a band this program is well under today.',
       action: 'Build a 4-step replenishment flow: order day +28 (educate steeping) · +42 (subtle reorder CTA) · +56 (incentive) · +75 (last chance + cross-sell).',
     });
   }
@@ -1418,9 +1462,9 @@ function computeInsights() {
     out.push({
       sev: 'good',
       title: `${fmtInt(hiber.count)} Hibernating customers worth a winback push`,
-      body: `Combined past spend: ${fmtCur(hiber.revenue)}. Winback flows on this segment typically reactivate 4–7%.`,
+      body: `Combined past spend: ${fmtCur(hiber.revenue)}. Winback flows on this kind of segment typically reactivate 4 to 7%.`,
       why: 'These were paying customers — the cost to reactivate is ~1/5 the cost to acquire net new.',
-      impact: 'At a 5% reactivation rate with ' + fmtCur(hiber.avgLtv * 0.3) + ' first-order value, ' + fmtCur(hiber.count * 0.05 * hiber.avgLtv * 0.3) + ' in 90 days.',
+      impact: 'These ' + fmtInt(hiber.count) + ' lapsed customers carry ' + fmtCur(hiber.revenue) + ' of past spend; reactivating even a small share costs a fraction of net-new acquisition.',
       action: 'A 3-email Winback series at +180d / +210d / +240d dormancy. First email: founders-tone story, no discount. Third email: 20% one-time code with countdown.',
     });
   }
@@ -1442,7 +1486,7 @@ function computeInsights() {
         title: `Send-time sweet spot is ${top.h}:00 UTC`,
         body: `Open rate at ${top.h}:00 is ${fmtPct(top.or, 1)}, vs ${fmtPct(bot.or, 1)} at the worst hour (${bot.h}:00). That's a ${((top.or - bot.or) / bot.or * 100).toFixed(0)}% relative lift.`,
         why: 'Send-time is the single most powerful lever in email engagement. Most teams set it once and forget.',
-        impact: 'Re-routing 40% of off-peak sends to the sweet spot = +' + fmtPct((top.or - bot.or) * 0.4, 1) + ' average open rate next month.',
+        impact: 'The gap between the best and worst send hour is ' + fmtPct(top.or - bot.or, 1) + ' of open rate, a lever most teams set once and forget.',
         action: 'Lock evergreen flows to the ' + top.h + ':00 send window. Manually-scheduled campaigns: default to that hour, override only with reason.',
       });
     }
@@ -1456,7 +1500,7 @@ function computeInsights() {
       title: 'New customers are buying below catalog AOV',
       body: `Average LTV at the "New" stage is ${fmtCur(newSeg.avgLtv)} — that's the price of one entry-level tin. The first order is meant to anchor the relationship.`,
       why: 'New customers convert on the discount, not the discovery. They never see the rest of the catalog.',
-      impact: 'Lifting first-order value by 30% via a cross-sell add-on = ' + fmtCur(newSeg.count * newSeg.avgLtv * 0.3) + ' immediate.',
+      impact: 'With ' + fmtInt(newSeg.count) + ' customers stuck at ' + fmtCur(newSeg.avgLtv) + ' first-order value, a starter-set cross-sell is the fastest AOV lever.',
       action: 'Welcome email #2 should include a "complete your starter set" CTA (gift set ladder). Free Discovery 6-pack add-on at $32 order threshold.',
     });
   }
@@ -2074,6 +2118,11 @@ function switchView(name) {
   rerender();
 }
 function rerender() {
+  // Honest empty state: with no connected/uploaded data there is nothing to
+  // compute, so show the connect prompt instead of metrics over no rows.
+  const empty = !hasData();
+  document.body.classList.toggle('no-data', empty);
+  if (empty) { $('lastRefresh').textContent = fmtDateTime(Date.now()); return; }
   if (STATE.view === 'exec')      renderExec();
   if (STATE.view === 'campaigns') renderCampaigns($('campSearch')?.value || '');
   if (STATE.view === 'segments')  renderSegments();
@@ -2271,14 +2320,18 @@ function normalizeRow(slot, r) {
 }
 
 $('btnResetSeed').addEventListener('click', () => {
-  if (!confirm('Reset to synthetic seed data? This clears any uploaded or linked data.')) return;
+  if (!confirm('Clear all data? This removes any uploaded or linked data and returns to the empty state.')) return;
   localStorage.removeItem('vahdam-retention-data');
-  DATA = genSeed();
+  DATA = emptyData();
   STAGE && Object.keys(STAGE).forEach((k) => delete STAGE[k]);
-  $('dataSourceLabel').textContent = 'seed (synthetic)';
+  $('dataSourceLabel').textContent = 'no data — link a database or upload';
   $$('#uploadSlots .file-status').forEach((el) => { el.textContent = 'Not loaded'; el.classList.remove('text-green-bright','text-red'); });
   destroyCharts(); rerender();
 });
+
+// Empty-state shortcuts forward to the toolbar's Link / Upload actions.
+$('emptyLinkDb')?.addEventListener('click', () => $('btnLinkDb')?.click());
+$('emptyUpload')?.addEventListener('click', () => $('btnUpload')?.click());
 
 /* ╔═══════════════════════════════════════════════════════════════════════
  * ║ LINK DATABASE — connect a JSON/REST endpoint or a Supabase project.

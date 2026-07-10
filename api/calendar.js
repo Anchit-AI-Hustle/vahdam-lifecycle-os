@@ -20,6 +20,12 @@
  *   ?action=smart-brain-sync-daily  → POST: daily review — refresh tentative
  *                              entries from latest data, keep approved locked
  *   ?action=smart-brain-cron        → GET: Vercel Cron entrypoint for the same
+ *                              (CRON_SECRET-protected); also kicks the prebuild chain
+ *   ?action=smart-brain-prebuild    → POST: convergent background worker that
+ *                              builds the FULL asset bundle (LLM copy + images:
+ *                              mailer + ads + landing page) for every unbuilt slot
+ *                              in the 90-day window, one batch per call, re-firing
+ *                              itself until the whole window is prebuilt then idling
  *                              (CRON_SECRET-protected)
  *   ?action=smart-brain-preview     → POST: generate-on-demand funnel preview
  *                              (mailer + ads + LP) for any slot — NOT persisted,
@@ -49,6 +55,35 @@ function readBody(req) {
   return req.body;
 }
 
+// Base URL for self-triggering the background prebuild chain. On Vercel this is
+// VERCEL_URL (the current deployment); SELF_BASE_URL is an optional override.
+function selfBaseUrl() {
+  if (process.env.SELF_BASE_URL) return String(process.env.SELF_BASE_URL).replace(/\/$/, '');
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return '';
+}
+
+// Fire the NEXT prebuild batch as an independent invocation and return once it
+// has started (or after a short cutoff). We do NOT await the whole batch — the
+// child invocation keeps running on Vercel after our client connection drops, so
+// this hands off without blocking the current response for 30-60s. Guarded by
+// CRON_SECRET; a no-op when we cannot resolve a base URL (e.g. local dev).
+async function firePrebuild(depth = 0) {
+  const base = selfBaseUrl();
+  if (!base || typeof fetch !== 'function') return { fired: false, reason: 'no self base url / no fetch' };
+  const secret = process.env.CRON_SECRET || '';
+  const url = `${base}/api/calendar?action=smart-brain-prebuild`;
+  const headers = { 'Content-Type': 'application/json' };
+  if (secret) headers.Authorization = `Bearer ${secret}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 3000);
+  try {
+    await fetch(url, { method: 'POST', headers, body: JSON.stringify({ _depth: (depth || 0) + 1 }), signal: ctrl.signal });
+  } catch (_) { /* expected: the child runs longer than our 3s handoff window */ }
+  finally { clearTimeout(timer); }
+  return { fired: true };
+}
+
 async function smartBrain(req, res, smartAction) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -74,7 +109,35 @@ async function smartBrain(req, res, smartAction) {
     if (smartAction === 'sync-daily') {
       if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
       const result = await plan.syncDaily({ config: body.config || {}, days: body.days, persist: body.persist !== false });
+      // Kick the background prebuild so newly added/refreshed slots get their full
+      // asset bundle (copy + images) built ahead of need. Opt out with prebuild:false.
+      if (body.prebuild !== false) { const f = await firePrebuild(0); result.prebuild_kicked = f.fired; }
       return res.status(200).json(result);
+    }
+
+    if (smartAction === 'prebuild') {
+      // Convergent background worker: build a batch of unbuilt slots (full LLM
+      // copy + images) then re-fire itself until the whole 90-day window is built.
+      // CRON_SECRET-protected like cron; fails closed in production without one.
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+      const secret = process.env.CRON_SECRET || '';
+      const auth = req.headers.authorization || '';
+      const authorized = secret
+        ? (auth === `Bearer ${secret}` || req.query?.secret === secret)
+        : (String(process.env.VERCEL_ENV) !== 'production');
+      if (!authorized) return res.status(401).json({ ok: false, error: 'Unauthorized prebuild call' });
+      const depth = Math.max(0, +((body && body._depth) || req.query?.depth || 0));
+      const MAX_DEPTH = 400; // backstop against runaway self-chaining (> 90d × markets slots)
+      const batchSize = Math.max(1, Math.min(3, +((body && body.batchSize) || 1)));
+      const result = await plan.prebuildAssets({ config: body.config || {}, batchSize });
+      // Chain to the next batch only while making progress and within the backstop,
+      // so a total-failure batch (e.g. LLM down) stops instead of hot-looping.
+      let chained = false;
+      if (result.remaining > 0 && result.built.length > 0 && depth < MAX_DEPTH) {
+        const f = await firePrebuild(depth);
+        chained = f.fired;
+      }
+      return res.status(200).json({ ok: true, prebuild: true, depth, chained, ...result });
     }
 
     if (smartAction === 'cron') {
@@ -88,7 +151,10 @@ async function smartBrain(req, res, smartAction) {
         : (String(process.env.VERCEL_ENV) !== 'production');
       if (!authorized) return res.status(401).json({ ok: false, error: 'Unauthorized cron call' });
       const result = await plan.syncDaily({ persist: true });
-      return res.status(200).json({ ok: true, cron: true, synced_at: result.synced_at, mode: result.mode, changes: result.changes.length, persistence: result.persistence });
+      // Kick the background prebuild chain so the full 90-day window keeps its
+      // assets (copy + images) prebuilt automatically every day.
+      const f = await firePrebuild(0);
+      return res.status(200).json({ ok: true, cron: true, synced_at: result.synced_at, mode: result.mode, changes: result.changes.length, persistence: result.persistence, prebuild_kicked: f.fired });
     }
 
     if (smartAction === 'preview') {
@@ -152,7 +218,7 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json(result);
     }
 
-    return res.status(400).json({ ok: false, error: 'Unknown Smart Brain action. Use smart-brain-health|smart-brain-schema|smart-brain-plan|smart-brain-sync-daily|smart-brain-cron|smart-brain-preview|smart-brain-approve|smart-brain-reject|smart-brain-run-daily|smart-brain-generate-slot|smart-brain-feedback|smart-brain-weekly-recalibration' });
+    return res.status(400).json({ ok: false, error: 'Unknown Smart Brain action. Use smart-brain-health|smart-brain-schema|smart-brain-plan|smart-brain-sync-daily|smart-brain-cron|smart-brain-prebuild|smart-brain-preview|smart-brain-approve|smart-brain-reject|smart-brain-run-daily|smart-brain-generate-slot|smart-brain-feedback|smart-brain-weekly-recalibration' });
   } catch (err) {
     console.error('[api/calendar smart-brain]', err);
     return res.status(500).json({ ok: false, error: err.message });
@@ -213,7 +279,7 @@ module.exports = async function handler(req, res) {
   if (action === 'lp') {
     try {
       const id = String(req.query?.id || '');
-      const html = await plan.landingPageHtml(id);
+      const html = await plan.landingPageHtml(id, {}, req.query?.v || null);
       if (!html) { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.status(404).send('<!doctype html><title>Not found</title><p style="font-family:Arial;padding:40px">Landing page not found. It may not have been approved/generated yet.</p>'); }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       // ?download=1 → export the self-contained, deploy-ready HTML file (drop onto try.vahdam.*).

@@ -126,17 +126,19 @@
         <div class="label">Markets</div>
         <div class="flex gap-1.5 mt-2" id="marketChips">
           <button class="filter-chip active" data-market="US">US</button>
-          <button class="filter-chip active" data-market="UK">UK</button>
-          <button class="filter-chip active" data-market="Global">Global</button>
-          <button class="filter-chip active" data-market="IN">India</button>
+          <button class="filter-chip" data-market="UK">UK</button>
+          <button class="filter-chip" data-market="Global">Global</button>
+          <button class="filter-chip" data-market="IN">India</button>
         </div>
       </div>
       <div>
         <div class="label">Plan window</div>
         <div class="flex gap-1.5 mt-2" id="daysChips">
           <button class="filter-chip" data-days="14">14d</button>
-          <button class="filter-chip active" data-days="30">30d</button>
+          <button class="filter-chip" data-days="30">30d</button>
           <button class="filter-chip" data-days="45">45d</button>
+          <button class="filter-chip" data-days="60">60d</button>
+          <button class="filter-chip active" data-days="90">90d</button>
         </div>
       </div>
       <div>
@@ -199,8 +201,21 @@
       </div>
       <button class="text-ink-mute hover:text-ink text-2xl leading-none" onclick="closeMailer()">×</button>
     </div>
+    <div class="flex flex-wrap gap-1.5 mb-3" id="daySwitch"></div>
     <div class="flex gap-2 mb-3" id="variantTabs"></div>
     <div id="variantPanels"></div>
+    <!-- Verify / approve / request-changes loop -->
+    <div class="mt-4 pt-4 border-t border-gold/15">
+      <div class="text-[11px] uppercase tracking-wider text-gold mb-1.5">Verify, approve, or request changes</div>
+      <textarea id="mailerFeedback" rows="2" placeholder="Leave changes or feedback to incorporate, then Regenerate. Example: lead with the 90-day guarantee, warmer tone, feature the gift set." class="w-full text-sm bg-bg-card border border-gold/20 rounded px-3 py-2 text-ink"></textarea>
+      <div class="flex items-center justify-between gap-2 mt-2 flex-wrap">
+        <div id="approveState" class="text-[11px] text-ink-mute"></div>
+        <div class="flex gap-2">
+          <button id="btnRegen" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink">↻ Regenerate with feedback</button>
+          <button id="btnApprove" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded font-semibold" style="background:#7fd6a6;color:#0a1f14">✓ Approve</button>
+        </div>
+      </div>
+    </div>
     <div class="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-gold/15">
       <a id="openInStudio" href="/studio" target="_blank" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink">Open in Studio ↗</a>
       <button onclick="closeMailer()" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded bg-gold text-bg font-semibold">Done</button>
@@ -213,8 +228,10 @@ const $ = (id) => document.getElementById(id);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 const STATE = {
-  markets: ['US', 'UK', 'Global', 'IN'],
-  days: 30,
+  // Defaults (product rule): region = US only, duration = the maximum the window
+  // options allow (90d). Autogenerates on load with these.
+  markets: ['US'],
+  days: 90,
   capacity: 4,
   plan: [],
   meta: {},
@@ -436,12 +453,7 @@ function renderCalendar() {
     cell.addEventListener('click', () => {
       const ds = cell.dataset.date;
       const list = STATE.plan.filter((p) => p.date === ds);
-      if (list.length === 1) openMailer(list[0]);
-      else if (list.length > 1) {
-        // scroll table to first matching row
-        const row = document.querySelector(`#planTable tr[data-id="${list[0].id}"]`);
-        if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      if (list.length) openMailer(list[0], list);
     });
   });
 }
@@ -500,7 +512,7 @@ function renderTable(filter = '') {
       <td class="text-[12px] max-w-[260px]">${p.subject_hint}</td>
       <td class="max-w-[260px]">${analysisDetails(p)}</td>
       <td class="text-[11px]">${p.festival ? '★ ' + p.festival : '—'}</td>
-      <td><button onclick='openMailerById("${p.id}")' class="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-gold/20 text-gold hover:bg-gold hover:text-bg">Build →</button></td>
+      <td>${APPROVED.has(p.id) ? '<span title="Approved" style="color:#7fd6a6;margin-right:6px;font-weight:700">✓</span>' : ''}<button onclick='openMailerById("${p.id}")' class="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-gold/20 text-gold hover:bg-gold hover:text-bg">${APPROVED.has(p.id) ? 'Review' : 'View / Build →'}</button></td>
     </tr>
   `).join('');
 }
@@ -531,9 +543,32 @@ function setStudioHandoff(entry, strategy, ctaUrl, variants) {
   }
 }
 
-async function openMailer(entry) {
+let CURRENT_ENTRY = null;
+let APPROVED = (() => { try { return new Set(JSON.parse(localStorage.getItem('vahdam-cal-approved') || '[]')); } catch { return new Set(); } })();
+function saveApproved() { try { localStorage.setItem('vahdam-cal-approved', JSON.stringify([...APPROVED])); } catch {} }
+function refreshApproveState() {
+  const el = $('approveState'); if (!el || !CURRENT_ENTRY) return;
+  el.innerHTML = APPROVED.has(CURRENT_ENTRY.id)
+    ? '<span style="color:#7fd6a6;font-weight:700">✓ Approved</span> · assets locked for this slot'
+    : 'Not yet approved. Review the assets above, leave feedback and regenerate, or approve.';
+}
+
+async function openMailer(entry, dayList) {
+  CURRENT_ENTRY = entry;
   $('mailerTitle').textContent = `${entry.date} · ${entry.market} · ${entry.segment}`;
   $('mailerSubtitle').textContent = entry.rationale || '';
+  var fb = $('mailerFeedback'); if (fb) fb.value = entry.feedback || '';
+  // Day switcher: when a day has several planned sends, let the reviewer flip
+  // between them inside the one popup.
+  var sw = $('daySwitch');
+  if (sw) {
+    var sibs = (dayList && dayList.length > 1) ? dayList : [];
+    sw.innerHTML = sibs.map(function (p) {
+      return '<button class="filter-chip' + (p.id === entry.id ? ' active' : '') + '" data-eid="' + p.id + '">' + p.market + ' · ' + p.segment + (APPROVED.has(p.id) ? ' ✓' : '') + '</button>';
+    }).join('');
+    $$('#daySwitch .filter-chip').forEach(function (b) { b.addEventListener('click', function () { var e = STATE.plan.find(function (x) { return x.id === b.dataset.eid; }); if (e) openMailer(e, dayList); }); });
+  }
+  refreshApproveState();
   $('variantTabs').innerHTML = '';
   $('variantPanels').innerHTML = `<div class="text-ink-mute text-center py-8">Calling strategy + variant pipeline…</div>`;
   $('mailerModal').classList.add('open');
@@ -624,10 +659,13 @@ function renderVariantPanel(v, strategy, ctaUrl) {
   // is still exportable, not a dead-end text tile.
   const brief = v.hero_image_brief || '';
   const enc = encodeURIComponent(brief);
+  const preview = v.hero_image_url
+    ? `<img src="${v.hero_image_url}" alt="${v.label}" style="width:100%;max-height:260px;object-fit:cover;border-radius:8px;border:1px solid rgba(171,135,67,.3)">`
+    : `<div style="width:100%;height:180px;border:2px dashed rgba(171,135,67,.5);border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;color:#9aaaa1;font-size:12px;background:#0f1d18">Image renders in Mailer Studio<br>(drop the brief into the image cascade)</div>`;
   return `
     <div class="space-y-2">
       <div class="text-xs uppercase tracking-wider text-gold">${v.label}</div>
-      <div style="width:100%;height:180px;border:2px dashed rgba(171,135,67,.5);border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;color:#9aaaa1;font-size:12px;background:#0f1d18">Image renders in Mailer Studio<br>(drop the brief into the image cascade)</div>
+      ${preview}
       <div class="card p-3 text-[12px] leading-relaxed">
         <b class="text-cream">Image generation brief:</b><br>${brief}
       </div>
@@ -655,6 +693,23 @@ $('daysChips').addEventListener('click', (e) => {
 });
 $('capInput').addEventListener('change', (e) => { STATE.capacity = +e.target.value || 4; });
 $('btnGenerate').addEventListener('click', generatePlan);
+
+// Regenerate the current slot's assets WITH the reviewer's feedback baked into
+// the brief (calendar-trigger.js reads entry.feedback). Approve locks the slot.
+$('btnRegen').addEventListener('click', () => {
+  if (!CURRENT_ENTRY) return;
+  const fb = ($('mailerFeedback').value || '').trim();
+  CURRENT_ENTRY.feedback = fb;
+  APPROVED.delete(CURRENT_ENTRY.id); saveApproved();
+  const dayList = STATE.plan.filter((p) => p.date === CURRENT_ENTRY.date);
+  openMailer(CURRENT_ENTRY, dayList); // re-runs trigger-mailer with feedback in the entry
+});
+$('btnApprove').addEventListener('click', () => {
+  if (!CURRENT_ENTRY) return;
+  APPROVED.add(CURRENT_ENTRY.id); saveApproved();
+  refreshApproveState();
+  renderTable($('planSearch').value); renderCalendar();
+});
 $('planSearch').addEventListener('input', (e) => renderTable(e.target.value));
 
 $('btnExport').addEventListener('click', () => {
