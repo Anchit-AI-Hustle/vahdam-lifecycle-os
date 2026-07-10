@@ -179,9 +179,9 @@
     <div class="overflow-x-auto">
       <table class="w-full min-w-[1000px]" data-sortable>
         <thead><tr>
-          <th data-sort="date">Date</th><th>Mkt</th><th>Segment</th><th>Content</th><th>Archetype</th><th>Hero</th><th>Subject hint</th><th>Festival</th><th data-no-sort></th>
+          <th data-sort="date">Date</th><th>Mkt</th><th>Segment</th><th>Content</th><th>Archetype</th><th>Hero</th><th>Subject hint</th><th>Why (analysis)</th><th>Festival</th><th data-no-sort></th>
         </tr></thead>
-        <tbody id="planTable"><tr><td colspan="9" class="text-center text-ink-mute py-8">Click "Generate plan" to build the 30-day calendar.</td></tr></tbody>
+        <tbody id="planTable"><tr><td colspan="10" class="text-center text-ink-mute py-8">Click "Generate plan" to build the 30-day calendar.</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -446,6 +446,39 @@ function renderCalendar() {
   });
 }
 
+// Renders the shared analysis object (api/_shared/output-reasoning.js) as a
+// compact, expandable "why" panel per calendar entry. String concatenation is
+// used deliberately (no nested template literals) to stay clear of the giant
+// inline-JS template-literal pitfalls flagged in CLAUDE.md.
+function calEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function calTrunc(s,n){ s=String(s||''); return s.length>n?s.slice(0,n-1)+'…':s; }
+function analysisDetails(p){
+  const a = p && p.analysis;
+  const conf = (a && a.confidence) ? a.confidence : (p.confidence!=null ? { score:p.confidence } : null);
+  const confTxt = (conf && conf.score!=null) ? Math.round(conf.score*100)+'%'+(conf.label?' · '+conf.label:'') : '';
+  const summary = (a && a.summary) || p.rationale || '';
+  if(!a && !summary) return '<span class="text-ink-mute">—</span>';
+  let body='';
+  if(a){
+    const drivers = (a.drivers||[]).map(function(d){
+      return '<div style="margin:3px 0;color:#e8ede9"><b style="color:#AB8743">'+calEsc(d.signal)+':</b> '+calEsc(d.value)+
+        (d.implication?'<div style="font-size:10px;color:#9aaaa1">'+calEsc(d.implication)+'</div>':'')+'</div>';
+    }).join('');
+    const factors = ((a.confidence&&a.confidence.factors)||[]).map(function(f){
+      return '<div style="display:flex;justify-content:space-between;gap:8px;color:#e8ede9"><span>'+calEsc(f.label)+'</span><span style="color:'+(f.delta>=0?'#16a34a':'#e89a9a')+'">'+(f.delta>=0?'+':'')+f.delta+'</span></div>';
+    }).join('');
+    body = '<div style="font-size:11px;line-height:1.5;max-width:320px;color:#e8ede9">'+drivers+
+      (a.hypothesis?'<div style="margin:6px 0"><b style="color:#AB8743">Hypothesis:</b> '+calEsc(a.hypothesis)+'</div>':'')+
+      (a.expected_impact?'<div style="margin:4px 0"><b style="color:#AB8743">Expected:</b> '+calEsc(a.expected_impact.metric||'')+' '+calEsc(a.expected_impact.direction||'up')+'</div>':'')+
+      (factors?'<div style="margin-top:6px;border-top:1px solid rgba(171,135,67,.35);padding-top:4px"><b style="color:#AB8743">Confidence '+confTxt+'</b>'+factors+'</div>':'')+
+      '</div>';
+  } else {
+    body = '<div style="font-size:11px;max-width:320px;color:#e8ede9">'+calEsc(summary)+'</div>';
+  }
+  return '<details><summary style="cursor:pointer;font-size:11px;color:#AB8743">'+calEsc(calTrunc(summary,56))+
+    (confTxt?' <span style="color:#9aaaa1">('+confTxt+')</span>':'')+'</summary><div style="margin-top:6px">'+body+'</div></details>';
+}
+
 function renderTable(filter = '') {
   const f = filter.toLowerCase();
   const rows = STATE.plan.filter((p) =>
@@ -453,7 +486,7 @@ function renderTable(filter = '') {
       .join(' ').toLowerCase().includes(f)
   );
   if (!rows.length) {
-    $('planTable').innerHTML = `<tr><td colspan="9" class="text-center text-ink-mute py-8">No entries match.</td></tr>`;
+    $('planTable').innerHTML = `<tr><td colspan="10" class="text-center text-ink-mute py-8">No entries match.</td></tr>`;
     return;
   }
   $('planTable').innerHTML = rows.map((p) => `
@@ -465,6 +498,7 @@ function renderTable(filter = '') {
       <td class="text-[12px]">${p.archetype}</td>
       <td class="text-[12px]">${p.hero_product || p.hero_sku || '—'}</td>
       <td class="text-[12px] max-w-[260px]">${p.subject_hint}</td>
+      <td class="max-w-[260px]">${analysisDetails(p)}</td>
       <td class="text-[11px]">${p.festival ? '★ ' + p.festival : '—'}</td>
       <td><button onclick='openMailerById("${p.id}")' class="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-gold/20 text-gold hover:bg-gold hover:text-bg">Build →</button></td>
     </tr>

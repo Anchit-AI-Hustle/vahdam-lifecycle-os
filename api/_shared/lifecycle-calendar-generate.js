@@ -26,6 +26,7 @@
 const fs = require('fs');
 const path = require('path');
 const { COHORTS, PLAYS, purchaseModeForProductType } = require('./lifecycle-cohorts.js');
+const { buildEntryAnalysis, explainConfidence } = require('./output-reasoning.js');
 
 // ─── Date + festival helpers (duplicated from calendar-generate.js on purpose:
 //     that module stays untouched; these are tiny and stable) ─────────────────
@@ -297,6 +298,28 @@ async function generateLifecycleCalendar(input = {}) {
       const hero = heroForSlot({ productType, playKey: play.key, seedKey, useCount: heroUseCount[productType] });
       heroUseCount[productType] += 1;
 
+      // Explainable confidence + complete analysis for this cohort-native slot.
+      const conf = explainConfidence([
+        { when: (i === 0), label: 'Cohort entry / first send', delta: 0.10, detail: 'Opening send of the cohort sequence, highest attention.' },
+        { when: (festival && festival.weight >= 5), label: 'Festival window', delta: 0.08, detail: festival ? `Timed to ${festival.name} (weight ${festival.weight}/10).` : '' },
+        { when: (hero.handle_verified === true), label: 'Verified hero product handle', delta: 0.08, detail: 'Product link is verified against the live catalog.' },
+        { when: (purchaseMode !== 'one_time_only'), label: 'Subscription-priority product', delta: 0.06, detail: 'Subscribe CTA raises repeat-revenue potential.' },
+      ]);
+      const analysisObj = buildEntryAnalysis({
+        cohort: { name: cohort.label },
+        product: { title: hero.hero_product, category: productType },
+        festival: festival ? { name: festival.name, weight: festival.weight, tags: festival.tags || [] } : null,
+        channels: ['email'],
+        objective: play.name,
+        market,
+        confidence: conf,
+        dataSource: 'lifecycle-cohorts',
+      });
+      // Layer in the play mechanic + purchase-mode rule as explicit drivers.
+      analysisObj.drivers.push({ signal: 'Lifecycle play', value: play.name, implication: String(play.when_to_use || '').split(' — ')[0].split('.')[0] + '.' });
+      analysisObj.drivers.push({ signal: 'Purchase mode', value: purchaseMode, implication: purchaseMode === 'one_time_only' ? `${productType} is strictly one-time — no subscription language.` : `${productType} is subscription-priority — subscribe is the primary CTA.` });
+      if (hero.handle_verified !== true) analysisObj.drivers.push({ signal: 'Data caveat', value: 'Hero handle unverified', implication: 'Verify the product link against the live catalog before send.' });
+
       plan.push({
         id: `lc_${dateStr}_${cohortKey}_${market}`,
         date: dateStr,
@@ -319,6 +342,8 @@ async function generateLifecycleCalendar(input = {}) {
         festival_weight: festival ? festival.weight : null,
         festival_tags: festival ? festival.tags : [],
         rationale: buildRationale({ cohort, play, productType, purchaseMode, festival, hero }),
+        confidence: conf.score,
+        analysis: analysisObj,
         status: 'planned',
       });
     }

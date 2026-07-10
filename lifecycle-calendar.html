@@ -159,7 +159,7 @@
     <div class="overflow-x-auto">
       <table class="w-full min-w-[1000px]" data-sortable>
         <thead><tr>
-          <th data-sort="date">Date</th><th>Cohort</th><th>Play</th><th>Product type</th><th>Mode</th><th>Hero</th><th>Subject hint</th><th>Festival</th><th data-no-sort></th>
+          <th data-sort="date">Date</th><th>Cohort</th><th>Play</th><th>Product type</th><th>Mode</th><th>Hero</th><th>Subject hint</th><th>Why (analysis)</th><th>Festival</th><th data-no-sort></th>
         </tr></thead>
         <tbody id="planTable"></tbody>
       </table>
@@ -202,6 +202,37 @@ const STATE = { days: 30, plan: [], currentMailer: null, currentEntry: null, var
 $('startInput').value = new Date().toISOString().slice(0, 10);
 
 function escAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+// Renders the shared analysis object (from api/_shared/output-reasoning.js) as a
+// compact, expandable "why" panel. Falls back to the flat rationale string.
+function analysisDetails(p) {
+  const a = p && p.analysis;
+  const conf = a && a.confidence ? a.confidence : (p.confidence != null ? { score: p.confidence } : null);
+  const confTxt = conf && conf.score != null ? Math.round(conf.score * 100) + '%' + (conf.label ? ' · ' + conf.label : '') : '';
+  const summary = (a && a.summary) || p.rationale || '';
+  if (!a && !summary) return '<span class="text-ink-mute">-</span>';
+  let body = '';
+  if (a) {
+    const drivers = (a.drivers || []).map((d) =>
+      '<div style="margin:3px 0;color:#e8ede9"><b style="color:#AB8743">' + escAttr(d.signal) + ':</b> ' + escAttr(d.value) +
+      (d.implication ? '<div style="font-size:10px;color:#9aaaa1">' + escAttr(d.implication) + '</div>' : '') + '</div>').join('');
+    const factors = (a.confidence && a.confidence.factors || []).map((f) =>
+      '<div style="display:flex;justify-content:space-between;gap:8px;color:#e8ede9"><span>' + escAttr(f.label) + '</span><span style="color:' + (f.delta >= 0 ? '#16a34a' : '#e89a9a') + '">' + (f.delta >= 0 ? '+' : '') + f.delta + '</span></div>').join('');
+    body =
+      '<div style="font-size:11px;line-height:1.5;max-width:320px;color:#e8ede9">' +
+        drivers +
+        (a.hypothesis ? '<div style="margin:6px 0"><b style="color:#AB8743">Hypothesis:</b> ' + escAttr(a.hypothesis) + '</div>' : '') +
+        (a.expected_impact ? '<div style="margin:4px 0"><b style="color:#AB8743">Expected:</b> ' + escAttr(a.expected_impact.metric || '') + ' ' + escAttr(a.expected_impact.direction || 'up') + '</div>' : '') +
+        (factors ? '<div style="margin-top:6px;border-top:1px solid rgba(171,135,67,.35);padding-top:4px"><b style="color:#AB8743">Confidence ' + confTxt + '</b>' + factors + '</div>' : '') +
+      '</div>';
+  } else {
+    body = '<div style="font-size:11px;max-width:320px;color:#e8ede9">' + escAttr(summary) + '</div>';
+  }
+  return '<details class="why-details"><summary style="cursor:pointer;font-size:11px;color:#AB8743">' +
+    escAttr(truncate(summary, 60)) + (confTxt ? ' <span style="color:#9aaaa1">(' + confTxt + ')</span>' : '') +
+    '</summary><div style="margin-top:6px">' + body + '</div></details>';
+}
+function truncate(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
 function selectedCohorts() {
   return $$('#cohortChecks input:checked').map((c) => c.value);
@@ -295,7 +326,7 @@ function renderTable(filter) {
       .join(' ').toLowerCase().includes(f)
   );
   if (!rows.length) {
-    $('planTable').innerHTML = '<tr><td colspan="9" class="text-center text-ink-mute py-8">No entries match.</td></tr>';
+    $('planTable').innerHTML = '<tr><td colspan="10" class="text-center text-ink-mute py-8">No entries match.</td></tr>';
     return;
   }
   $('planTable').innerHTML = rows.map((p) =>
@@ -307,6 +338,7 @@ function renderTable(filter) {
       '<td class="text-[11px] ' + (p.purchase_mode === 'one_time_only' ? 'pm-one' : 'pm-sub') + '">' + (p.purchase_mode === 'one_time_only' ? 'one-time' : 'sub-first') + '</td>' +
       '<td class="text-[12px] max-w-[220px]">' + escAttr(p.hero_product || '') + (p.hero_price ? '<div class="text-[10px] text-ink-mute">' + escAttr(p.hero_price) + '</div>' : '') + (p.handle_verified === false ? '<div class="text-[10px] text-yellow-500">handle unverified</div>' : '') + '</td>' +
       '<td class="text-[12px] max-w-[240px]">' + escAttr(p.subject_hint || '') + '</td>' +
+      '<td class="max-w-[260px]">' + analysisDetails(p) + '</td>' +
       '<td class="text-[11px]">' + (p.festival ? '★ ' + escAttr(p.festival) : ' - ') + '</td>' +
       '<td><button data-build="' + escAttr(p.id) + '" class="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-gold/20 text-gold hover:bg-gold hover:text-bg whitespace-nowrap">Build Mailer →</button></td>' +
     '</tr>'

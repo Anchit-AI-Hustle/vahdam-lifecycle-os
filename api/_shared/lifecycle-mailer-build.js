@@ -23,6 +23,7 @@ const { helpers } = require('./calendar-trigger.js');
 const { COHORTS, PLAYS, ALLOWED_TEMPLATE_STYLES, purchaseModeForProductType } = require('./lifecycle-cohorts.js');
 const { loadProductTypes } = require('./lifecycle-calendar-generate.js');
 const CF = require('./copy-frameworks.js');
+const { buildEntryAnalysis } = require('./output-reasoning.js');
 
 // ─── Brief builder ───────────────────────────────────────────────────────────
 
@@ -311,6 +312,37 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
     // The four deliverables: 2 Text + 2 Text + Visual.
     variants,
     generated_by: provider ? `${provider}${model ? `/${model}` : ''}` : null,
+    // Complete "why this mailer looks the way it does" analysis. Reuses the
+    // calendar entry's data-grounded analysis (cohort/product/festival/
+    // confidence) and layers in the copy-framework + variant reasoning.
+    analysis: (() => {
+      const base = row.analysis || buildEntryAnalysis({
+        cohort: { name: row.cohort_label || row.cohort_key },
+        product: { title: row.hero_product, category: row.product_type },
+        festival: row.festival ? { name: row.festival, weight: row.festival_weight, tags: row.festival_tags || [] } : null,
+        channels: ['email'],
+        objective: row.play_name || row.play_key,
+        market,
+        dataSource: 'lifecycle-cohorts',
+      });
+      return {
+        summary: `Four mailers for ${row.cohort_label || row.cohort_key} built on ${row.hero_product} via the "${row.play_name || row.play_key}" play.`,
+        why_this_slot: base.summary,
+        drivers: base.drivers,
+        hypothesis: base.hypothesis,
+        expected_impact: base.expected_impact,
+        confidence: base.confidence,
+        copy_frameworks: [
+          { key: fwA.key, name: fwA.name, why: `Primary voice for this ${row.cohort_label || row.cohort_key} send; best fit for the "${row.play_name || row.play_key}" play.` },
+          { key: fwB.key, name: fwB.name, why: 'Structural contrast variant so the A/B forces a genuinely different narrative, not a reworded twin.' },
+        ],
+        variant_logic: variants.map((v) => ({ key: v.key, type: v.type, framework: v.framework, why: v.type === 'Text' ? 'Pure typographic build — deliverable for image-free, high-deliverability sends.' : 'Adds a real catalog photo (or a fillable slot) for a richer hero.' })),
+        purchase_mode_rule: (row.purchase_mode || purchaseModeForProductType(row.product_type)) === 'one_time_only'
+          ? 'One-time product: no subscription language anywhere in the copy.'
+          : 'Subscription-priority product: subscribe is the primary CTA.',
+        evidence: base.evidence,
+      };
+    })(),
   };
 
   const persistence = await persistMailer(row.id, mailer);
