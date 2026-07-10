@@ -37,6 +37,12 @@ const catalogImage = require('./catalog-image.js');
 // + Visual) at the same quality. Guarded: falls back to the local single mailer.
 let renderTextVariant = null;
 try { renderTextVariant = require('./calendar-trigger.js').helpers.renderTextVariant; } catch (_) { renderTextVariant = null; }
+// Copywriting framework library — the SAME one the Mailer Calendar uses. Two
+// diverging frameworks (A + B) drive two genuinely DIFFERENT copy directions per
+// slot, so the four mailer variants, the A/B ads and the A/B landing pages read
+// distinctly instead of being one copy in two skins. Unifies the variant styles
+// across Smart Brain, Mailer Calendar and Plan Calendar.
+const CF = require('./copy-frameworks.js');
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function nowIso() { return new Date().toISOString(); }
@@ -326,14 +332,17 @@ Voice: warm, sensory, emotionally resonant, story-driven. Prefer: ritual, restor
 NEVER use: "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" in caps, "hurry", "don't miss out", "last chance", "while supplies last".
 Return STRICT JSON only, no markdown fences.`;
 
-function copyPrompt(entry) {
+function copyPrompt(entry, fw = null) {
   const hooks = (entry.competitorContext || []).flatMap((c) => (c.trendingHooks || []).map((h) => h.hook)).slice(0, 5);
+  const fwLine = fw
+    ? `\nCOPY FRAMEWORK: structure the copy with the ${fw.name} framework (${fw.full || fw.name}); the opening beat lands in the subject + hero_headline, the middle beats across intro_paragraph and body_paragraph in order, and the final beat on the cta. Do NOT name the framework in the copy, let the structure do the work.`
+    : '';
   return `Write campaign copy for this planned slot. Context:
 - Market: ${entry.market} | Cohort: ${entry.cohort?.name} | Objective: ${entry.objective}
 - Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})
 - ${entry.festival ? `Seasonal moment: ${entry.festival.name}` : 'No festival; evergreen angle.'}
 - Rationale: ${entry.rationale || ''}
-- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
+- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}${fwLine}
 
 Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules (ALL creatives are TEXT-FREE photographs — never describe overlaid words, headlines, prices, logos or UI in the image_brief; diffusion models cannot spell and render garbled fake letterforms, and the real ad copy is rendered natively by the platform, not painted into the pixels):
 - email / LP heroes: just scene, props, light, mood; aspirational hero.
@@ -341,7 +350,7 @@ Every asset must ship with a CREATIVE as well as copy. For each asset write an "
 
 Return JSON with exactly this shape:
 {
- "email": { "subject": "", "preheader": "", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "cta": "", "image_brief": "" },
+ "email": { "subject": "", "subject_alt1": "", "subject_alt2": "", "preheader": "", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "cta": "", "image_brief": "" },
  "landing": { "hero_headline": "", "hero_sub": "", "why_title": "", "why_bullets": ["","",""], "proof_quote": "", "proof_author": "", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
  "ads": {
    "meta": { "primary_text": "", "headline": "", "description": "", "image_brief": "" },
@@ -466,30 +475,46 @@ function emailPlaceholder(label, w, h) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="#FBF5EA"/><rect x="10" y="10" width="${w - 20}" height="${h - 20}" fill="none" stroke="#AB8743" stroke-width="2" stroke-dasharray="9 7"/><text x="50%" y="45%" text-anchor="middle" fill="#004A2B" font-family="Georgia,serif" font-size="21">${t}</text><text x="50%" y="59%" text-anchor="middle" fill="#AB8743" font-family="Arial,sans-serif" font-size="13">Drop your image URL here · ${w} x ${h}</text></svg>`;
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
-function emailVariants(entry, copy, creativeUrl) {
-  if (!renderTextVariant) return null;
+function variantMeta(copy) {
+  const E = copy.email || {};
+  return {
+    subject_line: E.subject || '',
+    subject_alts: [E.subject_alt1, E.subject_alt2].filter(Boolean),
+    preview_text: E.preheader || '',
+    hero_headline: E.hero_headline || E.subject || '',
+    hero_subline: E.subheadline || E.preheader || '',
+    cta_text: E.cta || 'Shop the edit',
+  };
+}
+function renderVariant(entry, copy, style, img) {
   const E = copy.email || {};
   const heroProduct = (entry.heroProduct && entry.heroProduct.title) || entry.theme || '';
-  const heroImg = creativeUrl || (entry.heroProduct && (entry.heroProduct.image || entry.heroProduct.image_url)) || catalogImage.imageFor(entry, entry.market) || emailPlaceholder(heroProduct, 536, 340);
-  const S = {
+  return renderTextVariant({
+    style, subject: E.subject, preheader: E.preheader,
     hero_headline: E.hero_headline || E.subject || heroProduct,
     hero_subline: E.subheadline || E.preheader || '',
     body_blocks: [
       E.intro_paragraph ? { heading: '', body: E.intro_paragraph } : null,
       E.body_paragraph ? { heading: '', body: E.body_paragraph } : null,
     ].filter(Boolean),
-    cta_text: E.cta || 'Shop the edit',
-  };
-  const mk = (style, img) => renderTextVariant({
-    style, subject: E.subject, hero_headline: S.hero_headline, hero_subline: S.hero_subline,
-    body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: '{{landing_page_url}}',
+    cta_text: E.cta || 'Shop the edit', cta_url: '{{landing_page_url}}',
     market: entry.market, hero_product: heroProduct, hero_image_url: img || undefined,
   });
+}
+// Four variants in the SAME taxonomy as the Mailer Calendar: 2 Text + 2 Text +
+// Visual, each labelled by its copy framework, with copyA driving the A-slots and
+// copyB the B-slots so the two directions read genuinely differently.
+function emailVariants(entry, copyA, copyB, fwA, fwB, creativeUrl) {
+  if (!renderTextVariant) return null;
+  const heroProduct = (entry.heroProduct && entry.heroProduct.title) || entry.theme || '';
+  const heroImg = creativeUrl || catalogImage.imageFor(entry, entry.market) || emailPlaceholder(heroProduct, 536, 340);
+  const nA = (fwA && fwA.name) || 'Concise';
+  const nB = (fwB && fwB.name) || 'Editorial';
   return [
-    { key: 'text_a', type: 'Text', label: 'Text · Concise', html: mk('pure') },
-    { key: 'text_b', type: 'Text', label: 'Text · Editorial', html: mk('editorial') },
-    { key: 'visual_a', type: 'Text + Visual', label: 'Text + Visual · Hero', html: mk('visual', heroImg) },
-    { key: 'visual_b', type: 'Text + Visual', label: 'Text + Visual · Rich brand', html: emailHtml(entry, copy, creativeUrl) },
+    { key: 'text_a',   type: 'Text',          label: `Text · ${nA}`,          framework: fwA && fwA.key, ...variantMeta(copyA), html: renderVariant(entry, copyA, 'pure') },
+    { key: 'text_b',   type: 'Text',          label: `Text · ${nB}`,          framework: fwB && fwB.key, ...variantMeta(copyB), html: renderVariant(entry, copyB, 'editorial') },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${nA}`, framework: fwA && fwA.key, ...variantMeta(copyA), html: renderVariant(entry, copyA, 'visual', heroImg) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${nB}`, framework: fwB && fwB.key, ...variantMeta(copyB), html: renderVariant(entry, copyB, 'visual', heroImg) },
   ];
 }
 
@@ -517,10 +542,11 @@ function emailHtml(entry, copy, creativeUrl) {
 </body></html>`;
 }
 
-async function writeCopyWithLLM(entry) {
+async function writeCopyWithLLM(entry, fw = null) {
+  const sysLine = fw ? (() => { try { return '\n' + CF.copyFrameworkSystemLine(fw); } catch (_) { return ''; } })() : '';
   const res = await callLLM({
-    systemPrompt: BRAND_SYSTEM,
-    userMessage: copyPrompt(entry),
+    systemPrompt: BRAND_SYSTEM + sysLine,
+    userMessage: copyPrompt(entry, fw),
     responseFormat: { type: 'json_object' },
     maxTokens: 1800,
     temperature: 0.75,
@@ -547,49 +573,51 @@ function scrubCopyDeep(o) {
   return walk(o || {});
 }
 
-function applyCopy(campaign, entry, copy, creatives = {}) {
-  const brief = (k) => ({ brief: (k && copy.ads?.[k]?.image_brief) || '', image: null, provider: null });
+function applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives = {}) {
+  const briefFor = (copy, k) => ({ brief: (k && copy.ads?.[k]?.image_brief) || '', image: null, provider: null });
   if (campaign.assets.email) {
-    campaign.assets.email.subject = copy.email.subject || campaign.assets.email.subject;
-    campaign.assets.email.preheader = copy.email.preheader || campaign.assets.email.preheader;
-    campaign.assets.email.creative = creatives.email || { brief: copy.email.image_brief || '', image: null, provider: null };
-    const emailVars = emailVariants(entry, copy, campaign.assets.email.creative.image);
+    campaign.assets.email.subject = copyA.email.subject || campaign.assets.email.subject;
+    campaign.assets.email.preheader = copyA.email.preheader || campaign.assets.email.preheader;
+    campaign.assets.email.creative = creatives.email || { brief: copyA.email.image_brief || '', image: null, provider: null };
+    const heroImg = campaign.assets.email.creative.image;
+    // Four framework variants: copyA drives the A-slots, copyB the B-slots.
+    const emailVars = emailVariants(entry, copyA, copyB, fwA, fwB, heroImg);
     campaign.assets.email.variants = emailVars || null;
-    // Primary html = the Hero Text + Visual variant (shared renderer) so preview
-    // matches the Studio; falls back to the local mailer if variants are off.
+    // Primary html = the Hero Text + Visual (A) variant (shared renderer) so the
+    // preview matches the Studio; falls back to the local mailer if variants off.
     campaign.assets.email.html = (emailVars && emailVars.find((v) => v.key === 'visual_a').html)
-      || emailHtml(entry, copy, campaign.assets.email.creative.image);
-    campaign.assets.email.text = `${copy.email.subject}\n${copy.email.preheader}\n\n${copy.email.intro_paragraph}\n\n${copy.email.body_paragraph}\n\n${copy.email.cta}: {{landing_page_url}}`;
+      || emailHtml(entry, copyA, heroImg);
+    campaign.assets.email.text = `${copyA.email.subject}\n${copyA.email.preheader}\n\n${copyA.email.intro_paragraph}\n\n${copyA.email.body_paragraph}\n\n${copyA.email.cta}: {{landing_page_url}}`;
   }
   (campaign.assets.landing_pages || []).forEach((lp) => {
     const isB = lp.variant === 'B';
-    // A = generated (hosted) image + the LLM headline; B = the real catalog
-    // product photo + a distinct story-led headline, so the pair is a true A/B.
-    const headline = copy.landing.hero_headline || lp.title;
-    const lpCopy = isB ? { ...copy, landing: { ...copy.landing, hero_headline: `The ritual behind ${headline}` } } : copy;
-    const img = isB ? (catalogImage.imageFor(entry, entry.market) || null) : ((creatives.landing && creatives.landing.image) || null);
-    lp.title = lpCopy.landing.hero_headline || lp.title;
-    lp.creative = { brief: copy.landing.image_brief || '', image: img, provider: isB ? 'catalog' : ((creatives.landing && creatives.landing.provider) || null) };
-    lp.html = lpHtml(entry, lpCopy, campaign.campaign_id, img);
+    // A and B are BOTH real LLM copy, written under different frameworks, so the
+    // pair genuinely differs (no more mechanical "The ritual behind …"). A leads
+    // with the generated hero image, B with the real catalog product photo.
+    const copy = isB ? copyB : copyA;
+    const img = isB
+      ? (catalogImage.imageFor(entry, entry.market) || (creatives.landing && creatives.landing.image) || null)
+      : ((creatives.landing && creatives.landing.image) || catalogImage.imageFor(entry, entry.market) || null);
+    lp.title = (copy.landing && copy.landing.hero_headline) || lp.title;
+    lp.creative = { brief: (copy.landing && copy.landing.image_brief) || '', image: img, provider: isB ? 'catalog' : ((creatives.landing && creatives.landing.provider) || 'catalog') };
+    lp.html = lpHtml(entry, copy, campaign.campaign_id, img);
     lp.path = isB ? `/lp/${campaign.campaign_id}?v=b` : `/lp/${campaign.campaign_id}`;
   });
   for (const ad of campaign.assets.ads || []) {
     const isB = ad.variant === 'B';
-    // Variant A takes the LLM-written copy; variant B keeps its distinct
-    // benefit-led template copy so the A/B pair genuinely differs.
-    if (!isB) {
-      if (ad.platform === 'meta' && copy.ads.meta) Object.assign(ad, { primary_text: copy.ads.meta.primary_text || ad.primary_text, headline: copy.ads.meta.headline || ad.headline, description: copy.ads.meta.description || ad.description });
-      if (ad.platform === 'google' && copy.ads.google) Object.assign(ad, { headlines: copy.ads.google.headlines?.filter(Boolean) || ad.headlines, descriptions: copy.ads.google.descriptions?.filter(Boolean) || ad.descriptions });
-      if (ad.platform === 'tiktok' && copy.ads.tiktok) Object.assign(ad, { script: copy.ads.tiktok.script || ad.script, caption: copy.ads.tiktok.caption || ad.caption });
-    }
+    // BOTH variants take real LLM copy now: A from copyA, B from copyB (the two
+    // framework directions). No static template strings repeated across slots.
+    const copy = isB ? copyB : copyA;
+    if (ad.platform === 'meta' && copy.ads.meta) Object.assign(ad, { primary_text: copy.ads.meta.primary_text || ad.primary_text, headline: copy.ads.meta.headline || ad.headline, description: copy.ads.meta.description || ad.description });
+    if (ad.platform === 'google' && copy.ads.google) Object.assign(ad, { headlines: copy.ads.google.headlines?.filter(Boolean) || ad.headlines, descriptions: copy.ads.google.descriptions?.filter(Boolean) || ad.descriptions });
+    if (ad.platform === 'tiktok' && copy.ads.tiktok) Object.assign(ad, { script: copy.ads.tiktok.script || ad.script, caption: copy.ads.tiktok.caption || ad.caption });
     // A = the generated creative; B = the real catalog product photo (hosted) so
-    // the pair is visually distinct without doubling image-generation cost. Both
-    // are hosted URLs (never a data: URI).
+    // the pair is visually distinct without doubling image-generation cost.
     if (isB) {
       const catImg = catalogImage.imageFor(entry, entry.market);
-      ad.creative = catImg ? { brief: ad.creative_brief || '', image: catImg, provider: 'catalog' } : (creatives[ad.platform] || brief(ad.platform));
+      ad.creative = catImg ? { brief: ad.creative_brief || '', image: catImg, provider: 'catalog' } : (creatives[ad.platform] || briefFor(copy, ad.platform));
     } else {
-      ad.creative = creatives[ad.platform] || brief(ad.platform);
+      ad.creative = creatives[ad.platform] || briefFor(copy, ad.platform);
     }
     ad.creative_brief = ad.creative.brief || ad.creative_brief || '';
   }
@@ -708,16 +736,30 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
   const campaign = new GenerationService(config).generate(entry);
   let copyMeta = { provider: 'template-fallback', model: null, creatives: 'none' };
   try {
-    const raw = await writeCopyWithLLM(entry);
-    const { provider, model } = raw;
+    // Two diverging copy frameworks → two genuinely different directions, written
+    // in parallel (same wall-clock as one call). A = the objective's preferred
+    // framework; B = a deterministically-chosen different one. Partial-failure
+    // tolerant: if one call fails we ship both slots from the one that succeeded.
+    const fwA = CF.pickCopyFramework({ play_key: entry.objective || '', cohort_key: (entry.cohort && (entry.cohort.key || entry.cohort.name)) || '', seed: entry.id || entry.date || '' });
+    const otherKeys = Object.keys(CF.COPY_FRAMEWORKS).filter((k) => k !== fwA.key);
+    const fwB = CF.frameworkByKey(otherKeys[CF.stableIndex(`${entry.id || entry.date || ''}|b`, otherKeys.length)]) || fwA;
+    const [pA, pB] = await Promise.allSettled([writeCopyWithLLM(entry, fwA), writeCopyWithLLM(entry, fwB)]);
+    if (pA.status !== 'fulfilled' && pB.status !== 'fulfilled') {
+      throw new Error('copy generation failed for both directions: ' + String((pA.reason && pA.reason.message) || pA.reason));
+    }
+    const rawA = pA.status === 'fulfilled' ? pA.value : pB.value;
+    const rawB = pB.status === 'fulfilled' ? pB.value : pA.value;
+    const provider = rawA.provider || rawB.provider;
+    const model = rawA.model || rawB.model;
     // Brand scrub EVERY generated string (no banned phrases, no em/en dashes)
     // before it is baked into the mailer, landing page and ad rows. Persisted +
     // customer-served output must not rely on the prompt alone.
-    const copy = scrubCopyDeep(raw.copy);
-    const creatives = withCreatives ? await generateCreatives(copy, entry) : {};
-    applyCopy(campaign, entry, copy, creatives);
+    const copyA = scrubCopyDeep(rawA.copy);
+    const copyB = scrubCopyDeep(rawB.copy);
+    const creatives = withCreatives ? await generateCreatives(copyA, entry) : {};
+    applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives);
     const imgProviders = [...new Set(Object.values(creatives).map((c) => c && c.provider).filter(Boolean))];
-    copyMeta = { provider, model, creatives: imgProviders.length ? imgProviders.join(',') : 'briefs-only' };
+    copyMeta = { provider, model, frameworks: [fwA.key, fwB.key], creatives: imgProviders.length ? imgProviders.join(',') : 'briefs-only' };
   } catch (e) {
     console.warn('[smart-brain] LLM copy failed, using template assets:', e.message);
   }

@@ -231,18 +231,15 @@
     { id: 'avatars', label: 'Avatars (Personas)', href: '/avatars', icon: 'avatars', ver: 'v2', match: ['/avatars', '/personas', '/avatars.html'] },
 
     { section: 'Plan' },
-    // Automated Calendar Creation — the ONE calendar feature. It subsumes the
-    // former Smart Brain (automated 90-day engine), Mailer Calendar (Draft 2)
-    // and Plan Calendar (Draft 1): all three calendar surfaces now live as
-    // sub-items of this single feature rather than as separate top-level
-    // features. The engine (/brain) is the primary surface; the two earlier
-    // calendars remain reachable underneath it, labelled Draft 1 / Draft 2.
-    { group: 'Automated Calendar Creation', icon: 'calendar', gid: 'brain', ver: 'v2', children: [
-      { id: 'brain',     label: 'Automated Calendar (90-day)', href: '/brain',           icon: 'studio',   match: ['/brain', '/smart-brain', '/smart-brain.html'] },
-      { id: 'lifecycle', label: 'Cohort Mailer Calendar',      href: '/mailer-calendar', icon: 'calendar', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
-      { id: 'calendar',  label: '30-Day Plan Calendar',        href: '/calendar.html',   icon: 'calendar', draft: 'Draft 1', match: ['/calendar.html', '/plan'] },
-    ]},
-    { id: 'ukhub',     label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
+    // Automated Calendar Creation — the ONE calendar + asset-generation feature.
+    // A single flat feature, NO sub-items: it combines the best logic of the
+    // former Smart Brain engine, the Mailer Calendar and the Plan Calendar into
+    // one automated calendar that plans every slot and pre-builds its full asset
+    // bundle (mailer + ads + landing page). The older calendar surfaces stay
+    // reachable by URL but are no longer separate nav features; this one
+    // feature's match[] also lights up for them.
+    { id: 'brain', label: 'Automated Calendar Creation', href: '/brain', icon: 'calendar', ver: 'v2', match: ['/brain', '/smart-brain', '/smart-brain.html', '/mailer-calendar', '/lifecycle-calendar.html', '/calendar.html', '/plan'] },
+    { id: 'ukhub', label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
 
     { section: 'Design & Create' },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
