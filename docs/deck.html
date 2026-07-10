@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VAHDAM Smart Brain — Presentation</title>
+<title>VAHDAM Automated Calendar Creation — Presentation</title>
 <style>
   :root { --green:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA; --mut:#6f8278; }
   * { box-sizing:border-box; }
@@ -45,12 +45,12 @@ table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
 <!-- 1 · TITLE -->
 <section class="slide on">
   <div class="eyebrow">VAHDAM India · Internal Platform → SaaS Candidate</div>
-  <h1>Lifecycle OS <em>Smart Brain</em></h1>
-  <p class="lead">One system that knows everything we ever ran, watches every competitor, plans the next 15 days, generates every asset — mailers, Google/Meta/TikTok ads, landing pages — and talks to our customers in a human voice. Humans verify; the brain executes.</p>
+  <h1>Lifecycle OS <em>Automated Calendar Creation</em></h1>
+  <p class="lead">One system that knows everything we ever ran, watches every competitor, plans the next 90 days, generates every asset — mailers, Google/Meta/TikTok ads, landing pages — and talks to our customers in a human voice. Humans verify; the brain executes.</p>
   <div class="cols">
     <div class="box"><b>Status</b><div>Live at <u>/brain</u> · DB-linked · daily cron running · phase-2 (live push) excluded by design</div></div>
     <div class="box"><b>Built on</b><div>Existing Lifecycle OS shell · Supabase linked DB · 6-provider LLM cascade · zero new infra cost</div></div>
-    <div class="box"><b>This deck</b><div>Why → What → Flows → Voice agents → Accuracy plan → Impact hypothesis → Go-live → SaaS path</div></div>
+    <div class="box"><b>This deck</b><div>Why → What → Flows → Voice agents → Accuracy plan → Impact hypothesis → Recommendations → Asset approach → Go-live → SaaS path</div></div>
   </div>
 </section>
 
@@ -59,9 +59,9 @@ table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
   <div class="eyebrow">Why · bandwidth &amp; resource utilisation</div>
   <h1>The marketing team's week, <em>before and after</em></h1>
   <table class="t">
-    <tr><th>Task</th><th>Manual today</th><th>With Smart Brain</th><th>Saved</th></tr>
+    <tr><th>Task</th><th>Manual today</th><th>With Automated Calendar Creation</th><th>Saved</th></tr>
     <tr><td>Performance digging across channels</td><td>~6 h/wk in sheets &amp; dashboards</td><td>Daily auto-analysis + chat console</td><td>~5.5 h</td></tr>
-    <tr><td>Campaign calendar planning</td><td>~4 h/wk, gut-driven, monthly horizon</td><td>15-day rolling, data-driven, self-reviewing daily</td><td>~3.5 h</td></tr>
+    <tr><td>Campaign calendar planning</td><td>~4 h/wk, gut-driven, monthly horizon</td><td>90-day rolling, data-driven, self-reviewing daily</td><td>~3.5 h</td></tr>
     <tr><td>Mailer + ad + LP creation</td><td>~2 days per campaign set</td><td>Complete funnel set in &lt;60 s, on-brand by construction</td><td>~85%</td></tr>
     <tr><td>Competitor monitoring</td><td>Ad-hoc inbox digging</td><td>Continuous isolated stream + signals</td><td>~2 h</td></tr>
     <tr><td>Customer education (telecalling)</td><td>Headcount-limited, timezone-limited</td><td>Voice agents — 24×7, every market, zero marginal cost</td><td>∞ scale</td></tr>
@@ -95,7 +95,7 @@ table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
     <!-- Calendar -->
     <rect x="540" y="150" width="200" height="120" rx="14" fill="#0f1d18" stroke="#AB8743" stroke-width="1.5"/>
     <text x="640" y="188" fill="#FBF5EA" font-size="14" text-anchor="middle" font-weight="700">4 · Calendar Intelligence</text>
-    <text x="640" y="210" fill="#9aaaa1" font-size="10.5" text-anchor="middle">15-day rolling · festivals auto-found</text>
+    <text x="640" y="210" fill="#9aaaa1" font-size="10.5" text-anchor="middle">90-day rolling · festivals auto-found</text>
     <text x="640" y="228" fill="#9aaaa1" font-size="10.5" text-anchor="middle">daily self-review · MVT loop</text>
     <text x="640" y="246" fill="#9aaaa1" font-size="10.5" text-anchor="middle">human feedback applied</text>
     <!-- Generation -->
@@ -144,7 +144,7 @@ table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
     <g>
       <rect x="20" y="60" width="170" height="66" rx="11" fill="#0f1d18" stroke="rgba(171,135,67,.5)"/><text x="105" y="88" fill="#FBF5EA" font-size="11.5" text-anchor="middle">re-extract festivals &amp;</text><text x="105" y="105" fill="#FBF5EA" font-size="11.5" text-anchor="middle">sales peaks from history</text>
       <rect x="230" y="60" width="170" height="66" rx="11" fill="#0f1d18" stroke="rgba(171,135,67,.5)"/><text x="315" y="83" fill="#FBF5EA" font-size="11.5" text-anchor="middle">full re-analysis vs DB:</text><text x="315" y="99" fill="#FBF5EA" font-size="11.5" text-anchor="middle">never follow the calendar</text><text x="315" y="115" fill="#FBF5EA" font-size="11.5" text-anchor="middle">blindly — update it</text>
-      <rect x="440" y="60" width="170" height="66" rx="11" fill="#0f1d18" stroke="rgba(171,135,67,.5)"/><text x="525" y="83" fill="#FBF5EA" font-size="11.5" text-anchor="middle">apply human feedback,</text><text x="525" y="99" fill="#FBF5EA" font-size="11.5" text-anchor="middle">swap weak angles,</text><text x="525" y="115" fill="#FBF5EA" font-size="11.5" text-anchor="middle">extend 15-day horizon</text>
+      <rect x="440" y="60" width="170" height="66" rx="11" fill="#0f1d18" stroke="rgba(171,135,67,.5)"/><text x="525" y="83" fill="#FBF5EA" font-size="11.5" text-anchor="middle">apply human feedback,</text><text x="525" y="99" fill="#FBF5EA" font-size="11.5" text-anchor="middle">swap weak angles,</text><text x="525" y="115" fill="#FBF5EA" font-size="11.5" text-anchor="middle">extend 90-day horizon</text>
       <rect x="650" y="60" width="170" height="66" rx="11" fill="#0f1d18" stroke="rgba(171,135,67,.5)"/><text x="735" y="83" fill="#FBF5EA" font-size="11.5" text-anchor="middle">fold MVT winners into</text><text x="735" y="99" fill="#FBF5EA" font-size="11.5" text-anchor="middle">learned weights +</text><text x="735" y="115" fill="#FBF5EA" font-size="11.5" text-anchor="middle">competitor signals</text>
       <rect x="860" y="60" width="170" height="66" rx="11" fill="#0f1d18" stroke="rgba(171,135,67,.5)"/><text x="945" y="83" fill="#FBF5EA" font-size="11.5" text-anchor="middle">generate complete asset</text><text x="945" y="99" fill="#FBF5EA" font-size="11.5" text-anchor="middle">sets for approved slots</text><text x="945" y="115" fill="#FBF5EA" font-size="11.5" text-anchor="middle">due ≤3 days</text>
       <line x1="190" y1="93" x2="230" y2="93" stroke="#AB8743" stroke-width="1.5" marker-end="url(#a2)"/>
@@ -176,7 +176,7 @@ table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
   <svg viewBox="0 0 1100 380" width="100%" style="max-height:56vh">
     <rect x="0" y="0" width="1100" height="380" rx="16" fill="#0b1813" stroke="rgba(171,135,67,.4)"/>
     <rect x="0" y="0" width="1100" height="46" rx="16" fill="#0f1d18"/>
-    <circle cx="26" cy="23" r="6" fill="#AB8743"/><text x="44" y="28" fill="#FBF5EA" font-size="13" font-weight="700">Smart Brain · Console</text>
+    <circle cx="26" cy="23" r="6" fill="#AB8743"/><text x="44" y="28" fill="#FBF5EA" font-size="13" font-weight="700">Automated Calendar Creation · Console</text>
     <text x="1080" y="28" fill="#6f8278" font-size="11" text-anchor="end">Linked DB: connected · pending review: 4</text>
     <g font-size="11"><text x="30" y="70" fill="#6f8278">⌘ Console</text><text x="110" y="70" fill="#6f8278">Today</text><text x="160" y="70" fill="#6f8278">Calendar</text><text x="225" y="70" fill="#6f8278">Library</text><text x="282" y="70" fill="#6f8278">Cohorts</text><text x="340" y="70" fill="#6f8278">Assets</text><text x="395" y="70" fill="#6f8278">Review</text><text x="450" y="70" fill="#6f8278">Agents</text></g>
     <rect x="560" y="92" width="500" height="44" rx="12" fill="#004A2B"/>
@@ -198,7 +198,7 @@ table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
 <!-- 6 · CALENDAR MOCK -->
 <section class="slide">
   <div class="eyebrow">Feature · calendar intelligence</div>
-  <h1>A 15-day plan that <em>argues for itself</em></h1>
+  <h1>A 90-day plan that <em>argues for itself</em></h1>
   <div class="svgwrap">
   <svg viewBox="0 0 1100 330" width="100%" style="max-height:50vh">
     <rect x="0" y="0" width="1100" height="330" rx="16" fill="#0b1813" stroke="rgba(171,135,67,.4)"/>
@@ -304,7 +304,7 @@ table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
   <h1>What we expect it to <em>move</em></h1>
   <div class="cols">
     <div class="box"><b>Bandwidth</b><div class="kpi">−70%</div><div>production hours per campaign set; team shifts to verification + strategy</div></div>
-    <div class="box"><b>Send-to-plan latency</b><div class="kpi">15 days → daily</div><div>rolling plan, re-validated every morning against fresh data</div></div>
+    <div class="box"><b>Send-to-plan latency</b><div class="kpi">90 days → daily</div><div>rolling plan, re-validated every morning against fresh data</div></div>
     <div class="box"><b>Creative win-rate</b><div class="kpi">+20–30%</div><div>only threshold-passing hooks/angles seed new campaigns; MVT compounds</div></div>
     <div class="box"><b>Education channel ROAS</b><div class="kpi">~3.5×</div><div>voice agents replicate the telecalling mode that consistently held 3.5–4 while campaigns fluctuated</div></div>
     <div class="box"><b>Cost</b><div class="kpi">~$0</div><div>free-tier DB + existing Vercel + free LLM tiers in cascade; ElevenLabs optional</div></div>
@@ -318,14 +318,45 @@ table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
   <div class="eyebrow">Go-live plan</div>
   <h1>From today to <em>autopilot</em></h1>
   <div class="cols">
-    <div class="box"><b>Week 0 · now (done)</b><ul><li>Smart Brain live at /brain on the linked DB (synthetic 24-mo history)</li><li>Daily cron + review queue + voice agents + Shopify widget ready</li></ul></div>
+    <div class="box"><b>Week 0 · now (done)</b><ul><li>Automated Calendar Creation live at /brain on the linked DB (synthetic 24-mo history)</li><li>Daily cron + review queue + voice agents + Shopify widget ready</li></ul></div>
     <div class="box"><b>Week 1 · real data</b><ul><li>Point linked DB at real exports (Shopify/Klaviyo/ads) — same schema, swap rows</li><li>Harden: service-role key + tight RLS</li><li>First human recalibration; validate cohorts vs known RFM</li></ul></div>
     <div class="box"><b>Week 2–3 · shadow mode</b><ul><li>Brain plans + generates; team ships manually from generated assets</li><li>Measure approval-without-edit rate; tune thresholds weekly</li><li>Embed agents on 1–2 Shopify PDPs (ashwagandha first), watch transcripts</li></ul></div>
     <div class="box"><b>Week 4+ · phase 2</b><ul><li>Klaviyo/WebEngage + Google/Meta/TikTok push adapters on the stored campaign objects</li><li>Real performance flows back into smart_campaign_metrics — loop fully closed</li><li>Flip launch_mode off as confidence crosses 0.85</li></ul></div>
   </div>
 </section>
 
-<!-- 12 · SAAS -->
+<!-- 12 · RECOMMENDATIONS -->
+<section class="slide">
+  <div class="eyebrow">Recommendations · what the data says to do</div>
+  <h1>Where to point the <em>Automated Calendar</em></h1>
+  <p class="lead">Read straight from the live US and UK exports ($1.12M / 20,620 orders US, £818K / 25,001 orders UK). Six plays, each wired to a metric the system already tracks.</p>
+  <div class="cols">
+    <div class="box"><b>1 · Lift the Jan to Jul trough</b><div>Revenue is front-loaded into the Nov/Dec gifting window. The growth job is the off-season: subscription and replenishment on the Ashwagandha Coffee franchise (the #1 revenue SKU) build the recurring base.</div></div>
+    <div class="box"><b>2 · Defend the returning base</b><div>Returning-customer rate is 46% US, 36% UK. Protect it with lifecycle flows; the Q4 acquisition spike leaks to churn without a strong second-order nudge.</div></div>
+    <div class="box"><b>3 · Fix AOV compression</b><div>US AOV fell from ~$58 to ~$41 as orders rose, a discount-led, smaller basket. Set free-shipping thresholds just above current AOV, add bundle logic and subscription anchors.</div></div>
+    <div class="box"><b>4 · Ring-fence discounting</b><div>Discounted AOV sits well below full price. Reserve offers for the winback and curious-switcher cohorts; protect full-margin buyers from trained discounts.</div></div>
+    <div class="box"><b>5 · Cross-grade the habit categories</b><div>Chai and everyday black drive frequency (unit leaders); coffee and functional supplements drive AOV and subscription. Route frequent buyers into the coffee reorder rhythm.</div></div>
+    <div class="box"><b>6 · Send on the strong days</b><div>Weight primary sends and paid pushes to the top two revenue days of the week; keep the weakest day for light re-engagement.</div></div>
+  </div>
+  <p class="small">Every play maps to a cohort the calendar already plans against and a metric it already logs, so the recommendation and its measurement live in the same system.</p>
+</section>
+
+<!-- 13 · ASSET APPROACH -->
+<section class="slide">
+  <div class="eyebrow">Recommendations · the approach every asset follows</div>
+  <h1>How every asset gets <em>built</em></h1>
+  <p class="lead">One approach across mailers, landing pages, ads and everything else: plan the slot from data, write two diverging framework directions, gate on brand, pre-build so it just loads, and keep a human in the loop.</p>
+  <table class="t">
+    <tr><th>Asset</th><th>What gets generated</th><th>The rule</th></tr>
+    <tr><td>Mailers</td><td>4 variants: 2 Text and 2 Text + Visual, each labelled by copy framework (AIDA, Star-Story-Solution, and so on)</td><td>Two diverging framework directions per slot; real catalog hero image; Klaviyo-ready HTML</td></tr>
+    <tr><td>Landing pages</td><td>An A/B pair, served at /lp/:id and ?v=b</td><td>A is proof-led with a generated hero; B is story-led with the real product photo</td></tr>
+    <tr><td>Ads (Meta / Google / TikTok)</td><td>A/B per platform: product-led and benefit-led</td><td>Distinct copy per variant; text-free images (diffusion cannot spell); composed platform-native</td></tr>
+    <tr><td>All assets</td><td>Copy and creative pre-built per calendar slot and persisted to load instantly</td><td>Brand-gated in code (four-colour palette, Lao MN / Proxima Nova, banned phrases, no em dashes); human verifies, approves, ships</td></tr>
+  </table>
+  <p class="small">The bar is the UK Non-Engagers hub: bespoke, distinct per variant, already generated to just load. All three calendars now generate to that bar.</p>
+</section>
+
+<!-- 14 · SAAS -->
 <section class="slide">
   <div class="eyebrow">Where this goes</div>
   <h1>VAHDAM first. <em>SaaS later.</em></h1>
