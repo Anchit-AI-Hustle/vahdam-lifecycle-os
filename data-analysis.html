@@ -34,6 +34,18 @@
   .kpi .kv{font-family:'Lao MN',Georgia,serif;font-size:25px;color:var(--head);margin-top:4px;font-variant-numeric:tabular-nums;line-height:1;}
   .kpi .kd{font-size:11.5px;margin-top:6px;color:var(--soft);}
   .kpi .up{color:#3fa46a;font-weight:700;} .kpi .down{color:#c47b6b;font-weight:700;}
+  /* Signals board — auto-computed "what needs attention", ranked by severity. */
+  .signals{margin:16px 0 4px;}
+  .sig-head{font-family:'Lao MN',Georgia,serif;font-size:17px;color:var(--head);font-weight:700;margin-bottom:10px;}
+  .sig-sub{font-family:Inter,'Proxima Nova',sans-serif;font-size:11px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-left:8px;}
+  .sig-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:12px;}
+  .sig{background:var(--tile);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:12px 14px;}
+  .sig-h{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+  .sig-dot{width:8px;height:8px;border-radius:50%;flex:none;}
+  .sig-v{font-family:'Lao MN',Georgia,serif;font-size:20px;color:var(--head);margin:5px 0 4px;font-variant-numeric:tabular-nums;line-height:1.1;}
+  .sig-d{font-size:12.5px;color:var(--soft);line-height:1.45;}
+  .sig-decomp{margin-top:12px;background:var(--chip);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--soft);border-left:3px solid var(--gold);line-height:1.5;}
+  .sig-decomp b{color:var(--head);} .sig-decomp .up{color:#3fa46a;} .sig-decomp .down{color:#c47b6b;}
   /* Widget grid */
   .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:16px;}
   .w{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;grid-column:span 6;display:flex;flex-direction:column;min-width:0;}
@@ -97,6 +109,7 @@
     </div>
 
     <div class="kpis" id="kpis"></div>
+    <div class="signals" id="signals"></div>
     <div class="grid" id="grid"></div>
 
     <p class="note" id="footnote"></p>
@@ -349,6 +362,71 @@
   }
 
   // ── KPI row ────────────────────────────────────────────────────────────────
+  // ── Signals board + revenue-driver decomposition ────────────────────────
+  // Auto-computed "what needs attention", the analytical logic modelled on the
+  // TikTok dashboard's threat board + funnel decomposition, adapted to our
+  // Shopify order aggregates. Every signal is quantified from the live data and
+  // severity-ranked (critical → watch → good). Guards on field availability so
+  // it works on both US (full) and UK (fewer datasets) markets.
+  function pctChange(a,b){ return b ? (a-b)/b : 0; }
+  // Drop a trailing partial month: exports run with a lag, so the most recent
+  // month is usually incomplete. If its sales are under 45% of the prior month
+  // it is treated as partial and excluded from momentum/decomposition so those
+  // signals compare like-for-like complete months (not a full vs half month).
+  function fullMonths(mm){
+    if(mm.length>=2){ var l=mm[mm.length-1], p=mm[mm.length-2];
+      if(p.sales>0 && l.sales < p.sales*0.45) return mm.slice(0,-1); }
+    return mm;
+  }
+  function computeSignals(m){
+    var sig=[], mm=m.monthly||[], fm=fullMonths(mm);
+    if(fm.length>=2){ var l=fm[fm.length-1], p=fm[fm.length-2], c=pctChange(l.sales,p.sales);
+      sig.push({sev:c<-0.15?'critical':(c<0?'watch':'good'), label:'Revenue momentum', value:(c>=0?'+':'')+Math.round(c*100)+'% MoM',
+        detail:'Last complete month '+mLabel(l.month)+' '+moneyFull(l.sales)+' vs '+moneyFull(p.sales)+' prior. A trailing partial month is excluded so this compares like-for-like.'}); }
+    var at=fullMonths(m.aov_trend&&m.aov_trend.length?m.aov_trend:mm);
+    if(at.length>=2){ var f=at[0], la=at[at.length-1], c2=pctChange(la.aov,f.aov);
+      sig.push({sev:c2<-0.10?'critical':(c2<-0.03?'watch':'good'), label:'AOV trend', value:(c2>=0?'+':'')+Math.round(c2*100)+'% over window',
+        detail:'AOV moved from '+moneyFull(f.aov)+' to '+moneyFull(la.aov)+'. Falling AOV with rising orders is a discount-led, smaller-basket signal.'}); }
+    var rr=m.summary&&m.summary.returning_rate;
+    if(rr!=null){ sig.push({sev:rr<0.25?'critical':(rr<0.35?'watch':'good'), label:'Returning-customer rate', value:pct(rr),
+      detail:'Share of customers ordering more than once. Below 35% needs lifecycle flows to defend; above 45% is healthy.'}); }
+    if(m.discount&&m.discount.length){ var dc=m.discount.find(function(x){return x.discounted;})||{}, fu=m.discount.find(function(x){return !x.discounted;})||{};
+      var tO=(dc.orders||0)+(fu.orders||0), sh=tO?(dc.orders||0)/tO:0, gap=(fu.aov&&dc.aov)?(1-dc.aov/fu.aov):0;
+      sig.push({sev:sh>0.4?'critical':(sh>0.25?'watch':'good'), label:'Discount reliance', value:pct(sh)+' of orders',
+        detail:'Discounted AOV ('+moneyFull(dc.aov)+') is '+Math.round(gap*100)+'% below full price ('+moneyFull(fu.aov)+'). Reserve offers for winback and switcher cohorts.'}); }
+    var tp=m.top_products||[];
+    if(tp.length){ var tot=tp.reduce(function(a,b){return a+(b.net||0);},0), sh2=tot?tp[0].net/tot:0;
+      sig.push({sev:sh2>0.4?'watch':'good', label:'Revenue concentration', value:pct(sh2)+' in top SKU',
+        detail:trunc(tp[0].title,40)+' is '+pct(sh2)+' of top-product revenue. High concentration is a dependency risk, broaden the second-order path.'}); }
+    if(m.channels&&m.channels.length){ var tc=m.channels.reduce(function(a,b){return a+b.sales;},0), cs=tc?m.channels[0].sales/tc:0;
+      sig.push({sev:cs>0.85?'watch':'good', label:'Channel concentration', value:pct(cs)+' via '+trunc(m.channels[0].channel,16),
+        detail:'Revenue leans on a single channel. Diversify acquisition to de-risk the base.'}); }
+    if(mm.length>=6){ var pk=mm.reduce(function(a,b){return b.sales>a.sales?b:a;},mm[0]), tr=mm.reduce(function(a,b){return b.sales<a.sales?b:a;},mm[0]);
+      sig.push({sev:'watch', label:'Seasonality', value:'Peak '+mLabel(pk.month), disp:true,
+        detail:'Peak '+mLabel(pk.month)+' at '+moneyFull(pk.sales)+', trough '+mLabel(tr.month)+' at '+moneyFull(tr.sales)+'. Lift the off-season with subscription and replenishment.'}); }
+    var order={critical:0,watch:1,good:2};
+    return sig.sort(function(a,b){return order[a.sev]-order[b.sev];});
+  }
+  // Revenue-driver decomposition (our analog of GMV = Impr×CTR×CVR×AOV): the
+  // change in Orders×AOV between the last two months splits exactly into an
+  // order-volume effect and an AOV effect.
+  function revenueDecomp(m){
+    var mm=fullMonths(m.monthly||[]); if(mm.length<2) return null;
+    var t=mm[mm.length-1], p=mm[mm.length-2];
+    return { from:p, to:t, dRev:(t.orders*t.aov)-(p.orders*p.aov), ordersEffect:(t.orders-p.orders)*p.aov, aovEffect:(t.aov-p.aov)*t.orders };
+  }
+  function renderSignals(){
+    var m=d(); var sig=computeSignals(m), dec=revenueDecomp(m);
+    var col={critical:'#c47b6b',watch:'var(--gold)',good:'#3fa46a'};
+    var cards=sig.map(function(s){ return '<div class="sig" style="border-left-color:'+col[s.sev]+'">'+
+      '<div class="sig-h"><span class="sig-dot" style="background:'+col[s.sev]+'"></span>'+esc(s.label)+'</div>'+
+      '<div class="sig-v">'+esc(s.value)+'</div><div class="sig-d">'+esc(s.detail)+'</div></div>'; }).join('');
+    var dh='';
+    if(dec){ var dir=dec.dRev>=0?'up':'down';
+      dh='<div class="sig-decomp"><b>Revenue driver split</b> ('+mLabel(dec.from.month)+' to '+mLabel(dec.to.month)+', Orders × AOV): <b class="'+dir+'">'+(dec.dRev>=0?'+':'')+moneyFull(dec.dRev)+'</b> total, of which <b class="'+(dec.ordersEffect>=0?'up':'down')+'">'+(dec.ordersEffect>=0?'+':'')+moneyFull(dec.ordersEffect)+'</b> is from order volume and <b class="'+(dec.aovEffect>=0?'up':'down')+'">'+(dec.aovEffect>=0?'+':'')+moneyFull(dec.aovEffect)+'</b> is from AOV. This is where the month moved, and which lever moved it.</div>'; }
+    document.getElementById('signals').innerHTML='<div class="sig-head">Signals · what needs attention<span class="sig-sub">auto-computed from the live '+(MKT==='US'?'US':'UK')+' data</span></div><div class="sig-grid">'+cards+'</div>'+dh;
+  }
+
   function renderKPIs(){
     var s=d().summary;
     var tiles=[
@@ -408,12 +486,12 @@
     document.getElementById('footnote').innerHTML='Source: live VAHDAM '+(MKT==='US'?'US':'UK')+' market exports in <span class="datalink">data/market/'+(MKT==='US'?'us':'uk')+'/</span>, compiled by <span class="datalink">scripts/build-market-analytics.js</span>. Trailing 12-month window. The upstream ingestion + DuckDB engine lives in <a class="datalink" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">vahdam_dtc_data_engine</a> (live: <a class="datalink" href="/data-engine">DTC Data Engine</a>).';
   }
 
-  function setMarket(mk){ MKT=mk; document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===mk); }); renderKPIs(); renderGrid(); renderFootnote(); closeDetail(); }
+  function setMarket(mk){ MKT=mk; document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===mk); }); renderKPIs(); renderSignals(); renderGrid(); renderFootnote(); closeDetail(); }
 
   document.querySelectorAll('#mktToggle button').forEach(function(b){ b.addEventListener('click',function(){ setMarket(b.dataset.mkt); }); });
 
   // init
-  renderKPIs(); renderGrid(); renderFootnote();
+  renderKPIs(); renderSignals(); renderGrid(); renderFootnote();
   document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===MKT); });
   var hash=(location.hash||'').replace('#',''); if(hash && WIDGETS.find(function(w){return w.id===hash;})) openDetail(hash);
 })();
