@@ -1069,7 +1069,8 @@ function docHTML(region) {
   var css = "body{font-family:Georgia,'Times New Roman',serif;color:#171717;line-height:1.45;max-width:760px;margin:0 auto;padding:24px;}" +
     "h1{color:#004A2B;font-size:26px;margin-bottom:2px;}h2{color:#004A2B;font-size:18px;border-bottom:2px solid #AB8743;padding-bottom:3px;margin-top:26px;}h3{color:#004A2B;font-size:14px;margin-top:16px;}" +
     "table{border-collapse:collapse;width:100%;font-size:12px;margin:8px 0;}th{background:#004A2B;color:#FBF5EA;text-align:left;padding:5px;}td{border:1px solid #ccc;padding:5px;vertical-align:top;}" +
-    "ul{margin:6px 0;}li{margin:3px 0;}p{margin:6px 0;}.kick{color:#8a6a2f;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;font-size:11px;}.sub{color:#555;font-style:italic;}";
+    "ul{margin:6px 0;}li{margin:3px 0;}p{margin:6px 0;}.kick{color:#8a6a2f;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;font-size:11px;}.sub{color:#555;font-style:italic;}" +
+    "table{table-layout:fixed;}table th,table td{text-align:center;}table th:first-child,table td:first-child{text-align:left;}";
   var body = renderNodes(REPORTS[region], "doc");
   return "<!doctype html><html><head><meta charset=\"utf-8\"><title>" + m.panelTitle + "</title><style>" + css + "</style></head><body>" +
     '<p class="kick">Market Research and Competitive Study</p>' +

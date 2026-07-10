@@ -3455,7 +3455,16 @@
     .bf-card:hover {
       transform: translateY(-4px)
     }
-  </style>
+  
+/* vh-table-align: data-table column alignment — header cells sit over their
+   columns (table-layout:fixed, equal width), the first column (row labels) is
+   left-aligned and every other column is centered. Scoped to tables that have
+   <th> so layout tables are never affected; element-level so a page's own
+   table.<class> alignment still wins. */
+table:has(th){table-layout:fixed;width:100%;border-collapse:collapse;}
+table:has(th) th,table:has(th) td{box-sizing:border-box;vertical-align:top;overflow-wrap:break-word;text-align:center;}
+table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}
+</style>
 </head>
 
 <body>

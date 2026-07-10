@@ -117,6 +117,10 @@ function head(title, desc) {
 '  a{color:var(--vahdam-green);} a:hover{color:var(--vahdam-gold-ink);}',
 '  ::selection{background:var(--vahdam-gold);color:#fff;}',
 '  section[data-section]{scroll-margin-top:18px;}',
+'  /* Data-table alignment: headers over values (equal-width), first column left, rest centered. */',
+'  table:has(th){table-layout:fixed;width:100%;border-collapse:collapse;}',
+'  table:has(th) th,table:has(th) td{box-sizing:border-box;vertical-align:top;overflow-wrap:break-word;text-align:center;}',
+'  table:has(th) th:first-child,table:has(th) td:first-child{text-align:left;}',
 '</style>',
 '</head>'
   ].join("\n");
