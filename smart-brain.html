@@ -82,8 +82,8 @@
       <h2>Rolling calendar (next 90 days · all markets)</h2>
       <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>Date</th><th>Market</th><th>Cohort</th><th>Objective · Hero</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="plan"><tr><td colspan="8" style="color:#789">Loading plan…</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Market</th><th>Cohort</th><th>Objective · Hero</th><th>Why (analysis)</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="plan"><tr><td colspan="9" style="color:#789">Loading plan…</td></tr></tbody>
       </table>
       </div>
     </div>
@@ -176,22 +176,31 @@ async function loadScenarios(){
 }
 
 function renderPlan(){
-  if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="8" style="color:#789">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }
+  if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="9" style="color:#789">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }
   $('entries').textContent = PLAN.length;
   $('pending').textContent = PLAN.filter(e => e.status === 'tentative').length;
-  $('plan').innerHTML = PLAN.map((e,i)=>`<tr>
+  $('plan').innerHTML = PLAN.map((e,i)=>{
+    const a = e.analysis || null;
+    const why = a && a.summary ? a.summary : (e.rationale || '');
+    const confLabel = a && a.confidence && a.confidence.label ? a.confidence.label : '';
+    const confTip = a && a.confidence && Array.isArray(a.confidence.factors)
+      ? a.confidence.factors.map(f=>`${f.delta>=0?'+':''}${f.delta} ${f.label}`).join('\n') : '';
+    return `<tr>
     <td>${esc(e.date)}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
     <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span></td>
     <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
+    <td style="max-width:260px"><span style="font-size:12px;color:#d8cdb4;line-height:1.4">${esc(why)}</span>${a?` <button class="btn sm secondary" style="padding:1px 7px;font-size:11px" onclick="viewEntry(${i})" title="Open full analysis">why ↗</button>`:''}</td>
     <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
+    <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#9fb3a8;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
+    <td><span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}</td>
     <td class="conf">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}</td>
     <td><span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.__prebuilt && e.__prebuilt.campaign_id ? `<br><span class="pill" style="background:#0c3;color:#03210f;font-size:10px" title="Full asset bundle (copy + images: mailer, ads, landing page) already built. Approve to publish.">✓ assets prebuilt</span>` : ''}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}</td>
     <td style="white-space:nowrap">
       <button class="btn sm secondary" onclick="viewEntry(${i})">View</button>
       ${e.status==='tentative' ? `<button class="btn sm ok" onclick="approve(${i})">Approve</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
     </td>
-  </tr>`).join('');
+  </tr>`;}).join('');
 }
 
 // ── Funnel preview (generate-on-demand, before approval) ────────────────────
@@ -222,6 +231,36 @@ function renderAd(ad){
   return `<div class="adcard"><h4>${esc((ad.platform||'ad').toUpperCase())} ad${vtag}</h4>${img}${rows.join('')}</div>`;
 }
 
+// Full "why this was generated" analysis panel — renders the shared analysis
+// object (summary, data drivers, hypothesis, expected impact, explainable
+// confidence, evidence) produced by api/_shared/output-reasoning.js.
+function analysisPanelHTML(a){
+  if(!a) return '<p class="pvnote">No structured analysis on this entry.</p>';
+  const drivers = (a.drivers||[]).map(d=>`<tr><td style="color:#9fb3a8;white-space:nowrap;vertical-align:top;padding:4px 10px 4px 0"><b>${esc(d.signal)}</b></td><td style="vertical-align:top;padding:4px 0"><span style="color:#e9dfc6">${esc(d.value)}</span>${d.implication?`<br><span style="color:#9aa;font-size:12px">${esc(d.implication)}</span>`:''}</td></tr>`).join('');
+  const conf = a.confidence||{};
+  const factors = (conf.factors||[]).map(f=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid rgba(171,135,67,.18)"><span>${esc(f.label)}${f.detail?`<br><span style="color:#9aa;font-size:11px">${esc(f.detail)}</span>`:''}</span><span style="color:${f.delta>=0?'#8fe7b9':'#e89a9a'};font-variant-numeric:tabular-nums;white-space:nowrap">${f.delta>=0?'+':''}${f.delta}</span></div>`).join('');
+  const ev = a.evidence||{};
+  const evBits = [];
+  if(ev.own_campaign && ev.own_campaign.name) evBits.push(`Proven campaign: <b>${esc(ev.own_campaign.name)}</b>`);
+  if(ev.festival && ev.festival.name) evBits.push(`Festival: <b>${esc(ev.festival.name)}</b>${ev.festival.weight!=null?` (w${esc(ev.festival.weight)})`:''}`);
+  if(ev.competitor && ev.competitor.top_hook) evBits.push(`Competitor angle: <b>${esc(ev.competitor.top_hook)}</b>`);
+  if(Array.isArray(ev.mvt) && ev.mvt.length) evBits.push(`MVT: ${ev.mvt.map(esc).join(', ')}`);
+  if(ev.data_source) evBits.push(`Data source: <b>${esc(ev.data_source)}</b>`);
+  return `
+    <div style="line-height:1.5">
+      <div class="label">Summary</div>
+      <p style="margin:.2em 0 1em;color:#e9dfc6">${esc(a.summary||'')}</p>
+      <div class="label">Why — data drivers</div>
+      <table style="width:100%;border-collapse:collapse;margin:.3em 0 1em">${drivers||'<tr><td>—</td></tr>'}</table>
+      <div class="label">Hypothesis</div>
+      <p style="margin:.2em 0 1em;color:#d8cdb4">${esc(a.hypothesis||'—')}</p>
+      ${a.expected_impact?`<div class="label">Expected impact</div><p style="margin:.2em 0 1em;color:#d8cdb4">Move <b style="color:#e9dfc6">${esc(a.expected_impact.metric||'')}</b> ${esc(a.expected_impact.direction||'up')} — basis: ${esc(a.expected_impact.basis||'')}</p>`:''}
+      <div class="label">Confidence · ${conf.score!=null?Math.round(conf.score*100)+'%':'—'} ${conf.label?`(${esc(conf.label)})`:''}</div>
+      <div style="margin:.3em 0 1em">${factors||'—'}</div>
+      ${evBits.length?`<div class="label">Evidence</div><p style="margin:.2em 0 0;color:#9fb3a8;font-size:12px">${evBits.join(' · ')}</p>`:''}
+    </div>`;
+}
+
 function renderPreview(payload, e, i, opts){
   opts = opts || {};
   const campaign  = payload.campaign || {};
@@ -237,6 +276,9 @@ function renderPreview(payload, e, i, opts){
   const pane= (id,html,on)=> panes.push(`<div class="pvpane${on?' on':''}" id="${id}">${html}</div>`);
 
   let first = true;
+  // Analysis first — the "why" behind everything below it.
+  const analysisObj = (campaign && campaign.analysis) || payload.analysis || (e && e.analysis) || null;
+  if(analysisObj){ tab('pv-why','🧠 Why / Analysis', first); pane('pv-why', analysisPanelHTML(analysisObj), first); first=false; }
   // Export registry: every previewable HTML asset gets Download + Copy controls
   // so an approved campaign can be taken out of the tool (product rule).
   window.__SB_EXPORTS = [];
@@ -322,6 +364,9 @@ async function loadPlan(){
     PLAN = data.entries || [];
     renderPlan();
     if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; approvals will generate assets but the calendar itself is not persisted.</p>';
+
+  }catch(e){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#e89a9a">${esc(e.message)}</td></tr>`; }
+
     return data;
   }catch(e){ $('plan').innerHTML = `<tr><td colspan="8" style="color:#e89a9a">${esc(e.message)}</td></tr>`; return null; }
 }
@@ -345,6 +390,7 @@ async function autoGenerateOnLoad(){
   try{ sessionStorage.setItem('sb.autogen', '1'); }catch(_){}
   $('changes').innerHTML = '<p><span class="spinner"></span> Generating the rolling calendar and pre-building every slot’s assets (mailer, ads, landing page) in the background. This runs once; reopen shortly and the calendar just loads.</p>';
   await runSync();  // persists the plan + auto-kicks the prebuild queue
+
 }
 
 async function runSync(){

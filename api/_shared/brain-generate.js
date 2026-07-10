@@ -632,10 +632,16 @@ async function generateForSlot(slotId, { persist = true } = {}) {
   push('audience_spec', `Audiences · ${slot.market}`, JSON.stringify(audienceSpec(slot, cohort), null, 2));
   push('funnel_spec', funnel.name, JSON.stringify(funnel, null, 2));
 
+  // Carry the slot's real confidence onto every generated campaign (was a
+  // hardcoded confidence:0). The planning analysis was stashed in the slot's
+  // source column by brain-calendar.slotRow().
+  const slotAnalysis = (slot.source && slot.source.analysis) || null;
+  const slotConfidence = (typeof slot.confidence === 'number' && slot.confidence > 0) ? slot.confidence : (slotAnalysis && slotAnalysis.confidence && slotAnalysis.confidence.score) || 0;
   const genCampaigns = objects.map((o) => ({
     id: idFor('gen', { slot: slot.id, platform: o.platform }),
     slot_id: slot.id, funnel_id: funnel.id, platform: o.platform,
-    campaign_object: o.campaign_object, status: 'pending_review', confidence: 0,
+    campaign_object: o.campaign_object, status: 'pending_review',
+    confidence: slotConfidence,
     created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   }));
 
@@ -648,7 +654,10 @@ async function generateForSlot(slotId, { persist = true } = {}) {
     // every campaign enters the human review queue (launch state: ALWAYS)
     await d.insert('smart_review_queue', genCampaigns.map((g) => ({ item_type: 'generated_campaign', item_id: g.id, state: 'pending' })));
   }
-  return { ok: true, slot_id: slot.id, funnel, campaigns: genCampaigns, assets: assets.map((a) => ({ id: a.id, type: a.type, name: a.name, bytes: (a.content || '').length })), copy };
+  // Surface the planning reasoning on the returned campaigns so the UI/API can
+  // show WHY each was generated (kept off the persisted rows to stay schema-safe).
+  const campaignsOut = genCampaigns.map((g) => ({ ...g, rationale: slot.rationale || (slotAnalysis && slotAnalysis.summary) || null, analysis: slotAnalysis }));
+  return { ok: true, slot_id: slot.id, funnel, campaigns: campaignsOut, analysis: slotAnalysis, assets: assets.map((a) => ({ id: a.id, type: a.type, name: a.name, bytes: (a.content || '').length })), copy };
 }
 
 module.exports = { generateForSlot, mailerHtml, landingHtml, campaignObjects, audienceSpec, fallbackCopy, pickCampaignHubLP };

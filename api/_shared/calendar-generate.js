@@ -39,6 +39,7 @@
 const fs = require('fs');
 const path = require('path');
 const SM = require('./scenario-model.js');
+const { buildEntryAnalysis, explainConfidence } = require('./output-reasoning.js');
 
 let FESTIVALS = null;
 function loadFestivals() {
@@ -312,6 +313,26 @@ function buildPlan({ startDate, days, markets, capacity, analytics, segmentsRank
       const rationale    = buildRationale({ segment: segment.name, festival, content_type, archetype, hero, segValueRank: segment.valueRank, market });
       const asset_types  = pickAssetTypes({ content_type, archetype, festival, key: `${dateStr}_${market}_${segment.name}` });
 
+      // Explainable confidence + complete analysis for this RFM slot.
+      const conf = explainConfidence([
+        { when: (segment.valueRank === 1), label: 'Top-ranked RFM segment', delta: 0.16, detail: `${segment.name} is #1 by revenue in this window.` },
+        { when: (segment.valueRank === 2 || segment.valueRank === 3), label: 'High-value RFM segment', delta: 0.10, detail: `${segment.name} ranks #${segment.valueRank} by revenue.` },
+        { when: (festival && festival.weight >= 8), label: 'Major festival window', delta: 0.10, detail: festival ? `${festival.name} (weight ${festival.weight}/10) drives elevated demand.` : '' },
+        { when: (festival && festival.weight >= 5 && festival.weight < 8), label: 'Festival window', delta: 0.05, detail: festival ? `${festival.name} (weight ${festival.weight}/10).` : '' },
+        { when: ((segment.count || 0) > 1000), label: 'Large addressable segment', delta: 0.06, detail: `${segment.count} profiles gives stable reach.` },
+        { when: (hero.promos === 0), label: 'Under-promoted hero expands repertoire', delta: 0.04, detail: `${hero.title || hero.sku} has not been over-sent, reducing fatigue risk.` },
+      ]);
+      const analysisObj = buildEntryAnalysis({
+        cohort: { name: segment.name, size: segment.count, value_rank: segment.valueRank },
+        product: { title: hero.title, sku: hero.sku, category: hero.category },
+        festival: festival ? { name: festival.name, weight: festival.weight, tags: festival.tags || [] } : null,
+        channels: (asset_types || []).map((a) => ({ mailer: 'email', meta_ad: 'meta', google_ad: 'google', tiktok_ad: 'tiktok', landing_page: 'landing_page', social_post: 'meta' }[a] || a)).filter((v, i, arr) => arr.indexOf(v) === i),
+        objective: content_type,
+        market,
+        confidence: conf,
+        dataSource: analytics?.source || 'analytics',
+      });
+
       plan.push({
         id: `${dateStr}_${market}_${segment.name}_${plan.length}`,
         date: dateStr,
@@ -329,6 +350,8 @@ function buildPlan({ startDate, days, markets, capacity, analytics, segmentsRank
         festival_weight: festival ? festival.weight : null,
         festival_tags: festival ? (festival.tags || []) : [],
         rationale,
+        confidence: conf.score,
+        analysis: analysisObj,
         asset_types,
         status: 'planned',
       });
