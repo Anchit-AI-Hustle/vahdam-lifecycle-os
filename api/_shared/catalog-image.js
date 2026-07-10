@@ -35,7 +35,7 @@ function imageFor(entryOrHandle, market) {
   const arr = load(market);
   if (!arr.length) return null;
   let handle = null, title = null;
-  if (typeof entryOrHandle === 'string') handle = entryOrHandle;
+  if (typeof entryOrHandle === 'string') { handle = entryOrHandle; title = entryOrHandle.replace(/[-_]+/g, ' '); }
   else if (entryOrHandle && typeof entryOrHandle === 'object') {
     const hp = entryOrHandle.heroProduct || entryOrHandle;
     handle = hp.handle || hp.h || entryOrHandle.hero_handle || null;
@@ -46,6 +46,14 @@ function imageFor(entryOrHandle, market) {
     const t = String(title).toLowerCase();
     p = arr.find((x) => (x.n || '').toLowerCase() === t)
       || arr.find((x) => (x.n || '').toLowerCase().includes(t.slice(0, 18)));
+    // Keyword fallback: a handle like "turmeric-curcumin" or "green-burner" has
+    // no exact catalog row, but a distinctive token ("turmeric", "burner") does.
+    // Try the longest tokens first so the rare, specific word wins over a common
+    // one ("burner" before "green"), keeping a real photo instead of a placeholder.
+    if (!p) {
+      const toks = t.split(/\s+/).filter((w) => w.length >= 5).sort((a, b) => b.length - a.length);
+      for (const w of toks) { p = arr.find((x) => (x.n || '').toLowerCase().includes(w)); if (p) break; }
+    }
   }
   const url = p && p.i;
   return (typeof url === 'string' && /^https?:\/\//.test(url)) ? url : null;
