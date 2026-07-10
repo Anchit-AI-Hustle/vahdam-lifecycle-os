@@ -231,8 +231,17 @@
     { id: 'avatars', label: 'Avatars (Personas)', href: '/avatars', icon: 'avatars', ver: 'v2', match: ['/avatars', '/personas', '/avatars.html'] },
 
     { section: 'Plan' },
-    { id: 'lifecycle', label: 'Mailer Calendar',    href: '/mailer-calendar', icon: 'calendar', ver: 'v2', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
-    { id: 'calendar',  label: 'Plan Calendar',      href: '/calendar.html',   icon: 'calendar', ver: 'v1', draft: 'Draft 1', match: ['/calendar.html', '/plan'] },
+    // Automated Calendar Creation — the ONE calendar feature. It subsumes the
+    // former Smart Brain (automated 90-day engine), Mailer Calendar (Draft 2)
+    // and Plan Calendar (Draft 1): all three calendar surfaces now live as
+    // sub-items of this single feature rather than as separate top-level
+    // features. The engine (/brain) is the primary surface; the two earlier
+    // calendars remain reachable underneath it, labelled Draft 1 / Draft 2.
+    { group: 'Automated Calendar Creation', icon: 'calendar', gid: 'brain', ver: 'v2', children: [
+      { id: 'brain',     label: 'Automated Calendar (90-day)', href: '/brain',           icon: 'studio',   match: ['/brain', '/smart-brain', '/smart-brain.html'] },
+      { id: 'lifecycle', label: 'Cohort Mailer Calendar',      href: '/mailer-calendar', icon: 'calendar', draft: 'Draft 2', match: ['/mailer-calendar', '/lifecycle-calendar.html'] },
+      { id: 'calendar',  label: '30-Day Plan Calendar',        href: '/calendar.html',   icon: 'calendar', draft: 'Draft 1', match: ['/calendar.html', '/plan'] },
+    ]},
     { id: 'ukhub',     label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
 
     { section: 'Design & Create' },
@@ -261,8 +270,11 @@
     { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
 
     { section: 'Assistants' },
+    // ChaiGPT (internal team chat/info tool) and Vahdam Agent (customer-facing
+    // concierge) are conversational assistants and stay here. The former Smart
+    // Brain moved to Plan and was renamed Automated Calendar Creation — it is a
+    // calendar-creation feature, not a chat assistant, so it no longer lives here.
     { id: 'chaigpt', label: 'ChaiGPT',      href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
-    { id: 'brain',   label: 'Smart Brain',  href: '/brain',   icon: 'studio', ver: 'v1', match: ['/brain', '/smart-brain', '/smart-brain.html'] },
     { id: 'agent',   label: 'Vahdam Agent', href: '/agent',   icon: 'vahdam', ver: 'v1', match: ['/agent', '/agent.html'] },
 
     { section: 'Settings' },
@@ -308,8 +320,8 @@
       ],
     },
     brain: {
-      title: 'Smart Brain',
-      what: "The persistent daily brain of the OS: it maintains a rolling 15-day campaign plan in Supabase (smart_calendar_entries), refreshes it every morning by diff — never a wholesale rewrite — and turns every human-approved slot into a complete campaign: mailer + Meta/Google/TikTok ads + a landing page.",
+      title: 'Automated Calendar Creation',
+      what: "The one calendar feature of the OS — it combines the automated engine (formerly Smart Brain), the Cohort Mailer Calendar (Draft 2) and the 30-Day Plan Calendar (Draft 1). It maintains a rolling 90-day campaign plan in Supabase (smart_calendar_entries), refreshes it every morning by diff — never a wholesale rewrite — and turns every human-approved slot into a complete campaign: mailer + Meta/Google/TikTok ads + a landing page.",
       who: "Every customer cohort gets slots — RFM segments and engagement cohorts alike. The lifecycle team supervises: nothing ships without a human approve.",
       how: "Six services run in sequence — KB, Analysis, Competitor, Calendar, Generation, Review. A daily Vercel Cron (03:30 UTC, CRON_SECRET-protected) syncs the plan; the console at /brain lists tentative slots for approve/reject; approving generates all assets and mirrors them into ads_generated and landing_pages_generated. Platform push is Phase 2 (push_status: not_integrated_phase_2).",
       input: "Nothing daily — the cron drives it. From you: approve or reject decisions per slot, plus optional feedback that recalibrates future planning.",
@@ -317,7 +329,7 @@
       steps: [
         ['Ideology', 'Each slot starts as a campaign concept — the occasion, the angle, the single idea the send must carry. Maximum ideation before any data is touched.'],
         ['Data analysis + review + hypothesis', 'The KB, Analysis, and Competitor services pull owned assets, RFM and cohort signals, and competitor benchmarks, then state a testable hypothesis per slot.', '/api/calendar?action=smart-brain-sync-daily'],
-        ['Business & strategy decisions', 'The Calendar service decides cohort, product focus, offer mechanic, and send date — diff-updating the rolling 15-day plan.', '/api/calendar?action=smart-brain-plan'],
+        ['Business & strategy decisions', 'The Calendar service decides cohort, product focus, offer mechanic, and send date — diff-updating the rolling 90-day plan.', '/api/calendar?action=smart-brain-plan'],
         ['Content', 'On approval, the Generation service LLM-writes the mailer copy plus Meta, Google, and TikTok ad copy.', '/api/calendar?action=smart-brain-approve'],
         ['Design + layout + structure', 'Brand-gated templates apply the 4-colour palette and Lao MN / Proxima Nova; hero creative comes from the image cascade.'],
         ['Coding', 'Assets compile to production HTML — a Klaviyo-ready mailer and a landing page served at /lp/:campaignId.'],
