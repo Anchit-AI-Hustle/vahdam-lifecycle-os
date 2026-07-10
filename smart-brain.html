@@ -218,7 +218,8 @@ function renderAd(ad){
   const brief = cr.brief || ad.creative_brief;
   if(brief) add('Creative brief', brief);
   const img = cr.image ? `<img class="adimg" src="${esc(cr.image)}" alt="${esc((ad.platform||'ad')+' creative')}" loading="lazy"/>` : '';
-  return `<div class="adcard"><h4>${esc((ad.platform||'ad').toUpperCase())} ad</h4>${img}${rows.join('')}</div>`;
+  const vtag = ad.variant ? ` <span class="pill" style="font-size:10px">${esc(ad.variant)}${ad.angle?' · '+esc(ad.angle):''}</span>` : '';
+  return `<div class="adcard"><h4>${esc((ad.platform||'ad').toUpperCase())} ad${vtag}</h4>${img}${rows.join('')}</div>`;
 }
 
 function renderPreview(payload, e, i, opts){
@@ -254,7 +255,10 @@ function renderPreview(payload, e, i, opts){
     });
   } else if(emailHtml){ const html = emailHtml.replace(/\{\{\s*landing_page_url\s*\}\}/g,'#'); tab('pv-mail','✉ Mailer',first); pane('pv-mail', `${expBar('mailer', html)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first); first=false; }
   if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#8fe7b9">/lp/${esc(liveLpId)} ↗</a> once approved.</p>`:''}${expBar('landing-page', lpHtml)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
-  ads.forEach(ad=>{ const id='pv-ad-'+(ad.platform||'x'); tab(id, esc((ad.platform||'ad'))+' ad', first); pane(id, renderAd(ad), first); first=false; });
+  // Each platform ships an A/B pair. Give every ad a UNIQUE tab id + a label that
+  // names its variant and angle, otherwise both A and B collide on the same id
+  // ("pv-ad-meta") and read as a duplicate "meta ad" tile (B hidden behind A).
+  ads.forEach((ad,ai)=>{ const id='pv-ad-'+(ad.platform||'x')+'-'+(ad.variant||ai); const vl=ad.variant?(' · '+ad.variant+(ad.angle?' ('+ad.angle+')':'')):''; tab(id, esc((ad.platform||'ad'))+' ad'+esc(vl), first); pane(id, renderAd(ad), first); first=false; });
   tab('pv-json','{ } Details', first); pane('pv-json', `<pre style="margin:0">${esc(JSON.stringify(campaign && campaign.campaign_id ? campaign : e, null, 2))}</pre>`, first);
 
   const isTentative = e.status==='tentative';

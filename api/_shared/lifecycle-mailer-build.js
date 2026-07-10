@@ -23,6 +23,7 @@ const { helpers } = require('./calendar-trigger.js');
 const { COHORTS, PLAYS, ALLOWED_TEMPLATE_STYLES, purchaseModeForProductType } = require('./lifecycle-cohorts.js');
 const { loadProductTypes } = require('./lifecycle-calendar-generate.js');
 const CF = require('./copy-frameworks.js');
+const catalogImage = require('./catalog-image.js');
 
 // ─── Brief builder ───────────────────────────────────────────────────────────
 
@@ -176,8 +177,16 @@ function placeholderImage(label, w, h) {
 }
 
 function resolveHero(entry, w, h) {
-  if (entry.hero_image) {
-    return { url: entry.hero_image, mode: 'catalog', size: `${w}x${h}`, prompt: null };
+  // Real, already-hosted product image is the guarantee. Prefer an explicit
+  // hero_image on the slot; otherwise resolve the product's own catalog photo
+  // by handle (the generator does not always stamp hero_image, and older
+  // persisted rows never did — this is why Text + Visual heroes rendered as a
+  // broken data: placeholder). Only fall back to the fillable placeholder when
+  // the catalog genuinely has no photo for this handle.
+  const real = (entry.hero_image && /^https?:\/\//.test(entry.hero_image) ? entry.hero_image : null)
+    || catalogImage.imageFor(entry.hero_handle || entry.hero_product || entry, entry.market);
+  if (real) {
+    return { url: real, mode: 'catalog', size: `${w}x${h}`, prompt: null };
   }
   const prompt =
     `On-brand VAHDAM email hero for "${entry.hero_product || entry.product_type}". Editorial product ` +
