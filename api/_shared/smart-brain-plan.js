@@ -1077,9 +1077,51 @@ async function prebuildAssets({ config: cfg = {}, batchSize = 1, sinceDate = nul
   return { ok: true, mode: 'db-linked', built, failed, batch: batch.length, remaining: Math.max(0, pending.length - built.length) };
 }
 
+// ── Safe DB diagnostic ──────────────────────────────────────────────────────
+// Reports which Supabase PROJECT + key role the calendar adapter resolves and
+// the HTTP status when reading key tables. No secret values are returned — only
+// booleans, the project ref (already public via /api/public-config), the key's
+// role claim (anon/service_role), and HTTP status codes. Pinpoints whether the
+// 401s are a URL/key project mismatch vs. a missing table.
+async function dbCheck({ config: cfg = {} } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  let urlHost = '';
+  try { urlHost = new URL(db.url).host; } catch (_) { urlHost = db.url ? 'set' : ''; }
+  const urlRef = urlHost.split('.')[0] || '';
+  let keyRole = db.key ? 'opaque' : 'none', keyRef = '';
+  try { const p = JSON.parse(Buffer.from(String(db.key).split('.')[1] || '', 'base64').toString('utf8')); keyRole = p.role || keyRole; keyRef = p.ref || ''; } catch (_) {}
+  const tables = ['smart_calendar_entries', 'smart_generated_campaigns', 'smart_users', 'smart_orders'];
+  const probes = {};
+  await Promise.all(tables.map(async (t) => {
+    try {
+      const r = await fetch(`${db.url}/rest/v1/${t}?select=id&limit=1`, { headers: db.headers() });
+      probes[t] = { status: r.status, ok: r.ok };
+    } catch (e) { probes[t] = { status: 0, error: String((e && e.message) || e).slice(0, 80) }; }
+  }));
+  return {
+    ok: true,
+    calendar_adapter: {
+      url_project_ref: urlRef,
+      key_role: keyRole,
+      key_project_ref: keyRef,
+      url_key_same_project: keyRef ? (urlRef === keyRef) : null,
+      probes,
+    },
+    env_present: {
+      SMART_BRAIN_SUPABASE_URL: !!process.env.SMART_BRAIN_SUPABASE_URL,
+      SMART_BRAIN_SUPABASE_SERVICE_ROLE_KEY: !!process.env.SMART_BRAIN_SUPABASE_SERVICE_ROLE_KEY,
+      SMART_BRAIN_SUPABASE_KEY: !!process.env.SMART_BRAIN_SUPABASE_KEY,
+      SUPABASE_URL: !!process.env.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+    },
+  };
+}
+
 module.exports = {
   syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, activateScenario, landingPageHtml, buildCampaign,
-  prebuildAssets,
+  prebuildAssets, dbCheck,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
 };
