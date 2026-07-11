@@ -186,22 +186,22 @@ function renderPlan(){
     const confLabel = a && a.confidence && a.confidence.label ? a.confidence.label : '';
     const confTip = a && a.confidence && Array.isArray(a.confidence.factors)
       ? a.confidence.factors.map(f=>`${f.delta>=0?'+':''}${f.delta} ${f.label}`).join('\n') : '';
-    return `<tr>
+    const status = `<span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.__prebuilt && e.__prebuilt.campaign_id ? `<br><span class="pill" style="background:#0c3;color:#03210f;font-size:10px" title="Full asset bundle (copy + images: mailer, ads, landing page) already built. Approve to publish.">✓ assets prebuilt</span>` : ''}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}`;
+    return `<tr class="planrow" id="planrow-${i}">
     <td>${esc(e.date)}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
     <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span></td>
     <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
-    <td style="max-width:260px"><span style="font-size:12px;color:#d8cdb4;line-height:1.4">${esc(why)}</span>${a?` <button class="btn sm secondary" style="padding:1px 7px;font-size:11px" onclick="viewEntry(${i})" title="Open full analysis">why ↗</button>`:''}</td>
+    <td style="max-width:260px"><span style="font-size:12px;color:#d8cdb4;line-height:1.4">${esc(why)}</span></td>
     <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
     <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#9fb3a8;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
-    <td><span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}</td>
-    <td class="conf">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}</td>
-    <td><span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.__prebuilt && e.__prebuilt.campaign_id ? `<br><span class="pill" style="background:#0c3;color:#03210f;font-size:10px" title="Full asset bundle (copy + images: mailer, ads, landing page) already built. Approve to publish.">✓ assets prebuilt</span>` : ''}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}</td>
+    <td>${status}</td>
     <td style="white-space:nowrap">
-      <button class="btn sm secondary" onclick="viewEntry(${i})">View</button>
+      <button class="btn sm secondary" id="viewbtn-${i}" onclick="viewEntry(${i})">View</button>
       ${e.status==='tentative' ? `<button class="btn sm ok" onclick="approve(${i})">Approve</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
     </td>
-  </tr>`;}).join('');
+  </tr>
+  <tr class="exprow" id="exprow-${i}" style="display:none"><td colspan="9" style="padding:0;background:#0b1813;border-bottom:2px solid rgba(171,135,67,.3)"><div class="expbody" id="expbody-${i}" style="padding:16px 18px"></div></td></tr>`;}).join('');
 }
 
 // ── Funnel preview (generate-on-demand, before approval) ────────────────────
@@ -210,7 +210,8 @@ const PREVIEW_CACHE = {};   // keyed by entry id → preview payload (avoid re-c
 function clearPreview(){ $('preview').innerHTML = ''; }
 
 window.pvTab = function(btn, paneId){
-  const root = btn.closest('#preview');
+  const root = btn.closest('.pvroot') || btn.closest('#preview');
+  if(!root) return;
   root.querySelectorAll('.pvtab').forEach(b => b.classList.remove('on'));
   root.querySelectorAll('.pvpane').forEach(p => p.classList.remove('on'));
   btn.classList.add('on');
@@ -305,23 +306,40 @@ function renderPreview(payload, e, i, opts){
   tab('pv-json','{ } Details', first); pane('pv-json', `<pre style="margin:0">${esc(JSON.stringify(campaign && campaign.campaign_id ? campaign : e, null, 2))}</pre>`, first);
 
   const isTentative = e.status==='tentative';
-  const banner = opts.persisted
-    ? `<span class="st approved">approved</span> <span class="pvnote" style="margin:0">Live campaign generated.</span>`
-    : `<span class="st tentative">preview</span> <span class="pvnote" style="margin:0">Not yet approved — this is generated on demand and not saved.</span>`;
+  const finalLoaded = opts.persisted || e.status==='approved' || e.status==='final';
+  const banner = finalLoaded
+    ? `<span class="st approved">${esc(e.status==='final'?'final':'approved')}</span> <span class="pvnote" style="margin:0">Final approved version — this is what ships.</span>`
+    : `<span class="st tentative">preview</span> <span class="pvnote" style="margin:0">Not yet approved — generated on demand.</span>`;
+  // "Open detailed page": the real hosted landing page once live, else the primary
+  // mailer opened full-screen in a new tab.
+  const detailBtn = liveLpId
+    ? `<a class="btn sm secondary" href="/lp/${esc(liveLpId)}" target="_blank" rel="noopener">Open detailed page ↗</a>`
+    : `<button class="btn sm secondary" onclick="openDetailPage(${i})">Open detailed page ↗</button>`;
 
-  $('preview').innerHTML = `
+  const host = (opts && opts.target) || $('expbody-'+i) || $('preview');
+  host.innerHTML = `<div class="pvroot">
     <div class="pvbar">
       ${banner}
       <span style="flex:1"></span>
+      ${detailBtn}
       <button class="btn sm secondary" onclick="viewEntry(${i}, true)">↻ Regenerate</button>
       ${isTentative ? `<button class="btn sm ok" onclick="approve(${i})">Approve this slot</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
+      <button class="btn sm secondary" onclick="closeExp(${i})" title="Collapse">✕</button>
     </div>
     <div class="pvnote">Copy by <b>${esc(cw.provider || 'template')}</b>${cw.model?` · ${esc(cw.model)}`:''} · channels: ${(e.channels||[]).map(esc).join(', ')||'—'}</div>
     <div class="pvtabs">${tabs.join('')}</div>
-    ${panes.join('')}`;
-  $('detail').textContent = '';
-  $('preview').scrollIntoView({ behavior:'smooth', block:'nearest' });
+    ${panes.join('')}</div>`;
+  host.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
+window.closeExp = function(i){ const r=$('exprow-'+i); if(r) r.style.display='none'; };
+// Open the primary mailer full-screen in a new tab (the "detailed page" when a
+// slot is not yet approved and has no hosted /lp/:id).
+window.openDetailPage = function(i){
+  const e = PLAN[i]; const p = PREVIEW_CACHE[e && e.id];
+  const html = p && (p.email_html || (p.email_variants && p.email_variants.find(v=>v.key==='visual_a')?.html) || (p.campaign?.assets?.email?.html));
+  if(!html){ alert('Open View first to generate the assets, then Open detailed page.'); return; }
+  const w = window.open('', '_blank'); if(w){ w.document.open(); w.document.write(String(html).replace(/\{\{\s*landing_page_url\s*\}\}/g,'#')); w.document.close(); }
+};
 
 // Export an approved/previewed asset out of the tool.
 window.sbDownload = function(idx){
@@ -341,18 +359,27 @@ window.sbCopy = function(idx, btn){
 
 async function viewEntry(i, forceRegen){
   const e = PLAN[i];
-  $('detailTitle').textContent = `Funnel preview · ${e.date} ${e.market}`;
+  const row = $('exprow-'+i), body = $('expbody-'+i);
+  if(!row || !body) return;
+  // Toggle: clicking View on an already-open, loaded row collapses it.
+  if(!forceRegen && row.style.display !== 'none' && body.getAttribute('data-loaded') === '1'){ row.style.display='none'; return; }
+  // One expansion open at a time.
+  document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
+  row.style.display='';
   if(forceRegen) delete PREVIEW_CACHE[e.id];
-  if(PREVIEW_CACHE[e.id]){ renderPreview(PREVIEW_CACHE[e.id], e, i); return; }
-  $('preview').innerHTML = `<p class="pvnote"><span class="spinner"></span> Generating the full funnel (mailer, ads & landing page) with the LLM waterfall — usually 10–30s…</p>`;
-  $('detail').textContent = '';
+  if(PREVIEW_CACHE[e.id]){ renderPreview(PREVIEW_CACHE[e.id], e, i, { target: body, persisted: (e.status==='approved'||e.status==='final') }); body.setAttribute('data-loaded','1'); return; }
+  body.innerHTML = `<p class="pvnote"><span class="spinner"></span> Generating the full funnel (mailer, ads & landing page) — usually 10–30s…</p>`;
+  row.scrollIntoView({ behavior:'smooth', block:'nearest' });
   try{
     const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
     const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Preview failed');
     PREVIEW_CACHE[e.id] = data;
-    renderPreview(data, e, i);
-  }catch(err){ $('preview').innerHTML = `<p class="pvnote" style="color:#e89a9a">Preview failed: ${esc(err.message)}</p>`; }
+    // Once a slot is approved/final, the server returns the FINAL saved campaign,
+    // so the reviewer always sees exactly what ships (never a fresh regeneration).
+    renderPreview(data, e, i, { target: body, persisted: !!data.persisted || (e.status==='approved'||e.status==='final') });
+    body.setAttribute('data-loaded','1');
+  }catch(err){ body.innerHTML = `<p class="pvnote" style="color:#e89a9a">Preview failed: ${esc(err.message)}</p>`; }
 }
 window.viewEntry = viewEntry;
 
@@ -412,19 +439,23 @@ async function runSync(){
 async function approve(i){
   const e = PLAN[i];
   if(!confirm(`Approve ${e.date} ${e.market} (${e.objective})?\nThis generates the mailer, ads, and landing page for final check.`)) return;
-  $('detailTitle').textContent = `Generating campaign · ${e.date} ${e.market}…`;
-  $('preview').innerHTML = `<p class="pvnote"><span class="spinner"></span> Writing copy with the LLM waterfall and assembling assets — usually 10–30s…</p>`;
-  $('detail').textContent = '';
+  let row = $('exprow-'+i), body = $('expbody-'+i);
+  document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
+  if(row) row.style.display='';
+  if(body){ body.innerHTML = `<p class="pvnote"><span class="spinner"></span> Writing copy and assembling the final assets — usually 10–30s…</p>`; body.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
   try{
     const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
     const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Approve failed');
     e.status = 'approved'; e.generated_campaign_id = data.campaign.campaign_id;
-    delete PREVIEW_CACHE[e.id];
-    renderPlan();
-    $('detailTitle').textContent = `Generated · ${data.campaign.name} (copy: ${data.campaign.copywriter?.provider})`;
-    renderPreview(data, e, i, { persisted: true });
-  }catch(err){ $('detailTitle').textContent = 'Approve failed'; clearPreview(); $('detail').textContent = err.stack || err.message; }
+    PREVIEW_CACHE[e.id] = data;   // cache the FINAL so re-opening always shows it
+    renderPlan();                 // rebuilds rows (status → approved); expansions reset
+    // Re-open this row's (freshly rebuilt) expansion with the final version.
+    row = $('exprow-'+i); body = $('expbody-'+i);
+    if(row) row.style.display='';
+    renderPreview(data, e, i, { persisted: true, target: body });
+    if(body) body.setAttribute('data-loaded','1');
+  }catch(err){ if(body) body.innerHTML = `<p class="pvnote" style="color:#e89a9a">Approve failed: ${esc(err.stack || err.message)}</p>`; }
 }
 
 async function reject(i){
