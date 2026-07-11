@@ -1472,7 +1472,13 @@
     } catch { /* fall through to the public fallback below */ }
     // Last resort: the baked-in public config (keeps sign-in working on preview
     // deployments and offline). Real env-provided config always wins above.
-    if (PUBLIC_SUPABASE_FALLBACK.url && PUBLIC_SUPABASE_FALLBACK.anonKey) {
+    // NOT on localhost / file:// — there, returning null preserves the existing
+    // "local preview" path (inject the top-bar, no login wall), which local dev
+    // and the Playwright suite rely on. The fallback is only for real hosts
+    // (preview/production) where /api/public-config may be blocked.
+    const isLocalHost = location.protocol === 'file:' ||
+      /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/.test(location.hostname);
+    if (!isLocalHost && PUBLIC_SUPABASE_FALLBACK.url && PUBLIC_SUPABASE_FALLBACK.anonKey) {
       window.__SUPABASE__ = PUBLIC_SUPABASE_FALLBACK;
       return PUBLIC_SUPABASE_FALLBACK;
     }
