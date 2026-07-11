@@ -224,6 +224,14 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   const body = brand.typography.body.fallback;
   const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
   const cur = slot.market === 'UK' ? '£' : '$';
+  // Collection CTA target, derived from the hero product's category so the
+  // secondary CTA lands on the right collection (falls back to all-teas).
+  const heroType = ((products[0] && products[0].type) || '').toLowerCase();
+  const collectionUrl = /chai/.test(heroType) ? `${store}/collections/chai-tea`
+    : /green/.test(heroType) ? `${store}/collections/green-tea`
+    : /black/.test(heroType) ? `${store}/collections/black-tea`
+    : /herbal|turmeric|wellness|supplement|tisane/.test(heroType) ? `${store}/collections/wellness-tea`
+    : `${store}/collections/all`;
   const esc = (s) => String(s == null ? '' : s).replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'));
   const L = copy.landing || {};
   const offerBar = L.offer_bar || `Welcome gift: free sampler + free shipping over ${cur}${slot.market === 'UK' ? '30' : '35'}`;
@@ -249,9 +257,11 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
     </div>`).join('');
   const prods = products.slice(0, 3).map((p) => {
     const img = productImage(p, slot.market);
+    // Always resolve a real PDP: explicit url, else build from the handle.
+    const pdp = p.url || ((p.handle || p.h) ? `${store}/products/${p.handle || p.h}` : store);
     return `
     <td align="center" style="padding:10px;width:33%">
-      <a href="${p.url || store}" style="text-decoration:none">
+      <a href="${pdp}" target="_blank" style="text-decoration:none">
         <div style="background:${P.cream};border:1px solid ${P.gold}33;border-radius:10px;padding:14px 10px 18px">
           ${img ? `<img src="${img}" alt="${esc(p.title)}" width="150" style="width:100%;max-width:150px;height:auto;border-radius:8px;display:block;margin:0 auto 12px"/>` : ''}
           <div style="font-family:${heads};font-size:15px;color:${P.near_black};line-height:1.35">${esc(p.title)}</div>
@@ -335,13 +345,19 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
 <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%">
   <tr><td align="center" style="background:${P.gold};border-radius:8px;padding:8px 14px;font-family:${body};font-size:12px;font-weight:700;color:${P.near_black}">${esc(offerBar)}</td></tr>
   <tr><td align="center" style="padding:18px 0 8px">
-    <div style="font-family:${heads};font-size:22px;letter-spacing:0.28em;color:${P.forest_green};font-weight:700">VAHDAM</div>
-    <div style="font-family:${body};font-size:10px;letter-spacing:0.22em;color:${P.gold};text-transform:uppercase;margin-top:4px">India · Est. at origin</div>
+    <a href="${store}" target="_blank" style="text-decoration:none;display:inline-block">
+      <div style="font-family:${heads};font-size:22px;letter-spacing:0.28em;color:${P.forest_green};font-weight:700">VAHDAM</div>
+      <div style="font-family:${body};font-size:10px;letter-spacing:0.22em;color:${P.gold};text-transform:uppercase;margin-top:4px">USA · Single-Estate Tea</div>
+    </a>
   </td></tr>
   ${bodyRows}
-  <tr><td align="center" style="padding:20px 20px 36px">
-    <a href="${store}" style="font-family:${body};font-size:13px;color:${P.forest_green};text-decoration:underline">${esc(copy.cta_secondary)}</a>
-    <div style="font-family:${body};font-size:11px;color:${P.near_black}77;margin-top:16px;line-height:1.6">VAHDAM India · Crafted at origin · Carbon &amp; plastic neutral<br>You receive this because you joined the ritual. <a href="#" style="color:${P.gold}">Preferences</a> · <a href="#" style="color:${P.gold}">Unsubscribe</a></div>
+  <tr><td align="center" style="padding:8px 20px 26px">
+    <a href="${collectionUrl}" target="_blank" style="display:inline-block;font-family:${body};font-size:13px;font-weight:700;color:${P.forest_green};border:1.5px solid ${P.gold};border-radius:8px;padding:11px 24px;text-decoration:none">${esc(copy.cta_secondary || 'Explore the collection')}</a>
+  </td></tr>
+  <tr><td align="center" style="background:${P.near_black};padding:24px 22px 30px">
+    <div style="font-family:${heads};font-size:14px;letter-spacing:0.24em;color:${P.cream}">VAHDAM</div>
+    <div style="font-family:${body};font-size:10.5px;letter-spacing:0.05em;color:${P.gold};margin:9px 0">Single-estate · Hand-picked · Shipped fresh from origin</div>
+    <div style="font-family:${body};font-size:11px;color:${P.cream}99;line-height:1.7">You are receiving this as a valued VAHDAM ${esc(slot.market)} customer.<br>VAHDAM Teas · Carbon &amp; plastic neutral<br>Manage preferences or unsubscribe from your account settings.</div>
   </td></tr>
 </table></td></tr></table></body></html>`;
 }
