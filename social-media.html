@@ -376,7 +376,13 @@
     $('runState').textContent = 'Loading…';
     try {
       var d = $('datePick').value || todayIso();
-      var r = await fetch(API + '?action=social-list&date=' + encodeURIComponent(d));
+      // Fail fast if the API is unreachable/hanging so the error banner shows
+      // promptly instead of spinning (also keeps this deterministic under test).
+      var ctrl = new AbortController();
+      var to = setTimeout(function () { ctrl.abort(); }, 6000);
+      var r;
+      try { r = await fetch(API + '?action=social-list&date=' + encodeURIComponent(d), { signal: ctrl.signal }); }
+      finally { clearTimeout(to); }
       var j = await r.json();
       if (!j.ok) throw new Error(j.error || ('HTTP ' + r.status));
       renderPosts(j.posts, true);
