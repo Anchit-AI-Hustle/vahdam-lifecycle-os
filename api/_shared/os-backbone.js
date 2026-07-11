@@ -229,7 +229,10 @@ async function dashboard() {
     generated_campaigns: ['smart_generated_campaigns', {}],
     generated_assets: ['smart_generated_assets', {}],
     calendar_entries: ['lifecycle_calendar_entries', {}],
-    smart_calendar: ['smart_calendar', {}],
+    // The Automated Calendar persists to smart_calendar_entries (the rolling
+    // 90-day plan). Count that; fall back to the legacy smart_calendar table
+    // below when the new one is absent, so the tile reflects real slots.
+    smart_calendar: ['smart_calendar_entries', {}],
     pending_reviews: ['smart_review_queue', { state: 'eq.pending' }],
     ads_generated: ['ads_generated', {}],
     landing_pages: ['landing_pages_generated', {}],
@@ -241,6 +244,8 @@ async function dashboard() {
     agent_definitions: ['agent_definitions', {}],
   };
   await Promise.all(Object.entries(countMap).map(async ([k, [t, f]]) => { counts[k] = await countExact(t, f); }));
+  // Legacy fallback: if the new rolling-plan table is absent, show the old one.
+  if (counts.smart_calendar == null) counts.smart_calendar = await countExact('smart_calendar', {});
 
   const lastRefresh = (cronRuns && cronRuns[0]) || null;
   return {

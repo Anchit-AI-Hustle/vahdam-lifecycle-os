@@ -786,8 +786,25 @@ async function resolveEntry({ id, inlineEntry, config, db }) {
 async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inlineEntry = null } = {}) {
   const config = smartConfig(cfg);
   const db = new SmartBrainDbAdapter(config);
-  const { entry } = await resolveEntry({ id, inlineEntry, config, db });
+  const { entry, row } = await resolveEntry({ id, inlineEntry, config, db });
   if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
+
+  // Approved/final slots always return the FINAL saved campaign — the reviewer
+  // sees exactly what ships, never a fresh regeneration.
+  if (db.connected && row && (row.status === 'approved' || row.status === 'final') && row.generated_campaign_id) {
+    const fin = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${row.generated_campaign_id}` }, limit: 1 }).catch(() => []);
+    const c = fin && fin[0] && fin[0].payload;
+    if (c) {
+      return {
+        ok: true, preview: false, persisted: true, campaign: c,
+        copywriter: c.copywriter,
+        email_html: c.assets?.email?.html || null,
+        email_variants: c.assets?.email?.variants || null,
+        landing_html: c.assets?.landing_pages?.[0]?.html || null,
+        ads: c.assets?.ads || [],
+      };
+    }
+  }
 
   // Preview EXACTLY what approving produces. If the prebuild queue already built
   // this slot, show that persisted bundle (instant, and identical to what ships);

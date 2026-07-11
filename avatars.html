@@ -73,18 +73,14 @@
   <div class="tabs" id="tabs" role="tablist">
     <button class="tab active" role="tab" data-tab="overview">Overview</button>
     <button class="tab" role="tab" data-tab="personas">The Four Avatars <span class="chip v2">V2</span></button>
-    <button class="tab" role="tab" data-tab="sizing">Market Sizing</button>
-    <button class="tab" role="tab" data-tab="brands">Brand Matrix</button>
-    <button class="tab" role="tab" data-tab="regional">Regional Matrix</button>
-    <button class="tab" role="tab" data-tab="blueprint">Repo Blueprint</button>
   </div>
 
   <section class="panel active" id="panel-overview" role="tabpanel">
     <div class="cards">
       <div class="card link" data-goto="personas"><div class="n">4</div><div class="lbl">Buyer Avatars <span class="chip v2">V2</span></div><div class="d">Wellness Optimiser, Ritual Loyalist, Gifting Connector, Curious Switcher, each pinned to real cohorts.</div></div>
-      <div class="card link" data-goto="sizing"><div class="n">$28B</div><div class="lbl">US Coffee TAM</div><div class="d">Total addressable market for US coffee, with the D2C SAM and functional-coffee SOM VAHDAM plays for.</div></div>
-      <div class="card link" data-goto="brands"><div class="n">11</div><div class="lbl">Brands Benchmarked</div><div class="d">Premium subscription, functional/wellness, and form-factor innovators, with retention stack and churn strategy.</div></div>
-      <div class="card link" data-goto="regional"><div class="n">4</div><div class="lbl">US Regions</div><div class="d">Wallet share, product vector, acquisition hook and retention driver by region.</div></div>
+      <div class="card link" data-goto="personas"><div class="n">1:1</div><div class="lbl">Cohort-backed</div><div class="d">Every avatar maps to real Engagement Cohorts, Lifecycle Stages and RFM segments, so a brief targets a person, not a percentage.</div></div>
+      <div class="card"><div class="n">5</div><div class="lbl">Profile facets each</div><div class="d">Wants, fears, triggers, objections and the message that moves them, the fields a creative brief is written against.</div></div>
+      <div class="card"><a href="/cohorts" style="text-decoration:none;color:inherit"><div class="n">↗</div><div class="lbl">Cohorts dictionary</div><div class="d">The raw lenses these avatars are composed from live in the Cohorts feature. Market sizing and competitor matrices live in Market Study.</div></a></div>
     </div>
     <div class="how">
       <b>How avatars fit the rest of the OS.</b> Cohorts (in the Cohorts feature) are the raw lenses: RFM segments, engagement cohorts, lifecycle stages, product cohorts. An <b>Avatar</b> is a curated composite of those lenses plus market truth, given a name and a face. Analytics assigns a live customer to cohorts; the avatar tells the creative team what that person <b>wants, fears and responds to</b>. The market study underneath these avatars lives at <span class="filelink">docs/market-intelligence/us-coffee-d2c-landscape.md</span>; the live profile fields are captured by <span class="filelink">schemas/cohort-profile.json</span>; the automated actions are wired in <span class="filelink">config/retention-triggers.yaml</span>.
@@ -97,33 +93,6 @@
     <div id="personas"></div>
   </section>
 
-  <section class="panel" id="panel-sizing" role="tabpanel">
-    <h2>Macro Unit Economics &amp; Sizing</h2>
-    <p class="lede">Blended analyst-style estimates for the US coffee and functional-beverage D2C segment, 2026/2027. Figures are planning ranges, not audited numbers.</p>
-    <div class="metric" id="sizing-metrics"></div>
-    <h3 style="margin-top:20px">Blended benchmarks: standard vs functional coffee</h3>
-    <div class="tbl-wrap"><table id="bench-tbl"></table></div>
-  </section>
-
-  <section class="panel" id="panel-brands" role="tabpanel">
-    <h2>Cross-Vertical Brand Matrix</h2>
-    <p class="lede">The top US D2C brands across premium subscription, functional/wellness, and form-factor innovation, with the growth channels, retention stack and churn strategy VAHDAM benchmarks against.</p>
-    <div class="tbl-wrap"><table id="brand-tbl"></table></div>
-    <div class="how"><b>What VAHDAM should steal.</b> Functional players (Four Sigmatic, MUD\WTR, Ryze) win on ritual-replacement copy and subscription-first onboarding, not discounts; form-factor innovators (Cometeer, Jot) win on convenience proof. VAHDAM's edge is single-estate provenance plus a genuine functional payload (Ashwagandha), so it should pair Ritual-replacement storytelling with a subscription anchor and reserve discounts for the Curious Switcher only.</div>
-  </section>
-
-  <section class="panel" id="panel-regional" role="tabpanel">
-    <h2>Geographic Spending &amp; Regional Matrix</h2>
-    <p class="lede">How D2C coffee habits shift across US regions, and the acquisition hook and retention driver that index highest in each.</p>
-    <div class="tbl-wrap"><table id="region-tbl"></table></div>
-  </section>
-
-  <section class="panel" id="panel-blueprint" role="tabpanel">
-    <h2>Repository Blueprint</h2>
-    <p class="lede">Where the persona and market-intelligence layer lives in the codebase, and what each file is for.</p>
-    <div class="tbl-wrap"><table id="blueprint-tbl"></table></div>
-    <div class="how"><b>Actionable, not decorative.</b> The market study feeds these avatars; the JSON schema captures the same fields on a live customer profile; the YAML config names which automated webhooks fire for each avatar (churn risk, replenishment, win-back, VIP early access). Together they make a persona targetable end to end.</div>
-  </section>
 
   <p class="note">One customer can resolve to different avatars over their lifetime as their cohorts change. Always target by the avatar a campaign is written for, and keep the name verbatim across mailer, ad, landing-page and social briefs. Sources: blended analyst-style estimates (Euromonitor / IBISWorld-style ranges, public brand disclosures, and D2C benchmark reports) for internal planning.</p>
 </div>
@@ -254,13 +223,8 @@ function renderTable(id, data){
   document.getElementById(id).innerHTML = thead+tbody;
 }
 renderPersonas();
-renderMetrics();
-renderTable('bench-tbl', BENCH);
-renderTable('brand-tbl', BRANDS);
-renderTable('region-tbl', REGIONS);
-renderTable('blueprint-tbl', BLUEPRINT);
 
-const TAB_IDS = ['overview','personas','sizing','brands','regional','blueprint'];
+const TAB_IDS = ['overview','personas'];
 function showTab(id){
   if(TAB_IDS.indexOf(id)===-1) id='overview';
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
