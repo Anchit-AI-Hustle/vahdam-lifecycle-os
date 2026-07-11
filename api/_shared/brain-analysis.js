@@ -82,7 +82,12 @@ function defineCohorts(users) {
 }
 
 async function buildCohorts({ persist = true } = {}) {
-  const users = await db().select('smart_users', { limit: 20000 });
+  // Degrade gracefully: if the analytics table is unavailable (missing in this
+  // project, or a transient DB error), return no cohorts rather than throwing
+  // and blanking the whole calendar. The rest of planning still runs.
+  let users = [];
+  try { users = await db().select('smart_users', { limit: 20000 }); }
+  catch (e) { console.warn('[brain-analysis] smart_users unavailable, continuing without cohort data:', e.message); return []; }
   const cohorts = defineCohorts(users);
   if (persist && cohorts.length) await db().upsert('smart_cohorts', cohorts, 'id');
   return cohorts;

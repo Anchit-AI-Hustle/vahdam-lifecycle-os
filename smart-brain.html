@@ -24,6 +24,14 @@
   .mkchip{border:1px solid rgba(171,135,67,.4);background:transparent;color:#cbd6ce;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}
   .mkchip:hover{border-color:var(--gold);color:#e8ede9}
   .mkchip.on{background:var(--forest,#004A2B);color:#fff;border-color:var(--gold)}
+  .caltabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 20px;border-bottom:1px solid rgba(171,135,67,.25)}
+  .caltab{cursor:pointer;border:0;background:transparent;color:#9fb3a8;font-family:inherit;font-size:14px;font-weight:800;padding:11px 18px;border-bottom:3px solid transparent;margin-bottom:-1px;border-radius:8px 8px 0 0;white-space:nowrap;transition:background .12s,color .12s;display:inline-flex;align-items:center;gap:8px}
+  .caltab:hover{color:#e8ede9;background:rgba(171,135,67,.1)}
+  .caltab.on{color:#fff;background:#004A2B;border-bottom-color:var(--gold)}
+  .caltab .cbadge{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(171,135,67,.25);color:#e8ce8f;border-radius:999px;padding:2px 7px}
+  .caltab.on .cbadge{background:rgba(251,245,234,.2);color:#fff}
+  .caltab:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .calframe{width:100%;height:82vh;min-height:640px;border:1px solid rgba(171,135,67,.25);border-radius:12px;background:#0a1410;display:block}
   .akbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 10px;padding:8px 0;border-bottom:1px solid rgba(171,135,67,.18)}
   .akstatus{font-size:12px;font-weight:700}
   .akstatus.approved{color:#8fe7b9} .akstatus.rejected{color:#e89a9a}
@@ -71,7 +79,7 @@
       <h1>Rolling Plan: Review &amp; Approve</h1>
       <p>The brain keeps a tentative <b>90-day calendar</b> per market, re-reviewed daily against the latest data (auto via cron at 03:30 UTC, or manually below). Approving a slot generates the full funnel — mailer, Meta/Google/TikTok ads, and a hosted landing page — for final human check.</p>
     </div>
-    <div>
+    <div id="autobar">
       <button id="sync" class="btn">🔄 Run Daily Sync</button>
       <button id="refresh" class="btn secondary">Refresh Plan</button>
       <button id="export" class="btn secondary" title="Download the whole calendar as a Google Sheets / Excel-ready CSV: themes, hero + supporting products, real product + image links, audience counts, per-asset prompts, and expected send/deliver/open/CTR metrics.">⬇ Export to Sheets</button>
@@ -80,6 +88,14 @@
     </div>
   </section>
 
+  <!-- Calendar-generation-type tabs: pick which calendar + its mailers to view -->
+  <div class="caltabs" role="tablist" aria-label="Calendar type">
+    <button class="caltab on" data-cal="automated" onclick="switchCal('automated',this)">Automated &middot; 90-day <span class="cbadge">V2</span></button>
+    <button class="caltab" data-cal="plan" onclick="switchCal('plan',this)">Plan Calendar &middot; RFM <span class="cbadge">Draft 1</span></button>
+    <button class="caltab" data-cal="mailer" onclick="switchCal('mailer',this)">Mailer Calendar &middot; cohort <span class="cbadge">Draft 2</span></button>
+  </div>
+
+  <div id="cal-automated" class="calpanel">
   <section class="grid">
     <div class="card"><div class="label">Mode</div><div id="mode" class="metric">—</div></div>
     <div class="card"><div class="label">Plan entries</div><div id="entries" class="metric">—</div></div>
@@ -129,6 +145,16 @@
       <pre id="detail">Click “View” on any slot to preview its full funnel — mailer, ads & landing page — before approving.</pre>
     </div>
   </section>
+  </div><!-- /cal-automated -->
+
+  <div id="cal-plan" class="calpanel" style="display:none">
+    <p style="color:#9fb3a8;font-size:13px;margin:0 0 10px">Plan Calendar — the RFM-driven 30-day plan (Draft 1). Loaded live below.</p>
+    <iframe id="frame-plan" class="calframe" data-src="/plan" title="Plan Calendar (RFM 30-day)"></iframe>
+  </div>
+  <div id="cal-mailer" class="calpanel" style="display:none">
+    <p style="color:#9fb3a8;font-size:13px;margin:0 0 10px">Mailer Calendar — the cohort mailer calendar (Draft 2). Loaded live below.</p>
+    <iframe id="frame-mailer" class="calframe" data-src="/mailer-calendar" title="Mailer Calendar (cohort)"></iframe>
+  </div>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -392,6 +418,15 @@ function renderPreview(payload, e, i, opts){
     ${panes.join('')}</div>`;
   host.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
+// Calendar-type tabs: show one calendar panel at a time. Automated is native;
+// Plan (/plan) and Mailer Calendar (/mailer-calendar) load lazily in an iframe
+// so each generation's calendar + mailers stays viewable without leaving here.
+window.switchCal = function(which, btn){
+  ['automated','plan','mailer'].forEach(function(k){ var p=document.getElementById('cal-'+k); if(p) p.style.display=(k===which)?'':'none'; });
+  document.querySelectorAll('.caltab').forEach(function(b){ b.classList.toggle('on', b.dataset.cal===which); });
+  var bar=document.getElementById('autobar'); if(bar) bar.style.display=(which==='automated')?'':'none';
+  if(which!=='automated'){ var f=document.getElementById('frame-'+which); if(f && !f.getAttribute('src') && f.dataset.src) f.setAttribute('src', f.dataset.src); }
+};
 window.closeExp = function(i){ const r=$('exprow-'+i); if(r) r.style.display='none'; };
 // Open the primary mailer full-screen in a new tab (the "detailed page" when a
 // slot is not yet approved and has no hosted /lp/:id).
