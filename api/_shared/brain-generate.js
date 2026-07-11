@@ -41,6 +41,10 @@ try { renderTextVariant = require('./calendar-trigger.js').helpers.renderTextVar
 // never renders with a missing image when the smart_products row has no image.
 let catalogImage = { imageFor: () => null };
 try { catalogImage = require('./catalog-image.js'); } catch (_) {}
+// Per-slot design strategy: gives each mailer its own influencer-informed
+// archetype (layout order + copy angle) instead of one repeated template.
+let designStrategy = { strategyFor: () => ({ key: 'hero-spotlight', hero: 'green', order: [], influencerAngle: '' }) };
+try { designStrategy = require('./mailer-design-strategy.js'); } catch (_) {}
 // Resolve the best real image URL for a product: its own row image, else the
 // catalog photo by handle/title. Returns an https URL or null.
 function productImage(p, market) {
@@ -90,10 +94,13 @@ async function generateCopy(slot, products, brand, library) {
 Voice: ${brand.voice}. Use this lexicon where natural: ${(brand.preferred_lexicon || []).join(', ')}.
 NEVER use: ${(brand.banned_phrases || []).join(', ')}.
 Return STRICT JSON only.`;
+  const strat = designStrategy.strategyFor(slot);
   const user = `Create campaign copy for:
 Channel: ${slot.channel} · Market: ${slot.market} · Cohort: ${slot.cohort_id || 'general'}
 Theme: ${slot.theme} · Angle: ${slot.angle} · Festival: ${slot.festival || 'none'}
 Reference hooks that worked before: ${ref || 'n/a'}
+Design format for THIS mailer: ${strat.label}. ${strat.influencerAngle}
+Write the copy so it fits that format specifically (this send must not read like a generic template).
 Featured products:\n${productLines}
 
 JSON shape:
@@ -253,17 +260,76 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
       </a>
     </td>`;
   }).join('');
-  // Hero product photo band under the headline block, so the Rich brand mailer
-  // leads with a real image instead of type-only.
   const heroPhoto = productImage(products[0] || {}, slot.market);
-  const heroPhotoBand = heroPhoto
-    ? `<tr><td style="padding:16px 0 0"><img src="${heroPhoto}" alt="${esc((products[0] || {}).title || 'VAHDAM')}" width="620" style="width:100%;max-width:620px;height:auto;border-radius:14px;display:block"/></td></tr>`
-    : '';
+  const p0title = esc((products[0] || {}).title || 'VAHDAM');
+  const ctaBtn = (bg, fg) => `<a href="${store}" style="display:inline-block;margin-top:24px;background:${bg};color:${fg};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>`;
+
+  // ── Named sections — assembled per the archetype's order below ────────────
+  const strat = designStrategy.strategyFor(slot);
+  const kicker = esc(slot.festival || slot.theme || 'The Collection');
+  const SEC = {
+    // Green centred hero (bold, offer-forward).
+    heroGreen: `<tr><td style="background:${P.forest_green};border-radius:14px;padding:46px 36px" align="center">
+      <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:14px">${kicker}</div>
+      <div style="font-family:${heads};font-size:34px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
+      ${ctaBtn(P.gold, P.near_black)}
+    </td></tr>`,
+    // Editorial photo-led hero (aspirational, image first, light copy). Falls
+    // back to the green hero when no photo is available.
+    heroEditorial: heroPhoto
+      ? `<tr><td style="padding:0">
+      <img src="${heroPhoto}" alt="${p0title}" width="620" style="width:100%;max-width:620px;height:auto;border-radius:14px 14px 0 0;display:block"/>
+      <div style="background:${P.cream};border:1px solid ${P.gold}33;border-top:0;border-radius:0 0 14px 14px;padding:30px 34px" align="center">
+        <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:12px">${kicker}</div>
+        <div style="font-family:${heads};font-size:30px;line-height:1.22;color:${P.forest_green};font-weight:700">${esc(copy.headline)}</div>
+        <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.near_black}CC;margin-top:12px">${esc(copy.subheadline)}</div>
+        ${ctaBtn(P.forest_green, P.cream)}
+      </div></td></tr>`
+      : `<tr><td style="background:${P.forest_green};border-radius:14px;padding:46px 36px" align="center">
+      <div style="font-family:${heads};font-size:32px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
+      ${ctaBtn(P.gold, P.near_black)}</td></tr>`,
+    // Founder letter (personal, cream, signed).
+    founderNote: `<tr><td style="background:${P.cream};border:1px solid ${P.gold}44;border-radius:14px;padding:34px 34px 28px">
+      <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:12px">A note from our founder</div>
+      <div style="font-family:${heads};font-size:26px;line-height:1.25;color:${P.forest_green};font-weight:700">${esc(copy.headline)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.8;color:${P.near_black};margin-top:16px">${esc(copy.body_intro)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.8;color:${P.near_black};margin-top:12px">${esc(copy.story)}</div>
+      <div style="font-family:${heads};font-size:16px;color:${P.forest_green};margin-top:18px">Warmly,<br>The VAHDAM family</div>
+      ${ctaBtn(P.forest_green, P.cream)}
+    </td></tr>`,
+    photoBand: heroPhoto
+      ? `<tr><td style="padding:16px 0 0"><img src="${heroPhoto}" alt="${p0title}" width="620" style="width:100%;max-width:620px;height:auto;border-radius:14px;display:block"/></td></tr>`
+      : '',
+    badges: `<tr><td style="padding:14px 16px 2px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${badgeRow}</tr></table></td></tr>`,
+    bodyStory: `<tr><td style="padding:22px 26px 6px">
+      <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black}">${esc(copy.body_intro)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black};margin-top:14px">${esc(copy.story)}</div>
+    </td></tr>`,
+    steps: stepRow,
+    productGrid: `<tr><td style="padding:14px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${prods}</tr></table></td></tr>`,
+    testimonials: testiBlocks ? `<tr><td style="padding:8px 26px 6px">${testiBlocks}</td></tr>` : '',
+    guarantee: guarantee ? `<tr><td align="center" style="padding:6px 26px"><div style="border:1px dashed ${P.gold};border-radius:10px;padding:14px 18px"><span style="font-family:${heads};font-size:14px;color:${P.forest_green};font-weight:700">${esc(guarantee.headline)}</span> <span style="font-family:${body};font-size:12.5px;color:${P.near_black}AA">${esc(guarantee.body)}</span></div></td></tr>` : '',
+    agentCta: `<tr><td align="center" style="padding:18px 26px 8px">
+      <div style="border:1px solid ${P.gold}55;border-radius:12px;padding:20px 22px;background:#ffffff">
+        <div style="font-family:${heads};font-size:17px;color:${P.forest_green}">Not sure where to begin?</div>
+        <div style="font-family:${body};font-size:13px;color:${P.near_black}AA;line-height:1.6;margin-top:6px">Talk to our tea expert, ask about benefits, brewing, and which blend fits your ritual. It answers, out loud, like a call.</div>
+        <a href="${agentUrl}" style="display:inline-block;margin-top:12px;background:${P.forest_green};color:${P.cream};font-family:${body};font-size:13px;font-weight:700;padding:11px 26px;border-radius:8px;text-decoration:none">Talk to the Vahdam expert →</a>
+      </div>
+    </td></tr>`,
+  };
+  // Assemble the body in the archetype's order; badges always follow the hero
+  // (first section). Unknown/empty keys are skipped. Fallback to a sane order.
+  const order = (strat.order && strat.order.length) ? strat.order : ['heroGreen', 'photoBand', 'bodyStory', 'steps', 'productGrid', 'testimonials', 'guarantee', 'agentCta'];
+  const bodyRows = order.map((k, i) => (SEC[k] || '') + (i === 0 ? SEC.badges : '')).join('\n  ');
+
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(copy.subject)}</title></head>
 <body style="margin:0;padding:0;background:${P.cream}">
 <div style="display:none;max-height:0;overflow:hidden">${esc(copy.preheader)}</div>
+<div style="display:none;max-height:0;overflow:hidden">Design: ${esc(strat.label)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${P.cream}">
 <tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%">
@@ -272,29 +338,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
     <div style="font-family:${heads};font-size:22px;letter-spacing:0.28em;color:${P.forest_green};font-weight:700">VAHDAM</div>
     <div style="font-family:${body};font-size:10px;letter-spacing:0.22em;color:${P.gold};text-transform:uppercase;margin-top:4px">India · Est. at origin</div>
   </td></tr>
-  <tr><td style="background:${P.forest_green};border-radius:14px;padding:46px 36px" align="center">
-    <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:14px">${esc(slot.festival || slot.theme || 'The Collection')}</div>
-    <div style="font-family:${heads};font-size:34px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
-    <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
-    <a href="${store}" style="display:inline-block;margin-top:26px;background:${P.gold};color:${P.near_black};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>
-  </td></tr>
-  ${heroPhotoBand}
-  <tr><td style="padding:14px 16px 2px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${badgeRow}</tr></table></td></tr>
-  <tr><td style="padding:22px 26px 6px">
-    <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black}">${esc(copy.body_intro)}</div>
-    <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black};margin-top:14px">${esc(copy.story)}</div>
-  </td></tr>
-  ${stepRow}
-  <tr><td style="padding:14px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${prods}</tr></table></td></tr>
-  <tr><td style="padding:8px 26px 6px">${testiBlocks}</td></tr>
-  ${guarantee ? `<tr><td align="center" style="padding:6px 26px"><div style="border:1px dashed ${P.gold};border-radius:10px;padding:14px 18px"><span style="font-family:${heads};font-size:14px;color:${P.forest_green};font-weight:700">${esc(guarantee.headline)}</span> <span style="font-family:${body};font-size:12.5px;color:${P.near_black}AA">${esc(guarantee.body)}</span></div></td></tr>` : ''}
-  <tr><td align="center" style="padding:18px 26px 8px">
-    <div style="border:1px solid ${P.gold}55;border-radius:12px;padding:20px 22px;background:#ffffff">
-      <div style="font-family:${heads};font-size:17px;color:${P.forest_green}">Not sure where to begin?</div>
-      <div style="font-family:${body};font-size:13px;color:${P.near_black}AA;line-height:1.6;margin-top:6px">Talk to our tea expert, ask about benefits, brewing, and which blend fits your ritual. It answers, out loud, like a call.</div>
-      <a href="${agentUrl}" style="display:inline-block;margin-top:12px;background:${P.forest_green};color:${P.cream};font-family:${body};font-size:13px;font-weight:700;padding:11px 26px;border-radius:8px;text-decoration:none">Talk to the Vahdam expert →</a>
-    </div>
-  </td></tr>
+  ${bodyRows}
   <tr><td align="center" style="padding:20px 20px 36px">
     <a href="${store}" style="font-family:${body};font-size:13px;color:${P.forest_green};text-decoration:underline">${esc(copy.cta_secondary)}</a>
     <div style="font-family:${body};font-size:11px;color:${P.near_black}77;margin-top:16px;line-height:1.6">VAHDAM India · Crafted at origin · Carbon &amp; plastic neutral<br>You receive this because you joined the ritual. <a href="#" style="color:${P.gold}">Preferences</a> · <a href="#" style="color:${P.gold}">Unsubscribe</a></div>
