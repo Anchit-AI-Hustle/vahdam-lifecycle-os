@@ -68,6 +68,7 @@
     <div>
       <button id="sync" class="btn">🔄 Run Daily Sync</button>
       <button id="refresh" class="btn secondary">Refresh Plan</button>
+      <button id="export" class="btn secondary" title="Download the whole calendar as a Google Sheets / Excel-ready CSV: themes, hero + supporting products, real product + image links, audience counts, per-asset prompts, and expected send/deliver/open/CTR metrics.">⬇ Export to Sheets</button>
       <button id="schema" class="btn secondary">Schema</button>
     </div>
   </section>
@@ -364,11 +365,8 @@ async function loadPlan(){
     PLAN = data.entries || [];
     renderPlan();
     if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; approvals will generate assets but the calendar itself is not persisted.</p>';
-
-  }catch(e){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#e89a9a">${esc(e.message)}</td></tr>`; }
-
     return data;
-  }catch(e){ $('plan').innerHTML = `<tr><td colspan="8" style="color:#e89a9a">${esc(e.message)}</td></tr>`; return null; }
+  }catch(e){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#e89a9a">${esc(e.message)}</td></tr>`; return null; }
 }
 
 // Autogenerate on load: the calendar should be "already generated to just load".
@@ -451,9 +449,27 @@ async function showSchema(){
   $('detail').textContent = JSON.stringify(await safeJson(r), null, 2);
 }
 
+// Export the whole calendar to a Google-Sheets-importable CSV (server builds the
+// full sheet: themes, products, real links + image links, audience, per-asset
+// prompts, expected metrics). Sends the entries the reviewer currently sees.
+async function exportPlan(){
+  if(!PLAN.length){ alert('No plan to export yet — run a sync first.'); return; }
+  const btn=$('export'); const t=btn.textContent; btn.disabled=true; btn.textContent='Exporting…';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-export`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ entries: PLAN })});
+    if(!r.ok) throw new Error('Export failed ('+r.status+')');
+    const blob = await r.blob();
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='vahdam-automated-calendar.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 60000);
+  }catch(e){ alert((e && e.message) || e); }
+  finally{ btn.disabled=false; btn.textContent=t; }
+}
 $('sync').addEventListener('click', runSync);
 $('refresh').addEventListener('click', loadPlan);
 $('schema').addEventListener('click', showSchema);
+$('export').addEventListener('click', exportPlan);
 autoGenerateOnLoad();
 </script>
 </body>

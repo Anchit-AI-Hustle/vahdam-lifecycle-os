@@ -47,6 +47,7 @@ const lifecycleGen = require('./_shared/lifecycle-calendar-generate.js');
 const lifecycleBuild = require('./_shared/lifecycle-mailer-build.js');
 const triggerMailer = require('./_shared/calendar-trigger.js');
 const plan = require('./_shared/smart-brain-plan.js');
+const calExport = require('./_shared/calendar-export.js');
 const { runDailySmartBrain, smartConfig, schemaAssumptions, GenerationService, SmartBrainDbAdapter } = require('../lib/smart-brain/services.js');
 
 function readBody(req) {
@@ -104,6 +105,19 @@ async function smartBrain(req, res, smartAction) {
     if (smartAction === 'plan') {
       const result = await plan.getPlan({ config: body.config || {} });
       return res.status(200).json(result);
+    }
+
+    if (smartAction === 'export') {
+      // Calendar → Google-Sheets-importable CSV. Uses the entries the client
+      // already holds (what the reviewer sees) when POSTed; else pulls the plan.
+      let entries = Array.isArray(body.entries) ? body.entries : null;
+      if (!entries) { const p = await plan.getPlan({ config: body.config || {} }); entries = p.entries || []; }
+      const csv = calExport.buildExportCsv(entries);
+      const stamp = (entries[0] && entries[0].date) || 'plan';
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="vahdam-automated-calendar-${stamp}.csv"`);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.status(200).send(csv);
     }
 
     if (smartAction === 'sync-daily') {
