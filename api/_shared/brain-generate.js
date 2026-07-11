@@ -37,6 +37,18 @@ try { lpCompiler = require('./lp-compiler.js'); } catch (_) { lpCompiler = null;
 // uses, so Smart Brain mailers come out as the same two named types.
 let renderTextVariant = null;
 try { renderTextVariant = require('./calendar-trigger.js').helpers.renderTextVariant; } catch (_) { renderTextVariant = null; }
+// Real hosted product photos (Shopify CDN) from the built catalog, so a mailer
+// never renders with a missing image when the smart_products row has no image.
+let catalogImage = { imageFor: () => null };
+try { catalogImage = require('./catalog-image.js'); } catch (_) {}
+// Resolve the best real image URL for a product: its own row image, else the
+// catalog photo by handle/title. Returns an https URL or null.
+function productImage(p, market) {
+  if (!p) return null;
+  const direct = p.image || p.image_url || p.i;
+  if (typeof direct === 'string' && /^https?:\/\//.test(direct)) return direct;
+  return catalogImage.imageFor({ handle: p.handle || p.h, title: p.title || p.n }, market) || null;
+}
 
 // Match a calendar slot to a Campaign-Hub theme by keyword overlap. Returns
 // { theme, variant } only on a real match, so a Darjeeling slot never gets a
@@ -228,15 +240,25 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
       <div style="font-family:${heads};font-size:14px;font-style:italic;color:${P.near_black};line-height:1.6">“${esc(t.quote)}”</div>
       <div style="font-family:${body};font-size:12px;color:${P.gold};margin-top:8px">- ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''} &nbsp;★★★★★</div>
     </div>`).join('');
-  const prods = products.slice(0, 3).map((p) => `
+  const prods = products.slice(0, 3).map((p) => {
+    const img = productImage(p, slot.market);
+    return `
     <td align="center" style="padding:10px;width:33%">
       <a href="${p.url || store}" style="text-decoration:none">
-        <div style="background:${P.cream};border:1px solid ${P.gold}33;border-radius:10px;padding:18px 10px">
+        <div style="background:${P.cream};border:1px solid ${P.gold}33;border-radius:10px;padding:14px 10px 18px">
+          ${img ? `<img src="${img}" alt="${esc(p.title)}" width="150" style="width:100%;max-width:150px;height:auto;border-radius:8px;display:block;margin:0 auto 12px"/>` : ''}
           <div style="font-family:${heads};font-size:15px;color:${P.near_black};line-height:1.35">${esc(p.title)}</div>
           <div style="font-family:${body};font-size:13px;color:${P.gold};margin-top:8px;font-weight:600">${cur}${p.price}</div>
         </div>
       </a>
-    </td>`).join('');
+    </td>`;
+  }).join('');
+  // Hero product photo band under the headline block, so the Rich brand mailer
+  // leads with a real image instead of type-only.
+  const heroPhoto = productImage(products[0] || {}, slot.market);
+  const heroPhotoBand = heroPhoto
+    ? `<tr><td style="padding:16px 0 0"><img src="${heroPhoto}" alt="${esc((products[0] || {}).title || 'VAHDAM')}" width="620" style="width:100%;max-width:620px;height:auto;border-radius:14px;display:block"/></td></tr>`
+    : '';
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(copy.subject)}</title></head>
@@ -256,6 +278,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
     <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
     <a href="${store}" style="display:inline-block;margin-top:26px;background:${P.gold};color:${P.near_black};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>
   </td></tr>
+  ${heroPhotoBand}
   <tr><td style="padding:14px 16px 2px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${badgeRow}</tr></table></td></tr>
   <tr><td style="padding:22px 26px 6px">
     <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black}">${esc(copy.body_intro)}</div>
@@ -289,7 +312,7 @@ function mailerVariants(slot, copy, products, brand, agentUrl, richHtml) {
   if (!renderTextVariant) return null;
   const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
   const p0 = products[0] || {};
-  const heroImg = p0.image || p0.image_url || p0.i || '';
+  const heroImg = productImage(p0, slot.market) || '';
   const S = {
     hero_headline: copy.headline,
     hero_subline: copy.subheadline,
@@ -596,7 +619,10 @@ async function generateForSlot(slotId, { persist = true } = {}) {
   const picked = products
     .map((p) => ({ p, rel: (p.tags || []).reduce((s, t) => s + (wantTags.includes(t) ? 1 : 0), 0) + ((slot.festival && (p.tags || []).includes('gift')) ? 2 : 0) }))
     .sort((a, b) => b.rel - a.rel || (b.p.tags || []).includes('bestseller') - (a.p.tags || []).includes('bestseller'))
-    .slice(0, 3).map((x) => x.p);
+    .slice(0, 3).map((x) => x.p)
+    // Guarantee a real hosted photo on each product so the Text + Visual mailer
+    // variants always render an image (the smart_products rows often lack one).
+    .map((p) => ({ ...p, image: productImage(p, slot.market) }));
 
   const copy = await generateCopy(slot, picked, brand, lib.items);
   const agentUrl = `/agent?ctx=${encodeURIComponent(slot.market)}&from=${encodeURIComponent(slot.id)}`;
