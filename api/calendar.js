@@ -107,6 +107,11 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json(result);
     }
 
+    if (smartAction === 'dbcheck') {
+      // Safe diagnostic — no secret values, only project refs + HTTP statuses.
+      return res.status(200).json(await plan.dbCheck({ config: body.config || {} }));
+    }
+
     if (smartAction === 'export') {
       // Calendar → Google-Sheets-importable CSV. Uses the entries the client
       // already holds (what the reviewer sees) when POSTed; else pulls the plan.
