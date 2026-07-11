@@ -1444,17 +1444,38 @@
     });
   }
 
+  // Public Supabase config (anon key is safe on the client — it is designed to
+  // ship in the browser and is already served to every visitor by
+  // /api/public-config; RLS protects the data). Used as the LAST-RESORT fallback
+  // so sign-in works even when the config fetch is unavailable — e.g. on Vercel
+  // preview deployments where Deployment Protection redirects /api/public-config
+  // to an auth page (HTML, not JSON), or any transient endpoint failure.
+  const PUBLIC_SUPABASE_FALLBACK = {
+    url: 'https://gubbckgjujwqodghcavv.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1YmJja2dqdWp3cW9kZ2hjYXZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTk3MzksImV4cCI6MjA5Njc3NTczOX0.mJikSp_K1j7kV3THCYq8Z8PNf2Q7eJMwsY9iphRZWFg',
+  };
+
   async function getConfig() {
     if (window.__SUPABASE__?.url && window.__SUPABASE__?.anonKey) return window.__SUPABASE__;
     try {
       const res = await fetch('/api/public-config');
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (data?.supabase?.url && data?.supabase?.anonKey) {
-        window.__SUPABASE__ = data.supabase;
-        return data.supabase;
+      // Only trust a real JSON response — a protection/redirect page returns
+      // HTML, which must NOT be treated as "no config" and must not throw.
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+      if (res.ok && ct.includes('application/json')) {
+        const data = await res.json();
+        if (data?.supabase?.url && data?.supabase?.anonKey) {
+          window.__SUPABASE__ = data.supabase;
+          return data.supabase;
+        }
       }
-    } catch { /* offline mode */ }
+    } catch { /* fall through to the public fallback below */ }
+    // Last resort: the baked-in public config (keeps sign-in working on preview
+    // deployments and offline). Real env-provided config always wins above.
+    if (PUBLIC_SUPABASE_FALLBACK.url && PUBLIC_SUPABASE_FALLBACK.anonKey) {
+      window.__SUPABASE__ = PUBLIC_SUPABASE_FALLBACK;
+      return PUBLIC_SUPABASE_FALLBACK;
+    }
     return null;
   }
 
