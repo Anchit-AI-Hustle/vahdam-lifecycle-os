@@ -81,6 +81,36 @@ async function countExact(table, filters = {}) {
   } catch (_) { return null; }
 }
 
+// The Automated Calendar (rolling plan + generated campaigns) persists in the
+// Smart Brain Supabase project, which can be a DIFFERENT project than this
+// backbone's SUPABASE_URL. Count those tables against the Smart Brain project
+// directly (same service-role key precedence as the write path) so the
+// dashboard tiles show the real numbers instead of a dash.
+function smartBrainEnv() {
+  let linked = {};
+  try { linked = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'data', 'linked-db.json'), 'utf8')); } catch (_) {}
+  const url = (process.env.SMART_BRAIN_SUPABASE_URL || process.env.SUPABASE_URL || linked.url || '').replace(/\/$/, '');
+  const key = process.env.SMART_BRAIN_SUPABASE_SERVICE_ROLE_KEY || process.env.SMART_BRAIN_SUPABASE_KEY
+    || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
+    || linked.serviceRoleKey || linked.service_role_key
+    || linked.anonKey || process.env.SUPABASE_ANON_KEY || '';
+  return { url, key };
+}
+async function smartBrainCount(table, filters = {}) {
+  try {
+    const { url, key } = smartBrainEnv();
+    if (!url || !key) return null;
+    const q = new URLSearchParams(Object.assign({ select: 'id' }, filters));
+    const res = await fetch(`${url}/rest/v1/${table}?${q.toString()}`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'count=exact', Range: '0-0' },
+    });
+    if (!res.ok) return null;
+    const cr = res.headers.get('content-range') || '';
+    const total = cr.split('/')[1];
+    return total && total !== '*' ? parseInt(total, 10) : 0;
+  } catch (_) { return null; }
+}
+
 async function logActivity({ actor = 'system', action, entity_type, entity_id, summary, status = 'ok', metadata = {} }) {
   return safe(supa.insert('activity_logs', [{ actor, action, entity_type, entity_id, summary, status, metadata }]));
 }
@@ -244,8 +274,18 @@ async function dashboard() {
     agent_definitions: ['agent_definitions', {}],
   };
   await Promise.all(Object.entries(countMap).map(async ([k, [t, f]]) => { counts[k] = await countExact(t, f); }));
-  // Legacy fallback: if the new rolling-plan table is absent, show the old one.
+  // Legacy fallback: if the new rolling-plan table is absent here, show the old one.
   if (counts.smart_calendar == null) counts.smart_calendar = await countExact('smart_calendar', {});
+  // Real source of truth for the Automated Calendar lives in the Smart Brain
+  // project — count there and let it win when present (fixes the empty tiles).
+  const [sbCal, sbGen, sbPending] = await Promise.all([
+    smartBrainCount('smart_calendar_entries'),
+    smartBrainCount('smart_generated_campaigns'),
+    smartBrainCount('smart_calendar_entries', { status: 'eq.tentative' }),
+  ]);
+  if (sbCal != null) counts.smart_calendar = sbCal;
+  if (sbGen != null) counts.generated_campaigns = sbGen;
+  if (sbPending != null) counts.pending_reviews = sbPending;
 
   const lastRefresh = (cronRuns && cronRuns[0]) || null;
   return {
