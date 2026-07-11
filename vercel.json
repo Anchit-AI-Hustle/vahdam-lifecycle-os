@@ -38,6 +38,8 @@
     { "source": "/api/os/daily", "destination": "/api/brain?action=os-run-daily-job&cron=1" },
     { "source": "/brain",      "destination": "/smart-brain.html" },
     { "source": "/smart-brain","destination": "/smart-brain.html" },
+    { "source": "/email-calendar", "destination": "/daily-email-calendar.html" },
+    { "source": "/daily-calendar", "destination": "/daily-email-calendar.html" },
     { "source": "/agent",      "destination": "/agent.html" },
     { "source": "/chaigpt",    "destination": "/chaigpt.html" },
     { "source": "/chai",       "destination": "/chaigpt.html" },

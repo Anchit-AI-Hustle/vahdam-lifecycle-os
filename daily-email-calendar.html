@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Email Calendar — VAHDAM Lifecycle OS</title>
+<link rel="icon" href="/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+/* ============================================================
+   VAHDAM INDIA — BRAND ASSET CODE ENGINE
+   Typography assets + palette injected before application rules
+   ============================================================ */
+@font-face {
+  font-family: "LAO MN";
+  src: url("https://cdn.nector.io/nector-static/fonts/LaoMN-01.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("https://cdn-widgetsrepository.yotpo.com/brandkit/custom-fonts/nULz3c4cbjU7NEqLKreeoyIyIP4L5pnrZ53k1952/proximanova-regular/proximanova-regular.woff2") format("woff2");
+}
+:root {
+  --font-head: "LAO MN", Georgia, "Times New Roman", serif;
+  --font-body: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
+
+  --vahdam-green: #004A2B;  /* Headings, primary CTA bg, key accents */
+  --vahdam-gold:  #AB8743;  /* Secondary CTA/borders, dividers, badges, hover accents */
+  --vahdam-ink:   #171717;  /* Body copy, dark text, dark-section bg */
+  --vahdam-cream: #FBF5EA;  /* Page/section bg, light surfaces, text-on-dark */
+
+  --shadow-sm: 0 1px 3px rgba(23,23,23,.08);
+  --shadow-md: 0 6px 22px rgba(23,23,23,.10);
+  --hair: rgba(23,23,23,.12);
+}
+
+/* ------------------ APPLICATION RULES ------------------ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation: none !important; transition: none !important; }
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--vahdam-cream);
+  color: var(--vahdam-ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .heading, .title { font-family: var(--font-head); color: var(--vahdam-green); }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+
+/* ===================== HEADER ===================== */
+header.site {
+  background: var(--vahdam-cream);
+  border-bottom: 2px solid var(--vahdam-gold);
+  padding: 22px 0 18px;
+}
+.head-row { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.head-row img { height: 46px; width: auto; display: block; }
+.head-text { flex: 1; min-width: 260px; }
+header.site h1 { font-size: 1.85rem; line-height: 1.1; letter-spacing: .3px; }
+header.site .sub {
+  color: var(--vahdam-ink); font-size: .92rem; margin-top: 4px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.pill {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .1em;
+  font-weight: 700; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--vahdam-gold); color: var(--vahdam-green);
+}
+.head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.head-actions a, .head-actions button {
+  font-family: var(--font-body); font-size: .8rem; font-weight: 700;
+  padding: 9px 16px; border-radius: 999px; cursor: pointer; text-decoration: none;
+  border: 1px solid var(--vahdam-gold); background: var(--vahdam-cream); color: var(--vahdam-green);
+  transition: background .15s, color .15s;
+}
+.head-actions a.primary, .head-actions button.primary { background: var(--vahdam-green); color: var(--vahdam-cream); border-color: var(--vahdam-green); }
+.head-actions a:hover, .head-actions button:hover { background: var(--vahdam-gold); color: var(--vahdam-cream); border-color: var(--vahdam-gold); }
+
+/* ===================== HERO: CADENCE RAIL (signature) ===================== */
+.hero { background: var(--vahdam-green); color: var(--vahdam-cream); padding: 30px 0 26px; }
+.hero h2 { color: var(--vahdam-cream); font-size: 1.15rem; margin-bottom: 4px; }
+.hero .lede { color: var(--vahdam-cream); opacity: .85; font-size: .88rem; margin-bottom: 22px; max-width: 720px; }
+
+.rail {
+  display: grid;
+  grid-template-columns: repeat(21, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
+}
+.node {
+  background: transparent; border: 0; cursor: pointer; text-align: center;
+  padding: 0; color: var(--vahdam-cream); font-family: var(--font-body);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.node .dow { font-size: .58rem; letter-spacing: .06em; opacity: .7; text-transform: uppercase; }
+.node .dom { font-size: .95rem; font-weight: 700; line-height: 1; }
+.node .bar {
+  width: 100%; border-radius: 3px; transition: transform .15s ease, box-shadow .15s ease;
+  border: 1px solid rgba(251,245,234,.35);
+}
+.node .bar.d-none { height: 16px; background: var(--vahdam-cream); }
+.node .bar.d-ten  { height: 30px; background: transparent; border-color: var(--vahdam-gold); }
+.node .bar.d-fif  { height: 46px; background: var(--vahdam-gold); border-color: var(--vahdam-gold); }
+.node .esp { font-size: .6rem; color: var(--vahdam-gold); font-weight: 700; height: 12px; line-height: 1; }
+.node:hover .bar, .node:focus-visible .bar { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+.node:focus-visible { outline: 2px solid var(--vahdam-cream); outline-offset: 3px; border-radius: 4px; }
+
+.legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; font-size: .78rem; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; color: var(--vahdam-cream); opacity: .9; }
+.legend i { width: 16px; height: 12px; border-radius: 2px; display: inline-block; border: 1px solid rgba(251,245,234,.4); }
+.legend i.l-none { background: var(--vahdam-cream); }
+.legend i.l-ten  { background: transparent; border-color: var(--vahdam-gold); }
+.legend i.l-fif  { background: var(--vahdam-gold); border-color: var(--vahdam-gold); }
+.legend i.l-esp  { background: transparent; border: 0; color: var(--vahdam-gold); font-weight: 700; width: auto; }
+
+/* ===================== KPI STRIP ===================== */
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin: -26px 0 8px; position: relative; z-index: 2; }
+.kpi {
+  background: var(--vahdam-cream); border: 1px solid var(--hair);
+  border-top: 3px solid var(--vahdam-gold); border-radius: 8px;
+  padding: 16px 16px 14px; box-shadow: var(--shadow-md);
+}
+.kpi .num { font-family: var(--font-head); color: var(--vahdam-green); font-size: 1.9rem; line-height: 1; }
+.kpi .num small { font-size: .95rem; color: var(--vahdam-ink); }
+.kpi .lab { font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--vahdam-ink); margin-top: 8px; font-weight: 700; }
+.kpi .note { font-size: .74rem; color: var(--vahdam-ink); opacity: .72; margin-top: 3px; }
+
+/* ===================== SECTION SCAFFOLD ===================== */
+section.block { padding: 34px 0 6px; }
+.sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+.sec-head h2 { font-size: 1.4rem; }
+.sec-head .eyebrow {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .14em; font-weight: 700;
+  color: var(--vahdam-gold); font-family: var(--font-body);
+}
+.divider { height: 1px; background: var(--hair); margin: 4px 0 0; }
+
+/* ===================== FLAGS ===================== */
+.flag-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+.panel { background: var(--vahdam-cream); border: 1px solid var(--hair); border-radius: 10px; padding: 18px; box-shadow: var(--shadow-sm); }
+.panel.dark { background: var(--vahdam-ink); border-color: var(--vahdam-ink); }
+.panel.dark h3, .panel.dark p, .panel.dark li, .panel.dark .cap { color: var(--vahdam-cream); }
+.panel h3 { font-size: 1.05rem; margin-bottom: 4px; }
+.panel .cap { font-size: .8rem; color: var(--vahdam-ink); opacity: .75; margin-bottom: 14px; }
+
+.code-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font-family: var(--font-body); font-size: .8rem; font-weight: 700;
+  padding: 6px 11px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;
+}
+.chip.banned {
+  background: transparent; color: var(--vahdam-cream);
+  border: 1px solid var(--vahdam-gold); text-decoration: line-through; text-decoration-color: var(--vahdam-gold);
+  opacity: .92;
+}
+.chip.banned .rate { text-decoration: none; color: var(--vahdam-gold); font-weight: 700; }
+.chip.safe { background: var(--vahdam-green); color: var(--vahdam-cream); border: 1px solid var(--vahdam-green); }
+.chip.safe .rate { color: var(--vahdam-gold); font-weight: 700; }
+
+.swap { display: flex; gap: 14px; align-items: flex-start; }
+.swap .mark { font-size: 1.4rem; line-height: 1; }
+.swap strong { color: var(--vahdam-green); }
+.panel.dark .swap strong { color: var(--vahdam-gold); font-weight: 700; }
+
+/* ===================== CONTROLS ===================== */
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+.controls .grp { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.btn {
+  font-family: var(--font-body); font-size: .78rem; font-weight: 700;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  background: var(--vahdam-cream); color: var(--vahdam-ink);
+  border: 1px solid var(--vahdam-gold); transition: background .15s, color .15s;
+}
+.btn:hover { background: var(--vahdam-gold); color: var(--vahdam-cream); }
+.btn.active { background: var(--vahdam-green); color: var(--vahdam-cream); border-color: var(--vahdam-green); }
+.btn:focus-visible { outline: 2px solid var(--vahdam-green); outline-offset: 2px; }
+.count { margin-left: auto; font-size: .8rem; color: var(--vahdam-ink); opacity: .75; }
+
+/* ===================== CALENDAR CARDS ===================== */
+.cal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.card {
+  background: var(--vahdam-cream); border: 1px solid var(--hair); border-radius: 12px;
+  overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;
+  scroll-margin-top: 90px; animation: rise .35s ease both;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.card.hide { display: none; }
+.card.flash { box-shadow: 0 0 0 3px var(--vahdam-gold), var(--shadow-md); }
+
+.card-top { background: var(--vahdam-green); color: var(--vahdam-cream); padding: 14px 16px; }
+.card-top .date { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.card-top .d { font-family: var(--font-head); font-size: 1.2rem; color: var(--vahdam-cream); }
+.card-top .wd { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--vahdam-cream); opacity: .8; }
+.card-top .theme { font-size: .88rem; color: var(--vahdam-cream); margin-top: 6px; opacity: .95; }
+.offer-tag {
+  display: inline-block; margin-top: 10px; font-size: .72rem; font-weight: 700;
+  padding: 4px 10px; border-radius: 999px; letter-spacing: .03em;
+}
+.offer-tag.d-fif { background: var(--vahdam-gold); color: var(--vahdam-ink); }
+.offer-tag.d-ten { background: transparent; color: var(--vahdam-cream); border: 1px solid var(--vahdam-gold); }
+.offer-tag.d-none { background: var(--vahdam-cream); color: var(--vahdam-green); }
+
+.card-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.hero-prod { display: flex; gap: 12px; align-items: center; }
+.hero-prod img {
+  width: 66px; height: 66px; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--vahdam-gold); background: #fff; flex: none;
+}
+.hero-prod .pname { font-weight: 700; font-size: .92rem; color: var(--vahdam-ink); line-height: 1.25; }
+.hero-prod .pmeta { font-size: .82rem; color: var(--vahdam-ink); margin-top: 3px; }
+.hero-prod .price { color: var(--vahdam-green); font-weight: 700; }
+.hero-prod .stock { color: var(--vahdam-ink); opacity: .8; }
+
+.field { font-size: .82rem; }
+.field .k {
+  font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
+  color: var(--vahdam-gold); display: block; margin-bottom: 2px;
+}
+.field .v { color: var(--vahdam-ink); }
+.subject { font-weight: 700; color: var(--vahdam-ink); }
+.cohort-line { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.cohort-size { font-weight: 700; color: var(--vahdam-green); white-space: nowrap; }
+.cohort-size.esp { color: var(--vahdam-gold); font-weight: 700; }
+
+.cta {
+  display: inline-block; align-self: flex-start; margin-top: 2px;
+  background: var(--vahdam-green); color: var(--vahdam-cream); font-weight: 700;
+  font-size: .82rem; padding: 9px 16px; border-radius: 7px; text-decoration: none;
+}
+.rationale { border-top: 1px solid var(--hair); padding-top: 12px; font-size: .8rem; color: var(--vahdam-ink); opacity: .9; }
+
+/* ===================== REFERENCE ===================== */
+.ref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+table.aov { width: 100%; border-collapse: collapse; font-size: .84rem; }
+table.aov th, table.aov td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--hair); }
+table.aov thead th { background: var(--vahdam-green); color: var(--vahdam-cream); font-family: var(--font-body); font-weight: 700; font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; }
+/* first column left, data columns centered + equal (app-wide table rule) */
+table.aov th:not(:first-child), table.aov td:not(:first-child) { text-align: center; }
+table.aov tbody td { color: var(--vahdam-ink); }
+table.aov td .n { color: var(--vahdam-green); font-weight: 700; }
+table.aov tr.hi td { background: rgba(171,135,67,.12); }
+.aov-note { font-size: .8rem; color: var(--vahdam-ink); margin-top: 12px; padding: 12px 14px; border-left: 3px solid var(--vahdam-gold); background: rgba(171,135,67,.08); }
+
+.blockers { list-style: none; }
+.blockers li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--hair); font-size: .84rem; }
+.blockers li:last-child { border-bottom: 0; }
+.blockers input { margin-top: 3px; accent-color: var(--vahdam-green); width: 16px; height: 16px; flex: none; cursor: pointer; }
+.blockers .item { color: var(--vahdam-ink); }
+.blockers .where { display: block; color: var(--vahdam-ink); opacity: .65; font-size: .76rem; margin-top: 2px; }
+.blockers li.done .item { text-decoration: line-through; opacity: .5; }
+.list-note { font-size: .82rem; color: var(--vahdam-ink); }
+.list-note code { background: var(--vahdam-ink); color: var(--vahdam-cream); padding: 2px 6px; border-radius: 4px; font-size: .78rem; }
+
+/* ===================== FOOTER / COMPLIANCE ===================== */
+footer.site { background: var(--vahdam-ink); color: var(--vahdam-cream); margin-top: 40px; padding: 26px 0 30px; }
+footer.site h3 { color: var(--vahdam-cream); font-size: 1rem; margin-bottom: 10px; }
+footer.site ul { list-style: none; font-size: .82rem; }
+footer.site li { padding: 4px 0; color: var(--vahdam-cream); opacity: .9; }
+footer.site li::before { content: "\2713"; color: var(--vahdam-gold); font-weight: 700; margin-right: 8px; }
+footer.site .closer { margin-top: 14px; font-family: var(--font-head); color: var(--vahdam-gold); font-size: .95rem; font-weight: 700; }
+footer.site .foot-logo { height: 34px; margin-bottom: 14px; opacity: .95; }
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width: 1000px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .cal-grid { grid-template-columns: repeat(2, 1fr); }
+  .flag-grid, .ref-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  header.site h1 { font-size: 1.4rem; }
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .cal-grid { grid-template-columns: 1fr; }
+  .rail { gap: 3px; }
+  .node .dow { display: none; }
+  .node .dom { font-size: .72rem; }
+  .count { width: 100%; margin: 6px 0 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="site">
+  <div class="wrap head-row">
+    <img src="https://www.vahdam.co.uk/cdn/shop/files/logo-website_3.png?v=1756808809&width=310" alt="VAHDAM India">
+    <div class="head-text">
+      <h1>Daily Email Calendar</h1>
+      <div class="sub">
+        <span class="pill">VAHDAM&reg; USA</span>
+        <span>July 11&ndash;31, 2026 &middot; Teas &amp; Botanicals only &middot; Build-ready view of the Automated Calendar</span>
+      </div>
+    </div>
+    <div class="head-actions">
+      <a href="/brain">&larr; Automated Calendar</a>
+      <button id="export-btn" class="primary" type="button">Export to Sheet (CSV)</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HERO: CADENCE RAIL ============ -->
+<section class="hero">
+  <div class="wrap">
+    <h2>The July cadence &mdash; one send a day, twenty-one days</h2>
+    <p class="lede">Bar height encodes discount depth (the 15% cap is the ceiling; nothing deeper ships). A gold &#9101; under a day means its cohort size still routes to Klaviyo before revenue can be projected. Click any day to jump to its build card.</p>
+    <div class="rail" id="rail" role="list" aria-label="21-day send cadence"></div>
+    <div class="legend">
+      <span><i class="l-fif"></i> 15% off (at-cap)</span>
+      <span><i class="l-ten"></i> 10% off</span>
+      <span><i class="l-none"></i> No discount</span>
+      <span><i class="l-esp">&#9101;</i> Cohort size pending ESP</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ KPI STRIP ============ -->
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+</div>
+
+<!-- ============ FLAGS ============ -->
+<section class="block">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Pre-read</span><h2>Guardrails &amp; conflicts</h2></div>
+    <div class="divider"></div>
+    <div class="flag-grid" style="margin-top:18px;">
+      <div class="panel dark">
+        <h3 style="color:var(--vahdam-cream)">Codes that breach the 15% cap &mdash; do not promote</h3>
+        <p class="cap">These active codes exceed the calendar's discount ceiling and must never appear in a campaign email.</p>
+        <div class="code-chips" id="banned-chips"></div>
+      </div>
+      <div class="panel">
+        <h3>At-cap codes &mdash; safe to use</h3>
+        <p class="cap">At or below 15%. Cleared for campaign use.</p>
+        <div class="code-chips" id="safe-chips"></div>
+        <div class="swap" style="margin-top:18px; border-top:1px solid var(--hair); padding-top:16px;">
+          <span class="mark">&#8635;</span>
+          <div>
+            <strong>Stock swap &mdash; Jul 25</strong>
+            <p style="font-size:.82rem; margin-top:4px;">Applause CTC Assam Summer Black Tea 12oz = <strong>0 units</strong>. Swapped to <strong>English Breakfast Black Tea 12oz</strong> (1,151 units, same category, strong iced-tea angle).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CALENDAR ============ -->
+<section class="block">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">The plan</span><h2>21-day build cards</h2></div>
+    <div class="divider" style="margin-bottom:18px;"></div>
+    <div class="controls">
+      <div class="grp" id="week-filters">
+        <button class="btn active" data-week="all">All 21</button>
+        <button class="btn" data-week="1">Week 1 &middot; 11&ndash;17</button>
+        <button class="btn" data-week="2">Week 2 &middot; 18&ndash;24</button>
+        <button class="btn" data-week="3">Week 3 &middot; 25&ndash;31</button>
+      </div>
+      <div class="grp" id="offer-filters">
+        <button class="btn" data-offer="d-fif">15% off</button>
+        <button class="btn" data-offer="d-ten">10% off</button>
+        <button class="btn" data-offer="d-none">No discount</button>
+        <button class="btn" data-offer="esp">ESP-pending</button>
+      </div>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</section>
+
+<!-- ============ REFERENCE ============ -->
+<section class="block">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Reference</span><h2>AOV, list &amp; open items</h2></div>
+    <div class="divider" style="margin-bottom:18px;"></div>
+    <div class="ref-grid">
+      <div class="panel">
+        <h3>Store AOV &mdash; last 90 days</h3>
+        <p class="cap">Overall AOV $42.71. Coffee and Herbal Supplement excluded per teas-only rule.</p>
+        <table class="aov">
+          <thead><tr><th>Product type</th><th>AOV</th><th>Net (90d)</th><th>Orders</th></tr></thead>
+          <tbody>
+            <tr class="hi"><td>Single Estate</td><td><span class="n">$62.64</span></td><td>$14,264</td><td>230</td></tr>
+            <tr><td>Black Teas &middot; Loose Leaf</td><td><span class="n">$37.95</span></td><td>$22,753</td><td>605</td></tr>
+            <tr><td>Chai Teas &middot; Loose Leaf</td><td><span class="n">$34.01</span></td><td>$20,438</td><td>602</td></tr>
+            <tr><td>Green Teas &middot; Tea Bags</td><td><span class="n">$27.84</span></td><td>$6,104</td><td>220</td></tr>
+            <tr><td>Green Teas &middot; Loose Leaf</td><td><span class="n">$27.52</span></td><td>$6,111</td><td>224</td></tr>
+            <tr><td>Herbal Teas &middot; Tea Bags</td><td><span class="n">$26.80</span></td><td>$15,941</td><td>598</td></tr>
+          </tbody>
+        </table>
+        <p class="aov-note">Single Estate AOV ($62.64) runs 47% above store average &mdash; the Jul 22 send to 58 buyers is the highest revenue-per-recipient day despite the smallest list.</p>
+        <div style="margin-top:18px; border-top:1px solid var(--hair); padding-top:14px;">
+          <h3 style="font-size:.95rem;">Total email-subscribed list</h3>
+          <p class="list-note" style="margin-top:6px;">Not retrievable via ShopifyQL or Admin GraphQL. Pull from <strong>Klaviyo &rarr; Lists &amp; Segments &rarr; All Subscribers</strong>, or Shopify Admin &rarr; Customers &rarr; filter <code>Email subscription = Subscribed</code> &rarr; export.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Open blockers &mdash; resolve before send / projection</h3>
+        <p class="cap">Tick items as you clear them (session only). <span id="blocker-count"></span></p>
+        <ul class="blockers" id="blockers"></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER / COMPLIANCE ============ -->
+<footer class="site">
+  <div class="wrap">
+    <img class="foot-logo" src="https://www.vahdam.co.uk/cdn/shop/files/logo-website_3.png?v=1756808809&width=310" alt="VAHDAM India">
+    <h3>Brand Engine compliance</h3>
+    <ul>
+      <li>Palette locked to four tokens &mdash; green #004A2B, gold #AB8743, ink #171717, cream #FBF5EA</li>
+      <li>@font-face for LAO MN + Proxima Nova injected before application rules; headings to head font, body/UI to body font</li>
+      <li>Discount cap 15% enforced &mdash; over-cap codes shown struck-through and marked do-not-promote</li>
+      <li>ESP-pending sends carry the plan but withhold revenue projection until the real Klaviyo size lands (zero fabrication)</li>
+      <li>Every date, price, code, cohort size, image URL and rationale carried verbatim from source</li>
+    </ul>
+    <p class="closer">Build-ready view of the Automated Calendar. Same guardrails the export engine applies.</p>
+  </div>
+</footer>
+
+<script>
+/* ============ DATA (verbatim from source calendar) ============ */
+var IMG = {
+  turmeric: "https://cdn.shopify.com/s/files/1/2675/9476/files/Organic_Turmeric_Ginger_Front.jpg?v=1743675761",
+  chai12:   "https://cdn.shopify.com/s/files/1/2675/9476/files/Original_chai_ba5f65d4-7560-4423-b25a-c09cd33e7172.jpg?v=1724678893",
+  assam:    "https://cdn.shopify.com/s/files/1/2675/9476/files/Daily-Assam.jpg?v=1724678892",
+  green:    "https://cdn.shopify.com/s/files/1/2675/9476/files/Himalayan_green_tea_f953d287-3e7a-4973-9957-5e6e8bd22130.jpg?v=1724678892",
+  eb:       "https://cdn.shopify.com/s/files/1/2675/9476/files/English_Breakfast.jpg?v=1724678893",
+  darj:     "https://cdn.shopify.com/s/files/1/2675/9476/files/Daily_Darjeeling.jpg?v=1724678892",
+  sampler:  "https://cdn.shopify.com/s/files/1/2675/9476/files/Artboard_6_5b2e4b3e-57ab-4973-b87a-87b4a9d8c5e1.jpg?v=1721974416",
+  chai100:  "https://cdn.shopify.com/s/files/1/2675/9476/files/100_TB-31_4fb347b1-a1d5-4b72-93f8-0bc9a112e688.jpg?v=1729775650",
+  dbl:      "https://cdn.shopify.com/s/files/1/2675/9476/files/Double-Spiced.jpg?v=1726478767"
+};
+
+var DAYS = [
+ {dom:11,wd:"Fri",week:1,offer:"d-none",esp:true,theme:"Post-purchase nurture, deepen the ritual",cohort:"Post-Purchase 0-14d",size:"818 total, subscribed % to ESP",hero:"Turmeric Ginger Herbal Tea Tisane, 100 Count",price:"$25.99",stock:"In stock, 2,376 units",img:IMG.turmeric,support:"India's Original Masala Chai 12oz ($25.99), Daily Assam Black Tea 12oz ($25.99)",offerTxt:"No discount, protect margin, build loyalty",code:"",subject:"Your VAHDAM order just got a companion",preheader:"Complete your morning ritual with this fan favourite.",cta:"Add to My Ritual",suppress:"None (highest priority cohort)",rationale:"Recency is highest, nurture before next purchase window; Turmeric Ginger is top herbal by units."},
+ {dom:12,wd:"Sat",week:1,offer:"d-ten",esp:true,theme:"Browse recovery, bring them back to cart",cohort:"Browse Abandon 7d",size:"to ESP (browse behaviour)",hero:"India's Original Masala Chai Tea, 12 oz",price:"$25.99",stock:"In stock, 1,179 units",img:IMG.chai12,support:"Double Spice Masala Chai 3.53oz ($19.99), Turmeric Ginger Tisane 100ct ($25.99)",offerTxt:"10% off",code:"HELLO10",subject:"Still thinking about it? Here is a nudge",preheader:"Your chai is waiting, grab 10% off today only.",cta:"Complete My Order",suppress:"Exclude Jul 11 Post-Purchase",rationale:"Browse abandoners need low-friction incentive; Masala Chai is #1 tea by revenue and most-viewed category."},
+ {dom:13,wd:"Sun",week:1,offer:"d-fif",esp:true,theme:"Chai affinity, celebrate their favourite",cohort:"Chai Affinity (purchased chai, active 1yr)",size:"to ESP (product-type filter)",hero:"India's Original Masala Chai Tea, 12 oz",price:"$25.99",stock:"In stock, 1,179 units",img:IMG.chai12,support:"Double Spice Masala Chai 3.53oz ($19.99), India's Original Masala Chai 100ct ($23.99)",offerTxt:"15% off (at-cap)",code:"SUMMER15",subject:"Your chai, your summer, your 15% off",preheader:"Stock up on India's #1 chai before summer ends.",cta:"Shop My Chai",suppress:"Exclude Jul 11 Post-Purchase; Jul 12 Browse Abandon",rationale:"Chai is #1 tea category by revenue ($20,438); affinity buyers have highest repurchase intent."},
+ {dom:14,wd:"Mon",week:1,offer:"d-fif",esp:false,theme:"VIP early access, premium recognition",cohort:"VIP HIGH tier, active 90d",size:"2,330 total, subscribed % to ESP",hero:"Daily Assam Black Tea, 12 oz",price:"$25.99",stock:"In stock, 787 units",img:IMG.assam,support:"English Breakfast Black Tea 12oz ($23.99), Daily Darjeeling 2nd Flush 12oz ($23.99)",offerTxt:"15% off (at-cap)",code:"VIP15",subject:"Your VIP offer, just for you",preheader:"Exclusive 15% off, because you are one of our best.",cta:"Claim My VIP Offer",suppress:"Exclude Jul 11-13 cohorts",rationale:"VIP HIGH = $69.74 avg spend/order; Monday send maximises weekday opens for premium audience."},
+ {dom:15,wd:"Tue",week:1,offer:"d-fif",esp:true,theme:"Wellness ritual, morning botanical stack",cohort:"Wellness/Herbal Affinity (active 1yr)",size:"to ESP (product-type filter)",hero:"Turmeric Ginger Herbal Tea Tisane, 100 Count",price:"$25.99",stock:"In stock, 2,376 units",img:IMG.turmeric,support:"Turmeric Ashwagandha Tisane 100ct (price to ESP), Himalayan Green Tea 12oz ($29.99)",offerTxt:"15% off (at-cap)",code:"VAHDAM15",subject:"Your wellness ritual, 100 cups at a time",preheader:"Turmeric Ginger, the herbal your mornings deserve.",cta:"Shop My Wellness Teas",suppress:"Exclude Jul 11-14 cohorts",rationale:"Herbal Teas Tea Bags = $15,940 net/90d; 2,376 units in stock supports a volume push."},
+ {dom:16,wd:"Wed",week:1,offer:"d-ten",esp:true,theme:"Cross-category, green to black buyers",cohort:"Black buyers, no Green/Herbal crossover",size:"to ESP (exclusion filter)",hero:"Himalayan Green Tea, 12 oz",price:"$29.99",stock:"In stock, 637 units",img:IMG.green,support:"Daily Assam Black Tea 12oz ($25.99), English Breakfast Black Tea 12oz ($23.99)",offerTxt:"10% off",code:"VAHDAM10",subject:"Black tea lover? Try this next",preheader:"Himalayan Green, smooth, light, and perfect iced.",cta:"Try Himalayan Green",suppress:"Exclude Jul 11-15 cohorts",rationale:"Cross-sell green to black-only buyers expands basket; $29.99 hero lifts AOV above $42.73 store average."},
+ {dom:17,wd:"Thu",week:1,offer:"d-fif",esp:true,theme:"Green tea affinity, summer iced green",cohort:"Green Tea Affinity (active 1yr)",size:"to ESP (product-type filter)",hero:"Himalayan Green Tea, 12 oz",price:"$29.99",stock:"In stock, 637 units",img:IMG.green,support:"Turmeric Ginger Tisane 100ct ($25.99), India's Original Masala Chai 12oz ($25.99)",offerTxt:"15% off (at-cap)",code:"SUMMER15",subject:"Iced Himalayan Green, your summer sip",preheader:"Brew it hot, pour it over ice. 15% off today.",cta:"Shop Himalayan Green",suppress:"Exclude Jul 11-16 cohorts",rationale:"Green affinity buyers primed for repurchase; summer iced framing drives seasonal urgency."},
+ {dom:18,wd:"Fri",week:2,offer:"d-fif",esp:false,theme:"First-purchase activation, welcome",cohort:"New Subscribers <=30d, 0 orders",size:"177, 100% subscribed",hero:"Daily Assam Black Tea, 12 oz",price:"$25.99",stock:"In stock, 787 units",img:IMG.assam,support:"India's Original Masala Chai 12oz ($25.99), Assorted Loose Leaf Sampler 10 Teas ($17.99)",offerTxt:"15% off (at-cap)",code:"NEW15",subject:"Welcome, your first VAHDAM tea awaits",preheader:"15% off your first order. Start with our bestseller.",cta:"Shop My First Tea",suppress:"Exclude Jul 11-17 cohorts",rationale:"177 confirmed subscribers with 0 orders = highest conversion opportunity; NEW15 is purpose-built."},
+ {dom:19,wd:"Sat",week:2,offer:"d-fif",esp:false,theme:"Cart recovery, close the loop",cohort:"Cart Recovery (abandoned checkouts, 7d)",size:"83, subscribed % to ESP",hero:"English Breakfast Black Tea, 12 oz",price:"$23.99",stock:"In stock, 1,151 units",img:IMG.eb,support:"Daily Assam Black Tea 12oz ($25.99), India's Original Masala Chai 12oz ($25.99)",offerTxt:"15% off (at-cap)",code:"CART15",subject:"You left something behind, here is 15% off",preheader:"Your cart is still waiting. Grab it before it is gone.",cta:"Complete My Order",suppress:"Exclude Jul 11-18 cohorts",rationale:"83 high-intent abandoners; CART15 is designated recovery code; $23.99 is lowest-friction entry."},
+ {dom:20,wd:"Sun",week:2,offer:"d-fif",esp:true,theme:"Black tea affinity, the full lineup",cohort:"Black Tea Affinity (active 1yr)",size:"to ESP (product-type filter)",hero:"English Breakfast Black Tea, 12 oz",price:"$23.99",stock:"In stock, 1,151 units",img:IMG.eb,support:"Daily Assam Black Tea 12oz ($25.99), Daily Darjeeling 2nd Flush 12oz ($23.99)",offerTxt:"15% off (at-cap)",code:"SUMMER15",subject:"Three black teas. One perfect summer",preheader:"English Breakfast, Assam, Darjeeling, all 15% off.",cta:"Shop Black Teas",suppress:"Exclude Jul 11-19 cohorts",rationale:"Black Teas Loose Leaf = $22,753 net/90d, highest tea-category revenue; Sunday captures weekend browsers."},
+ {dom:21,wd:"Mon",week:2,offer:"d-fif",esp:false,theme:"Subscribe and Save, lock in the ritual",cohort:"Repeat buyers, subscribed (>=2 orders, 60d)",size:"1,720, 100% subscribed",hero:"India's Original Masala Chai Tea, 12 oz",price:"$25.99",stock:"In stock, 1,179 units",img:IMG.chai12,support:"Turmeric Ginger Tisane 100ct ($25.99), Daily Assam Black Tea 12oz ($25.99)",offerTxt:"15% off first S&S order",code:"VAHDAM15",subject:"Never run out, subscribe and save 15%",preheader:"You already love it. Now make it automatic.",cta:"Start My Subscription",suppress:"Exclude Jul 11-20 cohorts",rationale:"1,720 confirmed repeat subscribers = highest S&S pool; Masala Chai is #1 replenishment SKU."},
+ {dom:22,wd:"Tue",week:2,offer:"d-fif",esp:false,theme:"Single estate prestige, connoisseur drop",cohort:"Premium Single Estate (active 1yr)",size:"58, subscribed % to ESP",hero:"Daily Darjeeling Second Flush Black Tea, 12 oz",price:"$23.99",stock:"In stock, 624 units",img:IMG.darj,support:"English Breakfast Black Tea 12oz ($23.99), Daily Assam Black Tea 12oz ($25.99)",offerTxt:"15% off (at-cap), prestige framing",code:"VIP15",subject:"Darjeeling Second Flush, summer's finest cup",preheader:"For the connoisseur in you, 15% off this week only.",cta:"Shop Single Estate",suppress:"Exclude Jul 11-21 cohorts",rationale:"58 proven single-estate buyers; Single Estate AOV = $62.64 (highest of all categories)."},
+ {dom:23,wd:"Wed",week:2,offer:"d-fif",esp:true,theme:"Replenishment nudge, you are running low",cohort:"Replenishment 55-95d, Chai/Black",size:"to ESP (type + date window)",hero:"India's Original Masala Chai Tea, 12 oz",price:"$25.99",stock:"In stock, 1,179 units",img:IMG.chai12,support:"Daily Assam Black Tea 12oz ($25.99), India's Original Masala Chai 100ct ($23.99)",offerTxt:"15% off (at-cap)",code:"VAHDAM15",subject:"Time to restock your chai, we think",preheader:"It has been about 2 months, your tin might be running low.",cta:"Restock My Chai",suppress:"Exclude Jul 11-22 cohorts",rationale:"55-95 day window = natural replenishment cycle for 12oz loose leaf; timing trigger maximises relevance."},
+ {dom:24,wd:"Thu",week:2,offer:"d-ten",esp:true,theme:"Discovery / sampler, find your favourite",cohort:"Variety/Sampler (new/undecided)",size:"to ESP (browse behaviour)",hero:"Assorted Tea Loose Leaf Sampler, 10 Teas",price:"$17.99",stock:"In stock, 202 units",img:IMG.sampler,support:"India's Original Masala Chai 12oz ($25.99), Himalayan Green Tea 12oz ($29.99)",offerTxt:"10% off",code:"HELLO10",subject:"Not sure where to start? Try all 10",preheader:"10 teas, one sampler, one easy decision.",cta:"Try the Sampler",suppress:"Exclude Jul 11-23 cohorts",rationale:"Sampler at $17.99 is lowest AOV entry, ideal for undecided buyers; 202 units limits volume."},
+ {dom:25,wd:"Fri",week:3,offer:"d-fif",esp:true,theme:"Iced tea summer, peak season push",cohort:"Iced/Summer Affinity",size:"to ESP",hero:"English Breakfast Black Tea, 12 oz",price:"$23.99",stock:"In stock, 1,151 units",img:IMG.eb,support:"Daily Assam Black Tea 12oz ($25.99), Himalayan Green Tea 12oz ($29.99)",offerTxt:"15% off (at-cap)",code:"SUMMER15",subject:"Brew it, ice it, sip it, 15% off",preheader:"The best iced tea starts with great loose leaf.",cta:"Shop Iced Tea Picks",suppress:"Exclude Jul 11-24 cohorts",swap:true,rationale:"Applause CTC Assam Summer = 0 stock; English Breakfast is next-highest black tea (1,151 units)."},
+ {dom:26,wd:"Sat",week:3,offer:"d-fif",esp:false,theme:"Win-back, we miss you",cohort:"Winback 120-365d",size:"8,510 total, subscribed % to ESP",hero:"Daily Assam Black Tea, 12 oz",price:"$25.99",stock:"In stock, 787 units",img:IMG.assam,support:"India's Original Masala Chai 12oz ($25.99), English Breakfast Black Tea 12oz ($23.99)",offerTxt:"15% off (at-cap)",code:"IAMBACK",subject:"It has been a while, welcome back",preheader:"Your 15% off is waiting. Come back to your ritual.",cta:"Claim My Welcome-Back Offer",suppress:"Exclude Jul 11-25 cohorts",rationale:"8,510 lapsed buyers = largest recoverable pool; IAMBACK is semantically perfect and unused (0 uses)."},
+ {dom:27,wd:"Sun",week:3,offer:"d-fif",esp:true,theme:"Chai value pack, bulk up for summer",cohort:"Heavy Chai buyers (value pack)",size:"to ESP (purchase frequency)",hero:"India's Original Masala Chai Tea, 100 Count",price:"$23.99",stock:"In stock, 900 units",img:IMG.chai100,support:"India's Original Masala Chai 12oz ($25.99), Double Spice Masala Chai 3.53oz ($19.99)",offerTxt:"15% off (at-cap)",code:"VAHDAM15",subject:"100 cups of chai, stock up now",preheader:"The value pack your mornings have been waiting for.",cta:"Shop the 100-Count Pack",suppress:"Exclude Jul 11-26 cohorts",rationale:"100ct at $23.99 = lower per-cup cost; value framing drives bulk purchase; 900 units supports volume."},
+ {dom:28,wd:"Mon",week:3,offer:"d-fif",esp:true,theme:"First-purchase activation, bold intro",cohort:"Activation / Non-buyers (subscribers, 0 orders)",size:"to ESP (non-buyer beyond 30d)",hero:"Double Spice Masala Chai Tea, 3.53 oz",price:"$19.99",stock:"In stock, 752 units",img:IMG.dbl,support:"India's Original Masala Chai 12oz ($25.99), Assorted Loose Leaf Sampler 10 Teas ($17.99)",offerTxt:"15% off (at-cap)",code:"NEW15",subject:"Your boldest cup starts at $19.99",preheader:"Double Spice Masala Chai, the intro that converts.",cta:"Try Double Spice Chai",suppress:"Exclude Jul 11-27 cohorts",rationale:"Double Spice at $19.99 is lowest-friction chai entry; 297 units sold in 90d proves conversion."},
+ {dom:29,wd:"Tue",week:3,offer:"d-fif",esp:true,theme:"Wellness reprise, evening botanical",cohort:"Wellness/Herbal Affinity (2nd touch)",size:"to ESP",hero:"Turmeric Ginger Herbal Tea Tisane, 100 Count",price:"$25.99",stock:"In stock, 2,376 units",img:IMG.turmeric,support:"Daily Assam Black Tea 12oz ($25.99), Himalayan Green Tea 12oz ($29.99)",offerTxt:"15% off (at-cap)",code:"VAHDAM15",subject:"100 cups of calm, your evening ritual",preheader:"Turmeric Ginger Tisane, wind down the right way.",cta:"Shop Wellness Teas",suppress:"Exclude Jul 11-28; suppress Jul 15 openers who converted",rationale:"Second wellness touch uses evening/calm angle vs Jul 15 morning, distinct enough to avoid fatigue."},
+ {dom:30,wd:"Wed",week:3,offer:"d-fif",esp:false,theme:"High-AOV gifting, summer gift sets",cohort:"High-AOV / Gifting (orders >=$75, active 1yr)",size:"32,496 total (broad, refine in ESP)",hero:"Daily Assam Black Tea, 12 oz",price:"$25.99",stock:"In stock, 787 units",img:IMG.assam,support:"Himalayan Green Tea 12oz ($29.99), India's Original Masala Chai 12oz ($25.99)",offerTxt:"15% off min $75",code:"SAVE15",subject:"The gift of great tea, 15% off $75+",preheader:"Summer gifting made easy, premium teas, beautifully packaged.",cta:"Shop Tea Gifts",suppress:"Exclude Jul 11-29 cohorts",rationale:"SAVE15's $75 min naturally filters for high-AOV intent; add last_order_date >= 2025-07-11 in ESP."},
+ {dom:31,wd:"Thu",week:3,offer:"d-fif",esp:true,theme:"Broad top picks, bestseller sweep",cohort:"Broad / Top Picks (all remaining subscribed)",size:"to ESP (residual after suppressions)",hero:"Daily Assam Black Tea, 12 oz",price:"$25.99",stock:"In stock, 787 units",img:IMG.assam,support:"India's Original Masala Chai 12oz ($25.99), Turmeric Ginger Tisane 100ct ($25.99)",offerTxt:"15% off (at-cap)",code:"SUMMER15",subject:"July's best teas, one last look",preheader:"Our top picks this summer, 15% off before August.",cta:"Shop July's Best",suppress:"Suppress all Jul 11-30 converters",rationale:"Broad send mops up remaining subscribed list; end-of-month urgency drives last-day conversions."}
+];
+
+var BANNED = [
+ ["SHUBHDA35","35%"],["GREEN30","30%"],["ANGELS30","30%"],["HOME20","20%"],["ICED20","20%"],
+ ["DEAL20","20%"],["RECOVER20","20%"],["SMILE20","20%"],["SAVINGS20","20%"],["INSIDER20","20%"],
+ ["VIP20","20%"],["VAH20","20%"]
+];
+var SAFE = [["SUMMER15","15%"],["VIP15","15%"],["VAHDAM15","15%"],["SAVE15","15% min $75"],["NEW15","15%"],["BACK15","15%"],["IAMBACK","15%"],["CART15","15%"],["HELLO10","10%"],["VAHDAM10","10%"]];
+
+var BLOCKERS = [
+ ["Email-subscribed list total count","Klaviyo master list count"],
+ ["Subscribed % for each cohort","Klaviyo segment overlap"],
+ ["Browse Abandon cohort size (Jul 12)","Klaviyo browse abandon flow"],
+ ["Chai Affinity cohort size (Jul 13)","Klaviyo: ordered product type contains Chai"],
+ ["Wellness/Herbal Affinity size (Jul 15, 29)","Klaviyo: type contains Herbal"],
+ ["Black-no-Green/Herbal size (Jul 16)","Klaviyo: exclusion segment"],
+ ["Green Tea Affinity size (Jul 17)","Klaviyo: type contains Green"],
+ ["Black Tea Affinity size (Jul 20)","Klaviyo: type contains Black"],
+ ["Replenishment 55-95d size (Jul 23)","Klaviyo flow filter"],
+ ["Variety/Sampler cohort size (Jul 24)","Klaviyo: 0-order subscribers"],
+ ["Iced/Summer Affinity size (Jul 25)","Klaviyo: title contains Assam Summer"],
+ ["Heavy Chai cohort size (Jul 27)","Klaviyo: ordered chai 2+ times"],
+ ["Activation/Non-buyers size (Jul 28)","Klaviyo: subscribed + 0 orders, all time"],
+ ["High-AOV gifting subscribed % (Jul 30)","Add last_order_date >= 2025-07-11 in Klaviyo"],
+ ["Turmeric Ashwagandha Tisane price (Jul 15)","Shopify Admin, Products"],
+ ["Applause CTC Assam Summer restock date (Jul 25)","Internal ops / 3PL"],
+ ["Discount code expiry dates","Shopify Admin, Discounts, filter active"],
+ ["Total subscribed list for residual sizing (Jul 31)","Klaviyo after suppressions"]
+];
+
+/* ============ HELPERS ============ */
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
+
+/* ============ KPI STRIP ============ */
+var espCount = DAYS.filter(function(d){ return d.esp; }).length;
+var sizedCount = DAYS.length - espCount;
+document.getElementById('kpis').innerHTML =
+  '<div class="kpi"><div class="num">21</div><div class="lab">Daily sends</div><div class="note">Jul 11 to Jul 31</div></div>' +
+  '<div class="kpi"><div class="num">' + sizedCount + '<small> / 21</small></div><div class="lab">Cohorts sized</div><div class="note">' + espCount + ' route to ESP</div></div>' +
+  '<div class="kpi"><div class="num">$42.71</div><div class="lab">Store AOV 90d</div><div class="note">Teas-only</div></div>' +
+  '<div class="kpi"><div class="num">Jul 22</div><div class="lab">Highest RPR day</div><div class="note">Single estate, 58 buyers, $62.64 AOV</div></div>' +
+  '<div class="kpi"><div class="num">' + BLOCKERS.length + '</div><div class="lab">Open blockers</div><div class="note">Resolve before revenue projection</div></div>';
+
+/* ============ RENDER ============ */
+var rail = document.getElementById('rail');
+DAYS.forEach(function(d){
+  var n = document.createElement('button');
+  n.className = 'node'; n.setAttribute('role','listitem');
+  n.setAttribute('aria-label', 'July ' + d.dom + ' ' + d.wd + ', ' + d.offerTxt + (d.esp ? ', cohort size pending ESP' : ''));
+  n.innerHTML = '<span class="esp">' + (d.esp ? '&#9101;' : '') + '</span><div class="bar ' + d.offer + '"></div><span class="dom">' + d.dom + '</span><span class="dow">' + d.wd + '</span>';
+  n.addEventListener('click', function(){ jumpTo(d.dom); });
+  rail.appendChild(n);
+});
+
+var grid = document.getElementById('cal-grid');
+DAYS.forEach(function(d){
+  var c = document.createElement('article');
+  c.className = 'card'; c.id = 'day-' + d.dom;
+  c.dataset.week = d.week; c.dataset.offer = d.offer; c.dataset.esp = d.esp ? 'esp' : 'no';
+  var swapBadge = d.swap ? ' &#8635;' : '';
+  c.innerHTML =
+    '<div class="card-top">' +
+      '<div class="date"><span class="d">July ' + d.dom + '</span><span class="wd">' + d.wd + '</span></div>' +
+      '<div class="theme">' + esc(d.theme) + swapBadge + '</div>' +
+      '<span class="offer-tag ' + d.offer + '">' + esc(d.offerTxt) + (d.code ? ' &middot; ' + esc(d.code) : '') + '</span>' +
+    '</div>' +
+    '<div class="card-body">' +
+      '<div class="hero-prod">' +
+        '<img src="' + esc(d.img) + '" alt="' + esc(d.hero) + '" loading="lazy">' +
+        '<div>' +
+          '<div class="pname">' + esc(d.hero) + '</div>' +
+          '<div class="pmeta"><span class="price">' + esc(d.price) + '</span> &middot; <span class="stock">' + esc(d.stock) + '</span></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="field cohort-line">' +
+        '<div><span class="k">Cohort</span><span class="v">' + esc(d.cohort) + '</span></div>' +
+        '<span class="cohort-size ' + (d.esp ? 'esp' : '') + '">' + esc(d.size) + '</span>' +
+      '</div>' +
+      '<div class="field"><span class="k">Subject / preheader</span><span class="v subject">' + esc(d.subject) + '</span><br><span class="v">' + esc(d.preheader) + '</span></div>' +
+      '<div class="field"><span class="k">Supporting products</span><span class="v">' + esc(d.support) + '</span></div>' +
+      '<a class="cta" href="#day-' + d.dom + '">' + esc(d.cta) + ' &rarr;</a>' +
+      '<div class="field"><span class="k">Suppression</span><span class="v">' + esc(d.suppress) + '</span></div>' +
+      '<div class="rationale"><span class="k" style="color:var(--vahdam-gold)">Why</span>' + esc(d.rationale) + '</div>' +
+    '</div>';
+  grid.appendChild(c);
+});
+
+/* banned + safe chips */
+var bc = document.getElementById('banned-chips');
+BANNED.forEach(function(pair){ var s = document.createElement('span'); s.className = 'chip banned'; s.innerHTML = esc(pair[0]) + ' <span class="rate">' + esc(pair[1]) + '</span>'; bc.appendChild(s); });
+var sc = document.getElementById('safe-chips');
+SAFE.forEach(function(pair){ var s = document.createElement('span'); s.className = 'chip safe'; s.innerHTML = esc(pair[0]) + ' <span class="rate">' + esc(pair[1]) + '</span>'; sc.appendChild(s); });
+
+/* blockers */
+var bl = document.getElementById('blockers');
+document.getElementById('blocker-count').textContent = BLOCKERS.length + ' outstanding.';
+BLOCKERS.forEach(function(pair, i){
+  var li = document.createElement('li');
+  var id = 'bk' + i;
+  li.innerHTML = '<input type="checkbox" id="' + id + '"><label for="' + id + '"><span class="item">' + esc(pair[0]) + '</span><span class="where">' + esc(pair[1]) + '</span></label>';
+  var cb = li.querySelector('input');
+  cb.addEventListener('change', function(){ li.classList.toggle('done', cb.checked); });
+  bl.appendChild(li);
+});
+
+/* ============ FILTERS ============ */
+var fWeek = 'all', fOffer = null;
+var cards = [].slice.call(document.querySelectorAll('.card'));
+var countEl = document.getElementById('count');
+function applyFilters(){
+  var shown = 0;
+  cards.forEach(function(c){
+    var okW = fWeek === 'all' || c.dataset.week === fWeek;
+    var okO = !fOffer || (fOffer === 'esp' ? c.dataset.esp === 'esp' : c.dataset.offer === fOffer);
+    var vis = okW && okO;
+    c.classList.toggle('hide', !vis);
+    if (vis) shown++;
+  });
+  countEl.textContent = 'Showing ' + shown + ' of 21 sends';
+}
+document.getElementById('week-filters').addEventListener('click', function(e){
+  if (!e.target.dataset.week) return;
+  fWeek = e.target.dataset.week;
+  [].slice.call(e.currentTarget.children).forEach(function(b){ b.classList.toggle('active', b === e.target); });
+  applyFilters();
+});
+document.getElementById('offer-filters').addEventListener('click', function(e){
+  if (!e.target.dataset.offer) return;
+  var val = e.target.dataset.offer;
+  fOffer = (fOffer === val) ? null : val;
+  [].slice.call(e.currentTarget.children).forEach(function(b){ b.classList.toggle('active', b.dataset.offer === fOffer); });
+  applyFilters();
+});
+
+function jumpTo(dom){
+  fWeek = 'all'; fOffer = null;
+  [].slice.call(document.getElementById('week-filters').children).forEach(function(b, i){ b.classList.toggle('active', i === 0); });
+  [].slice.call(document.getElementById('offer-filters').children).forEach(function(b){ b.classList.remove('active'); });
+  applyFilters();
+  var card = document.getElementById('day-' + dom);
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.add('flash');
+  setTimeout(function(){ card.classList.remove('flash'); }, 1400);
+}
+
+applyFilters();
+
+/* ============ EXPORT (client-side CSV, mirrors the export engine schema) ============ */
+function csvCell(v){ return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+document.getElementById('export-btn').addEventListener('click', function(){
+  var cols = ['Date','Day','Theme','Cohort','Size Status','Offer Depth','Discount Code','Suggested Subject','Suggested Preheader','Suggested CTA','Hero Product','Hero Price','Supporting Products','Suppression','Why (data basis)'];
+  var rows = DAYS.map(function(d){
+    return [
+      '2026-07-' + (d.dom < 10 ? '0' + d.dom : d.dom),
+      ({Sun:'Sunday',Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday'})[d.wd] || d.wd,
+      d.theme, d.cohort, (d.esp ? 'Size pending Klaviyo (ESP)' : 'Sized'),
+      d.offerTxt, d.code || '', d.subject, d.preheader, d.cta,
+      d.hero, d.price, d.support, d.suppress, d.rationale
+    ];
+  });
+  var csv = '﻿' + cols.map(csvCell).join(',') + '\r\n' + rows.map(function(r){ return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vahdam-usa-daily-email-calendar-jul-2026.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+</script>
+<script src="/auth.js" defer></script>
+</body>
+</html>

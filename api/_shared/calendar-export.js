@@ -23,6 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const { buildMasterPrompt, regionFacts } = require('./master-prompt.js');
+const GR = require('./calendar-guardrails.js');
 
 // ── Catalog ------------------------------------------------------------------
 const CAT = {};
@@ -186,6 +187,34 @@ function whyBasis(entry) {
   if (entry.ownDataReference && entry.ownDataReference.name) parts.push(`Reuses own-data winner: ${entry.ownDataReference.name}.`);
   return parts.join(' ') || 'Planned from cohort objective and product-mix rotation.';
 }
+// Deterministic, brand-safe subject / preheader / CTA suggestion per send.
+// (The live generator writes richer LLM copy; this gives the export a concrete
+// starting line even when built without an LLM call.) No banned phrases, no
+// em/en dashes.
+function suggestCopy(cohortName, hero, offer) {
+  const c = String(cohortName || '').toLowerCase();
+  const prod = (hero && hero.title) || 'your VAHDAM tea';
+  const off = offer && offer.pct > 0 ? ` ${Math.round(offer.pct * 100)}% off` : '';
+  let subject, preheader, cta;
+  if (/vip|champion|prestige|single.?estate/.test(c)) { subject = `Your VIP pick: ${prod}`; cta = 'Claim my VIP offer'; }
+  else if (/cart|abandon|checkout|recovery/.test(c)) { subject = `You left something behind`; cta = 'Complete my order'; }
+  else if (/winback|lapsed|at.?risk|non.?engager/.test(c)) { subject = `It has been a while, come back to your ritual`; cta = 'Claim my welcome-back offer'; }
+  else if (/new sub|first.?purchase|activation|non.?buyer/.test(c)) { subject = `Welcome, your first ${prod} awaits`; cta = 'Shop my first tea'; }
+  else if (/gift|gifting|high.?aov/.test(c)) { subject = `The gift of great tea`; cta = 'Shop tea gifts'; }
+  else if (/replenish|subscribe|repeat|loyal/.test(c)) { subject = `Never run out of ${prod}`; cta = 'Start my subscription'; }
+  else if (/browse|discovery|sampler|variety/.test(c)) { subject = `Not sure where to start? Try ${prod}`; cta = 'Try the sampler'; }
+  else { subject = `${prod}, made for your ritual`; cta = 'Shop the edit'; }
+  preheader = off ? `A quiet upgrade to your daily cup, with${off} today.` : `A quiet upgrade to your daily cup.`;
+  return { subject, preheader, cta };
+}
+
+// AOV basis for revenue-per-recipient: the hero product price when known, else
+// the store 90-day AOV. Real number, never fabricated.
+function aovFor(hero) {
+  const p = hero && hero.price != null ? Number(hero.price) : NaN;
+  return Number.isFinite(p) && p > 0 ? p : 42.73; // store 90d AOV fallback
+}
+
 function assetPrompts(entry, market, hero, supporting) {
   const base = {
     market: String(market || 'US').toUpperCase(),
@@ -208,37 +237,66 @@ function assetPrompts(entry, market, hero, supporting) {
 
 const COLUMNS = [
   'Date', 'Day', 'Mailer Theme & Setting', 'Hero Product(s)', 'Supporting Products',
-  'Why (data basis)', 'Target Cohort / Audience', 'Audience Count',
+  'Why (data basis)', 'Target Cohort / Audience', 'Size Status', 'Audience Count',
+  'Offer Depth', 'Discount Code', 'Suggested Subject', 'Suggested Preheader', 'Suggested CTA',
+  'Suppression',
   'Expected Sent', 'Expected Delivered', 'Expected Opened', 'Expected Open %',
-  'Expected CTR %', 'Expected Clicks', 'Expected Metrics Basis',
+  'Expected CTR %', 'Expected Clicks', 'Expected Rev / Recipient', 'Expected Metrics Basis',
   'Product Links (real)', 'Product Image Links (real)', 'Mailer + Asset Prompts',
 ];
 
-function buildRow(entry) {
+// ctx (optional) threads the running window state so suppression is progressive:
+//   { index, priorCohorts:[names] } for the send's position in the sorted plan.
+function buildRow(entry, ctx = {}) {
   const market = entry.market || 'US';
   const hero = resolveProduct(entry.heroProduct || entry.hero_handle || entry.hero_product, market)
     || (entry.heroProduct ? { title: entry.heroProduct.title, handle: entry.heroProduct.handle || null, image: null, price: null, type: entry.heroProduct.category || 'tea', url: storeBase(market) } : null);
   const supporting = hero ? supportingProducts(hero, entry, market, 2) : [];
   const cohortName = (entry.cohort && entry.cohort.name) || entry.cohort_label || entry.cohort_key || '';
   const audience = (entry.cohort && (entry.cohort.size != null ? entry.cohort.size : entry.cohort.count)) || entry.audience_count || 0;
+
+  // Guardrail: offer depth + the correct semantic (at-or-below-cap) code.
+  const offer = GR.offerFor(cohortName, entry.objective || entry.play_name || '');
+  const offerLabel = offer.pct > 0
+    ? `${Math.round(offer.pct * 100)}% off${offer.min ? ` (min $${offer.min})` : ''}${offer.pct >= GR.DISCOUNT_CAP ? ' (at cap)' : ''}`
+    : 'No discount';
+
+  // Guardrail: ESP-pending gating — withhold the revenue projection until the
+  // real size lands in Klaviyo, rather than project off a placeholder count.
+  const pending = GR.isEspPending(entry.cohort || cohortName) || !(+audience > 0);
   const em = expectedMetrics(cohortName, audience);
+  const rpr = GR.revenuePerRecipient({ aov: aovFor(hero), deliverRate: 0.97, ctr: (em.ctrPct || 0) / 100 });
+  const copy = suggestCopy(cohortName, hero, offer);
+  const suppression = GR.suppressionFor(ctx.index || 0, ctx.priorCohorts || [], entry.suppress || null);
   const allProducts = [hero, ...supporting].filter(Boolean);
+
+  const blank = pending ? '' : undefined;
   return {
     'Date': entry.date || '',
     'Day': dayName(entry.date),
     'Mailer Theme & Setting': themeAndSetting(entry, hero),
     'Hero Product(s)': hero ? hero.title : (entry.heroProduct && entry.heroProduct.title) || '',
     'Supporting Products': supporting.map((s) => s.title).join('; '),
-    'Why (data basis)': whyBasis(entry),
+    'Why (data basis)': whyBasis(entry) + ' ' + offer.rationale,
     'Target Cohort / Audience': cohortName,
-    'Audience Count': audience,
-    'Expected Sent': em.sent,
-    'Expected Delivered': em.delivered,
-    'Expected Opened': em.opened,
-    'Expected Open %': em.openPct,
-    'Expected CTR %': em.ctrPct,
-    'Expected Clicks': em.clicks,
-    'Expected Metrics Basis': em.basis,
+    'Size Status': pending ? 'Size pending Klaviyo (ESP)' : 'Sized',
+    'Audience Count': pending && !(+audience > 0) ? 'to ESP' : audience,
+    'Offer Depth': offerLabel,
+    'Discount Code': offer.code || '—',
+    'Suggested Subject': copy.subject,
+    'Suggested Preheader': copy.preheader,
+    'Suggested CTA': copy.cta,
+    'Suppression': suppression,
+    'Expected Sent': pending ? blank : em.sent,
+    'Expected Delivered': pending ? blank : em.delivered,
+    'Expected Opened': pending ? blank : em.opened,
+    'Expected Open %': pending ? blank : em.openPct,
+    'Expected CTR %': pending ? blank : em.ctrPct,
+    'Expected Clicks': pending ? blank : em.clicks,
+    'Expected Rev / Recipient': pending ? blank : `$${rpr.toFixed(2)}`,
+    'Expected Metrics Basis': pending
+      ? 'Cohort size resolves in Klaviyo (affinity / behavioural / product-type segment). Revenue projection withheld until the real size lands, so nothing is fabricated.'
+      : `${em.basis} Rev/recipient uses AOV $${aovFor(hero).toFixed(2)}.`,
     'Product Links (real)': allProducts.map((p) => `${p.title}: ${p.url}`).join('\n'),
     'Product Image Links (real)': allProducts.filter((p) => p.image).map((p) => `${p.title}: ${p.image}`).join('\n'),
     'Mailer + Asset Prompts': assetPrompts(entry, market, hero, supporting),
@@ -260,7 +318,18 @@ function toCSV(rows) {
 function buildExportCsv(entries) {
   const list = (Array.isArray(entries) ? entries : []).filter((e) => e && e.date);
   list.sort((a, b) => String(a.date + (a.market || '')).localeCompare(String(b.date + (b.market || ''))));
-  return toCSV(list.map(buildRow));
+  // Progressive suppression: each send excludes the cohorts already mailed
+  // earlier in the (per-market) window.
+  const priorByMarket = {};
+  const rows = list.map((entry, index) => {
+    const mk = entry.market || 'US';
+    const priorCohorts = (priorByMarket[mk] || []).slice();
+    const row = buildRow(entry, { index, priorCohorts });
+    const name = (entry.cohort && entry.cohort.name) || entry.cohort_label || entry.cohort_key || '';
+    if (name) (priorByMarket[mk] = priorByMarket[mk] || []).push(name);
+    return row;
+  });
+  return toCSV(rows);
 }
 
 module.exports = { buildExportCsv, buildRow, expectedMetrics, resolveProduct, COLUMNS };
