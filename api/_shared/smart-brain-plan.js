@@ -46,6 +46,11 @@ const CF = require('./copy-frameworks.js');
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function nowIso() { return new Date().toISOString(); }
+function addDaysIso(dateIso, days) {
+  const d = new Date(`${dateIso}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 function daysAgoIso(n) { return new Date(Date.now() - n * 86400000).toISOString(); }
 function stableId(date, market) { return `cal_${date}_${String(market).toLowerCase()}`; }
 
@@ -200,6 +205,11 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
   const db = new SmartBrainDbAdapter(config);
   const horizon = days || config.calendarDays;
   const start = todayIso();
+  // Near-term slots inside this window get their prebuilt assets regenerated on
+  // EVERY sync (fresh creatives vs. the latest competitor + campaign data), even
+  // without a material plan change.
+  const refreshDays = Number.isFinite(+config.prebuildRefreshDays) ? +config.prebuildRefreshDays : 7;
+  const refreshUntil = addDaysIso(start, refreshDays);
   const ctx = await buildContext(config, db);
   const fresh = freshEntries(config, ctx, start, horizon);
 
@@ -253,6 +263,20 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
         },
       });
       changes.push({ id: entry.id, kind: wasRejected ? 'regenerated' : 'updated', detail: `${entry.date} ${entry.market}: ${diffs.join('; ') || 'regenerated after rejection'}.` });
+    } else if (entry.date <= refreshUntil && isPrebuilt(existing)) {
+      // No material re-plan, but this near-term slot is inside the daily
+      // freshness window: drop the prebuilt marker so the queue regenerates its
+      // mailer/ads/landing against the latest competitor + campaign data. Keep
+      // the (unchanged) plan payload; only the marker is stripped.
+      const payload = { ...(existing.payload || {}) };
+      delete payload[PREBUILD_MARKER];
+      const log = Array.isArray(existing.change_log) ? existing.change_log.slice(-30) : [];
+      log.push({ at: nowIso(), kind: 'refresh_queued', detail: 'Daily freshness refresh: assets queued to rebuild against latest data.' });
+      updates.push({
+        id: entry.id,
+        patch: { status: 'tentative', payload, change_log: log, updated_at: nowIso() },
+      });
+      changes.push({ id: entry.id, kind: 'refresh_queued', detail: `${entry.date} ${entry.market}: queued daily asset refresh.` });
     }
   }
 
