@@ -4,6 +4,14 @@
 
 > How to read this: **Now** = today's state (after this session's fixes). **Ceiling** = the best this feature can reach without the shared blockers below. **To 9.5** = the concrete work to close the gap. A feature cannot exceed its ceiling until the systemic blockers are cleared.
 
+## Update log (post-audit fixes shipped this session)
+These landed AFTER the audit was first written and are reflected in the "Now" scores below:
+- **/social** — code-level caption validators added (strip non-PDP URLs + supplement prices, flag medical claims, budget hashtags into the char cap). Prompt-only gate is now code-enforced. (6.5 → 7.5)
+- **/ad-campaigns** — per-platform char-limit clamps enforced at save (Google 30/90, Meta 40/125, TikTok 100); the fabricated "65% OFF" default offer was already removed. The char-limit gap is **closed**. (6.5 → 7)
+- **/lp** — the hardcoded 5-star trust bar, testimonial and guarantee are now routed through the B1 approved-facts gate (below). (7 → 7.5)
+- **B1 infrastructure** — the approved-facts library + master gate now exists (`api/_shared/brand-facts.js`, `data/brand-facts/<region>.json`), shipping **dark** behind `REAL_FACTS_ONLY`. Flip the flag once the library is populated to make /lp (and, once wired, the rest) real-only. Data + flip still pending; `/studio` + flagship mailer wiring still to do.
+- **Brand/other** — mailer + LP footers moved off near-black to forest green (brand HARD rule); real-only product imagery, `/assets` real-mailer preview, `/chaigpt`+`/agent` contrast, revenue-split + returning-rate corrections, fully-labeled Data Analysis charts, "Why this mail?" panel + rejected-slot recovery, the ad-calendar = Brain plan, low-rating review-recovery scheduling, and markdown→PDF downloads all shipped.
+
 ---
 
 ## 0. Three systemic blockers cap almost every feature
@@ -27,9 +35,9 @@ No feature reaches 9.5 while these are open, because they undermine *correctness
 | `/brain` — Smart Brain calendar | 6.5 | 9.5 | B1 (fabricated reviews/claims), frequency cap enforced in code, reach from real counts |
 | `/data-analysis` | 7.5 | 9.5 | Add MER/ROAS/LTV once ad+Shopify feeds land; partial-month heuristic; cohort labelling |
 | `/studio` — Mailer Studio | 5 | 9.0 | B1 (reviews/prices), client-side brand-gate on the render path, palette allowlist |
-| `/ad-campaigns` | 6.5 | 9.5 | char-limit clamps, B1 (claims), URL builders already correct |
-| `/lp/:id` landing pages | 7 | 9.5 | B1 (hardcoded stars/testimonial/guarantee); id handling already safe |
-| `/social` — Social OS | 6.5 | 9.5 | code-level caption validators (price/claim/URL); real-image + scrub already fixed |
+| `/ad-campaigns` | 7 | 9.5 | char clamps DONE; B1 (claims) via the gate; URL builders already correct |
+| `/lp/:id` landing pages | 7.5 | 9.5 | B1 gate wired (flag-off) — populate library + flip `REAL_FACTS_ONLY`; id handling safe |
+| `/social` — Social OS | 7.5 | 9.5 | caption validators DONE (code-enforced); real-image + scrub already fixed |
 | `/assets` | 7.5 | 9.5 | now renders real mailer; add ad/LP live previews + search facets |
 | `/chaigpt` | 7.5 | 9.5 | contrast fixed; add evidence-contract tests + tool-trace polish |
 | `/agent` | 7 | 9.0 | contrast fixed; consolidate with ChaiGPT or clarify distinct purpose |

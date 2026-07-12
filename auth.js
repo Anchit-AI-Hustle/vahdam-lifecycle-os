@@ -707,17 +707,11 @@
       ? `<button type="button" class="lnav-i${key === activeInfoKey ? ' on' : ''}" data-itoggle="${key}" title="Know about: ${label}" aria-label="Know about ${label}" aria-haspopup="dialog">?</button>`
       : '';
 
-    // V1/V2 taxonomy badge — see CLAUDE.md "Version taxonomy (V1 vs V2)".
-    // Quiet by design: the row shows only V1/V2; the Draft 1/Draft 2 label
-    // (where both generations of a capability exist) lives in the tooltip and
-    // in the item's sub-item info panels, not in the row.
-    const verChip = (item) => {
-      if (!item.ver) return '';
-      const v = item.ver === 'v2' ? 'V2' : 'V1';
-      const tip = (item.ver === 'v2' ? 'V2 — Lifecycle OS' : 'V1 — legacy base app')
-        + (item.draft ? ' · ' + item.draft : '');
-      return `<span class="lnav-ver ${item.ver}" title="${tip}">${v}</span>`;
-    };
+    // V1/V2 taxonomy badge — REMOVED from the rail (product-owner request) to cut
+    // clutter. The `ver`/`draft` data is kept on each NAV item (it still feeds the
+    // tooltip text and the `?` info popup / version taxonomy), but no visible chip
+    // renders in the row. Return '' to drop the chip everywhere it was used.
+    const verChip = () => '';
 
     // Build the nav markup. Internal nav stays in the same tab so the back
     // button works naturally; external links elsewhere in the app keep their
