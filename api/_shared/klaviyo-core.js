@@ -87,21 +87,38 @@ async function request({ path, query = {}, timeoutMs = 20000 }) {
 }
 
 // ── Reads ──────────────────────────────────────────────────────────────────
-const getProfiles = (p = {}) => request({ path: '/profiles/', query: { 'page[size]': p.limit || 20, filter: p.filter, sort: p.sort } });
+// Per-resource page-size rules in revision 2024-10-15 differ (a real Klaviyo
+// quirk, learned against the live account): lists cap page[size] at 10; metrics
+// and campaigns reject page[size] entirely ("not a valid field for the
+// resource"); and additional-fields[segment]=profile_count is ONLY valid on the
+// single-segment GET, not the segments collection. clampPage keeps a caller's
+// limit within a resource's accepted ceiling; ops that reject the param omit it.
+function clampPage(limit, max) {
+  const n = parseInt(limit, 10);
+  if (!Number.isFinite(n) || n < 1) return max;
+  return Math.min(n, max);
+}
+const getProfiles = (p = {}) => request({ path: '/profiles/', query: { 'page[size]': clampPage(p.limit, 100) || 20, filter: p.filter, sort: p.sort } });
 const getProfile  = (p = {}) => request({ path: `/profiles/${encodeURIComponent(p.id)}/` });
-const getLists    = (p = {}) => request({ path: '/lists/', query: { 'page[size]': p.limit || 50 } });
-const getList     = (p = {}) => request({ path: `/lists/${encodeURIComponent(p.id)}/` });
-// profile_count is the live segment size (the real cohort size) — requested via
-// the additional-fields param so a single read yields name + size together.
-const getSegments = (p = {}) => request({ path: '/segments/', query: { 'page[size]': p.limit || 50, 'additional-fields[segment]': 'profile_count' } });
-const getMetrics  = (p = {}) => request({ path: '/metrics/', query: { 'page[size]': p.limit || 50 } });
-const getEvents   = (p = {}) => request({ path: '/events/', query: { 'page[size]': p.limit || 20, filter: p.filter, sort: p.sort || '-datetime' } });
-const getFlows    = (p = {}) => request({ path: '/flows/', query: { 'page[size]': p.limit || 50 } });
-const getTemplates = (p = {}) => request({ path: '/templates/', query: { 'page[size]': p.limit || 50 } });
-// Campaigns require a channel filter in current revisions.
+// Lists cap page[size] at 10 in this revision — a larger value 400s.
+const getLists    = (p = {}) => request({ path: '/lists/', query: { 'page[size]': clampPage(p.limit, 10) } });
+// Single-list read asks for profile_count so a list's live size comes back in
+// one call (valid on the item endpoint; not on the collection).
+const getList     = (p = {}) => request({ path: `/lists/${encodeURIComponent(p.id)}/`, query: { 'additional-fields[list]': 'profile_count' } });
+// Segments COLLECTION: no additional-fields (the API rejects profile_count here);
+// use get_segment (singular) for the live size. page[size] up to 100 is accepted.
+const getSegments = (p = {}) => request({ path: '/segments/', query: { 'page[size]': clampPage(p.limit, 100), filter: p.filter } });
+// Single segment WITH profile_count — this is the real, live cohort size.
+const getSegment  = (p = {}) => request({ path: `/segments/${encodeURIComponent(p.id)}/`, query: { 'additional-fields[segment]': 'profile_count' } });
+// Metrics reject page[size] ("not a valid field for the resource 'metric'").
+const getMetrics  = (p = {}) => request({ path: '/metrics/' });
+const getEvents   = (p = {}) => request({ path: '/events/', query: { 'page[size]': clampPage(p.limit, 100) || 20, filter: p.filter, sort: p.sort || '-datetime' } });
+const getFlows    = (p = {}) => request({ path: '/flows/', query: { 'page[size]': clampPage(p.limit, 50) } });
+const getTemplates = (p = {}) => request({ path: '/templates/', query: { 'page[size]': clampPage(p.limit, 100) } });
+// Campaigns require a channel filter and reject page[size] in this revision.
 const getCampaigns = (p = {}) => request({
   path: '/campaigns/',
-  query: { filter: p.filter || `equals(messages.channel,'${p.channel || 'email'}')`, 'page[size]': p.limit || 25, sort: p.sort || '-created_at' },
+  query: { filter: p.filter || `equals(messages.channel,'${p.channel || 'email'}')`, sort: p.sort || '-created_at' },
 });
 
 // ── Reporting ────────────────────────────────────────────────────────────────
@@ -124,7 +141,8 @@ const OPS = {
   get_profile:        { fn: getProfile, desc: 'Get one profile by id. params: {id}.' },
   get_lists:          { fn: getLists, desc: 'List all lists. params: {limit}.' },
   get_list:           { fn: getList, desc: 'Get one list by id. params: {id}.' },
-  get_segments:       { fn: getSegments, desc: 'List dynamic segments. params: {limit}.' },
+  get_segments:       { fn: getSegments, desc: 'List dynamic segments (names + ids; no sizes). params: {limit, filter}.' },
+  get_segment:        { fn: getSegment, desc: 'Get one segment by id WITH its live profile_count (the real cohort size). params: {id}.' },
   get_metrics:        { fn: getMetrics, desc: 'List tracked metrics (Placed Order, Opened Email, …). params: {limit}.' },
   get_events:         { fn: getEvents, desc: 'List recent events. params: {limit, filter, sort}.' },
   get_campaigns:      { fn: getCampaigns, desc: 'List campaigns. params: {channel:email|sms, limit, filter}.' },
@@ -141,6 +159,6 @@ async function dispatch(op, params = {}) {
 
 module.exports = {
   isConnected, dispatch, OPS, request,
-  getProfiles, getProfile, getLists, getList, getSegments, getMetrics, getEvents,
+  getProfiles, getProfile, getLists, getList, getSegments, getSegment, getMetrics, getEvents,
   getCampaigns, getFlows, getTemplates,
 };
