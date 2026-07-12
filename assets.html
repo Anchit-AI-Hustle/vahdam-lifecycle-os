@@ -47,8 +47,13 @@
   .asset { background: linear-gradient(160deg, #0f1d18, #0c1814); border: 1px solid rgba(171,135,67,0.18);
     border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; transition: transform .14s, border-color .14s; }
   .asset:hover { transform: translateY(-2px); border-color: rgba(171,135,67,0.4); }
-  .asset .thumb { width: 100%; aspect-ratio: 16/10; object-fit: cover; background: #0a1410; display: block; border-bottom: 1px solid rgba(171,135,67,0.12); }
-  .asset .thumb.ph { display: flex; align-items: center; justify-content: center; color: #33473d; font-size: 30px; }
+  .asset .thumb { width: 100%; aspect-ratio: 16/10; object-fit: cover; object-position: top center; background: #fff; display: block; border-bottom: 1px solid rgba(171,135,67,0.12); }
+  .asset .thumb.ph { display: flex; align-items: center; justify-content: center; color: #33473d; font-size: 30px; background: #0a1410; }
+  /* Live mailer/landing preview: render the real HTML, scaled to card width, so
+     the card shows the ACTUAL rendered mailer — not a raw product photo. */
+  .asset .thumb-wrap { position: relative; width: 100%; aspect-ratio: 16/10; overflow: hidden; background: #fff; border-bottom: 1px solid rgba(171,135,67,0.12); }
+  .asset .thumb-wrap iframe { position: absolute; top: 0; left: 0; border: 0; width: 250%; height: 250%; transform: scale(0.4); transform-origin: top left; pointer-events: none; background: #fff; }
+  .asset .thumb-wrap .thumb-open { position: absolute; inset: 0; z-index: 2; }
   .asset .pad { padding: 13px 14px 12px; display: flex; flex-direction: column; flex: 1; }
   .asset .name { font-size: 13.5px; font-weight: 600; color: #FBF5EA; line-height: 1.35; margin-bottom: 5px;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -215,6 +220,7 @@
       kind: 'mailer', name: (e._full && e._full.campaign_title) || e.prompt || '(mailer)',
       market: (e.markets && e.markets[0]) || (e._full && e._full.primary_market) || '', tag: e.type || '',
       created_at: e.date || new Date(e.id || Date.now()).toISOString(), email: e.userEmail || '',
+      html: (e._full && (e._full.variant_a_html || e._full.email_html || (e._full.assets && e._full.assets.email && e._full.assets.email.html) || e._full.html)) || '',
       image: (e._full && (e._full.hero_image_url || e._full.thumbnail_url || e._full.hero_product_image)) || '',
       raw: { campaign_title: (e._full && e._full.campaign_title) || e.prompt || '', type: e.type || '', market: (e.markets && e.markets[0]) || '', brief: e.prompt || (e._full && e._full.brief) || '' }
     })); } catch { return []; }
@@ -261,7 +267,9 @@
 
     let mRemote = haveClient ? await sbFetch('mailers_generated', (d) => ({
       kind: 'mailer', name: d.campaign_title || d.prompt_short || '(mailer)', market: d.primary_market || '', tag: d.campaign_type || '',
-      created_at: d.created_at, email: d.user_email || '', image: d.thumbnail_url || d.canvas_image_url || d.hero_image_url || d.hero_product_image || '',
+      created_at: d.created_at, email: d.user_email || '',
+      html: d.variant_a_html || (d.market_mailers && (() => { try { const mm = typeof d.market_mailers === 'string' ? JSON.parse(d.market_mailers) : d.market_mailers; const m = mm && (mm[d.primary_market] || mm[Object.keys(mm)[0]]); return (m && (m.A || m.a)) || ''; } catch { return ''; } })()) || '',
+      image: d.thumbnail_url || d.canvas_image_url || d.hero_image_url || d.hero_product_image || '',
       raw: { campaign_title: d.campaign_title || '', type: d.campaign_type || '', market: d.primary_market || '', brief: d.prompt || d.prompt_short || d.brief || '' }
     })) : null;
     if (mRemote === null) { usingLocal = true; mRemote = []; }
@@ -311,15 +319,30 @@
     const grid = $('#grid');
     if (!rows.length) { grid.innerHTML = '<div class="empty">No assets here yet. Generate some in the Studio, Ad Campaigns or Landing Pages — they show up here to preview, clone and re-prompt.</div>'; return; }
     grid.innerHTML = rows.map((it) => {
-      const thumb = it.image ? '<img class="thumb" src="' + esc(it.image) + '" alt="" loading="lazy">' : '<div class="thumb ph">' + (it.kind === 'mailer' ? '✉' : it.kind === 'ad' ? '📣' : '🖥') + '</div>';
-      const meta = [it.market, it.tag && it.kind !== 'ad' ? '' : '', fmtDate(it.created_at)].filter(Boolean).join(' · ');
-      const preview = it.image ? it.image : (it.kind === 'mailer' ? '/studio' : it.kind === 'ad' ? '/ads' : '/landing');
+      // A mailer/landing card should preview the ACTUAL rendered document. When we
+      // hold its HTML, render it live in a scaled iframe (the real mailer), not the
+      // raw product photo. Ads (which ARE an image) still show their creative image;
+      // otherwise fall back to a brand glyph placeholder.
+      let thumb, hasView = false;
+      if (it.html && (it.kind === 'mailer' || it.kind === 'landing')) {
+        thumb = '<div class="thumb-wrap"><iframe sandbox srcdoc="' + esc(it.html) + '" loading="lazy" title="preview"></iframe>'
+          + '<button class="thumb-open" data-act="view" data-id="' + it._id + '" aria-label="Open preview"></button></div>';
+        hasView = true;
+      } else if (it.kind === 'ad' && it.image) {
+        thumb = '<img class="thumb" src="' + esc(it.image) + '" alt="" loading="lazy">';
+      } else {
+        thumb = '<div class="thumb ph">' + (it.kind === 'mailer' ? '✉' : it.kind === 'ad' ? '📣' : '🖥') + '</div>';
+      }
+      const meta = [it.market, fmtDate(it.created_at)].filter(Boolean).join(' · ');
+      const previewBtn = hasView
+        ? '<button class="abtn" data-act="view" data-id="' + it._id + '">Preview</button>'
+        : '<a class="abtn" href="' + esc(it.kind === 'mailer' ? '/studio' : it.kind === 'ad' ? '/ads' : '/landing') + '" target="_blank" rel="noopener">Open in tool</a>';
       return '<div class="asset">' + thumb +
         '<div class="pad">' +
           '<div class="name">' + esc(it.name) + '</div>' +
           '<div class="meta"><span class="tag ' + it.kind + '">' + (it.kind === 'landing' ? 'Landing' : it.kind === 'ad' ? esc(it.tag || 'Ad') : 'Mailer') + '</span>' + esc(meta) + '</div>' +
           '<div class="acts">' +
-            '<a class="abtn" href="' + esc(preview) + '" target="_blank" rel="noopener">Preview</a>' +
+            previewBtn +
             '<button class="abtn" data-act="clone" data-id="' + it._id + '">⧉ Clone</button>' +
             '<button class="abtn primary" data-act="prompt" data-id="' + it._id + '">📋 AI prompt</button>' +
           '</div>' +
@@ -352,6 +375,16 @@
   $('#grid').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-act]'); if (!btn) return;
     const it = byId[btn.dataset.id]; if (!it) return;
+    if (btn.dataset.act === 'view') {
+      // Open the real rendered document in a new tab via a Blob URL (no srcdoc size
+      // limit, exactly what ships). Falls back to the product image if no HTML.
+      if (it.html) {
+        const url = URL.createObjectURL(new Blob([it.html], { type: 'text/html' }));
+        window.open(url, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } else if (it.image) { window.open(it.image, '_blank', 'noopener'); }
+      return;
+    }
     if (btn.dataset.act === 'prompt') { copyText(buildPrompt(it), '📋 AI prompt copied — paste into Claude, Gemini or ChatGPT.'); return; }
     if (btn.dataset.act === 'clone') {
       try { cloneItem(it); } catch (err) { toast('Clone failed: ' + (err && err.message || err)); return; }

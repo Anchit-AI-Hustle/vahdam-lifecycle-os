@@ -40,7 +40,9 @@ const path = require('path');
 let callLLM = null;
 try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 const scenario = require('./scenario-model.js');
-const creative = require('./creative-image.js');
+const creative = require('./creative-image.js'); // eslint-disable-line no-unused-vars
+let catalogImage = null;
+try { catalogImage = require('./catalog-image.js'); } catch (_) { catalogImage = null; }
 const video = require('./video-core.js');
 const push = require('./social-push-core.js');
 let brandPlaceholder = null;
@@ -83,10 +85,16 @@ const SCRUB_TRANSFORM_RX = /\btransform(ing|ed|s|ation)?\b/i;
 const SCRUB_CAPS_RX = /LIMITED TIME/; // caps form specifically
 function scrubString(s) {
   if (typeof s !== 'string') return s;
-  // Always run sanitizeBrand so em/en dashes are scrubbed on EVERY string, not
-  // only ones that already trip a banned phrase (otherwise dashes survive on
-  // most captions/blog copy). sanitizeBrand folds in the banned-phrase rewrite.
-  const clean = scenario.sanitizeBrand(s);
+  // Always run sanitizeBrand so em/en dashes + banned phrases are scrubbed on
+  // EVERY string. BUT sanitizeBrand ends with a collapse of whitespace runs
+  // (\s{2,}->' '), and \n matches \s — running it on a whole multi-paragraph
+  // string flattens blog markdown + multi-line captions into one run-on line and
+  // turns "##" headings into inline literals. So for multiline strings, scrub
+  // each line independently and rejoin: dashes/banned phrases are still rewritten
+  // on every line, but paragraph breaks and headings survive intact.
+  const clean = s.includes('\n')
+    ? s.split('\n').map((line) => scenario.sanitizeBrand(line)).join('\n')
+    : scenario.sanitizeBrand(s);
   try { scenario.assertNoBanned(clean, 'social-core'); } catch (_) { /* tripwire only */ }
   return clean;
 }
@@ -434,25 +442,23 @@ function heroPrompt(ideology, focus) {
     ' Color palette strictly limited to deep forest green #004A2B, antique gold #AB8743, near-black #171717 and warm cream #FBF5EA.' +
     ' NO text, NO logos, NO watermarks, NO faces.';
 }
-async function designAgent(ctx, ideology, remainingMs) {
+async function designAgent(ctx, ideology, remainingMs) { // eslint-disable-line no-unused-vars
   const prompt = heroPrompt(ctx.ideologyRef || ideology, ctx.focus);
   const base = { image_prompt: prompt, crops: { '4:5': 'center crop to 1080x1350', '9:16': 'vertical center crop to 1080x1920', '16:9': 'horizontal crop to 1200x675', '1.91:1': 'horizontal crop to 1200x627', '2:3': 'tall crop to 1000x1500' } };
-  if (ctx.dry_run) return { ...base, image_url: null, note: 'dry_run — image generation skipped, prompt emitted as placeholder' };
-  const budget = Math.min(35000, Math.max(0, remainingMs - 5000));
-  if (budget < 8000) return { ...base, image_url: null, note: 'time budget exhausted — prompt emitted as placeholder' };
-  try {
-    const gen = await Promise.race([
-      creative.generateCreativeImage(prompt, { size: '1024x1024' }),
-      new Promise((resolve) => setTimeout(() => resolve(null), budget)),
-    ]);
-    if (gen && gen.image) {
-      const hosted = await creative.uploadCreative(gen.image, 'social-hero-' + ctx.date);
-      if (hosted) return { ...base, image_url: hosted, provider: gen.provider || null, note: 'hero generated + hosted' };
-      // No storage → fall back to the on-brand SVG placeholder + the prompt (keeps rows small).
-      return { ...base, image_url: placeholderImage(ctx), provider: gen.provider || null, note: 'generated but storage unavailable — brand placeholder + prompt kept' };
-    }
-  } catch (_) { /* fall through to placeholder */ }
-  return { ...base, image_url: placeholderImage(ctx), note: 'image cascade unavailable — brand placeholder + prompt emitted' };
+  // HARD RULE (system-wide): product/brand imagery MUST be a REAL Shopify catalog
+  // pack-shot, never a diffusion-invented tin — image models fabricate garbled
+  // fake labels. The real, hosted product photo is already available on the focus
+  // product; use it (HD), preferring the catalog gallery, and fall back ONLY to
+  // the on-brand SVG placeholder. Diffusion is never used for a product shot.
+  let real = null;
+  try { real = (catalogImage && catalogImage.imagesFor(ctx.focus.product, ctx.market || 'UK', { width: 1200 })[0]) || null; } catch (_) { real = null; }
+  if (!real && ctx.focus.product && ctx.focus.product.image) {
+    try { real = (catalogImage && catalogImage.hd(ctx.focus.product.image, 1200)) || ctx.focus.product.image; } catch (_) { real = ctx.focus.product.image; }
+  }
+  if (real) return { ...base, image_url: real, provider: 'catalog', note: 'real Shopify catalog product photo (no diffusion)' };
+  // The image_prompt is retained only as documentation for a human art director;
+  // it is NOT sent to any diffusion model for the shippable product hero.
+  return { ...base, image_url: placeholderImage(ctx), note: 'no verified catalog image — on-brand placeholder emitted' };
 }
 function placeholderImage(ctx) {
   if (!brandPlaceholder) return null;

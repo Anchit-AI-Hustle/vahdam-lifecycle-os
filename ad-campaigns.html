@@ -486,9 +486,11 @@
     const sub = spec.sub
       || (ch === 'g' ? v('g-keywords').split(',')[0] : ch === 'm' ? v('m-primary') : v('t-caption'))
       || 'Single-estate · garden-fresh in 72 hours';
-    // Real P01 acquisition offer (not the old 'Shop now' CTA). Prefer the
-    // LLM-authored on-creative offer when autofill has run.
-    const offer = spec.offer || 'Starter Pack · 65% OFF + free gifts';
+    // On-creative offer: use ONLY a real, LLM/operator-authored offer. Never
+    // fabricate a discount (the old '65% OFF + free gifts' default baked an
+    // invented promo into shipped creatives — a zero-fabrication violation). When
+    // no verified offer exists, leave it empty and the offer pill is skipped.
+    const offer = spec.offer || '';
     return { market, headline, sub, offer, cur: CUR[market] || '$' };
   }
   // Text-free visual prompt for the AI image cascade (text is overlaid on canvas).
@@ -578,21 +580,25 @@
     x.fillText('V A H D A M', W / 2, H * 0.10);
     x.fillStyle = '#AB8743'; x.font = '600 ' + Math.round(base * 0.022) + "px 'Proxima Nova', Arial, sans-serif";
     x.fillText('SINGLE-ESTATE INDIAN TEA', W / 2, H * 0.14);
-    // Offer pill (sits just above safe-zone floor)
-    const pillH = Math.round(base * 0.085), pillW = Math.min(W * 0.7, base * 0.9);
+    // Offer pill (sits just above safe-zone floor) — ONLY drawn when a real
+    // offer exists; with no verified offer, pillH=0 so no empty gold pill shows
+    // and the headline block anchors to the safe floor.
+    const pillH = copy.offer ? Math.round(base * 0.085) : 0, pillW = Math.min(W * 0.7, base * 0.9);
     const pillX = (W - pillW) / 2, pillY = safeBottom - pillH;
-    x.fillStyle = '#AB8743';
-    if (x.roundRect) { x.beginPath(); x.roundRect(pillX, pillY, pillW, pillH, pillH / 2); x.fill(); }
-    else x.fillRect(pillX, pillY, pillW, pillH);
-    // Offer text: the real P01 offer (may be long) — auto-shrink to fit the pill.
-    x.fillStyle = '#171717';
-    let offSize = Math.round(base * 0.034);
-    const maxOfferW = pillW * 0.88;
-    x.font = '700 ' + offSize + "px 'Proxima Nova', Arial, sans-serif";
-    while (offSize > 11 && x.measureText(copy.offer).width > maxOfferW) {
-      offSize -= 1; x.font = '700 ' + offSize + "px 'Proxima Nova', Arial, sans-serif";
+    if (copy.offer) {
+      x.fillStyle = '#AB8743';
+      if (x.roundRect) { x.beginPath(); x.roundRect(pillX, pillY, pillW, pillH, pillH / 2); x.fill(); }
+      else x.fillRect(pillX, pillY, pillW, pillH);
+      // Offer text: the real offer (may be long) — auto-shrink to fit the pill.
+      x.fillStyle = '#171717';
+      let offSize = Math.round(base * 0.034);
+      const maxOfferW = pillW * 0.88;
+      x.font = '700 ' + offSize + "px 'Proxima Nova', Arial, sans-serif";
+      while (offSize > 11 && x.measureText(copy.offer).width > maxOfferW) {
+        offSize -= 1; x.font = '700 ' + offSize + "px 'Proxima Nova', Arial, sans-serif";
+      }
+      x.fillText(copy.offer, W / 2, pillY + pillH * 0.64);
     }
-    x.fillText(copy.offer, W / 2, pillY + pillH * 0.64);
     // Headline block (above the pill, wrapped)
     const hSize = Math.round(base * 0.075); x.font = '600 ' + hSize + "px 'Lao MN', Georgia, serif";
     const hLines = wrapText(x, copy.headline, W * 0.82, 4);

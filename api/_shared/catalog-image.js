@@ -58,12 +58,43 @@ function match(entryOrHandle, market) {
   return p || null;
 }
 
+// Return an HD variant of a Shopify CDN image by requesting a specific rendered
+// width — Shopify serves a right-sized asset, so the photo stays crisp and never
+// pixelates (upscaling artifacts avoided). Non-Shopify or empty URLs pass through
+// unchanged; a width is only added when one is not already present.
+function hd(url, width = 1200) {
+  if (typeof url !== 'string' || !/^https?:\/\//.test(url)) return null;
+  if (!/cdn\.shopify\.com|\/cdn\/shop\//.test(url)) return url;
+  if (/[?&]width=/.test(url)) return url;
+  return url + (url.includes('?') ? '&' : '?') + 'width=' + width;
+}
+
 // Accepts a handle string, or an entry/heroProduct-ish object. Returns an https
-// image URL or null (never a data: URI).
-function imageFor(entryOrHandle, market) {
+// image URL or null (never a data: URI). Pass a width to get an HD-boosted URL.
+function imageFor(entryOrHandle, market, { width = 0 } = {}) {
   const p = match(entryOrHandle, market);
   const url = p && p.i;
-  return (typeof url === 'string' && /^https?:\/\//.test(url)) ? url : null;
+  if (!(typeof url === 'string' && /^https?:\/\//.test(url))) return null;
+  return width ? hd(url, width) : url;
+}
+
+// All REAL catalog image URLs for the matched product, primary first, in catalog
+// (PDP gallery) order, de-duplicated and HD-boosted. Lets a caller pull DISTINCT
+// real photos of the same product across mailer / ad / landing sections instead
+// of repeating one shot. Never fabricates — returns [] when nothing matches.
+function imagesFor(entryOrHandle, market, { width = 1200 } = {}) {
+  const p = match(entryOrHandle, market);
+  if (!p) return [];
+  const list = Array.isArray(p.imgs) && p.imgs.length ? p.imgs : (p.i ? [p.i] : []);
+  const seen = new Set();
+  const out = [];
+  for (const u of list) {
+    if (typeof u === 'string' && /^https?:\/\//.test(u) && !seen.has(u)) {
+      seen.add(u);
+      out.push(hd(u, width));
+    }
+  }
+  return out;
 }
 
 // Resolve a REAL product handle from the catalog (for building a PDP URL).
@@ -73,4 +104,4 @@ function handleFor(entryOrHandle, market) {
   return (p && (p.h || p.handle)) || null;
 }
 
-module.exports = { imageFor, handleFor, match };
+module.exports = { imageFor, imagesFor, handleFor, match, hd };
