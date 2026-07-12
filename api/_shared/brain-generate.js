@@ -389,15 +389,22 @@ function mailerVariants(slot, copy, products, brand, agentUrl, richHtml) {
     ].filter(Boolean),
     cta_text: copy.cta_primary || 'Shop the edit',
   };
-  const mk = (style, img) => renderTextVariant({
+  const collectionUrl = /chai/.test(((p0.type) || '').toLowerCase()) ? `${store}/collections/chai-tea`
+    : /green/.test(((p0.type) || '').toLowerCase()) ? `${store}/collections/green-tea`
+    : `${store}/collections/all`;
+  // `withGrid` gates the real product-image grid + collection CTA to the
+  // Text + Visual variants; pure "Text" variants stay graphics-free per taxonomy.
+  const mk = (style, img, withGrid) => renderTextVariant({
     style, subject: copy.subject, hero_headline: S.hero_headline, hero_subline: S.hero_subline,
     body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: store, market: slot.market,
     hero_product: p0.title || slot.theme || '', hero_image_url: img || undefined,
+    // Flagship-parity: real inline product grid + derived collection CTA + offer bar.
+    ...(withGrid ? { products, collection_url: collectionUrl, offer_bar: (copy.landing && copy.landing.offer_bar) || undefined } : {}),
   });
   return [
     { key: 'text_a', type: 'Text', label: 'Text · Concise', html: mk('pure') },
     { key: 'text_b', type: 'Text', label: 'Text · Editorial', html: mk('editorial') },
-    { key: 'visual_a', type: 'Text + Visual', label: 'Text + Visual · Hero', html: mk('visual', heroImg) },
+    { key: 'visual_a', type: 'Text + Visual', label: 'Text + Visual · Hero', html: mk('visual', heroImg, true) },
     { key: 'visual_b', type: 'Text + Visual', label: 'Text + Visual · Rich brand', html: richHtml },
   ];
 }
