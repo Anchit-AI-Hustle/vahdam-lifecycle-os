@@ -177,8 +177,20 @@
       var b=$("refresh-btn"); b.disabled=true; var t=b.textContent; b.innerHTML='<span class="spinner"></span> Running…';
       fetch(API+"?action=os-run-daily-job",{method:"POST"}).then(function(r){return r.json();}).then(function(j){
         b.disabled=false; b.textContent=t;
-        if(j.ok){ $("banner").innerHTML='<div class="banner info">Daily Intelligence Refresh complete — '+esc(j.summary||"")+' ('+esc(j.steps_total)+' steps).</div>'; load(); }
-        else { $("banner").innerHTML='<div class="banner err">Refresh failed: '+esc(j.error||"")+'</div>'; }
+        if(j.ok){
+          // Be honest about what the run actually did. Today the connector sync
+          // adapters are Phase 2 ("adapter pending — no records pulled"), so a
+          // successful run can legitimately change zero counts — surface that
+          // instead of a bare "complete" that looks like nothing happened.
+          var steps = (j.steps_total!=null?j.steps_total:'?');
+          var pulled = (j.records_synced!=null?j.records_synced:0);
+          var pending = (j.connectors_pending!=null?j.connectors_pending:null);
+          var detail = pulled>0
+            ? (pulled+' records synced across '+steps+' steps.')
+            : (steps+' steps ran, 0 new records — connector sync adapters are Phase 2 (pending)'+(pending!=null?', '+pending+' connector(s) awaiting adapters':'')+'. Counts change once live adapters + a valid SUPABASE_SERVICE_ROLE_KEY are in place.');
+          $("banner").innerHTML='<div class="banner info">Daily Intelligence Refresh complete — '+esc(j.summary||detail)+(j.summary?' ('+esc(steps)+' steps).':'')+'</div>'; load();
+        }
+        else { $("banner").innerHTML='<div class="banner err">Refresh failed: '+esc(j.error||"unknown")+'. If this mentions auth/permission, the SUPABASE_SERVICE_ROLE_KEY in Vercel is stale — rotate it and redeploy.</div>'; }
       }).catch(function(e){ b.disabled=false; b.textContent=t; $("banner").innerHTML='<div class="banner err">Refresh failed: '+esc(e.message)+'</div>'; });
     });
     load();
