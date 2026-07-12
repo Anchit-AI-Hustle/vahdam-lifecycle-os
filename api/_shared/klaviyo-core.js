@@ -98,21 +98,27 @@ function clampPage(limit, max) {
   if (!Number.isFinite(n) || n < 1) return max;
   return Math.min(n, max);
 }
-const getProfiles = (p = {}) => request({ path: '/profiles/', query: { 'page[size]': clampPage(p.limit, 100) || 20, filter: p.filter, sort: p.sort } });
+// Cursor passthrough: Klaviyo collections page 10-at-a-time and return a `next`
+// link carrying a page[cursor] token. Callers walk pages by passing that token
+// back as `cursor` (or `page[cursor]`), so we can enumerate ALL segments/lists,
+// not just the first page. undefined when absent (qs() drops empty values).
+function cursorOf(p) { return (p && (p.cursor || p['page[cursor]'])) || undefined; }
+const getProfiles = (p = {}) => request({ path: '/profiles/', query: { 'page[size]': clampPage(p.limit, 100) || 20, 'page[cursor]': cursorOf(p), filter: p.filter, sort: p.sort } });
 const getProfile  = (p = {}) => request({ path: `/profiles/${encodeURIComponent(p.id)}/` });
 // Lists cap page[size] at 10 in this revision — a larger value 400s.
-const getLists    = (p = {}) => request({ path: '/lists/', query: { 'page[size]': clampPage(p.limit, 10) } });
+const getLists    = (p = {}) => request({ path: '/lists/', query: { 'page[size]': clampPage(p.limit, 10), 'page[cursor]': cursorOf(p) } });
 // Single-list read asks for profile_count so a list's live size comes back in
 // one call (valid on the item endpoint; not on the collection).
 const getList     = (p = {}) => request({ path: `/lists/${encodeURIComponent(p.id)}/`, query: { 'additional-fields[list]': 'profile_count' } });
 // Segments COLLECTION: no additional-fields (the API rejects profile_count here);
-// use get_segment (singular) for the live size. page[size] up to 100 is accepted.
-const getSegments = (p = {}) => request({ path: '/segments/', query: { 'page[size]': clampPage(p.limit, 100), filter: p.filter } });
+// use get_segment (singular) for the live size. page[size] caps at 10 — a larger
+// value silently returns an EMPTY page, so clamp to 10 and paginate via cursor.
+const getSegments = (p = {}) => request({ path: '/segments/', query: { 'page[size]': clampPage(p.limit, 10), 'page[cursor]': cursorOf(p), filter: p.filter } });
 // Single segment WITH profile_count — this is the real, live cohort size.
 const getSegment  = (p = {}) => request({ path: `/segments/${encodeURIComponent(p.id)}/`, query: { 'additional-fields[segment]': 'profile_count' } });
 // Metrics reject page[size] ("not a valid field for the resource 'metric'").
 const getMetrics  = (p = {}) => request({ path: '/metrics/' });
-const getEvents   = (p = {}) => request({ path: '/events/', query: { 'page[size]': clampPage(p.limit, 100) || 20, filter: p.filter, sort: p.sort || '-datetime' } });
+const getEvents   = (p = {}) => request({ path: '/events/', query: { 'page[size]': clampPage(p.limit, 100) || 20, 'page[cursor]': cursorOf(p), filter: p.filter, sort: p.sort || '-datetime' } });
 const getFlows    = (p = {}) => request({ path: '/flows/', query: { 'page[size]': clampPage(p.limit, 50) } });
 const getTemplates = (p = {}) => request({ path: '/templates/', query: { 'page[size]': clampPage(p.limit, 100) } });
 // Campaigns require a channel filter and reject page[size] in this revision.
@@ -141,7 +147,7 @@ const OPS = {
   get_profile:        { fn: getProfile, desc: 'Get one profile by id. params: {id}.' },
   get_lists:          { fn: getLists, desc: 'List all lists. params: {limit}.' },
   get_list:           { fn: getList, desc: 'Get one list by id. params: {id}.' },
-  get_segments:       { fn: getSegments, desc: 'List dynamic segments (names + ids; no sizes). params: {limit, filter}.' },
+  get_segments:       { fn: getSegments, desc: 'List dynamic segments (names + ids; no sizes; 10/page). params: {limit, filter, cursor}. Walk pages with the next-link page[cursor].' },
   get_segment:        { fn: getSegment, desc: 'Get one segment by id WITH its live profile_count (the real cohort size). params: {id}.' },
   get_metrics:        { fn: getMetrics, desc: 'List tracked metrics (Placed Order, Opened Email, …). params: {limit}.' },
   get_events:         { fn: getEvents, desc: 'List recent events. params: {limit, filter, sort}.' },
