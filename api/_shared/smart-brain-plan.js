@@ -870,7 +870,7 @@ async function uploadCreative(dataUrl, name) {
 // One creative per asset, generated in parallel. Each → {brief, image, provider};
 // the image is a hosted Supabase URL when storage is configured, else an inline
 // data-URL; falls back to brief-only (image:null) if generation fails.
-async function generateCreatives(copy, entry, { only = null } = {}) {
+async function generateCreatives(copy, entry, { only = null, lean = false } = {}) {
   const hero = entry.heroProduct?.title ? ` Hero product: VAHDAM ${entry.heroProduct.title}.` : '';
   // ALL channels get TEXT-FREE photographs (mode:''). Diffusion models cannot
   // spell, so baking a headline/offer into the pixels (the old mode:'ad') always
@@ -887,11 +887,17 @@ async function generateCreatives(copy, entry, { only = null } = {}) {
   ];
   // `only` limits which creatives are built. Preview passes ['email'] so a single
   // hero image renders inline fast (building all 5 here overran the function limit).
+  // `lean` builds EVERY channel but only diffuses the email hero — the other four
+  // channels take the real catalog product photo directly (no diffusion). This is
+  // the on-demand approve path: one blocking image call instead of five, so it
+  // completes inside the serverless limit instead of timing out. The background
+  // prebuild queue still produces full 5-image fidelity offline for reuse.
   const activeSpecs = Array.isArray(only) ? specs.filter(([key]) => only.includes(key)) : specs;
   const out = {};
   await Promise.all(activeSpecs.map(async ([key, rawBrief, size, mode]) => {
     const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} hero creative — warm, premium, photoreal.`;
-    const gen = await generateCreativeImage(b + hero, { size, mode }).catch(() => null);
+    const diffuse = !lean || key === 'email';
+    const gen = diffuse ? await generateCreativeImage(b + hero, { size, mode }).catch(() => null) : null;
     let image = gen?.image || null;
     // HOST-ALL-ASSETS: never let a data: URI reach a persisted/emailed asset
     // (email clients strip them). Upload the generated image to Supabase Storage
@@ -947,9 +953,14 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
     const copyA = scrubCopyDeep(rawA.copy);
     const copyB = scrubCopyDeep(rawB.copy);
     // ── Agent 3 · Asset Director — one text-free creative per asset, turn by turn.
-    // withCreatives: true = full 5-asset build; 'hero' = email hero only (fast,
-    // for on-demand preview); false = none (copy + layout only).
-    const creatives = withCreatives ? await generateCreatives(copyA, entry, withCreatives === 'hero' ? { only: ['email'] } : {}) : {};
+    // withCreatives: true = full 5-asset build; 'lean' = every channel but only
+    // the email hero is diffused (others take the catalog photo — fast + reliable
+    // for on-demand approve); 'hero' = email hero only (fast, for on-demand
+    // preview); false = none (copy + layout only).
+    const creativeOpts = withCreatives === 'hero' ? { only: ['email'] }
+      : withCreatives === 'lean' ? { lean: true }
+      : {};
+    const creatives = withCreatives ? await generateCreatives(copyA, entry, creativeOpts) : {};
     const imgProviders = [...new Set(Object.values(creatives).map((c) => c && c.provider).filter(Boolean))];
     if (withCreatives) trace.push({ agent: 'Asset Director', role: 'Creative / Art Direction', ok: imgProviders.length > 0, provider: imgProviders.join(',') || null, output: { assets: Object.keys(creatives).length } });
     // ── Agent 4 · Design Integrator — assembles each variant in the layout the
@@ -1070,7 +1081,11 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   // buildCampaign generates copy + creatives and attaches master prompts. Use
   // the ACTIVE scenario (medium unless a human switched the slot), internal keys
   // stripped so projected revenue/spend can never reach the asset builders.
-  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id });
+  // When there is NO prebuilt campaign to reuse, build LEAN: diffuse only the
+  // email hero and take catalog photos for the other channels, so this on-demand
+  // approve completes inside the serverless limit instead of overrunning on five
+  // parallel image generations (the timeout that made "Generate" fail every time).
+  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: 'lean' });
   const copyMeta = campaign.copywriter || { provider: 'prebuilt', model: null };
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
