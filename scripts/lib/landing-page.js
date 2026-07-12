@@ -73,7 +73,7 @@ function renderLandingPage(o = {}) {
     <a class="cta" href="${esc(o.ctaUrl)}">${esc(o.ctaText || 'Shop now')}</a>
     ${o.collectionCta ? `<div style="margin-top:16px;"><a href="${esc(o.collectionCta.url)}" style="font-family:${BF};font-size:14px;font-weight:700;color:${PAL.green};text-decoration:underline;">Explore all ${esc(o.collectionCta.title)} →</a></div>` : ''}
   </section>
-  <footer style="background:${PAL.ink};color:${PAL.cream};text-align:center;font-size:12px;line-height:1.8;padding:26px 20px;">VAHDAM&reg; USA · Vahdam Teas Global Inc.<br>Registered mailing address here<br><span style="color:${PAL.gold};font-weight:700;">Privacy Policy &nbsp;·&nbsp; Terms of Service &nbsp;·&nbsp; Shipping &amp; Returns</span></footer>
+  <footer style="background:${PAL.green};color:${PAL.cream};text-align:center;font-size:12px;line-height:1.8;padding:26px 20px;">VAHDAM&reg; USA · Vahdam Teas Global Inc.<br>Registered mailing address here<br><span style="color:${PAL.gold};font-weight:700;">Privacy Policy &nbsp;·&nbsp; Terms of Service &nbsp;·&nbsp; Shipping &amp; Returns</span></footer>
 </body></html>`;
 }
 

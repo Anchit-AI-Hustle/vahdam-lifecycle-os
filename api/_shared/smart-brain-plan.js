@@ -726,7 +726,7 @@ function emailHtml(entry, copy, creativeUrl) {
     <p style="line-height:1.7">${E.body_paragraph}</p>
     <p style="text-align:center;margin:32px 0 8px"><a href="${slotLinks(entry).pdp}" style="background:#AB8743;color:#171717;padding:15px 28px;text-decoration:none;border-radius:4px;font-weight:700;display:inline-block">${E.cta || 'Shop the edit'}</a></p>
   </section>
-  <footer style="background:#171717;color:#FBF5EA99;text-align:center;padding:22px;font-size:11px">You're receiving this as a VAHDAM ${entry.cohort?.name || 'customer'} in ${entry.market}.</footer>
+  <footer style="background:#004A2B;color:#FBF5EA99;text-align:center;padding:22px;font-size:11px">You're receiving this as a VAHDAM ${entry.cohort?.name || 'customer'} in ${entry.market}.</footer>
 </main>
 </body></html>`;
 }
