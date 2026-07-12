@@ -35,7 +35,7 @@ claims library, approved URL map, real eligible-segment sizes, valid `SUPABASE_S
 
 A retention/lifecycle-marketing toolkit for VAHDAM Teas, deployed as a **single Vercel project** (no framework — `framework: null`, `outputDirectory: "."`). It started as the Mailer Studio (`vahdam_mailer_architect_v34.html`) and grew into a multi-page suite: data analysis → marketing calendar → mailer creation → competitor intelligence → knowledge base → ad/landing-page generation.
 
-Live: https://vahdam-marketing-mailers-architect.vercel.app/ · Canonical repo: `~/dev/anchit-hustle` (moved off iCloud, which was corrupting git — this iCloud copy may still be the working dir).
+Live: https://vahdam-lifecycle-os.vercel.app/ (→ https://vahdam-lifecycle-os.anchit-tandon.com/) — this is the project that receives `main` deploys (health `build:"lifecycle-os"`). NOTE: the older `vahdam-marketing-mailers-architect.vercel.app` is a STALE separate deployment (`build:"audit-additions-v83"`, no Supabase) — do NOT use it to judge current state. · Canonical repo: `~/dev/anchit-hustle` (moved off iCloud, which was corrupting git — this iCloud copy may still be the working dir).
 
 ## Version taxonomy (V1 vs V2) — product-owner convention, 2026-07-03
 - **V1 = the legacy base app**: everything that existed before 2026-07-03 (dashboard/analytics, /plan RFM calendar, Mailer Studio /studio, competitor, KB, ads, landing pages, ChaiGPT, smart-brain).
