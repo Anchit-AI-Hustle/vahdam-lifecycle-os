@@ -62,6 +62,7 @@
     { "source": "/app",       "destination": "/vahdam_mailer_architect_v34.html" },
     { "source": "/mailer",    "destination": "/vahdam_mailer_architect_v34.html" },
     { "source": "/assets",    "destination": "/assets.html" },
+    { "source": "/premium",   "destination": "/premium-experience.html" },
     { "source": "/analytics", "destination": "/data-analysis.html" },
     { "source": "/data-analysis", "destination": "/data-analysis.html" },
     { "source": "/rfm", "destination": "/dashboard.html" },
