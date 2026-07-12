@@ -70,9 +70,12 @@ async function safe(promise, fallback = null) {
 async function countExact(table, filters = {}) {
   try {
     const { url } = supa.env();
-    const q = new URLSearchParams(Object.assign({ select: 'id' }, filters));
+    // limit=1 + Prefer:count=exact returns the FULL total in content-range while
+    // pulling a single row. This is more widely supported than a Range header,
+    // which some PostgREST/proxy setups reject (leaving every tile blank).
+    const q = new URLSearchParams(Object.assign({ select: 'id', limit: '1' }, filters));
     const res = await fetch(`${url}/rest/v1/${table}?${q.toString()}`, {
-      headers: Object.assign(supa.headers(), { Prefer: 'count=exact', Range: '0-0' }),
+      headers: Object.assign(supa.headers(), { Prefer: 'count=exact' }),
     });
     if (!res.ok) return null;
     const cr = res.headers.get('content-range') || '';
@@ -100,9 +103,9 @@ async function smartBrainCount(table, filters = {}) {
   try {
     const { url, key } = smartBrainEnv();
     if (!url || !key) return null;
-    const q = new URLSearchParams(Object.assign({ select: 'id' }, filters));
+    const q = new URLSearchParams(Object.assign({ select: 'id', limit: '1' }, filters));
     const res = await fetch(`${url}/rest/v1/${table}?${q.toString()}`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'count=exact', Range: '0-0' },
+      headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'count=exact' },
     });
     if (!res.ok) return null;
     const cr = res.headers.get('content-range') || '';
@@ -288,10 +291,29 @@ async function dashboard() {
   if (sbPending != null) counts.pending_reviews = sbPending;
 
   const lastRefresh = (cronRuns && cronRuns[0]) || null;
+
+  // Diagnostic: surface WHY tiles may be empty (env resolution + a live count
+  // probe against a table we know exists). Read-only, no secrets exposed.
+  const diag = await (async () => {
+    const out = { supabase_url_host: null, smart_brain_url_host: null, smart_brain_service_role: false, probe: null };
+    try { const { url } = supa.env(); out.supabase_url_host = url ? new URL(url).host : null; } catch (_) {}
+    try {
+      const { url, key } = smartBrainEnv();
+      out.smart_brain_url_host = url ? new URL(url).host : null;
+      out.smart_brain_service_role = Boolean(process.env.SMART_BRAIN_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
+      if (url && key) {
+        const res = await fetch(`${url}/rest/v1/smart_calendar_entries?select=id&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'count=exact' } });
+        out.probe = { table: 'smart_calendar_entries', http: res.status, ok: res.ok, content_range: res.headers.get('content-range') || null };
+      } else { out.probe = { error: 'smart-brain url/key not resolved' }; }
+    } catch (e) { out.probe = { error: String(e && e.message || e).slice(0, 140) }; }
+    return out;
+  })();
+
   return {
     generated_at: nowIso(),
     connectors: connSummary,
     counts,
+    _diag: diag,
     last_refresh: lastRefresh ? {
       status: lastRefresh.status, started_at: lastRefresh.started_at,
       finished_at: lastRefresh.finished_at, summary: lastRefresh.summary,
