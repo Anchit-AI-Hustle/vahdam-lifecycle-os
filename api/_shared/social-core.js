@@ -516,23 +516,50 @@ async function videoAgent(ctx, ideology, content, remainingMs) {
   return { storyboard: board, prompt: videoPrompt, job };
 }
 
-// ── Agent 7: Compilation (fast) + limits enforcement ─────────────────────────
-function enforceLimits(key, copy) {
+// ── Agent 7: Compilation (fast) + limits + content validation ────────────────
+// Code-level content gate (the BRAND_GATES rules were prompt-only; the LLM could
+// still slip a fabricated price, a raw non-PDP URL, or a medical claim through).
+// SAFE auto-fixes: strip any URL in the copy that is not a verified PDP link (the
+// CTA link is a separate, guarded field), and strip price tokens from supplement
+// copy (compliance: supplements never quote a price). JUDGMENT calls are FLAGGED,
+// not rewritten (auto-rewriting brand copy mangles it): medical / drug-like
+// claims are surfaced in _compliance for human review.
+const MEDICAL_RX = /\b(clinically proven|cures?|treats? (?:anxiety|insomnia|depression|disease|illness|stress)|reduces? (?:cortisol|blood pressure|inflammation)|prevents? (?:disease|illness|cancer)|fda[- ]approved|big pharma|guaranteed results)\b/gi;
+function sanitizeContent(text, ctx, flags) {
+  if (typeof text !== 'string' || !text) return text;
+  let t = text.replace(/https?:\/\/\S+/gi, (u) => { if (/\/products\//.test(u)) return u; flags.push('removed non-PDP URL'); return ''; });
+  if (ctx && ctx.focus && ctx.focus.type === 'supplements') {
+    t = t.replace(/[£$€]\s?\d[\d.,]*/g, () => { flags.push('removed price from supplement copy'); return ''; });
+  }
+  const med = t.match(MEDICAL_RX);
+  if (med) flags.push('medical-claim review: ' + [...new Set(med.map((x) => x.toLowerCase()))].join(', '));
+  // Tidy spacing left by removals, per line (preserve blog newlines).
+  return t.split('\n').map((l) => l.replace(/[ \t]{2,}/g, ' ').replace(/\s+([,.!?])/g, '$1').trim()).join('\n');
+}
+function enforceLimits(key, copy, ctx) {
   const spec = PLATFORM_SPECS[key];
   const out = { ...copy };
-  if (spec.char_limit && typeof out.caption === 'string' && out.caption.length > spec.char_limit) {
-    out.caption = out.caption.slice(0, spec.char_limit - 1).replace(/\s+\S*$/, '') + '…';
+  const flags = [];
+  ['caption', 'hook', 'headline', 'primary_text', 'body_markdown', 'title', 'alt_text'].forEach((f) => {
+    if (typeof out[f] === 'string') out[f] = sanitizeContent(out[f], ctx, flags);
+  });
+  // Budget hashtags INTO the caption char limit (they are appended at post time,
+  // so they must not push the published text over the platform cap).
+  const tagLen = Array.isArray(out.hashtags) && out.hashtags.length ? (out.hashtags.join(' ').length + 1) : 0;
+  if (spec.char_limit && typeof out.caption === 'string' && (out.caption.length + tagLen) > spec.char_limit) {
+    out.caption = out.caption.slice(0, Math.max(0, spec.char_limit - tagLen - 1)).replace(/\s+\S*$/, '') + '…';
   }
   if (spec.title_limit && typeof out.title === 'string' && out.title.length > spec.title_limit) {
     out.title = out.title.slice(0, spec.title_limit);
   }
+  if (flags.length) out._compliance = [...new Set(flags)];
   return out;
 }
 function buildPosts(ctx, ideology, strategy, content, hero, av, keys) {
   return keys.map((key) => {
     const spec = PLATFORM_SPECS[key];
     const st = strategy.per_platform[key];
-    const copy = enforceLimits(key, content.posts[key] || {});
+    const copy = enforceLimits(key, content.posts[key] || {}, ctx);
     const media = spec.media === 'video'
       ? {
           type: 'video', aspect: spec.aspect, dims: spec.dims,
