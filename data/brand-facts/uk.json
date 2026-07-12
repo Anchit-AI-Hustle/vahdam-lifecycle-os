@@ -1,7 +1,2697 @@
 {
-  "_note": "Approved-facts library for B1 (region-scoped). Fill from an APPROVED source only. Keys are lower-cased SKU or product handle. Activate with env REAL_FACTS_ONLY=1 in Vercel once populated. The 4.9/250k/Oprah brand proof bar is a separate approved constant and is not stored here.",
-  "reviews": {},
-  "ratings": {},
-  "claims": {},
-  "prices": {}
+  "_note": "Auto-seeded (prices from catalog export; ratings/reviews from public Yotpo widget when reachable). Re-run scripts/seed-brand-facts-live.js uk. Zero-fabrication: only real published values; gaps omitted.",
+  "reviews": {
+    "2026-arya-diamond-darjeeling-first-flush-black-tea-dj-ff-bt": [
+      {
+        "quote": "One of my favorite teas! Very nice flavor!",
+        "author": "SCOTT S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Light and bright,gives me energy without harshness. A perfect morning ritual.",
+        "author": "Ryan B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "With a refined body and delicate floral bouquet, this tea feels upscale.",
+        "author": "Zachary L.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "2026 arya diamond darjeeling first flush black tea dj ff bt/ 50g": [
+      {
+        "quote": "One of my favorite teas! Very nice flavor!",
+        "author": "SCOTT S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Light and bright,gives me energy without harshness. A perfect morning ritual.",
+        "author": "Ryan B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "With a refined body and delicate floral bouquet, this tea feels upscale.",
+        "author": "Zachary L.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "2026-giddapahar-premium-darjeeling-first-flush-black-tea-dj-ff-bt": [
+      {
+        "quote": "I enjoy this tea every afternoon. Not too strong, just right.",
+        "author": "Scott T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Everything about this tea,from leaves to flavor is premium.",
+        "author": "Matthew R.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea helped me slow down and enjoy my mornings again. Very calming.",
+        "author": "Nathan G.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "2026 giddapahar premium darjeeling first flush tea dj ff bt/ 100g": [
+      {
+        "quote": "I enjoy this tea every afternoon. Not too strong, just right.",
+        "author": "Scott T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Everything about this tea,from leaves to flavor is premium.",
+        "author": "Matthew R.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea helped me slow down and enjoy my mornings again. Very calming.",
+        "author": "Nathan G.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "2026-jungpana-premium-darjeeling-first-flush-black-tea-dj-ff-bt": [
+      {
+        "quote": "One of the boxes arrived opened. I have contacted customer service twice with no response. I’m not comfortable using the product. This has not happened with my several previous orders. I am very displeased.",
+        "author": "Victoria G.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Smooth texture and calming flavor. A go-to for quiet, peaceful moments.",
+        "author": "Ryan Q.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Combines floral sweetness with a soft buttery note. Incredibly soothing.",
+        "author": "Lily R.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "2026 jungpana premium darjeeling first flush black tea dj ff bt/ 100g": [
+      {
+        "quote": "One of the boxes arrived opened. I have contacted customer service twice with no response. I’m not comfortable using the product. This has not happened with my several previous orders. I am very displeased.",
+        "author": "Victoria G.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Smooth texture and calming flavor. A go-to for quiet, peaceful moments.",
+        "author": "Ryan Q.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Combines floral sweetness with a soft buttery note. Incredibly soothing.",
+        "author": "Lily R.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ashwagandha-coffee-20-serving": [
+      {
+        "quote": "I notice a smoother start compared to standard coffee.",
+        "author": "Nathan C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Flavor feels familiar yet slightly lighter.",
+        "author": "Cameron F.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Feels like regular coffee but smoother energy. Great for staying focused through the morning.",
+        "author": "Abigail K.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ashwagandha coffee - 20 servings": [
+      {
+        "quote": "I notice a smoother start compared to standard coffee.",
+        "author": "Nathan C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Flavor feels familiar yet slightly lighter.",
+        "author": "Cameron F.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Feels like regular coffee but smoother energy. Great for staying focused through the morning.",
+        "author": "Abigail K.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ginger-masala-chai-tea-7-06oz-200g-copy": [
+      {
+        "quote": "I love chai tea especially when it includes ginger. I opened this tea along with my new infuser as soon as I got them. I sat in my recliner and enjoyed the warm tea afternoon break. I like to make the tea full bodied so when I add the creamer it's mellow and still full of flavor.",
+        "author": "Brenda T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love this Chai. It's spicy just how I like a Chai. So much better than any coffee house Chai.",
+        "author": "Colleen T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Probably my favorite of all Vahdam's chai blends. The one tea I can't stand running out of.",
+        "author": "Kate",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ginger masala chai tea, 3.53 oz/ 100g": [
+      {
+        "quote": "I love chai tea especially when it includes ginger. I opened this tea along with my new infuser as soon as I got them. I sat in my recliner and enjoyed the warm tea afternoon break. I like to make the tea full bodied so when I add the creamer it's mellow and still full of flavor.",
+        "author": "Brenda T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love this Chai. It's spicy just how I like a Chai. So much better than any coffee house Chai.",
+        "author": "Colleen T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Probably my favorite of all Vahdam's chai blends. The one tea I can't stand running out of.",
+        "author": "Kate",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "chamomile-mint-citrus-green-tea-7-06oz-200g-copy": [
+      {
+        "quote": "The tea is delicious and i will order it again",
+        "author": "Lynn C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The chamomile mint citrus tea is just amazing!! it is my new favorite tea!!!",
+        "author": "Rocio R.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I have been drinking starbucks iced green tea. this is very similar & a fraction of the cost!",
+        "author": "Paula W.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "chamomile mint citrus green tea, 3.53 oz": [
+      {
+        "quote": "The tea is delicious and i will order it again",
+        "author": "Lynn C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The chamomile mint citrus tea is just amazing!! it is my new favorite tea!!!",
+        "author": "Rocio R.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I have been drinking starbucks iced green tea. this is very similar & a fraction of the cost!",
+        "author": "Paula W.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assorted-tea-bags-sampler-40-pyramid-tea-bags-20-flavors": [
+      {
+        "quote": "This package comes with different flavours of tea. the best part about this is the amount of variety they're giving in such an affordable price. totally worth the money. i also loved their packaging, it was so neat and firm and kept the boxes in place. the teas taste amazing too.",
+        "author": "George",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This package comes with different flavours of tea. the best part about this is the amount of variety they're giving in such an affordable price. totally worth the money. i also loved their packaging, it was so neat and firm and kept the boxes in place. the teas taste amazing too.",
+        "author": "George",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Birthday present went over well! she loves them.",
+        "author": "JACLYN A.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assorted tea bags sampler, (40 pyramid tea bags) 20 flavors": [
+      {
+        "quote": "This package comes with different flavours of tea. the best part about this is the amount of variety they're giving in such an affordable price. totally worth the money. i also loved their packaging, it was so neat and firm and kept the boxes in place. the teas taste amazing too.",
+        "author": "George",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This package comes with different flavours of tea. the best part about this is the amount of variety they're giving in such an affordable price. totally worth the money. i also loved their packaging, it was so neat and firm and kept the boxes in place. the teas taste amazing too.",
+        "author": "George",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Birthday present went over well! she loves them.",
+        "author": "JACLYN A.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ashwagandha-coffee-120-servings-3-packs-8-free-gifts-worth-71": [
+      {
+        "quote": "Very good tasting coffee, can’t tell the difference at all.",
+        "author": "Jenna L.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Coffee is great as ever. . . working as advertised. Good for lowering the cravings. But why did this batch not come with the free gifts advertised with it?",
+        "author": "Yemi O.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ashwagandha coffee (3 packs + 6 free gifts worth £40)": [
+      {
+        "quote": "Very good tasting coffee, can’t tell the difference at all.",
+        "author": "Jenna L.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Coffee is great as ever. . . working as advertised. Good for lowering the cravings. But why did this batch not come with the free gifts advertised with it?",
+        "author": "Yemi O.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ashwagandha-coffee": [
+      {
+        "quote": "This greatest coffee it dose everything it says on the package I been drinking it for two years now and helps me sleep lose weight and makes me greato",
+        "author": "Christine S.",
+        "stars": 5,
+        "verified": true
+      },
+      {
+        "quote": "This product has really calmed me and my sleep is so much better now, so thank you for that. I take it first thing in the morning, made with hot water only and it is delicious. I’m only taking it once a day as I need the product to last the whole month, as it is expensive and I’m on a tight budget and this is the only negative. If you are stressed and have sleep issues, I would highly recommend Ashwagandha Coffee.",
+        "author": "Jo",
+        "stars": 5,
+        "verified": true
+      },
+      {
+        "quote": "I have two cups a day keeps me calm which is very good,",
+        "author": "B F.",
+        "stars": 5,
+        "verified": true
+      }
+    ],
+    "ashwagandha coffee": [
+      {
+        "quote": "This greatest coffee it dose everything it says on the package I been drinking it for two years now and helps me sleep lose weight and makes me greato",
+        "author": "Christine S.",
+        "stars": 5,
+        "verified": true
+      },
+      {
+        "quote": "This product has really calmed me and my sleep is so much better now, so thank you for that. I take it first thing in the morning, made with hot water only and it is delicious. I’m only taking it once a day as I need the product to last the whole month, as it is expensive and I’m on a tight budget and this is the only negative. If you are stressed and have sleep issues, I would highly recommend Ashwagandha Coffee.",
+        "author": "Jo",
+        "stars": 5,
+        "verified": true
+      },
+      {
+        "quote": "I have two cups a day keeps me calm which is very good,",
+        "author": "B F.",
+        "stars": 5,
+        "verified": true
+      }
+    ],
+    "pack-1-starter-ashwagandha-coffee": [
+      {
+        "quote": "I love the coffee. Haven’t noticed any changes as yet though.",
+        "author": "Agnes C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I love the coffee but would like some control over how often I get it sent,please",
+        "author": "Davina E.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I did not receive the order up till now. So I thought I have been scammed",
+        "author": "Yetunde O.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ashwagandha coffee starter kit (1 pack + 6 free gifts worth £40)": [
+      {
+        "quote": "I love the coffee. Haven’t noticed any changes as yet though.",
+        "author": "Agnes C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I love the coffee but would like some control over how often I get it sent,please",
+        "author": "Davina E.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I did not receive the order up till now. So I thought I have been scammed",
+        "author": "Yetunde O.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "earl-grey-black-tea-12oz-340g": [
+      {
+        "quote": "Vahdam Earl Grey is very high quality. The leaves are whole rolled leaves with no twigs nor any tea dust to fall through the strainer.",
+        "author": "Noel A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea was flavorful and fresh tasting.",
+        "author": "Alverna S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The packaging is a beautiful emerald green and the scent. . . __. . . . __ ohhh my goodness!!! the sweet and citrus smell slaps you in the face and it is the sweets smelling tea i've yet to encounter!! will definitely be purchasing again!!!",
+        "author": "Alise",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "earl grey black tea, 12oz/340g": [
+      {
+        "quote": "Vahdam Earl Grey is very high quality. The leaves are whole rolled leaves with no twigs nor any tea dust to fall through the strainer.",
+        "author": "Noel A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea was flavorful and fresh tasting.",
+        "author": "Alverna S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The packaging is a beautiful emerald green and the scent. . . __. . . . __ ohhh my goodness!!! the sweet and citrus smell slaps you in the face and it is the sweets smelling tea i've yet to encounter!! will definitely be purchasing again!!!",
+        "author": "Alise",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "free-gifts-ashwagandha-coffee-subscription-box": [
+      {
+        "quote": "I did not receive the booklet or the coffee frother.",
+        "author": "Agnes C.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ashwagandha coffee welcome kit": [
+      {
+        "quote": "I did not receive the booklet or the coffee frother.",
+        "author": "Agnes C.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "classic-chamomile-herbal-tea-tisane-100-count": [
+      {
+        "quote": "Wonderful for afternoon breaks! it s a delightful treat.",
+        "author": "Lucas L.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The pyramid tea bags are beautiful and functional!",
+        "author": "Mia T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great for sharing with family during gatherings.",
+        "author": "Daniel G.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "classic chamomile herbal tea tisane, 100 count": [
+      {
+        "quote": "Wonderful for afternoon breaks! it s a delightful treat.",
+        "author": "Lucas L.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The pyramid tea bags are beautiful and functional!",
+        "author": "Mia T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great for sharing with family during gatherings.",
+        "author": "Daniel G.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "darjeeling-premium-first-flush-black-tea-12oz-340g": [
+      {
+        "quote": "Glad I found these folks. Amazing tea. All 3 different varieties I tried. But I’m not writing this out two more times. Enjoy everyone.",
+        "author": "Evelyn R.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Enjoying it in the morning. love the freshness of the leaves",
+        "author": "Promila A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I use a combination of the darjeeling tea and earl grey for a robust iced tea.",
+        "author": "Roslyn J.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "darjeeling premium first flush black tea, 12oz/340g": [
+      {
+        "quote": "Glad I found these folks. Amazing tea. All 3 different varieties I tried. But I’m not writing this out two more times. Enjoy everyone.",
+        "author": "Evelyn R.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Enjoying it in the morning. love the freshness of the leaves",
+        "author": "Promila A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I use a combination of the darjeeling tea and earl grey for a robust iced tea.",
+        "author": "Roslyn J.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "himalayan-green-tea-12oz-340g": [
+      {
+        "quote": "excellent selection of different varieties",
+        "author": "Howard S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The best quality, fast deliver,great customer services simply the best ! thank you very much",
+        "author": "Levys Z.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Our cup of vadham green tea is a daily must. i buy the large packsge of loose tea. vadham's website makes it very easy and delivery is timely. what's not to love?",
+        "author": "Margaret R.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "himalayan green tea, 340g": [
+      {
+        "quote": "excellent selection of different varieties",
+        "author": "Howard S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The best quality, fast deliver,great customer services simply the best ! thank you very much",
+        "author": "Levys Z.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Our cup of vadham green tea is a daily must. i buy the large packsge of loose tea. vadham's website makes it very easy and delivery is timely. what's not to love?",
+        "author": "Margaret R.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "english-breakfast-black-tea-12oz-340g": [
+      {
+        "quote": "Such a delicious tea. I tend to be a \"\"one tea\"\" gal, but I am trying new ones and I am so happy I picked the English Breakfast tea. I will be ordering more soon! Highly recommend!",
+        "author": "Darlene R.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "For Mother’s Day last year, my daughter gave me three different English Breakfast teas (my tea of choice). Vahdam’s was easily the winner. I had trouble getting more this year, due to a warehousing issue, but they worked with me, issued refunds, sorted out the problem, and got me my tea. Customer service is great, and shipping only takes a couple of days. And the tea is perfect, all day long!",
+        "author": "Cynthia P.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Strong and fresh tea leaves great for my morning cuppa tea and 1/2 and 1/2. Very easy to order and quite delivery",
+        "author": "Lshon",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "english breakfast black tea, 12oz/340g": [
+      {
+        "quote": "Such a delicious tea. I tend to be a \"\"one tea\"\" gal, but I am trying new ones and I am so happy I picked the English Breakfast tea. I will be ordering more soon! Highly recommend!",
+        "author": "Darlene R.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "For Mother’s Day last year, my daughter gave me three different English Breakfast teas (my tea of choice). Vahdam’s was easily the winner. I had trouble getting more this year, due to a warehousing issue, but they worked with me, issued refunds, sorted out the problem, and got me my tea. Customer service is great, and shipping only takes a couple of days. And the tea is perfect, all day long!",
+        "author": "Cynthia P.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Strong and fresh tea leaves great for my morning cuppa tea and 1/2 and 1/2. Very easy to order and quite delivery",
+        "author": "Lshon",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "authentic-japanese-matcha-green-tea-powder-3-53": [
+      {
+        "quote": "Perfect for lattes, it whips up nicely and tastes great with milk and honey. i need to try it iced.",
+        "author": "Tom P.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great-tasting matcha! perfect for teas and baking.",
+        "author": "Catriona H.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Beautiful tasting, quality tea, my daughter wanted to try this tea as it s the only thing she drinks. she loved it. thank you for supplying a great product a+",
+        "author": "Markmelmad",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "pure matcha green tea powder, culinary grade, 100g": [
+      {
+        "quote": "Perfect for lattes, it whips up nicely and tastes great with milk and honey. i need to try it iced.",
+        "author": "Tom P.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great-tasting matcha! perfect for teas and baking.",
+        "author": "Catriona H.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Beautiful tasting, quality tea, my daughter wanted to try this tea as it s the only thing she drinks. she loved it. thank you for supplying a great product a+",
+        "author": "Markmelmad",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "chai-tea-bags-sampler-5-variants-20-count": [
+      {
+        "quote": "An absolutely wonderful way to take a tasty walk through the chai varieties. I have tried 3 so far and love them do much. Now I know which ones I will need to order in larger quantities for future orders!",
+        "author": "Wanda J.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "My husband loves it, he’s been drinking chai tea for years and enjoys the new variants",
+        "author": "S W.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great tasting tea and the customer service from the company is outstanding.",
+        "author": "Simon B.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assorted chai teas sampler, 5 variants": [
+      {
+        "quote": "An absolutely wonderful way to take a tasty walk through the chai varieties. I have tried 3 so far and love them do much. Now I know which ones I will need to order in larger quantities for future orders!",
+        "author": "Wanda J.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "My husband loves it, he’s been drinking chai tea for years and enjoys the new variants",
+        "author": "S W.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great tasting tea and the customer service from the company is outstanding.",
+        "author": "Simon B.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "green-tea-bags-sampler-5-variants-20-count": [
+      {
+        "quote": "Teas are excellent. high quality as described. would recommend to my friends and family.",
+        "author": "Sally D.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Every tea bag is like a little gift. thank you for making such a fine product.",
+        "author": "Roxanne B.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assorted green teas sampler, 5 variants": [
+      {
+        "quote": "Teas are excellent. high quality as described. would recommend to my friends and family.",
+        "author": "Sally D.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Every tea bag is like a little gift. thank you for making such a fine product.",
+        "author": "Roxanne B.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "world-tea-sampler-loose-leaf-teas-20-variants-100-servings": [
+      {
+        "quote": "The flavors in this sampler are exceptional. i highly recommend it.",
+        "author": "Mary M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea sampler is top-notch. every tea is delicious.",
+        "author": "Charles M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I m impressed by the variety of teas in this sampler. great for tea enthusiasts.",
+        "author": "Susan H.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "world of tea gift sampler, 20 teas": [
+      {
+        "quote": "The flavors in this sampler are exceptional. i highly recommend it.",
+        "author": "Mary M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea sampler is top-notch. every tea is delicious.",
+        "author": "Charles M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I m impressed by the variety of teas in this sampler. great for tea enthusiasts.",
+        "author": "Susan H.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "sweet-cinnamon-masala-chai-100-tea-bags": [
+      {
+        "quote": "Cinnamon is my favourite. . . and i don't need any sweetener with it,, because it really brings the sweet cinnamon by itself,, it has it all. . . . . . perfect ‘",
+        "author": "Betty",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Cinnamon is my favourite. . . and i don't need any sweetener with it,, because it really brings the sweet cinnamon by itself,, it has it all. . . . . . perfect ‘",
+        "author": "Betty",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "sweet cinnamon masala chai tea, 100 count": [
+      {
+        "quote": "Cinnamon is my favourite. . . and i don't need any sweetener with it,, because it really brings the sweet cinnamon by itself,, it has it all. . . . . . perfect ‘",
+        "author": "Betty",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Cinnamon is my favourite. . . and i don't need any sweetener with it,, because it really brings the sweet cinnamon by itself,, it has it all. . . . . . perfect ‘",
+        "author": "Betty",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assorted-green-tea-sampler-6-x-6-variants": [
+      {
+        "quote": "Nice selection. It is in a lovely box and would' make a good gift",
+        "author": "Rochelle M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "We have very much enjoyed the variety of teas. I did not look closely to see if you have organic teas and that is something I would be more interested in. Loose green tea is likely my choice. The tea is very tasty and it came very quickly. We’ve been very pleased.",
+        "author": "Leslie F.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This sampler exceeded my expectations. Vibrant flavors, fresh, and well-balanced without bitterness.",
+        "author": "Jade",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "green tea assortment, gift set, 36 teas": [
+      {
+        "quote": "Nice selection. It is in a lovely box and would' make a good gift",
+        "author": "Rochelle M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "We have very much enjoyed the variety of teas. I did not look closely to see if you have organic teas and that is something I would be more interested in. Loose green tea is likely my choice. The tea is very tasty and it came very quickly. We’ve been very pleased.",
+        "author": "Leslie F.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This sampler exceeded my expectations. Vibrant flavors, fresh, and well-balanced without bitterness.",
+        "author": "Jade",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assorted-chai-tea-sampler-10-x-6-variants": [
+      {
+        "quote": "Enjoy trying new teas and each is wonderful.",
+        "author": "Mary C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Really like the assortment. Nicely packaged to",
+        "author": "Deborah S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "It €™s been sitting in nj location for 8 days. get moving.",
+        "author": "Janice B.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "chai tea assortment gift set, 6 variants": [
+      {
+        "quote": "Enjoy trying new teas and each is wonderful.",
+        "author": "Mary C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Really like the assortment. Nicely packaged to",
+        "author": "Deborah S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "It €™s been sitting in nj location for 8 days. get moving.",
+        "author": "Janice B.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assorted-herbal-tea-sampler-10-x-6-variants": [
+      {
+        "quote": "I have recieved my herbal teas and they are really nice and taste good. Packaging is lovely too.",
+        "author": "Ramandip S.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "36 tea bags, caffeine free, 6 flavors - chamomile, hibiscus, ginger, mint, turmeric": [
+      {
+        "quote": "I have recieved my herbal teas and they are really nice and taste good. Packaging is lovely too.",
+        "author": "Ramandip S.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "pure-mint-herbal-tea-100-tea-bags": [
+      {
+        "quote": "Lovely product. one of the best in the market. genuine mint leaves. don't think twice, order it.",
+        "author": "Nathon T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Lovely product. one of the best in the market. genuine mint leaves. don't think twice, order it.",
+        "author": "Nathon T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love the vahdam teas and the mint is my favorite",
+        "author": "Danielle M.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "pure mint herbal tea tisane, 100 count": [
+      {
+        "quote": "Lovely product. one of the best in the market. genuine mint leaves. don't think twice, order it.",
+        "author": "Nathon T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Lovely product. one of the best in the market. genuine mint leaves. don't think twice, order it.",
+        "author": "Nathon T.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love the vahdam teas and the mint is my favorite",
+        "author": "Danielle M.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "hibiscus-rose-herbal-tea-100-tea-bags": [
+      {
+        "quote": "Loves this tea very relaxing and taste so good.",
+        "author": "Paula S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I drink peppermint tea and chamomile tea almost everyday after dinner and before bed. I've been trying this blend instead and am liking it so far. Helps with digestion and bloating before bed",
+        "author": "Ipsa C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea is excellent quality and relieves tension in my whole being. It is very healing and lifts my spirits. It gives me mental clarity and helps me focus on daily activities. I highly recommend it.",
+        "author": "Mary N.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "hibiscus rose herbal tea tisane, 100 count": [
+      {
+        "quote": "Loves this tea very relaxing and taste so good.",
+        "author": "Paula S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I drink peppermint tea and chamomile tea almost everyday after dinner and before bed. I've been trying this blend instead and am liking it so far. Helps with digestion and bloating before bed",
+        "author": "Ipsa C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea is excellent quality and relieves tension in my whole being. It is very healing and lifts my spirits. It gives me mental clarity and helps me focus on daily activities. I highly recommend it.",
+        "author": "Mary N.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "high-mountain-oolong-tea-100-tea-bags": [
+      {
+        "quote": "I love tea but what i don't like now is that they have changed the covers. i liked the other covers better. i hope they are not toxic.",
+        "author": "Maritza V.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I ve never tried this kind of tea or brand before and i love it. each tea bag comes individually wrapped and it s so easy to brew hot or cold. highly recommended.",
+        "author": "Chasity D.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I have been drinking another brand of oolong tea for years, but like the flavor of vahdam tea much better!",
+        "author": "Kim",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "high mountain oolong tea, 100 count": [
+      {
+        "quote": "I love tea but what i don't like now is that they have changed the covers. i liked the other covers better. i hope they are not toxic.",
+        "author": "Maritza V.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I ve never tried this kind of tea or brand before and i love it. each tea bag comes individually wrapped and it s so easy to brew hot or cold. highly recommended.",
+        "author": "Chasity D.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I have been drinking another brand of oolong tea for years, but like the flavor of vahdam tea much better!",
+        "author": "Kim",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "turmeric-ginger-herbal-tea-tisane-100-tea-bags": [
+      {
+        "quote": "It's like going over to a friend's house and having a great chat. This tea is better then I thought it would be. Thank you!",
+        "author": "Linda M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Sometimes a no-caffine, no-acid hot brew is soothing, and this is my favorite choice at those times. Tumeric and ginger are supposedly healthy contributions to diet and health, but they provide a nice hot drink that I like.",
+        "author": "Anne",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "While I've purchased a number of teas over the years and loved them, this Turmeric Ginger Herbal Tea has stayed in my memory. And I've wanted to purchase it again. Finally, I made it happen and I was thrilled to order a 100 count. It's both healthy and delicious, plus it's also wonderful to drink in the afternoon or early evening. What can I say? I'm happy.",
+        "author": "Cecile A.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "turmeric ginger herbal tea tisane, 100 teabags": [
+      {
+        "quote": "It's like going over to a friend's house and having a great chat. This tea is better then I thought it would be. Thank you!",
+        "author": "Linda M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Sometimes a no-caffine, no-acid hot brew is soothing, and this is my favorite choice at those times. Tumeric and ginger are supposedly healthy contributions to diet and health, but they provide a nice hot drink that I like.",
+        "author": "Anne",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "While I've purchased a number of teas over the years and loved them, this Turmeric Ginger Herbal Tea has stayed in my memory. And I've wanted to purchase it again. Finally, I made it happen and I was thrilled to order a 100 count. It's both healthy and delicious, plus it's also wonderful to drink in the afternoon or early evening. What can I say? I'm happy.",
+        "author": "Cecile A.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "cardamom-masala-chai-tea-bags-100-tea-bags": [
+      {
+        "quote": "Wowza!! I have been trying so many different chai teabags for the last few months and this one is IT!!! The smell, flavor, taste, everything is SO GOOD!!! I do believe this is my new favorite. I will be ordering more in the future!!",
+        "author": "Wanda J.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Simply delicious. Cardamom and tea. Perfection. It's a wonderful way to start my day with that cup of cardamom tea. And on occasion, I add a bit of cocoa. Really warming in the winter, but delicous anytime.",
+        "author": "Cecile A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This has become my new favorite drink for my afternoon tea. wonderful taste! if i am making a pot of tea instead of just one cup, i will pair it with lemon tea which is also great. it is caffeinated (which i learned when having a cup too late into the evening), but just what is needed to pick me up in the middle of the day.",
+        "author": "Â Raelyn",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "cardamom masala chai tea, 100 count": [
+      {
+        "quote": "Wowza!! I have been trying so many different chai teabags for the last few months and this one is IT!!! The smell, flavor, taste, everything is SO GOOD!!! I do believe this is my new favorite. I will be ordering more in the future!!",
+        "author": "Wanda J.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Simply delicious. Cardamom and tea. Perfection. It's a wonderful way to start my day with that cup of cardamom tea. And on occasion, I add a bit of cocoa. Really warming in the winter, but delicous anytime.",
+        "author": "Cecile A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This has become my new favorite drink for my afternoon tea. wonderful taste! if i am making a pot of tea instead of just one cup, i will pair it with lemon tea which is also great. it is caffeinated (which i learned when having a cup too late into the evening), but just what is needed to pick me up in the middle of the day.",
+        "author": "Â Raelyn",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "turmeric-spiced-herbal-tea-tisane-100-tea-bags": [
+      {
+        "quote": "I love this tea blend. I do steep it for 10 minutes whereas directions say 2-3 minutes. Pleasantly surprised when I drank my first cup. This is a keeper for me.",
+        "author": "Cheryl S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea has really helped with my gut health. It s soothing and very comforting.",
+        "author": "Henry S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea is perfect for aiding digestion. It s so soothing and helps with bloating.",
+        "author": "Isabelle M.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "turmeric spiced herbal tea tisane, 100 count": [
+      {
+        "quote": "I love this tea blend. I do steep it for 10 minutes whereas directions say 2-3 minutes. Pleasantly surprised when I drank my first cup. This is a keeper for me.",
+        "author": "Cheryl S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea has really helped with my gut health. It s soothing and very comforting.",
+        "author": "Henry S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea is perfect for aiding digestion. It s so soothing and helps with bloating.",
+        "author": "Isabelle M.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "turmeric-ashwagandha-herbal-tea-tisane-100-tea-bags": [
+      {
+        "quote": "I have been using this tea for over a year, though I buy direct now, and find it satisfying and seems to be helping with my joint discomfort.",
+        "author": "Kathy W.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Excellent Tea! I’ve been buying this for years and I absolutely love it! It’s healthy and tasty and doesn’t contain all the additives of the store-bought teas. If you’re going to drink something for health purposes, you definitely don’t want all the additives.",
+        "author": "Doreen D.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "turmeric ashwagandha herbal tea tisane - 100 count": [
+      {
+        "quote": "I have been using this tea for over a year, though I buy direct now, and find it satisfying and seems to be helping with my joint discomfort.",
+        "author": "Kathy W.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Excellent Tea! I’ve been buying this for years and I absolutely love it! It’s healthy and tasty and doesn’t contain all the additives of the store-bought teas. If you’re going to drink something for health purposes, you definitely don’t want all the additives.",
+        "author": "Doreen D.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "indias-original-masala-chai-tea-bags-100-tea-bags": [
+      {
+        "quote": "a consistently fresh and wonderful flavor. One of my favorite afternoon treats. With or without sugar!",
+        "author": "Misty A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Indias original, yea that’s about right. This is well, this is a classy classic masala blend seems fitting warm up tea when in need or to cool it. The black tea still is embracing, the spice blend fits right, not over the top of the tea nor too subtle. Very good masala tea",
+        "author": "Ken J.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea tastes just like the chai I used to have in India. So comforting and authentic.",
+        "author": "Liam S.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "india's original masala chai tea, 100 count": [
+      {
+        "quote": "a consistently fresh and wonderful flavor. One of my favorite afternoon treats. With or without sugar!",
+        "author": "Misty A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Indias original, yea that’s about right. This is well, this is a classy classic masala blend seems fitting warm up tea when in need or to cool it. The black tea still is embracing, the spice blend fits right, not over the top of the tea nor too subtle. Very good masala tea",
+        "author": "Ken J.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea tastes just like the chai I used to have in India. So comforting and authentic.",
+        "author": "Liam S.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "mint-melody-green-tea-bags-100-tea-bags": [
+      {
+        "quote": "I do not purchase mint tea anywhere else anymore. it has a great taste, crisp, and minty!",
+        "author": "Junell P.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "mint melody green tea, 100 count": [
+      {
+        "quote": "I do not purchase mint tea anywhere else anymore. it has a great taste, crisp, and minty!",
+        "author": "Junell P.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "classic-english-breakfast-black-tea-bags-100-tea-bags": [
+      {
+        "quote": "Great tea in a bag. i usually use a loose leaf tea in my morning tea but these bags are great to take when i travel. great flavor.",
+        "author": "Melissa W.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I love this tea this is my fourth order since i been introduced to it.",
+        "author": "Sharon C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Ever cup i make with this tea is amazing!",
+        "author": "Michael G.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "english breakfast black tea, 100 count": [
+      {
+        "quote": "Great tea in a bag. i usually use a loose leaf tea in my morning tea but these bags are great to take when i travel. great flavor.",
+        "author": "Melissa W.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I love this tea this is my fourth order since i been introduced to it.",
+        "author": "Sharon C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Ever cup i make with this tea is amazing!",
+        "author": "Michael G.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "earl-grey-black-tea-bags-100-tea-bags": [
+      {
+        "quote": "The delivery and packaging experience was of the same high quality as the tea itself.",
+        "author": "Margo B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Delicious tea as always. . . i've been ordering this for years and have never been disappointed!",
+        "author": "Jonathan P.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I love the chai tea bags. the flavor is delicious and it always arrives very quickly.",
+        "author": "Amanda G.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "earl grey black tea, 100 count": [
+      {
+        "quote": "The delivery and packaging experience was of the same high quality as the tea itself.",
+        "author": "Margo B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Delicious tea as always. . . i've been ordering this for years and have never been disappointed!",
+        "author": "Jonathan P.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I love the chai tea bags. the flavor is delicious and it always arrives very quickly.",
+        "author": "Amanda G.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "weekend-in-taj-mahal-8-tin-caddy": [
+      {
+        "quote": "My go to tea supplier, always great quality and quick delivery.",
+        "author": "Claude",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "These were a gift for my mom. scored big. she loves them",
+        "author": "Elijah D.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "These teas are fantastic! my son gave me the chai tea set for festive season and i loved them so much. i just bought these for my mom . highly recommend them. they have great flavor and i love the tins.",
+        "author": "Tatiana",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "weekend in taj mahal, tea gift, set of 8": [
+      {
+        "quote": "My go to tea supplier, always great quality and quick delivery.",
+        "author": "Claude",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "These were a gift for my mom. scored big. she loves them",
+        "author": "Elijah D.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "These teas are fantastic! my son gave me the chai tea set for festive season and i loved them so much. i just bought these for my mom . highly recommend them. they have great flavor and i love the tins.",
+        "author": "Tatiana",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "weekend-in-new-york-9-tin-caddy": [
+      {
+        "quote": "Very tasty tea, a little goes a long ways so use less than the typical american tea",
+        "author": "Grady",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Started making boba milk tea at home and this tea is great for it.",
+        "author": "Blessed",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Such great tea. i've been known as a tea snob. and this assam ranks right up there with many i have tried for more money!",
+        "author": "JJR",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "weekend in new york tea gift, set of 9": [
+      {
+        "quote": "Very tasty tea, a little goes a long ways so use less than the typical american tea",
+        "author": "Grady",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Started making boba milk tea at home and this tea is great for it.",
+        "author": "Blessed",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Such great tea. i've been known as a tea snob. and this assam ranks right up there with many i have tried for more money!",
+        "author": "JJR",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "weekend-in-london-9-tin-caddy": [
+      {
+        "quote": "Loved. perfect for trying new flavors. all were delicious",
+        "author": "Clyde L.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Everything is advertised as is. the teas shipping came very fast. i bought this for a friends birthday and i think shell love it.",
+        "author": "Katie",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "If you love tea and love variety, this is a nice sampler set! i've always enjoyed vahdam teas",
+        "author": "Nadia R.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "weekend in london, tea gift, set of 9": [
+      {
+        "quote": "Loved. perfect for trying new flavors. all were delicious",
+        "author": "Clyde L.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Everything is advertised as is. the teas shipping came very fast. i bought this for a friends birthday and i think shell love it.",
+        "author": "Katie",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "If you love tea and love variety, this is a nice sampler set! i've always enjoyed vahdam teas",
+        "author": "Nadia R.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "weekend-in-paris-9-tin-caddy": [
+      {
+        "quote": "Each tea has a unique and enjoyable flavor.",
+        "author": "Ron C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Loved the fancy packaging and tasty teas.",
+        "author": "Chloe W.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Ideal for gifting, the presentation and tea quality are both great.",
+        "author": "Rachel W.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "weekend in paris, tea gift, set of 9": [
+      {
+        "quote": "Each tea has a unique and enjoyable flavor.",
+        "author": "Ron C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Loved the fancy packaging and tasty teas.",
+        "author": "Chloe W.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Ideal for gifting, the presentation and tea quality are both great.",
+        "author": "Rachel W.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "holiday-breakfast-gift-set-9-tin-caddy": [
+      {
+        "quote": "Made a great gift, the recipient was very happy.",
+        "author": "Â Laura",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The product arrived in excellent condition, i would have preferred an opaque packaging instead it arrived in a transparent envelope. apart from that the product is of excellent quality, great x a great gift. i really liked the email that the producer sent me in which he explained their production philosophy to me.",
+        "author": "Â Amora",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The mug has an excellent temperature insulation effect.",
+        "author": "Â Everlee",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "christmas breakfast tea gift, set of 9": [
+      {
+        "quote": "Made a great gift, the recipient was very happy.",
+        "author": "Â Laura",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The product arrived in excellent condition, i would have preferred an opaque packaging instead it arrived in a transparent envelope. apart from that the product is of excellent quality, great x a great gift. i really liked the email that the producer sent me in which he explained their production philosophy to me.",
+        "author": "Â Amora",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The mug has an excellent temperature insulation effect.",
+        "author": "Â Everlee",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "chai-tea-assortment-12-tin-caddy": [
+      {
+        "quote": "Easy way to make delicious Chai Tea Latte",
+        "author": "Izabela B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I received this beautiful box for my birthday. the presentation is exquisite and every flavor smells delicious. what a great way to sample 12 varieties of vadham chai. i can €™t wait to try them. i love chai so this was a perfect birthday gift.",
+        "author": "Normala D.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This sampler is a great way to try all of the chai flavors to decide on your favorites. i really like the original chai and the vanilla spiced chai.",
+        "author": "DJ",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "chai tea assortment christmas tea gift, set of 12": [
+      {
+        "quote": "Easy way to make delicious Chai Tea Latte",
+        "author": "Izabela B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I received this beautiful box for my birthday. the presentation is exquisite and every flavor smells delicious. what a great way to sample 12 varieties of vadham chai. i can €™t wait to try them. i love chai so this was a perfect birthday gift.",
+        "author": "Normala D.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This sampler is a great way to try all of the chai flavors to decide on your favorites. i really like the original chai and the vanilla spiced chai.",
+        "author": "DJ",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "bloom-tea-gift-set-12-tin-caddy": [
+      {
+        "quote": "I was buying this tea set for present. every part of this set is done with highest quality. teas tastes are different and unique. i really like that i found this set i have more people to whom i may present it. great product!!!",
+        "author": "Denis",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "A lot of packaging. way too much waste. hope the company considers reducing the amount of plastic/useless info cards or condensed info onto maybe one card. however, the assam tea has a great and delicious taste, texture, and presentation. absolutely love it.",
+        "author": "Hilary",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Loved this product! especially it is a perfect product if you are having some guests who likes drinking tea. the package is made of high quality material",
+        "author": "Elmuchoguapo",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "bloom tea gift, set of 12": [
+      {
+        "quote": "I was buying this tea set for present. every part of this set is done with highest quality. teas tastes are different and unique. i really like that i found this set i have more people to whom i may present it. great product!!!",
+        "author": "Denis",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "A lot of packaging. way too much waste. hope the company considers reducing the amount of plastic/useless info cards or condensed info onto maybe one card. however, the assam tea has a great and delicious taste, texture, and presentation. absolutely love it.",
+        "author": "Hilary",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Loved this product! especially it is a perfect product if you are having some guests who likes drinking tea. the package is made of high quality material",
+        "author": "Elmuchoguapo",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "vanilla-matcha-green-tea": [
+      {
+        "quote": "I have tried many other matcha teas and couldn t even stand to drink them after tasting this! highly recommend! __",
+        "author": "Amelia",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "vanilla matcha green tea powder, 3.53oz/100g": [
+      {
+        "quote": "I have tried many other matcha teas and couldn t even stand to drink them after tasting this! highly recommend! __",
+        "author": "Amelia",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "darjeeling-premium-first-flush-black-tea": [
+      {
+        "quote": "This is a fantastic Darjeeling! I just love it.",
+        "author": "Gwen G.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "A beautiful, tasty tea. visitors comment most favouritely.",
+        "author": "Janet A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Vahdam seems to produce and harvest very nice high quality teas. i've tried several now and find them to be quite nice. i would highly recommend them, just select the types you like best and enjoy.",
+        "author": "AMBuyer",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "darjeeling premium first flush black tea, 3.53oz/100g": [
+      {
+        "quote": "This is a fantastic Darjeeling! I just love it.",
+        "author": "Gwen G.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "A beautiful, tasty tea. visitors comment most favouritely.",
+        "author": "Janet A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Vahdam seems to produce and harvest very nice high quality teas. i've tried several now and find them to be quite nice. i would highly recommend them, just select the types you like best and enjoy.",
+        "author": "AMBuyer",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "silver-needle-sparkle-white-tea": [
+      {
+        "quote": "I love all your tea but the one that is the most unique and by far the most delicious tea I have ever had is the silver needle. Thank you so much, Stacy",
+        "author": "Stacy S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love these teas. i ve ordered different versions of their white teas 4x now. every time they come in a great package with the great story of the founder. taste is wonderful. i ve tried several different vendors in the past couple of years since teavana went out of business. vahdam is my favorite! i always get a 10% off coupon for my next order, but i ve never remembered to use it!",
+        "author": "E N.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Blend of white tea takes some time t get use to the fine quality",
+        "author": "Kristin H.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "silver needle sparkle white tea, 1.76oz/50g": [
+      {
+        "quote": "I love all your tea but the one that is the most unique and by far the most delicious tea I have ever had is the silver needle. Thank you so much, Stacy",
+        "author": "Stacy S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love these teas. i ve ordered different versions of their white teas 4x now. every time they come in a great package with the great story of the founder. taste is wonderful. i ve tried several different vendors in the past couple of years since teavana went out of business. vahdam is my favorite! i always get a 10% off coupon for my next order, but i ve never remembered to use it!",
+        "author": "E N.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Blend of white tea takes some time t get use to the fine quality",
+        "author": "Kristin H.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "glow-assorted-teas-gift-box-6-teas": [
+      {
+        "quote": "I sent this tea gift set to a friend and she loves the selections. This tea sift set, the cinnamon powder and the porcelain teapot made the perfect gift for a tea loving friend!",
+        "author": "Dale H.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Tea taste great and packaging is extremely nice",
+        "author": "Deane K.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea set changed our view and spoiled us! we're now permanent consumers and supporters of vahdam. we have had many varieties over the years, but vahdam is by far the best. this is the perfect gift set for anyone who likes black teas as it contains an superb black teas along with a couple black teas that may surprise you at how impressive they are! we have sent this as a gift several times. the presentation box is beautiful.",
+        "author": "Alesia",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "glow tea gift, set of 6": [
+      {
+        "quote": "I sent this tea gift set to a friend and she loves the selections. This tea sift set, the cinnamon powder and the porcelain teapot made the perfect gift for a tea loving friend!",
+        "author": "Dale H.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Tea taste great and packaging is extremely nice",
+        "author": "Deane K.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This tea set changed our view and spoiled us! we're now permanent consumers and supporters of vahdam. we have had many varieties over the years, but vahdam is by far the best. this is the perfect gift set for anyone who likes black teas as it contains an superb black teas along with a couple black teas that may surprise you at how impressive they are! we have sent this as a gift several times. the presentation box is beautiful.",
+        "author": "Alesia",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "turmeric-ginger-herbal-tea-tisane": [
+      {
+        "quote": "This is my first experience with Turmeric tea and I thoroughly enjoyed it! I have read about the health properties of the Turmeric and Ginger tea and am anxious to experience the benefits myself!",
+        "author": "SCOTT S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This is the second time that i order the turmeric ginger tea, absolutely love it and will be ordering more when the time is right",
+        "author": "MAF",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I love the tea but also the care in packaging and labeling.",
+        "author": "Myra T.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "turmeric ginger herbal tea tisane, 100g": [
+      {
+        "quote": "This is my first experience with Turmeric tea and I thoroughly enjoyed it! I have read about the health properties of the Turmeric and Ginger tea and am anxious to experience the benefits myself!",
+        "author": "SCOTT S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This is the second time that i order the turmeric ginger tea, absolutely love it and will be ordering more when the time is right",
+        "author": "MAF",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I love the tea but also the care in packaging and labeling.",
+        "author": "Myra T.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "sparkling-ginger-mint-green-tea": [
+      {
+        "quote": "The Ginger Mint tea is delightful. I’m enjoying it very much and I would definitely recommend it.",
+        "author": "Lorraine H.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great product! taste is smooth, you can tell it is top quality tea! we have tried several different of their varieties",
+        "author": "Cora",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Loved the ginger mint tea. really a blend of ginger, mint, lemongrass etc. the ginger is noticeable but subtle and not overwhelming. a very nice brew. i recommend it highly.",
+        "author": "Jonathan F.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "ginger mint loose leaves, 7.05oz/200g": [
+      {
+        "quote": "The Ginger Mint tea is delightful. I’m enjoying it very much and I would definitely recommend it.",
+        "author": "Lorraine H.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great product! taste is smooth, you can tell it is top quality tea! we have tried several different of their varieties",
+        "author": "Cora",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Loved the ginger mint tea. really a blend of ginger, mint, lemongrass etc. the ginger is noticeable but subtle and not overwhelming. a very nice brew. i recommend it highly.",
+        "author": "Jonathan F.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "imperial-muscatel-darjeeling-second-flush-black-tea": [
+      {
+        "quote": "Black tea without any foreign flavors and aromas. the package is sealed, keeping the flavor of the hour. the leaves are large, the garbage had not noticed. when brewing gives a very rich color. slightly tart taste, so i put my welding is less than normal",
+        "author": "Yelena",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I'm far from an expert on tea, but i find this tea to be a smooth and robust. the packaging was appropriate and kept the tea from getting crushed. i'll certainly buy more from vahdam teas.",
+        "author": "Thomas B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love the imperial muscatel darjeeling second flush. just the right amount of \"\"muscatel\"\" and the tea has great body. currently my favorite tea!",
+        "author": "Arkdirector",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "imperial muscatel darjeeling second flush black, 3.53oz/100g": [
+      {
+        "quote": "Black tea without any foreign flavors and aromas. the package is sealed, keeping the flavor of the hour. the leaves are large, the garbage had not noticed. when brewing gives a very rich color. slightly tart taste, so i put my welding is less than normal",
+        "author": "Yelena",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I'm far from an expert on tea, but i find this tea to be a smooth and robust. the packaging was appropriate and kept the tea from getting crushed. i'll certainly buy more from vahdam teas.",
+        "author": "Thomas B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love the imperial muscatel darjeeling second flush. just the right amount of \"\"muscatel\"\" and the tea has great body. currently my favorite tea!",
+        "author": "Arkdirector",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "himalayan-green-tea-3-53oz-100g": [
+      {
+        "quote": "Excellent quality tea, I have tried all green and few black teas, offered them as presents. Top quality and good customer service",
+        "author": "Ileana C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This is the best green tea that I have had in a long time! I will definitely order this tea again! I enjoyed three cups this morning and am making ice tea with it also.",
+        "author": "SCOTT S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love the genuineness of the tea leaves, will keep ordering from vahdam!",
+        "author": "Richard",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "himalayan green tea, 3.53oz/100g": [
+      {
+        "quote": "Excellent quality tea, I have tried all green and few black teas, offered them as presents. Top quality and good customer service",
+        "author": "Ileana C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This is the best green tea that I have had in a long time! I will definitely order this tea again! I enjoyed three cups this morning and am making ice tea with it also.",
+        "author": "SCOTT S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Love the genuineness of the tea leaves, will keep ordering from vahdam!",
+        "author": "Richard",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "high-mountain-darjeeling-second-flush-oolong-tea": [
+      {
+        "quote": "One of my favourites with a clean green-earthy, sweet flavour to awaken and refresh the palate. My morning go to …",
+        "author": "Prithi S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great quality tea! i drink tea every day, this high mountain oolong tea has very its own character. recommend!",
+        "author": "Lucy",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Such and amazing and smooth flavor! a new favorite!",
+        "author": "Kari S.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "high mountain oolong tea, 3.53oz/100g": [
+      {
+        "quote": "One of my favourites with a clean green-earthy, sweet flavour to awaken and refresh the palate. My morning go to …",
+        "author": "Prithi S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great quality tea! i drink tea every day, this high mountain oolong tea has very its own character. recommend!",
+        "author": "Lucy",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Such and amazing and smooth flavor! a new favorite!",
+        "author": "Kari S.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "double-spice-masala-chai-tea": [
+      {
+        "quote": "One of two favorite blends of tea I have purchased for many years. I use the loose tea to make iced tea and it is so refreshing and delicious.",
+        "author": "Jacalyn B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Incredible spicy kick. . . . just how real masala chai should be!",
+        "author": "Wesley",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "That extra punch from the black pepper. . . . brilliant!",
+        "author": "Ethan",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "double spice masala chai tea, 7.06oz/200g": [
+      {
+        "quote": "One of two favorite blends of tea I have purchased for many years. I use the loose tea to make iced tea and it is so refreshing and delicious.",
+        "author": "Jacalyn B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Incredible spicy kick. . . . just how real masala chai should be!",
+        "author": "Wesley",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "That extra punch from the black pepper. . . . brilliant!",
+        "author": "Ethan",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "imperial-himalayan-white-tea": [
+      {
+        "quote": "Your loose leaf is amazing in quality and flavor. Your price point is very affordable and is appreciated.",
+        "author": "Reva M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The evenings are perfect with the Imperial tea, white is soothing, relaxing and gentle to the stomach (soul).",
+        "author": "Anita A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great tasting tea!!! great, fast service. will definately order again.",
+        "author": "Piper W.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "imperial himalayan white tea, 1.76oz/50g": [
+      {
+        "quote": "Your loose leaf is amazing in quality and flavor. Your price point is very affordable and is appreciated.",
+        "author": "Reva M.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The evenings are perfect with the Imperial tea, white is soothing, relaxing and gentle to the stomach (soul).",
+        "author": "Anita A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great tasting tea!!! great, fast service. will definately order again.",
+        "author": "Piper W.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "chai-tea-sampler": [
+      {
+        "quote": "All the flavors i have tried so far are excellent. it is going to be hard to decide which is my favorite when it's time to order more.",
+        "author": "Ryan S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I enjoyed the full flavor of each of the teas i received. some of the best chai tea i've tasted. will certainly be ordering again.",
+        "author": "Billie B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great selection and flavours. useful to find the tea for you",
+        "author": "Priyesh P.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "chai teas gift sampler, 10 teas": [
+      {
+        "quote": "All the flavors i have tried so far are excellent. it is going to be hard to decide which is my favorite when it's time to order more.",
+        "author": "Ryan S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I enjoyed the full flavor of each of the teas i received. some of the best chai tea i've tasted. will certainly be ordering again.",
+        "author": "Billie B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great selection and flavours. useful to find the tea for you",
+        "author": "Priyesh P.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "black-tea-sampler": [
+      {
+        "quote": "Wonderful high quality tea sampler. each packet of tea is enough for approx 2 18oz pots of tea. i just placed a separate order for the blooming rose black tea. based on the description, it's not something i would have ordered but wow! what an amazing find.",
+        "author": "Jv",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Wonderful high quality tea sampler. each packet of tea is enough for approx 2 18oz pots of tea. i just placed a separate order for the blooming rose black tea. based on the description, it's not something i would have ordered but wow! what an amazing find.",
+        "author": "Jv",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Fantastic teas. my son absolutely loves it and will not drink any other brand now.",
+        "author": "Lorie C.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "black tea sampler, 10 teas": [
+      {
+        "quote": "Wonderful high quality tea sampler. each packet of tea is enough for approx 2 18oz pots of tea. i just placed a separate order for the blooming rose black tea. based on the description, it's not something i would have ordered but wow! what an amazing find.",
+        "author": "Jv",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Wonderful high quality tea sampler. each packet of tea is enough for approx 2 18oz pots of tea. i just placed a separate order for the blooming rose black tea. based on the description, it's not something i would have ordered but wow! what an amazing find.",
+        "author": "Jv",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Fantastic teas. my son absolutely loves it and will not drink any other brand now.",
+        "author": "Lorie C.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assorted-leaf-teas": [
+      {
+        "quote": "I like tea but never tried different flavors exept black ones. this sampling is a great start to understanding which flavor is in preference and should be ordered in bigger quantity. and i love loose leaf tea because it ‚ „ s the only way to completely unleash the aroma.",
+        "author": "Ekaterina H.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great way to figure out which teas you like. not had a bad brew yet.",
+        "author": "Kindle C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great tea at an affordable price. this product is a higher quality of anything you were going to buy at the grocery store. i also prefer it over teavana which i consider to be overpriced. buy this tea for a gift or for yourself if you simply enjoy tea.",
+        "author": "Anonymous",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assorted tea loose leaf sampler, 10 variants": [
+      {
+        "quote": "I like tea but never tried different flavors exept black ones. this sampling is a great start to understanding which flavor is in preference and should be ordered in bigger quantity. and i love loose leaf tea because it ‚ „ s the only way to completely unleash the aroma.",
+        "author": "Ekaterina H.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great way to figure out which teas you like. not had a bad brew yet.",
+        "author": "Kindle C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Great tea at an affordable price. this product is a higher quality of anything you were going to buy at the grocery store. i also prefer it over teavana which i consider to be overpriced. buy this tea for a gift or for yourself if you simply enjoy tea.",
+        "author": "Anonymous",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "green-tea-sampler-10-teas": [
+      {
+        "quote": "I bought this as a gift for a friend who loves green tea and she thinks it is amazing!",
+        "author": "Rebecca S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The only problem with this tea is that we ordered the sampler to figure out which *single* flavor to get. ended up being forced to purchase multiple teas because they were all soooooo good. freshness was amazing, flavors were sharper and better than we could have imagined, and the combinations were wonderful!",
+        "author": "ChristienPS",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I purchased the sampler pack for my son to go with a infuser teapot as i did not know which tea he would prefer, after trying them all he still hasn't decided which he prefers as they are all lovely for particular times of the day so i purchased another sampler & will continue to purchase our tea via vahdam teas, great service, great taste.",
+        "author": "D M.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "green tea loose leaf sampler, 10 teas": [
+      {
+        "quote": "I bought this as a gift for a friend who loves green tea and she thinks it is amazing!",
+        "author": "Rebecca S.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "The only problem with this tea is that we ordered the sampler to figure out which *single* flavor to get. ended up being forced to purchase multiple teas because they were all soooooo good. freshness was amazing, flavors were sharper and better than we could have imagined, and the combinations were wonderful!",
+        "author": "ChristienPS",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "I purchased the sampler pack for my son to go with a infuser teapot as i did not know which tea he would prefer, after trying them all he still hasn't decided which he prefers as they are all lovely for particular times of the day so i purchased another sampler & will continue to purchase our tea via vahdam teas, great service, great taste.",
+        "author": "D M.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assam-exotic-second-flush-black-tea": [
+      {
+        "quote": "Excellent tea by itself or mixed with a little Darjeeling for example. I rely on Vahdam quality and customer service",
+        "author": "S W.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "assam exotic second flush black tea, 3.53oz/100g": [
+      {
+        "quote": "Excellent tea by itself or mixed with a little Darjeeling for example. I rely on Vahdam quality and customer service",
+        "author": "S W.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "earl-grey-darjeeling-green-tea": [
+      {
+        "quote": "Love this blend. I get the health benefits of green tea as well as the calming effect of the earl grey. I always reach for this when I need to de-stress.",
+        "author": "Diana C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Delicious! great combination. i highly recommend.",
+        "author": "EK",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This is a great switch from my regular earl grey black tea. my only preference would be for less packaging in this environmentally conscious time. the teas are first rate !",
+        "author": "Del",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "earl grey green tea, 3.53oz/100g": [
+      {
+        "quote": "Love this blend. I get the health benefits of green tea as well as the calming effect of the earl grey. I always reach for this when I need to de-stress.",
+        "author": "Diana C.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Delicious! great combination. i highly recommend.",
+        "author": "EK",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This is a great switch from my regular earl grey black tea. my only preference would be for less packaging in this environmentally conscious time. the teas are first rate !",
+        "author": "Del",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "nilgiri-breakfast-black-tea": [
+      {
+        "quote": "Alittle motivation for the day; awaking the mind with flavor. I add a taste of honey and a touch of milk, delicious!",
+        "author": "Anita A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This is our first order for this variety and are enjoying it as much as our other favorites!",
+        "author": "Michael B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Order shipped promptly. that's pretty critical. thank you~",
+        "author": "John N.",
+        "stars": 5,
+        "verified": false
+      }
+    ],
+    "nilgiri breakfast black tea, 12oz/340g": [
+      {
+        "quote": "Alittle motivation for the day; awaking the mind with flavor. I add a taste of honey and a touch of milk, delicious!",
+        "author": "Anita A.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "This is our first order for this variety and are enjoying it as much as our other favorites!",
+        "author": "Michael B.",
+        "stars": 5,
+        "verified": false
+      },
+      {
+        "quote": "Order shipped promptly. that's pretty critical. thank you~",
+        "author": "John N.",
+        "stars": 5,
+        "verified": false
+      }
+    ]
+  },
+  "ratings": {
+    "2026-arya-diamond-darjeeling-first-flush-black-tea-dj-ff-bt": 5,
+    "2026 arya diamond darjeeling first flush black tea dj ff bt/ 50g": 5,
+    "2026-giddapahar-premium-darjeeling-first-flush-black-tea-dj-ff-bt": 5,
+    "2026 giddapahar premium darjeeling first flush tea dj ff bt/ 100g": 5,
+    "2026-jungpana-premium-darjeeling-first-flush-black-tea-dj-ff-bt": 5,
+    "2026 jungpana premium darjeeling first flush black tea dj ff bt/ 100g": 5,
+    "ashwagandha-coffee-20-serving": 4.7,
+    "ashwagandha coffee - 20 servings": 4.7,
+    "ginger-masala-chai-tea-7-06oz-200g-copy": 4.7,
+    "ginger masala chai tea, 3.53 oz/ 100g": 4.7,
+    "chamomile-mint-citrus-green-tea-7-06oz-200g-copy": 4.3,
+    "chamomile mint citrus green tea, 3.53 oz": 4.3,
+    "assorted-tea-bags-sampler-40-pyramid-tea-bags-20-flavors": 5,
+    "assorted tea bags sampler, (40 pyramid tea bags) 20 flavors": 5,
+    "verve-bottle-500-ml-15-9-oz-copy": 5,
+    "rover bottle-  500 ml/ 15.9 oz": 5,
+    "ashwagandha-coffee-120-servings-3-packs-8-free-gifts-worth-71": 5,
+    "ashwagandha coffee (3 packs + 6 free gifts worth £40)": 5,
+    "free-gifts-worth-100-on-your-first-3-renewals": 5,
+    "free gifts worth £105 on your first 4 renewals": 5,
+    "ashwagandha-coffee": 4.8,
+    "ashwagandha coffee": 4.8,
+    "pack-1-starter-ashwagandha-coffee": 4.3,
+    "ashwagandha coffee starter kit (1 pack + 6 free gifts worth £40)": 4.3,
+    "earl-grey-black-tea-12oz-340g": 4.9,
+    "earl grey black tea, 12oz/340g": 4.9,
+    "free-gifts-ashwagandha-coffee-subscription-box": 4.5,
+    "ashwagandha coffee welcome kit": 4.5,
+    "classic-chamomile-herbal-tea-tisane-100-count": 4.7,
+    "classic chamomile herbal tea tisane, 100 count": 4.7,
+    "darjeeling-premium-first-flush-black-tea-12oz-340g": 4.1,
+    "darjeeling premium first flush black tea, 12oz/340g": 4.1,
+    "himalayan-green-tea-12oz-340g": 4.6,
+    "himalayan green tea, 340g": 4.6,
+    "english-breakfast-black-tea-12oz-340g": 4.9,
+    "english breakfast black tea, 12oz/340g": 4.9,
+    "authentic-japanese-matcha-green-tea-powder-3-53": 4.8,
+    "pure matcha green tea powder, culinary grade, 100g": 4.8,
+    "chai-tea-bags-sampler-5-variants-20-count": 4.8,
+    "assorted chai teas sampler, 5 variants": 4.8,
+    "green-tea-bags-sampler-5-variants-20-count": 4.9,
+    "assorted green teas sampler, 5 variants": 4.9,
+    "world-tea-sampler-loose-leaf-teas-20-variants-100-servings": 4.9,
+    "world of tea gift sampler, 20 teas": 4.9,
+    "sweet-cinnamon-masala-chai-100-tea-bags": 5,
+    "sweet cinnamon masala chai tea, 100 count": 5,
+    "assorted-green-tea-sampler-6-x-6-variants": 4.6,
+    "green tea assortment, gift set, 36 teas": 4.6,
+    "assorted-chai-tea-sampler-10-x-6-variants": 5,
+    "chai tea assortment gift set, 6 variants": 5,
+    "assorted-herbal-tea-sampler-10-x-6-variants": 5,
+    "36 tea bags, caffeine free, 6 flavors - chamomile, hibiscus, ginger, mint, turmeric": 5,
+    "pure-mint-herbal-tea-100-tea-bags": 5,
+    "pure mint herbal tea tisane, 100 count": 5,
+    "hibiscus-rose-herbal-tea-100-tea-bags": 5,
+    "hibiscus rose herbal tea tisane, 100 count": 5,
+    "high-mountain-oolong-tea-100-tea-bags": 4.9,
+    "high mountain oolong tea, 100 count": 4.9,
+    "turmeric-ginger-herbal-tea-tisane-100-tea-bags": 4.3,
+    "turmeric ginger herbal tea tisane, 100 teabags": 4.3,
+    "cardamom-masala-chai-tea-bags-100-tea-bags": 5,
+    "cardamom masala chai tea, 100 count": 5,
+    "turmeric-spiced-herbal-tea-tisane-100-tea-bags": 5,
+    "turmeric spiced herbal tea tisane, 100 count": 5,
+    "turmeric-ashwagandha-herbal-tea-tisane-100-tea-bags": 3.7,
+    "turmeric ashwagandha herbal tea tisane - 100 count": 3.7,
+    "indias-original-masala-chai-tea-bags-100-tea-bags": 4.7,
+    "india's original masala chai tea, 100 count": 4.7,
+    "mint-melody-green-tea-bags-100-tea-bags": 3,
+    "mint melody green tea, 100 count": 3,
+    "classic-english-breakfast-black-tea-bags-100-tea-bags": 4.7,
+    "english breakfast black tea, 100 count": 4.7,
+    "earl-grey-black-tea-bags-100-tea-bags": 5,
+    "earl grey black tea, 100 count": 5,
+    "weekend-in-taj-mahal-8-tin-caddy": 5,
+    "weekend in taj mahal, tea gift, set of 8": 5,
+    "weekend-in-new-york-9-tin-caddy": 4.8,
+    "weekend in new york tea gift, set of 9": 4.8,
+    "weekend-in-london-9-tin-caddy": 4.6,
+    "weekend in london, tea gift, set of 9": 4.6,
+    "weekend-in-paris-9-tin-caddy": 4.7,
+    "weekend in paris, tea gift, set of 9": 4.7,
+    "holiday-breakfast-gift-set-9-tin-caddy": 4.8,
+    "christmas breakfast tea gift, set of 9": 4.8,
+    "chai-tea-assortment-12-tin-caddy": 4.7,
+    "chai tea assortment christmas tea gift, set of 12": 4.7,
+    "bloom-tea-gift-set-12-tin-caddy": 4.9,
+    "bloom tea gift, set of 12": 4.9,
+    "vanilla-matcha-green-tea": 4.7,
+    "vanilla matcha green tea powder, 3.53oz/100g": 4.7,
+    "darjeeling-premium-first-flush-black-tea": 4.6,
+    "darjeeling premium first flush black tea, 3.53oz/100g": 4.6,
+    "silver-needle-sparkle-white-tea": 4.8,
+    "silver needle sparkle white tea, 1.76oz/50g": 4.8,
+    "glow-assorted-teas-gift-box-6-teas": 4.7,
+    "glow tea gift, set of 6": 4.7,
+    "turmeric-ginger-herbal-tea-tisane": 4.4,
+    "turmeric ginger herbal tea tisane, 100g": 4.4,
+    "sparkling-ginger-mint-green-tea": 4.7,
+    "ginger mint loose leaves, 7.05oz/200g": 4.7,
+    "imperial-muscatel-darjeeling-second-flush-black-tea": 4.6,
+    "imperial muscatel darjeeling second flush black, 3.53oz/100g": 4.6,
+    "himalayan-green-tea-3-53oz-100g": 4.8,
+    "himalayan green tea, 3.53oz/100g": 4.8,
+    "high-mountain-darjeeling-second-flush-oolong-tea": 4.8,
+    "high mountain oolong tea, 3.53oz/100g": 4.8,
+    "double-spice-masala-chai-tea": 4.7,
+    "double spice masala chai tea, 7.06oz/200g": 4.7,
+    "imperial-himalayan-white-tea": 4.7,
+    "imperial himalayan white tea, 1.76oz/50g": 4.7,
+    "chai-tea-sampler": 4.8,
+    "chai teas gift sampler, 10 teas": 4.8,
+    "black-tea-sampler": 4.9,
+    "black tea sampler, 10 teas": 4.9,
+    "assorted-leaf-teas": 4.8,
+    "assorted tea loose leaf sampler, 10 variants": 4.8,
+    "green-tea-sampler-10-teas": 4.8,
+    "green tea loose leaf sampler, 10 teas": 4.8,
+    "assam-exotic-second-flush-black-tea": 4.7,
+    "assam exotic second flush black tea, 3.53oz/100g": 4.7,
+    "earl-grey-darjeeling-green-tea": 4.8,
+    "earl grey green tea, 3.53oz/100g": 4.8,
+    "nilgiri-breakfast-black-tea": 4.8,
+    "nilgiri breakfast black tea, 12oz/340g": 4.8
+  },
+  "review_counts": {
+    "2026-arya-diamond-darjeeling-first-flush-black-tea-dj-ff-bt": 29,
+    "2026 arya diamond darjeeling first flush black tea dj ff bt/ 50g": 29,
+    "2026-giddapahar-premium-darjeeling-first-flush-black-tea-dj-ff-bt": 29,
+    "2026 giddapahar premium darjeeling first flush tea dj ff bt/ 100g": 29,
+    "2026-jungpana-premium-darjeeling-first-flush-black-tea-dj-ff-bt": 42,
+    "2026 jungpana premium darjeeling first flush black tea dj ff bt/ 100g": 42,
+    "ashwagandha-coffee-20-serving": 1083,
+    "ashwagandha coffee - 20 servings": 1083,
+    "ginger-masala-chai-tea-7-06oz-200g-copy": 39,
+    "ginger masala chai tea, 3.53 oz/ 100g": 39,
+    "chamomile-mint-citrus-green-tea-7-06oz-200g-copy": 10,
+    "chamomile mint citrus green tea, 3.53 oz": 10,
+    "assorted-tea-bags-sampler-40-pyramid-tea-bags-20-flavors": 6,
+    "assorted tea bags sampler, (40 pyramid tea bags) 20 flavors": 6,
+    "verve-bottle-500-ml-15-9-oz-copy": 1,
+    "rover bottle-  500 ml/ 15.9 oz": 1,
+    "ashwagandha-coffee-120-servings-3-packs-8-free-gifts-worth-71": 2,
+    "ashwagandha coffee (3 packs + 6 free gifts worth £40)": 2,
+    "free-gifts-worth-100-on-your-first-3-renewals": 1,
+    "free gifts worth £105 on your first 4 renewals": 1,
+    "ashwagandha-coffee": 1957,
+    "ashwagandha coffee": 1957,
+    "pack-1-starter-ashwagandha-coffee": 7,
+    "ashwagandha coffee starter kit (1 pack + 6 free gifts worth £40)": 7,
+    "earl-grey-black-tea-12oz-340g": 274,
+    "earl grey black tea, 12oz/340g": 274,
+    "free-gifts-ashwagandha-coffee-subscription-box": 4,
+    "ashwagandha coffee welcome kit": 4,
+    "classic-chamomile-herbal-tea-tisane-100-count": 63,
+    "classic chamomile herbal tea tisane, 100 count": 63,
+    "darjeeling-premium-first-flush-black-tea-12oz-340g": 8,
+    "darjeeling premium first flush black tea, 12oz/340g": 8,
+    "himalayan-green-tea-12oz-340g": 19,
+    "himalayan green tea, 340g": 19,
+    "english-breakfast-black-tea-12oz-340g": 399,
+    "english breakfast black tea, 12oz/340g": 399,
+    "authentic-japanese-matcha-green-tea-powder-3-53": 28,
+    "pure matcha green tea powder, culinary grade, 100g": 28,
+    "chai-tea-bags-sampler-5-variants-20-count": 612,
+    "assorted chai teas sampler, 5 variants": 612,
+    "green-tea-bags-sampler-5-variants-20-count": 52,
+    "assorted green teas sampler, 5 variants": 52,
+    "world-tea-sampler-loose-leaf-teas-20-variants-100-servings": 94,
+    "world of tea gift sampler, 20 teas": 94,
+    "sweet-cinnamon-masala-chai-100-tea-bags": 3,
+    "sweet cinnamon masala chai tea, 100 count": 3,
+    "assorted-green-tea-sampler-6-x-6-variants": 129,
+    "green tea assortment, gift set, 36 teas": 129,
+    "assorted-chai-tea-sampler-10-x-6-variants": 33,
+    "chai tea assortment gift set, 6 variants": 33,
+    "assorted-herbal-tea-sampler-10-x-6-variants": 1,
+    "36 tea bags, caffeine free, 6 flavors - chamomile, hibiscus, ginger, mint, turmeric": 1,
+    "pure-mint-herbal-tea-100-tea-bags": 4,
+    "pure mint herbal tea tisane, 100 count": 4,
+    "hibiscus-rose-herbal-tea-100-tea-bags": 16,
+    "hibiscus rose herbal tea tisane, 100 count": 16,
+    "high-mountain-oolong-tea-100-tea-bags": 9,
+    "high mountain oolong tea, 100 count": 9,
+    "turmeric-ginger-herbal-tea-tisane-100-tea-bags": 61,
+    "turmeric ginger herbal tea tisane, 100 teabags": 61,
+    "cardamom-masala-chai-tea-bags-100-tea-bags": 15,
+    "cardamom masala chai tea, 100 count": 15,
+    "turmeric-spiced-herbal-tea-tisane-100-tea-bags": 110,
+    "turmeric spiced herbal tea tisane, 100 count": 110,
+    "turmeric-ashwagandha-herbal-tea-tisane-100-tea-bags": 3,
+    "turmeric ashwagandha herbal tea tisane - 100 count": 3,
+    "indias-original-masala-chai-tea-bags-100-tea-bags": 83,
+    "india's original masala chai tea, 100 count": 83,
+    "mint-melody-green-tea-bags-100-tea-bags": 4,
+    "mint melody green tea, 100 count": 4,
+    "classic-english-breakfast-black-tea-bags-100-tea-bags": 36,
+    "english breakfast black tea, 100 count": 36,
+    "earl-grey-black-tea-bags-100-tea-bags": 3,
+    "earl grey black tea, 100 count": 3,
+    "weekend-in-taj-mahal-8-tin-caddy": 30,
+    "weekend in taj mahal, tea gift, set of 8": 30,
+    "weekend-in-new-york-9-tin-caddy": 36,
+    "weekend in new york tea gift, set of 9": 36,
+    "weekend-in-london-9-tin-caddy": 37,
+    "weekend in london, tea gift, set of 9": 37,
+    "weekend-in-paris-9-tin-caddy": 115,
+    "weekend in paris, tea gift, set of 9": 115,
+    "holiday-breakfast-gift-set-9-tin-caddy": 33,
+    "christmas breakfast tea gift, set of 9": 33,
+    "chai-tea-assortment-12-tin-caddy": 23,
+    "chai tea assortment christmas tea gift, set of 12": 23,
+    "bloom-tea-gift-set-12-tin-caddy": 487,
+    "bloom tea gift, set of 12": 487,
+    "vanilla-matcha-green-tea": 121,
+    "vanilla matcha green tea powder, 3.53oz/100g": 121,
+    "darjeeling-premium-first-flush-black-tea": 127,
+    "darjeeling premium first flush black tea, 3.53oz/100g": 127,
+    "silver-needle-sparkle-white-tea": 10,
+    "silver needle sparkle white tea, 1.76oz/50g": 10,
+    "glow-assorted-teas-gift-box-6-teas": 46,
+    "glow tea gift, set of 6": 46,
+    "turmeric-ginger-herbal-tea-tisane": 84,
+    "turmeric ginger herbal tea tisane, 100g": 84,
+    "sparkling-ginger-mint-green-tea": 6,
+    "ginger mint loose leaves, 7.05oz/200g": 6,
+    "imperial-muscatel-darjeeling-second-flush-black-tea": 17,
+    "imperial muscatel darjeeling second flush black, 3.53oz/100g": 17,
+    "himalayan-green-tea-3-53oz-100g": 10,
+    "himalayan green tea, 3.53oz/100g": 10,
+    "high-mountain-darjeeling-second-flush-oolong-tea": 127,
+    "high mountain oolong tea, 3.53oz/100g": 127,
+    "double-spice-masala-chai-tea": 123,
+    "double spice masala chai tea, 7.06oz/200g": 123,
+    "imperial-himalayan-white-tea": 128,
+    "imperial himalayan white tea, 1.76oz/50g": 128,
+    "chai-tea-sampler": 393,
+    "chai teas gift sampler, 10 teas": 393,
+    "black-tea-sampler": 104,
+    "black tea sampler, 10 teas": 104,
+    "assorted-leaf-teas": 290,
+    "assorted tea loose leaf sampler, 10 variants": 290,
+    "green-tea-sampler-10-teas": 63,
+    "green tea loose leaf sampler, 10 teas": 63,
+    "assam-exotic-second-flush-black-tea": 80,
+    "assam exotic second flush black tea, 3.53oz/100g": 80,
+    "earl-grey-darjeeling-green-tea": 26,
+    "earl grey green tea, 3.53oz/100g": 26,
+    "nilgiri-breakfast-black-tea": 6,
+    "nilgiri breakfast black tea, 12oz/340g": 6
+  },
+  "prices": {
+    "2026-margarets-hope-premium-darjeeling-first-flush-black-tea": "22.99",
+    "2026 margaret's hope premium darjeeling first flush black tea-100g": "22.99",
+    "2026-barnesbeg-premium-darjeeling-first-flush-black-tea": "19.99",
+    "2026 barnesbeg premium darjeeling first flush black tea ff bt-100g": "19.99",
+    "2026-castleton-premium-darjeeling-first-flush-black-tea": "24.99",
+    "2026 castleton premium darjeeling first flush black tea dj ff bt-100g": "24.99",
+    "turmeric-ashwagandha-herbal-tea-tisane-100-count-bundle": "29.99",
+    "daily wellness tea bundle- 100 bags each": "29.99",
+    "2026-arya-diamond-darjeeling-first-flush-black-tea-dj-ff-bt": "39.99",
+    "2026 arya diamond darjeeling first flush black tea dj ff bt/ 50g": "39.99",
+    "2026-giddapahar-premium-darjeeling-first-flush-black-tea-dj-ff-bt": "24.99",
+    "2026 giddapahar premium darjeeling first flush tea dj ff bt/ 100g": "24.99",
+    "2026-jungpana-premium-darjeeling-first-flush-black-tea-dj-ff-bt": "24.99",
+    "2026 jungpana premium darjeeling first flush black tea dj ff bt/ 100g": "24.99",
+    "ashwagandha-coffee-serving-40": "9.99",
+    "ashwagandha coffee": "39.99",
+    "ashwagandha-coffee-20-serving": "19.99",
+    "ashwagandha coffee - 20 servings": "19.99",
+    "the-india-tea-carnival-christmas-gift-set-of-6-copy": "22.99",
+    "oprah's favorite tea gift set 3 premium chai teas": "22.99",
+    "ginger-masala-chai-tea-7-06oz-200g-copy": "7.99",
+    "ginger masala chai tea, 3.53 oz/ 100g": "7.99",
+    "turmeric-ashwagandha-herbal-tea-tisane-200-gm-copy": "7.99",
+    "turmeric ashwagandha herbal tea tisane, 3.53 oz/100g": "7.99",
+    "chamomile-mint-citrus-green-tea-7-06oz-200g-copy": "7.99",
+    "chamomile mint citrus green tea, 3.53 oz": "7.99",
+    "turmeric-wellness-detox-kit-4-variants-60-tea-bags-copy": "6.99",
+    "turmeric ashwagandha herbal tea bags caffeine free, 30 count": "6.99",
+    "assorted-tea-bags-sampler-40-pyramid-tea-bags-20-flavors": "12.99",
+    "assorted tea bags sampler, (40 pyramid tea bags) 20 flavors": "12.99",
+    "bacopa-1000-mg-high-strength-capsules-copy-1": "29.99",
+    "green burner 500mg 60 capsules": "29.99",
+    "verve-bottle-500-ml-15-9-oz-copy": "25.00",
+    "rover bottle-  500 ml/ 15.9 oz": "25.00",
+    "ashwagandha-coffee-120-servings-3-packs-8-free-gifts-worth-71": "134.99",
+    "ashwagandha coffee (3 packs + 6 free gifts worth £40)": "134.99",
+    "free-gifts-worth-100-on-your-first-3-renewals": "105.00",
+    "free gifts worth £105 on your first 4 renewals": "105.00",
+    "signature-frother": "24.99",
+    "premium electric frother": "24.99",
+    "ashwagandha-coffee": "39.99",
+    "pack-1-starter-ashwagandha-coffee": "44.99",
+    "ashwagandha coffee starter kit (1 pack + 6 free gifts worth £40)": "44.99",
+    "earl-grey-black-tea-12oz-340g": "7.99",
+    "earl grey black tea, 12oz/340g": "7.99",
+    "vahdam®-signature-frother": "24.99",
+    "limited edition coffee frother": "24.99",
+    "free-gifts-ashwagandha-coffee-subscription-box": "15.00",
+    "ashwagandha coffee welcome kit": "15.00",
+    "green-tea-bundle-set-of-4-unique-green-tea-blends": "105.99",
+    "green tea bundle, set of 4": "105.99",
+    "chai-tea-bundle-set-of-4-unique-chai-teas": "66.99",
+    "chai tea bundle, set of 4": "66.99",
+    "herbal-tea-bundle-set-of-4-unique-turmeric-blends": "68.99",
+    "turmeric tea bundle, set of 3": "68.99",
+    "2025-castleton-moonlight-darjeeling-second-flush-black-tea-dj-342": "22.99",
+    "2025 castleton moonlight darjeeling second flush black tea dj 373": "22.99",
+    "morning-starter-black-tea-bundle": "59.99",
+    "morning starter black tea bundle": "59.99",
+    "bestselling-chai-teas-bundle": "67.49",
+    "bestselling chai teas bundle": "67.49",
+    "advent-calendar-gift-24-variants-120-tea-bags-shimmer-borosilicate-glass-double-pack-of-2-set-of-2": "89.98",
+    "advent calendar gift  | 24 variants, 120 tea bags & shimmer-glass (pack of 2)": "89.98",
+    "classic-chamomile-herbal-tea-tisane-100-count": "16.99",
+    "classic chamomile herbal tea tisane, 100 count": "16.99",
+    "applause-ctc-assam-black-tea-12oz-340g": "10.49",
+    "applause ctc assam black tea, 12oz/340g": "10.49",
+    "darjeeling-premium-first-flush-black-tea-12oz-340g": "18.99",
+    "darjeeling premium first flush black tea, 12oz/340g": "18.99",
+    "indias-original-masala-chai-tea-loose-leaf-12oz": "14.99",
+    "india's original masala chai tea, 12oz/340g": "14.99",
+    "ginger-mint-green-tea-100-tea-bags": "16.99",
+    "ginger mint green tea, 100 count": "16.99",
+    "himalayan-green-tea-12oz-340g": "14.49",
+    "himalayan green tea, 340g": "14.49",
+    "english-breakfast-black-tea-12oz-340g": "16.99",
+    "english breakfast black tea, 12oz/340g": "16.99",
+    "drift-mug-insulated-sister": "9.99",
+    "drift gift mug for sister": "9.99",
+    "drift-mug-insulated-girlfriend": "19.99",
+    "drift gift mug for girlfriend": "19.99",
+    "drift-mug-insulated-daughter": "15.99",
+    "drift gift mug for daughter": "15.99",
+    "drift-mug-insulated-brother": "11.99",
+    "drift gift mug for brother": "11.99",
+    "drift-mug-insulated-boyfriend": "8.49",
+    "gift mug for boyfriend": "8.49",
+    "drift-mug-insulated-best-friend": "12.99",
+    "drift gift mug for best friend": "12.99",
+    "drift-mug-grandma": "7.99",
+    "drift gift mug for grandma": "7.99",
+    "authentic-japanese-matcha-green-tea-powder-3-53": "7.99",
+    "pure matcha green tea powder, culinary grade, 100g": "7.99",
+    "chai-tea-bags-sampler-5-variants-20-count": "7.99",
+    "assorted chai teas sampler, 5 variants": "7.99",
+    "green-tea-bags-sampler-5-variants-20-count": "9.99",
+    "assorted green teas sampler, 5 variants": "9.99",
+    "world-tea-sampler-loose-leaf-teas-20-variants-100-servings": "22.99",
+    "world of tea gift sampler, 20 teas": "22.99",
+    "assorted-tea-private-reserve-gift-set-24-teas": "32.99",
+    "assorted tea private reserve, gift set, 24 teas": "32.99",
+    "sweet-cinnamon-masala-chai-100-tea-bags": "16.99",
+    "sweet cinnamon masala chai tea, 100 count": "16.99",
+    "christmas-mug-red": "17.99",
+    "christmas mug (insulated)": "17.99",
+    "assorted-green-tea-sampler-6-x-6-variants": "12.99",
+    "green tea assortment, gift set, 36 teas": "12.99",
+    "assorted-chai-tea-sampler-10-x-6-variants": "12.99",
+    "chai tea assortment gift set, 6 variants": "12.99",
+    "assorted-herbal-tea-sampler-10-x-6-variants": "17.99",
+    "36 tea bags, caffeine free, 6 flavors - chamomile, hibiscus, ginger, mint, turmeric": "17.99",
+    "pure-mint-herbal-tea-100-tea-bags": "16.99",
+    "pure mint herbal tea tisane, 100 count": "16.99",
+    "hibiscus-rose-herbal-tea-100-tea-bags": "16.99",
+    "hibiscus rose herbal tea tisane, 100 count": "16.99",
+    "high-mountain-oolong-tea-100-tea-bags": "16.99",
+    "high mountain oolong tea, 100 count": "16.99",
+    "ardour-tumbler-dark-green": "6.49",
+    "insulated stainless steel tumbler": "6.49",
+    "turmeric-ginger-herbal-tea-tisane-100-tea-bags": "15.99",
+    "turmeric ginger herbal tea tisane, 100 teabags": "15.99",
+    "cardamom-masala-chai-tea-bags-100-tea-bags": "11.99",
+    "cardamom masala chai tea, 100 count": "11.99",
+    "turmeric-spiced-herbal-tea-tisane-100-tea-bags": "17.99",
+    "turmeric spiced herbal tea tisane, 100 count": "17.99",
+    "turmeric-ashwagandha-herbal-tea-tisane-100-tea-bags": "17.99",
+    "turmeric ashwagandha herbal tea tisane - 100 count": "17.99",
+    "indias-original-masala-chai-tea-bags-100-tea-bags": "15.49",
+    "india's original masala chai tea, 100 count": "15.49",
+    "mint-melody-green-tea-bags-100-tea-bags": "16.99",
+    "mint melody green tea, 100 count": "16.99",
+    "himalayan-green-tea-100-count": "16.99",
+    "himalayan green tea, 100 count": "16.99",
+    "classic-english-breakfast-black-tea-bags-100-tea-bags": "17.49",
+    "english breakfast black tea, 100 count": "17.49",
+    "earl-grey-black-tea-bags-100-tea-bags": "17.99",
+    "earl grey black tea, 100 count": "17.99",
+    "weekend-in-taj-mahal-8-tin-caddy": "17.49",
+    "weekend in taj mahal, tea gift, set of 8": "17.49",
+    "weekend-in-new-york-9-tin-caddy": "19.99",
+    "weekend in new york tea gift, set of 9": "19.99",
+    "weekend-in-london-9-tin-caddy": "17.49",
+    "weekend in london, tea gift, set of 9": "17.49",
+    "weekend-in-paris-9-tin-caddy": "17.49",
+    "weekend in paris, tea gift, set of 9": "17.49",
+    "holiday-breakfast-gift-set-9-tin-caddy": "29.99",
+    "christmas breakfast tea gift, set of 9": "29.99",
+    "chai-tea-assortment-12-tin-caddy": "27.99",
+    "chai tea assortment christmas tea gift, set of 12": "27.99",
+    "bloom-tea-gift-set-12-tin-caddy": "32.99",
+    "bloom tea gift, set of 12": "32.99",
+    "turmeric-matcha-green-tea": "5.99",
+    "turmeric matcha green tea powder, 3.53oz/100g": "5.99",
+    "vanilla-matcha-green-tea": "7.49",
+    "vanilla matcha green tea powder, 3.53oz/100g": "7.49",
+    "darjeeling-premium-first-flush-black-tea": "6.49",
+    "darjeeling premium first flush black tea, 3.53oz/100g": "6.49",
+    "ginger-masala-chai-tea": "14.99",
+    "ginger masala chai tea, 7.06oz/200g": "14.99",
+    "silver-needle-sparkle-white-tea": "13.99",
+    "silver needle sparkle white tea, 1.76oz/50g": "13.99",
+    "glow-assorted-teas-gift-box-6-teas": "22.99",
+    "glow tea gift, set of 6": "22.99",
+    "turmeric-ginger-herbal-tea-tisane": "5.99",
+    "turmeric ginger herbal tea tisane, 100g": "5.99",
+    "turmeric-citrus-spice-herbal-tea-tisane": "12.99",
+    "turmeric spiced herbal tea tisane, 7.06oz/200g": "12.99",
+    "sparkling-ginger-mint-green-tea": "15.99",
+    "ginger mint loose leaves, 7.05oz/200g": "15.99",
+    "chamomile-mint-citrus-green-tea": "15.99",
+    "chamomile mint citrus green tea, 7.06oz/200g": "15.99",
+    "imperial-muscatel-darjeeling-second-flush-black-tea": "10.49",
+    "imperial muscatel darjeeling second flush black, 3.53oz/100g": "10.49",
+    "himalayan-green-tea-3-53oz-100g": "5.99",
+    "himalayan green tea, 3.53oz/100g": "5.99",
+    "high-mountain-darjeeling-second-flush-oolong-tea": "5.99",
+    "high mountain oolong tea, 3.53oz/100g": "5.99",
+    "double-spice-masala-chai-tea": "12.99",
+    "double spice masala chai tea, 7.06oz/200g": "12.99",
+    "assam-spice-masala-chai-tea": "12.99",
+    "assam spice masala chai tea, 7.06/200g": "12.99",
+    "kashmiri-kahwa-masala-chai-tea": "12.99",
+    "kashmiri kahwa masala chai green tea, 3.53 oz": "12.99",
+    "imperial-himalayan-white-tea": "6.49",
+    "imperial himalayan white tea, 1.76oz/50g": "6.49",
+    "chai-tea-sampler": "12.99",
+    "chai teas gift sampler, 10 teas": "12.99",
+    "black-tea-sampler": "12.99",
+    "black tea sampler, 10 teas": "12.99",
+    "assorted-leaf-teas": "12.99",
+    "assorted tea loose leaf sampler, 10 variants": "12.99",
+    "green-tea-sampler-10-teas": "12.99",
+    "green tea loose leaf sampler, 10 teas": "12.99",
+    "assam-exotic-second-flush-black-tea": "10.99",
+    "assam exotic second flush black tea, 3.53oz/100g": "10.99",
+    "assam-gold-second-flush-black-tea": "10.49",
+    "assam gold second flush black tea, 3.53 oz": "10.49",
+    "earl-grey-darjeeling-green-tea": "12.99",
+    "earl grey green tea, 3.53oz/100g": "12.99",
+    "nilgiri-breakfast-black-tea": "16.99",
+    "nilgiri breakfast black tea, 12oz/340g": "16.99"
+  },
+  "_sources": {
+    "base": "https://vahdam.co.uk",
+    "region": "uk",
+    "yotpo_app_key": "CvE5LfSLMJWXG14uzFDuOnBCqyxI6EAAW5tT7Ea1"
+  }
 }
