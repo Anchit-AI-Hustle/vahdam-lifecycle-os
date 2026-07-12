@@ -360,17 +360,63 @@ Voice: warm, sensory, emotionally resonant, story-driven. Prefer: ritual, restor
 NEVER use: "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" in caps, "hurry", "don't miss out", "last chance", "while supplies last".
 Return STRICT JSON only, no markdown fences.`;
 
-function copyPrompt(entry, fw = null) {
+// ── Agent 1: Strategy Analyst ───────────────────────────────────────────────
+// A top growth-strategy leader reads the slot's data (cohort, reach, competitor
+// hooks, product, offer, festival) and returns a tight strategy brief that the
+// content + asset agents build on. Failure-tolerant: returns null so the copy
+// stage can still run standalone. Pinned provider is returned for speed.
+const STRATEGY_SYSTEM = `You are VAHDAM's Head of Growth Strategy — a top D2C lifecycle-marketing analyst.
+You turn cohort + product + competitor data into a sharp, differentiated campaign strategy.
+Be specific and quantitative where the data allows. Return STRICT JSON only, no markdown fences.`;
+
+function strategyPrompt(entry) {
+  const hooks = (entry.competitorContext || []).flatMap((c) => (c.trendingHooks || []).map((h) => h.hook)).slice(0, 6);
+  const d = entry.decision || {};
+  return `Devise the strategy for ONE lifecycle send. Data:
+- Market: ${entry.market} | Cohort: ${entry.cohort?.name} (${entry.cohort?.size ?? 'size via ESP'} profiles) | Objective: ${entry.objective}
+- Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})${(entry.supportingProducts || []).length ? ` | Bundle: ${(entry.supportingProducts).map((p) => p.title).join(', ')}` : ''}
+- Offer: ${d.offer ? (d.offer.code ? `${d.offer.code} (${Math.round((d.offer.pct || 0) * 100)}%)` : 'no discount') : 'n/a'}
+- ${entry.festival ? `Seasonal moment: ${entry.festival.name}` : 'No festival; evergreen angle.'}
+- Reach target: ${entry.reach?.planned_recipients?.toLocaleString?.() || 'n/a'} recipients, ${entry.reach?.per_user_per_week?.min || 2}-${entry.reach?.per_user_per_week?.max || 3} mailers/user/week.
+- Competitor hooks trending (awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
+
+Make this send DIFFERENT from a generic promo and true to its cohort + theme.
+Return JSON exactly:
+{ "angle": "the single sharp campaign angle", "hook_thesis": "why this lands for THIS cohort now", "target_emotion": "the one feeling to evoke", "proof_points": ["","",""], "differentiator": "what makes this send distinct from the others this week", "dos": ["",""], "donts": ["",""] }`;
+}
+
+async function strategyBrief(entry) {
+  try {
+    const res = await callLLM({
+      systemPrompt: STRATEGY_SYSTEM,
+      userMessage: strategyPrompt(entry),
+      responseFormat: { type: 'json_object' },
+      maxTokens: 900,
+      temperature: 0.7,
+      timeoutMs: 30000,
+      stage: 'smart-brain-strategy',
+      tier: 'premium',
+    });
+    const json = parseJSON(res.text);
+    if (!json || !json.angle) return null;
+    return { brief: json, provider: res.provider, model: res.model };
+  } catch (_) { return null; }
+}
+
+function copyPrompt(entry, fw = null, brief = null) {
   const hooks = (entry.competitorContext || []).flatMap((c) => (c.trendingHooks || []).map((h) => h.hook)).slice(0, 5);
   const fwLine = fw
     ? `\nCOPY FRAMEWORK: structure the copy with the ${fw.name} framework (${fw.full || fw.name}); the opening beat lands in the subject + hero_headline, the middle beats across intro_paragraph and body_paragraph in order, and the final beat on the cta. Do NOT name the framework in the copy, let the structure do the work.`
+    : '';
+  const briefLine = brief
+    ? `\nSTRATEGY BRIEF from the growth lead (follow it): angle = ${brief.angle}; hook = ${brief.hook_thesis}; emotion = ${brief.target_emotion}; differentiator = ${brief.differentiator}; proof = ${(brief.proof_points || []).filter(Boolean).join('; ')}. Do: ${(brief.dos || []).join('; ')}. Avoid: ${(brief.donts || []).join('; ')}.`
     : '';
   return `Write campaign copy for this planned slot. Context:
 - Market: ${entry.market} | Cohort: ${entry.cohort?.name} | Objective: ${entry.objective}
 - Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})
 - ${entry.festival ? `Seasonal moment: ${entry.festival.name}` : 'No festival; evergreen angle.'}
 - Rationale: ${entry.rationale || ''}
-- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}${fwLine}
+- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}${fwLine}${briefLine}
 
 Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules (ALL creatives are TEXT-FREE photographs — never describe overlaid words, headlines, prices, logos or UI in the image_brief; diffusion models cannot spell and render garbled fake letterforms, and the real ad copy is rendered natively by the platform, not painted into the pixels):
 - email / LP heroes: just scene, props, light, mood; aspirational hero.
@@ -623,11 +669,14 @@ function emailHtml(entry, copy, creativeUrl) {
 </body></html>`;
 }
 
-async function writeCopyWithLLM(entry, fw = null) {
+async function writeCopyWithLLM(entry, fw = null, brief = null) {
   const sysLine = fw ? (() => { try { return '\n' + CF.copyFrameworkSystemLine(fw); } catch (_) { return ''; } })() : '';
   const res = await callLLM({
     systemPrompt: BRAND_SYSTEM + sysLine,
-    userMessage: copyPrompt(entry, fw),
+    userMessage: copyPrompt(entry, fw, brief),
+    // Pin the provider the strategy analyst used, so the content agent skips dead
+    // keys and the pipeline stays fast.
+    ...(brief && brief.__provider ? { preferProvider: brief.__provider } : {}),
     responseFormat: { type: 'json_object' },
     maxTokens: 1800,
     temperature: 0.75,
@@ -816,15 +865,21 @@ async function generateCreatives(copy, entry) {
 async function buildCampaign(entry, config, { id = null, withCreatives = true } = {}) {
   const campaign = new GenerationService(config).generate(entry);
   let copyMeta = { provider: 'template-fallback', model: null, creatives: 'none' };
+  // Agent pipeline trace, surfaced in the console so the reviewer sees which
+  // specialist agent produced each part of the mailer.
+  const trace = [];
   try {
-    // Two diverging copy frameworks → two genuinely different directions, written
-    // in parallel (same wall-clock as one call). A = the objective's preferred
-    // framework; B = a deterministically-chosen different one. Partial-failure
-    // tolerant: if one call fails we ship both slots from the one that succeeded.
+    // ── Agent 1 · Strategy Analyst — a growth-strategy brief for THIS send.
+    const sb = await strategyBrief(entry);
+    const brief = sb ? { ...sb.brief, __provider: sb.provider } : null;
+    trace.push({ agent: 'Strategy Analyst', role: 'Head of Growth Strategy', ok: !!sb, provider: sb ? sb.provider : null, output: sb ? { angle: sb.brief.angle, differentiator: sb.brief.differentiator, emotion: sb.brief.target_emotion } : null });
+
+    // ── Agent 2 · Content Writer — two diverging copy frameworks (A/B), written
+    // in parallel (same wall-clock as one call), each following the brief.
     const fwA = CF.pickCopyFramework({ play_key: entry.objective || '', cohort_key: (entry.cohort && (entry.cohort.key || entry.cohort.name)) || '', seed: entry.id || entry.date || '' });
     const otherKeys = Object.keys(CF.COPY_FRAMEWORKS).filter((k) => k !== fwA.key);
     const fwB = CF.frameworkByKey(otherKeys[CF.stableIndex(`${entry.id || entry.date || ''}|b`, otherKeys.length)]) || fwA;
-    const [pA, pB] = await Promise.allSettled([writeCopyWithLLM(entry, fwA), writeCopyWithLLM(entry, fwB)]);
+    const [pA, pB] = await Promise.allSettled([writeCopyWithLLM(entry, fwA, brief), writeCopyWithLLM(entry, fwB, brief)]);
     if (pA.status !== 'fulfilled' && pB.status !== 'fulfilled') {
       throw new Error('copy generation failed for both directions: ' + String((pA.reason && pA.reason.message) || pA.reason));
     }
@@ -832,19 +887,27 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
     const rawB = pB.status === 'fulfilled' ? pB.value : pA.value;
     const provider = rawA.provider || rawB.provider;
     const model = rawA.model || rawB.model;
+    trace.push({ agent: 'Content Writer', role: 'Lifecycle Copywriter', ok: true, provider, output: { frameworks: [fwA.key, fwB.key] } });
     // Brand scrub EVERY generated string (no banned phrases, no em/en dashes)
     // before it is baked into the mailer, landing page and ad rows. Persisted +
     // customer-served output must not rely on the prompt alone.
     const copyA = scrubCopyDeep(rawA.copy);
     const copyB = scrubCopyDeep(rawB.copy);
+    // ── Agent 3 · Asset Director — one text-free creative per asset, turn by turn.
     const creatives = withCreatives ? await generateCreatives(copyA, entry) : {};
-    applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives);
     const imgProviders = [...new Set(Object.values(creatives).map((c) => c && c.provider).filter(Boolean))];
+    if (withCreatives) trace.push({ agent: 'Asset Director', role: 'Creative / Art Direction', ok: imgProviders.length > 0, provider: imgProviders.join(',') || null, output: { assets: Object.keys(creatives).length } });
+    // ── Agent 4 · Design Integrator — assembles each variant in the layout the
+    // decision engine chose for this send's intent/theme (so every mailer differs).
+    applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives);
+    trace.push({ agent: 'Design Integrator', role: 'Mailer Designer', ok: true, output: { archetype: (entry.decision && entry.decision.design && entry.decision.design.archetype) || 'hero-spotlight', variants: '2 Text + 2 Text + Visual' } });
     copyMeta = { provider, model, frameworks: [fwA.key, fwB.key], creatives: imgProviders.length ? imgProviders.join(',') : 'briefs-only' };
   } catch (e) {
     console.warn('[smart-brain] LLM copy failed, using template assets:', e.message);
+    trace.push({ agent: 'fallback', role: 'template assets', ok: false, output: { reason: String(e && e.message || e).slice(0, 160) } });
   }
   campaign.copywriter = copyMeta;
+  campaign.agent_trace = trace;
   campaign.calendar_entry_id = entry.id || id || null;
   attachMasterPrompts(campaign, entry);
   return campaign;
