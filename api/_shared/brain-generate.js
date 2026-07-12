@@ -41,6 +41,18 @@ try { renderTextVariant = require('./calendar-trigger.js').helpers.renderTextVar
 // never renders with a missing image when the smart_products row has no image.
 let catalogImage = { imageFor: () => null };
 try { catalogImage = require('./catalog-image.js'); } catch (_) {}
+// B1 real-only gate (env REAL_FACTS_ONLY). When ON, the flagship mailer + LP show
+// ONLY approved testimonials/reviews for the SKU and DROP the fabricated
+// competitor comparison; when OFF (default) behaviour is unchanged.
+let brandFacts = { enabled: () => false, approvedReviews: () => [] };
+try { brandFacts = require('./brand-facts.js'); } catch (_) {}
+// Resolve testimonials for a slot under the gate: OFF => the given fallback
+// (LLM/template testimonials); ON => approved reviews for the SKU, else [].
+function gateTestis(fallbackTestis, slot, product) {
+  if (!brandFacts.enabled()) return fallbackTestis;
+  const sku = (product && (product.sku || product.id || product.handle || product.title)) || null;
+  return brandFacts.approvedReviews(sku, slot && slot.market).map((r) => ({ quote: r.quote || '', name: r.author || 'Verified reviewer', location: '' }));
+}
 // Per-slot design strategy: gives each mailer its own influencer-informed
 // archetype (layout order + copy angle) instead of one repeated template.
 let designStrategy = { strategyFor: () => ({ key: 'hero-spotlight', hero: 'green', order: [], influencerAngle: '' }) };
@@ -243,7 +255,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   const offerBar = L.offer_bar || `Welcome gift: free sampler + free shipping over ${cur}${slot.market === 'UK' ? '30' : '35'}`;
   const badges = (L.trust_badges && L.trust_badges.length ? L.trust_badges : ['Single-estate', 'Origin-packed', 'Carbon neutral', '1M+ cups']).slice(0, 4);
   const steps = ((L.mechanism || {}).steps || []).slice(0, 3);
-  const testis = (L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' }))).slice(0, 2);
+  const testis = gateTestis((L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' }))), slot, p).slice(0, 2);
   const guarantee = L.guarantee || null;
 
   const badgeRow = badges.map((b) => `<td align="center" style="font-family:${body};font-size:11px;color:${P.forest_green};padding:4px 6px"><span style="color:${P.gold}">✦</span> ${esc(b)}</td>`).join('');
@@ -426,8 +438,10 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
   const problem = L.problem || { headline: 'Most tea is older than you think', body: copy.body_intro };
   const mech = L.mechanism || { headline: 'Why origin-fresh tastes different', steps: [] };
   const benefits = (L.benefits && L.benefits.length ? L.benefits : (L.benefit_bullets || []).map((b) => ({ title: b, desc: '' })));
-  const comp = L.comparison || null;
-  const testis = (L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' })));
+  // Real-only gate: drop the fabricated "vs Supermarket tea" comparison (its
+  // disparaging claims are unverified), and show only approved testimonials.
+  const comp = brandFacts.enabled() ? null : (L.comparison || null);
+  const testis = gateTestis((L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' }))), slot, products[0]);
   const stack = L.offer_stack || { headline: 'What is in your first order', items: [], price_note: '', cta: copy.cta_primary };
   const faqList = L.faq || [];
   const guarantee = L.guarantee || { headline: 'Steep it risk-free', body: 'Love the leaf or we will make it right.' };
