@@ -141,8 +141,8 @@
       </div>
       <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 8px">
         <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
-        <button class="mkchip on" data-mkt="all" onclick="toggleMkt('all')">All</button>
-        <button class="mkchip" data-mkt="US" onclick="toggleMkt('US')">US</button>
+        <button class="mkchip" data-mkt="all" onclick="toggleMkt('all')">All</button>
+        <button class="mkchip on" data-mkt="US" onclick="toggleMkt('US')">US</button>
         <button class="mkchip" data-mkt="UK" onclick="toggleMkt('UK')">UK</button>
         <button class="mkchip" data-mkt="Global" onclick="toggleMkt('Global')">Global</button>
         <button class="mkchip" data-mkt="India" onclick="toggleMkt('India')">India</button>
@@ -245,7 +245,7 @@ async function loadScenarios(){
 }
 
 // Region filter — multi-select. Empty set OR 'all' = every market.
-const SELECTED_MKT = new Set();
+const SELECTED_MKT = new Set(['US']);  // default to US only; "All" clears it
 function mktKey(m){ const s=String(m||'').toLowerCase(); if(s.startsWith('uk')) return 'UK'; if(s.startsWith('us')) return 'US'; if(/^in|india/.test(s)) return 'India'; if(/global|eu|au|me|row|rest/.test(s)) return 'Global'; return (m||'').toUpperCase(); }
 function mktVisible(e){ return SELECTED_MKT.size===0 || SELECTED_MKT.has(mktKey(e.market)); }
 window.toggleMkt = function(mkt){
