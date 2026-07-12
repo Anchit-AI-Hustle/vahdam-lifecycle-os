@@ -486,8 +486,10 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
         <a href="${collectionHref}" target="_blank" style="display:inline-block;font-family:${BODY};font-size:13px;font-weight:700;color:${palette.green};border:1.5px solid ${palette.gold};border-radius:8px;padding:11px 24px;text-decoration:none;">Explore the collection</a>
       </td></tr>`;
   // CAN-SPAM footer — nothing clickable except the brand mark (in the header).
+  // Brand HARD rule: NEVER a black / near-black section background. The footer
+  // sits on forest green (#004A2B); cream + gold text stay high-contrast on it.
   const brandFooter = `
-      <tr><td align="center" style="background:${palette.ink};padding:22px 20px 28px;">
+      <tr><td align="center" style="background:${palette.green};padding:22px 20px 28px;">
         <div style="font-family:${HEAD};font-size:14px;letter-spacing:0.24em;color:${palette.cream};">VAHDAM</div>
         <div style="font-family:${BODY};font-size:10.5px;letter-spacing:0.05em;color:${palette.gold};margin:8px 0;">Single-estate · Hand-picked · Shipped fresh from origin</div>
         <div style="font-family:${BODY};font-size:11px;color:${palette.cream}99;line-height:1.7;">${ORG_NAME} &middot; ${ORG_ADDRESS}<br>You are receiving this as a valued VAHDAM ${esc(market)} customer. Carbon &amp; plastic neutral.<br>Manage preferences or unsubscribe from your account settings.</div>
