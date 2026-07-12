@@ -203,6 +203,13 @@ async function syncConnector(id, trigger = 'manual') {
     // Live adapters are added per-connector; utilities are genuinely reachable.
     if (c.id === 'web_fetcher' || c.id === 'manual_import' || c.id === 'file_storage') {
       message = 'Available (built-in).';
+    } else if (c.id === 'klaviyo') {
+      // Read-only Klaviyo → Supabase pull (segments/sizes, metrics, campaigns).
+      const ks = require('./klaviyo-sync.js');
+      const r = await ks.run().catch((e) => ({ ok: false, connected: true, records: 0, message: 'Klaviyo sync error: ' + (e && e.message || e) }));
+      records = r.records || 0;
+      status = r.ok ? 'success' : (r.connected === false ? 'skipped' : 'error');
+      message = r.message || 'Klaviyo read-only sync complete.';
     } else {
       message = 'Credentials present. Live sync adapter is pending for this connector; no records pulled.';
     }
@@ -220,7 +227,7 @@ async function syncConnector(id, trigger = 'manual') {
   }
   await logActivity({ action: 'connector.sync', entity_type: 'connector', entity_id: id, summary: `${id}: ${status}`, status: status === 'error' ? 'error' : (status === 'skipped' ? 'warn' : 'ok'), metadata: { trigger, message } });
 
-  return { connector_id: id, status, message };
+  return { connector_id: id, status, message, records };
 }
 
 // ── Daily Intelligence Refresh (manual-triggerable job) ──────────────────────
@@ -241,9 +248,16 @@ async function runDailyJob(trigger = 'manual') {
   await logStep('connector_health_check', 'ok', `${connectors.length} connectors evaluated`);
 
   const daily = connectors.filter((c) => c.include_in_daily_job);
+  let records_synced = 0;
+  let connectors_pending = 0;
   for (const c of daily) {
     if (c.state === 'connected') {
-      await logStep(`sync:${c.id}`, 'ok', 'connected (adapter pending — no records pulled)');
+      // Run the real per-connector adapter (Klaviyo pulls into Supabase; others
+      // still report 'adapter pending' via syncConnector until built).
+      const r = await syncConnector(c.id, trigger).catch((e) => ({ status: 'error', message: e && e.message, records: 0 }));
+      records_synced += (r.records || 0);
+      if ((r.records || 0) === 0 && r.status === 'success') connectors_pending += 1;
+      await logStep(`sync:${c.id}`, r.status === 'error' ? 'error' : 'ok', r.message || 'synced');
     } else {
       await logStep(`sync:${c.id}`, 'skipped', `not connected — set ${c.missing_env_vars.join(', ') || 'credentials'}`);
     }
@@ -264,7 +278,7 @@ async function runDailyJob(trigger = 'manual') {
   await safe(supa.update('scheduled_jobs', { last_run_at: started_at, last_status: 'success' }, { id: `eq.${jobId}` }));
   await logActivity({ action: 'job.daily_refresh', entity_type: 'job', entity_id: jobId, summary, metadata: { trigger, steps } });
 
-  return { job_id: jobId, cron_run_id, steps_total: steps.length, steps_ok, steps_skipped: steps.filter((s) => s.status === 'skipped').length, summary, steps };
+  return { job_id: jobId, cron_run_id, steps_total: steps.length, steps_ok, steps_skipped: steps.filter((s) => s.status === 'skipped').length, records_synced, connectors_pending, summary, steps };
 }
 
 // ── All-in-One dashboard aggregation (reads real tables only) ────────────────

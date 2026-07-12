@@ -98,7 +98,9 @@ const getProfiles = (p = {}) => request({ path: '/profiles/', query: { 'page[siz
 const getProfile  = (p = {}) => request({ path: `/profiles/${encodeURIComponent(p.id)}/` });
 const getLists    = (p = {}) => request({ path: '/lists/', query: { 'page[size]': p.limit || 50 } });
 const getList     = (p = {}) => request({ path: `/lists/${encodeURIComponent(p.id)}/` });
-const getSegments = (p = {}) => request({ path: '/segments/', query: { 'page[size]': p.limit || 50 } });
+// profile_count is the live segment size (the real cohort size) — requested via
+// the additional-fields param so a single read yields name + size together.
+const getSegments = (p = {}) => request({ path: '/segments/', query: { 'page[size]': p.limit || 50, 'additional-fields[segment]': 'profile_count' } });
 const getMetrics  = (p = {}) => request({ path: '/metrics/', query: { 'page[size]': p.limit || 50 } });
 const getEvents   = (p = {}) => request({ path: '/events/', query: { 'page[size]': p.limit || 20, filter: p.filter, sort: p.sort || '-datetime' } });
 const getFlows    = (p = {}) => request({ path: '/flows/', query: { 'page[size]': p.limit || 50 } });
