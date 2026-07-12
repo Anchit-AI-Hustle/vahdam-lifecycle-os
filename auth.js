@@ -239,6 +239,7 @@
     // reachable by URL but are no longer separate nav features; this one
     // feature's match[] also lights up for them.
     { id: 'brain', label: 'Automated Calendar Creation', href: '/brain', icon: 'calendar', ver: 'v2', match: ['/brain', '/smart-brain', '/smart-brain.html', '/mailer-calendar', '/lifecycle-calendar.html', '/calendar.html', '/plan'] },
+    { id: 'retentionplaybook', label: 'Retention Playbook', href: '/retention-playbook', icon: 'calendar', ver: 'v2', match: ['/retention-playbook', '/retention-playbook.html'] },
     { id: 'ukhub', label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
 
     { section: 'Design & Create' },
