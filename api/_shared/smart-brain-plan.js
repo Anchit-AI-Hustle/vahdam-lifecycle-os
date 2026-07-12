@@ -27,6 +27,81 @@ const {
 } = require('../../lib/smart-brain/services.js');
 const callLLM = require('./llm.js');
 const { parseJSON } = require('./llm.js');
+// Shared-source-of-truth engine (spec §24b). Optional — never let a sync
+// hiccup break generation/approval; every call is best-effort.
+let sync = null; try { sync = require('./sync-core.js'); } catch (_) { sync = null; }
+let facts = null; try { facts = require('./brand-facts.js'); } catch (_) { facts = null; }
+
+// The canonical source-version map a generated campaign was built from. Facts
+// (rating/review/claim) come from the approved-facts library (brand-facts) for
+// the campaign's SKU+region — the genuinely canonical, drift-prone B1 data;
+// price/offer/image are versioned from the campaign's own snapshot so a later
+// canonical change is detectable. Missing facts module → those keys are absent
+// (preLaunchGate reports UNAVAILABLE, never a fabricated "fresh").
+function syncSourcesFor(campaign) {
+  if (!sync) return {};
+  const c = campaign || {};
+  const email = (c.assets && c.assets.email) || {};
+  const sku = (c.heroProduct && (c.heroProduct.sku || c.heroProduct.handle)) || c.hero_sku || null;
+  const region = c.market || 'US';
+  const out = {
+    product: { version: sku || c.name || null },
+    region: { version: region },
+    price: { version: (c.offer && c.offer.price) || email.price || null },
+    offer: { version: c.offer ? `${c.offer.code || ''}:${c.offer.pct || 0}` : null },
+    image: { version: (email.creative && email.creative.image) || null },
+    url: { version: (c.assets && c.assets.landing_pages && c.assets.landing_pages[0] && c.assets.landing_pages[0].path) || null },
+  };
+  if (facts && sku) {
+    out.rating = { version: String(facts.approvedRating(sku, region)) };
+    out.review = { version: sync.stableHash(facts.approvedReviews(sku, region)) };
+    out.claim = { version: sync.stableHash(facts.approvedClaims(sku, region)) };
+  }
+  return out;
+}
+
+// Stamp the campaign with freshness metadata + persist a sync_state row and an
+// audit entry. Runs on every prebuild/approve persist. Never throws.
+async function stampAndRecordSync(db, config, campaign, { actor = 'system', reason = '' } = {}) {
+  if (!sync || !campaign) return;
+  try {
+    const sources = syncSourcesFor(campaign);
+    sync.stamp(campaign, { sources, campaignVersion: campaign.campaign_id, status: sync.STATUS.CURRENT });
+    await sync.writeState({
+      record_type: 'campaign', record_id: campaign.campaign_id,
+      version: campaign.campaign_id, source_version: (campaign._sync && campaign._sync.source_version) || {},
+      status: sync.STATUS.CURRENT,
+    }, { db, config });
+    await sync.audit({
+      record_type: 'campaign', record_id: campaign.campaign_id, new_value: campaign.campaign_id,
+      source: 'smart-brain', initiated_by: 'campaign.updated', actor, reason: reason || 'campaign persisted',
+      regeneration_result: 'built', validation_result: 'stamped',
+    }, { db, config });
+  } catch (_) { /* sync is additive; never block persistence */ }
+}
+
+// Pre-launch synchronization gate: is this (already-built) campaign still fresh
+// vs the CURRENT canonical facts? Compares the stamped source versions to a
+// freshly-computed set. Returns the gate result; never throws.
+function preLaunchSyncCheck(campaign) {
+  if (!sync || !campaign || !campaign._sync) return { ok: true, status: 'UNSTAMPED', blockers: [], stale: [] };
+  try { return sync.preLaunchGateSync(campaign, syncSourcesFor(campaign)); } catch (_) { return { ok: true, status: 'ERROR', blockers: [], stale: [] }; }
+}
+
+// Freshness snapshot for the sync-status endpoint: recent generated campaigns
+// with their stored sync status + a re-check against current facts.
+async function syncStatus({ config: cfg = {}, limit = 60 } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  if (!db.connected) return { ok: true, connected: false, note: 'Supabase not configured; freshness runs in-memory only.', rows: [] };
+  const camps = (await db.select(config.tableNames.generatedCampaigns, { order: 'updated_at.desc', limit }).catch(() => [])) || [];
+  const rows = camps.map((r) => {
+    const c = r.payload || {};
+    const chk = preLaunchSyncCheck(c);
+    return { campaign_id: r.id, status: r.status, market: c.market || null, synced_at: (c._sync && c._sync.synced_at) || null, freshness: (c._sync && c._sync.status) || 'UNSTAMPED', stale_deps: chk.stale || [], launch_ok: chk.ok };
+  });
+  return { ok: true, connected: true, count: rows.length, stale: rows.filter((r) => !r.launch_ok).length, rows };
+}
 
 // Premium-first with automatic downgrade. The premium cascade only tries the
 // paid providers' forward model IDs (gpt-5.5, gemini-3.1-pro, grok-4.3, ...); if
@@ -1147,6 +1222,20 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
 
+  // Pre-launch synchronization gate (spec §24b): a REUSED prebuilt campaign may
+  // have been built days ago; verify its facts snapshot is still current before
+  // publishing. Advisory — surfaced on the response + audited, and the slot is
+  // flagged, but we do not hard-block (the reviewer owns the final call).
+  let syncGate = null;
+  if (campaign._sync || (sync && prebuiltId)) {
+    syncGate = preLaunchSyncCheck(campaign);
+    if (sync && !syncGate.ok) {
+      try {
+        await sync.audit({ record_type: 'campaign', record_id: campaign.campaign_id, source: 'smart-brain', initiated_by: 'approval.updated', actor: reviewer || 'system', reason: `pre-launch gate: ${syncGate.status} (${(syncGate.stale || []).join(', ') || 'n/a'})`, validation_result: syncGate.status }, { db, config });
+      } catch (_) { /* best-effort */ }
+    }
+  }
+
   const persisted = { campaign: null, mailer: null, ads: null, landing: null, calendar: null };
   if (db.connected) {
     // Publish: store the campaign at review status + mirror mailer/ads/LP into the dashboards.
@@ -1160,7 +1249,7 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
       });
     }
   }
-  return { ok: true, campaign, landing_page_url: campaign.assets.landing_pages?.[0] ? `/lp/${campaign.campaign_id}` : null, persisted };
+  return { ok: true, campaign, landing_page_url: campaign.assets.landing_pages?.[0] ? `/lp/${campaign.campaign_id}` : null, persisted, sync: syncGate };
 }
 
 async function rejectEntry({ id, reviewer = null, notes = '', config: cfg = {} } = {}) {
@@ -1319,6 +1408,9 @@ function creativeCount(campaign) {
 // landingPageHtml, which reads smart_generated_campaigns first).
 async function persistCampaignAssets(db, config, campaign, { status, origin, reviewer = null, mirror = true } = {}) {
   const out = { campaign: null, mailer: null, ads: null, landing: null };
+  // Stamp freshness (spec §24b) BEFORE persisting so the stored payload carries
+  // its source-version snapshot; also writes sync_state + an audit entry.
+  await stampAndRecordSync(db, config, campaign, { actor: reviewer || origin || 'system', reason: `persist (${status})` });
   out.campaign = await db.upsert(config.tableNames.generatedCampaigns, [{ id: campaign.campaign_id, payload: campaign, status, updated_at: nowIso() }], 'id');
   if (!mirror) return out;
   // Mirror the MAILER into mailers_generated so the generated email lands in the
@@ -1443,7 +1535,7 @@ async function dbCheck({ config: cfg = {} } = {}) {
 
 module.exports = {
   syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, unrejectEntry, activateScenario, landingPageHtml, buildCampaign,
-  prebuildAssets, dbCheck,
+  prebuildAssets, dbCheck, syncStatus,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
 };

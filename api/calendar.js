@@ -112,6 +112,12 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json(await plan.dbCheck({ config: body.config || {} }));
     }
 
+    if (smartAction === 'sync-status') {
+      // Shared-source-of-truth freshness (spec §24b): generated campaigns with
+      // their stored freshness + a re-check of facts against the current library.
+      return res.status(200).json(await plan.syncStatus({ config: body.config || {}, limit: body.limit || 60 }));
+    }
+
     if (smartAction === 'export') {
       // Calendar → Google-Sheets-importable CSV. Uses the entries the client
       // already holds (what the reviewer sees) when POSTed; else pulls the plan.
