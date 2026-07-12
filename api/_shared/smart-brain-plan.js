@@ -1090,11 +1090,11 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
 
-  const persisted = { campaign: null, ads: null, landing: null, calendar: null };
+  const persisted = { campaign: null, mailer: null, ads: null, landing: null, calendar: null };
   if (db.connected) {
-    // Publish: store the campaign at review status + mirror ads/LP into the dashboards.
+    // Publish: store the campaign at review status + mirror mailer/ads/LP into the dashboards.
     const p = await persistCampaignAssets(db, config, campaign, { status: campaign.status, origin: 'smart-brain', reviewer, mirror: true });
-    persisted.campaign = p.campaign; persisted.ads = p.ads; persisted.landing = p.landing;
+    persisted.campaign = p.campaign; persisted.mailer = p.mailer; persisted.ads = p.ads; persisted.landing = p.landing;
     if (row) {
       const log = Array.isArray(row.change_log) ? row.change_log.slice(-30) : [];
       log.push({ at: nowIso(), kind: 'approved', detail: `Approved by ${reviewer || 'unknown'}; campaign ${campaign.campaign_id} generated (copy: ${copyMeta.provider}).` });
@@ -1231,9 +1231,29 @@ function creativeCount(campaign) {
 // so unapproved drafts never flood the dashboards; /lp/:id still resolves it via
 // landingPageHtml, which reads smart_generated_campaigns first).
 async function persistCampaignAssets(db, config, campaign, { status, origin, reviewer = null, mirror = true } = {}) {
-  const out = { campaign: null, ads: null, landing: null };
+  const out = { campaign: null, mailer: null, ads: null, landing: null };
   out.campaign = await db.upsert(config.tableNames.generatedCampaigns, [{ id: campaign.campaign_id, payload: campaign, status, updated_at: nowIso() }], 'id');
   if (!mirror) return out;
+  // Mirror the MAILER into mailers_generated so the generated email lands in the
+  // Created Assets dashboard alongside its ads + landing page (previously only
+  // ads + landing pages were mirrored, so generated mailers never showed there).
+  const email = campaign.assets.email;
+  if (email) {
+    const variants = Array.isArray(email.variants) ? email.variants : [];
+    out.mailer = await db.insert(config.tableNames.mailersGenerated, [{
+      user_email: reviewer || null,
+      prompt_short: String(campaign.name || campaign.objective || '').slice(0, 200),
+      campaign_type: campaign.objective || null,
+      primary_market: campaign.market || null,
+      markets: campaign.market ? [campaign.market] : null,
+      hero_product_name: email.hero_headline || campaign.name || null,
+      hero_product_image: (email.creative && email.creative.image) || null,
+      headline: email.hero_headline ? [email.hero_headline] : null,
+      sub_copy: email.preheader || null,
+      variant_a_html: email.html || (variants[0] && variants[0].html) || null,
+      variant_b_html: (variants[1] && variants[1].html) || null,
+    }]).catch(() => null);   // never let a mailer-mirror failure block ads/LP/approval
+  }
   const adRows = (campaign.assets.ads || []).map((ad) => ({
     channel: ad.platform, name: campaign.name, market: campaign.market, objective: campaign.objective,
     audience: campaign.audience?.name, copy: ad, creative_prompt: ad.creative_brief || ad.script || '', origin,
