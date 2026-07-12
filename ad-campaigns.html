@@ -170,15 +170,20 @@
   <!-- CALENDAR -->
   <section class="panel" id="panel-calendar">
     <div class="card">
-      <div class="cal-head">
-        <button class="btn btn-ghost" id="cal-prev">←</button>
-        <h3 id="cal-title" style="font-family:'Lora',serif;font-size:18px;font-weight:600;flex:1;text-align:center"></h3>
-        <button class="btn btn-ghost" id="cal-next">→</button>
+      <div class="cal-head" style="justify-content:space-between;align-items:center">
+        <h3 style="font-family:'Lora',serif;font-size:18px;font-weight:600;margin:0">Ad calendar — the Vahdam Brain plan</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div id="ad-mkt" style="display:flex;gap:4px"></div>
+          <button class="btn btn-ghost" id="ad-refresh" title="Reload the plan">↻</button>
+        </div>
       </div>
-      <div id="cal-empty" class="cal-empty" style="display:none">No ad campaigns planned yet. Click any day to add one, or approve a Smart Brain slot to auto-fill this calendar.</div>
-      <div class="cal-grid" id="cal-dow"></div>
-      <div class="cal-grid" id="cal-grid" style="margin-top:7px"></div>
-      <p class="note" style="margin-top:12px">Click any day to schedule a campaign. Scheduled campaigns also appear in their channel tab.</p>
+      <p class="note" style="margin:8px 0 14px">This is the <b>same rolling plan as the Vahdam Brain</b> mailer calendar — identical slots, cohorts, dates and reasoning. Each slot's paid-social ad set (Meta, Google, TikTok) is generated from the same strategy, copy and real catalog assets as its mailer. Review and approval happen in the Brain; approving a slot there locks its ads here too.</p>
+      <div id="ad-plan"></div>
+      <div id="ad-plan-empty" class="cal-empty" style="display:none"></div>
+      <div style="margin-top:14px;border-top:1px solid rgba(171,135,67,0.15);padding-top:12px">
+        <button class="btn btn-ghost" id="ad-manual">＋ Add a manual one-off campaign</button>
+        <span class="note" style="margin-left:8px">Manual campaigns are separate from the Brain plan and also show in their channel tab.</span>
+      </div>
     </div>
   </section>
 
@@ -805,31 +810,113 @@
   document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
   window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
 
-  // ── Calendar ─────────────────────────────────────────────────────────
+  // ── Calendar — the SAME rolling plan as the Vahdam Brain mailer calendar ──
+  // Not a separate manual grid: it reads the Smart Brain plan (identical slots,
+  // cohorts, dates, reasoning) and renders each slot's paid-social AD SET, built
+  // from the same strategy + copy + real catalog assets as that slot's mailer.
+  // Review/approval lives in the Brain; the shared plan reflects it here.
   let calDate = new Date(); calDate.setDate(1);
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const dkey = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  function renderCal() {
-    const y = calDate.getFullYear(), m = calDate.getMonth();
-    $('#cal-title').textContent = `${MONTHS[m]} ${y}`;
-    $('#cal-dow').innerHTML = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => `<div class="dow">${d}</div>`).join('');
-    const first = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
-    let html = '';
-    for (let i = 0; i < first; i++) html += '<div class="day empty"></div>';
-    for (let d = 1; d <= days; d++) {
-      const k = dkey(y, m, d), items = store.calendar[k] || [];
-      const chips = items.slice(0, 3).map((c) => `<div class="cm chan-${c.channel}">${esc(c.name || c.channel)}</div>`).join('');
-      html += `<div class="day" data-d="${k}"><div class="day-num">${d}</div>${chips}${items.length > 3 ? `<div class="note">+${items.length - 3}</div>` : ''}</div>`;
-    }
-    $('#cal-grid').innerHTML = html;
-    $('#cal-grid').querySelectorAll('.day:not(.empty)').forEach((el) => el.addEventListener('click', () => openDay(el.dataset.d)));
-    // Empty-state: a blank month grid reads as "not loading" — say so explicitly.
-    const monthPrefix = `${y}-${String(m + 1).padStart(2, '0')}-`;
-    const hasMonthEntries = Object.keys(store.calendar || {}).some((k) => k.indexOf(monthPrefix) === 0 && (store.calendar[k] || []).length);
-    $('#cal-empty').style.display = hasMonthEntries ? 'none' : 'block';
+  const BRAIN = '/api/brain';
+  const intf = (n) => (+n || 0).toLocaleString();
+  let AD_PLAN = [], AD_MKT = 'US';
+  const AD_PREVIEW = {};
+  const CHAN_COL = { google: 'chan-google', meta: 'chan-meta', tiktok: 'chan-other' };
+  const adVisible = (e) => AD_MKT === 'ALL' || String(e.market || '').toUpperCase() === AD_MKT;
+  function renderAdMkt() {
+    const host = $('#ad-mkt'); if (!host) return;
+    host.innerHTML = ['US', 'UK', 'ALL'].map((m) => `<button class="tab${AD_MKT === m ? ' active' : ''}" data-admkt="${m}" style="padding:5px 12px;font-size:12px">${m}</button>`).join('');
+    host.querySelectorAll('[data-admkt]').forEach((b) => { b.onclick = () => { AD_MKT = b.dataset.admkt; renderAdMkt(); renderAdPlan(); }; });
   }
-  $('#cal-prev').onclick = () => { calDate.setMonth(calDate.getMonth() - 1); renderCal(); };
-  $('#cal-next').onclick = () => { calDate.setMonth(calDate.getMonth() + 1); renderCal(); };
+  async function loadAdPlan() {
+    const host = $('#ad-plan'); if (host) host.innerHTML = '<p class="note">Loading the Vahdam Brain plan…</p>';
+    try { const r = await fetch(BRAIN + '?action=smart-brain-plan'); const d = await r.json(); AD_PLAN = (d && d.entries) || []; }
+    catch (e) { AD_PLAN = []; }
+    renderAdPlan();
+  }
+  function adStatus(e) {
+    if (e.generated_campaign_id || e.status === 'approved' || e.status === 'final') return '<span class="chan" style="background:rgba(34,197,94,0.15);color:#86efac">approved</span>';
+    if (e.status === 'rejected') return '<span class="chan" style="background:rgba(209,121,95,0.16);color:#e89a9a">rejected</span>';
+    return '<span class="chan chan-other">draft</span>';
+  }
+  function renderAdPlan() {
+    const host = $('#ad-plan'), empty = $('#ad-plan-empty'); if (!host) return;
+    AD_PLAN.forEach((e, i) => { e.__i = i; });
+    const rows = AD_PLAN.filter(adVisible);
+    if (!rows.length) {
+      host.innerHTML = '';
+      if (empty) { empty.style.display = 'block'; empty.textContent = AD_PLAN.length ? ('No slots for ' + AD_MKT + ' — switch market.') : 'No plan yet. Open the Vahdam Brain, run the plan, and the same slots appear here with their ad sets.'; }
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+    const head = '<tr style="text-align:left;color:#9fb3a8;font-size:11px;text-transform:uppercase;letter-spacing:.06em"><th style="padding:8px 10px">Date</th><th style="padding:8px 10px">Cohort</th><th style="padding:8px 10px">Objective / Hero</th><th style="padding:8px 10px">Channels</th><th style="padding:8px 10px">Conf.</th><th style="padding:8px 10px">Status</th><th style="padding:8px 10px">Actions</th></tr>';
+    const body = rows.map((e) => {
+      const i = e.__i;
+      const chans = (e.channels || []).filter((c) => c !== 'email' && c !== 'landing_page').map((c) => `<span class="chan ${CHAN_COL[c] || 'chan-other'}">${esc(c)}</span>`).join(' ') || '<span class="chan chan-other">meta · google · tiktok</span>';
+      return `<tr style="border-top:1px solid rgba(171,135,67,0.12)">`
+        + `<td style="padding:10px">${esc(e.date)}</td>`
+        + `<td style="padding:10px">${esc((e.cohort && e.cohort.name) || '')}<br><span class="note">${(e.cohort && e.cohort.size != null) ? intf(e.cohort.size) + ' profiles' : ''}</span></td>`
+        + `<td style="padding:10px"><b>${esc(e.objective || '')}</b><br><span class="note">${esc((e.heroProduct && e.heroProduct.title) || '')}</span></td>`
+        + `<td style="padding:10px">${chans}</td>`
+        + `<td style="padding:10px">${e.confidence != null ? Math.round(e.confidence * 100) + '%' : '—'}</td>`
+        + `<td style="padding:10px">${adStatus(e)}</td>`
+        + `<td style="padding:10px;white-space:nowrap"><button class="btn btn-ghost" onclick="viewAdSlot(${i})">View ads</button> <button class="btn btn-ghost" onclick="whyAdSlot(${i})">❓ Why</button></td>`
+        + `</tr>`
+        + `<tr id="adexp-${i}" style="display:none"><td colspan="7" style="padding:0;background:#0b1813"><div id="adbody-${i}" style="padding:14px 16px"></div></td></tr>`;
+    }).join('');
+    host.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">${head}${body}</table></div>`;
+  }
+  function adSlotToggle(i) {
+    const row = $('#adexp-' + i); if (!row) return null;
+    document.querySelectorAll('[id^="adexp-"]').forEach((r) => { if (r !== row) r.style.display = 'none'; });
+    row.style.display = row.style.display === 'none' ? '' : 'none';
+    return row.style.display === 'none' ? null : $('#adbody-' + i);
+  }
+  function adCard(ad) {
+    const img = ad.creative && ad.creative.image;
+    const plat = esc(ad.platform || '');
+    let copy = '';
+    if (ad.platform === 'meta') copy = `<b>${esc(ad.headline || '')}</b><p style="margin:4px 0">${esc(ad.primary_text || '')}</p><span class="note">${esc(ad.description || '')}</span>`;
+    else if (ad.platform === 'google') copy = `<b>${esc((ad.headlines || []).filter(Boolean).join(' · '))}</b><p style="margin:4px 0">${esc((ad.descriptions || []).filter(Boolean).join(' '))}</p>`;
+    else if (ad.platform === 'tiktok') copy = `<b>${esc(ad.caption || '')}</b><p style="margin:4px 0">${esc(ad.script || '')}</p>`;
+    return `<div class="item" style="flex:1;min-width:220px"><div class="item-top"><span class="chan ${CHAN_COL[ad.platform] || 'chan-other'}">${plat}${ad.variant ? ' · ' + esc(ad.variant) : ''}</span></div>`
+      + (img ? `<img src="${esc(img)}" alt="" style="width:100%;border-radius:8px;margin:8px 0;display:block">` : '')
+      + `<div style="font-size:12.5px;line-height:1.5">${copy}</div></div>`;
+  }
+  window.viewAdSlot = async function (i) {
+    const e = AD_PLAN[i]; if (!e) return;
+    const body = adSlotToggle(i); if (!body) return;
+    if (AD_PREVIEW[e.id]) { body.innerHTML = renderAdSet(AD_PREVIEW[e.id]); return; }
+    body.innerHTML = '<p class="note">Generating the ad set (same pipeline as the Brain mailer)…</p>';
+    try {
+      const r = await fetch(BRAIN + '?action=smart-brain-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: e.id, entry: e }) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || 'Preview failed');
+      AD_PREVIEW[e.id] = d;
+      body.innerHTML = renderAdSet(d);
+    } catch (err) { body.innerHTML = `<p class="note" style="color:#e89a9a">Ad preview failed: ${esc(err.message)}</p>`; }
+  };
+  function renderAdSet(d) {
+    const ads = (d && (d.ads || (d.campaign && d.campaign.assets && d.campaign.assets.ads))) || [];
+    if (!ads.length) return '<p class="note">No ad assets in this slot yet.</p>';
+    return '<div style="display:flex;gap:12px;flex-wrap:wrap">' + ads.map(adCard).join('') + '</div>';
+  }
+  window.whyAdSlot = function (i) {
+    const e = AD_PLAN[i]; if (!e) return;
+    const body = adSlotToggle(i); if (!body) return;
+    const d = e.decision || {}, a = e.analysis || {}, offer = d.offer || {};
+    const rowly = (l, v) => v ? `<div style="margin:6px 0"><span style="color:#AB8743;font-weight:700;font-size:12px">${esc(l)}</span><div style="font-size:13px">${esc(v)}</div></div>` : '';
+    body.innerHTML = '<div style="border-left:3px solid #AB8743;padding-left:14px">'
+      + `<div style="font-weight:700;margin-bottom:8px">Why this slot and its ads</div>`
+      + rowly('Cohort', (e.cohort && e.cohort.name) || '')
+      + rowly('Data basis', a.summary || d.topic && d.topic.why || e.rationale || '')
+      + rowly('Timing', (d.timing && d.timing.why) || (e.reach && e.reach.why) || '')
+      + rowly('Offer', offer.code ? (Math.round((offer.pct || 0) * 100) + '% via ' + offer.code) : 'No discount')
+      + rowly('Confidence', e.confidence != null ? Math.round(e.confidence * 100) + '%' : '')
+      + `<div style="font-size:12.5px;color:#9fb3a8;margin-top:8px">Ad imagery uses real Shopify catalog photos only; copy is brand-gated and rendered as native platform text (never baked into the image). Same strategy + assets as this slot's mailer in the Brain.</div>`
+      + '</div>';
+  };
 
   const dayModal = $('#day-modal'); let activeDay = null;
   function openDay(k) {
@@ -841,7 +928,7 @@
       ? '<label class="label">Scheduled</label>' + existing.map((c, i) => `<div class="item" style="margin-bottom:6px"><div class="item-top"><span class="chan chan-${c.channel}">${c.channel}</span><b>${esc(c.name)}</b><button class="x" data-rm="${i}">×</button></div><div class="item-meta"><span>$${esc(String(c.budget || '—'))}/day</span><span>${esc(c.market || '')}</span></div></div>`).join('')
       : '';
     $('#dm-existing').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => {
-      store.calendar[k].splice(+b.dataset.rm, 1); if (!store.calendar[k].length) delete store.calendar[k]; save(); openDay(k); renderCal();
+      store.calendar[k].splice(+b.dataset.rm, 1); if (!store.calendar[k].length) delete store.calendar[k]; save(); openDay(k); renderAdPlan();
     }));
     dayModal.classList.add('open');
   }
@@ -851,9 +938,12 @@
     (store.calendar[activeDay] = store.calendar[activeDay] || []).push({
       id: uid(), channel: $('#dm-channel').value, name, budget: $('#dm-budget').value, market: $('#dm-market').value,
     });
-    save(); renderCal(); openDay(activeDay); toast('Scheduled');
+    save(); renderAdPlan(); openDay(activeDay); toast('Scheduled');
   };
   dayModal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', () => dayModal.classList.remove('open')));
+  // Ad-calendar controls: reload the Brain plan, and open the manual one-off modal.
+  { const rb = $('#ad-refresh'); if (rb) rb.onclick = () => loadAdPlan(); }
+  { const mb = $('#ad-manual'); if (mb) mb.onclick = () => { const t = new Date(); openDay(dkey(t.getFullYear(), t.getMonth(), t.getDate())); }; }
 
   // ── AI copy (reuses /api/ai/generate create_brief) ───────────────────
   async function aiBrief(noteEl, market, type, prompt) {
@@ -982,7 +1072,7 @@
   };
 
   // ── Init ─────────────────────────────────────────────────────────────
-  renderCal(); renderGoogle(); renderMeta(); renderTikTok();
+  renderAdMkt(); loadAdPlan(); renderGoogle(); renderMeta(); renderTikTok();
 
   // ── Single-prompt autofill ───────────────────────────────────────────
   // The Generate-from-prompt bar at the top of each ad form. Calls
