@@ -352,6 +352,7 @@ function renderPlan(){
     <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#9fb3a8;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
     <td>${status}</td>
     <td style="white-space:nowrap">
+      <span id="sbstat-${i}" class="sbstat" title="Generation status"></span>
       <button class="btn sm secondary" id="viewbtn-${i}" onclick="viewEntry(${i})">View</button>
       <button class="btn sm ok" id="dlbtn-${i}" onclick="downloadEntry(${i})" title="Generate (if needed) and download every asset for this send as one HTML file">⬇ Download</button>
       <button class="btn sm secondary" onclick="viewDecision(${i})" title="The complete logic, analysis and reason for this send: why the slot was chosen, and why this design and content">❓ Why this mail?</button>
@@ -776,21 +777,75 @@ async function downloadEntry(i){
 // (respects the region filter). Sequential — each build spins up an LLM copy +
 // asset run on a serverless function, so we avoid firing 90 at once. Progress
 // and a per-slot pass/fail tally stream into #detail; failures are collected.
+// Per-row generation status for the "Generate all" state machine.
+// states: 'queued' | 'generating' | 'ready' | 'failed' | '' (clear)
+function sbSetStat(i, state, msg){
+  const el = $('sbstat-'+i); if(!el) return;
+  if(state === 'generating'){ el.innerHTML = '<span class="spinner" title="Generating…"></span>'; return; }
+  const map = {
+    queued: { t:'⏳', c:'#9fb3a8', title:'Queued' },
+    ready:  { t:'✓', c:'#8fe7b9', title:'Ready — cached' },
+    failed: { t:'✕', c:'#e89a9a', title: msg || 'Failed' },
+  };
+  const s = map[state];
+  el.innerHTML = s ? `<span style="color:${s.c};font-weight:700;margin-right:4px" title="${esc(s.title)}">${s.t}</span>` : '';
+}
+
+// Pre-flight connector diagnostic. Checks which text providers are usable
+// BEFORE the batch starts. Hard-fails (returns null → caller aborts) only when
+// nothing is configured; otherwise warns about degraded providers and proceeds.
+async function sbPreflight(){
+  let rep;
+  try { rep = await (await fetch('/api/connectors-check')).json(); }
+  catch(_){ return { anyUsable: true, degraded: [], summary: 'Connector check unavailable — proceeding.' }; }
+  const det = $('detail');
+  if(!rep.anyConfigured){
+    const m = 'Cannot generate — no text AI provider is connected.\n\n' + (rep.summary || '') +
+              ((rep.missing||[]).length ? '\n\nMissing keys: ' + rep.missing.join(', ') : '');
+    if(det) det.textContent = m;
+    alert(m);
+    return null;
+  }
+  if(!rep.anyUsable){
+    if(det) det.textContent = '⚠ ' + (rep.summary || 'All providers degraded.');
+    if(!confirm((rep.summary || 'All configured providers are rate-limited.') + '\n\nGenerate anyway? Copy will fall back to templates until they recover.')) return null;
+  } else if((rep.degraded||[]).length && det){
+    det.textContent = '⚠ Degraded (rate-limited): ' + rep.degraded.join(', ') + ' — the cascade will route around them.';
+  }
+  return rep;
+}
+
 async function generateAll(){
   const targets = PLAN.map((e,i)=>({e,i})).filter(({e})=> !(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id)) && slotVisible(e));
   if(!targets.length){ return; }
   if(!confirm(`Generate the final assets for ${targets.length} send(s) currently shown?\nEach one builds its mailer, ads, and landing page. This can take a while.`)) return;
+
+  // 1) Pre-flight: bail cleanly if no provider can serve text.
+  const rep = await sbPreflight();
+  if(!rep) return;
+
   const aa = $('generateAll'); if(aa){ aa.disabled = true; }
   const det = $('detail');
+  // 2) Mark the whole batch queued up-front so the operator sees the pipeline.
+  targets.forEach(({i}) => sbSetStat(i, 'queued'));
+
   let ok = 0; const fails = [];
+  // 3) Sequential — one slot at a time. Each result is cached in PREVIEW_CACHE
+  //    by generateEntry, so View/Download read the cache and never re-generate.
   for(let n=0; n<targets.length; n++){
     const { i, e } = targets[n];
+    sbSetStat(i, 'generating');
     if(det) det.textContent = `Generating ${n+1} of ${targets.length}: ${e.date} ${e.market} (${e.objective})…  ✓${ok}${fails.length?`  ✕${fails.length}`:''}`;
-    try{ await generateEntry(i, { silent: true }); ok++; }
-    catch(err){ fails.push(`${e.date} ${e.market}: ${err.message}`); }
+    try{ await generateEntry(i, { silent: true }); ok++; sbSetStat(i, 'ready'); }
+    catch(err){ fails.push(`${e.date} ${e.market}: ${err.message}`); sbSetStat(i, 'failed', err.message); }
+    // 4) Yield to the main thread between slots so badges/progress repaint and
+    //    the UI never freezes through the batch.
+    await new Promise(r => setTimeout(r, 0));
   }
   if(aa){ aa.disabled = false; }
   renderPlan();
+  // renderPlan re-creates the rows; re-stamp the cached ones as ready.
+  targets.forEach(({i,e}) => { if(PREVIEW_CACHE[e.id]) sbSetStat(i, 'ready'); });
   if(det) det.textContent = `Generate all done — ✓ ${ok} generated${fails.length?`, ✕ ${fails.length} failed:\n`+fails.join('\n'):''}.`;
 }
 window.generateEntry = generateEntry; window.downloadEntry = downloadEntry; window.generateAll = generateAll;
