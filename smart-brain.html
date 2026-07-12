@@ -333,7 +333,22 @@ function renderPlan(){
     const confTip = a && a.confidence && Array.isArray(a.confidence.factors)
       ? a.confidence.factors.map(f=>`${f.delta>=0?'+':''}${f.delta} ${f.label}`).join('\n') : '';
     const isGen = !!(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id));
-    const status = `<span class="st ${isGen?'approved':'tentative'}">${isGen?'✓ generated':'draft'}</span>${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}`;
+    const rejected = e.status==='rejected';
+    // Review verdict: the human sign-off control. Approve → generates + locks the
+    // final assets (ready to ship); Reject → logs the decision and the slot is
+    // re-planned on the next daily sync. Once a verdict is recorded the control
+    // collapses to the resulting status pill.
+    const verdict = isGen
+      ? `<span class="st approved">✓ approved</span>`
+      : rejected
+        ? `<span class="st" style="background:#3a1c1c;color:#e89a9a">✗ rejected</span>`
+        : `<span class="st tentative">draft</span>`;
+    const reviewCtl = (isGen || rejected) ? '' :
+      `<div class="rev" id="rev-${i}" style="display:flex;gap:4px;margin-top:6px">`+
+      `<button class="btn sm ok" onclick="approveRow(${i})" title="Approve this send — generates and locks the final assets so it is ready to ship">✓ Approve</button>`+
+      `<button class="btn sm secondary" onclick="rejectRow(${i})" title="Reject this send — logs the decision and the slot is re-planned on the next daily sync">✗ Reject</button>`+
+      `</div>`;
+    const status = `${verdict}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}${reviewCtl}`;
     return `<tr class="planrow" id="planrow-${i}">
     <td>${esc(e.date)}${e.mailer_total > 1 ? `<br><span class="pill" style="background:#2a2411;color:#e6c979;font-size:10px">MAILER ${e.mailer_index}/${e.mailer_total}</span>` : ''}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
@@ -742,6 +757,34 @@ async function generateAll(){
   if(det) det.textContent = `Generate all done — ✓ ${ok} generated${fails.length?`, ✕ ${fails.length} failed:\n`+fails.join('\n'):''}.`;
 }
 window.generateEntry = generateEntry; window.downloadEntry = downloadEntry; window.generateAll = generateAll;
+
+// ── Review verdict (per-row human sign-off) ─────────────────────────────────
+// Approve locks the slot and builds its final assets (reuses generateEntry, which
+// posts smart-brain-approve). Reject logs the decision (smart-brain-reject) so the
+// next daily sync re-plans the slot. Both refresh the row's status pill in place.
+async function approveRow(i){
+  const rev = $('rev-'+i);
+  if(rev) rev.innerHTML = '<span class="pvnote"><span class="spinner"></span> approving — building final assets…</span>';
+  try{
+    await generateEntry(i, { silent: true });
+    renderPlan();
+  }catch(err){ if(rev) rev.innerHTML = `<span style="color:#e89a9a;font-size:11px">approve failed: ${esc(err.message)}</span>`; }
+}
+async function rejectRow(i){
+  const e = PLAN[i];
+  const notes = prompt('Reject this send? Add an optional reason — it is logged and the slot is re-planned on the next daily sync.', '');
+  if(notes === null) return;   // reviewer cancelled
+  const rev = $('rev-'+i);
+  if(rev) rev.innerHTML = '<span class="pvnote"><span class="spinner"></span> rejecting…</span>';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, reviewer: reviewerEmail(), notes })});
+    const data = await safeJson(r);
+    if(!data.ok) throw new Error(data.error || 'reject failed');
+    e.status = 'rejected'; e.generated_campaign_id = null;
+    renderPlan();
+  }catch(err){ if(rev) rev.innerHTML = `<span style="color:#e89a9a;font-size:11px">reject failed: ${esc(err.message)}</span>`; }
+}
+window.approveRow = approveRow; window.rejectRow = rejectRow;
 
 async function showSchema(){
   clearPreview();
