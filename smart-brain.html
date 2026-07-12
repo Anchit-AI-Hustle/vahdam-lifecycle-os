@@ -125,9 +125,6 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
         <span class="label" style="margin-right:4px">Mode</span>
         <span class="btn sm" style="cursor:default;pointer-events:none" title="One mode: an agentic pipeline powered by the premium model cascade">🤖 Agentic</span>
-        <select id="amarket" class="btn sm secondary" style="padding:6px">
-          <option value="US">US</option><option value="UK">UK</option><option value="GLOBAL">Global</option><option value="IN">IN</option><option value="EU">EU</option><option value="AU">AU</option>
-        </select>
         <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
       </div>
       <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow. Its calendar stage returns the cadence scenarios (A-E) inline.</p></div>
@@ -215,8 +212,15 @@ function scenarioCard(s){
     <div style="font-size:12px;color:#789">cadence ${esc(s.cadencePerWeek)}/wk · spend ${esc(s.spend||'—')}<br>rev index ${esc((s.projected&&s.projected.revenueIndex)||'—')}</div>
   </div>`;
 }
+// Region for the agentic flow comes from the Rolling-calendar region chips
+// (single source of truth) — the agentic section no longer has its own selector.
+function agenticMarket(){
+  var chip = document.querySelector('.mkchip.on:not([data-mkt="all"])');
+  var m = chip ? chip.getAttribute('data-mkt') : 'US';
+  return ({ US:'US', UK:'UK', Global:'GLOBAL', India:'IN' })[m] || 'US';
+}
 async function runAgentic(){
-  const out = $('agenticOut'), market = $('amarket').value || 'US';
+  const out = $('agenticOut'), market = agenticMarket();
   out.innerHTML = `<p>🤖 Running agentic flow — Premium, ${esc(market)} — 8 stages, please wait…</p>`;
   try{
     // Return the plan fast; creatives (images/mailers/ads/LPs) prebuild in the
@@ -237,7 +241,7 @@ async function runAgentic(){
   }catch(e){ out.innerHTML = `<p style="color:#b00">Error: ${esc(e.message||e)}</p>`; }
 }
 async function loadScenarios(){
-  const out = $('agenticOut'), market = $('amarket').value || 'US';
+  const out = $('agenticOut'), market = agenticMarket();
   out.innerHTML = `<p>🗓 Building 5-scenario calendar — tier <b>${TIER}</b>, ${esc(market)}…</p>`;
   try{
     const r = await fetch(`/api/brain?action=calendar-scenarios&market=${encodeURIComponent(market)}&tier=${TIER}`);
