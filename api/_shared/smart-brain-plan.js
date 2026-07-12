@@ -1157,9 +1157,17 @@ async function unrejectEntry({ id, reviewer = null, config: cfg = {} } = {}) {
   const rows = await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
   const row = rows && rows[0];
   if (!row) throw new Error(`Calendar entry ${id} not found.`);
+  // ONLY a rejected slot may be reset. A stale tab / concurrent reviewer must not
+  // be able to clear the approval state of an already approved/finalised campaign.
+  // Guard both in code (fast path) AND with a status=eq.rejected condition on the
+  // UPDATE (so a race between this read and write updates zero rows, not an
+  // approved one).
+  if (row.status !== 'rejected') {
+    return { ok: true, id, status: row.status, skipped: true, reason: `not rejected (status: ${row.status}) — nothing to reset` };
+  }
   const log = Array.isArray(row.change_log) ? row.change_log.slice(-30) : [];
   log.push({ at: nowIso(), kind: 'reset', detail: `${reviewer || 'Reviewer'}: rejection cleared, back to draft.` });
-  await db.update(config.tableNames.calendarEntries, { id: `eq.${id}` }, {
+  await db.update(config.tableNames.calendarEntries, { id: `eq.${id}`, status: 'eq.rejected' }, {
     status: 'tentative', change_log: log, updated_at: nowIso(),
     generated_campaign_id: null, approved_by: null, approved_at: null,
   });

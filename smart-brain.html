@@ -314,8 +314,12 @@ function renderPlan(){
     const confLabel = a && a.confidence && a.confidence.label ? a.confidence.label : '';
     const confTip = a && a.confidence && Array.isArray(a.confidence.factors)
       ? a.confidence.factors.map(f=>`${f.delta>=0?'+':''}${f.delta} ${f.label}`).join('\n') : '';
-    const isGen = !!(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id));
     const rejected = e.status==='rejected';
+    // `rejected` ALWAYS takes precedence: a rejected slot can still carry a stale
+    // __prebuilt marker (the prebuild queue processes tentative+rejected), which
+    // would otherwise make isGen true and hide the recovery controls, rendering a
+    // rejected send as approved. Excluding rejected keeps Regenerate/Approve/Reset.
+    const isGen = !rejected && !!(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id));
     // Review verdict: the human sign-off control. Approve → generates + locks the
     // final assets (ready to ship); Reject → logs the decision and the slot is
     // re-planned on the next daily sync. Once a verdict is recorded the control
@@ -651,7 +655,11 @@ async function viewEntry(i, forceRegen){
   body.innerHTML = `<p class="pvnote"><span class="spinner"></span> Generating the full funnel (mailer, ads & landing page) — usually 10–30s…</p>`;
   row.scrollIntoView({ behavior:'smooth', block:'nearest' });
   try{
-    const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
+    // Regenerate = a TRUE rebuild: strip the prebuilt marker so preview does not
+    // reuse the stale prebuilt bundle (it would otherwise return the exact bundle
+    // that was just rejected). A normal View keeps the marker for instant reuse.
+    const entryPayload = forceRegen ? (function(){ var c = Object.assign({}, e); delete c.__prebuilt; return c; })() : e;
+    const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: entryPayload, reviewer: reviewerEmail() })});
     const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Preview failed');
     PREVIEW_CACHE[e.id] = data;
