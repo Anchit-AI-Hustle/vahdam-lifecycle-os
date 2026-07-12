@@ -242,7 +242,6 @@
     { id: 'retentionplaybook', label: 'Retention Playbook', href: '/retention-playbook', icon: 'calendar', ver: 'v2', match: ['/retention-playbook', '/retention-playbook.html'] },
     // UK Non-Engagers Hub removed from the user-facing nav (route /uk-non-engagers
     // stays reachable directly); it is no longer a raw nav item.
-    { id: 'brain', label: 'VAHDAM Brain', href: '/brain', icon: 'calendar', ver: 'v2', match: ['/brain', '/smart-brain', '/smart-brain.html', '/mailer-calendar', '/lifecycle-calendar.html', '/calendar.html', '/plan'] },
 
     { section: 'Design & Create' },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
