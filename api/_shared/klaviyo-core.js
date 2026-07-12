@@ -21,6 +21,8 @@
 
 const API_BASE = 'https://a.klaviyo.com/api';
 const DEFAULT_REVISION = '2024-10-15';
+// Central read-only guard (project-wide rule for Shopify/Klaviyo/WebEngage).
+const { assertReadOnly } = require('./read-only-egress.js');
 
 function cfg() {
   return {
@@ -69,6 +71,9 @@ async function request({ method = 'GET', path, query = {}, body = null, timeoutM
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
+    // Hard backstop: even if a write ever reaches here, the central guard throws
+    // before it leaves the process (no write to Klaviyo is ever sent).
+    assertReadOnly(url, method);
     const res = await fetch(url, {
       method,
       signal: ctrl.signal,
