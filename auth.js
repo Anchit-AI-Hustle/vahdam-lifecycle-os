@@ -1819,3 +1819,79 @@
     init();
   }
 })();
+
+// ── Markdown downloads render as PDF (print), for far better formatting ──────
+// Product-owner rule: any markdown a user would "download" should instead come
+// out as a nicely-formatted PDF. This self-contained block (no external libs,
+// CSP-safe) (1) intercepts clicks on any <a href="*.md"> and (2) exposes
+// window.__mdToPdf(text, title) for client-generated markdown (e.g. the social
+// blog export). Both render the markdown to styled HTML in a new tab and open
+// the print dialog, where the user saves as PDF.
+(function () {
+  'use strict';
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  function inline(s) {
+    // bold, italics, inline code, links — applied to already-escaped text.
+    return s
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  }
+  function mdToHtml(md) {
+    var lines = String(md || '').replace(/\r\n?/g, '\n').split('\n');
+    var out = [], i = 0;
+    function flushList(tag, items) { if (items.length) out.push('<' + tag + '>' + items.map(function (x) { return '<li>' + inline(esc(x)) + '</li>'; }).join('') + '</' + tag + '>'); }
+    while (i < lines.length) {
+      var ln = lines[i];
+      // Table block: a header row of pipes followed by a --- separator.
+      if (/^\s*\|.*\|\s*$/.test(ln) && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1]) && lines[i + 1].indexOf('-') >= 0) {
+        var cells = function (r) { return r.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(function (c) { return c.trim(); }); };
+        var head = cells(ln); i += 2; var body = [];
+        while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) { body.push(cells(lines[i])); i++; }
+        out.push('<table><thead><tr>' + head.map(function (h) { return '<th>' + inline(esc(h)) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+          body.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + inline(esc(c)) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>');
+        continue;
+      }
+      var h = ln.match(/^(#{1,6})\s+(.*)$/);
+      if (h) { out.push('<h' + h[1].length + '>' + inline(esc(h[2])) + '</h' + h[1].length + '>'); i++; continue; }
+      if (/^\s*(---|___|\*\*\*)\s*$/.test(ln)) { out.push('<hr>'); i++; continue; }
+      if (/^\s*[-*]\s+/.test(ln)) { var ul = []; while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) { ul.push(lines[i].replace(/^\s*[-*]\s+/, '')); i++; } flushList('ul', ul); continue; }
+      if (/^\s*\d+\.\s+/.test(ln)) { var ol = []; while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) { ol.push(lines[i].replace(/^\s*\d+\.\s+/, '')); i++; } flushList('ol', ol); continue; }
+      if (/^\s*$/.test(ln)) { i++; continue; }
+      var para = []; while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^(#{1,6})\s/.test(lines[i]) && !/^\s*\|.*\|\s*$/.test(lines[i])) { para.push(lines[i]); i++; }
+      out.push('<p>' + inline(esc(para.join(' '))) + '</p>');
+    }
+    return out.join('\n');
+  }
+  var CSS = 'body{font-family:"Proxima Nova","Helvetica Neue",Arial,sans-serif;color:#171717;max-width:820px;margin:32px auto;padding:0 28px;line-height:1.6;}' +
+    'h1,h2,h3,h4{font-family:"Lao MN","Cormorant Garamond",Georgia,serif;color:#004A2B;line-height:1.25;margin:1.4em 0 .4em;}' +
+    'h1{font-size:28px;border-bottom:2px solid #AB8743;padding-bottom:8px;}h2{font-size:21px;}h3{font-size:17px;}' +
+    'table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13px;}th,td{border:1px solid #d9cba8;padding:7px 10px;text-align:left;vertical-align:top;}' +
+    'th{background:#FBF5EA;color:#004A2B;}code{background:#f3eede;padding:1px 5px;border-radius:4px;font-size:.92em;}' +
+    'a{color:#004A2B;}hr{border:0;border-top:1px solid #e5ddc7;margin:22px 0;}strong{color:#1b1612;}' +
+    '.pdfbar{position:fixed;top:0;left:0;right:0;background:#004A2B;color:#fff;padding:10px 16px;font-size:13px;text-align:center;}' +
+    '.pdfbar button{background:#AB8743;color:#171717;border:0;border-radius:6px;padding:7px 16px;font-weight:700;cursor:pointer;margin-left:8px;}' +
+    '@media print{.pdfbar{display:none;}body{margin:0;}}';
+  function openPrintable(title, bodyHtml) {
+    var w = window.open('', '_blank');
+    if (!w) { alert('Allow pop-ups to download the PDF.'); return; }
+    w.document.open();
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + esc(title) + '</title><style>' + CSS + '</style></head><body>' +
+      '<div class="pdfbar">Formatted for PDF — use your browser’s <b>Save as PDF</b><button onclick="window.print()">⬇ Save as PDF</button></div>' +
+      '<div style="height:44px"></div>' + bodyHtml +
+      '<scr' + 'ipt>window.addEventListener("load",function(){setTimeout(function(){try{window.print();}catch(e){}},400);});</scr' + 'ipt>' +
+      '</body></html>');
+    w.document.close();
+  }
+  window.__mdToPdf = function (mdText, title) { openPrintable(title || 'VAHDAM document', mdToHtml(mdText)); };
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href$=".md"]') : null;
+    if (!a) return;
+    var url = a.getAttribute('href') || '';
+    if (/^https?:\/\//i.test(url) && url.indexOf(location.origin) !== 0) return; // leave truly external links alone
+    e.preventDefault();
+    var title = (a.textContent || 'VAHDAM document').replace(/[⬇📄📖🧾👥🎁🖼📊]/g, '').trim().slice(0, 90) || 'VAHDAM document';
+    fetch(url).then(function (r) { return r.text(); }).then(function (t) { window.__mdToPdf(t, title); }).catch(function () { window.open(url, '_blank'); });
+  }, true);
+})();
