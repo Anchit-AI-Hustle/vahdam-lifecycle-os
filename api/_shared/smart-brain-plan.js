@@ -1270,7 +1270,9 @@ async function landingPageHtml(id, cfg = {}, variant = null) {
   const camp = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
   const lps = camp?.[0]?.payload?.assets?.landing_pages || [];
   // ?v=b serves the story-led B variant; default serves A (the first LP).
-  const want = /^b$/i.test(String(variant || '')) ? (lps.find((l) => l.variant === 'B') || lps[1]) : (lps.find((l) => l.variant === 'A') || lps[0]);
+  // If B is requested but the slot only built one LP, fall back to the first
+  // page rather than 404-ing a valid campaign.
+  const want = /^b$/i.test(String(variant || '')) ? (lps.find((l) => l.variant === 'B') || lps[1] || lps[0]) : (lps.find((l) => l.variant === 'A') || lps[0]);
   const html = want?.html;
   if (html) return html;
   // fall back to landing_pages_generated (numeric id or campaign_id in payload)

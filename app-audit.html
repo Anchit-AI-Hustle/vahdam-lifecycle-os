@@ -95,18 +95,18 @@
 <script>
 (function(){
   var FEATURES = [
-    { name:'Data Analysis', path:'/data-analysis', a:8.5, i:8.5, e:8, r:7.5, note:'Real-data-only, honest gating, decomposition reconciles to real revenue, charts fully labeled. Add MER/ROAS/LTV once ad+Shopify feeds land.' },
+    { name:'Data Analysis', path:'/data-analysis', a:8.5, i:8.5, e:8.5, r:7.5, note:'Real-data-only, honest gating, decomposition reconciles to real revenue, charts fully labeled. Partial-month drop now gates on the actual calendar date (not a fragile <45% heuristic that could hide a seasonal low); cohort heatmap labels Q+0 as the acquisition quarter. Add MER/ROAS/LTV once ad+Shopify feeds land.' },
     { name:'Created Assets', path:'/assets', a:8, i:8, e:8.5, r:7.5, note:'Now renders the real mailer (not a product image). Add live ad + LP previews and search facets.' },
     { name:'ChaiGPT', path:'/chaigpt', a:8, i:8, e:8.5, r:7.5, note:'Contrast fixed. Add evidence-contract regression tests; the tool-calling loop is sound.' },
     { name:'Social Media OS', path:'/social', a:7.5, i:8.5, e:8, r:7.5, note:'Real catalog hero + newline-safe scrub + code-level caption validators (strip non-PDP URLs / supplement prices, flag medical claims, budget hashtags) DONE.' },
-    { name:'Landing Pages (/lp)', path:'/lp/:id', a:7.5, i:8.5, e:8, r:7.5, note:'Safe ids, real images, region-correct links; the hardcoded stars/testimonial/guarantee now route through the B1 gate (flip REAL_FACTS_ONLY + populate the library).' },
+    { name:'Landing Pages (/lp)', path:'/lp/:id', a:7.5, i:8.5, e:8.5, r:7.5, note:'Safe ids, real images, region-correct links; CORS header + ?v=b→first-LP fallback DONE. Hardcoded stars/testimonial/guarantee route through the B1 gate (flip REAL_FACTS_ONLY + populate the library).' },
     { name:'Vahdam Agent', path:'/agent', a:7.5, i:7.5, e:8, r:7, note:'Contrast fixed. Consolidate with ChaiGPT or state a distinct purpose.' },
-    { name:'Ad Campaigns', path:'/ad-campaigns', a:7, i:8.5, e:8, r:7.5, note:'URLs verified; fabricated 65%-OFF removed; per-platform char-limit clamps DONE. Claims sourced via the B1 gate.' },
-    { name:'Smart Brain (/brain)', path:'/brain', a:6, i:9, e:7, r:7, note:'Bounded, deterministic, real-image pivot done. Needs approved-facts library (B1), an enforced frequency cap, and real reach counts.' },
-    { name:'Mailer Studio', path:'/studio', a:4, i:8, e:7, r:6, note:'Great plumbing, but invents reviews/prices and gates copy only on the LLM path. Needs B1 + client brand-gate + palette allowlist.' }
+    { name:'Ad Campaigns', path:'/ad-campaigns', a:7.5, i:8.5, e:8, r:7.5, note:'URLs verified; fabricated 65%-OFF removed; char-limit clamps DONE; region-agnostic "US shipping" line now market-parameterised (US/UK/global). Claims sourced via the B1 gate.' },
+    { name:'Smart Brain (/brain)', path:'/brain', a:6.5, i:9, e:7.5, r:7, note:'Bounded, deterministic, real-image pivot done. Reach no longer fabricates ~20k (null + [DATA REQUIRED] when no real base) and a plan-time per-cohort rolling-7-day frequency cap now flags over-cap slots. Still needs B1 approved-facts + real reach counts (B3); cross-cohort per-profile capping runs at ESP.' },
+    { name:'Mailer Studio', path:'/studio', a:5, i:8.5, e:7, r:6, note:'Great plumbing. Client-side brand gate now runs on the DETERMINISTIC render path (banned phrases + em/en dashes scrubbed from final HTML, CSS-safe) and the palette check is a 4-colour allowlist (not a 6-item denylist). Reviews/prices/proof render real-only under REAL_FACTS_ONLY. Remaining: flip the flag + populate the approved library (B1).' }
   ];
   var BLOCKERS = [
-    { tag:'B1 · FABRICATION', h:'Approved-facts library', p:'Gate SHIPPED behind REAL_FACTS_ONLY (dark; /lp wired). Populate data/brand-facts/<region>.json (reviews+claims+prices by SKU+region) and flip the flag to render real-only, else omit. Remaining wiring: flagship mailer + /studio.' },
+    { tag:'B1 · FABRICATION', h:'Approved-facts library', p:'Gate SHIPPED behind REAL_FACTS_ONLY (dark). Now wired across /lp, /brain AND /studio (render-path proof/review/price strip). Remaining is DATA, not code: populate data/brand-facts/<region>.json (reviews+claims+prices by SKU+region) and flip the flag to render real-only, else omit.' },
     { tag:'B2 · KEY', h:'Rotate SUPABASE_SERVICE_ROLE_KEY', p:'HTTP 401 in prod degrades dashboard counts, Created Assets, Brain persistence and KB to the anon fallback. Rotate in Supabase, set in Vercel (Prod+Preview+Dev), redeploy.' },
     { tag:'B3 · FEEDS', h:'Wire Klaviyo + Shopify (read-only)', p:'Real cohort sizes, open/click history and live stock/price are absent, so frequency safety and confidence run on assumptions. Set KLAVIYO_API_KEY (read) + a read-only Shopify token.' }
   ];
@@ -114,8 +114,9 @@
     'B2 — rotate the Supabase service-role key (≈5 min; unblocks persistence app-wide).',
     'B1 — build the approved-facts library (reviews + claims + prices by SKU+region). Highest-value correctness fix; lifts Studio, Brain, LP and Ads together.',
     'B3 — wire Klaviyo (read) + read-only Shopify token → real cohort sizes, send history and live stock; calibrates confidence + frequency and unlocks MER/ROAS/LTV.',
-    'Enforce the promotional frequency cap in /brain (per-profile rolling-7-day counter across all cohorts).',
-    'DONE: char-limit clamps in Ad Campaigns + code-level caption validators in Social. Remaining: client-side brand gate + palette allowlist in Studio.',
+    'DONE: plan-time per-(market,cohort) rolling-7-day frequency cap flags over-cap slots in /brain; honest reach (no fabricated ~20k). Remaining: cross-cohort per-PROFILE capping at ESP send-time (needs B3 profile feed).',
+    'DONE: char-limit clamps in Ad Campaigns; code-level caption validators in Social; client-side brand gate + 4-colour palette allowlist in Studio; region-aware shipping line across mailer/ad/LP renderers; /lp CORS + variant fallback; data-analysis as-of partial-month gate.',
+    'NEW: shared source of truth + continuous synchronization (one canonical record per campaign/product/offer/claim/review/asset; event-driven propagation; freshness statuses; pre-launch sync gate). Design in docs/shared-source-of-truth.md; phased build.',
     'Second audit pass over the 11 not-yet-audited features, then certify the whole app ≥ 9.5.'
   ];
   function overallOf(f){ return (f.a*0.4 + f.i*0.2 + f.e*0.2 + f.r*0.2); }

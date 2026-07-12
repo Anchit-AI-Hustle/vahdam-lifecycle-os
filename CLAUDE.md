@@ -21,6 +21,14 @@ any of those, obey it. Load-bearing rules (full detail in the doc):
   transfer across product/region.
 - **Launch gate** — weighted >= 9.5/10, no critical dim < 9; otherwise
   `NOT LAUNCH READY — DATA/DESIGN/FACTUAL/TECHNICAL DEPENDENCY`.
+- **Shared source of truth (spec §24b, design `docs/shared-source-of-truth.md`)** — the Email Calendar
+  and every other feature (Content Calendar, Blog Agent, Creator Plan, Social Generator, Paid Media,
+  Analytics, Publishing Queue) are synchronized VIEWS over ONE canonical data model; never separate
+  duplicated campaign systems. One authoritative record per campaign/product/offer/price/inventory/
+  claim/review/rating/image/asset/forecast, referenced by stable id. No independent feature copies of
+  facts (a snapshot must reference the canonical row + show CURRENT/STALE). Canonical change → event
+  propagation (recalc, revalidate, mark stale, regen, audit, status). Pre-launch sync gate blocks any
+  launch from a stale snapshot. One record, many views — not many records that need reconciliation.
 Known current gaps vs this spec (data feeds to wire before launch): approved review library, approved
 claims library, approved URL map, real eligible-segment sizes, valid `SUPABASE_SERVICE_ROLE_KEY`.
 

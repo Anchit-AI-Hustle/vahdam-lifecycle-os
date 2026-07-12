@@ -6,7 +6,7 @@
  * badges, brand-proof stats, testimonial, FAQ, closing CTA, footer.
  * Hosted image URLs only. Callers must pre-scrub copy (sanitizeBrand).
  */
-const { PAL } = require('./flagship-mailer.js');
+const { PAL, shippingLine } = require('./flagship-mailer.js');
 const HF = "'LAO MN','Cormorant Garamond',Georgia,serif";
 const BF = "'Proxima Nova','Helvetica Neue',Arial,sans-serif";
 const FONT =
@@ -51,7 +51,7 @@ function renderLandingPage(o = {}) {
   .badges{text-align:center;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${PAL.gold};padding:16px;}
   .stats{text-align:center;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${PAL.ink};padding:0 16px 22px;}
 </style></head><body>
-  <div class="util">From the hands that picked it to the cup you hold &nbsp;·&nbsp; FREE US shipping over $59</div>
+  <div class="util">From the hands that picked it to the cup you hold &nbsp;·&nbsp; ${o.shippingNote || shippingLine(o.market)}</div>
   <div style="text-align:center;padding:22px 0 4px;"><img src="${esc(logo)}" alt="VAHDAM" width="150" style="width:150px;height:auto;"></div>
   <section style="background:${PAL.green};color:${PAL.cream};padding:44px 22px;text-align:center;">
     <div style="font-family:${BF};font-size:11px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:${PAL.gold};">${esc(o.headline || 'Single-estate, hand-picked')}</div>

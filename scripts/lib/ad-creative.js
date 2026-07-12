@@ -8,7 +8,9 @@
  * Flagship palette, hosted image URLs only, no invented codes. Callers pre-scrub
  * copy (sanitizeBrand).
  */
-const { PAL } = require('./flagship-mailer.js');
+const { PAL, shippingLine } = require('./flagship-mailer.js');
+// Plain-text (no-entity) shipping line for ad copy fields, region-correct.
+function shipText(market) { return String(shippingLine(market)).replace(/&pound;/g, '£'); }
 const HF = "'LAO MN','Cormorant Garamond',Georgia,serif";
 const BF = "'Proxima Nova','Helvetica Neue',Arial,sans-serif";
 const FONT =
@@ -23,7 +25,7 @@ function adCopy(o) {
   return {
     meta: { platform: 'Meta (Instagram/Facebook) · 1:1', primary_text: clamp(`${o.headline}. ${o.subline}`, 125), headline: clamp(p, 40), description: clamp(o.tastingLine || 'Single-estate, hand-picked at origin.', 30), cta: 'Shop Now' },
     tiktok: { platform: 'TikTok / Reels · 9:16', primary_text: clamp(`${o.headline}${price}`, 100), hook: clamp(o.subline, 60), cta: 'Shop Now' },
-    google: { platform: 'Google · Responsive Search', headlines: [clamp(p, 30), clamp(o.headline, 30), clamp('Single-Estate, Hand-Picked', 30)], descriptions: [clamp(o.subline, 90), clamp(`${o.tastingLine || ''}. Free US shipping over $59.`, 90)], cta: 'Shop' },
+    google: { platform: 'Google · Responsive Search', headlines: [clamp(p, 30), clamp(o.headline, 30), clamp('Single-Estate, Hand-Picked', 30)], descriptions: [clamp(o.subline, 90), clamp(`${o.tastingLine || ''}. ${shipText(o.market)}.`, 90)], cta: 'Shop' },
   };
 }
 

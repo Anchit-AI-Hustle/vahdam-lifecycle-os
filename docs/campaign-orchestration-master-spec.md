@@ -360,6 +360,43 @@ REMAIN | PARTIAL — DESIGN OR PROOFREADING DEPENDENCIES REMAIN | BLOCKED — CR
 - **Error diagnostics (no unexplained generic error):** every error surfaces human message, failed operation+step, campaign/asset id, region, product, connector/dependency, retry-safe flag, recovery action, timestamp, internal code, expandable technical details (no secrets/PII). Categories: SOURCE_DATA_MISSING · REGIONAL_PRODUCT_MISMATCH · CONNECTOR_UNAVAILABLE · AUTHENTICATION_FAILED · RATE_LIMITED · INVALID_CONFIGURATION · REVENUE_TARGET_INFEASIBLE · FREQUENCY_CAP_BLOCKED · ASSET_GENERATION_FAILED · PACKAGING_FIDELITY_FAILED · AD_QUALITY_FAILED · EMAIL_RENDER_FAILED · BUILD_FAILED · DATABASE_FAILED · UNKNOWN_ERROR.
 - **Naming/nav:** nav item is **VAHDAM Brain** (not "Automated Calendar Creation"); primary CTA **Run Agentic Flow**; assistant is **SteepSense** (not ChaiGPT) everywhere; the raw `/uk-non-engagers` URL is not a user-facing nav item (route may stay reachable).
 
+## 24b. Shared source of truth & continuous synchronization (OVERRIDES conflicts)
+The Email Calendar, Automated Campaign Calendar, Omnichannel Content Calendar, Daily Blog Agent,
+Creator Plan, Social Post Generator, Paid Media, Creative Studio, Analytics and Publishing Queue are
+**synchronized views over ONE canonical data model** — never separate duplicated campaign systems.
+Full architecture + phased build: `docs/shared-source-of-truth.md`.
+- **Canonical records (one authoritative row each, referenced by stable id):** campaign, product,
+  regional product mapping, audience cohort, offer, price, inventory status, approved claim, review,
+  rating, product image, creative asset, blog, creator concept, social post, landing page, forecast,
+  performance result, source reference, validation result, approval status, publishing status.
+- **No independent feature copies** of product facts, pricing, claims, ratings, reviews, images,
+  offers, campaign status, audience counts, forecasts or destination URLs. A feature output may store a
+  **versioned snapshot for audit**, but must keep a reference to the canonical record and show whether
+  the snapshot is CURRENT or STALE.
+- **Event-driven propagation:** a change to a canonical record emits an event (`campaign.updated`,
+  `product.updated`, `price.updated`, `inventory.updated`, `offer.updated`, `claim.updated`,
+  `review.updated`, `rating.updated`, `asset.updated`, `audience.updated`, `forecast.updated`,
+  `approval.updated`, `publication.updated`, `source_conflict.detected`) that triggers: dependency
+  lookup -> affected-record identification -> recalculation -> revalidation -> stale-output marking ->
+  safe preview regeneration -> audit-log entry -> user-visible status update.
+- **Freshness metadata** on every record/interface: last source update, last synced, last validated,
+  source version, campaign version, dependency status. Statuses: `CURRENT` · `SYNCING` ·
+  `STALE — REGENERATION REQUIRED` · `BLOCKED — SOURCE CONFLICT` · `BLOCKED — SOURCE UNAVAILABLE` ·
+  `VALIDATION REQUIRED` · `SYNC FAILED`. Never show an old value as current when sync failed.
+- **Pre-launch synchronization gate** (immediately before approval/schedule/export/publish): fetch
+  latest canonical records; compare asset version to source version; revalidate product/region/price/
+  offer/inventory/claims/reviews/ratings/images/URLs/audience/frequency/forecast; mark stale outputs
+  for regeneration; **block publication when a critical dependency differs**. No asset launches from a
+  stale snapshot.
+- **Conflict handling:** never silently overwrite a newer approved value; use version checking /
+  optimistic concurrency; preserve full change history; show conflicting fields; require approved
+  resolution on factual or launch-critical fields.
+- **Audit:** record previous value, new value, source, initiating feature, actor, timestamp, reason,
+  affected outputs, regeneration result, validation result.
+- **Principle:** one record, many views — not many records that need manual reconciliation. Updating a
+  campaign from the Email Calendar, central Campaign Calendar or Campaign Detail shows the same updated
+  information everywhere.
+
 ## 25. Final execution directive
 Proceed autonomously when repo + tools + data suffice; make safe reasonable decisions from the repo
 without asking. Never: silently omit hard requirements, simulate tool calls, fabricate data, expose
