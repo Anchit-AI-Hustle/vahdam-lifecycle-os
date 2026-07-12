@@ -38,6 +38,8 @@ const { helpers } = require('../api/_shared/calendar-trigger.js');
 const SM = require('../api/_shared/scenario-model.js');
 const CF = require('../api/_shared/copy-frameworks.js');
 const { renderFlagship } = require('./lib/flagship-mailer.js');
+const { renderAds } = require('./lib/ad-creative.js');
+const { renderLandingPage } = require('./lib/landing-page.js');
 
 // Real tasting notes (US catalog) → the flagship hero's italic tasting line.
 const TASTING = {
@@ -404,10 +406,12 @@ function buildVariants(slot, assets) {
 function main() {
   const assets = loadAssets();
   const outDir = path.join(ROOT, 'mailers', 'usa-july');
-  fs.mkdirSync(outDir, { recursive: true });
+  const adsDir = path.join(ROOT, 'ads', 'usa-july');
+  const lpDir = path.join(ROOT, 'landing-pages', 'usa-july');
+  [outDir, adsDir, lpDir].forEach((d) => fs.mkdirSync(d, { recursive: true }));
 
   const manifest = { market: MARKET, month: '2026-07', scenario: 'C', generated_from: 'brand_assets (origin-validated)', store: STORE, slots: [] };
-  let fileCount = 0;
+  let fileCount = 0, adCount = 0, lpCount = 0;
 
   for (const slot of CALENDAR) {
     const variants = buildVariants(slot, assets);
@@ -420,12 +424,47 @@ function main() {
       files[v.key] = `mailers/usa-july/${fname}`;
       fileCount++;
     }
+
+    // Shared, pre-scrubbed copy (framework A) feeds the ad + landing page too.
+    const SA = clean(slot.copyA, `${baseSlug}:assets`);
+    const hero = heroFor(assets, slot.sku);
+    const logoUrl = (assets.logo && assets.logo.status === 'verified') ? assets.logo.url + '&width=310' : undefined;
+    const tasting = SM.sanitizeBrand(TASTING[slot.sku] || '');
+    const url = ctaUrl(slot);
+    const shared = {
+      productName: prod.name, tastingLine: tasting, price: prod.price,
+      ctaText: SA.cta, ctaUrl: url, heroImageUrl: hero, logoUrl,
+      headline: SA.headline, subline: SA.subline, bodyBlocks: SA.blocks, subject: SA.subject,
+    };
+
+    // Ads (Meta/Google/TikTok).
+    const ad = renderAds(shared);
+    const adFile = `${baseSlug}_ads.html`;
+    fs.writeFileSync(path.join(adsDir, adFile), ad.html);
+    adCount++;
+
+    // Landing page (flagship long-form), with a slot-relevant FAQ.
+    const lp = renderLandingPage(Object.assign({}, shared, {
+      title: `${prod.name} · VAHDAM USA`,
+      faq: [
+        { q: `How many cups is ${prod.name}?`, a: `${prod.name} is ${slot.sku.includes('12oz') ? 'loose leaf, about 170 cups' : slot.sku.includes('100ct') ? '100 pyramid bags' : slot.sku.includes('30ct') ? '30 pyramid bags' : 'a single-estate VAHDAM blend'}.` },
+        { q: 'Where is it sourced?', a: 'Hand-picked at origin and shipped garden-fresh, single-estate wherever the leaf allows.' },
+        { q: 'Do you ship free?', a: 'Free US shipping over $59.' },
+      ],
+      testimonial: { quote: 'It became the cup I reach for without thinking. Steady, clean, and it just tastes like it was made with care.', who: 'A VAHDAM customer' },
+    }));
+    const lpFile = `${baseSlug}_lp.html`;
+    fs.writeFileSync(path.join(lpDir, lpFile), lp);
+    lpCount++;
+
     manifest.slots.push({
       date: slot.date, segment: slot.segment, play: slot.play, event: slot.event,
-      sku_key: slot.sku, product: prod.name, price: prod.price, cta_url: ctaUrl(slot),
+      sku_key: slot.sku, product: prod.name, price: prod.price, cta_url: url,
       hero_asset: assets[slot.sku] ? { url: (assets[slot.sku].url || null), status: assets[slot.sku].status, origin_validated: assets[slot.sku].origin_validated } : { status: 'placeholder', origin_validated: false },
       reasoning: slot.reasoning,
       variants: variants.map((v) => ({ key: v.key, type: v.type, label: v.label, framework: v.framework, subject: v.copy.subject, preview: v.copy.preview, file: files[v.key], has_image: !!v.image })),
+      ads: { file: `ads/usa-july/${adFile}`, copy: ad.copy },
+      landing: { file: `landing-pages/usa-july/${lpFile}`, title: `${prod.name} · VAHDAM USA` },
     });
   }
 
@@ -434,7 +473,7 @@ function main() {
   fs.writeFileSync(path.join(calDir, 'usa-july-2026.json'), JSON.stringify(manifest, null, 2));
 
   const withImg = manifest.slots.filter((s) => s.hero_asset.status === 'verified').length;
-  console.log(`✓ ${CALENDAR.length} slots · ${fileCount} mailer files (4 variants each) → mailers/usa-july/`);
+  console.log(`✓ ${CALENDAR.length} slots · ${fileCount} mailers + ${adCount} ad sets + ${lpCount} landing pages`);
   console.log(`  ${withImg}/${CALENDAR.length} slots use a verified hero image; the rest render image-free (no fabricated URLs).`);
   console.log('✓ wrote data/calendar/usa-july-2026.json');
 }
