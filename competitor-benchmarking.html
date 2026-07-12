@@ -777,21 +777,32 @@
     // so region= only accepts those country codes (or "all"). Passing US/IN/AU/AE
     // produced a URL the SPA rejects → empty results page. Map unsupported
     // markets to "all" (worldwide name search) and keep real codes for GB/DE.
-    // Window = last ~2 years → now.
+    // Window = last ~30 days → now. TikTok's SPA rejects very wide windows
+    // (a 2-year span silently returned nothing), so keep it recent.
     const ttEnd = Date.now();
-    const ttStart = ttEnd - 1000 * 60 * 60 * 24 * 365 * 2;
+    const ttStart = ttEnd - 1000 * 60 * 60 * 24 * 30;
     const TT_SUPPORTED = ['GB','DE','FR','IT','ES','NL','IE','SE','DK','FI','NO','PL','AT','BE','PT','GR','CZ','RO','HU','CH'];
     const ttRegion = hasRegion && TT_SUPPORTED.includes(String(region).toUpperCase())
       ? String(region).toUpperCase() : 'all';
+    // adv_name must be LOWERCASE, and TikTok wants this exact param order
+    // (adv_name, adv_biz_ids, query_type, then sort_type).
+    const ttName = String(name).toLowerCase();
     const tiktokUrl = `https://library.tiktok.com/ads?region=${ttRegion}` +
       `&start_time=${ttStart}&end_time=${ttEnd}` +
-      `&sort_type=last_shown_date,desc&adv_name=${encodeURIComponent(name)}` +
-      `&adv_biz_ids=&query_type=1`;
+      `&adv_name=${encodeURIComponent(ttName)}&adv_biz_ids=&query_type=1` +
+      `&sort_type=last_shown_date,desc`;
+    // PiPiADS covers TikTok ads WORLDWIDE (incl. US/IN/Global), unlike the
+    // official library (EEA/UK/CH only) — better for our key markets. Keyword
+    // search via the encoded extend_keywords JSON.
+    const pipiadsUrl = `https://www.pipiads.com/ad-search?is_participle=false&plat_type=1&search_type=1` +
+      `&extend_keywords=${encodeURIComponent(JSON.stringify([{ type: 1, keyword: ttName }]))}` +
+      `&sort=2&sort_type=desc&current_page=1`;
 
     return [
       { label: 'Meta Ad Library',         cls: 'src-meta',   ic: 'f', url: metaUrl,   hint: 'name: ' + name },
       { label: 'Google Ads Transparency', cls: 'src-google', ic: 'G', url: googleUrl, hint: domain ? 'domain: ' + domain : 'name: ' + name },
-      { label: 'TikTok Content Library',  cls: 'src-tiktok', ic: 'T', url: tiktokUrl, hint: 'name: ' + name + ' · ' + (ttRegion === 'all' ? 'worldwide (library covers EEA/UK only)' : 'region: ' + ttRegion) },
+      { label: 'TikTok Content Library',  cls: 'src-tiktok', ic: 'T', url: tiktokUrl, hint: 'name: ' + ttName + ' · ' + (ttRegion === 'all' ? 'worldwide name search (official library = EEA/UK only)' : 'region: ' + ttRegion) },
+      { label: 'TikTok via PiPiADS',      cls: 'src-tiktok', ic: 'T', url: pipiadsUrl, hint: 'keyword: ' + ttName + ' · worldwide TikTok ad index' },
     ];
   }
   // Per-platform copy + which adSources entry to keep.
@@ -826,10 +837,10 @@
       $('btnGoogleAds').style.display = platform === 'google' ? '' : 'none';
     }
     if ($('btnTikTokAds')) {
-      const ttEnd = Date.now(), ttStart = ttEnd - 1000 * 60 * 60 * 24 * 365 * 2;
+      const ttEnd = Date.now(), ttStart = ttEnd - 1000 * 60 * 60 * 24 * 30;
       const TT_SUPPORTED = ['GB','DE','FR','IT','ES','NL','IE','SE','DK','FI','NO','PL','AT','BE','PT','GR','CZ','RO','HU','CH'];
       const ttRegion = hasRegion && TT_SUPPORTED.includes(String(region).toUpperCase()) ? String(region).toUpperCase() : 'all';
-      $('btnTikTokAds').href = `https://library.tiktok.com/ads?region=${ttRegion}&start_time=${ttStart}&end_time=${ttEnd}&sort_type=last_shown_date,desc`;
+      $('btnTikTokAds').href = `https://library.tiktok.com/ads?region=${ttRegion}&start_time=${ttStart}&end_time=${ttEnd}&query_type=1&sort_type=last_shown_date,desc`;
       $('btnTikTokAds').style.display = platform === 'tiktok' ? '' : 'none';
     }
 

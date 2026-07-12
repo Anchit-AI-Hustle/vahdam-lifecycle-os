@@ -356,11 +356,20 @@
     googleParams.set('domain', domain);
     const googleUrl = 'https://adstransparency.google.com/?' + googleParams;
     const ttEnd = Date.now();
-    const ttStart = ttEnd - 1000 * 60 * 60 * 24 * 365 * 2;
+    const ttStart = ttEnd - 1000 * 60 * 60 * 24 * 30;   // last 30 days (TikTok rejects very wide windows)
     const ttRegion = TT_SUPPORTED.includes(country) ? country : 'all';
+    // adv_name LOWERCASE + TikTok's exact param order (adv_name, adv_biz_ids,
+    // query_type, then sort_type).
+    const ttName = String(name).toLowerCase();
     const tiktokUrl = 'https://library.tiktok.com/ads?region=' + ttRegion +
       '&start_time=' + ttStart + '&end_time=' + ttEnd +
-      '&sort_type=last_shown_date,desc&adv_name=' + encodeURIComponent(name) + '&adv_biz_ids=&query_type=1';
+      '&adv_name=' + encodeURIComponent(ttName) + '&adv_biz_ids=&query_type=1' +
+      '&sort_type=last_shown_date,desc';
+    // PiPiADS covers TikTok ads worldwide (incl. US/IN), unlike the EEA/UK-only
+    // official library — better for Vahdam's markets.
+    const pipiadsUrl = 'https://www.pipiads.com/ad-search?is_participle=false&plat_type=1&search_type=1' +
+      '&extend_keywords=' + encodeURIComponent(JSON.stringify([{ type: 1, keyword: ttName }])) +
+      '&sort=2&sort_type=desc&current_page=1';
     return [
       { label: 'Meta Ad Library', url: metaUrl, hint: 'name: ' + name + ' · ' + (country === 'ALL' ? 'worldwide' : country) },
       { label: 'Google Ads Transparency', url: googleUrl, hint: 'domain: ' + domain },
