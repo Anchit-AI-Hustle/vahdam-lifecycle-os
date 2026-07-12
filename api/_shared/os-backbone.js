@@ -25,8 +25,15 @@ const FALLBACK_CONNECTORS = [
   { id: 'meta_ads', name: 'Meta Ads / Ad Library', category: 'ads', required_env_vars: ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID'], include_in_daily_job: true },
   { id: 'google_ads', name: 'Google Ads', category: 'ads', required_env_vars: ['GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_CLIENT_ID', 'GOOGLE_ADS_CLIENT_SECRET', 'GOOGLE_ADS_REFRESH_TOKEN', 'GOOGLE_ADS_CUSTOMER_ID'], include_in_daily_job: true },
   { id: 'google_analytics', name: 'Google Analytics 4', category: 'analytics', required_env_vars: ['GA4_PROPERTY_ID'], include_in_daily_job: true },
-  { id: 'shopify', name: 'Shopify', category: 'commerce', required_env_vars: ['SHOPIFY_STORE_DOMAIN', 'SHOPIFY_ADMIN_TOKEN'], include_in_daily_job: true },
-  { id: 'klaviyo', name: 'Klaviyo', category: 'email', required_env_vars: ['KLAVIYO_API_KEY'], include_in_daily_job: true },
+  // access: 'read_only' — standing rule: these SOURCE platforms are FETCH-ONLY.
+  // We pull information and never write back, so we put no mutation load on the
+  // store/ESP. The fetched data is persisted into SUPABASE (our own store /
+  // sink) — that is where every synced record lands and is read from.
+  // Shopify facts come from the public storefront scrape (no Admin writes);
+  // Klaviyo writes are blocked in klaviyo-core.js unless KLAVIYO_ALLOW_WRITES=1.
+  { id: 'shopify', name: 'Shopify', category: 'commerce', access: 'read_only', required_env_vars: ['SHOPIFY_STORE_DOMAIN'], include_in_daily_job: true },
+  { id: 'klaviyo', name: 'Klaviyo', category: 'email', access: 'read_only', required_env_vars: ['KLAVIYO_API_KEY'], include_in_daily_job: true },
+  { id: 'webengage', name: 'WebEngage', category: 'email', access: 'read_only', required_env_vars: ['WEBENGAGE_API_KEY'], include_in_daily_job: false },
   { id: 'tiktok_ads', name: 'TikTok Ads', category: 'ads', required_env_vars: ['TIKTOK_ACCESS_TOKEN', 'TIKTOK_ADVERTISER_ID'], include_in_daily_job: true },
   { id: 'pagedeck', name: 'PageDeck', category: 'competitive', required_env_vars: ['PAGEDECK_API_KEY'], include_in_daily_job: false },
   { id: 'framer', name: 'Framer', category: 'utility', required_env_vars: ['FRAMER_API_TOKEN'], include_in_daily_job: false },
