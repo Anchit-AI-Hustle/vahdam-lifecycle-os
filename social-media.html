@@ -379,7 +379,7 @@
       // Fail fast if the API is unreachable/hanging so the error banner shows
       // promptly instead of spinning (also keeps this deterministic under test).
       var ctrl = new AbortController();
-      var to = setTimeout(function () { ctrl.abort(); }, 6000);
+      var to = setTimeout(function () { ctrl.abort(); }, 3500);
       var r;
       try { r = await fetch(API + '?action=social-list&date=' + encodeURIComponent(d), { signal: ctrl.signal }); }
       finally { clearTimeout(to); }
