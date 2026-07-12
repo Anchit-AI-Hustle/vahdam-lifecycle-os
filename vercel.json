@@ -31,6 +31,8 @@
     { "source": "/api/ai/pipeline/health", "destination": "/api/public-config?pipeline=1" },
     { "source": "/api/voice", "destination": "/api/brain?action=tts" },
     { "source": "/api/smart-brain", "destination": "/api/brain?action=status" },
+    { "source": "/july-studio", "destination": "/vahdam-usa-july-calendar-mailer-studio.html" },
+    { "source": "/usa-july",    "destination": "/vahdam-usa-july-calendar-mailer-studio.html" },
     { "source": "/all-in-one", "destination": "/all-in-one.html" },
     { "source": "/os",         "destination": "/all-in-one.html" },
     { "source": "/dashboard-os","destination": "/all-in-one.html" },
