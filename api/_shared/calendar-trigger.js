@@ -409,12 +409,25 @@ let _catImg = null;
 try { _catImg = require('./catalog-image.js'); } catch (_) {}
 function _productImg(p, market) {
   if (!p) return null;
+  const hd = (u) => (_catImg && _catImg.hd ? (_catImg.hd(u, 600) || u) : u);
   const d = p.image || p.image_url || p.i;
-  if (typeof d === 'string' && /^https?:\/\//.test(d)) return d;
+  if (typeof d === 'string' && /^https?:\/\//.test(d)) return hd(d);
   if (_catImg && _catImg.imageFor) {
-    return _catImg.imageFor({ handle: p.handle || p.h, title: p.title || p.n }, market) || null;
+    return _catImg.imageFor({ handle: p.handle || p.h, title: p.title || p.n }, market, { width: 600 }) || null;
   }
   return null;
+}
+// Real per-product copy pulled from the catalog (the same content the PDP
+// carries): a short subtitle or tasting-note line. Used to enrich grid cards so
+// each section shows genuine product content, never invented blurbs.
+function _productNote(p, market) {
+  if (!p) return '';
+  let s = p.note || p.subtitle || p.tasting_notes || '';
+  if (!s && _catImg && _catImg.match) {
+    const row = _catImg.match({ handle: p.handle || p.h, title: p.title || p.n }, market);
+    if (row) s = row.subtitle || row.tasting_notes || '';
+  }
+  return s ? String(s) : '';
 }
 
 function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku, hero_image_url, hero_prompt, products, offer_bar, collection_url }) {
@@ -451,6 +464,7 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
         ${gridProducts.map((p) => {
     const img = _productImg(p, market);
+    const note = _productNote(p, market);
     const pdp = p.url || ((p.handle || p.h) ? `${store}/products/${p.handle || p.h}` : baseUrl);
     const price = (p.price != null && p.price !== '') ? `${cur}${p.price}` : '';
     return `<td align="center" valign="top" style="width:33%;padding:8px;">
@@ -458,6 +472,7 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
             <div style="background:${palette.cream};border:1px solid ${palette.gold}33;border-radius:10px;padding:12px 8px 16px;">
               ${img ? `<img src="${esc(img)}" alt="${esc(p.title || p.n || '')}" width="140" style="width:100%;max-width:140px;height:auto;border-radius:8px;display:block;margin:0 auto 10px;" />` : ''}
               <div style="font-family:${HEAD};font-size:14px;color:${palette.ink};line-height:1.35;">${esc(p.title || p.n || '')}</div>
+              ${note ? `<div style="font-family:${BODY};font-size:11px;color:#7a6e5a;margin-top:4px;line-height:1.4;">${esc(note)}</div>` : ''}
               ${price ? `<div style="font-family:${BODY};font-size:13px;color:${palette.gold};margin-top:6px;font-weight:600;">${price}</div>` : ''}
             </div>
           </a></td>`;

@@ -650,14 +650,23 @@ function renderVariant(entry, copy, style, img) {
   // Product grid is a Text + Visual element — only the visual variants carry it
   // (pure/editorial "Text" variants stay graphics-free per the taxonomy).
   const withGrid = style === 'visual';
-  const heroImgUrl = img || catalogImage.imageFor(entry, entry.market) || undefined;
-  // Grid = hero + any bundled supporting products, each linking to its own real
-  // US product page (never a fabricated handle).
+  // Real HD gallery for the hero product (multiple genuine PDP shots).
+  const heroGallery = (() => { try { return catalogImage.imagesFor(entry.heroProduct || entry, entry.market, { width: 900 }); } catch (_) { return []; } })();
+  const heroImgUrl = img || heroGallery[0] || catalogImage.imageFor(entry, entry.market, { width: 900 }) || undefined;
+  // The hero BAND already shows heroImgUrl; the hero product's GRID card must show
+  // a DIFFERENT real photo of the same product (next gallery image) so the same
+  // shot never appears twice in one mailer. Only when the product has a single
+  // catalog photo do the two share it.
+  const heroCardImg = heroGallery.find((u) => u !== heroImgUrl) || heroGallery[0] || heroImgUrl;
+  // Grid = hero + any bundled supporting products, each with its OWN real HD photo
+  // and real catalog content (subtitle / tasting notes), linking to its own real
+  // product page (never a fabricated handle).
   const supporting = Array.isArray(entry.supportingProducts) ? entry.supportingProducts : [];
+  const catRow = (p) => { try { return catalogImage.match({ handle: p.handle || p.h, title: p.title || p.n }, entry.market); } catch (_) { return null; } };
   const products = withGrid && entry.heroProduct
     ? [
-        { title: entry.heroProduct.title, handle: entry.heroProduct.handle, image: heroImgUrl, price: entry.heroProduct.price, url: links.pdp },
-        ...supporting.map((p) => ({ title: p.title, handle: p.handle, price: p.price, url: productUrl(p, entry.market) })),
+        { title: entry.heroProduct.title, handle: entry.heroProduct.handle, image: heroCardImg, price: entry.heroProduct.price, url: links.pdp, note: (catRow(entry.heroProduct) || {}).subtitle || (catRow(entry.heroProduct) || {}).tasting_notes || '' },
+        ...supporting.map((p) => { const row = catRow(p) || {}; return { title: p.title, handle: p.handle, price: p.price, url: productUrl(p, entry.market), image: catalogImage.imagesFor(p, entry.market, { width: 900 })[0] || undefined, note: row.subtitle || row.tasting_notes || '' }; }),
       ]
     : undefined;
   return renderTextVariant({
@@ -755,6 +764,12 @@ function scrubCopyDeep(o) {
 
 function applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives = {}) {
   const briefFor = (copy, k) => ({ brief: (k && copy.ads?.[k]?.image_brief) || '', image: null, provider: null });
+  // Distinct real gallery pool for this slot (hero product + supporting), HD.
+  // B-variants draw an ALTERNATE real photo (not the email hero) so the A/B
+  // pair is visually distinct while every image stays a real catalog shot.
+  const pool = realImagePool(entry, 1400);
+  const heroReal = pool[0] || catalogImage.imageFor(entry, entry.market, { width: 1400 }) || null;
+  const altReal = pool.find((u) => u !== heroReal) || heroReal;
   if (campaign.assets.email) {
     campaign.assets.email.subject = copyA.email.subject || campaign.assets.email.subject;
     campaign.assets.email.preheader = copyA.email.preheader || campaign.assets.email.preheader;
@@ -776,8 +791,8 @@ function applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives = {}) {
     // with the generated hero image, B with the real catalog product photo.
     const copy = isB ? copyB : copyA;
     const img = isB
-      ? (catalogImage.imageFor(entry, entry.market) || (creatives.landing && creatives.landing.image) || null)
-      : ((creatives.landing && creatives.landing.image) || catalogImage.imageFor(entry, entry.market) || null);
+      ? (altReal || (creatives.landing && creatives.landing.image) || null)
+      : ((creatives.landing && creatives.landing.image) || heroReal || null);
     lp.title = (copy.landing && copy.landing.hero_headline) || lp.title;
     lp.creative = { brief: (copy.landing && copy.landing.image_brief) || '', image: img, provider: isB ? 'catalog' : ((creatives.landing && creatives.landing.provider) || 'catalog') };
     lp.html = lpHtml(entry, copy, campaign.campaign_id, img);
@@ -794,7 +809,7 @@ function applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives = {}) {
     // A = the generated creative; B = the real catalog product photo (hosted) so
     // the pair is visually distinct without doubling image-generation cost.
     if (isB) {
-      const catImg = catalogImage.imageFor(entry, entry.market);
+      const catImg = altReal;
       ad.creative = catImg ? { brief: ad.creative_brief || '', image: catImg, provider: 'catalog' } : (creatives[ad.platform] || briefFor(copy, ad.platform));
     } else {
       ad.creative = creatives[ad.platform] || briefFor(copy, ad.platform);
@@ -870,48 +885,47 @@ async function uploadCreative(dataUrl, name) {
 // One creative per asset, generated in parallel. Each → {brief, image, provider};
 // the image is a hosted Supabase URL when storage is configured, else an inline
 // data-URL; falls back to brief-only (image:null) if generation fails.
-async function generateCreatives(copy, entry, { only = null, lean = false } = {}) {
-  const hero = entry.heroProduct?.title ? ` Hero product: VAHDAM ${entry.heroProduct.title}.` : '';
-  // ALL channels get TEXT-FREE photographs (mode:''). Diffusion models cannot
-  // spell, so baking a headline/offer into the pixels (the old mode:'ad') always
-  // produced garbled, fake-language letterforms. Real ad copy lives in the ad's
-  // primary-text/headline fields (which Meta/Google/TikTok render as native
-  // platform text), never in the image itself — which is also what those
-  // platforms recommend. Email/LP copy lives in the HTML layout as before.
+// Build the DISTINCT real-image pool for a slot: the hero product's own PDP
+// gallery (multiple real shots of the SAME product), then each supporting
+// product's real photos — all hosted Shopify CDN, HD-boosted, de-duplicated,
+// in catalog order. This is the single source every channel draws from so no
+// two sections ever repeat one photo. Never fabricates a URL.
+function realImagePool(entry, width = 1600) {
+  const market = entry.market;
+  const urls = [];
+  const push = (arr) => { for (const u of arr || []) if (u && !urls.includes(u)) urls.push(u); };
+  try { push(catalogImage.imagesFor(entry.heroProduct || entry, market, { width })); } catch (_) {}
+  const supporting = Array.isArray(entry.supportingProducts) ? entry.supportingProducts : [];
+  for (const p of supporting) { try { push(catalogImage.imagesFor(p, market, { width })); } catch (_) {} }
+  return urls;
+}
+
+async function generateCreatives(copy, entry, { only = null, lean = false } = {}) { // eslint-disable-line no-unused-vars
+  // HARD RULE (product owner): every product / brand image MUST be REAL — the
+  // actual packet, tin or pack shot from the Shopify catalog (the PDP gallery),
+  // in HD. Diffusion is NEVER used for product creatives: image models cannot
+  // spell, so they fabricate garbled fake labels and invented tins (the bug the
+  // owner flagged). Real ad/email/LP copy lives as native text in the platform
+  // fields and HTML layout, not baked into pixels. Each channel is assigned a
+  // DISTINCT real photo (rotated across the hero product's gallery + supporting
+  // products) so the same shot never repeats across the funnel. A channel with
+  // no real photo left ships image-free (image:null) — we never invent one.
   const specs = [
-    ['email',   copy.email?.image_brief,       '1536x1024', ''],
-    ['landing', copy.landing?.image_brief,     '1536x1024', ''],
-    ['meta',    copy.ads?.meta?.image_brief,   '1024x1024', ''],
-    ['google',  copy.ads?.google?.image_brief, '1536x1024', ''],
-    ['tiktok',  copy.ads?.tiktok?.image_brief, '1024x1536', ''],
+    ['email',   copy.email?.image_brief],
+    ['landing', copy.landing?.image_brief],
+    ['meta',    copy.ads?.meta?.image_brief],
+    ['google',  copy.ads?.google?.image_brief],
+    ['tiktok',  copy.ads?.tiktok?.image_brief],
   ];
-  // `only` limits which creatives are built. Preview passes ['email'] so a single
-  // hero image renders inline fast (building all 5 here overran the function limit).
-  // `lean` builds EVERY channel but only diffuses the email hero — the other four
-  // channels take the real catalog product photo directly (no diffusion). This is
-  // the on-demand approve path: one blocking image call instead of five, so it
-  // completes inside the serverless limit instead of timing out. The background
-  // prebuild queue still produces full 5-image fidelity offline for reuse.
+  // `only` limits which creatives are built (preview passes ['email']).
   const activeSpecs = Array.isArray(only) ? specs.filter(([key]) => only.includes(key)) : specs;
+  const pool = realImagePool(entry, 1600);
   const out = {};
-  await Promise.all(activeSpecs.map(async ([key, rawBrief, size, mode]) => {
-    const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} hero creative — warm, premium, photoreal.`;
-    const diffuse = !lean || key === 'email';
-    const gen = diffuse ? await generateCreativeImage(b + hero, { size, mode }).catch(() => null) : null;
-    let image = gen?.image || null;
-    // HOST-ALL-ASSETS: never let a data: URI reach a persisted/emailed asset
-    // (email clients strip them). Upload the generated image to Supabase Storage
-    // and use the hosted URL; if that fails (or nothing was generated), fall back
-    // to the real catalog product photo (Shopify CDN, always online). Drop the
-    // image only if even that is unavailable.
-    if (image && /^data:/i.test(image)) {
-      const hosted = await uploadCreative(image, `${entry.id || 'slot'}-${key}`).catch(() => null);
-      image = hosted || catalogImage.imageFor(entry, entry.market) || null;
-    } else if (!image) {
-      image = catalogImage.imageFor(entry, entry.market) || null;
-    }
-    out[key] = { brief: b, image, provider: gen?.provider || (image ? 'catalog-fallback' : null) };
-  }));
+  activeSpecs.forEach(([key, rawBrief], i) => {
+    const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} — real product photograph.`;
+    const image = pool.length ? pool[i % pool.length] : null;
+    out[key] = { brief: b, image, provider: image ? 'catalog' : null };
+  });
   return out;
 }
 

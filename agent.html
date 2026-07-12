@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vahdam Agent — talk to our tea &amp; wellness expert</title>
 <style>
-  :root { --green:#004A2B; --gold:#AB8743; --gold-ink:#8a6a2f; --ink:#171717; --cream:#FBF5EA; }
+  /* This page is an intentionally LIGHT surface (dark ink on cream). auth.js
+     injects theme.css AFTER this inline style, and theme.css redefines :root
+     tokens for the dark green shell (--ink:#e8ede9 light). Without !important
+     that override wins by load order, flipping every var(--ink) to light and
+     making dark-on-cream text render light-on-light (unreadable). !important on
+     a custom property wins the cascade regardless of order, so the page keeps
+     its own readable, WCAG-AA palette. */
+  :root { --green:#004A2B !important; --gold:#AB8743 !important; --gold-ink:#8a6a2f !important; --ink:#171717 !important; --cream:#FBF5EA !important; }
   /* readable gold for TEXT on light backgrounds (brand gold #AB8743 fails contrast as small text on cream) */
   input::placeholder, textarea::placeholder { color:#6f6f6f; opacity:1; }
   * { box-sizing:border-box; }
