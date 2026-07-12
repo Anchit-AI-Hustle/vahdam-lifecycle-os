@@ -106,6 +106,7 @@ function main() {
   .card .cchips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
   .chip{font-size:10.5px;border:1px solid var(--line);border-radius:10px;padding:2px 8px;color:var(--muted);}
   .chip.img{border-color:#cfe0d5;color:var(--green);}
+  .chip.col{background:#eef3ef;border-color:#cfe0d5;color:var(--green);font-weight:600;}
   /* shared expand body */
   .body{display:none;border-top:1px solid var(--line);padding:14px 16px;background:#fbf8f0;}
   .row.open .body,.card.open .body{display:block;}
@@ -184,6 +185,7 @@ function main() {
     [slots.length,'Ad sets','Meta · Google · TikTok each'],
     [slots.length,'Landing pages','flagship long-form'],
     [nCohorts,'RFM cohorts',Object.keys(cohorts).join(', ')],
+    [(M.selected_collections||[]).length,'Collections covered',(M.selected_collections||[]).map(function(c){return c.title;}).join(', ')||'—'],
     [events,'Event tie-ins','World Cup, Ice Cream Day, Parents, Friendship'],
     [verified+'/'+slots.length,'Verified heroes','origin-validated, no fabricated URLs'] ].forEach(function(r){
     var d=el('div','stat'); d.appendChild(el('b','',String(r[0]))); d.appendChild(el('span','',r[1])); d.appendChild(el('em','',r[2])); stats.appendChild(d);
@@ -269,6 +271,7 @@ function main() {
     var ha=slot.hero_asset||{};
     note.textContent = 'Hero asset: '+(ha.status==='verified' ? ('verified · origin-validated · '+(ha.url||'')) : 'placeholder (rendered image-free — no fabricated URL)')+'  ·  CTA -> '+slot.cta_url;
     reason.appendChild(note);
+    if((slot.collections||[]).length){ var cnote=el('div','assetnote'); cnote.textContent='Collections: '+slot.collections.join(', ')+(slot.collection_cta?('  ·  collection CTA -> '+slot.collection_cta.url):''); reason.appendChild(cnote); }
 
     body.appendChild(classTabs); body.appendChild(tabs); body.appendChild(pv); body.appendChild(reason);
     showGroup('Mailers'); // default group
@@ -286,6 +289,7 @@ function main() {
       var seg=el('div'); seg.appendChild(el('span','badge',slot.segment));
       var prod=el('div','prod', slot.product);
       var play=el('span','play', slot.play); prod.appendChild(play);
+      if((slot.collections||[]).length){ var cc=el('div'); cc.style.marginTop='4px'; slot.collections.forEach(function(c){ cc.appendChild(el('span','chip col','▸ '+c)); }); prod.appendChild(cc); }
       if(slot.event){ var evrow=el('div'); evrow.appendChild(el('span','event',slot.event)); prod.appendChild(evrow); }
       var price=el('div','price', slot.price||'');
       var chev=el('div','chev','›');
@@ -316,6 +320,7 @@ function main() {
       slot.variants.forEach(function(v){ chips.appendChild(el('span','chip'+(v.has_image?' img':''), v.label.split(' · ')[0])); });
       var chev=el('span','chev',' ›'); chips.appendChild(chev);
       head.appendChild(chips);
+      if((slot.collections||[]).length){ var cc=el('div','cchips'); cc.style.marginTop='6px'; slot.collections.forEach(function(c){ cc.appendChild(el('span','chip col','▸ '+c)); }); head.appendChild(cc); }
       card.appendChild(head);
       head.addEventListener('click',function(){ toggle(card,slot); });
       box.appendChild(card);
