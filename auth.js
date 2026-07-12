@@ -238,8 +238,7 @@
     // bundle (mailer + ads + landing page). The older calendar surfaces stay
     // reachable by URL but are no longer separate nav features; this one
     // feature's match[] also lights up for them.
-    { id: 'brain', label: 'Automated Calendar Creation', href: '/brain', icon: 'calendar', ver: 'v2', match: ['/brain', '/smart-brain', '/smart-brain.html', '/mailer-calendar', '/lifecycle-calendar.html', '/calendar.html', '/plan'] },
-    { id: 'ukhub', label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
+    { id: 'brain', label: 'VAHDAM Brain', href: '/brain', icon: 'calendar', ver: 'v2', match: ['/brain', '/smart-brain', '/smart-brain.html', '/mailer-calendar', '/lifecycle-calendar.html', '/calendar.html', '/plan'] },
 
     { section: 'Design & Create' },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
@@ -267,11 +266,11 @@
     { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
 
     { section: 'Assistants' },
-    // ChaiGPT (internal team chat/info tool) and Vahdam Agent (customer-facing
+    // SteepSense (internal team chat/info tool) and Vahdam Agent (customer-facing
     // concierge) are conversational assistants and stay here. The former Smart
     // Brain moved to Plan and was renamed Automated Calendar Creation — it is a
     // calendar-creation feature, not a chat assistant, so it no longer lives here.
-    { id: 'chaigpt', label: 'ChaiGPT',      href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
+    { id: 'chaigpt', label: 'SteepSense',   href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
     { id: 'agent',   label: 'Vahdam Agent', href: '/agent',   icon: 'vahdam', ver: 'v1', match: ['/agent', '/agent.html'] },
 
     { section: 'Settings' },
@@ -303,8 +302,8 @@
     // Home is a plain landing link, not a content-producing feature, so it
     // deliberately has NO 5-sub-item IA entry — it renders as a simple link.
     chaigpt: {
-      title: 'ChaiGPT',
-      what: "INTERNAL TOOL, for the VAHDAM team only (not customer-facing). VAHDAM's own brand LLM: a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
+      title: 'SteepSense',
+      what: "INTERNAL TOOL, for the VAHDAM team only (not customer-facing). SteepSense is VAHDAM's own brand LLM: a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
       who: "The operator (growth and retention team). Its recommendations span every cohort — the nine RFM segments (Champions through Lost) and the UK engagement cohorts (Non-Buyers/Non-Engagers and T&B Buyers/Non-Engagers).",
       how: "A provider-agnostic tool-calling loop: the model emits strict JSON actions, the server executes them against the same _shared cores the public API routes use, feeds results back, and loops (default 5 steps, up to 3 tools in parallel). Because tool calls are plain JSON, it works across the whole 6-provider text waterfall, including free tiers. An evidence contract forces every recommendation to quote exact tool-sourced figures.",
       input: "A plain-English question or instruction in the chat. Write and generate tools (generate_calendar, generate_assets_for_slot, run_agentic_campaign, klaviyo) fire only when you explicitly ask.",
@@ -317,7 +316,7 @@
       ],
     },
     brain: {
-      title: 'Automated Calendar Creation',
+      title: 'VAHDAM Brain',
       what: "The one calendar feature of the OS — it combines the automated engine (formerly Smart Brain), the Cohort Mailer Calendar (Draft 2) and the 30-Day Plan Calendar (Draft 1). It maintains a rolling 90-day campaign plan in Supabase (smart_calendar_entries), refreshes it every morning by diff — never a wholesale rewrite — and turns every human-approved slot into a complete campaign: mailer + Meta/Google/TikTok ads + a landing page.",
       who: "Every customer cohort gets slots — RFM segments and engagement cohorts alike. The lifecycle team supervises: nothing ships without a human approve.",
       how: "Six services run in sequence — KB, Analysis, Competitor, Calendar, Generation, Review. A daily Vercel Cron (03:30 UTC, CRON_SECRET-protected) syncs the plan; the console at /brain lists tentative slots for approve/reject; approving generates all assets and mirrors them into ads_generated and landing_pages_generated. Platform push is Phase 2 (push_status: not_integrated_phase_2).",
@@ -427,13 +426,13 @@
         ['Classify', 'LLM classification tags each email with its angle, offer, and structure.', '/api/kb?action=classify-emails'],
         ['Brand-tag', 'Assets are attributed to brands, cross-referencing Competitor Benchmarking.', '/api/kb?action=brands'],
         ['Rank', 'Top-performing emails are ranked and kept fresh.', '/api/kb?action=top-emails'],
-        ['Serve', 'Generators and ChaiGPT search this library while writing new work.', '/api/kb?action=list'],
+        ['Serve', 'Generators and SteepSense search this library while writing new work.', '/api/kb?action=list'],
       ],
     },
     competitor: {
       title: 'Competitor Benchmarking',
       what: "Competitor intelligence: captures rival tea, coffee, and wellness brands' marketing emails from a dedicated Gmail inbox into a Google Sheet, renders them for side-by-side study, and distils benchmarks — cadence, offer depth, creative angles. It also owns brand discovery.",
-      who: "The strategy layer. Benchmarks feed ChaiGPT's evidence contract, Smart Brain planning, and the human planner — informing campaigns for every cohort.",
+      who: "The strategy layer. Benchmarks feed SteepSense's evidence contract, Smart Brain planning, and the human planner — informing campaigns for every cohort.",
       how: "One router dispatched by ?action=list|html|poll|sync. Poll reads the capture inbox over IMAP; parsed emails become rows (columns A–K) in the Google Sheet database; sync runs on a CRON_SECRET-protected schedule. Google auth is keyless via Workload Identity Federation (Vercel OIDC → Google STS → service-account impersonation), with a legacy JSON-key fallback.",
       input: "Subscribe the capture inbox to competitor newsletters — the system does the rest. Optionally add brands to discover and track.",
       steps: [
@@ -441,7 +440,7 @@
         ['Poll', 'IMAP polling pulls new messages and parses brand, subject, offer, and full HTML.', '/api/competitor?action=poll'],
         ['Store', 'Each email becomes a row (columns A–K) in the Google Sheet via keyless WIF auth.', '/api/competitor?action=sync (cron)'],
         ['Browse', 'The page lists captured emails and renders their full HTML for study.', '/api/competitor?action=list · ?action=html'],
-        ['Benchmark', 'Cadence, offer, and angle insights feed ChaiGPT, Smart Brain, and human planning.'],
+        ['Benchmark', 'Cadence, offer, and angle insights feed SteepSense, Smart Brain, and human planning.'],
       ],
     },
     calendar: {
