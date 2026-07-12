@@ -219,11 +219,24 @@
           else copy(embed, 'Embed code');
         });
       });
-      // "Use in an ad creative" also stashes the asset URL so the ad flow can pick it up
+      // "Use in an ad creative": stash for a future ad-flow pickup AND do a real
+      // thing now — copy the absolute track URL to the clipboard so it can be
+      // pasted straight into the ad builder (the localStorage key alone was a
+      // dead handoff: nothing reads it yet).
       var useBtn = card.querySelector('[data-use-in-ad]');
       if(useBtn){
-        useBtn.addEventListener('click', function(){
-          try { localStorage.setItem('vahdam.adAudioTrack', url); } catch(_){}
+        useBtn.addEventListener('click', function(e){
+          var abs = (function(){ try { return new URL(url, location.href).href; } catch(_){ return url; } })();
+          try { localStorage.setItem('vahdam.adAudioTrack', abs); } catch(_){}
+          try {
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              e.preventDefault();
+              navigator.clipboard.writeText(abs).then(function(){
+                var t = useBtn.textContent; useBtn.textContent = 'Track URL copied ✓';
+                setTimeout(function(){ useBtn.textContent = t; }, 1800);
+              }).catch(function(){});
+            }
+          } catch(_){}
         });
       }
     });

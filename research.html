@@ -842,11 +842,11 @@ triggers:
     if(format==='mailer'){
       return '<!-- VAHDAM mailer · '+avatar+' · '+market+' -->\n'+
 '<table width="600" style="margin:0 auto;background:#FBF5EA;font-family:Proxima Nova,Arial,sans-serif">\n'+
-'  <tr><td style="background:#004A2B;color:#FBF5EA;padding:10px 20px;font-size:12px">Free shipping over threshold · code RITUAL</td></tr>\n'+
+'  <tr><td style="background:#004A2B;color:#FBF5EA;padding:10px 20px;font-size:12px">Free shipping over threshold · code [SAMPLE]</td></tr>\n'+
 '  <tr><td style="padding:28px 32px">\n'+
 '    <h1 style="font-family:Lao MN,Georgia,serif;color:#004A2B;font-size:26px;margin:0">Your morning, restored.</h1>\n'+
 '    <p style="color:#171717;font-size:15px;line-height:1.6">Single-estate Ashwagandha Coffee, hand-picked at origin and crafted for the '+avatar.toLowerCase()+' ritual.</p>\n'+
-'    <p><b>$28.00</b> <span style="color:#AB8743;text-decoration:line-through">$34.00</span></p>\n'+
+'    <p><b>$[price]</b> <span style="color:#AB8743;text-decoration:line-through">$[compare]</span></p>\n'+
 '    <a href="https://'+store+'/products/ashwagandha-coffee" style="background:#004A2B;color:#FBF5EA;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Steep now</a>\n'+
 '  </td></tr>\n</table>';
     }
