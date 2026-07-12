@@ -52,7 +52,11 @@ function addDaysIso(dateIso, days) {
   return d.toISOString().slice(0, 10);
 }
 function daysAgoIso(n) { return new Date(Date.now() - n * 86400000).toISOString(); }
-function stableId(date, market) { return `cal_${date}_${String(market).toLowerCase()}`; }
+// Stable per (date, market, cohort) so multiple cohort sends can share a day
+// without colliding, and a given date always resolves to the same ids across
+// syncs. cohortSlug keeps the id filesystem/URL-safe.
+function cohortSlug(name) { return String(name || 'core').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 32) || 'core'; }
+function stableId(date, market, cohort) { return `cal_${date}_${String(market).toLowerCase()}_${cohortSlug(cohort)}`; }
 
 // How long telemetry/log rows are kept before the daily sync evicts them.
 const RETENTION_DAYS = 30;
@@ -83,7 +87,7 @@ function freshEntries(config, ctx, startDate, days) {
   // Re-key on date+market so the same slot keeps the same id across daily syncs.
   const cohortLtv = cohortLtvMap(ctx);
   for (const e of calendar.entries) {
-    e.id = stableId(e.date, e.market);
+    e.id = stableId(e.date, e.market, e.cohort && e.cohort.name);
     attachScenarioLayer(e, ctx, cohortLtv);
   }
   return calendar.entries;
@@ -525,8 +529,25 @@ function slotLinks(entry) {
     : /herbal|turmeric|wellness|tisane|supplement/.test(cat) ? 'wellness-tea'
     : 'all';
   const collectionUrl = `${store}/collections/${collectionSlug}`;
-  const pdp = hp.handle ? `${store}/products/${hp.handle}` : collectionUrl;
-  return { store, collectionUrl, pdp };
+  // Every product CTA must land on a REAL product page. Prefer the
+  // catalog-VALIDATED handle (handleFor checks the entry handle against the
+  // built catalog, then title/keyword) so a stale/wrong handle can never produce
+  // a dead PDP; only fall back to the raw entry handle if the catalog is absent.
+  let handle = null;
+  try { handle = catalogImage.handleFor(hp, entry.market); } catch (_) { handle = null; }
+  handle = handle || hp.handle || null;
+  const pdp = handle ? `${store}/products/${handle}` : collectionUrl;
+  return { store, collectionUrl, pdp, handle };
+}
+// Resolve a real PDP URL for ANY product (hero or supporting), always on the
+// official per-market store, never fabricating a handle.
+function productUrl(product, market) {
+  const facts = regionFacts(market);
+  const store = `https://${facts.store || 'www.vahdamteas.com'}`;
+  let handle = null;
+  try { handle = catalogImage.handleFor(product, market); } catch (_) { handle = null; }
+  handle = handle || (product && (product.handle || product.h)) || null;
+  return handle ? `${store}/products/${handle}` : store;
 }
 function renderVariant(entry, copy, style, img) {
   const E = copy.email || {};
@@ -536,8 +557,14 @@ function renderVariant(entry, copy, style, img) {
   // (pure/editorial "Text" variants stay graphics-free per the taxonomy).
   const withGrid = style === 'visual';
   const heroImgUrl = img || catalogImage.imageFor(entry, entry.market) || undefined;
+  // Grid = hero + any bundled supporting products, each linking to its own real
+  // US product page (never a fabricated handle).
+  const supporting = Array.isArray(entry.supportingProducts) ? entry.supportingProducts : [];
   const products = withGrid && entry.heroProduct
-    ? [{ title: entry.heroProduct.title, handle: entry.heroProduct.handle, image: heroImgUrl, price: entry.heroProduct.price, url: links.pdp }]
+    ? [
+        { title: entry.heroProduct.title, handle: entry.heroProduct.handle, image: heroImgUrl, price: entry.heroProduct.price, url: links.pdp },
+        ...supporting.map((p) => ({ title: p.title, handle: p.handle, price: p.price, url: productUrl(p, entry.market) })),
+      ]
     : undefined;
   return renderTextVariant({
     style, subject: E.subject, preheader: E.preheader,
