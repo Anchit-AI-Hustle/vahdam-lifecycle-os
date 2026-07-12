@@ -134,10 +134,13 @@
     </div>
 
     <div class="card wide">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <h2 style="margin:0">Rolling calendar (next 90 days)</h2>
-        <button id="generateAll" class="btn sm ok" onclick="generateAll()" style="display:none" title="Generate the final best version of every asset (mailer, ads, landing page) for the sends currently shown (respects the region filter).">⚙ Generate all</button>
-        <button id="downloadAll" class="btn sm secondary" onclick="sbZipAll()" title="Download every ALREADY-generated asset in view as a nested ZIP — {date}_{cohort}/{date}/mailer + landing + ad files. Retrieval only; never regenerates.">⬇ Download all (.zip)</button>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;min-width:210px">
+          <button id="generateAll" class="btn sm ok" onclick="generateAll()" style="display:none;text-align:center" title="Generate the final best version of every asset (mailer, ads, landing page) for the sends currently shown (respects the region filter).">⚙ Generate all</button>
+          <button id="approveAll" class="btn sm ok" onclick="approveAll()" style="display:none;text-align:center" title="Approve and lock every send currently shown that is not already approved (includes prebuilt drafts). Each is built if needed, then locked as ship-ready. Rejected sends are skipped.">✓ Approve all</button>
+          <button id="downloadAll" class="btn sm secondary" onclick="sbZipAll()" style="text-align:center" title="Download every ALREADY-generated asset in view as a nested ZIP — {date}_{cohort}/{date}/mailer + landing + ad files. Retrieval only; never regenerates.">⬇ Download all (.zip)</button>
+        </div>
       </div>
       <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 8px">
         <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
@@ -316,6 +319,12 @@ function renderPlan(){
   }
   const aa = $('generateAll');
   if(aa){ aa.style.display = pendingVisible ? '' : 'none'; aa.textContent = `⚙ Generate all (${pendingVisible})`; }
+  // "Approve all" — acts on every visible send not yet approved/final, INCLUDING
+  // prebuilt drafts (which Generate all skips), so its count can exceed the
+  // Generate-all count. Rejected sends are excluded (approve those individually).
+  const approvableVisible = PLAN.filter(e => slotVisible(e) && e.status!=='approved' && e.status!=='final' && e.status!=='rejected').length;
+  const ab = $('approveAll');
+  if(ab){ ab.style.display = approvableVisible ? '' : 'none'; ab.textContent = `✓ Approve all (${approvableVisible})`; }
   if(!shown){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#789">No sends for the selected region + duration. Widen the duration or pick another region.</td></tr>`; return; }
   // Iterate over ALL entries (keep index i aligned to PLAN for viewEntry/approve),
   // emitting nothing for rows filtered out by the region selector.
@@ -846,11 +855,11 @@ async function downloadEntry(i){
 // and a per-slot pass/fail tally stream into #detail; failures are collected.
 // Non-blocking confirm rendered into #detail (native confirm() blocks the main
 // thread — that is the INP freeze on this button). Resolves true/false.
-function sbConfirm(msg){
+function sbConfirm(msg, okLabel){
   return new Promise(resolve=>{
     const det = $('detail'); if(!det){ resolve(true); return; }
     det.innerHTML = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>${esc(msg)}</span>`+
-      `<button class="btn sm ok" id="sbcy">Generate</button><button class="btn sm secondary" id="sbcn">Cancel</button></div>`;
+      `<button class="btn sm ok" id="sbcy">${esc(okLabel || 'Generate')}</button><button class="btn sm secondary" id="sbcn">Cancel</button></div>`;
     $('sbcy').onclick = ()=>resolve(true);
     $('sbcn').onclick = ()=>{ resolve(false); det.textContent=''; };
   });
@@ -911,6 +920,40 @@ async function generateAll(){
   if(det) det.textContent = `Generate all done — ✓ ${ok} generated${fails.length?`, ✕ ${fails.length} failed`:''}. Assets are cached; View and Download retrieve them (no regeneration).`;
 }
 window.generateEntry = generateEntry; window.downloadEntry = downloadEntry; window.generateAll = generateAll;
+
+// Approve (lock) every visible send that is not already approved/final. Unlike
+// "Generate all", this ALSO acts on prebuilt drafts — a prebuilt slot has its
+// assets built but is NOT yet approved, so Generate all skips it while Approve
+// all locks it. Approving reuses generateEntry (posts smart-brain-approve →
+// status 'final'), so a slot that has no assets yet is built then locked in the
+// same pass. Rejected slots are deliberately left out — bulk approve must not
+// silently resurrect a send the reviewer killed; approve those one at a time.
+async function approveAll(){
+  const targets = PLAN.map((e,i)=>({e,i}))
+    .filter(({e})=> slotVisible(e) && e.status!=='approved' && e.status!=='final' && e.status!=='rejected');
+  if(!targets.length){ return; }
+  const go = await sbConfirm(`Approve and lock ${targets.length} send(s) shown? Each is built (if needed) and locked as ship-ready. Rejected sends are skipped.`, 'Approve all');
+  if(!go) return;
+  const ab = $('approveAll'); if(ab){ ab.disabled = true; }
+  const det = $('detail');
+  window.__SB_GEN_CANCEL = false;
+  let ok = 0; const fails = [];
+  for(let n=0; n<targets.length; n++){
+    if(window.__SB_GEN_CANCEL) break;
+    const { i, e } = targets[n];
+    const rev = $('rev-'+i);
+    if(rev) rev.innerHTML = '<span class="pvnote"><span class="sbspin"></span> approving…</span>';
+    if(det) det.innerHTML = `<span class="sbspin"></span> Approving <b>${n+1}</b> of <b>${targets.length}</b>: ${esc(e.date)} ${esc(e.market)} — ${esc(e.objective)} &nbsp; ✓${ok}${fails.length?` ✕${fails.length}`:''} `+
+      `<button class="btn sm secondary" onclick="window.__SB_GEN_CANCEL=true">Stop</button>`;
+    try{ await generateEntry(i, { silent: true }); ok++; }
+    catch(err){ fails.push(`${e.date} ${e.market}: ${err.message}`); if(rev) rev.innerHTML = `<span style="color:#e89a9a;font-size:11px">approve failed: ${esc(err.message)}</span>`; }
+    await new Promise(r=>setTimeout(r, 0));   // yield → the UI repaints each step
+  }
+  if(ab){ ab.disabled = false; }
+  renderPlan();
+  if(det) det.textContent = `Approve all done — ✓ ${ok} approved${fails.length?`, ✕ ${fails.length} failed`:''}. Locked sends are ship-ready; View and Download retrieve them (no regeneration).`;
+}
+window.approveAll = approveAll;
 
 // ── Review verdict (per-row human sign-off) ─────────────────────────────────
 // Approve locks the slot and builds its final assets (reuses generateEntry, which
