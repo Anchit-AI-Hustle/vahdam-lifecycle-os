@@ -85,8 +85,11 @@
     <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div></div>
 
     <div class="card wide">
-      <h2>Rolling calendar (next 90 days)</h2>
-      <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:2px 0 14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <h2 style="margin:0">Rolling calendar (next 90 days)</h2>
+        <button id="approveAll" class="btn sm ok" onclick="approveAll()" style="display:none" title="Approve every pending send currently shown (respects the region filter). Each one generates its mailer, ads, and landing page.">✓ Approve all pending</button>
+      </div>
+      <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 14px">
         <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
         <button class="mkchip on" data-mkt="all" onclick="toggleMkt('all')">All</button>
         <button class="mkchip" data-mkt="US" onclick="toggleMkt('US')">US</button>
@@ -210,6 +213,11 @@ function renderPlan(){
   $('pending').textContent = PLAN.filter(e => e.status === 'tentative').length;
   const shown = PLAN.filter(mktVisible).length;
   const mc = $('mktcount'); if(mc) mc.textContent = SELECTED_MKT.size ? `Showing ${shown} of ${PLAN.length}` : `${PLAN.length} sends · all regions`;
+  // "Approve all pending" — appears only when there are pending sends in view,
+  // and counts exactly what it will act on (respects the region filter).
+  const pendingVisible = PLAN.filter(e => e.status === 'tentative' && mktVisible(e)).length;
+  const aa = $('approveAll');
+  if(aa){ aa.style.display = pendingVisible ? '' : 'none'; aa.textContent = `✓ Approve all pending (${pendingVisible})`; }
   if(!shown){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#789">No sends for the selected region(s).</td></tr>`; return; }
   // Iterate over ALL entries (keep index i aligned to PLAN for viewEntry/approve),
   // emitting nothing for rows filtered out by the region selector.
@@ -224,7 +232,7 @@ function renderPlan(){
     return `<tr class="planrow" id="planrow-${i}">
     <td>${esc(e.date)}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
-    <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span></td>
+    <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}</td>
     <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
     <td style="max-width:260px"><span style="font-size:12px;color:#d8cdb4;line-height:1.4">${esc(why)}</span></td>
     <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
@@ -554,7 +562,37 @@ async function reject(i){
     renderPlan();
   }catch(err){ $('detail').textContent = err.stack || err.message; }
 }
-window.approve = approve; window.reject = reject;
+// Bulk-approve every pending send currently in view (respects the region
+// filter). Runs sequentially — each approval spins up an LLM copy + asset build
+// on a serverless function, so we deliberately avoid firing 90 at once. Progress
+// and a per-slot pass/fail tally stream into #detail; the plan re-renders once
+// at the end. Individual failures are collected, not fatal.
+async function approveAll(){
+  const targets = PLAN.map((e,i)=>({e,i})).filter(({e})=> e.status==='tentative' && mktVisible(e));
+  if(!targets.length){ return; }
+  if(!confirm(`Approve all ${targets.length} pending send(s) currently shown?\nEach one generates its mailer, ads, and landing page. This can take a while.`)) return;
+  const aa = $('approveAll'); if(aa){ aa.disabled = true; }
+  const det = $('detail');
+  let ok = 0; const fails = [];
+  for(let n=0; n<targets.length; n++){
+    const { e, i } = targets[n];
+    if(det) det.textContent = `Approving ${n+1} of ${targets.length}: ${e.date} ${e.market} (${e.objective})…  ✓${ok}${fails.length?`  ✕${fails.length}`:''}`;
+    try{
+      const pre = (e.id || ('slot-'+i)) + '::'; const asset_verdicts = {};
+      Object.keys(window.__SB_ASSET_STATUS || {}).forEach(k => { if(k.indexOf(pre)===0 && window.__SB_ASSET_STATUS[k]) asset_verdicts[k.slice(pre.length)] = window.__SB_ASSET_STATUS[k]; });
+      const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail(), asset_verdicts })});
+      const data = await safeJson(r);
+      if(!data.ok) throw new Error(data.error || 'Approve failed');
+      e.status = 'approved'; e.generated_campaign_id = data.campaign.campaign_id;
+      PREVIEW_CACHE[e.id] = data;
+      ok++;
+    }catch(err){ fails.push(`${e.date} ${e.market}: ${err.message}`); }
+  }
+  if(aa){ aa.disabled = false; }
+  renderPlan();
+  if(det) det.textContent = `Approve all done — ✓ ${ok} approved${fails.length?`, ✕ ${fails.length} failed:\n`+fails.join('\n'):''}.`;
+}
+window.approve = approve; window.reject = reject; window.approveAll = approveAll;
 
 async function showSchema(){
   clearPreview();
