@@ -42,9 +42,23 @@ function qs(query) {
  * Low-level request. When no key is configured, returns a "would_request"
  * envelope instead of calling out — so callers behave identically online/offline.
  */
+// READ-ONLY POSTURE (standing rule for Shopify / Klaviyo / WebEngage): the app
+// only ever FETCHES information and must put no write load on these platforms.
+// Any non-GET call is blocked here before it leaves the process — it is never
+// sent — so create/subscribe/track can exist in the manifest but can never
+// mutate the account. Set KLAVIYO_ALLOW_WRITES=1 to intentionally opt back in.
+const READ_ONLY = process.env.KLAVIYO_ALLOW_WRITES !== '1';
+
 async function request({ method = 'GET', path, query = {}, body = null, timeoutMs = 20000 }) {
   const c = cfg();
   const url = `${API_BASE}${path}${qs(query)}`;
+  if (READ_ONLY && String(method).toUpperCase() !== 'GET') {
+    return {
+      ok: false, connected: !!c.key, read_only_blocked: true,
+      would_request: { method, url, body: body || undefined },
+      note: 'Read-only mode: this write was blocked and NOT sent to Klaviyo (zero write load). Set KLAVIYO_ALLOW_WRITES=1 to enable writes.',
+    };
+  }
   if (!c.key) {
     return {
       ok: false, connected: false, not_connected: true,
