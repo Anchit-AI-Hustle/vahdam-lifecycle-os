@@ -45,6 +45,12 @@ try { catalogImage = require('./catalog-image.js'); } catch (_) {}
 // archetype (layout order + copy angle) instead of one repeated template.
 let designStrategy = { strategyFor: () => ({ key: 'hero-spotlight', hero: 'green', order: [], influencerAngle: '' }) };
 try { designStrategy = require('./mailer-design-strategy.js'); } catch (_) {}
+// Legal sender identity for email footers (CAN-SPAM: a real physical mailing
+// address is required in every commercial email). Replaces the old
+// {{ organization_address }} placeholder.
+const ORG_NAME = 'Vahdam Teas Global, Inc';
+const ORG_ADDRESS = '440 N Barranca Ave #2812, Covina, CA 91723, United States';
+
 // Resolve the best real image URL for a product: its own row image, else the
 // catalog photo by handle/title. Returns an https URL or null.
 function productImage(p, market) {
@@ -357,7 +363,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   <tr><td align="center" style="background:${P.near_black};padding:24px 22px 30px">
     <div style="font-family:${heads};font-size:14px;letter-spacing:0.24em;color:${P.cream}">VAHDAM</div>
     <div style="font-family:${body};font-size:10.5px;letter-spacing:0.05em;color:${P.gold};margin:9px 0">Single-estate · Hand-picked · Shipped fresh from origin</div>
-    <div style="font-family:${body};font-size:11px;color:${P.cream}99;line-height:1.7">You are receiving this as a valued VAHDAM ${esc(slot.market)} customer.<br>VAHDAM Teas · Carbon &amp; plastic neutral<br>Manage preferences or unsubscribe from your account settings.</div>
+    <div style="font-family:${body};font-size:11px;color:${P.cream}99;line-height:1.7">${ORG_NAME} &middot; ${ORG_ADDRESS}<br>You are receiving this as a valued VAHDAM ${esc(slot.market)} customer. Carbon &amp; plastic neutral.<br>Manage preferences or unsubscribe from your account settings.</div>
   </td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -550,7 +556,7 @@ ${compTable}
   <div style="margin-top:14px"><a href="${agentUrl}" style="color:${P.forest_green};font-weight:700;text-decoration:none;font-size:14px">🎙 Or ask our tea expert anything →</a></div>
 </div></section>
 
-<footer style="background:${P.near_black};color:${P.cream}99;text-align:center;padding:30px;font-size:12px">VAHDAM India · Single-estate · Carbon &amp; plastic neutral</footer>
+<footer style="background:${P.near_black};color:${P.cream}99;text-align:center;padding:30px;font-size:12px">${ORG_NAME} &middot; ${ORG_ADDRESS}<br>Single-estate &middot; Carbon &amp; plastic neutral</footer>
 
 <div class="stickb">
   <div class="p"><b>${esc(offerBar)}</b></div>
