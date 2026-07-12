@@ -33,6 +33,8 @@
     { "source": "/api/smart-brain", "destination": "/api/brain?action=status" },
     { "source": "/july-studio", "destination": "/vahdam-usa-july-calendar-mailer-studio.html" },
     { "source": "/usa-july",    "destination": "/vahdam-usa-july-calendar-mailer-studio.html" },
+    { "source": "/master-dashboard", "destination": "/all-in-one.html" },
+    { "source": "/master",     "destination": "/all-in-one.html" },
     { "source": "/all-in-one", "destination": "/all-in-one.html" },
     { "source": "/os",         "destination": "/all-in-one.html" },
     { "source": "/dashboard-os","destination": "/all-in-one.html" },

@@ -199,7 +199,7 @@
       { id: 'research-global', label: 'Global Study',           href: '/research?region=global', icon: 'insights' },
       { id: 'research-india',  label: 'India Study',            href: '/research?region=india',  icon: 'insights' },
     ]},
-    { id: 'allinone',   label: 'All-in-One Dashboard', href: '/all-in-one', icon: 'analysis', ver: 'v2', match: ['/all-in-one', '/os', '/dashboard-os', '/all-in-one.html'] },
+    { id: 'allinone',   label: 'Master Dashboard', href: '/master-dashboard', icon: 'analysis', ver: 'v2', match: ['/master-dashboard', '/master', '/all-in-one', '/os', '/dashboard-os', '/all-in-one.html'] },
 
     { section: 'Research & Benchmark' },
     { group: 'Competitor Benchmarking', icon: 'competitor', gid: 'competitor', ver: 'v1', children: [

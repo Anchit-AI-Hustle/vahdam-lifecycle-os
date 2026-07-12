@@ -122,13 +122,13 @@
 
     <div class="card wide" id="dualmode">
       <h2>Agentic Generation</h2>
-      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation). The 5-scenario cadence model is computed inside this flow (see the calendar stage). Always runs on the <b>Premium</b> model cascade.</p>
+      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation). Always runs on the <b>Premium</b> model cascade.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
         <span class="label" style="margin-right:4px">Mode</span>
         <span class="btn sm" style="cursor:default;pointer-events:none" title="One mode: an agentic pipeline powered by the premium model cascade">🤖 Agentic</span>
         <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
       </div>
-      <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow. Its calendar stage returns the cadence scenarios (A-E) inline.</p></div>
+      <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow. It plans the calendar, writes the content and returns the next-step ideation inline.</p></div>
     </div>
 
     <div class="card wide">
@@ -200,19 +200,14 @@ async function safeJson(r){
 }
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-// ── Agentic Generation (agentic flow + 5-scenario calendar) ────────────────
+// ── Agentic Generation (single execution surface) ──────────────────────────
 // Single mode: premium is the only tier. setTier is kept as a no-op for any
-// legacy call site so it can never downgrade.
+// legacy call site so it can never downgrade. The cadence model still runs
+// INSIDE the flow to shape the calendar (medium cadence is the default), but it
+// is no longer surfaced as a user-facing 5-scenario picker — there is one
+// execution surface (Run Agentic Flow) and the reviewer decides per row.
 const TIER = 'maxpower';
 function setTier(){ /* single mode: premium only */ }
-function scenarioCard(s){
-  const def = s.key==='medium';
-  return `<div class="card" style="flex:1;min-width:172px;${def?'border:2px solid #004A2B':''}">
-    <div class="label">${esc(s.label||s.key)}${def?' · DEFAULT':''}</div>
-    <div style="font-size:13px;color:#456;margin:4px 0">${esc(s.assumptions||'')}</div>
-    <div style="font-size:12px;color:#789">cadence ${esc(s.cadencePerWeek)}/wk · spend ${esc(s.spend||'—')}<br>rev index ${esc((s.projected&&s.projected.revenueIndex)||'—')}</div>
-  </div>`;
-}
 // Region for the agentic flow comes from the Rolling-calendar region chips
 // (single source of truth) — the agentic section no longer has its own selector.
 function agenticMarket(){
@@ -232,24 +227,11 @@ async function runAgentic(){
     const d = await safeJson(r);
     if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
     const stages = (d.stages||[]).map(s => `<div style="padding:6px 0;border-bottom:1px solid #eee5d2"><b>${s.ok?'✓':'✗'} ${esc(s.stage)}</b> — ${esc(s.summary||'')}</div>`).join('');
-    const scs = (d.scenarios&&d.scenarios.scenarios||[]).map(scenarioCard).join('');
     const ideas = (d.ideation&&d.ideation.ideas||[]).map(i=>`<li><b>${esc(i.title)}</b> — ${esc(i.action||i.why||'')} <span style="color:#789">(${esc(i.impact||'')}/${esc(i.effort||'')})</span></li>`).join('');
     out.innerHTML = `<div class="label">Flow · ${esc(d.mode)} · tier ${esc(d.tier)}</div>
       <div style="margin:8px 0">${stages}</div>
-      <h2 style="font-size:18px">Calendar scenarios</h2><div style="display:flex;gap:10px;flex-wrap:wrap">${scs||'—'}</div>
       <h2 style="font-size:18px;margin-top:14px">Ideation — what to do next</h2><ul>${ideas||'<li>—</li>'}</ul>
       <p style="color:#789;margin-top:12px">Creative assets (mailers, ads, landing pages, images) are prebuilding in the background and will appear on the dashboard shortly.</p>`;
-  }catch(e){ out.innerHTML = `<p style="color:#b00">Error: ${esc(e.message||e)}</p>`; }
-}
-async function loadScenarios(){
-  const out = $('agenticOut'), market = agenticMarket();
-  out.innerHTML = `<p>🗓 Building 5-scenario calendar — tier <b>${TIER}</b>, ${esc(market)}…</p>`;
-  try{
-    const r = await fetch(`/api/brain?action=calendar-scenarios&market=${encodeURIComponent(market)}&tier=${TIER}`);
-    const d = await safeJson(r);
-    if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
-    const scs = (d.scenarios||[]).map(scenarioCard).join('');
-    out.innerHTML = `<div class="label">${d.calendar?d.calendar.entries:0} base entries · default ${esc(d.default)}</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${scs}</div>`;
   }catch(e){ out.innerHTML = `<p style="color:#b00">Error: ${esc(e.message||e)}</p>`; }
 }
 
