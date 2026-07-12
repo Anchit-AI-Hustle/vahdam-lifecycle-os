@@ -77,7 +77,7 @@
     </div>
   </div>
 
-  <div class="sec-h">Systemic blockers — B2 cleared ✓; B1 + B3 remain (clear these and most features jump to 9–9.5)</div>
+  <div class="sec-h">Systemic blockers — B1 + B2 cleared ✓; only B3 (feeds) remains</div>
   <div class="blockers" id="blockers"></div>
 
   <div class="sec-h">Feature scorecard</div>
@@ -99,21 +99,21 @@
     { name:'Created Assets', path:'/assets', a:8, i:8, e:8.5, r:7.5, note:'Now renders the real mailer (not a product image). Source-sync freshness strip (spec §24b) surfaces CURRENT/STALE campaign counts from the live engine. Add live ad previews and search facets next.' },
     { name:'ChaiGPT', path:'/chaigpt', a:8, i:8, e:8.5, r:7.5, note:'Contrast fixed. Add evidence-contract regression tests; the tool-calling loop is sound.' },
     { name:'Social Media OS', path:'/social', a:7.5, i:8.5, e:8, r:7.5, note:'Real catalog hero + newline-safe scrub + code-level caption validators (strip non-PDP URLs / supplement prices, flag medical claims, budget hashtags) DONE.' },
-    { name:'Landing Pages (/lp)', path:'/lp/:id', a:7.5, i:8.5, e:8.5, r:7.5, note:'Safe ids, real images, region-correct links; CORS header + ?v=b→first-LP fallback DONE. Hardcoded stars/testimonial/guarantee route through the B1 gate (flip REAL_FACTS_ONLY + populate the library).' },
+    { name:'Landing Pages (/lp)', path:'/lp/:id', a:8.5, i:8.5, e:8.5, r:7.5, note:'Safe ids, real images, region-correct links; CORS + ?v=b→first-LP fallback DONE. B1 LIVE: the trust bar / testimonial / guarantee now come from the real approved library (or omit), no longer hardcoded.' },
     { name:'Vahdam Agent', path:'/agent', a:7.5, i:7.5, e:8, r:7, note:'Contrast fixed. Consolidate with ChaiGPT or state a distinct purpose.' },
-    { name:'Ad Campaigns', path:'/ad-campaigns', a:7.5, i:8.5, e:8, r:7.5, note:'URLs verified; fabricated 65%-OFF removed; char-limit clamps DONE; region-agnostic "US shipping" line now market-parameterised (US/UK/global). Claims sourced via the B1 gate.' },
-    { name:'Smart Brain (/brain)', path:'/brain', a:6.5, i:9, e:8, r:7, note:'Bounded, deterministic, real-image pivot done. B2 cleared — persistence + the sync engine are live (sync-status returns connected:true). Reach no longer fabricates ~20k (null + [DATA REQUIRED] when no real base) and a plan-time per-cohort rolling-7-day frequency cap now flags over-cap slots. Still needs B1 approved-facts + real reach counts (B3); cross-cohort per-profile capping runs at ESP.' },
-    { name:'Mailer Studio', path:'/studio', a:5, i:8.5, e:7, r:6, note:'Great plumbing. Client-side brand gate now runs on the DETERMINISTIC render path (banned phrases + em/en dashes scrubbed from final HTML, CSS-safe) and the palette check is a 4-colour allowlist (not a 6-item denylist). Reviews/prices/proof render real-only under REAL_FACTS_ONLY. Design-image mode now returns a TEXT-FREE photograph brief (no baked reviews/ratings/prices/codes). All code items done; remaining is DATA: flip the flag + populate the approved library (B1).' }
+    { name:'Ad Campaigns', path:'/ad-campaigns', a:8.5, i:8.5, e:8, r:7.5, note:'URLs verified; fabricated 65%-OFF removed; char-limit clamps DONE; region-aware shipping line. B1 LIVE: claims/proof sourced from the real approved library via the gate.' },
+    { name:'Smart Brain (/brain)', path:'/brain', a:8, i:9, e:8, r:7, note:'Bounded, deterministic, real-image pivot done. B1 LIVE (testimonials/claims now real-only via the gate) + B2 cleared (persistence + sync engine live). Reach no longer fabricates ~20k; plan-time per-cohort rolling-7-day frequency cap flags over-cap slots. Remaining: real reach/performance counts (B3); cross-cohort per-profile capping at ESP.' },
+    { name:'Mailer Studio', path:'/studio', a:8, i:8.5, e:7.5, r:6.5, note:'Great plumbing. Client brand gate on the deterministic render path (banned phrases + em/en dashes scrubbed, CSS-safe), 4-colour palette allowlist, text-free design-image brief. B1 now LIVE: reviews/prices/proof render from the real approved library (or omit) — the invented reviewer names / 4.8·50,000+ / guessed prices are gone. Residual: approved-claims library; global.' }
   ];
   var BLOCKERS = [
-    { tag:'B1 · DATA IN (US+UK)', h:'Approved-facts library', p:'Gate wired across /lp, /brain, /studio. REAL data seeded from the official storefronts + public Yotpo, zero fabrication: US 173 prices / 145 ratings / 141 testimonials; UK 101 prices / 124 ratings / 120 testimonials (its own Yotpo store). Global = prices only (its live catalog is out of sync with the CSV catalog + uses mixed review apps — follow-up). Remaining: set REAL_FACTS_ONLY=1 to activate.' },
+    { tag:'B1 · RESOLVED ✓', h:'Approved-facts library — LIVE', p:'REAL_FACTS_ONLY=1 is ON in production (public-config confirms). Gate active across /lp, /brain, /studio with REAL data seeded from the official storefronts + public Yotpo: US 173 prices / 145 ratings / 141 testimonials; UK 101 / 124 / 120. Zero fabrication — unverified facts are omitted, not invented. Residual: global ratings (catalog/store handle mismatch) + an approved-CLAIMS library still to populate.' },
     { tag:'B2 · RESOLVED ✓', h:'Supabase service-role key live', p:'DONE. The live app (vahdam-lifecycle-os.vercel.app) reports supabase_configured:true and /api/calendar?action=smart-brain-sync-status returns connected:true — Brain persistence, dashboard counts, Created Assets and the sync engine are off the anon fallback. (The old vahdam-marketing-mailers-architect domain is a stale deploy; ignore it.)' },
     { tag:'B3 · FEEDS', h:'Wire Klaviyo + Shopify (read-only)', p:'Real cohort sizes, open/click history and live stock/price are absent, so frequency safety and confidence run on assumptions. Set KLAVIYO_API_KEY (read) + a read-only Shopify token.' }
   ];
   var ROAD = [
     'B2 — DONE ✓ Supabase service-role key live on vahdam-lifecycle-os.vercel.app (supabase_configured:true, sync-status connected:true); persistence unblocked app-wide.',
-    'B1 — build the approved-facts library (reviews + claims + prices by SKU+region). Highest-value correctness fix; lifts Studio, Brain, LP and Ads together.',
-    'B3 — wire Klaviyo (read) + read-only Shopify token → real cohort sizes, send history and live stock; calibrates confidence + frequency and unlocks MER/ROAS/LTV.',
+    'B1 — DONE ✓ approved-facts library LIVE (REAL_FACTS_ONLY=1): real US+UK prices/ratings/reviews from the official storefronts + public Yotpo; Studio/Brain/LP/Ads render real-only. Residual: approved-claims library + global ratings.',
+    'B3 — wire Klaviyo (read) + read-only Shopify token → real cohort sizes, send history and live stock; calibrates confidence + frequency and unlocks MER/ROAS/LTV. The last systemic blocker.',
     'DONE: plan-time per-(market,cohort) rolling-7-day frequency cap flags over-cap slots in /brain; honest reach (no fabricated ~20k). Remaining: cross-cohort per-PROFILE capping at ESP send-time (needs B3 profile feed).',
     'DONE: char-limit clamps in Ad Campaigns; code-level caption validators in Social; client-side brand gate + 4-colour palette allowlist in Studio; region-aware shipping line across mailer/ad/LP renderers; /lp CORS + variant fallback; data-analysis as-of partial-month gate.',
     'NEW: shared source of truth + continuous synchronization (one canonical record per campaign/product/offer/claim/review/asset; event-driven propagation; freshness statuses; pre-launch sync gate). Design in docs/shared-source-of-truth.md; phased build.',
@@ -138,7 +138,7 @@
     '</svg>'+
     '<div class="num"><b>'+overall.toFixed(1)+'</b><span>overall · target 9.5</span></div>';
   document.getElementById('overallText').textContent =
-    'Audited features average '+overall.toFixed(1)+'/10 today. The engineering is largely 8–9 grade; the score is held below 9.5 by the three systemic blockers (chiefly fabrication and the stale prod key). Clearing them lifts the audited set to 9–9.5.';
+    'Audited features average '+overall.toFixed(1)+'/10. B1 (fabrication) and B2 (prod key) are now CLEARED: real approved facts render live and persistence is healthy. The remaining gap to 9.5 is B3 (real Klaviyo + Shopify feeds → the results axis + MER/ROAS/LTV) plus per-feature polish and certifying the not-yet-audited pages.';
   document.getElementById('overallAxes').innerHTML =
     [['Accuracy','a'],['Implementation','i'],['Execution','e'],['Results','r']].map(function(x){
       return '<div class="axis">'+x[0]+'<b>'+avgAxis(x[1]).toFixed(1)+'</b></div>';
