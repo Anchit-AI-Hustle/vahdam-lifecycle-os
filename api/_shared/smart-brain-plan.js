@@ -27,6 +27,24 @@ const {
 } = require('../../lib/smart-brain/services.js');
 const callLLM = require('./llm.js');
 const { parseJSON } = require('./llm.js');
+
+// Premium-first with automatic downgrade. The premium cascade only tries the
+// paid providers' forward model IDs (gpt-5.5, gemini-3.1-pro, grok-4.3, ...); if
+// none is entitled/resolvable on the configured keys, callLLM throws and copy
+// falls back to the generic template ("Copy by template-fallback"). Retrying at
+// standard then fast tiers reaches smaller real models (incl. the free tiers),
+// so generation succeeds whenever ANY provider/model works. Honours "premium
+// first" while never dropping the whole mailer to template on a premium miss.
+async function callLLMTiered(opts) {
+  const wanted = (opts && opts.tier) || 'premium';
+  const tiers = [...new Set([wanted, 'standard', 'fast'])];
+  let lastErr;
+  for (const tier of tiers) {
+    try { return await callLLM({ ...opts, tier }); }
+    catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
 const { buildMasterPrompt, regionFacts } = require('./master-prompt.js');
 const SM = require('./scenario-model.js');
 // Guaranteed-online fallback: a real catalog product photo (Shopify CDN) so a
@@ -414,7 +432,7 @@ Return JSON exactly:
 
 async function strategyBrief(entry) {
   try {
-    const res = await callLLM({
+    const res = await callLLMTiered({
       systemPrompt: STRATEGY_SYSTEM,
       userMessage: strategyPrompt(entry),
       responseFormat: { type: 'json_object' },
@@ -706,7 +724,7 @@ async function writeCopyWithLLM(entry, fw = null, brief = null) {
   // generation with no fallback — one hiccup on that provider failed the whole
   // mailer. Copy is critical, so it must run the FULL cascaded waterfall every
   // time (OpenAI -> Anthropic -> Gemini -> Grok -> Groq -> Cerebras).
-  const res = await callLLM({
+  const res = await callLLMTiered({
     systemPrompt: BRAND_SYSTEM + sysLine,
     userMessage: copyPrompt(entry, fw, brief),
     responseFormat: { type: 'json_object' },
