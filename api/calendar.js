@@ -306,6 +306,22 @@ module.exports = async function handler(req, res) {
   const action = (req.query?.action || '').toLowerCase();
   if (action === 'generate') return generate(req, res);
   if (action === 'trigger-mailer' || action === 'triggermailer') return triggerMailer(req, res);
+  // Connector pre-flight for the smart-brain generateAll pipeline. Multiplexed
+  // here (not a new function file) to stay under Vercel Hobby's 12-function cap.
+  if (action === 'connectors-check') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-store');
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    try {
+      const { checkTextProviders } = require('./_shared/connector-check.js');
+      const userGeminiKey =
+        (req.headers && (req.headers['x-gemini-key'] || req.headers['x-user-gemini-key'])) ||
+        (req.query && req.query.geminiKey) || '';
+      return res.status(200).json({ ok: true, ...checkTextProviders({ userGeminiKey }) });
+    } catch (_) {
+      return res.status(200).json({ ok: false, anyConfigured: false, anyUsable: false, providers: [], summary: 'Could not run connector diagnostics.' });
+    }
+  }
   if (action.startsWith('lifecycle-')) return lifecycle(req, res, action);
   if (action.startsWith('smart-brain-')) return smartBrain(req, res, action.replace('smart-brain-', ''));
   if (action === 'lp') {

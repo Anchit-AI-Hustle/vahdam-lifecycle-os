@@ -855,6 +855,30 @@ function sbConfirm(msg){
     $('sbcn').onclick = ()=>{ resolve(false); det.textContent=''; };
   });
 }
+// Pre-flight connector diagnostic — checks which text LLM providers are usable
+// BEFORE the batch, so a cascade of 429s can't crash the run. Hard-aborts
+// (returns false) only when nothing is configured; when all configured
+// providers are rate-limited it asks whether to proceed on template fallback;
+// otherwise it just notes any degraded providers and continues.
+async function sbPreflight(){
+  let rep;
+  try { rep = await (await fetch(`${API}?action=connectors-check`)).json(); }
+  catch(_){ return true; }   // diagnostic unreachable — don't block generation on it
+  const det = $('detail');
+  if(!rep.anyConfigured){
+    const m = 'Cannot generate — no text AI provider is connected. ' + (rep.summary||'') +
+              ((rep.missing||[]).length ? ' Missing: ' + rep.missing.join(', ') : '');
+    if(det) det.innerHTML = `<span style="color:#e89a9a">⚠ ${esc(m)}</span>`;
+    return false;
+  }
+  if(!rep.anyUsable){
+    return await sbConfirm((rep.summary||'All configured providers are rate-limited.') + ' Generate anyway? Copy will fall back to templates until they recover.');
+  }
+  if((rep.degraded||[]).length && det){
+    det.innerHTML = `<span style="color:#e6c979">⚠ Degraded (rate-limited): ${esc(rep.degraded.join(', '))} — the cascade will route around them.</span>`;
+  }
+  return true;
+}
 // Sequential, non-blocking generation with per-row progress. Each slot builds on
 // a serverless LLM run, so we go one-by-one (never fire N at once) and yield to
 // the event loop each step so the UI paints the spinner→ready transition. Results
@@ -864,6 +888,8 @@ async function generateAll(){
   if(!targets.length){ return; }
   const go = await sbConfirm(`Generate the final assets for ${targets.length} send(s) shown? Each builds a mailer + ads + landing page, one at a time.`);
   if(!go) return;
+  // Connector pre-flight — abort cleanly if nothing can serve text generation.
+  if(!(await sbPreflight())) return;
   const aa = $('generateAll'); if(aa){ aa.disabled = true; }
   const det = $('detail');
   window.__SB_GEN_CANCEL = false;
