@@ -355,9 +355,33 @@ async function getPlan({ config: cfg = {}, _ctxFallback = null } = {}) {
 
 // ── LLM copywriting on approval ─────────────────────────────────────────────
 
+// ── D2C growth knowledge base (baked into every strategy + copy prompt) ───────
+// Distilled, practitioner-sourced playbook so generation reasons like a senior
+// D2C growth lead, not a generic copywriter. Referenced leaders: Nik Sharma
+// (owned-channel + hook economics), Chase Dimond (lifecycle email structure),
+// Ari Murray (creative-led offers), Russell Brunson (Hook-Story-Offer), plus
+// Ridge Wallet-style objection-led conversion.
+const D2C_KNOWLEDGE = `D2C GROWTH KNOWLEDGE BASE (apply, do not cite):
+- Value frameworks: Hook-Story-Offer (Brunson), Problem-Agitate-Solve (PAS), Identity-Driven (align the product with who the reader wants to become), Feature-Advantage-Benefit.
+- Email structure (Dimond/Sharma): a pattern-interrupt HOOK in the first scroll, one clear idea, visceral sensory benefits, objection-killing social proof, one low-friction CTA. No wall of text.
+- Creative (Murray): the offer and the transformation lead; the product is the proof, not the headline.
+- Competitor benchmarking aesthetics: high-contrast minimalism (Everyday Dose), rich origin-story education (VAHDAM's own edge), problem-centric bold layouts (Space Goods), calm clinical clean-label (MUD\\WTR).`;
+
+// Regional nuance matrix — what a given market responds to.
+function regionalNuance(market) {
+  const m = String(market || '').toUpperCase();
+  if (m === 'US') return 'US market: lead with high-performance optimisation, time-saving, stress relief, and an instant routine upgrade.';
+  if (m === 'UK' || m === 'EU') return 'UK/EU market: lead with ingredient transparency, certified clean-label, clinical sustainability, and a subtle daily ritual.';
+  return 'Global/emerging market: lead with premium status, international authority, gifting value, and unmistakable ingredient purity.';
+}
+
+// The four selling components every VAHDAM mailer must carry.
+const MAILER_COMPONENTS = `Every mailer must contain, in order: (1) an immediate HOOK to sell in the first scroll (pattern-interrupt, transformation, or a high-intent offer); (2) core ingredient + product BENEFITS, sensory and specific; (3) SOCIAL PROOF and trust: a star rating with review count and 1-2 short reviews that each answer a real objection; (4) VALUE ADD-ONS: 2-3 brand badges (e.g. Non-GMO, Climate Neutral, Sugar-Free), a risk-reversal guarantee line, and a short FAQ.`;
+
 const BRAND_SYSTEM = `You are the senior lifecycle copywriter for VAHDAM India (premium Indian teas & wellness, vahdamteas.com).
 Voice: warm, sensory, emotionally resonant, story-driven. Prefer: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.
 NEVER use: "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" in caps, "hurry", "don't miss out", "last chance", "while supplies last".
+${D2C_KNOWLEDGE}
 Return STRICT JSON only, no markdown fences.`;
 
 // ── Agent 1: Strategy Analyst ───────────────────────────────────────────────
@@ -367,7 +391,9 @@ Return STRICT JSON only, no markdown fences.`;
 // stage can still run standalone. Pinned provider is returned for speed.
 const STRATEGY_SYSTEM = `You are VAHDAM's Head of Growth Strategy — a top D2C lifecycle-marketing analyst.
 You turn cohort + product + competitor data into a sharp, differentiated campaign strategy.
-Be specific and quantitative where the data allows. Return STRICT JSON only, no markdown fences.`;
+Be specific and quantitative where the data allows.
+${D2C_KNOWLEDGE}
+Return STRICT JSON only, no markdown fences.`;
 
 function strategyPrompt(entry) {
   const hooks = (entry.competitorContext || []).flatMap((c) => (c.trendingHooks || []).map((h) => h.hook)).slice(0, 6);
@@ -379,10 +405,11 @@ function strategyPrompt(entry) {
 - ${entry.festival ? `Seasonal moment: ${entry.festival.name}` : 'No festival; evergreen angle.'}
 - Reach target: ${entry.reach?.planned_recipients?.toLocaleString?.() || 'n/a'} recipients, ${entry.reach?.per_user_per_week?.min || 2}-${entry.reach?.per_user_per_week?.max || 3} mailers/user/week.
 - Competitor hooks trending (awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
+- ${regionalNuance(entry.market)}
 
-Make this send DIFFERENT from a generic promo and true to its cohort + theme.
+Choose the value framework (Hook-Story-Offer, PAS, or Identity-Driven) that best fits this cohort and say which in "framework". Make this send DIFFERENT from a generic promo and true to its cohort + theme.
 Return JSON exactly:
-{ "angle": "the single sharp campaign angle", "hook_thesis": "why this lands for THIS cohort now", "target_emotion": "the one feeling to evoke", "proof_points": ["","",""], "differentiator": "what makes this send distinct from the others this week", "dos": ["",""], "donts": ["",""] }`;
+{ "angle": "the single sharp campaign angle", "framework": "Hook-Story-Offer | PAS | Identity-Driven", "hook_thesis": "why this lands for THIS cohort now", "target_emotion": "the one feeling to evoke", "proof_points": ["","",""], "differentiator": "what makes this send distinct from the others this week", "dos": ["",""], "donts": ["",""] }`;
 }
 
 async function strategyBrief(entry) {
@@ -416,7 +443,10 @@ function copyPrompt(entry, fw = null, brief = null) {
 - Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})
 - ${entry.festival ? `Seasonal moment: ${entry.festival.name}` : 'No festival; evergreen angle.'}
 - Rationale: ${entry.rationale || ''}
-- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}${fwLine}${briefLine}
+- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
+- ${regionalNuance(entry.market)}${fwLine}${briefLine}
+
+${MAILER_COMPONENTS}
 
 Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules (ALL creatives are TEXT-FREE photographs — never describe overlaid words, headlines, prices, logos or UI in the image_brief; diffusion models cannot spell and render garbled fake letterforms, and the real ad copy is rendered natively by the platform, not painted into the pixels):
 - email / LP heroes: just scene, props, light, mood; aspirational hero.
@@ -424,7 +454,7 @@ Every asset must ship with a CREATIVE as well as copy. For each asset write an "
 
 Return JSON with exactly this shape:
 {
- "email": { "subject": "", "subject_alt1": "", "subject_alt2": "", "preheader": "", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "cta": "", "image_brief": "" },
+ "email": { "subject": "", "subject_alt1": "", "subject_alt2": "", "preheader": "", "hook": "the first-scroll pattern-interrupt line", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "benefits": ["sensory benefit 1","benefit 2","benefit 3"], "rating": {"value": 4.9, "count": "250,000+"}, "reviews": [{"quote":"short review that answers an objection","author":"first name, initial","stars":5}], "badges": ["Non-GMO","Climate Neutral",""], "guarantee": "a risk-reversal line", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
  "landing": { "hero_headline": "", "hero_sub": "", "why_title": "", "why_bullets": ["","",""], "proof_quote": "", "proof_author": "", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
  "ads": {
    "meta": { "primary_text": "", "headline": "", "description": "", "image_brief": "" },
