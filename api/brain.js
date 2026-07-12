@@ -482,6 +482,11 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         if (!cronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
         const started = Date.now();
         const steps = {};
+        // STEP 0 — pull fresh READ-ONLY data from the source platforms into
+        // Supabase FIRST, so every downstream step (analysis, planning, asset
+        // regeneration) uses the data for the day. runDailyJob runs the Klaviyo
+        // read-only sync adapter (and future Shopify/WebEngage adapters).
+        try { steps.os_daily = await osb.runDailyJob('cron'); } catch (e) { steps.os_daily = { error: e.message }; }
         try { steps.festivals = { detected: (await calendar.extractFestivals({ persist: true })).length }; } catch (e) { steps.festivals = { error: e.message }; }
         try { const r = await calendar.dailyReview({ persist: true }); steps.daily_review = { changes: r.review.changes.length, pass_rate: r.daily_summary.pass_rate }; } catch (e) { steps.daily_review = { error: e.message }; }
         try { steps.benchmarks = { ok: true, markets: Object.keys(await competitor.benchmarks({ persist: true })).filter((k) => k !== '_advisory') }; } catch (e) { steps.benchmarks = { error: e.message }; }
@@ -498,8 +503,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         } catch (e) { steps.generation = { error: e.message }; }
         const recal = await review.recalibrationStatus().catch(() => null);
         steps.weekly_recalibration_gate = recal;
-        // Lifecycle OS Daily Intelligence Refresh — connector health + job logs.
-        try { steps.os_daily = await osb.runDailyJob('cron'); } catch (e) { steps.os_daily = { error: e.message }; }
+        // (os_daily read-only data pull now runs FIRST — see STEP 0 above.)
         // Smart Brain rolling plan (smart_calendar_entries): refresh the 90-day
         // window, then kick the convergent background prebuild chain so every slot
         // keeps its FULL asset bundle (LLM copy + images) prebuilt ahead of need.
