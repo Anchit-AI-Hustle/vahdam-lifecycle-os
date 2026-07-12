@@ -44,6 +44,7 @@ const klaviyo = require('./_shared/klaviyo-core.js');
 const video = require('./_shared/video-core.js');
 const social = require('./_shared/social-core.js');
 const osb = require('./_shared/os-backbone.js');
+const alerts = require('./_shared/alerts-core.js');
 
 let callLLM = null;
 try { callLLM = require('./_shared/llm.js'); } catch (_) { callLLM = null; }
@@ -477,6 +478,25 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, reply });
       }
 
+      // ── ALERTS (revenue/number monitoring by email — _shared/alerts-core.js) ──
+      // Anomaly runs NOW on real monthly market data. Pulse/EOD degrade cleanly
+      // until INTRADAY_FEED_READY=1 (needs the live Shopify/Klaviyo feed, B3).
+      // All three are CRON_SECRET-guarded (they can send email + are scheduled
+      // by GitHub Actions), same gate as the daily loop.
+      case 'alerts-anomaly':
+      case 'alerts-pulse':
+      case 'alerts-eod': {
+        if (!cronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+        const kind = action === 'alerts-anomaly' ? 'anomaly' : (action === 'alerts-pulse' ? 'pulse' : 'eod');
+        const out = await alerts.run(kind);
+        return res.json(out);
+      }
+      case 'alerts-preview': {
+        // Read-only: what anomalies WOULD fire right now (no email). Open — no
+        // secret needed, sends nothing, useful from the dashboard/console.
+        return res.json({ ok: true, kind: 'anomaly-preview', anomalies: alerts.detectAnomalies(), thresholds: alerts.TH, recipient: alerts.ALERT_EMAIL() });
+      }
+
       // ── CRON: the daily automated loop ───────────────────────────────────
       case 'cron': {
         if (!cronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
@@ -550,7 +570,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, ...(await osb.dashboard()) });
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);
