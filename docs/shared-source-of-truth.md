@@ -73,18 +73,25 @@ affected outputs, regeneration result, validation result.
 
 ## Phased build (each phase ships + is verifiable on its own)
 
-1. **Foundations (no behavior change):** `sync-core.js` (statuses, `stamp`, `isStale`, `preLaunchGate`
-   scaffold) + `sync_state`/`sync_audit_log` migrations. Generalize the existing `__prebuilt`
-   staleness into `isStale`. Gated behind Supabase being reachable (B2).
-2. **Freshness surfacing:** stamp generated assets on write; show the status chip on `/assets`, the
-   Brain console, the Email Calendar and Campaign Detail. Read-only — no propagation yet.
-3. **Pre-launch sync gate:** wire `preLaunchGate` into approve/schedule/export/publish (Brain
-   `approveEntry`, `/lp` serve, download bundle). Block launch on a differing critical dependency.
-4. **Event propagation:** dispatch the events above on canonical writes; fan out recalculation +
-   stale-marking to dependents (price/offer/claim/rating/image/audience first — the highest-drift
-   facts).
-5. **Conflict + full audit:** version columns, optimistic-concurrency writes, conflict UI, complete
-   audit log.
+1. **Foundations — SHIPPED.** `api/_shared/sync-core.js` (statuses, `stableHash`, `versionOf`,
+   `sourceVersions`, `stamp`, `diffSources`, `isStale`, `checkVersion`, event bus, `propagate`,
+   `preLaunchGate`/`Sync`, `writeState`, `audit`) + `supabase/migrations/20260712120000_sync_state.sql`
+   (`sync_state` + `sync_audit_log`). Unit-tested (stamp → fact change → stale → gate blocks;
+   propagation marks dependents + audits).
+2. **Freshness surfacing — PARTIAL.** Generated campaigns are stamped on every persist
+   (`stampAndRecordSync` in `persistCampaignAssets`) and a `?action=smart-brain-sync-status` endpoint
+   reports each campaign's freshness + a live re-check against the facts library. **Next:** the
+   CURRENT/STALE chip on `/assets`, the Brain console and Campaign Detail (UI slice).
+3. **Pre-launch sync gate — SHIPPED (facts).** `approveEntry` runs `preLaunchSyncCheck` on a reused
+   prebuilt campaign, surfaces the result on the response (`sync`) and audits a stale verdict. Gates on
+   the canonical B1 facts (rating/review/claim) + the campaign's price/offer/image snapshot. **Next:**
+   extend the "current" side to read live catalog price/image + inventory once B3 lands, and make the
+   gate hard-block (not advisory) for launch-critical diffs.
+4. **Event propagation — ENGINE READY.** `propagate(event, …)` + the dependency graph exist and are
+   tested; the daily sync's `__prebuilt`-drop already does fact-driven stale-and-rebuild. **Next:**
+   emit `price/offer/claim/rating/image/audience.updated` from the canonical writers and fan out.
+5. **Conflict + full audit — ENGINE READY.** `checkVersion` (optimistic concurrency) + `audit` +
+   `sync_audit_log` exist. **Next:** wire `checkVersion` into the canonical writers + a conflict UI.
 6. **Extend to Phase-3 features** (Blog Agent, Creator Plan, Social Generator) as they are built — they
    consume canonical records from day one, never their own copies.
 
