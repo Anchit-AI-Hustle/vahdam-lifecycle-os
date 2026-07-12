@@ -36,11 +36,11 @@ function main() {
   // (a navigation, not an HTML-injection sink), so there is no srcdoc /
   // innerHTML-from-data XSS surface.
   const htmlByFile = {};
+  const embed = (rel) => { if (rel) { const abs = path.join(ROOT, rel); htmlByFile[rel] = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : "<p>missing</p>"; } };
   for (const slot of manifest.slots) {
-    for (const v of slot.variants) {
-      const abs = path.join(ROOT, v.file);
-      htmlByFile[v.file] = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : "<p>missing</p>";
-    }
+    for (const v of slot.variants) embed(v.file);
+    embed(slot.ads && slot.ads.file);
+    embed(slot.landing && slot.landing.file);
   }
   const DATA = JSON.stringify({ manifest: manifest, htmlByFile: htmlByFile })
     .replace(/</g, "\\u003c");
@@ -181,6 +181,8 @@ function main() {
   var stats=document.getElementById('stats');
   [ [slots.length,'Cohort sends','~'+(weeks[1]||0)+'/'+(weeks[2]||0)+'/'+(weeks[3]||0)+'/'+(weeks[4]||0)+'/'+(weeks[5]||0)+' by week'],
     [slots.length*4,'Mailer variants','2 Text · 2 Text+Visual each'],
+    [slots.length,'Ad sets','Meta · Google · TikTok each'],
+    [slots.length,'Landing pages','flagship long-form'],
     [nCohorts,'RFM cohorts',Object.keys(cohorts).join(', ')],
     [events,'Event tie-ins','World Cup, Ice Cream Day, Parents, Friendship'],
     [verified+'/'+slots.length,'Verified heroes','origin-validated, no fabricated URLs'] ].forEach(function(r){
@@ -198,36 +200,62 @@ function main() {
     if(s.rec) c.appendChild(el('span','rp','Executed'));
     scn.appendChild(c);
   });
-  document.getElementById('count').textContent = slots.length+' sends · click any to preview its 4 variants';
+  document.getElementById('count').textContent = slots.length+' sends · click any to preview its mailers, ads + landing page';
+
+  // Build a list of previewable assets for a slot: 4 mailers + ad set + landing page.
+  function assetsFor(slot){
+    var list = slot.variants.map(function(v){ return { group:'Mailers', key:v.key, tab:(v.label.split(' · ')[1]||v.label), sub:v.type+(v.has_image?'':' · text-only'), file:v.file, subject:v.subject }; });
+    if(slot.ads && slot.ads.file) list.push({ group:'Ads', key:'ads', tab:'Meta / Google / TikTok', sub:'paid-social preview', file:slot.ads.file, subject:'Ads · '+slot.product });
+    if(slot.landing && slot.landing.file) list.push({ group:'Landing', key:'lp', tab:'Landing page', sub:'flagship long-form', file:slot.landing.file, subject:(slot.landing.title||slot.product) });
+    return list;
+  }
 
   // ── expand body (shared by card + list) ───────────────────────────────────
   function buildBody(slot){
     var body=el('div','body');
-    var tabs=el('div','tabs');
+    var assets=assetsFor(slot);
+
+    // asset-class selector: Mailers (4) · Ads · Landing
+    var groups=['Mailers','Ads','Landing'].filter(function(g){ return assets.some(function(a){return a.group===g;}); });
+    var classTabs=el('div','tabs');
+    var tabs=el('div','tabs'); tabs.style.marginTop='2px';
     var pv=el('div','pv');
     var bar=el('div','pvbar');
     var subj=el('div','subj');
-    var dl=el('a','dl','Download .html'); dl.setAttribute('download','');
+    var dl=el('a','dl','Download .html');
     bar.appendChild(subj); bar.appendChild(dl);
-    var frame=document.createElement('iframe'); frame.setAttribute('title','mailer preview'); frame.setAttribute('loading','lazy');
+    var frame=document.createElement('iframe'); frame.setAttribute('title','asset preview'); frame.setAttribute('loading','lazy');
     pv.appendChild(bar); pv.appendChild(frame);
 
-    function show(v){
-      Array.prototype.forEach.call(tabs.children,function(t){ t.classList.toggle('on', t.getAttribute('data-key')===v.key); });
-      var html = H[v.file] || "";
+    function show(a){
+      Array.prototype.forEach.call(tabs.children,function(t){ t.classList.toggle('on', t.getAttribute('data-key')===a.key); });
+      var html = H[a.file] || "";
       var url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
       _blobUrls.push(url);
       frame.setAttribute("src", url);
       dl.setAttribute("href", url);
-      dl.setAttribute("download", v.file.split("/").pop());
-      subj.textContent = v.subject;
+      dl.setAttribute("download", a.file.split("/").pop());
+      subj.textContent = a.subject;
     }
-    slot.variants.forEach(function(v,i){
-      var t=el('div','tab'+(i===2?' on':'')); t.setAttribute('data-key',v.key);
-      t.appendChild(document.createTextNode(v.label.split(' · ')[1] || v.label));
-      t.appendChild(el('small','', v.type + (v.has_image?'':' · text-only')));
-      t.addEventListener('click',function(){ show(v); });
-      tabs.appendChild(t);
+    function showGroup(g){
+      Array.prototype.forEach.call(classTabs.children,function(t){ t.classList.toggle('on', t.getAttribute('data-g')===g); });
+      tabs.textContent='';
+      var inGroup=assets.filter(function(a){return a.group===g;});
+      inGroup.forEach(function(a){
+        var t=el('div','tab'); t.setAttribute('data-key',a.key);
+        t.appendChild(document.createTextNode(a.tab));
+        t.appendChild(el('small','', a.sub));
+        t.addEventListener('click',function(){ show(a); });
+        tabs.appendChild(t);
+      });
+      show(inGroup[g==='Mailers' && inGroup[2] ? 2 : 0]);
+    }
+    groups.forEach(function(g){
+      var ct=el('div','tab'); ct.setAttribute('data-g',g);
+      var n=assets.filter(function(a){return a.group===g;}).length;
+      ct.appendChild(document.createTextNode(g)); ct.appendChild(el('small','', n+(n>1?' assets':' asset')));
+      ct.addEventListener('click',function(){ showGroup(g); });
+      classTabs.appendChild(ct);
     });
 
     var r=slot.reasoning||{};
@@ -242,8 +270,8 @@ function main() {
     note.textContent = 'Hero asset: '+(ha.status==='verified' ? ('verified · origin-validated · '+(ha.url||'')) : 'placeholder (rendered image-free — no fabricated URL)')+'  ·  CTA -> '+slot.cta_url;
     reason.appendChild(note);
 
-    body.appendChild(tabs); body.appendChild(pv); body.appendChild(reason);
-    show(slot.variants[2]); // default: Text + Visual A
+    body.appendChild(classTabs); body.appendChild(tabs); body.appendChild(pv); body.appendChild(reason);
+    showGroup('Mailers'); // default group
     return body;
   }
 
