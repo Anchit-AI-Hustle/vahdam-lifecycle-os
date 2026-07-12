@@ -3003,7 +3003,13 @@ var _REVIEWER_NAMES={
   EU:[['Marie L.','Paris'],['Thomas B.','Berlin'],['Anna S.','Amsterdam'],['Lucas M.','Vienna'],['Elena K.','Milan'],['Henrik J.','Stockholm']],
   Global:[['Sarah M.','New York'],['Charlotte W.','London'],['Priya S.','Mumbai'],['Emma L.','Sydney'],['Marie L.','Paris'],['Fatima A.','Dubai']]
 };
+// B1 real-only flag for the client. Fetched once from /api/public-config; until
+// it resolves it stays false, so default behaviour is unchanged. When true, the
+// studio stops emitting invented reviewer names, review quotes and guessed prices.
+window.__REAL_FACTS_ONLY = window.__REAL_FACTS_ONLY || false;
+(function(){ try { fetch('/api/public-config').then(function(r){return r.json();}).then(function(c){ if(c&&c.flags&&c.flags.real_facts_only) window.__REAL_FACTS_ONLY=true; }).catch(function(){}); } catch(e){} })();
 function _getReviewerName(mkt,idx){
+  if(window.__REAL_FACTS_ONLY) return '';   // no fabricated reviewer identities
   var pool=_REVIEWER_NAMES[mkt]||_REVIEWER_NAMES.US;
   var r=pool[idx%pool.length];
   return r[0]+', '+r[1];
@@ -3027,6 +3033,7 @@ var _REVIEW_QUOTES={
   ]
 };
 function _getReviewList(mkt,type){
+  if(window.__REAL_FACTS_ONLY) return [];   // no fabricated review quotes
   var pool=_REVIEW_QUOTES[type]||_REVIEW_QUOTES.default;
   var quotes=pool[Math.floor(Math.random()*pool.length)]||pool[0];
   var names=_REVIEWER_NAMES[mkt]||_REVIEWER_NAMES.US;
@@ -3771,6 +3778,10 @@ function prodPrice(n,market){
       }
     }
   }
+  // B1 real-only: never GUESS a price. With no real catalog price and the flag
+  // on, return an unpriced object so the price/SAVE block renders empty instead
+  // of a fabricated number.
+  if(window.__REAL_FACTS_ONLY){ return {regular:0,currency:cur,currencySymbol:sym,display:'',raw:0,unpriced:true}; }
   // ── FALLBACK: Estimate from product name (legacy behavior) ──
   var l=(prodName||'').toLowerCase();
   // Detect product format/size from name

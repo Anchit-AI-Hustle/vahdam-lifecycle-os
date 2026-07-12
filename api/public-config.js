@@ -89,5 +89,10 @@ module.exports = function handler(req, res) {
       version: '1.0.0',
       regions: ['US', 'UK', 'Global', 'IN'],
     },
+    // B1 real-only flag, exposed so CLIENT pages (e.g. /studio) can gate their
+    // own fabricated reviews/ratings/prices the same way server renderers do.
+    flags: {
+      real_facts_only: String(process.env.REAL_FACTS_ONLY || '') === '1',
+    },
   });
 };
