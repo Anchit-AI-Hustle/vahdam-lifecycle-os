@@ -671,12 +671,14 @@ function emailHtml(entry, copy, creativeUrl) {
 
 async function writeCopyWithLLM(entry, fw = null, brief = null) {
   const sysLine = fw ? (() => { try { return '\n' + CF.copyFrameworkSystemLine(fw); } catch (_) { return ''; } })() : '';
+  // NOTE: do NOT pin preferProvider here. In llm.js a preferProvider SKIPS every
+  // other provider, so pinning the strategy analyst's provider left copy
+  // generation with no fallback — one hiccup on that provider failed the whole
+  // mailer. Copy is critical, so it must run the FULL cascaded waterfall every
+  // time (OpenAI -> Anthropic -> Gemini -> Grok -> Groq -> Cerebras).
   const res = await callLLM({
     systemPrompt: BRAND_SYSTEM + sysLine,
     userMessage: copyPrompt(entry, fw, brief),
-    // Pin the provider the strategy analyst used, so the content agent skips dead
-    // keys and the pipeline stays fast.
-    ...(brief && brief.__provider ? { preferProvider: brief.__provider } : {}),
     responseFormat: { type: 'json_object' },
     maxTokens: 1800,
     temperature: 0.75,
