@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overall App Audit · VAHDAM Lifecycle OS</title>
+<style>
+  /* Explicit brand colours (never rely on injected theme tokens for text, so no
+     light-on-light can occur). Dark-green shell, cream ink, gold accents. */
+  :root{ --bg:#0a1410; --panel:#0f1d18; --panel2:#12241c; --line:rgba(171,135,67,.20);
+    --green:#004A2B; --gold:#AB8743; --cream:#FBF5EA; --ink:#e8ede9; --soft:#9fb3a8;
+    --good:#3fa46a; --watch:#d9b25a; --bad:#d1795f; }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;}
+  .wrap{max-width:1080px;margin:0 auto;padding:26px 20px 100px;}
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:700;}
+  h1{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;color:var(--cream);font-size:32px;margin:6px 0 4px;}
+  .lede{color:var(--soft);font-size:14px;line-height:1.6;max-width:760px;margin:0 0 20px;}
+  /* overall gauge */
+  .overall{display:flex;gap:22px;align-items:center;flex-wrap:wrap;background:linear-gradient(160deg,#0f1d18,#0c1814);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:0 0 26px;}
+  .score-ring{position:relative;width:132px;height:132px;flex:0 0 auto;}
+  .score-ring .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .score-ring .num b{font-family:'Lao MN',Georgia,serif;font-size:34px;color:var(--cream);line-height:1;}
+  .score-ring .num span{font-size:11px;color:var(--soft);margin-top:3px;}
+  .overall .meta{flex:1;min-width:240px;}
+  .overall .meta h2{font-family:'Lao MN',Georgia,serif;color:var(--cream);font-size:20px;margin:0 0 6px;font-weight:500;}
+  .overall .meta p{color:var(--soft);font-size:13px;line-height:1.6;margin:0 0 8px;}
+  .target{display:inline-block;background:rgba(171,135,67,.16);color:#e6c979;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;}
+  .axes{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  .axis{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--soft);}
+  .axis b{color:var(--ink);font-size:15px;display:block;font-family:'Lao MN',Georgia,serif;}
+  /* blockers */
+  .sec-h{font-family:'Lao MN',Georgia,serif;color:var(--cream);font-size:20px;margin:26px 0 12px;font-weight:500;}
+  .blockers{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:820px){.blockers{grid-template-columns:1fr;}}
+  .blocker{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:12px;padding:14px 16px;}
+  .blocker .tag{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--bad);}
+  .blocker h3{font-size:14px;color:var(--cream);margin:6px 0 6px;}
+  .blocker p{font-size:12.5px;color:var(--soft);line-height:1.55;margin:0;}
+  /* feature grid */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  @media(max-width:820px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
+  .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .card .name{font-size:15px;font-weight:700;color:var(--cream);}
+  .card .path{font-size:11px;color:var(--soft);font-family:ui-monospace,Menlo,Consolas,monospace;}
+  .pill{font-size:22px;font-family:'Lao MN',Georgia,serif;line-height:1;}
+  .bars{margin:12px 0 8px;}
+  .bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:11.5px;color:var(--soft);}
+  .bar .lbl{width:104px;flex:0 0 auto;}
+  .bar .track{flex:1;height:7px;background:var(--panel2);border-radius:5px;overflow:hidden;}
+  .bar .fill{height:100%;border-radius:5px;}
+  .bar .v{width:30px;text-align:right;color:var(--ink);font-weight:700;}
+  .note{font-size:12px;color:var(--soft);line-height:1.5;margin-top:8px;border-top:1px solid var(--line);padding-top:8px;}
+  .legend{font-size:11.5px;color:var(--soft);margin:8px 0 0;}
+  .legend b{color:var(--ink);}
+  .road{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 20px;}
+  .road li{margin:9px 0;line-height:1.55;font-size:13.5px;color:var(--ink);}
+  .road li b{color:var(--cream);}
+  a.dl{display:inline-block;margin-top:14px;color:#e6c979;font-size:13px;font-weight:700;text-decoration:none;border:1px solid var(--gold);border-radius:9px;padding:9px 16px;}
+  .foot{color:var(--soft);font-size:11.5px;margin-top:24px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">VAHDAM Lifecycle OS</div>
+  <h1>Overall App Audit</h1>
+  <p class="lede">Every feature scored on four axes — <b>accuracy</b> (is the output factually true, no fabrication), <b>implementation</b> (code robustness), <b>execution</b> (does it work end-to-end in production), and <b>results</b> (does it drive a usable outcome). The confidence bar is <b>9.5</b>: no feature is "done" below it. Scores are honest current-state after the 2026-07-12 fixes, grounded in file-level findings.</p>
+
+  <div class="overall">
+    <div class="score-ring" id="ring"></div>
+    <div class="meta">
+      <h2>Where the app stands today</h2>
+      <p id="overallText"></p>
+      <span class="target">Target: every feature and the overall ≥ 9.5</span>
+      <div class="axes" id="overallAxes"></div>
+    </div>
+  </div>
+
+  <div class="sec-h">Three systemic blockers (clear these and most features jump to 9–9.5)</div>
+  <div class="blockers" id="blockers"></div>
+
+  <div class="sec-h">Feature scorecard</div>
+  <div class="legend">Colour: <b style="color:#3fa46a">≥8.5 strong</b> · <b style="color:#d9b25a">7–8.4 needs work</b> · <b style="color:#d1795f">&lt;7 priority</b>. "Now" is today; the roadmap below lifts each toward 9.5.</div>
+  <div class="grid" id="grid" style="margin-top:10px;"></div>
+
+  <div class="sec-h">Roadmap to ≥ 9.5 everywhere</div>
+  <ol class="road" id="road"></ol>
+
+  <a class="dl" href="/docs/feature-audit-2026-07-12.md" target="_blank" rel="noopener">⬇ Download the full written audit (Markdown)</a>
+
+  <p class="foot">Not yet deep-audited (no invented scores): /competitor, /kb, /cohorts, /landing-pages builder, /avatars, /market-study, /master-dashboard, /retention-playbook, /frameworks, /connectors, /music. A second audit pass covers these before the whole app can be certified ≥ 9.5. "Aman's version" (frozen 3 Jul build) is kept in code for reference; full comparison in the written audit.</p>
+</div>
+
+<script>
+(function(){
+  var FEATURES = [
+    { name:'Data Analysis', path:'/data-analysis', a:8.5, i:8.5, e:8, r:7.5, note:'Real-data-only, honest gating, decomposition reconciles to real revenue, charts fully labeled. Add MER/ROAS/LTV once ad+Shopify feeds land.' },
+    { name:'Created Assets', path:'/assets', a:8, i:8, e:8.5, r:7.5, note:'Now renders the real mailer (not a product image). Add live ad + LP previews and search facets.' },
+    { name:'ChaiGPT', path:'/chaigpt', a:8, i:8, e:8.5, r:7.5, note:'Contrast fixed. Add evidence-contract regression tests; the tool-calling loop is sound.' },
+    { name:'Social Media OS', path:'/social', a:7, i:8.5, e:8, r:7, note:'Real catalog hero image + newline-safe scrub fixed. Add code-level caption validators (price/claim/PDP-URL).' },
+    { name:'Landing Pages (/lp)', path:'/lp/:id', a:7, i:8, e:8, r:7, note:'Safe id handling, real images, region-correct links. Gate the hardcoded stars/testimonial/guarantee on approved data (B1).' },
+    { name:'Vahdam Agent', path:'/agent', a:7.5, i:7.5, e:8, r:7, note:'Contrast fixed. Consolidate with ChaiGPT or state a distinct purpose.' },
+    { name:'Ad Campaigns', path:'/ad-campaigns', a:6.5, i:8, e:8, r:7, note:'URLs verified correct; fabricated 65%-OFF removed. Add char-limit clamps + source claims from approved facts (B1).' },
+    { name:'Smart Brain (/brain)', path:'/brain', a:6, i:9, e:7, r:7, note:'Bounded, deterministic, real-image pivot done. Needs approved-facts library (B1), an enforced frequency cap, and real reach counts.' },
+    { name:'Mailer Studio', path:'/studio', a:4, i:8, e:7, r:6, note:'Great plumbing, but invents reviews/prices and gates copy only on the LLM path. Needs B1 + client brand-gate + palette allowlist.' }
+  ];
+  var BLOCKERS = [
+    { tag:'B1 · FABRICATION', h:'Approved-facts library', p:'Invented reviews, ratings, testimonials, claims and guessed prices reach shipped mailers/LPs/ads. Build a reviews+claims+prices library keyed by SKU+region; render only from it, else omit.' },
+    { tag:'B2 · KEY', h:'Rotate SUPABASE_SERVICE_ROLE_KEY', p:'HTTP 401 in prod degrades dashboard counts, Created Assets, Brain persistence and KB to the anon fallback. Rotate in Supabase, set in Vercel (Prod+Preview+Dev), redeploy.' },
+    { tag:'B3 · FEEDS', h:'Wire Klaviyo + Shopify (read-only)', p:'Real cohort sizes, open/click history and live stock/price are absent, so frequency safety and confidence run on assumptions. Set KLAVIYO_API_KEY (read) + a read-only Shopify token.' }
+  ];
+  var ROAD = [
+    'B2 — rotate the Supabase service-role key (≈5 min; unblocks persistence app-wide).',
+    'B1 — build the approved-facts library (reviews + claims + prices by SKU+region). Highest-value correctness fix; lifts Studio, Brain, LP and Ads together.',
+    'B3 — wire Klaviyo (read) + read-only Shopify token → real cohort sizes, send history and live stock; calibrates confidence + frequency and unlocks MER/ROAS/LTV.',
+    'Enforce the promotional frequency cap in /brain (per-profile rolling-7-day counter across all cohorts).',
+    'Client-side brand gate + palette allowlist in Studio; char-limit clamps in Ad Campaigns; caption validators in Social.',
+    'Second audit pass over the 11 not-yet-audited features, then certify the whole app ≥ 9.5.'
+  ];
+  function overallOf(f){ return (f.a*0.4 + f.i*0.2 + f.e*0.2 + f.r*0.2); }
+  function col(v){ return v>=8.5?'var(--good)':v>=7?'var(--watch)':'var(--bad)'; }
+  function ringColor(v){ return v>=9.5?'#3fa46a':v>=8?'#d9b25a':'#d1795f'; }
+
+  // Overall = average of audited features' overall.
+  var overalls = FEATURES.map(overallOf);
+  var overall = overalls.reduce(function(a,b){return a+b;},0)/overalls.length;
+  var avgAxis = function(k){ var s=FEATURES.reduce(function(a,f){return a+f[k];},0)/FEATURES.length; return s; };
+
+  // Ring
+  var pct = Math.max(0,Math.min(1, overall/10));
+  var R=58, C=2*Math.PI*R, dash=(pct*C).toFixed(1);
+  document.getElementById('ring').innerHTML =
+    '<svg viewBox="0 0 132 132" width="132" height="132">'+
+      '<circle cx="66" cy="66" r="'+R+'" fill="none" stroke="#12241c" stroke-width="12"/>'+
+      '<circle cx="66" cy="66" r="'+R+'" fill="none" stroke="'+ringColor(overall)+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+dash+' '+(C-dash).toFixed(1)+'" transform="rotate(-90 66 66)"/>'+
+    '</svg>'+
+    '<div class="num"><b>'+overall.toFixed(1)+'</b><span>overall · target 9.5</span></div>';
+  document.getElementById('overallText').textContent =
+    'Audited features average '+overall.toFixed(1)+'/10 today. The engineering is largely 8–9 grade; the score is held below 9.5 by the three systemic blockers (chiefly fabrication and the stale prod key). Clearing them lifts the audited set to 9–9.5.';
+  document.getElementById('overallAxes').innerHTML =
+    [['Accuracy','a'],['Implementation','i'],['Execution','e'],['Results','r']].map(function(x){
+      return '<div class="axis">'+x[0]+'<b>'+avgAxis(x[1]).toFixed(1)+'</b></div>';
+    }).join('');
+
+  document.getElementById('blockers').innerHTML = BLOCKERS.map(function(b){
+    return '<div class="blocker"><div class="tag">'+b.tag+'</div><h3>'+b.h+'</h3><p>'+b.p+'</p></div>';
+  }).join('');
+
+  document.getElementById('grid').innerHTML = FEATURES.slice().sort(function(a,b){return overallOf(b)-overallOf(a);}).map(function(f){
+    var ov=overallOf(f);
+    var bar=function(lbl,v){ return '<div class="bar"><span class="lbl">'+lbl+'</span><span class="track"><span class="fill" style="width:'+(v*10)+'%;background:'+col(v)+'"></span></span><span class="v">'+v.toFixed(1)+'</span></div>'; };
+    return '<div class="card"><div class="top"><div><div class="name">'+f.name+'</div><div class="path">'+f.path+'</div></div>'+
+      '<div class="pill" style="color:'+col(ov)+'">'+ov.toFixed(1)+'</div></div>'+
+      '<div class="bars">'+bar('Accuracy',f.a)+bar('Implementation',f.i)+bar('Execution',f.e)+bar('Results',f.r)+'</div>'+
+      '<div class="note">'+f.note+'</div></div>';
+  }).join('');
+
+  document.getElementById('road').innerHTML = ROAD.map(function(s){
+    var m=s.match(/^(B\d|[A-Z][a-z]+)/); return '<li>'+s.replace(/^(B\d)/,'<b>$1</b>')+'</li>';
+  }).join('');
+})();
+</script>
+<script src="/auth.js?v=20260712" defer></script>
+</body>
+</html>

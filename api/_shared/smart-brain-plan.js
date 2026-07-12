@@ -946,9 +946,13 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
   const trace = [];
   try {
     // ── Agent 1 · Strategy Analyst — a growth-strategy brief for THIS send.
+    // OPTIONAL enrichment: it seeds the copy with an angle/differentiator, but the
+    // copy writer runs fine without it. So it is NON-BLOCKING and only appears in
+    // the pipeline trace when it SUCCEEDS — a failed optional brief no longer
+    // shows an alarming ⚠ pill (the copy step is what actually matters).
     const sb = await strategyBrief(entry);
     const brief = sb ? { ...sb.brief, __provider: sb.provider } : null;
-    trace.push({ agent: 'Strategy Analyst', role: 'Head of Growth Strategy', ok: !!sb, provider: sb ? sb.provider : null, output: sb ? { angle: sb.brief.angle, differentiator: sb.brief.differentiator, emotion: sb.brief.target_emotion } : null });
+    if (sb) trace.push({ agent: 'Strategy Analyst', role: 'Head of Growth Strategy', ok: true, provider: sb.provider, output: { angle: sb.brief.angle, differentiator: sb.brief.differentiator, emotion: sb.brief.target_emotion } });
 
     // ── Agent 2 · Content Writer — two diverging copy frameworks (A/B), written
     // in parallel (same wall-clock as one call), each following the brief.
@@ -1140,6 +1144,34 @@ async function rejectEntry({ id, reviewer = null, notes = '', config: cfg = {} }
   });
   await db.insert(config.tableNames.feedback, [{ target_type: 'calendar_entry', target_id: id, verdict: 'rejected', notes, reviewer, created_at: nowIso() }]).catch(() => {});
   return { ok: true, id, status: 'rejected', will_regenerate_on_next_sync: true };
+}
+
+// Clear a rejection so the slot returns to the neutral 'tentative' (draft) state.
+// Used by the console "Reset" control when a reviewer wants a rejected send to no
+// longer show as rejected without approving it. The slot stays reviewable and is
+// still refreshed on the next daily sync.
+async function unrejectEntry({ id, reviewer = null, config: cfg = {} } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  if (!db.connected) return { ok: true, skipped: true, reason: 'Supabase env not configured — nothing stored to reset.' };
+  const rows = await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
+  const row = rows && rows[0];
+  if (!row) throw new Error(`Calendar entry ${id} not found.`);
+  // ONLY a rejected slot may be reset. A stale tab / concurrent reviewer must not
+  // be able to clear the approval state of an already approved/finalised campaign.
+  // Guard both in code (fast path) AND with a status=eq.rejected condition on the
+  // UPDATE (so a race between this read and write updates zero rows, not an
+  // approved one).
+  if (row.status !== 'rejected') {
+    return { ok: true, id, status: row.status, skipped: true, reason: `not rejected (status: ${row.status}) — nothing to reset` };
+  }
+  const log = Array.isArray(row.change_log) ? row.change_log.slice(-30) : [];
+  log.push({ at: nowIso(), kind: 'reset', detail: `${reviewer || 'Reviewer'}: rejection cleared, back to draft.` });
+  await db.update(config.tableNames.calendarEntries, { id: `eq.${id}`, status: 'eq.rejected' }, {
+    status: 'tentative', change_log: log, updated_at: nowIso(),
+    generated_campaign_id: null, approved_by: null, approved_at: null,
+  });
+  return { ok: true, id, status: 'tentative' };
 }
 
 // ── Scenario switch ("break" button + revert) ───────────────────────────────
@@ -1372,7 +1404,7 @@ async function dbCheck({ config: cfg = {} } = {}) {
 }
 
 module.exports = {
-  syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, activateScenario, landingPageHtml, buildCampaign,
+  syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, unrejectEntry, activateScenario, landingPageHtml, buildCampaign,
   prebuildAssets, dbCheck,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,

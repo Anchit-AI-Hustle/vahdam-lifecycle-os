@@ -314,8 +314,12 @@ function renderPlan(){
     const confLabel = a && a.confidence && a.confidence.label ? a.confidence.label : '';
     const confTip = a && a.confidence && Array.isArray(a.confidence.factors)
       ? a.confidence.factors.map(f=>`${f.delta>=0?'+':''}${f.delta} ${f.label}`).join('\n') : '';
-    const isGen = !!(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id));
     const rejected = e.status==='rejected';
+    // `rejected` ALWAYS takes precedence: a rejected slot can still carry a stale
+    // __prebuilt marker (the prebuild queue processes tentative+rejected), which
+    // would otherwise make isGen true and hide the recovery controls, rendering a
+    // rejected send as approved. Excluding rejected keeps Regenerate/Approve/Reset.
+    const isGen = !rejected && !!(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id));
     // Review verdict: the human sign-off control. Approve → generates + locks the
     // final assets (ready to ship); Reject → logs the decision and the slot is
     // re-planned on the next daily sync. Once a verdict is recorded the control
@@ -325,11 +329,18 @@ function renderPlan(){
       : rejected
         ? `<span class="st" style="background:#3a1c1c;color:#e89a9a">✗ rejected</span>`
         : `<span class="st tentative">draft</span>`;
-    const reviewCtl = (isGen || rejected) ? '' :
-      `<div class="rev" id="rev-${i}" style="display:flex;gap:4px;margin-top:6px">`+
-      `<button class="btn sm ok" onclick="approveRow(${i})" title="Approve this send — generates and locks the final assets so it is ready to ship">✓ Approve</button>`+
-      `<button class="btn sm secondary" onclick="rejectRow(${i})" title="Reject this send — logs the decision and the slot is re-planned on the next daily sync">✗ Reject</button>`+
-      `</div>`;
+    const reviewCtl = isGen ? '' : rejected
+      // A rejected slot can be REGENERATED (fresh copy + assets from the latest
+      // data) and APPROVED again without waiting for the next daily re-plan.
+      ? `<div class="rev" id="rev-${i}" style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">`+
+        `<button class="btn sm secondary" onclick="viewEntry(${i}, true)" title="Regenerate this rejected send from the latest data, then review it again">↻ Regenerate</button>`+
+        `<button class="btn sm ok" onclick="approveRow(${i})" title="Approve this send now — generates and locks the final assets so it is ready to ship">✓ Approve</button>`+
+        `<button class="btn sm secondary" onclick="resetRow(${i})" title="Clear the rejected status — the send goes back to draft (not rejected, not approved)">⟲ Reset</button>`+
+        `</div>`
+      : `<div class="rev" id="rev-${i}" style="display:flex;gap:4px;margin-top:6px">`+
+        `<button class="btn sm ok" onclick="approveRow(${i})" title="Approve this send — generates and locks the final assets so it is ready to ship">✓ Approve</button>`+
+        `<button class="btn sm secondary" onclick="rejectRow(${i})" title="Reject this send — logs the decision and the slot is re-planned on the next daily sync">✗ Reject</button>`+
+        `</div>`;
     const status = `${verdict}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}${reviewCtl}`;
     return `<tr class="planrow" id="planrow-${i}">
     <td>${esc(e.date)}${e.mailer_total > 1 ? `<br><span class="pill" style="background:#2a2411;color:#e6c979;font-size:10px">MAILER ${e.mailer_index}/${e.mailer_total}</span>` : ''}</td>
@@ -343,7 +354,7 @@ function renderPlan(){
     <td style="white-space:nowrap">
       <button class="btn sm secondary" id="viewbtn-${i}" onclick="viewEntry(${i})">View</button>
       <button class="btn sm ok" id="dlbtn-${i}" onclick="downloadEntry(${i})" title="Generate (if needed) and download every asset for this send as one HTML file">⬇ Download</button>
-      ${e.decision ? `<button class="btn sm secondary" onclick="viewDecision(${i})" title="Why this send: theme, product, coupon and design reasoning">Decision</button>` : ''}
+      <button class="btn sm secondary" onclick="viewDecision(${i})" title="The complete logic, analysis and reason for this send: why the slot was chosen, and why this design and content">❓ Why this mail?</button>
     </td>
   </tr>
   <tr class="exprow" id="exprow-${i}" style="display:none"><td colspan="9" style="padding:0;background:#0b1813;border-bottom:2px solid rgba(171,135,67,.3)"><div class="expbody" id="expbody-${i}" style="padding:16px 18px"></div></td></tr>`;}).join('');
@@ -519,31 +530,61 @@ window.closeExp = function(i){ const r=$('exprow-'+i); if(r) r.style.display='no
 // the way it was", distinct from the Why/Analysis data-drivers panel.
 function decisionPanelHTML(e){
   const d = e.decision || {};
-  const block = (label, choice, why, extra) => `
-    <div style="border-left:3px solid #AB8743;padding:8px 0 8px 14px;margin:0 0 12px">
-      <div style="color:#9fb3a8;font-size:11px;text-transform:uppercase;letter-spacing:.08em">${esc(label)}</div>
-      <div style="color:#f2ead6;font-size:15px;margin:2px 0 4px;font-weight:600">${esc(choice||'—')}</div>
-      ${extra?`<div style="color:#cbb98f;font-size:12px;margin:0 0 4px">${extra}</div>`:''}
-      <div style="color:#9aa;font-size:12px;line-height:1.5">${esc(why||'')}</div>
-    </div>`;
+  const a = e.analysis || {};
   const prod = d.product || {};
-  const prodExtra = (prod.supporting && prod.supporting.length)
-    ? `Hero: <b style="color:#e6c979">${esc(prod.hero)}</b> · Bundle: ${prod.supporting.map(s=>esc(s)).join(', ')}`
-    : `Hero: <b style="color:#e6c979">${esc(prod.hero||'')}</b> (no bundle)`;
   const offer = d.offer || {};
-  const offerChoice = offer.code ? `${offer.code} · ${Math.round((offer.pct||0)*100)}% off` : 'No discount';
   const reach = d.reach || e.reach || {};
-  const reachExtra = reach.planned_recipients ? `${Number(reach.planned_recipients).toLocaleString()} recipients · ${reach.per_user_per_week?.min}-${reach.per_user_per_week?.max} mailers/user/week` : '';
-  return `<div class="pvroot">
-    <div style="font-family:${'inherit'};font-size:16px;color:#f2ead6;font-weight:700;margin:0 0 12px">Why this send was decided this way</div>
-    ${block('Theme', d.theme?.choice, d.theme?.why)}
-    ${block('Topic', d.topic?.choice, d.topic?.why)}
-    ${block('Product (hero + bundle)', prod.hero, prod.why, prodExtra)}
-    ${block('Discount / coupon', offerChoice, offer.why)}
-    ${block('Design', (d.design?.archetype||'') + (d.design?.variants?` · ${d.design.variants}`:''), d.design?.why)}
-    ${block('Reach & frequency', reachExtra, reach.why || (d.reach&&d.reach.why))}
-    <div style="margin-top:10px"><button class="btn sm secondary" onclick="closeExp(${e.__i})">✕ Close</button>
-      <button class="btn sm secondary" onclick="viewEntry(${e.__i})">Open full funnel →</button></div>
+  // Row of section 1 (a labelled reason line). value may carry inline markup.
+  const dl = (label, value, sub) => (value || sub) ? `
+      <tr>
+        <td style="color:#cbb98f;font-size:12px;font-weight:700;vertical-align:top;padding:10px 18px 10px 0;white-space:nowrap">${esc(label)}</td>
+        <td style="color:#e8ede9;font-size:13.5px;line-height:1.55;padding:10px 0;border-bottom:1px solid rgba(171,135,67,.14)">${value||''}${sub?`<div style="color:#9fb3a8;font-size:12px;margin-top:3px">${sub}</div>`:''}</td>
+      </tr>` : '';
+  const li = (label, text) => text ? `<li style="margin:0 0 9px;line-height:1.55;color:#dfe7e1;font-size:13.5px"><b style="color:#f2ead6">${esc(label)}:</b> ${esc(text)}</li>` : '';
+
+  // ── Section 1 · why this slot was chosen ──
+  const cohortName = e.cohort?.name || d.cohort?.choice || '—';
+  const cohortDef  = e.cohort?.definition || e.cohort?.description || (e.cohort?.size!=null ? `${Number(e.cohort.size).toLocaleString()} profiles in this segment` : '');
+  const dataBasis  = a.summary || d.topic?.why || d.theme?.why || e.rationale || '';
+  const timingWhy  = d.timing?.why || reach.why || 'Scheduled to fit the rolling frequency plan and spaced from recent sends so the same profile is not over-mailed.';
+  const offerText  = offer.code
+    ? `${Math.round((offer.pct||0)*100)}% via <b style="color:#e6c979">${esc(offer.code)}</b>${offer.why?` — ${esc(offer.why)}`:' (within the discount cap)'}`
+    : 'No discount — full-price send';
+  const confText   = e.confidence!=null ? `<b style="color:#e6c979">${Math.round(e.confidence*100)}%</b>${a.confidence?.label?` · ${esc(a.confidence.label)}`:''}` : '—';
+
+  // ── Section 2 · why this design & content ──
+  const hero = prod.hero || e.heroProduct?.title || '';
+  const supporting = (prod.supporting && prod.supporting.length) ? prod.supporting
+    : (Array.isArray(e.supportingProducts) ? e.supportingProducts.map(p=>p.title||p) : []);
+  const layout  = d.design?.why || 'One star product inline plus a compact product grid — space-optimised, not a long vertical stack.';
+  const copyWhy = 'Leads with the feeling of the ritual, then earns the click with proof (P01 voice).';
+  const imagery = 'Product-pack photos are the real Shopify catalog images placed inline with their facts; no product packaging is AI-generated.';
+  const mix     = hero ? `Hero ${hero}${supporting.length?` plus ${supporting.join(', ')} to lift basket within the same ritual`:''}.` : '';
+  const brand   = 'Lao MN headings, Proxima Nova body, the four brand colours only, no banned phrases or em/en-dashes.';
+
+  return `<div class="pvroot" style="border:1px solid rgba(171,135,67,.35);border-radius:14px;padding:18px 20px;background:#0e1b15">
+    <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(171,135,67,.2);padding-bottom:12px;margin-bottom:14px">
+      <span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px;letter-spacing:.06em">WHY YOU'RE SEEING THIS</span>
+      <span style="color:#f2ead6;font-size:15px;font-weight:700">The complete logic, analysis &amp; reason</span>
+    </div>
+    <div style="color:#e6c979;font-size:14px;font-weight:700;margin:0 0 6px">1 · Why this slot was chosen for the calendar</div>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 16px">
+      ${dl('Cohort', esc(cohortName), cohortDef ? esc(cohortDef) : '')}
+      ${dl('Data basis', esc(dataBasis))}
+      ${dl('Timing', esc(timingWhy))}
+      ${dl('Offer', offerText)}
+      ${dl('Confidence', confText)}
+    </table>
+    <div style="color:#e6c979;font-size:14px;font-weight:700;margin:0 0 6px">2 · Why this design &amp; content</div>
+    <ul style="margin:0;padding-left:18px">
+      ${li('Layout', layout)}
+      ${li('Copy (P01)', copyWhy)}
+      ${li('Imagery', imagery)}
+      ${li('Mix', mix)}
+      ${li('Brand lock', brand)}
+    </ul>
+    <div style="margin-top:14px"><button class="btn sm secondary" onclick="closeExp(${e.__i})">✕ Close</button>
+      <button class="btn sm secondary" onclick="viewEntry(${e.__i})">Open the mailer &amp; assets →</button></div>
   </div>`;
 }
 window.viewDecision = function(i){
@@ -614,7 +655,11 @@ async function viewEntry(i, forceRegen){
   body.innerHTML = `<p class="pvnote"><span class="spinner"></span> Generating the full funnel (mailer, ads & landing page) — usually 10–30s…</p>`;
   row.scrollIntoView({ behavior:'smooth', block:'nearest' });
   try{
-    const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
+    // Regenerate = a TRUE rebuild: strip the prebuilt marker so preview does not
+    // reuse the stale prebuilt bundle (it would otherwise return the exact bundle
+    // that was just rejected). A normal View keeps the marker for instant reuse.
+    const entryPayload = forceRegen ? (function(){ var c = Object.assign({}, e); delete c.__prebuilt; return c; })() : e;
+    const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: entryPayload, reviewer: reviewerEmail() })});
     const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Preview failed');
     PREVIEW_CACHE[e.id] = data;
@@ -776,7 +821,21 @@ async function rejectRow(i){
     renderPlan();
   }catch(err){ if(rev) rev.innerHTML = `<span style="color:#e89a9a;font-size:11px">reject failed: ${esc(err.message)}</span>`; }
 }
-window.approveRow = approveRow; window.rejectRow = rejectRow;
+// Clear a rejection: the slot returns to draft (not rejected, not approved) so it
+// no longer shows the rejected pill, and stays reviewable.
+async function resetRow(i){
+  const e = PLAN[i];
+  const rev = $('rev-'+i);
+  if(rev) rev.innerHTML = '<span class="pvnote"><span class="spinner"></span> clearing rejected status…</span>';
+  try{
+    const r = await fetch(`${API}?action=smart-brain-unreject`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, reviewer: reviewerEmail() })});
+    const data = await safeJson(r);
+    if(!data.ok) throw new Error(data.error || 'reset failed');
+    e.status = 'tentative'; e.generated_campaign_id = null;
+    renderPlan();
+  }catch(err){ if(rev) rev.innerHTML = `<span style="color:#e89a9a;font-size:11px">reset failed: ${esc(err.message)}</span>`; }
+}
+window.approveRow = approveRow; window.rejectRow = rejectRow; window.resetRow = resetRow;
 
 async function showSchema(){
   clearPreview();

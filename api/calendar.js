@@ -199,6 +199,13 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json(result);
     }
 
+    if (smartAction === 'unreject') {
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+      if (!body.id) return res.status(400).json({ ok: false, error: 'id is required' });
+      const result = await plan.unrejectEntry({ id: body.id, reviewer: body.reviewer || null, config: body.config || {} });
+      return res.status(200).json(result);
+    }
+
     if (smartAction === 'activate-scenario') {
       // Promote a pre-staged standby scenario (best|conservative|emergency|instant)
       // into the active rolling plan, or revert with scenario='medium'.

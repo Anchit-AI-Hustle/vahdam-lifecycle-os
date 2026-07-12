@@ -191,6 +191,7 @@
   // mailers = Draft 2 of mailer creation). The Draft label renders in tooltips
   // and the sub-item info panels — not in the row — to keep rows quiet.
   const NAV = [
+    { id: 'appaudit',   label: 'Overall App Audit', href: '/audit',      icon: 'insights', ver: 'v2', match: ['/audit', '/app-audit', '/app-audit.html'] },
     { id: 'home',       label: 'Home',          href: '/',               icon: 'home',     match: ['/', '/index.html'] },
     { group: 'Market Study', icon: 'kb', gid: 'research', ver: 'v2', children: [
       { id: 'research',        label: 'Overview (all regions)', href: '/research',               icon: 'kb',       match: ['/research', '/growth-book', '/research.html'] },
@@ -279,8 +280,13 @@
     { section: 'Settings' },
     { id: 'connectors', label: 'Connectors', href: '/connectors', icon: 'insights', ver: 'v2', match: ['/connectors', '/connectors.html'] },
 
-    { section: 'Archive' },
-    { id: 'diffversion', label: 'DIFF-VERSION', href: '/diff-version', icon: 'insights', ver: 'v2', draft: 'Frozen 3 Jul 2026 build', match: ['/diff-version', '/diff-version.html', '/diff-version/pages/mailer-calendar.html', '/diff-version/pages/uk-non-engagers.html', '/diff-version/pages/social-media.html'] },
+    // ── "Aman's version" (aka "Aman's code") — the frozen 3 Jul 2026 build ──
+    // Hidden from the rail per product-owner request, but KEPT as a feature: the
+    // code still lives under /diff-version and is reachable by direct URL. If the
+    // owner refers to "Aman's code" / "Aman's version" anywhere, it means THIS
+    // frozen snapshot. Uncomment the two lines below to restore it to the menu.
+    // { section: 'Archive' },
+    // { id: 'diffversion', label: "Aman's version", href: '/diff-version', icon: 'insights', ver: 'v2', draft: "Aman's code — frozen 3 Jul 2026 build", match: ['/diff-version', '/diff-version.html', '/diff-version/pages/mailer-calendar.html', '/diff-version/pages/uk-non-engagers.html', '/diff-version/pages/social-media.html'] },
   ];
 
   // ─── Feature IA (standing rule — see CLAUDE.md "LHS navigation IA rule") ──
@@ -304,6 +310,21 @@
   const INFO = {
     // Home is a plain landing link, not a content-producing feature, so it
     // deliberately has NO 5-sub-item IA entry — it renders as a simple link.
+    appaudit: {
+      title: 'Overall App Audit',
+      what: "A live quality scorecard for the whole OS. Every feature is rated on four axes — accuracy (is the output factually true, no fabrication), implementation (code robustness), execution (does it work end-to-end in production), and results (does it drive a usable outcome). The confidence bar is 9.5: nothing is 'done' below it.",
+      who: "The product owner and the growth team, as the single place to judge whether the app is trustworthy enough to run the brand.",
+      how: "Scores come from deep code audits (file-level findings), not impressions. The page computes an overall from the audited features, surfaces the three systemic blockers that cap quality (fabrication, the stale prod key, and the missing Klaviyo/Shopify feeds), and lists the roadmap that lifts each feature to 9.5.",
+      input: "Nothing to enter — it reads the recorded audit. The full written audit is downloadable as Markdown for offline analysis.",
+      steps: [
+        ['Ideology', 'Real-only, zero-fabrication quality: a feature is only as good as the truth of what it ships.'],
+        ['Data analysis + review + hypothesis', 'Deep per-feature code audits produce file-level findings and four-axis scores.'],
+        ['Business & strategy decisions', 'The three systemic blockers are identified and prioritised by blast radius.'],
+        ['Content', 'Each feature gets a plain-English gap note: what to fix to reach 9.5.'],
+        ['Design + layout + structure', 'Scores render as a ring + per-feature axis bars, colour-coded by threshold.'],
+        ['Compilation + presentation', 'An overall rating, the blocker board, the scorecard and the roadmap, plus a downloadable Markdown audit.', '/audit']
+      ]
+    },
     chaigpt: {
       title: 'SteepSense',
       what: "INTERNAL TOOL, for the VAHDAM team only (not customer-facing). SteepSense is VAHDAM's own brand LLM: a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
