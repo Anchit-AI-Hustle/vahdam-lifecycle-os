@@ -118,7 +118,11 @@
   <div id="detail"></div>
 </div>
 
-<script src="/data/analytics/market-data.js"></script>
+<!-- STRICT REAL-DATA-ONLY: the former static export (/data/analytics/market-data.js)
+     is no longer loaded. This view renders ONLY real data from a connected source
+     (Supabase / DTC data engine). A live loader sets window.VAHDAM_ANALYTICS; until
+     that read is wired the page shows an honest "no live data" state, never baked
+     numbers. -->
 <script>
 (function(){
   var A = (window.VAHDAM_ANALYTICS) || {markets:{}};
@@ -490,10 +494,18 @@
 
   document.querySelectorAll('#mktToggle button').forEach(function(b){ b.addEventListener('click',function(){ setMarket(b.dataset.mkt); }); });
 
-  // init
-  renderKPIs(); renderSignals(); renderGrid(); renderFootnote();
-  document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===MKT); });
-  var hash=(location.hash||'').replace('#',''); if(hash && WIDGETS.find(function(w){return w.id===hash;})) openDetail(hash);
+  // init — STRICT real-data-only: render only when real data is present;
+  // otherwise an honest "no live data" state (never baked/sample numbers).
+  var hasData = A && A.markets && Object.keys(A.markets).some(function(k){ return A.markets[k] && Object.keys(A.markets[k]).length; });
+  if(!hasData){
+    var g=document.getElementById('grid');
+    if(g) g.innerHTML='<div class="empty" style="padding:32px;text-align:center;line-height:1.65">No live data connected yet.<br>This view shows <b>only real data</b> pulled from your connected sources (Supabase / the read-only Shopify, Klaviyo and WebEngage syncs). Once the daily sync populates Supabase, the KPIs, cohorts and channel breakdowns appear here automatically. No sample or static figures are shown.</div>';
+    var fn0=document.getElementById('footnote'); if(fn0) fn0.textContent='Awaiting live data from the connected sources.';
+  } else {
+    renderKPIs(); renderSignals(); renderGrid(); renderFootnote();
+    document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===MKT); });
+    var hash=(location.hash||'').replace('#',''); if(hash && WIDGETS.find(function(w){return w.id===hash;})) openDetail(hash);
+  }
 })();
 </script>
 <script defer src="/auth.js"></script>

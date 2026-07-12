@@ -21,6 +21,8 @@
 
 const API_BASE = 'https://a.klaviyo.com/api';
 const DEFAULT_REVISION = '2024-10-15';
+// Central read-only guard (project-wide rule for Shopify/Klaviyo/WebEngage).
+const { assertReadOnly } = require('./read-only-egress.js');
 
 function cfg() {
   return {
@@ -42,43 +44,34 @@ function qs(query) {
  * Low-level request. When no key is configured, returns a "would_request"
  * envelope instead of calling out — so callers behave identically online/offline.
  */
-// READ-ONLY POSTURE (standing rule for Shopify / Klaviyo / WebEngage): the app
-// only ever FETCHES information and must put no write load on these platforms.
-// Any non-GET call is blocked here before it leaves the process — it is never
-// sent — so create/subscribe/track can exist in the manifest but can never
-// mutate the account. Set KLAVIYO_ALLOW_WRITES=1 to intentionally opt back in.
-const READ_ONLY = process.env.KLAVIYO_ALLOW_WRITES !== '1';
-
-async function request({ method = 'GET', path, query = {}, body = null, timeoutMs = 20000 }) {
+// READ-ONLY POSTURE (standing hard rule for Shopify / Klaviyo / WebEngage): the
+// app only ever FETCHES; it never writes/updates/deletes. This function is
+// STRUCTURALLY GET-only — it takes no `method` and no `body`, always issues GET,
+// and there is no code path to send POST/PUT/PATCH/DELETE to Klaviyo. The
+// central read-only-egress guard (assertReadOnly) is an additional backstop.
+async function request({ path, query = {}, timeoutMs = 20000 }) {
   const c = cfg();
   const url = `${API_BASE}${path}${qs(query)}`;
-  if (READ_ONLY && String(method).toUpperCase() !== 'GET') {
-    return {
-      ok: false, connected: !!c.key, read_only_blocked: true,
-      would_request: { method, url, body: body || undefined },
-      note: 'Read-only mode: this write was blocked and NOT sent to Klaviyo (zero write load). Set KLAVIYO_ALLOW_WRITES=1 to enable writes.',
-    };
-  }
   if (!c.key) {
     return {
       ok: false, connected: false, not_connected: true,
-      would_request: { method, url, body: body || undefined },
+      would_request: { method: 'GET', url },
       hint: 'Set KLAVIYO_API_KEY in Vercel env to execute this for real. The request shape above is what will be sent.',
     };
   }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
+    // Backstop: confirm GET to a guarded host is allowed before it leaves.
+    assertReadOnly(url, 'GET');
     const res = await fetch(url, {
-      method,
+      method: 'GET',
       signal: ctrl.signal,
       headers: {
         Authorization: `Klaviyo-API-Key ${c.key}`,
         revision: c.revision,
         accept: 'application/vnd.api+json',
-        ...(body ? { 'content-type': 'application/vnd.api+json' } : {}),
       },
-      body: body ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
     let data; try { data = text ? JSON.parse(text) : {}; } catch (_) { data = { raw: text }; }
@@ -98,7 +91,9 @@ const getProfiles = (p = {}) => request({ path: '/profiles/', query: { 'page[siz
 const getProfile  = (p = {}) => request({ path: `/profiles/${encodeURIComponent(p.id)}/` });
 const getLists    = (p = {}) => request({ path: '/lists/', query: { 'page[size]': p.limit || 50 } });
 const getList     = (p = {}) => request({ path: `/lists/${encodeURIComponent(p.id)}/` });
-const getSegments = (p = {}) => request({ path: '/segments/', query: { 'page[size]': p.limit || 50 } });
+// profile_count is the live segment size (the real cohort size) — requested via
+// the additional-fields param so a single read yields name + size together.
+const getSegments = (p = {}) => request({ path: '/segments/', query: { 'page[size]': p.limit || 50, 'additional-fields[segment]': 'profile_count' } });
 const getMetrics  = (p = {}) => request({ path: '/metrics/', query: { 'page[size]': p.limit || 50 } });
 const getEvents   = (p = {}) => request({ path: '/events/', query: { 'page[size]': p.limit || 20, filter: p.filter, sort: p.sort || '-datetime' } });
 const getFlows    = (p = {}) => request({ path: '/flows/', query: { 'page[size]': p.limit || 50 } });
@@ -110,53 +105,17 @@ const getCampaigns = (p = {}) => request({
 });
 
 // ── Reporting ────────────────────────────────────────────────────────────────
-const campaignReport = (p = {}) => request({
-  method: 'POST', path: '/campaign-values-reports/',
-  body: {
-    data: {
-      type: 'campaign-values-report',
-      attributes: {
-        timeframe: p.timeframe ? { key: p.timeframe } : { key: 'last_30_days' },
-        statistics: p.statistics || ['open_rate', 'click_rate', 'conversion_rate', 'recipients', 'revenue_per_recipient'],
-        conversion_metric_id: p.conversion_metric_id || undefined,
-        filter: p.filter || undefined,
-      },
-    },
-  },
-});
+// Klaviyo's values-report endpoints are POST-only. Since READ IS GET ALWAYS in
+// this project (no POST, even for reports), campaign reporting is intentionally
+// NOT implemented here. Campaign performance is derived from GET reads + the
+// data mirrored into Supabase, never a POST to Klaviyo.
 
 // ── Writes ─────────────────────────────────────────────────────────────────
-const createProfile = (p = {}) => request({
-  method: 'POST', path: '/profiles/',
-  body: { data: { type: 'profile', attributes: { email: p.email, phone_number: p.phone_number, first_name: p.first_name, last_name: p.last_name, properties: p.properties || {} } } },
-});
-// Subscribe profiles to a list (double/single opt-in handled by list settings).
-const subscribeProfiles = (p = {}) => request({
-  method: 'POST', path: '/profile-subscription-bulk-create-jobs/',
-  body: {
-    data: {
-      type: 'profile-subscription-bulk-create-job',
-      attributes: {
-        profiles: { data: (p.emails || []).map((email) => ({ type: 'profile', attributes: { email, subscriptions: { email: { marketing: { consent: 'SUBSCRIBED' } } } } })) },
-      },
-      relationships: p.list_id ? { list: { data: { type: 'list', id: p.list_id } } } : undefined,
-    },
-  },
-});
-const trackEvent = (p = {}) => request({
-  method: 'POST', path: '/events/',
-  body: {
-    data: {
-      type: 'event',
-      attributes: {
-        properties: p.properties || {},
-        metric: { data: { type: 'metric', attributes: { name: p.metric || 'Custom Event' } } },
-        profile: { data: { type: 'profile', attributes: { email: p.email } } },
-        value: p.value,
-      },
-    },
-  },
-});
+// INTENTIONALLY NONE. Standing hard rule: this project has READ-ONLY access to
+// Klaviyo — no create / update / subscribe / track / delete. The former write
+// functions (createProfile, subscribeProfiles, trackEvent) were removed so the
+// code has no write capability at all. The central read-only-egress guard is
+// the backstop; the read-only-scoped API key is the ultimate lock.
 
 /** Op catalog — used by the tool manifest + the chat status report. */
 const OPS = {
@@ -171,10 +130,6 @@ const OPS = {
   get_campaigns:      { fn: getCampaigns, desc: 'List campaigns. params: {channel:email|sms, limit, filter}.' },
   get_flows:          { fn: getFlows, desc: 'List automation flows. params: {limit}.' },
   get_templates:      { fn: getTemplates, desc: 'List email templates. params: {limit}.' },
-  campaign_report:    { fn: campaignReport, desc: 'Campaign performance report. params: {timeframe, statistics[], conversion_metric_id}.' },
-  create_profile:     { fn: createProfile, desc: 'Create/identify a profile. params: {email, phone_number, first_name, last_name, properties}.' },
-  subscribe_profiles: { fn: subscribeProfiles, desc: 'Subscribe emails to a list. params: {list_id, emails[]}.' },
-  track_event:        { fn: trackEvent, desc: 'Track a custom event for a profile. params: {metric, email, properties, value}.' },
 };
 
 /** Dispatch an op by name with params. */
@@ -187,5 +142,5 @@ async function dispatch(op, params = {}) {
 module.exports = {
   isConnected, dispatch, OPS, request,
   getProfiles, getProfile, getLists, getList, getSegments, getMetrics, getEvents,
-  getCampaigns, getFlows, getTemplates, campaignReport, createProfile, subscribeProfiles, trackEvent,
+  getCampaigns, getFlows, getTemplates,
 };
