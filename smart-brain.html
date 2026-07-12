@@ -36,6 +36,14 @@
   th{font-size:10px;color:#789;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 8px;border-bottom:1px solid rgba(171,135,67,.25)}
   td{padding:9px 8px;border-bottom:1px solid rgba(171,135,67,.1);vertical-align:top}
   tr:hover td{background:rgba(171,135,67,.05)}
+  /* Calendar table: keep readable on narrow screens by scrolling horizontally
+     (the .tblscroll wrapper is overflow-x:auto) instead of crushing columns to
+     one character per line. */
+  .tblscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #plantable{min-width:880px}
+  #plantable th,#plantable td{white-space:nowrap}
+  #plantable td.why,#plantable th.why{white-space:normal;min-width:220px;max-width:320px}
+  #plantable td.cohort{white-space:normal;max-width:160px}
   .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#d9c18f;white-space:nowrap}
   .st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
   .st.tentative{background:rgba(171,135,67,.16);color:#d9c18f}.st.approved{background:rgba(29,107,69,.3);color:#8fe7b9}.st.final{background:#1d6b45;color:#eafff3}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
@@ -83,6 +91,7 @@
     <div class="card"><div class="label">Plan entries</div><div id="entries" class="metric">—</div></div>
     <div class="card"><div class="label">Pending approval</div><div id="pending" class="metric">—</div></div>
     <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div></div>
+    <div class="card" title="Total sends scheduled in the next 30 days across all regions. Target: 3-4 cohorts/day/market to support >=70-80k USD/month (~1000-1500 USD/day)."><div class="label">Sends / 30d</div><div id="sends30" class="metric">—</div></div>
 
     <div class="card wide">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -98,9 +107,9 @@
         <button class="mkchip" data-mkt="India" onclick="toggleMkt('India')">India</button>
         <span id="mktcount" style="color:#789;font-size:12px;margin-left:6px"></span>
       </div>
-      <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>Date</th><th>Market</th><th>Cohort</th><th>Objective · Hero</th><th>Why (analysis)</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
+      <div class="tblscroll">
+      <table id="plantable">
+        <thead><tr><th>Date</th><th>Market</th><th class="cohort">Cohort</th><th>Objective · Hero</th><th class="why">Why (analysis)</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody id="plan"><tr><td colspan="9" style="color:#789">Loading plan…</td></tr></tbody>
       </table>
       </div>
@@ -216,6 +225,13 @@ function renderPlan(){
   // "Approve all pending" — appears only when there are pending sends in view,
   // and counts exactly what it will act on (respects the region filter).
   const pendingVisible = PLAN.filter(e => e.status === 'tentative' && mktVisible(e)).length;
+  // Sends scheduled in the next 30 days (the 3-4/day cadence made concrete).
+  const s30 = $('sends30');
+  if(s30){
+    const today = new Date().toISOString().slice(0,10);
+    const end = new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+    s30.textContent = PLAN.filter(e => e.date >= today && e.date <= end).length;
+  }
   const aa = $('approveAll');
   if(aa){ aa.style.display = pendingVisible ? '' : 'none'; aa.textContent = `✓ Approve all pending (${pendingVisible})`; }
   if(!shown){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#789">No sends for the selected region(s).</td></tr>`; return; }
@@ -230,16 +246,17 @@ function renderPlan(){
       ? a.confidence.factors.map(f=>`${f.delta>=0?'+':''}${f.delta} ${f.label}`).join('\n') : '';
     const status = `<span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.__prebuilt && e.__prebuilt.campaign_id ? `<br><span class="pill" style="background:#0c3;color:#03210f;font-size:10px" title="Full asset bundle (copy + images: mailer, ads, landing page) already built. Approve to publish.">✓ assets prebuilt</span>` : ''}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}`;
     return `<tr class="planrow" id="planrow-${i}">
-    <td>${esc(e.date)}</td>
+    <td>${esc(e.date)}${e.mailer_total > 1 ? `<br><span class="pill" style="background:#2a2411;color:#e6c979;font-size:10px">MAILER ${e.mailer_index}/${e.mailer_total}</span>` : ''}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
-    <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}</td>
+    <td class="cohort">${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}</td>
     <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
-    <td style="max-width:260px"><span style="font-size:12px;color:#d8cdb4;line-height:1.4">${esc(why)}</span></td>
+    <td class="why"><span style="font-size:12px;color:#d8cdb4;line-height:1.4">${esc(why)}</span></td>
     <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
     <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#9fb3a8;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
     <td>${status}</td>
     <td style="white-space:nowrap">
       <button class="btn sm secondary" id="viewbtn-${i}" onclick="viewEntry(${i})">View</button>
+      ${e.decision ? `<button class="btn sm secondary" onclick="viewDecision(${i})" title="Why this send: theme, product, coupon and design reasoning">Decision</button>` : ''}
       ${e.status==='tentative' ? `<button class="btn sm ok" onclick="approve(${i})">Approve</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
     </td>
   </tr>
@@ -394,11 +411,54 @@ function renderPreview(payload, e, i, opts){
       <button class="btn sm secondary" onclick="closeExp(${i})" title="Collapse">✕</button>
     </div>
     <div class="pvnote">Copy by <b>${esc(cw.provider || 'template')}</b>${cw.model?` · ${esc(cw.model)}`:''} · channels: ${(e.channels||[]).map(esc).join(', ')||'—'}</div>
+    ${(() => { const tr = payload.agent_trace || campaign.agent_trace; if(!Array.isArray(tr)||!tr.length) return ''; return `<div class="pvnote" style="margin-top:4px">Agent pipeline: ${tr.map(a=>`<span class="pill" style="background:${a.ok?'#12362a':'#3a1414'};color:${a.ok?'#8fe7b9':'#ffd9d0'};font-size:10px" title="${esc(a.role||'')}${a.provider?' · '+esc(a.provider):''}">${a.ok?'✓':'⚠'} ${esc(a.agent)}</span>`).join(' → ')}</div>`; })()}
     <div class="pvtabs">${tabs.join('')}</div>
     ${panes.join('')}</div>`;
   host.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 window.closeExp = function(i){ const r=$('exprow-'+i); if(r) r.style.display='none'; };
+
+// ── Per-row decision detail ────────────────────────────────────────────────
+// Renders the entry.decision object (theme, topic, product hero+bundle, coupon,
+// design) as a labelled reasoning panel. This is the "why this send was decided
+// the way it was", distinct from the Why/Analysis data-drivers panel.
+function decisionPanelHTML(e){
+  const d = e.decision || {};
+  const block = (label, choice, why, extra) => `
+    <div style="border-left:3px solid #AB8743;padding:8px 0 8px 14px;margin:0 0 12px">
+      <div style="color:#9fb3a8;font-size:11px;text-transform:uppercase;letter-spacing:.08em">${esc(label)}</div>
+      <div style="color:#f2ead6;font-size:15px;margin:2px 0 4px;font-weight:600">${esc(choice||'—')}</div>
+      ${extra?`<div style="color:#cbb98f;font-size:12px;margin:0 0 4px">${extra}</div>`:''}
+      <div style="color:#9aa;font-size:12px;line-height:1.5">${esc(why||'')}</div>
+    </div>`;
+  const prod = d.product || {};
+  const prodExtra = (prod.supporting && prod.supporting.length)
+    ? `Hero: <b style="color:#e6c979">${esc(prod.hero)}</b> · Bundle: ${prod.supporting.map(s=>esc(s)).join(', ')}`
+    : `Hero: <b style="color:#e6c979">${esc(prod.hero||'')}</b> (no bundle)`;
+  const offer = d.offer || {};
+  const offerChoice = offer.code ? `${offer.code} · ${Math.round((offer.pct||0)*100)}% off` : 'No discount';
+  const reach = d.reach || e.reach || {};
+  const reachExtra = reach.planned_recipients ? `${Number(reach.planned_recipients).toLocaleString()} recipients · ${reach.per_user_per_week?.min}-${reach.per_user_per_week?.max} mailers/user/week` : '';
+  return `<div class="pvroot">
+    <div style="font-family:${'inherit'};font-size:16px;color:#f2ead6;font-weight:700;margin:0 0 12px">Why this send was decided this way</div>
+    ${block('Theme', d.theme?.choice, d.theme?.why)}
+    ${block('Topic', d.topic?.choice, d.topic?.why)}
+    ${block('Product (hero + bundle)', prod.hero, prod.why, prodExtra)}
+    ${block('Discount / coupon', offerChoice, offer.why)}
+    ${block('Design', (d.design?.archetype||'') + (d.design?.variants?` · ${d.design.variants}`:''), d.design?.why)}
+    ${block('Reach & frequency', reachExtra, reach.why || (d.reach&&d.reach.why))}
+    <div style="margin-top:10px"><button class="btn sm secondary" onclick="closeExp(${e.__i})">✕ Close</button>
+      <button class="btn sm secondary" onclick="viewEntry(${e.__i})">Open full funnel →</button></div>
+  </div>`;
+}
+window.viewDecision = function(i){
+  const e = PLAN[i]; if(!e) return;
+  e.__i = i;
+  const row = $('exprow-'+i), body = $('expbody-'+i);
+  document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
+  if(row) row.style.display='';
+  if(body){ body.innerHTML = decisionPanelHTML(e); body.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+};
 // Open the primary mailer full-screen in a new tab (the "detailed page" when a
 // slot is not yet approved and has no hosted /lp/:id).
 window.openDetailPage = function(i){
