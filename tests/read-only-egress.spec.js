@@ -21,11 +21,13 @@ test('every write verb to a guarded platform throws', () => {
   }
 });
 
-test('read verbs to guarded platforms are allowed', () => {
+test('read verbs (GET/HEAD) to guarded platforms are allowed; nothing else', () => {
   for (const [, url] of GUARDED) {
-    for (const m of ['GET', 'HEAD', 'OPTIONS']) {
+    for (const m of ['GET', 'HEAD']) {
       expect(() => guard.assertReadOnly(url, m)).not.toThrow();
     }
+    // OPTIONS is not a read here — read is GET, always.
+    expect(() => guard.assertReadOnly(url, 'OPTIONS')).toThrow(/READ-ONLY VIOLATION/);
   }
 });
 
