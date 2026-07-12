@@ -33,6 +33,35 @@ back to `redirectTo`**. That routing decides where the domain matters.
 needs nothing for the Supabase flow (its redirect URI is the fixed Supabase
 callback); a JavaScript origin is optional and can only be added in the Console.
 
+## This project (vahdam-lifecycle-os) — canonical origin, verified 2026-07-12
+
+The **canonical production origin is the custom domain**
+`https://vahdam-lifecycle-os.anchit-tandon.com`. The Vercel default
+`https://vahdam-lifecycle-os.vercel.app` **308-redirects** to it (confirmed via
+`/api/health`), so users land on the custom domain and sign-in fires
+`redirectTo: https://vahdam-lifecycle-os.anchit-tandon.com/...`.
+
+Required Supabase Auth config (Authentication → URL Configuration):
+- **Site URL:** `https://vahdam-lifecycle-os.anchit-tandon.com` (the canonical
+  origin — not the `.vercel.app`, since that only redirects here).
+- **Redirect URLs (allowlist):**
+  - `https://vahdam-lifecycle-os.anchit-tandon.com/**` (**required** — the
+    canonical origin; without it `redirectTo` is rejected and Supabase falls
+    back to Site URL, bouncing the user to the wrong origin / a redirect loop)
+  - `https://vahdam-lifecycle-os.vercel.app/**` (keep — direct `.vercel.app`
+    visits before the 308)
+  - `https://vahdam-lifecycle-os-*.vercel.app/**` (optional — only if Google
+    sign-in must work on PR **preview** deploys; not needed for production)
+
+Common miss: allowlisting only `…vercel.app/**` while the app actually serves
+from the custom domain. Auth then works on the bare `.vercel.app` but breaks for
+everyone on the canonical domain. The Google web-client callback
+(`https://<ref>.supabase.co/auth/v1/callback`) is unchanged — do not touch it.
+
+> Stale-domain caveat: `vahdam-marketing-mailers-architect.vercel.app` is an OLD
+> separate deployment (no current routes / Supabase) and is NOT this app — do not
+> add it to any allowlist or treat it as live.
+
 ## The gcloud reality
 
 **There is no `gcloud` command and no public Google API to edit a

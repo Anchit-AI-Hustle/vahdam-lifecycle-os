@@ -104,6 +104,8 @@
     <button class="btn" id="refresh">↻</button>
   </div>
 
+  <div id="syncStrip" hidden style="margin:0 0 14px;padding:9px 14px;border:1px solid rgba(171,135,67,0.25);border-radius:10px;font-size:12.5px;align-items:center;gap:10px;background:#0f1d18;color:#cdd8d2"></div>
+
   <div class="grid" id="grid"><div class="empty">Loading…</div></div>
 
   <p class="src" id="srcline">Reading from <b>your browser</b> — connecting to the shared database…</p>
@@ -405,12 +407,35 @@
   $('#q').addEventListener('input', (e) => { Q = e.target.value || ''; render(); });
   $('#refresh').addEventListener('click', async () => { await buildAll(); render(); toast('Refreshed'); });
 
+  // Shared-source-of-truth freshness (spec §24b): surface the sync engine's
+  // per-campaign freshness so the reviewer can see when a shipped asset is stale
+  // against its canonical source. Additive + fail-quiet — never blocks the grid.
+  async function loadSync() {
+    const strip = $('#syncStrip'); if (!strip) return;
+    try {
+      const r = await fetch('/api/calendar?action=smart-brain-sync-status').then((x) => x.json()).catch(() => null);
+      if (!r || !r.ok || !r.connected) { strip.hidden = true; return; }
+      const total = r.count || 0, stale = r.stale || 0;
+      if (!total) { strip.hidden = true; return; }
+      const dot = stale > 0 ? '#d9b25a' : '#3fa46a';
+      const label = stale > 0
+        ? ('<b style="color:#e8ede9">' + stale + ' of ' + total + '</b> generated campaign' + (total === 1 ? '' : 's') + ' need regeneration — a source fact changed since they were built'
+           + ' <span style="color:#d9b25a">(STALE)</span>')
+        : ('<b style="color:#e8ede9">' + total + '</b> generated campaign' + (total === 1 ? '' : 's') + ' tracked, all current against source');
+      strip.innerHTML = '<span style="width:9px;height:9px;border-radius:50%;background:' + dot + ';display:inline-block;flex:0 0 auto"></span>'
+        + '<span>Source sync · ' + label + '</span>'
+        + '<span style="margin-left:auto;color:#8a8a8a;font-size:11px">one canonical record, many views</span>';
+      strip.style.display = 'flex'; strip.hidden = false;
+    } catch (_) { strip.hidden = true; }
+  }
+
   async function load() {
     $('#grid').innerHTML = '<div class="empty">Loading…</div>';
     await buildAll(); render();
     $('#srcline').innerHTML = usingLocal
       ? 'Some assets are read from <b>this browser only</b> (the shared DB table may be empty or not migrated yet). Clones are always saved locally first.'
       : 'Reading from the <b>shared database</b> (+ this browser).' + (myEmail() ? '' : ' Sign in to filter to just your assets.');
+    loadSync();
   }
   load();
 })();

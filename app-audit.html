@@ -96,7 +96,7 @@
 (function(){
   var FEATURES = [
     { name:'Data Analysis', path:'/data-analysis', a:8.5, i:8.5, e:8.5, r:7.5, note:'Real-data-only, honest gating, decomposition reconciles to real revenue, charts fully labeled. Partial-month drop now gates on the actual calendar date (not a fragile <45% heuristic that could hide a seasonal low); cohort heatmap labels Q+0 as the acquisition quarter. Add MER/ROAS/LTV once ad+Shopify feeds land.' },
-    { name:'Created Assets', path:'/assets', a:8, i:8, e:8.5, r:7.5, note:'Now renders the real mailer (not a product image). Add live ad + LP previews and search facets.' },
+    { name:'Created Assets', path:'/assets', a:8, i:8, e:8.5, r:7.5, note:'Now renders the real mailer (not a product image). Source-sync freshness strip (spec §24b) surfaces CURRENT/STALE campaign counts from the live engine. Add live ad previews and search facets next.' },
     { name:'ChaiGPT', path:'/chaigpt', a:8, i:8, e:8.5, r:7.5, note:'Contrast fixed. Add evidence-contract regression tests; the tool-calling loop is sound.' },
     { name:'Social Media OS', path:'/social', a:7.5, i:8.5, e:8, r:7.5, note:'Real catalog hero + newline-safe scrub + code-level caption validators (strip non-PDP URLs / supplement prices, flag medical claims, budget hashtags) DONE.' },
     { name:'Landing Pages (/lp)', path:'/lp/:id', a:7.5, i:8.5, e:8.5, r:7.5, note:'Safe ids, real images, region-correct links; CORS header + ?v=b→first-LP fallback DONE. Hardcoded stars/testimonial/guarantee route through the B1 gate (flip REAL_FACTS_ONLY + populate the library).' },
