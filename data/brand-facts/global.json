@@ -1,0 +1,7 @@
+{
+  "_note": "Approved-facts library for B1 (region-scoped). Fill from an APPROVED source only. Keys are lower-cased SKU or product handle. Activate with env REAL_FACTS_ONLY=1 in Vercel once populated. The 4.9/250k/Oprah brand proof bar is a separate approved constant and is not stored here.",
+  "reviews": {},
+  "ratings": {},
+  "claims": {},
+  "prices": {}
+}

@@ -504,6 +504,28 @@ function lpHtml(entry, copy, campaignId, creativeUrl) {
   const priceLabel = price != null ? `${cur}${price}` : '';
   const faq = (L.faq || []).map((f) => `<details class="faq"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('');
   const bullets = (L.why_bullets || []).map((b) => `<li><span class="tick">✓</span>${esc(b)}</li>`).join('');
+  // B1 approved-facts gate (env REAL_FACTS_ONLY). OFF (default) => the exact
+  // current markup. ON => show ONLY approved rating / review / guarantee for this
+  // SKU, else omit the block (no fabricated stars, testimonial or promise).
+  const _bf = require('./brand-facts.js');
+  const _fk = entry.heroProduct?.sku || entry.heroProduct?.handle || entry.heroProduct?.title;
+  const _on = _bf.enabled();
+  const _appRating = _on ? _bf.approvedRating(_fk, entry.market) : null;
+  const _appReviews = _on ? _bf.approvedReviews(_fk, entry.market) : [];
+  const _appClaims = _on ? _bf.approvedClaims(_fk, entry.market) : [];
+  const trustStars = _on
+    ? (_appRating ? `<span>★★★★★ Rated ${_appRating}/5</span>` : '')
+    : '<span>★★★★★ Loved by tea drinkers</span>';
+  const proofSection = _on
+    ? ((_appReviews && _appReviews.length)
+      ? `<section class="sec proof"><div class="wrap"><blockquote>“${esc(_appReviews[0].quote || '')}”</blockquote><p class="who">- ${esc(_appReviews[0].author || 'Verified reviewer')}</p></div></section>`
+      : '')
+    : `<section class="sec proof"><div class="wrap"><blockquote>“${esc(L.proof_quote || 'There is a moment when the right cup does more than warm your hands.')}”</blockquote><p class="who">- ${esc(L.proof_author || 'A VAHDAM regular')}</p></div></section>`;
+  const guaranteeBlock = _on
+    ? ((_appClaims && _appClaims.some((c) => /guarantee|make it right|refund|return/i.test(String(c))))
+      ? `<div class="guarantee"><h3>Steep with confidence</h3><p style="margin:0;color:var(--ink-dim)">${esc(_appClaims.find((c) => /guarantee|make it right|refund|return/i.test(String(c))))}</p></div>`
+      : '')
+    : `<div class="guarantee"><h3>Steep with confidence</h3><p style="margin:0;color:var(--ink-dim)">If your first cup isn't a quiet highlight of the day, our team will make it right.</p></div>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(L.hero_headline || entry.heroProduct?.title || 'VAHDAM')}</title>
 <style>
@@ -549,7 +571,7 @@ footer{background:var(--ink);color:rgba(251,245,234,.6);text-align:center;paddin
   <a class="btn" href="${esc(shopUrl)}">${cta}</a>
 </section>
 ${creativeUrl ? `<img src="${esc(creativeUrl)}" alt="${esc(L.hero_headline || entry.heroProduct?.title || 'VAHDAM')}" style="width:100%;display:block;max-height:520px;object-fit:cover"/>` : ''}
-<div class="trust"><span>★★★★★ Loved by tea drinkers</span><span>Single-estate origin</span><span>Hand-picked &amp; fresh</span><span>Ships in days</span></div>
+<div class="trust">${trustStars}<span>Single-estate origin</span><span>Hand-picked &amp; fresh</span><span>Ships in days</span></div>
 <div class="wrap">
   <section class="sec why">
     <h2>${esc(L.why_title || 'Why this edit')}</h2>
@@ -568,18 +590,10 @@ ${creativeUrl ? `<img src="${esc(creativeUrl)}" alt="${esc(L.hero_headline || en
     </div>
   </section>
 </div>
-<section class="sec proof">
-  <div class="wrap">
-    <blockquote>“${esc(L.proof_quote || 'There is a moment when the right cup does more than warm your hands.')}”</blockquote>
-    <p class="who">- ${esc(L.proof_author || 'A VAHDAM regular')}</p>
-  </div>
-</section>
+${proofSection}
 <div class="wrap">
   ${faq ? `<section class="sec"><h2>Questions, answered</h2>${faq}</section>` : ''}
-  <div class="guarantee">
-    <h3>Steep with confidence</h3>
-    <p style="margin:0;color:var(--ink-dim)">If your first cup isn't a quiet highlight of the day, our team will make it right.</p>
-  </div>
+  ${guaranteeBlock}
 </div>
 <div class="sticky">
   <div class="info"><b>${esc(entry.heroProduct?.title || 'VAHDAM edit')}</b><span class="sub">${esc(priceLabel)} · ships fresh from origin</span></div>
