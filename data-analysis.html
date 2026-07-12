@@ -108,6 +108,13 @@
       </div>
     </div>
 
+    <div class="mkt" id="anTabs" role="tablist" aria-label="Analysis section" style="margin:14px 0 4px;flex-wrap:wrap">
+      <button data-tab="control" class="on">Control Room</button>
+      <button data-tab="acq">Acquisition · Ads + LP</button>
+      <button data-tab="ret">Retention · Mailer + LP</button>
+      <button data-tab="cohort">Cohort &amp; Calendar</button>
+    </div>
+
     <div class="kpis" id="kpis"></div>
     <div class="signals" id="signals"></div>
     <div class="grid" id="grid"></div>
@@ -448,10 +455,44 @@
     document.getElementById('kpis').innerHTML = tiles.map(function(t){return '<div class="kpi"><div class="kl">'+t.l+'</div><div class="kv">'+t.v+'</div></div>';}).join('');
   }
 
-  // ── grid of widget cards ─────────────────────────────────────────────────
+  // ── Tabs: route each widget to a tab; show honest "connect X" cards for the
+  // widgets that need data we do not have yet (ad spend, live orders, real-time).
+  var ACTIVE_TAB='control';
+  var TAB_MAP={
+    revenue:'control','kpi-orders':'control',aov:'control',weekly:'control',dow:'control',
+    ptype:'control',topprod:'control',topqty:'control',country:'control',
+    channels:'acq',acq:'acq',
+    newret:'ret',retrate:'ret',discount:'ret',
+    cohort:'cohort'
+  };
+  var UNLOCK={
+    control:[
+      {t:'Marketing Efficiency Ratio (MER)', s:'Net sales ÷ total ad spend', need:'ad-platform spend', why:'MER/ROAS need ad spend from Meta/Google/TikTok Ads — not part of the read-only Shopify/Klaviyo/WebEngage set. Connect ad-platform read access to unlock.'},
+      {t:'Intraday sales pacer + EOD forecast', s:'Today vs yesterday, projected close', need:'read-only Shopify Admin', why:'Needs a live hourly order stream. The twice-daily batch cannot power intraday pacing; connect the read-only Shopify Admin token (+ webhooks) to unlock.'}
+    ],
+    acq:[
+      {t:'Ad → Landing Page ledger', s:'Creative → LP: spend, CR, CPA, ROAS', need:'ad-platform + Shopify Admin', why:'Needs ad spend plus order-level attribution (gclid/fbclid, last-interactive-touch). Connect ad-platform read + Shopify Admin to unlock.'},
+      {t:'Channel spend split & blended ROAS', s:'Meta / Google / TikTok', need:'ad-platform spend', why:'No spend source exists in the read-only three. Connect ad-platform read access to unlock.'}
+    ],
+    ret:[
+      {t:'Retention ledger (Mailer + LP)', s:'Flow/campaign: open, CTR, POR, unsub, revenue', need:'Klaviyo / WebEngage sync', why:'Fills automatically once the read-only Klaviyo + WebEngage syncs populate Supabase (Klaviyo adapter is built; WebEngage adapter pending its key).'}
+    ],
+    cohort:[
+      {t:'LTV by acquisition channel (30 / 60 / 90d)', s:'Cohort LTV growth by first-touch source', need:'read-only Shopify Admin', why:'Needs order-level lifetime value plus channel attribution. Connect the read-only Shopify Admin token to unlock.'},
+      {t:'Automated optimization calendar', s:'Creative-rotation triggers on CTR decay', need:'ad + email performance', why:'Needs ad + email CTR history to detect content decay. Connect ad-platform read + Klaviyo to unlock.'}
+    ]
+  };
+  function unlockCard(u){
+    return '<div class="w span6"><div class="wh"><span class="wt">'+esc(u.t)+'</span>'+
+      '<span style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#c79a3a;background:rgba(171,135,67,.16);padding:3px 8px;border-radius:6px;white-space:nowrap">🔒 Connect '+esc(u.need)+'</span></div>'+
+      '<div class="ws">'+esc(u.s)+'</div>'+
+      '<div class="wbody"><div class="empty" style="padding:22px 16px;text-align:center;line-height:1.6">'+esc(u.why)+'</div></div></div>';
+  }
+
+  // ── grid of widget cards (filtered to the active tab) ────────────────────
   function renderGrid(){
     var m=d();
-    var html=WIDGETS.filter(function(w){ return widgetAvailable(w, m); }).map(function(w){
+    var html=WIDGETS.filter(function(w){ return TAB_MAP[w.id]===ACTIVE_TAB && widgetAvailable(w, m); }).map(function(w){
       var body='';
       try{ body=w.mini(m)||''; }catch(e){ body='<div class="empty">—</div>'; }
       return '<div class="w '+(w.span||'span6')+' link" data-wid="'+w.id+'">'+
@@ -459,8 +500,14 @@
         '<div class="ws">'+esc(w.sub||'')+'</div>'+
         '<div class="wbody">'+body+'</div></div>';
     }).join('');
+    html += (UNLOCK[ACTIVE_TAB]||[]).map(unlockCard).join('');
     document.getElementById('grid').innerHTML = html;
     document.querySelectorAll('.w.link').forEach(function(el){ el.addEventListener('click',function(){ openDetail(el.dataset.wid); }); });
+    // KPI row + signals board belong to the Control Room tab only.
+    var onControl = ACTIVE_TAB==='control';
+    var kp=document.getElementById('kpis'), sg=document.getElementById('signals');
+    if(kp) kp.style.display = onControl ? '' : 'none';
+    if(sg) sg.style.display = onControl ? '' : 'none';
   }
 
   // ── detail view ───────────────────────────────────────────────────────────
@@ -495,6 +542,11 @@
   function setMarket(mk){ MKT=mk; document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===mk); }); renderKPIs(); renderSignals(); renderGrid(); renderFootnote(); closeDetail(); }
 
   document.querySelectorAll('#mktToggle button').forEach(function(b){ b.addEventListener('click',function(){ setMarket(b.dataset.mkt); }); });
+  document.querySelectorAll('#anTabs button').forEach(function(b){ b.addEventListener('click',function(){
+    ACTIVE_TAB=b.dataset.tab;
+    document.querySelectorAll('#anTabs button').forEach(function(x){ x.classList.toggle('on', x===b); });
+    closeDetail(); renderGrid(); window.scrollTo(0,0);
+  }); });
 
   // init — STRICT real-data-only: render only when real data is present;
   // otherwise an honest "no live data" state (never baked/sample numbers).
