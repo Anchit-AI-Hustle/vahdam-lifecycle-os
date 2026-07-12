@@ -94,7 +94,11 @@ function usData() {
       quantity: num(summary['Quantity ordered']),
       new_customers: num(summary['New customers']),
       returning_customers: num(summary['Returning customers']),
-      returning_rate: num(summary['Returning customer rate']),
+      // Compute returning rate the SAME way as UK — returning / (new + returning)
+      // — so the two markets' tiles and thresholds are directly comparable. (The
+      // Shopify "Returning customer rate" column uses a different, smaller
+      // customer denominator, which made US and UK non-comparable.)
+      returning_rate: (num(summary['New customers']) + num(summary['Returning customers'])) ? num(summary['Returning customers']) / (num(summary['New customers']) + num(summary['Returning customers'])) : 0,
     },
     monthly: readCSVObjects('data/market/us/us_monthly_order_revenue_trend.csv').map((r) => ({
       month: r['Month'], orders: num(r['Orders']), sales: num(r['Total sales']), aov: num(r['Average order value']),
