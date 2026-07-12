@@ -62,6 +62,21 @@
     <p class="note">Capacity note: ~111k profiles at 2 sends/week is ~31,700 deliveries/day, so days reduce or delay when eligibility is short (a cohort is never forced to size). The percentages above are planning assumptions, replaced with validated medians once live ESP data is wired.</p>
   </section>
 
+  <section class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between">
+      <div style="flex:1;min-width:240px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="engdot" style="width:9px;height:9px;border-radius:50%;background:#8fe7b9;display:inline-block"></span>
+          <b style="color:#fff">Agentic engine</b>
+          <span id="engstatus" class="note">idle</span>
+        </div>
+        <div id="engbar" style="height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:8px;display:none"><i style="display:block;height:100%;width:38%;background:linear-gradient(90deg,#1d6b45,#8fe7b9)"></i></div>
+        <div id="engmsg" class="note" style="margin-top:6px">Plan a fresh calendar and write its content for the region selected below, without leaving this screen. Heavy generation runs in the background, so the filters stay responsive.</div>
+      </div>
+      <button id="syncbtn" class="chip" style="background:var(--vahdam-green);color:#fff;border-color:var(--gold);padding:9px 18px;font-size:13px" onclick="runAgenticSync()">Run Agentic Sync</button>
+    </div>
+  </section>
+
   <section class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
       <h2 style="margin:0">Segmented calendar</h2>
@@ -101,7 +116,10 @@
 
 <script>
 (function(){
-  var API='/api/brain'; var PLAN=[];
+  // Plan rows come from the calendar router (smart-brain-plan lives on /api/calendar,
+  // NOT /api/brain — the latter returns "Unknown action", which left this table
+  // empty). The agentic sync below fires /api/brain?action=agentic-run separately.
+  var API='/api/calendar'; var PLAN=[];
   var SELECTED_MKT=new Set(['US']); var SELECTED_DAYS=90; var SELECTED_CAT=new Set(['tea','coffee','supplement']);
   function $(id){return document.getElementById(id);}
   function mktKey(m){var s=String(m||'').toLowerCase();if(s.indexOf('uk')===0)return 'UK';if(s.indexOf('us')===0)return 'US';if(/^in|india/.test(s))return 'India';if(/global|eu|au|me|row|rest/.test(s))return 'Global';return (m||'').toUpperCase();}
@@ -117,7 +135,7 @@
   function render(){
     var shown=PLAN.filter(slotVisible);
     var cc=$('cnt'); if(cc) cc.textContent='Showing '+shown.length+' of '+PLAN.length+' sends'+(SELECTED_DAYS==='all'?'':' · next '+SELECTED_DAYS+' days');
-    if(!PLAN.length){ $('rows').innerHTML='<tr><td colspan="6" class="note">No plan yet. Open the Automated Calendar and run a daily sync.</td></tr>'; return; }
+    if(!PLAN.length){ $('rows').innerHTML='<tr><td colspan="6" class="note">No plan yet. Click <b>Run Agentic Sync</b> above to build one (or open the Automated Calendar).</td></tr>'; return; }
     if(!shown.length){ $('rows').innerHTML='<tr><td colspan="6" class="note">No sends for the selected region + duration + catalog. Widen a filter.</td></tr>'; return; }
     $('rows').innerHTML=shown.map(function(e){
       var reach=e.reach&&e.reach.planned_recipients?Number(e.reach.planned_recipients).toLocaleString():'—';
@@ -136,6 +154,30 @@
       PLAN=(j&&j.entries)||[]; render();
     }).catch(function(e){ $('rows').innerHTML='<tr><td colspan="6" class="note">Could not load the plan: '+esc(e.message)+'</td></tr>'; });
   }
+  // Region for the agentic run comes from the region chips (single source of truth).
+  function agenticMarket(){ var m=Array.from(SELECTED_MKT)[0]||'US'; return ({US:'US',UK:'UK',Global:'GLOBAL',India:'IN'})[m]||'US'; }
+  // Command-and-control: trigger the full agentic flow (plan the calendar + write
+  // content) right from the Playbook. The heavy run is async on /api/brain; when it
+  // returns we re-pull the plan table (the static-page equivalent of router.refresh).
+  window.runAgenticSync=function(){
+    var btn=$('syncbtn'), st=$('engstatus'), dot=$('engdot'), bar=$('engbar'), msg=$('engmsg');
+    if(btn){ btn.disabled=true; btn.textContent='Running…'; }
+    if(dot) dot.style.background='#e6c979';
+    if(st) st.textContent='running · '+agenticMarket();
+    if(bar) bar.style.display='';
+    if(msg) msg.textContent='Inspecting data, calculating funnel math, planning the calendar and writing content…';
+    fetch('/api/brain?action=agentic-run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({market:agenticMarket(),tier:'maxpower',withCreatives:false})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!d.ok) throw new Error(d.error||'agentic flow failed');
+        var stages=(d.stages||[]).filter(function(s){return s.ok;}).length;
+        if(st) st.textContent='synced'; if(dot) dot.style.background='#8fe7b9';
+        if(msg) msg.textContent='Flow complete — '+stages+' stages ran. Creative assets (mailers, ads, landing pages) prebuild in the background; refreshing the plan…';
+        load();
+      })
+      .catch(function(e){ if(st) st.textContent='error'; if(dot) dot.style.background='#e89a9a'; if(msg) msg.textContent='Sync failed: '+esc(e.message); })
+      .finally(function(){ if(btn){ btn.disabled=false; btn.textContent='Run Agentic Sync'; } if(bar) bar.style.display='none'; });
+  };
   document.addEventListener('DOMContentLoaded', load);
 })();
 </script>
