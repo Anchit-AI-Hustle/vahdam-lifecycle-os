@@ -378,6 +378,11 @@
 (function () {
   const $ = (s) => document.querySelector(s);
   const esc = (s) => (s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // Clamp ad copy to the platform character limit at save (covers both manually
+  // typed and AI-autofilled copy), trimming to a word boundary so the platform
+  // never rejects an over-length headline/description at upload. Google H≤30 /
+  // D≤90, Meta headline≤40 / primary≤125, TikTok caption≤100.
+  const clampLen = (s, n) => { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n).replace(/\s+\S*$/, '').trim() : s; };
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const lines = (v) => (v || '').split('\n').map((s) => s.trim()).filter(Boolean);
   const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); };
@@ -1013,7 +1018,8 @@
   $('#g-save').onclick = () => {
     const name = $('#g-name').value.trim(); if (!name) { toast('Enter a campaign name'); return; }
     const rec = { id: uid(), name, type: $('#g-type').value, budget: $('#g-budget').value, market: $('#g-market').value,
-      url: $('#g-url').value.trim(), keywords: lines($('#g-keywords').value.split(',').join('\n')), headlines: lines($('#g-headlines').value), descriptions: lines($('#g-desc').value) };
+      url: $('#g-url').value.trim(), keywords: lines($('#g-keywords').value.split(',').join('\n')),
+      headlines: lines($('#g-headlines').value).map((h) => clampLen(h, 30)), descriptions: lines($('#g-desc').value).map((d) => clampLen(d, 90)) };
     attachCreative('g', rec); store.google.unshift(rec);
     save(); renderGoogle(); persistAd('google', rec); ['g-name', 'g-budget', 'g-url', 'g-keywords', 'g-headlines', 'g-desc'].forEach((id) => $('#' + id).value = ''); toast('Campaign saved');
   };
@@ -1035,7 +1041,7 @@
   $('#m-save').onclick = () => {
     const name = $('#m-name').value.trim(); if (!name) { toast('Enter a campaign name'); return; }
     const rec = { id: uid(), name, obj: $('#m-obj').value, budget: $('#m-budget').value, market: $('#m-market').value,
-      place: $('#m-place').value, aud: $('#m-aud').value.trim(), primary: $('#m-primary').value.trim(), headline: $('#m-headline').value.trim() };
+      place: $('#m-place').value, aud: $('#m-aud').value.trim(), primary: clampLen($('#m-primary').value.trim(), 125), headline: clampLen($('#m-headline').value.trim(), 40) };
     attachCreative('m', rec); store.meta.unshift(rec);
     save(); renderMeta(); persistAd('meta', rec); ['m-name', 'm-budget', 'm-aud', 'm-primary', 'm-headline'].forEach((id) => $('#' + id).value = ''); toast('Campaign saved');
   };
@@ -1056,7 +1062,7 @@
   $('#t-save').onclick = () => {
     const name = $('#t-name').value.trim(); if (!name) { toast('Enter a campaign name'); return; }
     const rec = { id: uid(), name, obj: $('#t-obj').value, budget: $('#t-budget').value, market: $('#t-market').value,
-      place: $('#t-place').value, aud: $('#t-aud').value.trim(), hook: $('#t-hook').value.trim(), caption: $('#t-caption').value.trim(),
+      place: $('#t-place').value, aud: $('#t-aud').value.trim(), hook: clampLen($('#t-hook').value.trim(), 100), caption: clampLen($('#t-caption').value.trim(), 100),
       creator: $('#t-creator').value.trim(), hashtags: $('#t-hash').value.trim() };
     attachCreative('t', rec); store.tiktok.unshift(rec);
     save(); renderTikTok(); persistAd('tiktok', rec); ['t-name','t-budget','t-aud','t-hook','t-caption','t-creator','t-hash'].forEach((id) => $('#' + id).value = ''); toast('Campaign saved');
