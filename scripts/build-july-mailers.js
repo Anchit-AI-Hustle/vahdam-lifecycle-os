@@ -37,6 +37,16 @@ const path = require('path');
 const { helpers } = require('../api/_shared/calendar-trigger.js');
 const SM = require('../api/_shared/scenario-model.js');
 const CF = require('../api/_shared/copy-frameworks.js');
+const { renderFlagship } = require('./lib/flagship-mailer.js');
+
+// Real tasting notes (US catalog) → the flagship hero's italic tasting line.
+const TASTING = {
+  masala_chai_100ct: 'Spicy, Bold & Aromatic', masala_chai_12oz: 'Spicy, Bold & Aromatic',
+  masala_chai_30ct: 'Spicy, Bold & Aromatic', turmeric_ginger_100ct: 'Spicy, Earthy & Warm',
+  daily_assam_12oz: 'Bold, Malty & Strong', himalayan_green_12oz: 'Earthy, Smooth & Refreshing',
+  english_breakfast_12oz: 'Rich, Malty & Robust', daily_darjeeling_2f_12oz: 'Crisp, Mellow & Toasty',
+  assorted_sampler_10: '20 single-estate flavors in one box',
+};
 
 const ROOT = path.join(__dirname, '..');
 const MARKET = 'US';
@@ -356,7 +366,9 @@ function clean(copy, where) {
   return c;
 }
 
-// Build the four variants for a slot — EXACT structure of lifecycle-mailer-build.js.
+// Build the four variants for a slot — the automated-calendar 4-variant STRUCTURE
+// (2 Text + 2 Text+Visual, framework A/B) rendered in the flagship design system.
+// Copy still passes through the shared sanitizeBrand/assertNoBanned gates.
 function buildVariants(slot, assets) {
   const seed = `${slot.date}_${slot.segment}`;
   const fwA = CF.pickCopyFrameworkForCalendar({ content_type: 'lifecycle', segment: slot.segment, seed });
@@ -367,19 +379,25 @@ function buildVariants(slot, assets) {
   const SB = clean(slot.copyB, `${seed}:b`);
   const url = ctaUrl(slot);
   const hero = heroFor(assets, slot.sku);
+  const prod = P[slot.sku] || { name: slot.sku };
+  const logoUrl = (assets.logo && assets.logo.status === 'verified') ? assets.logo.url + '&width=310' : undefined;
+  const tasting = SM.sanitizeBrand(TASTING[slot.sku] || '');
 
-  const render = (S, style, opts = {}) => helpers.renderTextVariant({
-    style, market: MARKET, subject: S.subject, preheader: S.preview,
-    hero_headline: S.headline, hero_subline: S.subline,
-    body_blocks: S.blocks, cta_text: S.cta, cta_url: url,
-    hero_product: P[slot.sku] ? P[slot.sku].name : slot.sku, ...opts,
+  // colorway per variant (matches the reference's Forest/Midnight/Daylight system);
+  // withImage true only for the Text + Visual pair (and only if a verified hero exists).
+  const flagship = (S, { colorway, withImage }) => renderFlagship({
+    colorway, withImage: withImage && !!hero, market: MARKET,
+    subject: S.subject, preheader: S.preview,
+    eyebrow: slot.play, productName: prod.name, tastingLine: tasting, price: prod.price,
+    ctaText: S.cta, ctaUrl: url, heroImageUrl: hero, logoUrl,
+    headline: S.headline, subline: S.subline, bodyBlocks: S.blocks,
   });
 
   return [
-    { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,          framework: fwA.key, copy: SA, image: null, html: render(SA, 'pure') },
-    { key: 'text_b',   type: 'Text',          label: `Text · ${fwB.name}`,          framework: fwB.key, copy: SB, image: null, html: render(SB, 'editorial') },
-    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, copy: SA, image: hero, html: render(SA, 'visual', { hero_image_url: hero }) },
-    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, copy: SB, image: hero, html: render(SB, 'visual', { hero_image_url: hero }) },
+    { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,          framework: fwA.key, copy: SA, image: null, html: flagship(SA, { colorway: 'forest',   withImage: false }) },
+    { key: 'text_b',   type: 'Text',          label: `Text · ${fwB.name}`,          framework: fwB.key, copy: SB, image: null, html: flagship(SB, { colorway: 'midnight', withImage: false }) },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, copy: SA, image: hero, html: flagship(SA, { colorway: 'forest',   withImage: true }) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, copy: SB, image: hero, html: flagship(SB, { colorway: 'daylight', withImage: true }) },
   ];
 }
 
