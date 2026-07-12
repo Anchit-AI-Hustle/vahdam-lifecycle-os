@@ -36,6 +36,14 @@
   th{font-size:10px;color:#789;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 8px;border-bottom:1px solid rgba(171,135,67,.25)}
   td{padding:9px 8px;border-bottom:1px solid rgba(171,135,67,.1);vertical-align:top}
   tr:hover td{background:rgba(171,135,67,.05)}
+  /* Calendar table: keep readable on narrow screens by scrolling horizontally
+     (the .tblscroll wrapper is overflow-x:auto) instead of crushing columns to
+     one character per line. */
+  .tblscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #plantable{min-width:880px}
+  #plantable th,#plantable td{white-space:nowrap}
+  #plantable td.why,#plantable th.why{white-space:normal;min-width:220px;max-width:320px}
+  #plantable td.cohort{white-space:normal;max-width:160px}
   .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#d9c18f;white-space:nowrap}
   .st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
   .st.tentative{background:rgba(171,135,67,.16);color:#d9c18f}.st.approved{background:rgba(29,107,69,.3);color:#8fe7b9}.st.final{background:#1d6b45;color:#eafff3}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
@@ -99,9 +107,9 @@
         <button class="mkchip" data-mkt="India" onclick="toggleMkt('India')">India</button>
         <span id="mktcount" style="color:#789;font-size:12px;margin-left:6px"></span>
       </div>
-      <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>Date</th><th>Market</th><th>Cohort</th><th>Objective · Hero</th><th>Why (analysis)</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
+      <div class="tblscroll">
+      <table id="plantable">
+        <thead><tr><th>Date</th><th>Market</th><th class="cohort">Cohort</th><th>Objective · Hero</th><th class="why">Why (analysis)</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody id="plan"><tr><td colspan="9" style="color:#789">Loading plan…</td></tr></tbody>
       </table>
       </div>
@@ -240,9 +248,9 @@ function renderPlan(){
     return `<tr class="planrow" id="planrow-${i}">
     <td>${esc(e.date)}${e.mailer_total > 1 ? `<br><span class="pill" style="background:#2a2411;color:#e6c979;font-size:10px">MAILER ${e.mailer_index}/${e.mailer_total}</span>` : ''}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
-    <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}</td>
+    <td class="cohort">${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}</td>
     <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
-    <td style="max-width:260px"><span style="font-size:12px;color:#d8cdb4;line-height:1.4">${esc(why)}</span></td>
+    <td class="why"><span style="font-size:12px;color:#d8cdb4;line-height:1.4">${esc(why)}</span></td>
     <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
     <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#9fb3a8;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
     <td>${status}</td>
