@@ -75,6 +75,8 @@
   .st.tentative{background:rgba(171,135,67,.16);color:#d9c18f}.st.approved{background:rgba(29,107,69,.3);color:#8fe7b9}.st.final{background:#1d6b45;color:#eafff3}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
   .feed{max-height:300px;overflow:auto}.feed p{margin:6px 0;font-size:13px;border-left:2px solid rgba(171,135,67,.35);padding-left:10px}
   .conf{font-variant-numeric:tabular-nums}
+  .sbspin{display:inline-block;width:11px;height:11px;border:2px solid rgba(171,135,67,.35);border-top-color:#e6c979;border-radius:50%;animation:sbspin .7s linear infinite;vertical-align:-1px}
+  @keyframes sbspin{to{transform:rotate(360deg)}}
   /* Funnel preview */
   #preview{margin:0 0 12px}
   .pvbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
@@ -135,6 +137,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <h2 style="margin:0">Rolling calendar (next 90 days)</h2>
         <button id="generateAll" class="btn sm ok" onclick="generateAll()" style="display:none" title="Generate the final best version of every asset (mailer, ads, landing page) for the sends currently shown (respects the region filter).">⚙ Generate all</button>
+        <button id="downloadAll" class="btn sm secondary" onclick="sbZipAll()" title="Download every ALREADY-generated asset in view as a nested ZIP — {date}_{cohort}/{date}/mailer + landing + ad files. Retrieval only; never regenerates.">⬇ Download all (.zip)</button>
       </div>
       <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 8px">
         <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
@@ -275,6 +278,15 @@ window.toggleCat = function(cat){
 
 // Combined visibility used by the table, counts and Generate all.
 function slotVisible(e){ return mktVisible(e) && durVisible(e) && catVisible(e); }
+// Revenue-feasibility badge for a slot (spec §24a). Colours: green feasible,
+// amber needs-reach, red not-feasible, blue data-required. Never blank when a
+// feasibility verdict exists, so tiny cohorts are never shown as viable.
+function feasBadge(f){
+  if(!f || !f.status) return '';
+  const m = { 'FEASIBLE':['#12362a','#8fe7b9'], 'REQUIRES MORE ELIGIBLE REACH':['#3a2f12','#e6c979'], 'NOT FEASIBLE':['#3a1c1c','#e89a9a'], 'DATA REQUIRED':['#1b2b33','#9fd0e6'] }[f.status] || ['#22323a','#9fb3a8'];
+  const rev = (f.projected_revenue!=null) ? ` · ~$${f.projected_revenue}` : '';
+  return `<br><span class="pill" style="background:${m[0]};color:${m[1]};font-size:10px" title="${esc(f.note||'')}">${esc(f.status)}${rev}</span>`;
+}
 window.setDur = function(d){
   SELECTED_DAYS = (d==='all') ? 'all' : Number(d);
   document.querySelectorAll('#durfilter .mkchip').forEach(b=>{
@@ -345,8 +357,8 @@ function renderPlan(){
     return `<tr class="planrow" id="planrow-${i}">
     <td>${esc(e.date)}${e.mailer_total > 1 ? `<br><span class="pill" style="background:#2a2411;color:#e6c979;font-size:10px">MAILER ${e.mailer_index}/${e.mailer_total}</span>` : ''}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
-    <td class="cohort">${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}</td>
-    <td class="obj"><div class="clamp2" style="font-weight:600;color:#e8ede9">${esc(e.objective)}</div><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
+    <td class="cohort">${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}${feasBadge(e.feasibility)}</td>
+    <td class="obj"><div class="clamp2" style="font-weight:600;color:#e8ede9">${esc(e.objective)}</div><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}${(e.supportingProducts&&e.supportingProducts.length)?` <span style="color:#7a8a80">· + ${esc(e.supportingProducts.map(p=>p.title).filter(Boolean).join(', '))}</span>`:''}</span></td>
     <td class="why"><div class="clamp2" style="font-size:12px;color:#a9b8ad;line-height:1.45" title="${esc(why)}">${esc(why)}</div></td>
     <td class="chan">${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
     <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#9fb3a8;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
@@ -634,6 +646,62 @@ window.sbDownloadAll = function(){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
 };
+
+// ── Dependency-free ZIP (STORE method) so the page stays self-contained (no CDN
+//    JSZip). Produces a real .zip Blob with folders via "/" in the entry name. ──
+function _crc32(buf){
+  if(!_crc32.T){ const T=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); T[n]=c>>>0; } _crc32.T=T; }
+  const T=_crc32.T; let crc = 0 ^ (-1);
+  for(let i=0;i<buf.length;i++) crc = T[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ (-1)) >>> 0;
+}
+function zipStore(files){
+  const enc = new TextEncoder();
+  const u16 = n => [n&255,(n>>8)&255];
+  const u32 = n => [n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];
+  const parts = [], central = []; let offset = 0;
+  for(const f of files){
+    const nameB = enc.encode(f.name), dataB = enc.encode(f.data==null?'':String(f.data)), crc = _crc32(dataB);
+    const local = new Uint8Array([].concat(u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(dataB.length),u32(dataB.length),u16(nameB.length),u16(0)));
+    parts.push(local, nameB, dataB);
+    central.push({ crc, size:dataB.length, nameB, offset });
+    offset += local.length + nameB.length + dataB.length;
+  }
+  const cdStart = offset; const cd = [];
+  for(const c of central){
+    const h = new Uint8Array([].concat(u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(c.crc),u32(c.size),u32(c.size),u16(c.nameB.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(c.offset)));
+    cd.push(h, c.nameB); offset += h.length + c.nameB.length;
+  }
+  const end = new Uint8Array([].concat(u32(0x06054b50),u16(0),u16(0),u16(central.length),u16(central.length),u32(offset-cdStart),u32(cdStart),u16(0)));
+  return new Blob([...parts, ...cd, end], { type:'application/zip' });
+}
+// Download ALL generated (cached) slots in view as a nested ZIP:
+//   {date}_{cohort}/{date}/mailer_*.html · landing_*.html · ad_*.json · _slot.json
+// Retrieval only — never regenerates (uses PREVIEW_CACHE).
+window.sbZipAll = function(){
+  const slug = s => String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);
+  const gen = PLAN.map((e)=>e).filter(e => slotVisible(e) && PREVIEW_CACHE[e.id]);
+  if(!gen.length){ alert('No generated assets in view yet. Run "Generate all" (or open/Download a row) first — Download all only zips already-generated slots, it never regenerates.'); return; }
+  const files = [];
+  for(const e of gen){
+    const p = PREVIEW_CACHE[e.id] || {}; const c = p.campaign || {};
+    const base = `${e.date}_${slug(e.cohort && e.cohort.name)}/${e.date}`;
+    const emailVars = p.email_variants || (c.assets && c.assets.email && c.assets.email.variants) || [];
+    const emailHtml = p.email_html || (c.assets && c.assets.email && c.assets.email.html) || '';
+    if(emailVars.length){ emailVars.forEach((v,vi)=>{ if(v && v.html) files.push({ name:`${base}/mailer_${slug(v.label)||('v'+(vi+1))}.html`, data:v.html }); }); }
+    else if(emailHtml){ files.push({ name:`${base}/mailer.html`, data:emailHtml }); }
+    const lps = (c.assets && c.assets.landing_pages) || (p.landing_html ? [{ html:p.landing_html }] : []);
+    lps.forEach((lp,li)=>{ if(lp && lp.html) files.push({ name:`${base}/landing_${slug(lp.variant)||('v'+(li+1))}.html`, data:lp.html }); });
+    const ads = p.ads || (c.assets && c.assets.ads) || [];
+    ads.forEach((ad,ai)=>{ files.push({ name:`${base}/ad_${slug(ad.platform)||('ad'+(ai+1))}.json`, data:JSON.stringify(ad,null,2) }); });
+    files.push({ name:`${base}/_slot.json`, data:JSON.stringify({ date:e.date, market:e.market, cohort:e.cohort, objective:e.objective, hero:e.heroProduct, bundle:e.supportingProducts, offer:e.offer, reach:e.reach, feasibility:e.feasibility, confidence:e.confidence }, null, 2) });
+  }
+  const blob = zipStore(files);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `vahdam-brain-assets-${new Date().toISOString().slice(0,10)}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
+};
 window.sbCopy = function(idx, btn){
   const item = (window.__SB_EXPORTS||[])[idx]; if(!item) return;
   const done = (ok)=>{ if(btn){ const t=btn.textContent; btn.textContent = ok?'✓ Copied':'Copy failed'; setTimeout(()=>{btn.textContent=t;},1500); } };
@@ -776,22 +844,45 @@ async function downloadEntry(i){
 // (respects the region filter). Sequential — each build spins up an LLM copy +
 // asset run on a serverless function, so we avoid firing 90 at once. Progress
 // and a per-slot pass/fail tally stream into #detail; failures are collected.
+// Non-blocking confirm rendered into #detail (native confirm() blocks the main
+// thread — that is the INP freeze on this button). Resolves true/false.
+function sbConfirm(msg){
+  return new Promise(resolve=>{
+    const det = $('detail'); if(!det){ resolve(true); return; }
+    det.innerHTML = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>${esc(msg)}</span>`+
+      `<button class="btn sm ok" id="sbcy">Generate</button><button class="btn sm secondary" id="sbcn">Cancel</button></div>`;
+    $('sbcy').onclick = ()=>resolve(true);
+    $('sbcn').onclick = ()=>{ resolve(false); det.textContent=''; };
+  });
+}
+// Sequential, non-blocking generation with per-row progress. Each slot builds on
+// a serverless LLM run, so we go one-by-one (never fire N at once) and yield to
+// the event loop each step so the UI paints the spinner→ready transition. Results
+// are cached in PREVIEW_CACHE, so View/Download NEVER regenerate — they retrieve.
 async function generateAll(){
   const targets = PLAN.map((e,i)=>({e,i})).filter(({e})=> !(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id)) && slotVisible(e));
   if(!targets.length){ return; }
-  if(!confirm(`Generate the final assets for ${targets.length} send(s) currently shown?\nEach one builds its mailer, ads, and landing page. This can take a while.`)) return;
+  const go = await sbConfirm(`Generate the final assets for ${targets.length} send(s) shown? Each builds a mailer + ads + landing page, one at a time.`);
+  if(!go) return;
   const aa = $('generateAll'); if(aa){ aa.disabled = true; }
   const det = $('detail');
+  window.__SB_GEN_CANCEL = false;
   let ok = 0; const fails = [];
   for(let n=0; n<targets.length; n++){
+    if(window.__SB_GEN_CANCEL) break;
     const { i, e } = targets[n];
-    if(det) det.textContent = `Generating ${n+1} of ${targets.length}: ${e.date} ${e.market} (${e.objective})…  ✓${ok}${fails.length?`  ✕${fails.length}`:''}`;
-    try{ await generateEntry(i, { silent: true }); ok++; }
-    catch(err){ fails.push(`${e.date} ${e.market}: ${err.message}`); }
+    const dl = $('dlbtn-'+i);
+    if(dl){ dl.disabled = true; dl.innerHTML = '<span class="sbspin"></span> building'; }
+    if(det) det.innerHTML = `<span class="sbspin"></span> Generating <b>${n+1}</b> of <b>${targets.length}</b>: ${esc(e.date)} ${esc(e.market)} — ${esc(e.objective)} &nbsp; ✓${ok}${fails.length?` ✕${fails.length}`:''} `+
+      `<button class="btn sm secondary" onclick="window.__SB_GEN_CANCEL=true">Stop</button>`;
+    try{ await generateEntry(i, { silent: true }); ok++; if(dl){ dl.innerHTML = '✓ ready'; } }
+    catch(err){ fails.push(`${e.date} ${e.market}: ${err.message}`); if(dl){ dl.innerHTML = '✕ failed'; } }
+    finally{ if(dl){ dl.disabled = false; } }
+    await new Promise(r=>setTimeout(r, 0));   // yield → the UI repaints each step
   }
   if(aa){ aa.disabled = false; }
   renderPlan();
-  if(det) det.textContent = `Generate all done — ✓ ${ok} generated${fails.length?`, ✕ ${fails.length} failed:\n`+fails.join('\n'):''}.`;
+  if(det) det.textContent = `Generate all done — ✓ ${ok} generated${fails.length?`, ✕ ${fails.length} failed`:''}. Assets are cached; View and Download retrieve them (no regeneration).`;
 }
 window.generateEntry = generateEntry; window.downloadEntry = downloadEntry; window.generateAll = generateAll;
 
