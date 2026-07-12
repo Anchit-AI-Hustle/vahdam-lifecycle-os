@@ -426,7 +426,16 @@
   function revenueDecomp(m){
     var mm=fullMonths(m.monthly||[]); if(mm.length<2) return null;
     var t=mm[mm.length-1], p=mm[mm.length-2];
-    return { from:p, to:t, dRev:(t.orders*t.aov)-(p.orders*p.aov), ordersEffect:(t.orders-p.orders)*p.aov, aovEffect:(t.aov-p.aov)*t.orders };
+    // Base the split on REAL total sales, not orders*AOV. In the source data the
+    // AOV column is NOT exactly sales/orders (it runs ~6-7% below), so orders*AOV
+    // diverges from the actual revenue move by ~20% and contradicts the revenue
+    // chart on this same page. Use an effective AOV = sales/orders so the two
+    // effects sum EXACTLY to the real sales change (t.sales - p.sales).
+    var dRev = (t.sales||0) - (p.sales||0);
+    var aovPrev = p.orders ? (p.sales/p.orders) : 0;
+    var ordersEffect = ((t.orders||0) - (p.orders||0)) * aovPrev;
+    var aovEffect = dRev - ordersEffect; // residual = basket-size effect; guarantees reconciliation
+    return { from:p, to:t, dRev:dRev, ordersEffect:ordersEffect, aovEffect:aovEffect };
   }
   function renderSignals(){
     var m=d(); var sig=computeSignals(m), dec=revenueDecomp(m);
@@ -436,7 +445,7 @@
       '<div class="sig-v">'+esc(s.value)+'</div><div class="sig-d">'+esc(s.detail)+'</div></div>'; }).join('');
     var dh='';
     if(dec){ var dir=dec.dRev>=0?'up':'down';
-      dh='<div class="sig-decomp"><b>Revenue driver split</b> ('+mLabel(dec.from.month)+' to '+mLabel(dec.to.month)+', Orders × AOV): <b class="'+dir+'">'+(dec.dRev>=0?'+':'')+moneyFull(dec.dRev)+'</b> total, of which <b class="'+(dec.ordersEffect>=0?'up':'down')+'">'+(dec.ordersEffect>=0?'+':'')+moneyFull(dec.ordersEffect)+'</b> is from order volume and <b class="'+(dec.aovEffect>=0?'up':'down')+'">'+(dec.aovEffect>=0?'+':'')+moneyFull(dec.aovEffect)+'</b> is from AOV. This is where the month moved, and which lever moved it.</div>'; }
+      dh='<div class="sig-decomp"><b>Revenue driver split</b> ('+mLabel(dec.from.month)+' to '+mLabel(dec.to.month)+', order volume × basket size): <b class="'+dir+'">'+(dec.dRev>=0?'+':'')+moneyFull(dec.dRev)+'</b> total, of which <b class="'+(dec.ordersEffect>=0?'up':'down')+'">'+(dec.ordersEffect>=0?'+':'')+moneyFull(dec.ordersEffect)+'</b> is from order volume and <b class="'+(dec.aovEffect>=0?'up':'down')+'">'+(dec.aovEffect>=0?'+':'')+moneyFull(dec.aovEffect)+'</b> is from AOV. This is where the month moved, and which lever moved it.</div>'; }
     document.getElementById('signals').innerHTML='<div class="sig-head">Signals · what needs attention<span class="sig-sub">auto-computed from the live '+(MKT==='US'?'US':'UK')+' data</span></div><div class="sig-grid">'+cards+'</div>'+dh;
   }
 

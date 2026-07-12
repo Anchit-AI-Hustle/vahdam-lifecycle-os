@@ -654,10 +654,13 @@ function renderVariant(entry, copy, style, img) {
   const heroGallery = (() => { try { return catalogImage.imagesFor(entry.heroProduct || entry, entry.market, { width: 900 }); } catch (_) { return []; } })();
   const heroImgUrl = img || heroGallery[0] || catalogImage.imageFor(entry, entry.market, { width: 900 }) || undefined;
   // The hero BAND already shows heroImgUrl; the hero product's GRID card must show
-  // a DIFFERENT real photo of the same product (next gallery image) so the same
-  // shot never appears twice in one mailer. Only when the product has a single
-  // catalog photo do the two share it.
-  const heroCardImg = heroGallery.find((u) => u !== heroImgUrl) || heroGallery[0] || heroImgUrl;
+  // a DIFFERENT real photo of the same product so the same shot never appears twice
+  // in one mailer. NOTE: heroImgUrl is resolved at width 1600 while heroGallery is
+  // at 900 and hd() bakes ?width= into the URL, so a raw string compare never
+  // matches (it would always return gallery[0] = the same photo). Compare on the
+  // width/version-stripped BASE url instead. Only a single-photo product shares.
+  const baseKey = (u) => String(u || '').replace(/[?&](width|v)=[^&]*/g, '');
+  const heroCardImg = heroGallery.find((u) => baseKey(u) !== baseKey(heroImgUrl)) || heroGallery[1] || heroGallery[0] || heroImgUrl;
   // Grid = hero + any bundled supporting products, each with its OWN real HD photo
   // and real catalog content (subtitle / tasting notes), linking to its own real
   // product page (never a fabricated handle).
