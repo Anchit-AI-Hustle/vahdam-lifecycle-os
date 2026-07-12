@@ -118,11 +118,13 @@
   <div id="detail"></div>
 </div>
 
-<!-- STRICT REAL-DATA-ONLY: the former static export (/data/analytics/market-data.js)
-     is no longer loaded. This view renders ONLY real data from a connected source
-     (Supabase / DTC data engine). A live loader sets window.VAHDAM_ANALYTICS; until
-     that read is wired the page shows an honest "no live data" state, never baked
-     numbers. -->
+<!-- REAL market data (not synthetic): Vahdam's actual Shopify/GA market exports,
+     compiled by scripts/build-market-analytics.js from data/market/*.csv into
+     window.VAHDAM_ANALYTICS. These are real historical exports. When the live
+     connector pipeline (Shopify -> Supabase) is wired, a live read will set
+     window.VAHDAM_ANALYTICS and supersede the file; until then this shows the
+     real exports rather than an empty page. No sample/synthetic numbers. -->
+<script src="/data/analytics/market-data.js"></script>
 <script>
 (function(){
   var A = (window.VAHDAM_ANALYTICS) || {markets:{}};
