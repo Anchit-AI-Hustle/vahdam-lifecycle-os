@@ -29,6 +29,13 @@ test('read verbs to guarded platforms are allowed', () => {
   }
 });
 
+test('POST is always blocked — there is no read-only POST exception', () => {
+  // Even Klaviyo reporting endpoints (POST-only in their API) are denied here:
+  // read is GET, always.
+  expect(() => guard.assertReadOnly('https://a.klaviyo.com/api/campaign-values-reports/', 'POST')).toThrow(/READ-ONLY VIOLATION/);
+  expect(() => guard.assertReadOnly('https://a.klaviyo.com/api/profiles/', 'POST')).toThrow(/READ-ONLY VIOLATION/);
+});
+
 test('non-guarded hosts are unaffected (e.g. our own Supabase sink)', () => {
   expect(() => guard.assertReadOnly('https://xyz.supabase.co/rest/v1/klaviyo_segments', 'POST')).not.toThrow();
   expect(() => guard.assertReadOnly('https://api.openai.com/v1/chat/completions', 'POST')).not.toThrow();

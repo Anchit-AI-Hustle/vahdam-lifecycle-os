@@ -25,8 +25,10 @@ const READ_ONLY_PLATFORMS = [
   { id: 'webengage', hosts: ['webengage.com'],               allowEnv: 'WEBENGAGE_ALLOW_WRITES' },
 ];
 
-// GET/HEAD/OPTIONS are pure reads. Everything else mutates and is denied.
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+// READ IS GET, ALWAYS. Only GET (plus HEAD, a headerless GET) is permitted.
+// Every other verb — including POST — mutates or is treated as a write and is
+// denied. There is no "read-only POST" exception.
+const SAFE_METHODS = new Set(['GET', 'HEAD']);
 
 function platformFor(url) {
   let host;
