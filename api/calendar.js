@@ -304,6 +304,7 @@ module.exports = async function handler(req, res) {
   if (action.startsWith('smart-brain-')) return smartBrain(req, res, action.replace('smart-brain-', ''));
   if (action === 'lp') {
     try {
+      res.setHeader('Access-Control-Allow-Origin', '*');
       const id = String(req.query?.id || '');
       const html = await plan.landingPageHtml(id, {}, req.query?.v || null);
       if (!html) { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.status(404).send('<!doctype html><title>Not found</title><p style="font-family:Arial;padding:40px">Landing page not found. It may not have been approved/generated yet.</p>'); }

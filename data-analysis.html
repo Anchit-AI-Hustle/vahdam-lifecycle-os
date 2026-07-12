@@ -399,7 +399,10 @@
   }
   function cohortHeat(cohorts, cols){
     if(!cohorts||!cohorts.length) return '<div class="empty">No cohort data.</div>';
-    var head='<tr><th>Cohort (quarter)</th><th>Base</th>'; for(var c=0;c<cols;c++) head+='<th>Q'+c+'</th>'; head+='</tr>';
+    // Columns are quarters SINCE acquisition, not calendar quarters. Q+0 is the
+    // acquisition quarter itself (=100% by definition), so it is labelled to
+    // make clear it is not a repeat-rate cell.
+    var head='<tr><th>Cohort (quarter)</th><th>Base</th>'; for(var c=0;c<cols;c++) head+='<th>'+(c===0?'Q+0 (acq)':'Q+'+c)+'</th>'; head+='</tr>';
     var body=cohorts.map(function(row){
       var tds='<td class="lbl">'+esc(mLabel(row.cohort))+'</td><td class="lbl">'+intf(row.base)+'</td>';
       for(var i=0;i<cols;i++){ var v=row.retention[i]; tds+='<td style="background:'+heatColor(v)+';color:'+heatText(v)+'">'+(v==null?'':v+'%')+'</td>'; }
@@ -416,13 +419,18 @@
   // severity-ranked (critical → watch → good). Guards on field availability so
   // it works on both US (full) and UK (fewer datasets) markets.
   function pctChange(a,b){ return b ? (a-b)/b : 0; }
-  // Drop a trailing partial month: exports run with a lag, so the most recent
-  // month is usually incomplete. If its sales are under 45% of the prior month
-  // it is treated as partial and excluded from momentum/decomposition so those
-  // signals compare like-for-like complete months (not a full vs half month).
+  // Drop a trailing partial month so momentum/decomposition compare like-for-
+  // like COMPLETE months. The only reliably-incomplete month is the current
+  // calendar month (the export runs mid-month), so we gate on the actual date,
+  // not the old "<45% of the prior month" heuristic — that heuristic could
+  // mistake a genuine seasonal low for a partial month and silently hide it.
+  function isCurrentMonth(monthStr){
+    var parts=String(monthStr||'').split('-'); if(parts.length<2) return false;
+    var y=+parts[0], mo=+parts[1]-1; if(isNaN(y)||isNaN(mo)) return false;
+    var now=new Date(); return y===now.getFullYear() && mo===now.getMonth();
+  }
   function fullMonths(mm){
-    if(mm.length>=2){ var l=mm[mm.length-1], p=mm[mm.length-2];
-      if(p.sales>0 && l.sales < p.sales*0.45) return mm.slice(0,-1); }
+    if(mm.length>=1 && isCurrentMonth(mm[mm.length-1].month)) return mm.slice(0,-1);
     return mm;
   }
   function computeSignals(m){

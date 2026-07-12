@@ -460,6 +460,7 @@ function main() {
     const tasting = SM.sanitizeBrand(TASTING[slot.sku] || '');
     const url = ctaUrl(slot);
     const shared = {
+      market: MARKET,
       productName: prod.name, tastingLine: tasting, price: prod.price,
       ctaText: SA.cta, ctaUrl: url, heroImageUrl: hero, logoUrl,
       headline: SA.headline, subline: SA.subline, bodyBlocks: SA.blocks, subject: SA.subject,

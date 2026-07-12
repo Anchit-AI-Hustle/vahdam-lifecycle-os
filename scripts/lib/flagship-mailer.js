@@ -13,6 +13,18 @@
 
 const PAL = { green: '#004A2B', gold: '#AB8743', ink: '#171717', cream: '#FBF5EA' };
 
+// Market-aware shipping line. The old renderer hardcoded a US-only "$59" string
+// onto every region's mailer/ad; this keeps the country + currency correct.
+// Thresholds are the placeholder defaults used across the app — once the B1
+// approved-facts library carries a verified per-region threshold, callers pass
+// it in via opts.shippingNote and this is bypassed. Never region-agnostic.
+function shippingLine(market) {
+  const m = String(market || 'US').toUpperCase();
+  if (m.startsWith('UK')) return 'FREE UK delivery over &pound;35';
+  if (/GLOBAL|EU|AU|ME|IN|ROW|REST/.test(m)) return 'FREE shipping over $59';
+  return 'FREE US shipping over $59';
+}
+
 // Web fonts + MSO + hover/fade, exactly as the reference flagship template.
 const HEADFONTS =
   '@font-face{font-family:"LAO MN";src:url("https://cdn.nector.io/nector-static/fonts/LaoMN-01.ttf") format("truetype");}' +
@@ -51,8 +63,10 @@ function ctaButton(url, label, cw) {
  * opts: {
  *   colorway, withImage, subject, preheader, eyebrow, productName, tastingLine,
  *   price, ctaText, ctaUrl, heroImageUrl, bodyBlocks:[{heading,body}], logoUrl,
- *   headline, subline
+ *   headline, subline, market, shippingNote
  * }
+ * market drives the region-correct shipping line (US/UK/global); shippingNote
+ * overrides it outright once a verified per-region threshold is available.
  */
 function renderFlagship(opts) {
   const o = opts || {};
@@ -86,8 +100,9 @@ function renderFlagship(opts) {
     (o.subline ? `<tr><td class="p" style="padding:0 36px 18px;text-align:center;font-family:${BF};font-size:15px;line-height:1.6;color:${PAL.ink};">${esc(o.subline)}</td></tr>` : '') +
     blocks + `</table>`;
 
+  const shipNote = o.shippingNote || shippingLine(o.market);
   const utility = band(PAL.green,
-    `<div style="padding:12px 20px;text-align:center;font-family:${BF};font-size:12px;font-weight:700;letter-spacing:.08em;color:${PAL.cream};">From the hands that picked it to the cup you hold &nbsp;·&nbsp; FREE US shipping over $59</div>`);
+    `<div style="padding:12px 20px;text-align:center;font-family:${BF};font-size:12px;font-weight:700;letter-spacing:.08em;color:${PAL.cream};">From the hands that picked it to the cup you hold &nbsp;·&nbsp; ${shipNote}</div>`);
   const logoRow = band(PAL.cream,
     `<div style="padding:22px 20px 10px;text-align:center;"><a href="https://www.vahdamteas.com" style="text-decoration:none;border:0;"><img src="${esc(logo)}" alt="VAHDAM" width="152" style="display:inline-block;width:152px;height:auto;border:0;"></a></div>`);
   const badges = band(PAL.cream,
@@ -100,4 +115,4 @@ function renderFlagship(opts) {
   return `<!DOCTYPE html><html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"><!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]--><title>${esc(o.subject)}</title><style>${HEADFONTS}body{margin:0;padding:0;background:${PAL.cream};-webkit-text-size-adjust:100%;}img{-ms-interpolation-mode:bicubic;border:0;line-height:100%;}a.cta{transition:transform .15s ease,box-shadow .18s ease;}a.cta:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,74,43,.28);}@media (prefers-reduced-motion:no-preference){.fade{animation:vf .7s ease both;}}@keyframes vf{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}@media only screen and (max-width:620px){table[width="600"]{width:100%!important;}.col{display:block!important;width:100%!important;}.p{padding-left:22px!important;padding-right:22px!important;}}</style></head><body style="margin:0;padding:0;background:${PAL.cream};"><div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${esc(o.preheader)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${PAL.cream};"><tr><td>${utility}${logoRow}<div class="fade">${band(cw.heroBg, hero)}${editorial}${badges}${stats}</div>${footer}</td></tr></table></body></html>`;
 }
 
-module.exports = { renderFlagship, colorway, PAL };
+module.exports = { renderFlagship, colorway, shippingLine, PAL };

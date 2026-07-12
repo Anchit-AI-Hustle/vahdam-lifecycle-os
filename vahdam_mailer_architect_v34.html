@@ -2236,9 +2236,19 @@ function validateMailerCreative(){
   function brandPaletteCheck(html,label){
     if(!html||html.length<2000){err(label+' HTML is empty or truncated.');return;}
     if(!/<\/html>/i.test(html)){err(label+' HTML missing closing </html> tag.');}
-    // Off-palette hex codes that should never appear in mailer output
-    var bad=html.match(/#(0f2a1c|d4873a|fdf6e8|1a3a28|1a1a1a|faf8f4)/gi);
-    if(bad && bad.length){err(label+' contains off-brand hex codes: '+Array.from(new Set(bad.map(function(s){return s.toLowerCase();}))).join(', '));}
+    // Palette ALLOWLIST (brand HARD rule: only the four brand colours; pure
+    // black/white pass as structural neutrals). Every other hex is surfaced, so
+    // off-palette drift is caught by what IS allowed, not just a fixed denylist
+    // of six known-bad tints.
+    var ALLOWED={'#004a2b':1,'#ab8743':1,'#171717':1,'#fbf5ea':1,'#ffffff':1,'#fff':1,'#000000':1,'#000':1};
+    var hexes=html.match(/#[0-9a-fA-F]{3,6}\b/g)||[];
+    var off=Array.from(new Set(hexes.map(function(s){return s.toLowerCase();}))).filter(function(h){return !ALLOWED[h];});
+    // The six known legacy drift tints stay a hard error; any other off-palette
+    // hex is a warning the reviewer can weigh (structural greys etc.).
+    var hardBad=off.filter(function(h){return /^#(0f2a1c|d4873a|fdf6e8|1a3a28|1a1a1a|faf8f4)$/.test(h);});
+    if(hardBad.length){err(label+' contains off-brand hex codes: '+hardBad.join(', '));}
+    var softBad=off.filter(function(h){return hardBad.indexOf(h)<0;});
+    if(softBad.length){warn(label+' uses '+softBad.length+' off-palette hex code(s) — brand allows only #004A2B / #AB8743 / #171717 / #FBF5EA (+ white/black): '+softBad.slice(0,8).join(', ')+(softBad.length>8?' …':''));}
     if(!/Lao MN/i.test(html)){warn(label+': LAO MN headline font not declared.');}
     if(!/Proxima Nova/i.test(html)){warn(label+': Proxima Nova body font not declared.');}
     // CTAs
@@ -7313,7 +7323,7 @@ function _arch_renderEmail(strategy,archetype,variant,uploadedDesignImg,mt){
   // ── V1 (slot A) = COMPLETE TEXTUAL content only: strip every image so the
   // mailer stands alone as pure copy. V2 (slot B) keeps its visuals.
   if(variant==='A'){ try{ html=_arch_stripImagery(html); }catch(_){} }
-  return html;
+  return _scrubBrandClient(html);
 }
 
 // ── Remove all imagery from a rendered mailer (used for V1 / text-only). ────
@@ -7329,6 +7339,33 @@ function _arch_stripImagery(html){
   // 3. Remove gradient "image placeholder" divs that only existed to hold a photo.
   html=html.replace(/<div[^>]*background:linear-gradient\(135deg,#FBF5EA,#FBF5EA\)[^>]*><\/div>/gi,'');
   return html;
+}
+
+// ── Client-side brand gate on the deterministic render path. The server
+//    sanitizeBrand/scrubDashes (api/_shared/scenario-model.js) only ever ran on
+//    LLM copy; template-built strings ("LIMITED TIME ONLY", hardcoded ratings)
+//    were injected straight into the HTML and bypassed it. This runs on the
+//    FINAL rendered mailer so no banned phrase or em/en dash can ship, whatever
+//    the source. It deliberately does NOT touch the banned word "transform"
+//    here (it is valid CSS — transform:translate/rotate — and scrubbing it in
+//    raw HTML would corrupt animations); that word stays gated on the copy path.
+//    When REAL_FACTS_ONLY is on it also strips unsourced rating / review-count
+//    proof from the render (the B1 zero-fabrication contract).
+function _scrubBrandClient(html){
+  if(!html) return html;
+  var out=String(html)
+    .replace(/LIMITED TIME/g,'time-bound')
+    .replace(/wellness journey|liquid gold|game[\s-]?changer|hurry|don'?t miss out|last chance|while supplies last/gi,'premium daily ritual')
+    .replace(/&mdash;|&#8212;/g,' - ').replace(/&ndash;|&#8211;/g,' - ')
+    .replace(/\s[—–]\s/g,' - ').replace(/[—–]/g,' - ');
+  if(window.__REAL_FACTS_ONLY){
+    out=out
+      .replace(/Rated\s*\d(?:\.\d)?\s*\/\s*5(?:\s+by)?/gi,'Rated by our community')
+      .replace(/\b\d(?:\.\d)?\s*out of\s*5\b/gi,'')
+      .replace(/[★]{2,}\s*\d(?:\.\d)?/g,'')
+      .replace(/\b\d[\d,]*\+?\s*(?:5[\s-]?star\s+|five[\s-]?star\s+)?(?:reviews|ratings|tea lovers|customers|verified buyers|buyers)\b/gi,'our community');
+  }
+  return out;
 }
 
 // ── Variant B: archetype-driven, narrative family ──────────────────────────
@@ -7450,7 +7487,7 @@ function _legacy_buildEmailVariantB_replaced(uploadedDesignImg,mktOverride){
       '<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8px;color:#FBF5EA;margin:0;line-height:1.7">VAHDAM India Pvt. Ltd. &middot; New Delhi<br><a href="'+base+'/pages/unsubscribe" style="color:#FBF5EA">Unsubscribe</a> &middot; <a href="'+base+'/pages/privacy-policy" style="color:#FBF5EA">Privacy Policy</a></p>'+
     '</td></tr>\n'+
     '</table></td></tr></table>\n</body></html>';
-  return html;
+  return _scrubBrandClient(html);
 }
 
 // Variant A: archetype-driven. The old fixed skeleton has been replaced by
