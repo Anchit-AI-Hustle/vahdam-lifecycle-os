@@ -510,9 +510,35 @@ function variantMeta(copy) {
     cta_text: E.cta || 'Shop the edit',
   };
 }
+// Resolve real, always-clickable destinations for a slot (matches the flagship
+// mailer's link logic): a per-market store, the hero product's PDP, and a
+// category collection. Never emits a merge-tag literal, so every CTA in a
+// preview/download redirects to a real page.
+function slotLinks(entry) {
+  const facts = regionFacts(entry.market);
+  const store = `https://${facts.store || 'www.vahdamteas.com'}`;
+  const hp = entry.heroProduct || {};
+  const cat = String(hp.category || hp.type || '').toLowerCase();
+  const collectionSlug = /chai/.test(cat) ? 'chai-tea'
+    : /green/.test(cat) ? 'green-tea'
+    : /black/.test(cat) ? 'black-tea'
+    : /herbal|turmeric|wellness|tisane|supplement/.test(cat) ? 'wellness-tea'
+    : 'all';
+  const collectionUrl = `${store}/collections/${collectionSlug}`;
+  const pdp = hp.handle ? `${store}/products/${hp.handle}` : collectionUrl;
+  return { store, collectionUrl, pdp };
+}
 function renderVariant(entry, copy, style, img) {
   const E = copy.email || {};
   const heroProduct = (entry.heroProduct && entry.heroProduct.title) || entry.theme || '';
+  const links = slotLinks(entry);
+  // Product grid is a Text + Visual element — only the visual variants carry it
+  // (pure/editorial "Text" variants stay graphics-free per the taxonomy).
+  const withGrid = style === 'visual';
+  const heroImgUrl = img || catalogImage.imageFor(entry, entry.market) || undefined;
+  const products = withGrid && entry.heroProduct
+    ? [{ title: entry.heroProduct.title, handle: entry.heroProduct.handle, image: heroImgUrl, price: entry.heroProduct.price, url: links.pdp }]
+    : undefined;
   return renderTextVariant({
     style, subject: E.subject, preheader: E.preheader,
     hero_headline: E.hero_headline || E.subject || heroProduct,
@@ -521,8 +547,12 @@ function renderVariant(entry, copy, style, img) {
       E.intro_paragraph ? { heading: '', body: E.intro_paragraph } : null,
       E.body_paragraph ? { heading: '', body: E.body_paragraph } : null,
     ].filter(Boolean),
-    cta_text: E.cta || 'Shop the edit', cta_url: '{{landing_page_url}}',
+    // Real PDP/collection destinations (no merge-tag literal) so every CTA
+    // redirects; matches the flagship mailer's link + grid logic.
+    cta_text: E.cta || 'Shop the edit', cta_url: links.pdp,
     market: entry.market, hero_product: heroProduct, hero_image_url: img || undefined,
+    products, collection_url: links.collectionUrl,
+    offer_bar: (withGrid && (E.offer || (copy.landing && copy.landing.offer_bar))) || undefined,
   });
 }
 // Four variants in the SAME taxonomy as the Mailer Calendar: 2 Text + 2 Text +
@@ -559,7 +589,7 @@ function emailHtml(entry, copy, creativeUrl) {
   <section style="padding:36px">
     <p style="line-height:1.7">${E.intro_paragraph}</p>
     <p style="line-height:1.7">${E.body_paragraph}</p>
-    <p style="text-align:center;margin:32px 0 8px"><a href="{{landing_page_url}}" style="background:#AB8743;color:#171717;padding:15px 28px;text-decoration:none;border-radius:4px;font-weight:700;display:inline-block">${E.cta || 'Shop the edit'}</a></p>
+    <p style="text-align:center;margin:32px 0 8px"><a href="${slotLinks(entry).pdp}" style="background:#AB8743;color:#171717;padding:15px 28px;text-decoration:none;border-radius:4px;font-weight:700;display:inline-block">${E.cta || 'Shop the edit'}</a></p>
   </section>
   <footer style="background:#171717;color:#FBF5EA99;text-align:center;padding:22px;font-size:11px">You're receiving this as a VAHDAM ${entry.cohort?.name || 'customer'} in ${entry.market}.</footer>
 </main>
