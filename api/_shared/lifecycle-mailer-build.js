@@ -273,16 +273,32 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
   const hero = resolveHero(row, 536, 340);
 
   const market = row.market || 'UK';
+  // Flagship-parity: real inline product grid (hero + supporting picks) resolved
+  // by handle/title, and a derived collection CTA for the secondary button.
+  const gridProducts = [
+    { title: row.hero_product, handle: row.hero_handle, price: row.hero_price },
+    ...((Array.isArray(row.supporting_products) ? row.supporting_products : [])),
+  ].filter((p) => p && (p.title || p.handle));
+  const collectionUrl = (row.product_type === 'coffee' && PT.types.coffee.collection_slug)
+    ? `${PT.store.base_url}/collections/${PT.types.coffee.collection_slug}`
+    : `${PT.store.base_url}/collections/bestsellers`;
   const meta = (S) => ({
     subject_line: S.subject_line, preview_text: S.preview_text,
     hero_headline: S.hero_headline, hero_subline: S.hero_subline, cta_text: S.cta_text,
   });
-  const render = (S, style, opts = {}) => helpers.renderTextVariant({
-    style, subject: S.subject_line, preheader: S.preview_text,
-    hero_headline: S.hero_headline, hero_subline: S.hero_subline,
-    body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: ctaUrl, market,
-    hero_product: row.hero_product, ...opts,
-  });
+  // The product grid (real photos) is a Text + Visual element; pure "Text"
+  // variants stay graphics-free per taxonomy. `withGrid` opts it in.
+  const render = (S, style, opts = {}) => {
+    const { withGrid, ...rest } = opts;
+    return helpers.renderTextVariant({
+      style, subject: S.subject_line, preheader: S.preview_text,
+      hero_headline: S.hero_headline, hero_subline: S.hero_subline,
+      body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: ctaUrl, market,
+      hero_product: row.hero_product, collection_url: collectionUrl,
+      ...(withGrid ? { products: gridProducts } : {}),
+      ...rest,
+    });
+  };
 
   // Only a REAL catalog photo is embedded as a live <img>. When the slot has no
   // catalog image we pass the generation prompt so the renderer emits the
@@ -297,8 +313,8 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
   const variants = [
     { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,          framework: fwA.key, image: null, ...meta(SA), html: render(SA, 'pure') },
     { key: 'text_b',   type: 'Text',          label: `Text · ${fwB.name}`,          framework: fwB.key, image: null, ...meta(SB), html: render(SB, 'editorial') },
-    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, image: hero, ...meta(SA), html: render(SA, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt }) },
-    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, image: hero, ...meta(SB), html: render(SB, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt }) },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, image: hero, ...meta(SA), html: render(SA, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true }) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, image: hero, ...meta(SB), html: render(SB, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true }) },
   ];
 
   const primary = variants[2]; // visual_a, for backward-compatible top-level fields
