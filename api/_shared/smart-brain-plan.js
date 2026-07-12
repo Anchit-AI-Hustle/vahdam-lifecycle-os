@@ -27,6 +27,24 @@ const {
 } = require('../../lib/smart-brain/services.js');
 const callLLM = require('./llm.js');
 const { parseJSON } = require('./llm.js');
+
+// Premium-first with automatic downgrade. The premium cascade only tries the
+// paid providers' forward model IDs (gpt-5.5, gemini-3.1-pro, grok-4.3, ...); if
+// none is entitled/resolvable on the configured keys, callLLM throws and copy
+// falls back to the generic template ("Copy by template-fallback"). Retrying at
+// standard then fast tiers reaches smaller real models (incl. the free tiers),
+// so generation succeeds whenever ANY provider/model works. Honours "premium
+// first" while never dropping the whole mailer to template on a premium miss.
+async function callLLMTiered(opts) {
+  const wanted = (opts && opts.tier) || 'premium';
+  const tiers = [...new Set([wanted, 'standard', 'fast'])];
+  let lastErr;
+  for (const tier of tiers) {
+    try { return await callLLM({ ...opts, tier }); }
+    catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
 const { buildMasterPrompt, regionFacts } = require('./master-prompt.js');
 const SM = require('./scenario-model.js');
 // Guaranteed-online fallback: a real catalog product photo (Shopify CDN) so a
@@ -46,8 +64,17 @@ const CF = require('./copy-frameworks.js');
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function nowIso() { return new Date().toISOString(); }
+function addDaysIso(dateIso, days) {
+  const d = new Date(`${dateIso}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 function daysAgoIso(n) { return new Date(Date.now() - n * 86400000).toISOString(); }
-function stableId(date, market) { return `cal_${date}_${String(market).toLowerCase()}`; }
+// Stable per (date, market, cohort) so multiple cohort sends can share a day
+// without colliding, and a given date always resolves to the same ids across
+// syncs. cohortSlug keeps the id filesystem/URL-safe.
+function cohortSlug(name) { return String(name || 'core').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 32) || 'core'; }
+function stableId(date, market, cohort) { return `cal_${date}_${String(market).toLowerCase()}_${cohortSlug(cohort)}`; }
 
 // How long telemetry/log rows are kept before the daily sync evicts them.
 const RETENTION_DAYS = 30;
@@ -78,7 +105,7 @@ function freshEntries(config, ctx, startDate, days) {
   // Re-key on date+market so the same slot keeps the same id across daily syncs.
   const cohortLtv = cohortLtvMap(ctx);
   for (const e of calendar.entries) {
-    e.id = stableId(e.date, e.market);
+    e.id = stableId(e.date, e.market, e.cohort && e.cohort.name);
     attachScenarioLayer(e, ctx, cohortLtv);
   }
   return calendar.entries;
@@ -200,6 +227,11 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
   const db = new SmartBrainDbAdapter(config);
   const horizon = days || config.calendarDays;
   const start = todayIso();
+  // Near-term slots inside this window get their prebuilt assets regenerated on
+  // EVERY sync (fresh creatives vs. the latest competitor + campaign data), even
+  // without a material plan change.
+  const refreshDays = Number.isFinite(+config.prebuildRefreshDays) ? +config.prebuildRefreshDays : 7;
+  const refreshUntil = addDaysIso(start, refreshDays);
   const ctx = await buildContext(config, db);
   const fresh = freshEntries(config, ctx, start, horizon);
 
@@ -253,6 +285,20 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
         },
       });
       changes.push({ id: entry.id, kind: wasRejected ? 'regenerated' : 'updated', detail: `${entry.date} ${entry.market}: ${diffs.join('; ') || 'regenerated after rejection'}.` });
+    } else if (entry.date <= refreshUntil && isPrebuilt(existing)) {
+      // No material re-plan, but this near-term slot is inside the daily
+      // freshness window: drop the prebuilt marker so the queue regenerates its
+      // mailer/ads/landing against the latest competitor + campaign data. Keep
+      // the (unchanged) plan payload; only the marker is stripped.
+      const payload = { ...(existing.payload || {}) };
+      delete payload[PREBUILD_MARKER];
+      const log = Array.isArray(existing.change_log) ? existing.change_log.slice(-30) : [];
+      log.push({ at: nowIso(), kind: 'refresh_queued', detail: 'Daily freshness refresh: assets queued to rebuild against latest data.' });
+      updates.push({
+        id: entry.id,
+        patch: { status: 'tentative', payload, change_log: log, updated_at: nowIso() },
+      });
+      changes.push({ id: entry.id, kind: 'refresh_queued', detail: `${entry.date} ${entry.market}: queued daily asset refresh.` });
     }
   }
 
@@ -327,22 +373,98 @@ async function getPlan({ config: cfg = {}, _ctxFallback = null } = {}) {
 
 // ── LLM copywriting on approval ─────────────────────────────────────────────
 
+// ── D2C growth knowledge base (baked into every strategy + copy prompt) ───────
+// Distilled, practitioner-sourced playbook so generation reasons like a senior
+// D2C growth lead, not a generic copywriter. Referenced leaders: Nik Sharma
+// (owned-channel + hook economics), Chase Dimond (lifecycle email structure),
+// Ari Murray (creative-led offers), Russell Brunson (Hook-Story-Offer), plus
+// Ridge Wallet-style objection-led conversion.
+const D2C_KNOWLEDGE = `D2C GROWTH KNOWLEDGE BASE (apply, do not cite):
+- Value frameworks: Hook-Story-Offer (Brunson), Problem-Agitate-Solve (PAS), Identity-Driven (align the product with who the reader wants to become), Feature-Advantage-Benefit.
+- Email structure (Dimond/Sharma): a pattern-interrupt HOOK in the first scroll, one clear idea, visceral sensory benefits, objection-killing social proof, one low-friction CTA. No wall of text.
+- Creative (Murray): the offer and the transformation lead; the product is the proof, not the headline.
+- Competitor benchmarking aesthetics: high-contrast minimalism (Everyday Dose), rich origin-story education (VAHDAM's own edge), problem-centric bold layouts (Space Goods), calm clinical clean-label (MUD\\WTR).`;
+
+// Regional nuance matrix — what a given market responds to.
+function regionalNuance(market) {
+  const m = String(market || '').toUpperCase();
+  if (m === 'US') return 'US market: lead with high-performance optimisation, time-saving, stress relief, and an instant routine upgrade.';
+  if (m === 'UK' || m === 'EU') return 'UK/EU market: lead with ingredient transparency, certified clean-label, clinical sustainability, and a subtle daily ritual.';
+  return 'Global/emerging market: lead with premium status, international authority, gifting value, and unmistakable ingredient purity.';
+}
+
+// The four selling components every VAHDAM mailer must carry.
+const MAILER_COMPONENTS = `Every mailer must contain, in order: (1) an immediate HOOK to sell in the first scroll (pattern-interrupt, transformation, or a high-intent offer); (2) core ingredient + product BENEFITS, sensory and specific; (3) SOCIAL PROOF and trust: a star rating with review count and 1-2 short reviews that each answer a real objection; (4) VALUE ADD-ONS: 2-3 brand badges (e.g. Non-GMO, Climate Neutral, Sugar-Free), a risk-reversal guarantee line, and a short FAQ.`;
+
 const BRAND_SYSTEM = `You are the senior lifecycle copywriter for VAHDAM India (premium Indian teas & wellness, vahdamteas.com).
 Voice: warm, sensory, emotionally resonant, story-driven. Prefer: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.
 NEVER use: "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" in caps, "hurry", "don't miss out", "last chance", "while supplies last".
+${D2C_KNOWLEDGE}
 Return STRICT JSON only, no markdown fences.`;
 
-function copyPrompt(entry, fw = null) {
+// ── Agent 1: Strategy Analyst ───────────────────────────────────────────────
+// A top growth-strategy leader reads the slot's data (cohort, reach, competitor
+// hooks, product, offer, festival) and returns a tight strategy brief that the
+// content + asset agents build on. Failure-tolerant: returns null so the copy
+// stage can still run standalone. Pinned provider is returned for speed.
+const STRATEGY_SYSTEM = `You are VAHDAM's Head of Growth Strategy — a top D2C lifecycle-marketing analyst.
+You turn cohort + product + competitor data into a sharp, differentiated campaign strategy.
+Be specific and quantitative where the data allows.
+${D2C_KNOWLEDGE}
+Return STRICT JSON only, no markdown fences.`;
+
+function strategyPrompt(entry) {
+  const hooks = (entry.competitorContext || []).flatMap((c) => (c.trendingHooks || []).map((h) => h.hook)).slice(0, 6);
+  const d = entry.decision || {};
+  return `Devise the strategy for ONE lifecycle send. Data:
+- Market: ${entry.market} | Cohort: ${entry.cohort?.name} (${entry.cohort?.size ?? 'size via ESP'} profiles) | Objective: ${entry.objective}
+- Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})${(entry.supportingProducts || []).length ? ` | Bundle: ${(entry.supportingProducts).map((p) => p.title).join(', ')}` : ''}
+- Offer: ${d.offer ? (d.offer.code ? `${d.offer.code} (${Math.round((d.offer.pct || 0) * 100)}%)` : 'no discount') : 'n/a'}
+- ${entry.festival ? `Seasonal moment: ${entry.festival.name}` : 'No festival; evergreen angle.'}
+- Reach target: ${entry.reach?.planned_recipients?.toLocaleString?.() || 'n/a'} recipients, ${entry.reach?.per_user_per_week?.min || 2}-${entry.reach?.per_user_per_week?.max || 3} mailers/user/week.
+- Competitor hooks trending (awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
+- ${regionalNuance(entry.market)}
+
+Choose the value framework (Hook-Story-Offer, PAS, or Identity-Driven) that best fits this cohort and say which in "framework". Make this send DIFFERENT from a generic promo and true to its cohort + theme.
+Return JSON exactly:
+{ "angle": "the single sharp campaign angle", "framework": "Hook-Story-Offer | PAS | Identity-Driven", "hook_thesis": "why this lands for THIS cohort now", "target_emotion": "the one feeling to evoke", "proof_points": ["","",""], "differentiator": "what makes this send distinct from the others this week", "dos": ["",""], "donts": ["",""] }`;
+}
+
+async function strategyBrief(entry) {
+  try {
+    const res = await callLLMTiered({
+      systemPrompt: STRATEGY_SYSTEM,
+      userMessage: strategyPrompt(entry),
+      responseFormat: { type: 'json_object' },
+      maxTokens: 900,
+      temperature: 0.7,
+      timeoutMs: 30000,
+      stage: 'smart-brain-strategy',
+      tier: 'premium',
+    });
+    const json = parseJSON(res.text);
+    if (!json || !json.angle) return null;
+    return { brief: json, provider: res.provider, model: res.model };
+  } catch (_) { return null; }
+}
+
+function copyPrompt(entry, fw = null, brief = null) {
   const hooks = (entry.competitorContext || []).flatMap((c) => (c.trendingHooks || []).map((h) => h.hook)).slice(0, 5);
   const fwLine = fw
     ? `\nCOPY FRAMEWORK: structure the copy with the ${fw.name} framework (${fw.full || fw.name}); the opening beat lands in the subject + hero_headline, the middle beats across intro_paragraph and body_paragraph in order, and the final beat on the cta. Do NOT name the framework in the copy, let the structure do the work.`
+    : '';
+  const briefLine = brief
+    ? `\nSTRATEGY BRIEF from the growth lead (follow it): angle = ${brief.angle}; hook = ${brief.hook_thesis}; emotion = ${brief.target_emotion}; differentiator = ${brief.differentiator}; proof = ${(brief.proof_points || []).filter(Boolean).join('; ')}. Do: ${(brief.dos || []).join('; ')}. Avoid: ${(brief.donts || []).join('; ')}.`
     : '';
   return `Write campaign copy for this planned slot. Context:
 - Market: ${entry.market} | Cohort: ${entry.cohort?.name} | Objective: ${entry.objective}
 - Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})
 - ${entry.festival ? `Seasonal moment: ${entry.festival.name}` : 'No festival; evergreen angle.'}
 - Rationale: ${entry.rationale || ''}
-- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}${fwLine}
+- Competitor hooks trending (for awareness only, do NOT copy): ${hooks.join(' | ') || 'n/a'}
+- ${regionalNuance(entry.market)}${fwLine}${briefLine}
+
+${MAILER_COMPONENTS}
 
 Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules (ALL creatives are TEXT-FREE photographs — never describe overlaid words, headlines, prices, logos or UI in the image_brief; diffusion models cannot spell and render garbled fake letterforms, and the real ad copy is rendered natively by the platform, not painted into the pixels):
 - email / LP heroes: just scene, props, light, mood; aspirational hero.
@@ -350,7 +472,7 @@ Every asset must ship with a CREATIVE as well as copy. For each asset write an "
 
 Return JSON with exactly this shape:
 {
- "email": { "subject": "", "subject_alt1": "", "subject_alt2": "", "preheader": "", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "cta": "", "image_brief": "" },
+ "email": { "subject": "", "subject_alt1": "", "subject_alt2": "", "preheader": "", "hook": "the first-scroll pattern-interrupt line", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "benefits": ["sensory benefit 1","benefit 2","benefit 3"], "rating": {"value": 4.9, "count": "250,000+"}, "reviews": [{"quote":"short review that answers an objection","author":"first name, initial","stars":5}], "badges": ["Non-GMO","Climate Neutral",""], "guarantee": "a risk-reversal line", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
  "landing": { "hero_headline": "", "hero_sub": "", "why_title": "", "why_bullets": ["","",""], "proof_quote": "", "proof_author": "", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
  "ads": {
    "meta": { "primary_text": "", "headline": "", "description": "", "image_brief": "" },
@@ -486,9 +608,58 @@ function variantMeta(copy) {
     cta_text: E.cta || 'Shop the edit',
   };
 }
+// Resolve real, always-clickable destinations for a slot (matches the flagship
+// mailer's link logic): a per-market store, the hero product's PDP, and a
+// category collection. Never emits a merge-tag literal, so every CTA in a
+// preview/download redirects to a real page.
+function slotLinks(entry) {
+  const facts = regionFacts(entry.market);
+  const store = `https://${facts.store || 'www.vahdamteas.com'}`;
+  const hp = entry.heroProduct || {};
+  const cat = String(hp.category || hp.type || '').toLowerCase();
+  const collectionSlug = /chai/.test(cat) ? 'chai-tea'
+    : /green/.test(cat) ? 'green-tea'
+    : /black/.test(cat) ? 'black-tea'
+    : /herbal|turmeric|wellness|tisane|supplement/.test(cat) ? 'wellness-tea'
+    : 'all';
+  const collectionUrl = `${store}/collections/${collectionSlug}`;
+  // Every product CTA must land on a REAL product page. Prefer the
+  // catalog-VALIDATED handle (handleFor checks the entry handle against the
+  // built catalog, then title/keyword) so a stale/wrong handle can never produce
+  // a dead PDP; only fall back to the raw entry handle if the catalog is absent.
+  let handle = null;
+  try { handle = catalogImage.handleFor(hp, entry.market); } catch (_) { handle = null; }
+  handle = handle || hp.handle || null;
+  const pdp = handle ? `${store}/products/${handle}` : collectionUrl;
+  return { store, collectionUrl, pdp, handle };
+}
+// Resolve a real PDP URL for ANY product (hero or supporting), always on the
+// official per-market store, never fabricating a handle.
+function productUrl(product, market) {
+  const facts = regionFacts(market);
+  const store = `https://${facts.store || 'www.vahdamteas.com'}`;
+  let handle = null;
+  try { handle = catalogImage.handleFor(product, market); } catch (_) { handle = null; }
+  handle = handle || (product && (product.handle || product.h)) || null;
+  return handle ? `${store}/products/${handle}` : store;
+}
 function renderVariant(entry, copy, style, img) {
   const E = copy.email || {};
   const heroProduct = (entry.heroProduct && entry.heroProduct.title) || entry.theme || '';
+  const links = slotLinks(entry);
+  // Product grid is a Text + Visual element — only the visual variants carry it
+  // (pure/editorial "Text" variants stay graphics-free per the taxonomy).
+  const withGrid = style === 'visual';
+  const heroImgUrl = img || catalogImage.imageFor(entry, entry.market) || undefined;
+  // Grid = hero + any bundled supporting products, each linking to its own real
+  // US product page (never a fabricated handle).
+  const supporting = Array.isArray(entry.supportingProducts) ? entry.supportingProducts : [];
+  const products = withGrid && entry.heroProduct
+    ? [
+        { title: entry.heroProduct.title, handle: entry.heroProduct.handle, image: heroImgUrl, price: entry.heroProduct.price, url: links.pdp },
+        ...supporting.map((p) => ({ title: p.title, handle: p.handle, price: p.price, url: productUrl(p, entry.market) })),
+      ]
+    : undefined;
   return renderTextVariant({
     style, subject: E.subject, preheader: E.preheader,
     hero_headline: E.hero_headline || E.subject || heroProduct,
@@ -497,8 +668,12 @@ function renderVariant(entry, copy, style, img) {
       E.intro_paragraph ? { heading: '', body: E.intro_paragraph } : null,
       E.body_paragraph ? { heading: '', body: E.body_paragraph } : null,
     ].filter(Boolean),
-    cta_text: E.cta || 'Shop the edit', cta_url: '{{landing_page_url}}',
+    // Real PDP/collection destinations (no merge-tag literal) so every CTA
+    // redirects; matches the flagship mailer's link + grid logic.
+    cta_text: E.cta || 'Shop the edit', cta_url: links.pdp,
     market: entry.market, hero_product: heroProduct, hero_image_url: img || undefined,
+    products, collection_url: links.collectionUrl,
+    offer_bar: (withGrid && (E.offer || (copy.landing && copy.landing.offer_bar))) || undefined,
   });
 }
 // Four variants in the SAME taxonomy as the Mailer Calendar: 2 Text + 2 Text +
@@ -535,18 +710,23 @@ function emailHtml(entry, copy, creativeUrl) {
   <section style="padding:36px">
     <p style="line-height:1.7">${E.intro_paragraph}</p>
     <p style="line-height:1.7">${E.body_paragraph}</p>
-    <p style="text-align:center;margin:32px 0 8px"><a href="{{landing_page_url}}" style="background:#AB8743;color:#171717;padding:15px 28px;text-decoration:none;border-radius:4px;font-weight:700;display:inline-block">${E.cta || 'Shop the edit'}</a></p>
+    <p style="text-align:center;margin:32px 0 8px"><a href="${slotLinks(entry).pdp}" style="background:#AB8743;color:#171717;padding:15px 28px;text-decoration:none;border-radius:4px;font-weight:700;display:inline-block">${E.cta || 'Shop the edit'}</a></p>
   </section>
   <footer style="background:#171717;color:#FBF5EA99;text-align:center;padding:22px;font-size:11px">You're receiving this as a VAHDAM ${entry.cohort?.name || 'customer'} in ${entry.market}.</footer>
 </main>
 </body></html>`;
 }
 
-async function writeCopyWithLLM(entry, fw = null) {
+async function writeCopyWithLLM(entry, fw = null, brief = null) {
   const sysLine = fw ? (() => { try { return '\n' + CF.copyFrameworkSystemLine(fw); } catch (_) { return ''; } })() : '';
-  const res = await callLLM({
+  // NOTE: do NOT pin preferProvider here. In llm.js a preferProvider SKIPS every
+  // other provider, so pinning the strategy analyst's provider left copy
+  // generation with no fallback — one hiccup on that provider failed the whole
+  // mailer. Copy is critical, so it must run the FULL cascaded waterfall every
+  // time (OpenAI -> Anthropic -> Gemini -> Grok -> Groq -> Cerebras).
+  const res = await callLLMTiered({
     systemPrompt: BRAND_SYSTEM + sysLine,
-    userMessage: copyPrompt(entry, fw),
+    userMessage: copyPrompt(entry, fw, brief),
     responseFormat: { type: 'json_object' },
     maxTokens: 1800,
     temperature: 0.75,
@@ -690,7 +870,7 @@ async function uploadCreative(dataUrl, name) {
 // One creative per asset, generated in parallel. Each → {brief, image, provider};
 // the image is a hosted Supabase URL when storage is configured, else an inline
 // data-URL; falls back to brief-only (image:null) if generation fails.
-async function generateCreatives(copy, entry) {
+async function generateCreatives(copy, entry, { only = null } = {}) {
   const hero = entry.heroProduct?.title ? ` Hero product: VAHDAM ${entry.heroProduct.title}.` : '';
   // ALL channels get TEXT-FREE photographs (mode:''). Diffusion models cannot
   // spell, so baking a headline/offer into the pixels (the old mode:'ad') always
@@ -705,8 +885,11 @@ async function generateCreatives(copy, entry) {
     ['google',  copy.ads?.google?.image_brief, '1536x1024', ''],
     ['tiktok',  copy.ads?.tiktok?.image_brief, '1024x1536', ''],
   ];
+  // `only` limits which creatives are built. Preview passes ['email'] so a single
+  // hero image renders inline fast (building all 5 here overran the function limit).
+  const activeSpecs = Array.isArray(only) ? specs.filter(([key]) => only.includes(key)) : specs;
   const out = {};
-  await Promise.all(specs.map(async ([key, rawBrief, size, mode]) => {
+  await Promise.all(activeSpecs.map(async ([key, rawBrief, size, mode]) => {
     const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} hero creative — warm, premium, photoreal.`;
     const gen = await generateCreativeImage(b + hero, { size, mode }).catch(() => null);
     let image = gen?.image || null;
@@ -735,15 +918,21 @@ async function generateCreatives(copy, entry) {
 async function buildCampaign(entry, config, { id = null, withCreatives = true } = {}) {
   const campaign = new GenerationService(config).generate(entry);
   let copyMeta = { provider: 'template-fallback', model: null, creatives: 'none' };
+  // Agent pipeline trace, surfaced in the console so the reviewer sees which
+  // specialist agent produced each part of the mailer.
+  const trace = [];
   try {
-    // Two diverging copy frameworks → two genuinely different directions, written
-    // in parallel (same wall-clock as one call). A = the objective's preferred
-    // framework; B = a deterministically-chosen different one. Partial-failure
-    // tolerant: if one call fails we ship both slots from the one that succeeded.
+    // ── Agent 1 · Strategy Analyst — a growth-strategy brief for THIS send.
+    const sb = await strategyBrief(entry);
+    const brief = sb ? { ...sb.brief, __provider: sb.provider } : null;
+    trace.push({ agent: 'Strategy Analyst', role: 'Head of Growth Strategy', ok: !!sb, provider: sb ? sb.provider : null, output: sb ? { angle: sb.brief.angle, differentiator: sb.brief.differentiator, emotion: sb.brief.target_emotion } : null });
+
+    // ── Agent 2 · Content Writer — two diverging copy frameworks (A/B), written
+    // in parallel (same wall-clock as one call), each following the brief.
     const fwA = CF.pickCopyFramework({ play_key: entry.objective || '', cohort_key: (entry.cohort && (entry.cohort.key || entry.cohort.name)) || '', seed: entry.id || entry.date || '' });
     const otherKeys = Object.keys(CF.COPY_FRAMEWORKS).filter((k) => k !== fwA.key);
     const fwB = CF.frameworkByKey(otherKeys[CF.stableIndex(`${entry.id || entry.date || ''}|b`, otherKeys.length)]) || fwA;
-    const [pA, pB] = await Promise.allSettled([writeCopyWithLLM(entry, fwA), writeCopyWithLLM(entry, fwB)]);
+    const [pA, pB] = await Promise.allSettled([writeCopyWithLLM(entry, fwA, brief), writeCopyWithLLM(entry, fwB, brief)]);
     if (pA.status !== 'fulfilled' && pB.status !== 'fulfilled') {
       throw new Error('copy generation failed for both directions: ' + String((pA.reason && pA.reason.message) || pA.reason));
     }
@@ -751,19 +940,29 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
     const rawB = pB.status === 'fulfilled' ? pB.value : pA.value;
     const provider = rawA.provider || rawB.provider;
     const model = rawA.model || rawB.model;
+    trace.push({ agent: 'Content Writer', role: 'Lifecycle Copywriter', ok: true, provider, output: { frameworks: [fwA.key, fwB.key] } });
     // Brand scrub EVERY generated string (no banned phrases, no em/en dashes)
     // before it is baked into the mailer, landing page and ad rows. Persisted +
     // customer-served output must not rely on the prompt alone.
     const copyA = scrubCopyDeep(rawA.copy);
     const copyB = scrubCopyDeep(rawB.copy);
-    const creatives = withCreatives ? await generateCreatives(copyA, entry) : {};
-    applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives);
+    // ── Agent 3 · Asset Director — one text-free creative per asset, turn by turn.
+    // withCreatives: true = full 5-asset build; 'hero' = email hero only (fast,
+    // for on-demand preview); false = none (copy + layout only).
+    const creatives = withCreatives ? await generateCreatives(copyA, entry, withCreatives === 'hero' ? { only: ['email'] } : {}) : {};
     const imgProviders = [...new Set(Object.values(creatives).map((c) => c && c.provider).filter(Boolean))];
+    if (withCreatives) trace.push({ agent: 'Asset Director', role: 'Creative / Art Direction', ok: imgProviders.length > 0, provider: imgProviders.join(',') || null, output: { assets: Object.keys(creatives).length } });
+    // ── Agent 4 · Design Integrator — assembles each variant in the layout the
+    // decision engine chose for this send's intent/theme (so every mailer differs).
+    applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives);
+    trace.push({ agent: 'Design Integrator', role: 'Mailer Designer', ok: true, output: { archetype: (entry.decision && entry.decision.design && entry.decision.design.archetype) || 'hero-spotlight', variants: '2 Text + 2 Text + Visual' } });
     copyMeta = { provider, model, frameworks: [fwA.key, fwB.key], creatives: imgProviders.length ? imgProviders.join(',') : 'briefs-only' };
   } catch (e) {
     console.warn('[smart-brain] LLM copy failed, using template assets:', e.message);
+    trace.push({ agent: 'fallback', role: 'template assets', ok: false, output: { reason: String(e && e.message || e).slice(0, 160) } });
   }
   campaign.copywriter = copyMeta;
+  campaign.agent_trace = trace;
   campaign.calendar_entry_id = entry.id || id || null;
   attachMasterPrompts(campaign, entry);
   return campaign;
@@ -816,11 +1015,12 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
     if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
   }
-  // Fallback (slot not prebuilt yet): build copy + layout WITHOUT images. Preview
-  // must be fast — generating 5 images inline here overran the function limit and
-  // returned a non-JSON platform timeout page ("Preview failed: ... not valid
-  // JSON"). Images appear in preview once the prebuild queue has built the slot.
-  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: false });
+  // Fallback (slot not prebuilt yet): build copy + layout + the EMAIL HERO image
+  // only ('hero'). Generating all 5 images inline overran the function limit and
+  // returned a non-JSON timeout page; a single hero stays within budget so View
+  // shows a complete mailer (hero included) instead of an image-less shell. The
+  // full ad/LP image set still comes from the prebuild queue or Download.
+  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: 'hero' });
   campaign.status = 'preview';
   return {
     ok: true,

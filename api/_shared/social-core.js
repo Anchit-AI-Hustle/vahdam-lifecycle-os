@@ -163,16 +163,28 @@ function festivalFor(dateIso) {
 }
 
 // ── LLM helper (one bounded call; caller catches → deterministic fallback) ───
+// Premium-first with automatic downgrade: the premium cascade only tries the paid
+// providers' forward model IDs (gpt-5.5, gemini-3.1-pro, ...); if none is entitled
+// on the configured keys, callLLM throws and the agent drops to its deterministic
+// template. Retrying standard then fast reaches smaller real models (incl. free
+// tiers) so social copy is LLM-written whenever any provider/model works.
 async function llmJson({ tier, stage, system, user, maxTokens = 1200, timeoutMs = 15000, temperature = 0.7 }) {
   if (!callLLM) throw new Error('llm unavailable');
-  const out = await callLLM({
-    systemPrompt: system,
-    userMessage: user,
-    responseFormat: { type: 'json_object' },
-    maxTokens, temperature, timeoutMs, stage, tier,
-  });
-  const text = typeof out === 'string' ? out : (out && out.text) || '';
-  return callLLM.parseJSON(text);
+  const tiers = [...new Set([tier || 'premium', 'standard', 'fast'])];
+  let lastErr;
+  for (const t of tiers) {
+    try {
+      const out = await callLLM({
+        systemPrompt: system,
+        userMessage: user,
+        responseFormat: { type: 'json_object' },
+        maxTokens, temperature, timeoutMs, stage, tier: t,
+      });
+      const text = typeof out === 'string' ? out : (out && out.text) || '';
+      return callLLM.parseJSON(text);
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
 }
 
 const BRAND_GATES = [

@@ -36,7 +36,41 @@
   th{font-size:10px;color:#789;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 8px;border-bottom:1px solid rgba(171,135,67,.25)}
   td{padding:9px 8px;border-bottom:1px solid rgba(171,135,67,.1);vertical-align:top}
   tr:hover td{background:rgba(171,135,67,.05)}
+  /* Calendar table: keep readable on narrow screens by scrolling horizontally
+     (the .tblscroll wrapper is overflow-x:auto) instead of crushing columns to
+     one character per line. */
+  .tblscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #plantable{min-width:1020px}
+  #plantable th,#plantable td{white-space:nowrap;padding:12px 10px;vertical-align:top}
+  #plantable tbody tr.planrow:hover td{background:rgba(171,135,67,.06)}
+  #plantable td.cohort{white-space:normal;max-width:150px}
+  #plantable td.obj,#plantable th.obj{white-space:normal;max-width:190px}
+  #plantable td.why,#plantable th.why{white-space:normal;max-width:280px}
+  #plantable td.chan,#plantable th.chan{white-space:normal;max-width:150px}
+  /* Clamp long copy to 2 lines — the full text lives in View / the decision panel. */
+  .clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#d9c18f;white-space:nowrap}
+  /* Why / Analysis panel — clear focus hierarchy */
+  .an-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#AB8743;margin:0 0 6px}
+  .an-focus{background:linear-gradient(90deg,rgba(0,74,43,.35),rgba(0,74,43,.08));border-left:3px solid #AB8743;border-radius:0 10px 10px 0;padding:14px 18px;margin:0 0 16px}
+  .an-focus .lead{font-size:17px;line-height:1.4;color:#FBF5EA;margin:0}
+  .an-focus .sub{font-size:13px;line-height:1.55;color:#c8d6cd;margin:8px 0 0}
+  .an-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 16px}
+  @media(max-width:720px){.an-grid{grid-template-columns:1fr}}
+  .an-card{background:rgba(171,135,67,.06);border:1px solid rgba(171,135,67,.2);border-radius:10px;padding:13px 15px}
+  .an-callout{background:rgba(29,107,69,.18);border:1px solid rgba(143,231,185,.3);border-radius:10px;padding:13px 15px;margin:0 0 16px}
+  .an-callout .big{font-size:15px;color:#eafff3;font-weight:600}
+  .an-confbar{height:9px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0 10px}
+  .an-confbar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#1d6b45,#8fe7b9)}
+  .an-conf-num{font-size:26px;font-weight:800;color:#FBF5EA;font-variant-numeric:tabular-nums;line-height:1}
+  .an-factor{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid rgba(171,135,67,.14);font-size:12.5px;color:#c8d6cd}
+  .an-factor b{color:#e9dfc6;font-weight:600}
+  .an-driver{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid rgba(171,135,67,.12)}
+  .an-driver .sig{color:#AB8743;font-weight:700;font-size:12px;min-width:120px}
+  .an-driver .val{color:#e9dfc6;font-size:13px}
+  .an-driver .imp{color:#93a89c;font-size:11.5px;display:block;margin-top:2px}
+  .an-chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
+  .an-chip{background:rgba(171,135,67,.12);border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:4px 11px;font-size:11.5px;color:#e9dfc6}
   .st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
   .st.tentative{background:rgba(171,135,67,.16);color:#d9c18f}.st.approved{background:rgba(29,107,69,.3);color:#8fe7b9}.st.final{background:#1d6b45;color:#eafff3}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
   .feed{max-height:300px;overflow:auto}.feed p{margin:6px 0;font-size:13px;border-left:2px solid rgba(171,135,67,.35);padding-left:10px}
@@ -76,38 +110,15 @@
       <button id="sync" class="btn">🔄 Run Daily Sync</button>
       <button id="refresh" class="btn secondary">Refresh Plan</button>
       <button id="export" class="btn secondary" title="Download the whole calendar as a Google Sheets / Excel-ready CSV: themes, hero + supporting products, real product + image links, audience counts, per-asset prompts, and expected send/deliver/open/CTR metrics.">⬇ Export to Sheets</button>
-      <a id="buildview" class="btn secondary" href="/email-calendar" style="display:inline-block;text-decoration:none" title="Open the build-ready daily view: cadence rail, discount-cap guardrails, and per-send build cards.">🗓 Build-ready view</a>
-      <button id="schema" class="btn secondary">Schema</button>
     </div>
   </section>
 
   <section class="grid">
     <div class="card"><div class="label">Mode</div><div id="mode" class="metric">—</div></div>
     <div class="card"><div class="label">Plan entries</div><div id="entries" class="metric">—</div></div>
-    <div class="card"><div class="label">Pending approval</div><div id="pending" class="metric">—</div></div>
+    <div class="card"><div class="label">Awaiting generation</div><div id="pending" class="metric">—</div></div>
     <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div></div>
-
-    <div class="card wide">
-      <h2>Rolling calendar (next 90 days)</h2>
-      <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:2px 0 14px">
-        <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
-        <button class="mkchip on" data-mkt="all" onclick="toggleMkt('all')">All</button>
-        <button class="mkchip" data-mkt="US" onclick="toggleMkt('US')">US</button>
-        <button class="mkchip" data-mkt="UK" onclick="toggleMkt('UK')">UK</button>
-        <button class="mkchip" data-mkt="Global" onclick="toggleMkt('Global')">Global</button>
-        <button class="mkchip" data-mkt="India" onclick="toggleMkt('India')">India</button>
-        <span id="mktcount" style="color:#789;font-size:12px;margin-left:6px"></span>
-      </div>
-      <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>Date</th><th>Market</th><th>Cohort</th><th>Objective · Hero</th><th>Why (analysis)</th><th>Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="plan"><tr><td colspan="9" style="color:#789">Loading plan…</td></tr></tbody>
-      </table>
-      </div>
-    </div>
-
-    <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
-    <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
+    <div class="card" title="Total sends scheduled in the next 30 days across all regions. Target: 3-4 cohorts/day/market to support >=70-80k USD/month (~1000-1500 USD/day)."><div class="label">Sends / 30d</div><div id="sends30" class="metric">—</div></div>
 
     <div class="card wide" id="dualmode">
       <h2>Agentic Generation</h2>
@@ -119,6 +130,47 @@
       </div>
       <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow. Its calendar stage returns the cadence scenarios (A-E) inline.</p></div>
     </div>
+
+    <div class="card wide">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <h2 style="margin:0">Rolling calendar (next 90 days)</h2>
+        <button id="generateAll" class="btn sm ok" onclick="generateAll()" style="display:none" title="Generate the final best version of every asset (mailer, ads, landing page) for the sends currently shown (respects the region filter).">⚙ Generate all</button>
+      </div>
+      <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 8px">
+        <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
+        <button class="mkchip" data-mkt="all" onclick="toggleMkt('all')">All</button>
+        <button class="mkchip on" data-mkt="US" onclick="toggleMkt('US')">US</button>
+        <button class="mkchip" data-mkt="UK" onclick="toggleMkt('UK')">UK</button>
+        <button class="mkchip" data-mkt="Global" onclick="toggleMkt('Global')">Global</button>
+        <button class="mkchip" data-mkt="India" onclick="toggleMkt('India')">India</button>
+        <span id="mktcount" style="color:#789;font-size:12px;margin-left:6px"></span>
+      </div>
+      <div id="durfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 14px">
+        <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Duration</span>
+        <button class="mkchip" data-dur="7" onclick="setDur(7)">Next 7 days</button>
+        <button class="mkchip" data-dur="30" onclick="setDur(30)">30 days</button>
+        <button class="mkchip" data-dur="60" onclick="setDur(60)">60 days</button>
+        <button class="mkchip on" data-dur="90" onclick="setDur(90)">90 days</button>
+        <button class="mkchip" data-dur="all" onclick="setDur('all')">All</button>
+        <span id="durcount" style="color:#789;font-size:12px;margin-left:6px"></span>
+      </div>
+      <div id="catfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 14px">
+        <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Catalog</span>
+        <button class="mkchip on" data-cat="tea" onclick="toggleCat('tea')">Teas &amp; Botanicals</button>
+        <button class="mkchip on" data-cat="coffee" onclick="toggleCat('coffee')">Ashwagandha Coffee</button>
+        <button class="mkchip on" data-cat="supplement" onclick="toggleCat('supplement')">Supplements</button>
+        <span id="catcount" style="color:#789;font-size:12px;margin-left:6px"></span>
+      </div>
+      <div class="tblscroll">
+      <table id="plantable">
+        <thead><tr><th>Date</th><th>Market</th><th class="cohort">Cohort</th><th class="obj">Objective · Hero</th><th class="why">Why (analysis)</th><th class="chan">Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="plan"><tr><td colspan="9" style="color:#789">Loading plan…</td></tr></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
+    <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
 
     <div class="card wide">
       <h2 id="detailTitle">Details</h2>
@@ -202,7 +254,7 @@ async function loadScenarios(){
 }
 
 // Region filter — multi-select. Empty set OR 'all' = every market.
-const SELECTED_MKT = new Set();
+const SELECTED_MKT = new Set(['US']);  // default to US only; "All" clears it
 function mktKey(m){ const s=String(m||'').toLowerCase(); if(s.startsWith('uk')) return 'UK'; if(s.startsWith('us')) return 'US'; if(/^in|india/.test(s)) return 'India'; if(/global|eu|au|me|row|rest/.test(s)) return 'Global'; return (m||'').toUpperCase(); }
 function mktVisible(e){ return SELECTED_MKT.size===0 || SELECTED_MKT.has(mktKey(e.market)); }
 window.toggleMkt = function(mkt){
@@ -215,35 +267,86 @@ window.toggleMkt = function(mkt){
   renderPlan();
 };
 
+// Duration horizon: limit the calendar to sends within the next N days (from
+// today, inclusive). 'all' shows the whole rolling window. Default 90.
+let SELECTED_DAYS = 90;
+function durCutoff(){ return SELECTED_DAYS==='all' ? null : new Date(Date.now()+SELECTED_DAYS*86400000).toISOString().slice(0,10); }
+function durVisible(e){ if(SELECTED_DAYS==='all') return true; const today=new Date().toISOString().slice(0,10); const end=durCutoff(); return (!e.date) || (e.date>=today && e.date<=end); }
+// Catalog bucket: classify a slot by its hero product into one of the three
+// storefront catalogs. Default all three selected; at least one must stay on.
+const SELECTED_CAT = new Set(['tea','coffee','supplement']);
+function catBucket(e){
+  const hp = e.heroProduct || {};
+  const s = ((hp.title||hp.name||'') + ' ' + (hp.category||hp.type||'') + ' ' + (e.theme||'')).toLowerCase();
+  if(/coffee|cold brew|espresso|latte/.test(s)) return 'coffee';
+  if(/supplement|capsule|tablet|gummies|gummy|curcumin|\d+\s*mg|ksm-?66|magnesium|probiotic|collagen|shilajit/.test(s)) return 'supplement';
+  return 'tea'; // teas, chai, matcha, tisanes, herbals, botanicals (default)
+}
+function catVisible(e){ return SELECTED_CAT.size===0 || SELECTED_CAT.has(catBucket(e)); }
+window.toggleCat = function(cat){
+  // Enforce at-least-one: refuse to turn off the last selected catalog.
+  if(SELECTED_CAT.has(cat)){ if(SELECTED_CAT.size===1) return; SELECTED_CAT.delete(cat); }
+  else SELECTED_CAT.add(cat);
+  document.querySelectorAll('#catfilter .mkchip').forEach(b=>{ b.classList.toggle('on', SELECTED_CAT.has(b.dataset.cat)); });
+  renderPlan();
+};
+
+// Combined visibility used by the table, counts and Generate all.
+function slotVisible(e){ return mktVisible(e) && durVisible(e) && catVisible(e); }
+window.setDur = function(d){
+  SELECTED_DAYS = (d==='all') ? 'all' : Number(d);
+  document.querySelectorAll('#durfilter .mkchip').forEach(b=>{
+    b.classList.toggle('on', String(b.dataset.dur)===String(d));
+  });
+  renderPlan();
+};
+
 function renderPlan(){
   if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="9" style="color:#789">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }
   $('entries').textContent = PLAN.length;
-  $('pending').textContent = PLAN.filter(e => e.status === 'tentative').length;
-  const shown = PLAN.filter(mktVisible).length;
-  const mc = $('mktcount'); if(mc) mc.textContent = SELECTED_MKT.size ? `Showing ${shown} of ${PLAN.length}` : `${PLAN.length} sends · all regions`;
-  if(!shown){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#789">No sends for the selected region(s).</td></tr>`; return; }
+  const isGenerated = e => !!(e.generated_campaign_id || e.status === 'approved' || e.status === 'final' || (e.__prebuilt && e.__prebuilt.campaign_id));
+  $('pending').textContent = PLAN.filter(e => !isGenerated(e)).length;
+  const shown = PLAN.filter(slotVisible).length;
+  const mc = $('mktcount'); if(mc) mc.textContent = SELECTED_MKT.size ? `Region: showing ${shown}` : `all regions`;
+  const dc = $('durcount'); if(dc) dc.textContent = `Showing ${shown} of ${PLAN.length} sends${SELECTED_DAYS==='all'?'':` · next ${SELECTED_DAYS} days`}`;
+  const cc = $('catcount'); if(cc) cc.textContent = SELECTED_CAT.size===3 ? 'all catalogs' : `${SELECTED_CAT.size} of 3 catalogs`;
+  // "Generate all" — appears when there are sends in view (region + duration)
+  // that don't yet have their final assets built; counts what it will act on.
+  const pendingVisible = PLAN.filter(e => !isGenerated(e) && slotVisible(e)).length;
+  // Sends scheduled in the next 30 days (the 3-4/day cadence made concrete).
+  const s30 = $('sends30');
+  if(s30){
+    const today = new Date().toISOString().slice(0,10);
+    const end = new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+    s30.textContent = PLAN.filter(e => e.date >= today && e.date <= end).length;
+  }
+  const aa = $('generateAll');
+  if(aa){ aa.style.display = pendingVisible ? '' : 'none'; aa.textContent = `⚙ Generate all (${pendingVisible})`; }
+  if(!shown){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#789">No sends for the selected region + duration. Widen the duration or pick another region.</td></tr>`; return; }
   // Iterate over ALL entries (keep index i aligned to PLAN for viewEntry/approve),
   // emitting nothing for rows filtered out by the region selector.
   $('plan').innerHTML = PLAN.map((e,i)=>{
-    if(!mktVisible(e)) return '';
+    if(!slotVisible(e)) return '';
     const a = e.analysis || null;
     const why = a && a.summary ? a.summary : (e.rationale || '');
     const confLabel = a && a.confidence && a.confidence.label ? a.confidence.label : '';
     const confTip = a && a.confidence && Array.isArray(a.confidence.factors)
       ? a.confidence.factors.map(f=>`${f.delta>=0?'+':''}${f.delta} ${f.label}`).join('\n') : '';
-    const status = `<span class="st ${esc(e.status||'tentative')}">${esc(e.status||'tentative')}</span>${e.__prebuilt && e.__prebuilt.campaign_id ? `<br><span class="pill" style="background:#0c3;color:#03210f;font-size:10px" title="Full asset bundle (copy + images: mailer, ads, landing page) already built. Approve to publish.">✓ assets prebuilt</span>` : ''}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}`;
+    const isGen = !!(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id));
+    const status = `<span class="st ${isGen?'approved':'tentative'}">${isGen?'✓ generated':'draft'}</span>${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}`;
     return `<tr class="planrow" id="planrow-${i}">
-    <td>${esc(e.date)}</td>
+    <td>${esc(e.date)}${e.mailer_total > 1 ? `<br><span class="pill" style="background:#2a2411;color:#e6c979;font-size:10px">MAILER ${e.mailer_index}/${e.mailer_total}</span>` : ''}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
-    <td>${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span></td>
-    <td>${esc(e.objective)}<br><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
-    <td style="max-width:260px"><span style="font-size:12px;color:#d8cdb4;line-height:1.4">${esc(why)}</span></td>
-    <td>${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
+    <td class="cohort">${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}</td>
+    <td class="obj"><div class="clamp2" style="font-weight:600;color:#e8ede9">${esc(e.objective)}</div><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}</span></td>
+    <td class="why"><div class="clamp2" style="font-size:12px;color:#a9b8ad;line-height:1.45" title="${esc(why)}">${esc(why)}</div></td>
+    <td class="chan">${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
     <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#9fb3a8;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
     <td>${status}</td>
     <td style="white-space:nowrap">
       <button class="btn sm secondary" id="viewbtn-${i}" onclick="viewEntry(${i})">View</button>
-      ${e.status==='tentative' ? `<button class="btn sm ok" onclick="approve(${i})">Approve</button> <button class="btn sm no" onclick="reject(${i})">Reject</button>` : ''}
+      <button class="btn sm ok" id="dlbtn-${i}" onclick="downloadEntry(${i})" title="Generate (if needed) and download every asset for this send as one HTML file">⬇ Download</button>
+      ${e.decision ? `<button class="btn sm secondary" onclick="viewDecision(${i})" title="Why this send: theme, product, coupon and design reasoning">Decision</button>` : ''}
     </td>
   </tr>
   <tr class="exprow" id="exprow-${i}" style="display:none"><td colspan="9" style="padding:0;background:#0b1813;border-bottom:2px solid rgba(171,135,67,.3)"><div class="expbody" id="expbody-${i}" style="padding:16px 18px"></div></td></tr>`;}).join('');
@@ -283,28 +386,41 @@ function renderAd(ad){
 // confidence, evidence) produced by api/_shared/output-reasoning.js.
 function analysisPanelHTML(a){
   if(!a) return '<p class="pvnote">No structured analysis on this entry.</p>';
-  const drivers = (a.drivers||[]).map(d=>`<tr><td style="color:#9fb3a8;white-space:nowrap;vertical-align:top;padding:4px 10px 4px 0"><b>${esc(d.signal)}</b></td><td style="vertical-align:top;padding:4px 0"><span style="color:#e9dfc6">${esc(d.value)}</span>${d.implication?`<br><span style="color:#9aa;font-size:12px">${esc(d.implication)}</span>`:''}</td></tr>`).join('');
   const conf = a.confidence||{};
-  const factors = (conf.factors||[]).map(f=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid rgba(171,135,67,.18)"><span>${esc(f.label)}${f.detail?`<br><span style="color:#9aa;font-size:11px">${esc(f.detail)}</span>`:''}</span><span style="color:${f.delta>=0?'#8fe7b9':'#e89a9a'};font-variant-numeric:tabular-nums;white-space:nowrap">${f.delta>=0?'+':''}${f.delta}</span></div>`).join('');
+  const pct = conf.score!=null ? Math.round(conf.score*100) : null;
+  const drivers = (a.drivers||[]).filter(d=>d && (d.signal||d.value)).map(d=>`<div class="an-driver"><span class="sig">${esc(d.signal||'')}</span><span class="val">${esc(d.value||'')}${d.implication?`<span class="imp">${esc(d.implication)}</span>`:''}</span></div>`).join('');
+  const factors = (conf.factors||[]).map(f=>`<div class="an-factor"><span><b>${esc(f.label)}</b>${f.detail?`<br><span style="color:#93a89c;font-size:11px">${esc(f.detail)}</span>`:''}</span><span style="color:${f.delta>=0?'#8fe7b9':'#e89a9a'};font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:700">${f.delta>=0?'+':''}${f.delta}</span></div>`).join('');
   const ev = a.evidence||{};
   const evBits = [];
-  if(ev.own_campaign && ev.own_campaign.name) evBits.push(`Proven campaign: <b>${esc(ev.own_campaign.name)}</b>`);
-  if(ev.festival && ev.festival.name) evBits.push(`Festival: <b>${esc(ev.festival.name)}</b>${ev.festival.weight!=null?` (w${esc(ev.festival.weight)})`:''}`);
-  if(ev.competitor && ev.competitor.top_hook) evBits.push(`Competitor angle: <b>${esc(ev.competitor.top_hook)}</b>`);
-  if(Array.isArray(ev.mvt) && ev.mvt.length) evBits.push(`MVT: ${ev.mvt.map(esc).join(', ')}`);
-  if(ev.data_source) evBits.push(`Data source: <b>${esc(ev.data_source)}</b>`);
+  if(ev.own_campaign && ev.own_campaign.name) evBits.push(`Proven: ${esc(ev.own_campaign.name)}`);
+  if(ev.festival && ev.festival.name) evBits.push(`Festival: ${esc(ev.festival.name)}`);
+  if(ev.competitor && ev.competitor.top_hook) evBits.push(`Competitor: ${esc(ev.competitor.top_hook)}`);
+  if(Array.isArray(ev.mvt) && ev.mvt.length) evBits.push(`Testing: ${ev.mvt.map(esc).join(', ')}`);
+  if(ev.data_source) evBits.push(`Source: ${esc(ev.data_source)}`);
+  const ei = a.expected_impact||null;
+  // FOCUS-FIRST layout: the bet + the expected win + confidence lead the eye;
+  // supporting detail (drivers, factors, evidence) sits below in quieter cards.
   return `
     <div style="line-height:1.5">
-      <div class="label">Summary</div>
-      <p style="margin:.2em 0 1em;color:#e9dfc6">${esc(a.summary||'')}</p>
-      <div class="label">Why — data drivers</div>
-      <table style="width:100%;border-collapse:collapse;margin:.3em 0 1em">${drivers||'<tr><td>—</td></tr>'}</table>
-      <div class="label">Hypothesis</div>
-      <p style="margin:.2em 0 1em;color:#d8cdb4">${esc(a.hypothesis||'—')}</p>
-      ${a.expected_impact?`<div class="label">Expected impact</div><p style="margin:.2em 0 1em;color:#d8cdb4">Move <b style="color:#e9dfc6">${esc(a.expected_impact.metric||'')}</b> ${esc(a.expected_impact.direction||'up')} — basis: ${esc(a.expected_impact.basis||'')}</p>`:''}
-      <div class="label">Confidence · ${conf.score!=null?Math.round(conf.score*100)+'%':'—'} ${conf.label?`(${esc(conf.label)})`:''}</div>
-      <div style="margin:.3em 0 1em">${factors||'—'}</div>
-      ${evBits.length?`<div class="label">Evidence</div><p style="margin:.2em 0 0;color:#9fb3a8;font-size:12px">${evBits.join(' · ')}</p>`:''}
+      <div class="an-focus">
+        <div class="an-eyebrow">The bet</div>
+        <p class="lead">${esc(a.hypothesis||a.summary||'')}</p>
+        ${a.summary && a.hypothesis ? `<p class="sub">${esc(a.summary)}</p>` : ''}
+      </div>
+      ${ei?`<div class="an-callout"><div class="an-eyebrow">What to watch</div><div class="big">↑ Move <b>${esc(ei.metric||'')}</b> ${esc(ei.direction||'up')}</div>${ei.basis?`<div style="color:#bcd2c6;font-size:12.5px;margin-top:5px">Basis: ${esc(ei.basis)}</div>`:''}</div>`:''}
+      <div class="an-grid">
+        <div class="an-card">
+          <div class="an-eyebrow">Confidence ${conf.label?`· ${esc(conf.label)}`:''}</div>
+          <div style="display:flex;align-items:baseline;gap:6px"><span class="an-conf-num">${pct!=null?pct:'—'}</span><span style="color:#93a89c;font-size:13px">${pct!=null?'%':''}</span></div>
+          ${pct!=null?`<div class="an-confbar"><i style="width:${pct}%"></i></div>`:''}
+          ${factors||'<span style="color:#93a89c;font-size:12px">No adjustment factors.</span>'}
+        </div>
+        <div class="an-card">
+          <div class="an-eyebrow">Why — data drivers</div>
+          ${drivers||'<span style="color:#93a89c;font-size:12px">No structured data drivers on this slot (running on planning priors).</span>'}
+        </div>
+      </div>
+      ${evBits.length?`<div class="an-eyebrow">Evidence</div><div class="an-chips">${evBits.map(b=>`<span class="an-chip">${b}</span>`).join('')}</div>`:''}
     </div>`;
 }
 
@@ -331,30 +447,21 @@ function renderPreview(payload, e, i, opts){
   window.__SB_EXPORTS = [];
   window.__SB_ASSET_STATUS = window.__SB_ASSET_STATUS || {};
   const slotKey = e.id || ('slot-'+i);
-  // Per-asset control bar: Download + Copy + individual Approve / Reject. The
-  // verdict is a client-side review mark that travels with the slot approval.
+  // Per-asset control bar: Download + Copy. (Approve/reject removed — the tool
+  // generates the final best version of every asset by default; the reviewer
+  // just views and downloads.)
   const expBar = (name, html) => {
     const idx = window.__SB_EXPORTS.push({ name, html }) - 1;
-    const ak = slotKey + '::' + name;
-    const cur = window.__SB_ASSET_STATUS[ak] || '';
-    return `<div class="akbar" data-ak="${esc(ak)}">
+    return `<div class="akbar">
       <button class="btn sm secondary" onclick="sbDownload(${idx})">⬇ Download</button>
       <button class="btn sm secondary" onclick="sbCopy(${idx}, this)">📋 Copy</button>
-      <button class="btn sm ok" onclick="sbAsset('${esc(ak)}','approved',this)">✓ Approve</button>
-      <button class="btn sm no" onclick="sbAsset('${esc(ak)}','rejected',this)">✕ Reject</button>
-      <span class="akstatus ${esc(cur)}">${cur?('· '+cur):''}</span>
     </div>`;
   };
-  // Ads are not HTML files — give them Approve/Reject (+ Download of the copy).
+  // Ads are not HTML files — Download the copy JSON.
   const adBar = (name, text) => {
     const idx = window.__SB_EXPORTS.push({ name, html: text }) - 1;
-    const ak = slotKey + '::' + name;
-    const cur = window.__SB_ASSET_STATUS[ak] || '';
-    return `<div class="akbar" data-ak="${esc(ak)}">
+    return `<div class="akbar">
       <button class="btn sm secondary" onclick="sbDownload(${idx})">⬇ Download copy</button>
-      <button class="btn sm ok" onclick="sbAsset('${esc(ak)}','approved',this)">✓ Approve</button>
-      <button class="btn sm no" onclick="sbAsset('${esc(ak)}','rejected',this)">✕ Reject</button>
-      <span class="akstatus ${esc(cur)}">${cur?('· '+cur):''}</span>
     </div>`;
   };
   if(Array.isArray(emailVars) && emailVars.length){
@@ -367,18 +474,14 @@ function renderPreview(payload, e, i, opts){
       first=false;
     });
   } else if(emailHtml){ const html = emailHtml.replace(/\{\{\s*landing_page_url\s*\}\}/g,'#'); tab('pv-mail','✉ Mailer',first); pane('pv-mail', `${expBar('mailer', html)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first); first=false; }
-  if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#8fe7b9">/lp/${esc(liveLpId)} ↗</a> once approved.</p>`:''}${expBar('landing-page', lpHtml)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
+  if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#8fe7b9">/lp/${esc(liveLpId)} ↗</a>.</p>`:''}${expBar('landing-page', lpHtml)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
   // Each platform ships an A/B pair. Give every ad a UNIQUE tab id + a label that
   // names its variant and angle, otherwise both A and B collide on the same id
   // ("pv-ad-meta") and read as a duplicate "meta ad" tile (B hidden behind A).
   ads.forEach((ad,ai)=>{ const id='pv-ad-'+(ad.platform||'x')+'-'+(ad.variant||ai); const vl=ad.variant?(' · '+ad.variant+(ad.angle?' ('+ad.angle+')':'')):''; const adName='ad-'+(ad.platform||'x')+'-'+(ad.variant||ai); tab(id, esc((ad.platform||'ad'))+' ad'+esc(vl), first); pane(id, adBar(adName, JSON.stringify(ad,null,2))+renderAd(ad), first); first=false; });
   tab('pv-json','{ } Details', first); pane('pv-json', `<pre style="margin:0">${esc(JSON.stringify(campaign && campaign.campaign_id ? campaign : e, null, 2))}</pre>`, first);
 
-  const isTentative = e.status==='tentative';
-  const finalLoaded = opts.persisted || e.status==='approved' || e.status==='final';
-  const banner = finalLoaded
-    ? `<span class="st approved">${esc(e.status==='final'?'final':'approved')}</span> <span class="pvnote" style="margin:0">Final approved version — this is what ships.</span>`
-    : `<span class="st tentative">preview</span> <span class="pvnote" style="margin:0">Not yet approved — generated on demand.</span>`;
+  const banner = `<span class="st approved">final</span> <span class="pvnote" style="margin:0">Final generated version — the best version of each asset, ready to view and download.</span>`;
   // "Open detailed page": the real hosted landing page once live, else the primary
   // mailer opened full-screen in a new tab.
   const detailBtn = liveLpId
@@ -391,17 +494,59 @@ function renderPreview(payload, e, i, opts){
       ${banner}
       <span style="flex:1"></span>
       ${detailBtn}
-      <button class="btn sm secondary" onclick="sbDownloadAll()" title="Download every asset (mailer variants, landing page, ads) as one HTML file">⬇ Download all</button>
+      <button class="btn sm ok" onclick="sbDownloadAll()" title="Download every asset (mailer variants, landing page, ads) as one HTML file">⬇ Download all</button>
       <button class="btn sm secondary" onclick="viewEntry(${i}, true)">↻ Regenerate</button>
-      ${isTentative ? `<button class="btn sm ok" onclick="approve(${i})">✓ Approve all assets</button> <button class="btn sm no" onclick="reject(${i})">✕ Reject all</button>` : ''}
       <button class="btn sm secondary" onclick="closeExp(${i})" title="Collapse">✕</button>
     </div>
     <div class="pvnote">Copy by <b>${esc(cw.provider || 'template')}</b>${cw.model?` · ${esc(cw.model)}`:''} · channels: ${(e.channels||[]).map(esc).join(', ')||'—'}</div>
+    ${(() => { const tr = payload.agent_trace || campaign.agent_trace; if(!Array.isArray(tr)||!tr.length) return ''; return `<div class="pvnote" style="margin-top:4px">Agent pipeline: ${tr.map(a=>`<span class="pill" style="background:${a.ok?'#12362a':'#3a1414'};color:${a.ok?'#8fe7b9':'#ffd9d0'};font-size:10px" title="${esc(a.role||'')}${a.provider?' · '+esc(a.provider):''}">${a.ok?'✓':'⚠'} ${esc(a.agent)}</span>`).join(' → ')}</div>`; })()}
     <div class="pvtabs">${tabs.join('')}</div>
     ${panes.join('')}</div>`;
   host.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 window.closeExp = function(i){ const r=$('exprow-'+i); if(r) r.style.display='none'; };
+
+// ── Per-row decision detail ────────────────────────────────────────────────
+// Renders the entry.decision object (theme, topic, product hero+bundle, coupon,
+// design) as a labelled reasoning panel. This is the "why this send was decided
+// the way it was", distinct from the Why/Analysis data-drivers panel.
+function decisionPanelHTML(e){
+  const d = e.decision || {};
+  const block = (label, choice, why, extra) => `
+    <div style="border-left:3px solid #AB8743;padding:8px 0 8px 14px;margin:0 0 12px">
+      <div style="color:#9fb3a8;font-size:11px;text-transform:uppercase;letter-spacing:.08em">${esc(label)}</div>
+      <div style="color:#f2ead6;font-size:15px;margin:2px 0 4px;font-weight:600">${esc(choice||'—')}</div>
+      ${extra?`<div style="color:#cbb98f;font-size:12px;margin:0 0 4px">${extra}</div>`:''}
+      <div style="color:#9aa;font-size:12px;line-height:1.5">${esc(why||'')}</div>
+    </div>`;
+  const prod = d.product || {};
+  const prodExtra = (prod.supporting && prod.supporting.length)
+    ? `Hero: <b style="color:#e6c979">${esc(prod.hero)}</b> · Bundle: ${prod.supporting.map(s=>esc(s)).join(', ')}`
+    : `Hero: <b style="color:#e6c979">${esc(prod.hero||'')}</b> (no bundle)`;
+  const offer = d.offer || {};
+  const offerChoice = offer.code ? `${offer.code} · ${Math.round((offer.pct||0)*100)}% off` : 'No discount';
+  const reach = d.reach || e.reach || {};
+  const reachExtra = reach.planned_recipients ? `${Number(reach.planned_recipients).toLocaleString()} recipients · ${reach.per_user_per_week?.min}-${reach.per_user_per_week?.max} mailers/user/week` : '';
+  return `<div class="pvroot">
+    <div style="font-family:${'inherit'};font-size:16px;color:#f2ead6;font-weight:700;margin:0 0 12px">Why this send was decided this way</div>
+    ${block('Theme', d.theme?.choice, d.theme?.why)}
+    ${block('Topic', d.topic?.choice, d.topic?.why)}
+    ${block('Product (hero + bundle)', prod.hero, prod.why, prodExtra)}
+    ${block('Discount / coupon', offerChoice, offer.why)}
+    ${block('Design', (d.design?.archetype||'') + (d.design?.variants?` · ${d.design.variants}`:''), d.design?.why)}
+    ${block('Reach & frequency', reachExtra, reach.why || (d.reach&&d.reach.why))}
+    <div style="margin-top:10px"><button class="btn sm secondary" onclick="closeExp(${e.__i})">✕ Close</button>
+      <button class="btn sm secondary" onclick="viewEntry(${e.__i})">Open full funnel →</button></div>
+  </div>`;
+}
+window.viewDecision = function(i){
+  const e = PLAN[i]; if(!e) return;
+  e.__i = i;
+  const row = $('exprow-'+i), body = $('expbody-'+i);
+  document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
+  if(row) row.style.display='';
+  if(body){ body.innerHTML = decisionPanelHTML(e); body.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+};
 // Open the primary mailer full-screen in a new tab (the "detailed page" when a
 // slot is not yet approved and has no hosted /lp/:id).
 window.openDetailPage = function(i){
@@ -482,7 +627,7 @@ async function loadPlan(){
     $('mode').textContent = data.mode === 'db-linked' ? (data.stored ? 'DB-linked' : 'DB (empty)') : 'Preview';
     PLAN = data.entries || [];
     renderPlan();
-    if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; approvals will generate assets but the calendar itself is not persisted.</p>';
+    if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; assets generate on demand but the calendar itself is not persisted.</p>';
     return data;
   }catch(e){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#e89a9a">${esc(e.message)}</td></tr>`; return null; }
 }
@@ -527,45 +672,76 @@ async function runSync(){
   finally{ $('sync').disabled = false; $('sync').textContent = '🔄 Run Daily Sync'; }
 }
 
-async function approve(i){
+// Generate the final best version of every asset for one slot and persist it
+// (mailer + ads + landing page). No approval step — this simply builds the
+// definitive version so it can be viewed and downloaded. Returns the campaign
+// payload (also cached) or throws.
+async function generateEntry(i, { silent = false } = {}){
   const e = PLAN[i];
-  if(!confirm(`Approve ${e.date} ${e.market} (${e.objective})?\nThis generates the mailer, ads, and landing page for final check.`)) return;
   let row = $('exprow-'+i), body = $('expbody-'+i);
-  document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
-  if(row) row.style.display='';
-  if(body){ body.innerHTML = `<p class="pvnote"><span class="spinner"></span> Writing copy and assembling the final assets — usually 10–30s…</p>`; body.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
-  try{
-    // Gather any per-asset verdicts the reviewer set on this slot.
-    const pre = (e.id || ('slot-'+i)) + '::'; const asset_verdicts = {};
-    Object.keys(window.__SB_ASSET_STATUS || {}).forEach(k => { if(k.indexOf(pre)===0 && window.__SB_ASSET_STATUS[k]) asset_verdicts[k.slice(pre.length)] = window.__SB_ASSET_STATUS[k]; });
-    const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail(), asset_verdicts })});
-    const data = await safeJson(r);
-    if(!data.ok) throw new Error(data.error || 'Approve failed');
-    e.status = 'approved'; e.generated_campaign_id = data.campaign.campaign_id;
-    PREVIEW_CACHE[e.id] = data;   // cache the FINAL so re-opening always shows it
-    renderPlan();                 // rebuilds rows (status → approved); expansions reset
-    // Re-open this row's (freshly rebuilt) expansion with the final version.
+  if(!silent){
+    document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
+    if(row) row.style.display='';
+    if(body){ body.innerHTML = `<p class="pvnote"><span class="spinner"></span> Generating the final assets (mailer, ads & landing page) — usually 10–30s…</p>`; body.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+  }
+  const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
+  const data = await safeJson(r);
+  if(!data.ok) throw new Error(data.error || 'Generation failed');
+  e.status = 'final'; e.generated_campaign_id = data.campaign.campaign_id;
+  PREVIEW_CACHE[e.id] = data;   // cache the FINAL so re-opening always shows it
+  if(!silent){
+    renderPlan();
     row = $('exprow-'+i); body = $('expbody-'+i);
     if(row) row.style.display='';
     renderPreview(data, e, i, { persisted: true, target: body });
     if(body) body.setAttribute('data-loaded','1');
-  }catch(err){ if(body) body.innerHTML = `<p class="pvnote" style="color:#e89a9a">Approve failed: ${esc(err.stack || err.message)}</p>`; }
+  }
+  return data;
 }
 
-async function reject(i){
+// Row "Download": ensure the final assets exist (generate on demand if needed),
+// render them into the expansion, then download every asset as one file.
+async function downloadEntry(i){
   const e = PLAN[i];
-  const notes = prompt(`Why reject ${e.date} ${e.market}? (stored as feedback; slot is re-planned on next sync)`) ?? '';
+  const btn = $('dlbtn-'+i); const label = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = '…'; }
   try{
-    const r = await fetch(`${API}?action=smart-brain-reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, notes, reviewer: reviewerEmail() })});
-    const data = await safeJson(r);
-    if(!data.ok) throw new Error(data.error || 'Reject failed');
-    e.status = 'rejected';
-    delete PREVIEW_CACHE[e.id];
-    clearPreview();
-    renderPlan();
-  }catch(err){ $('detail').textContent = err.stack || err.message; }
+    if(PREVIEW_CACHE[e.id]){
+      const row = $('exprow-'+i), body = $('expbody-'+i);
+      document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
+      if(row) row.style.display='';
+      renderPreview(PREVIEW_CACHE[e.id], e, i, { persisted: true, target: body });
+      if(body) body.setAttribute('data-loaded','1');
+    } else {
+      await generateEntry(i);   // builds + renders (populates window.__SB_EXPORTS)
+    }
+    sbDownloadAll();
+  }catch(err){ const b=$('expbody-'+i); if(b) b.innerHTML = `<p class="pvnote" style="color:#e89a9a">Download failed: ${esc(err.stack || err.message)}</p>`; }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = label; } }
 }
-window.approve = approve; window.reject = reject;
+
+// Generate the final assets for every not-yet-generated send currently in view
+// (respects the region filter). Sequential — each build spins up an LLM copy +
+// asset run on a serverless function, so we avoid firing 90 at once. Progress
+// and a per-slot pass/fail tally stream into #detail; failures are collected.
+async function generateAll(){
+  const targets = PLAN.map((e,i)=>({e,i})).filter(({e})=> !(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id)) && slotVisible(e));
+  if(!targets.length){ return; }
+  if(!confirm(`Generate the final assets for ${targets.length} send(s) currently shown?\nEach one builds its mailer, ads, and landing page. This can take a while.`)) return;
+  const aa = $('generateAll'); if(aa){ aa.disabled = true; }
+  const det = $('detail');
+  let ok = 0; const fails = [];
+  for(let n=0; n<targets.length; n++){
+    const { i, e } = targets[n];
+    if(det) det.textContent = `Generating ${n+1} of ${targets.length}: ${e.date} ${e.market} (${e.objective})…  ✓${ok}${fails.length?`  ✕${fails.length}`:''}`;
+    try{ await generateEntry(i, { silent: true }); ok++; }
+    catch(err){ fails.push(`${e.date} ${e.market}: ${err.message}`); }
+  }
+  if(aa){ aa.disabled = false; }
+  renderPlan();
+  if(det) det.textContent = `Generate all done — ✓ ${ok} generated${fails.length?`, ✕ ${fails.length} failed:\n`+fails.join('\n'):''}.`;
+}
+window.generateEntry = generateEntry; window.downloadEntry = downloadEntry; window.generateAll = generateAll;
 
 async function showSchema(){
   clearPreview();
@@ -593,7 +769,6 @@ async function exportPlan(){
 }
 $('sync').addEventListener('click', runSync);
 $('refresh').addEventListener('click', loadPlan);
-$('schema').addEventListener('click', showSchema);
 $('export').addEventListener('click', exportPlan);
 autoGenerateOnLoad();
 </script>

@@ -66,18 +66,37 @@ async function safe(promise, fallback = null) {
   try { return await promise; } catch (_) { return fallback; }
 }
 
-// Exact row count via PostgREST content-range (cheap: Range 0-0). null on error.
+// The anon key is public-safe and, on our RLS-readable tables, sufficient for
+// counts. We keep it as a fallback because a stale/invalid SERVICE_ROLE key in
+// the env makes every server-side count 401 while client reads (which use the
+// anon key) keep working — the exact failure seen in prod.
+function anonKey() {
+  return (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+}
+
+// Count with a given key; returns { total, status }.
+async function countWith(url, table, filters, key) {
+  const q = new URLSearchParams(Object.assign({ select: 'id', limit: '1' }, filters));
+  const res = await fetch(`${url}/rest/v1/${table}?${q.toString()}`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'count=exact' },
+  });
+  if (!res.ok) return { total: null, status: res.status };
+  const cr = res.headers.get('content-range') || '';
+  const t = cr.split('/')[1];
+  return { total: t && t !== '*' ? parseInt(t, 10) : 0, status: res.status };
+}
+
+// Exact row count. Tries the configured (service-role) key, then retries with
+// the anon key on an auth failure so a bad service key can't blank every tile.
 async function countExact(table, filters = {}) {
   try {
-    const { url } = supa.env();
-    const q = new URLSearchParams(Object.assign({ select: 'id' }, filters));
-    const res = await fetch(`${url}/rest/v1/${table}?${q.toString()}`, {
-      headers: Object.assign(supa.headers(), { Prefer: 'count=exact', Range: '0-0' }),
-    });
-    if (!res.ok) return null;
-    const cr = res.headers.get('content-range') || '';
-    const total = cr.split('/')[1];
-    return total && total !== '*' ? parseInt(total, 10) : 0;
+    const { url, key } = supa.env();
+    let r = await countWith(url, table, filters, key);
+    if (r.total == null && (r.status === 401 || r.status === 403)) {
+      const ak = anonKey();
+      if (ak && ak !== key) r = await countWith(url, table, filters, ak);
+    }
+    return r.total;
   } catch (_) { return null; }
 }
 
@@ -100,14 +119,14 @@ async function smartBrainCount(table, filters = {}) {
   try {
     const { url, key } = smartBrainEnv();
     if (!url || !key) return null;
-    const q = new URLSearchParams(Object.assign({ select: 'id' }, filters));
-    const res = await fetch(`${url}/rest/v1/${table}?${q.toString()}`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'count=exact', Range: '0-0' },
-    });
-    if (!res.ok) return null;
-    const cr = res.headers.get('content-range') || '';
-    const total = cr.split('/')[1];
-    return total && total !== '*' ? parseInt(total, 10) : 0;
+    let r = await countWith(url, table, filters, key);
+    // Same 401/403 anon-key fallback as countExact: a stale service-role key
+    // must not blank the calendar/campaign tiles when the data is readable.
+    if (r.total == null && (r.status === 401 || r.status === 403)) {
+      const ak = anonKey();
+      if (ak && ak !== key) r = await countWith(url, table, filters, ak);
+    }
+    return r.total;
   } catch (_) { return null; }
 }
 
@@ -288,10 +307,29 @@ async function dashboard() {
   if (sbPending != null) counts.pending_reviews = sbPending;
 
   const lastRefresh = (cronRuns && cronRuns[0]) || null;
+
+  // Diagnostic: surface WHY tiles may be empty (env resolution + a live count
+  // probe against a table we know exists). Read-only, no secrets exposed.
+  const diag = await (async () => {
+    const out = { supabase_url_host: null, smart_brain_url_host: null, smart_brain_service_role: false, probe: null };
+    try { const { url } = supa.env(); out.supabase_url_host = url ? new URL(url).host : null; } catch (_) {}
+    try {
+      const { url, key } = smartBrainEnv();
+      out.smart_brain_url_host = url ? new URL(url).host : null;
+      out.smart_brain_service_role = Boolean(process.env.SMART_BRAIN_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
+      if (url && key) {
+        const res = await fetch(`${url}/rest/v1/smart_calendar_entries?select=id&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'count=exact' } });
+        out.probe = { table: 'smart_calendar_entries', http: res.status, ok: res.ok, content_range: res.headers.get('content-range') || null };
+      } else { out.probe = { error: 'smart-brain url/key not resolved' }; }
+    } catch (e) { out.probe = { error: String(e && e.message || e).slice(0, 140) }; }
+    return out;
+  })();
+
   return {
     generated_at: nowIso(),
     connectors: connSummary,
     counts,
+    _diag: diag,
     last_refresh: lastRefresh ? {
       status: lastRefresh.status, started_at: lastRefresh.started_at,
       finished_at: lastRefresh.finished_at, summary: lastRefresh.summary,

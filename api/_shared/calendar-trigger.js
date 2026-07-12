@@ -249,6 +249,12 @@ module.exports = async function handler(req, res) {
   //          from product image frames → (3) AI-generated video (last resort).
   // Each variant carries the same strategy so they read as a coherent campaign,
   // plus a portable `master_prompt` (built from the shared master-prompt module).
+  // Products in scope for the master prompt (hero + any supporting picks on entry).
+  const promptProducts = [
+    { title: entry.hero_product || entry.hero_sku, handle: entry.hero_handle, sku: entry.hero_sku, price: entry.hero_price },
+    ...((Array.isArray(entry.supporting_products) ? entry.supporting_products : [])),
+  ].filter((p) => p && (p.title || p.handle || p.sku));
+
   const sharedText = {
     subject: S.subject_line,
     hero_headline: S.hero_headline,
@@ -257,13 +263,10 @@ module.exports = async function handler(req, res) {
     cta_text: S.cta_text || 'Shop the edit',
     cta_url: ctaUrl,
     market,
+    // Flagship-parity: real inline product grid + derived collection CTA.
+    products: promptProducts,
+    collection_url: `${regionBase(market)}/collections/${collectionForEntry(entry)}`,
   };
-
-  // Products in scope for the master prompt (hero + any supporting picks on entry).
-  const promptProducts = [
-    { title: entry.hero_product || entry.hero_sku, handle: entry.hero_handle, sku: entry.hero_sku },
-    ...((Array.isArray(entry.supporting_products) ? entry.supporting_products : [])),
-  ].filter((p) => p && (p.title || p.handle || p.sku));
 
   const variants = {
     V1: {
@@ -394,14 +397,86 @@ function renderTextVariant(opts) {
     preheader: (opts && opts.preheader) || (opts && opts.preview_text) || '',
   });
 }
-function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku, hero_image_url, hero_prompt }) {
+// Legal sender identity for email footers (CAN-SPAM: a real physical mailing
+// address is required in every commercial email). SAME constants the flagship
+// engine (brain-generate.js) uses, so every mailer path carries an identical
+// compliant footer.
+const ORG_NAME = 'Vahdam Teas Global, Inc';
+const ORG_ADDRESS = '440 N Barranca Ave #2812, Covina, CA 91723, United States';
+// Real hosted product photos (Shopify CDN) resolved by handle/title, the SAME
+// source the flagship mailer uses, so a product tile never renders imageless.
+let _catImg = null;
+try { _catImg = require('./catalog-image.js'); } catch (_) {}
+function _productImg(p, market) {
+  if (!p) return null;
+  const d = p.image || p.image_url || p.i;
+  if (typeof d === 'string' && /^https?:\/\//.test(d)) return d;
+  if (_catImg && _catImg.imageFor) {
+    return _catImg.imageFor({ handle: p.handle || p.h, title: p.title || p.n }, market) || null;
+  }
+  return null;
+}
+
+function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku, hero_image_url, hero_prompt, products, offer_bar, collection_url }) {
   // CTA points at the resolved product/collection page; the brand domain still
   // falls back per-market if no specific destination was provided.
   const baseUrl = cta_url || regionBase(market);
+  const store = regionBase(market);
+  const cur = String(market || '').toUpperCase() === 'UK' ? '£' : '$';
+  const HEAD = "'Lao MN','Cormorant Garamond',Georgia,serif";
+  const BODY = "'Proxima Nova','Helvetica Neue',Arial,sans-serif";
 
   const palette = {
     green: '#004A2B', gold: '#AB8743', ink: '#171717', cream: '#FBF5EA',
   };
+
+  // ── Flagship-parity shared fragments (identical logic to brain-generate.js) ──
+  // Brand header: VAHDAM wordmark linking to the market store (the ONLY header
+  // link, matching the flagship's logo→store rule).
+  const brandHeader = `
+      <tr><td align="center" style="padding:18px 0 6px;">
+        <a href="${store}" target="_blank" style="text-decoration:none;display:inline-block;">
+          <div style="font-family:${HEAD};font-size:22px;letter-spacing:0.28em;color:${palette.green};font-weight:700;">VAHDAM</div>
+          <div style="font-family:${BODY};font-size:10px;letter-spacing:0.22em;color:${palette.gold};text-transform:uppercase;margin-top:4px;">${esc(market)} · Single-Estate Tea</div>
+        </a>
+      </td></tr>`;
+  // Optional gold offer bar (only when an offer string is supplied).
+  const offerBarRow = offer_bar ? `
+      <tr><td align="center" style="background:${palette.gold};padding:9px 14px;font-family:${BODY};font-size:12px;font-weight:700;color:${palette.ink};">${esc(offer_bar)}</td></tr>` : '';
+  // Compact product grid: real inline images + PDP links, up to 3 across one row
+  // (never one-product-per-vertical-section). Matches the flagship grid exactly.
+  const gridProducts = Array.isArray(products) ? products.filter(Boolean).slice(0, 3) : [];
+  const productGrid = gridProducts.length ? `
+      <tr><td style="padding:16px 20px 4px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        ${gridProducts.map((p) => {
+    const img = _productImg(p, market);
+    const pdp = p.url || ((p.handle || p.h) ? `${store}/products/${p.handle || p.h}` : baseUrl);
+    const price = (p.price != null && p.price !== '') ? `${cur}${p.price}` : '';
+    return `<td align="center" valign="top" style="width:33%;padding:8px;">
+          <a href="${pdp}" target="_blank" style="text-decoration:none;">
+            <div style="background:${palette.cream};border:1px solid ${palette.gold}33;border-radius:10px;padding:12px 8px 16px;">
+              ${img ? `<img src="${esc(img)}" alt="${esc(p.title || p.n || '')}" width="140" style="width:100%;max-width:140px;height:auto;border-radius:8px;display:block;margin:0 auto 10px;" />` : ''}
+              <div style="font-family:${HEAD};font-size:14px;color:${palette.ink};line-height:1.35;">${esc(p.title || p.n || '')}</div>
+              ${price ? `<div style="font-family:${BODY};font-size:13px;color:${palette.gold};margin-top:6px;font-weight:600;">${price}</div>` : ''}
+            </div>
+          </a></td>`;
+  }).join('')}
+        </tr></table>
+      </td></tr>` : '';
+  // Secondary outline CTA → collection page (derived, or provided).
+  const collectionHref = collection_url || `${store}/collections/bestsellers`;
+  const secondaryCta = `
+      <tr><td align="center" style="padding:6px 24px 6px;">
+        <a href="${collectionHref}" target="_blank" style="display:inline-block;font-family:${BODY};font-size:13px;font-weight:700;color:${palette.green};border:1.5px solid ${palette.gold};border-radius:8px;padding:11px 24px;text-decoration:none;">Explore the collection</a>
+      </td></tr>`;
+  // CAN-SPAM footer — nothing clickable except the brand mark (in the header).
+  const brandFooter = `
+      <tr><td align="center" style="background:${palette.ink};padding:22px 20px 28px;">
+        <div style="font-family:${HEAD};font-size:14px;letter-spacing:0.24em;color:${palette.cream};">VAHDAM</div>
+        <div style="font-family:${BODY};font-size:10.5px;letter-spacing:0.05em;color:${palette.gold};margin:8px 0;">Single-estate · Hand-picked · Shipped fresh from origin</div>
+        <div style="font-family:${BODY};font-size:11px;color:${palette.cream}99;line-height:1.7;">${ORG_NAME} &middot; ${ORG_ADDRESS}<br>You are receiving this as a valued VAHDAM ${esc(market)} customer. Carbon &amp; plastic neutral.<br>Manage preferences or unsubscribe from your account settings.</div>
+      </td></tr>`;
 
   const blocks = (body_blocks || []).map((b) => `
     <tr><td style="padding:18px 32px 0;">
@@ -429,9 +504,7 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.cream};">
   <tr><td align="center" style="padding:36px 16px;">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #ece4d2;">
-      <tr><td style="padding:24px 32px 0;text-align:center;">
-        <div style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:13px;letter-spacing:3px;color:${palette.gold};text-transform:uppercase;">VAHDAM · ${esc(market)}</div>
-      </td></tr>${heroImgRow}
+      ${offerBarRow}${brandHeader}${heroImgRow}
       <tr><td style="padding:20px 32px 0;">
         <!-- Brand-palette hero block (no external image needed) -->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.green};border-radius:6px;">
@@ -451,10 +524,12 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
         <div style="display:inline-block;height:1px;width:38%;background:${palette.gold};vertical-align:middle;"></div>
       </td></tr>
       ${blocks}
-      <tr><td style="padding:28px 32px 36px;text-align:center;border-top:1px solid #ece4d2;">
+      ${productGrid}
+      <tr><td style="padding:26px 32px 8px;text-align:center;border-top:1px solid #ece4d2;">
         <a href="${baseUrl}" style="display:inline-block;background:${palette.green};color:${palette.cream};text-decoration:none;padding:14px 30px;font-family:'Proxima Nova',sans-serif;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;">${esc(cta_text)}</a>
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:18px 0 0;">Single-estate. Hand-picked. Brewed at origin.</p>
       </td></tr>
+      ${secondaryCta}
+      ${brandFooter}
     </table>
   </td></tr>
 </table>
@@ -481,6 +556,7 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
           <a href="${baseUrl}" style="color:${palette.green};text-decoration:underline;font-weight:600;">${esc(cta_text)} →</a>
         </p>
         <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:18px 0 0;">The VAHDAM team</p>
+        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;line-height:1.7;color:#9a8f7c;margin:20px 0 0;border-top:1px solid #ece4d2;padding-top:16px;">${ORG_NAME}, ${ORG_ADDRESS}<br>You are receiving this as a valued VAHDAM ${esc(market)} customer. Manage preferences or unsubscribe from your account settings.</p>
       </td></tr>
     </table>
   </td></tr>
@@ -494,21 +570,19 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.cream};">
   <tr><td align="center" style="padding:36px 16px;">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #ece4d2;">
-      <tr><td style="padding:36px 32px 0;text-align:center;">
-        <div style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:13px;letter-spacing:3px;color:${palette.gold};text-transform:uppercase;">VAHDAM</div>
-      </td></tr>
+      ${offerBarRow}${brandHeader}
       <tr><td style="padding:24px 32px 0;">
         <p style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:30px;line-height:1.25;color:${palette.green};margin:0 0 10px;font-weight:500;">${esc(hero_headline)}</p>
         <p style="font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.6;color:${palette.ink};margin:0 0 8px;">${esc(hero_subline)}</p>
         <p style="font-family:'Proxima Nova',sans-serif;font-size:13px;color:#7a6e5a;margin:0;">A note from the cupping table</p>
       </td></tr>
       ${blocks}
-      <tr><td style="padding:28px 32px 36px;text-align:center;">
+      ${productGrid}
+      <tr><td style="padding:26px 32px 8px;text-align:center;">
         <a href="${baseUrl}" style="display:inline-block;background:${palette.green};color:${palette.cream};text-decoration:none;padding:14px 30px;font-family:'Proxima Nova',sans-serif;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;">${esc(cta_text)}</a>
       </td></tr>
-      <tr><td style="padding:14px 32px 30px;border-top:1px solid #ece4d2;text-align:center;">
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:0;">Brewed at origin. Shipped within days, not seasons.</p>
-      </td></tr>
+      ${secondaryCta}
+      ${brandFooter}
     </table>
   </td></tr>
 </table>
@@ -521,18 +595,18 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.cream};">
   <tr><td align="center" style="padding:36px 16px;">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #ece4d2;">
-      <tr><td style="padding:24px 32px 0;text-align:center;">
-        <div style="font-family:'Lao MN',Georgia,serif;font-size:13px;letter-spacing:3px;color:${palette.gold};text-transform:uppercase;">VAHDAM · ${esc(market)}</div>
-      </td></tr>
-      <tr><td style="padding:24px 32px 0;border-bottom:1px solid #ece4d2;">
+      ${offerBarRow}${brandHeader}
+      <tr><td style="padding:20px 32px 0;border-bottom:1px solid #ece4d2;">
         <h1 style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:34px;line-height:1.18;color:${palette.green};margin:0 0 8px;font-weight:500;letter-spacing:-0.3px;">${esc(hero_headline)}</h1>
         <p style="font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.55;color:${palette.ink};margin:0 0 24px;">${esc(hero_subline)}</p>
       </td></tr>
       ${blocks}
-      <tr><td style="padding:28px 32px 36px;text-align:center;border-top:1px solid #ece4d2;">
+      ${productGrid}
+      <tr><td style="padding:26px 32px 8px;text-align:center;border-top:1px solid #ece4d2;">
         <a href="${baseUrl}" style="display:inline-block;background:${palette.green};color:${palette.cream};text-decoration:none;padding:14px 30px;font-family:'Proxima Nova',sans-serif;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;">${esc(cta_text)}</a>
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:18px 0 0;">No flash sales. No fillers. Just tea, picked at the source.</p>
       </td></tr>
+      ${secondaryCta}
+      ${brandFooter}
     </table>
   </td></tr>
 </table>

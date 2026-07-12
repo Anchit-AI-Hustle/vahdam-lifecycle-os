@@ -29,9 +29,9 @@ function load(market) {
   return arr;
 }
 
-// Accepts a handle string, or an entry/heroProduct-ish object. Returns an https
-// image URL or null (never a data: URI).
-function imageFor(entryOrHandle, market) {
+// Find the REAL catalog row for a handle string or entry/heroProduct-ish object.
+// Never fabricates — returns a catalog row or null.
+function match(entryOrHandle, market) {
   const arr = load(market);
   if (!arr.length) return null;
   let handle = null, title = null;
@@ -49,14 +49,28 @@ function imageFor(entryOrHandle, market) {
     // Keyword fallback: a handle like "turmeric-curcumin" or "green-burner" has
     // no exact catalog row, but a distinctive token ("turmeric", "burner") does.
     // Try the longest tokens first so the rare, specific word wins over a common
-    // one ("burner" before "green"), keeping a real photo instead of a placeholder.
+    // one ("burner" before "green"), keeping a real match instead of a miss.
     if (!p) {
       const toks = t.split(/\s+/).filter((w) => w.length >= 5).sort((a, b) => b.length - a.length);
       for (const w of toks) { p = arr.find((x) => (x.n || '').toLowerCase().includes(w)); if (p) break; }
     }
   }
+  return p || null;
+}
+
+// Accepts a handle string, or an entry/heroProduct-ish object. Returns an https
+// image URL or null (never a data: URI).
+function imageFor(entryOrHandle, market) {
+  const p = match(entryOrHandle, market);
   const url = p && p.i;
   return (typeof url === 'string' && /^https?:\/\//.test(url)) ? url : null;
 }
 
-module.exports = { imageFor };
+// Resolve a REAL product handle from the catalog (for building a PDP URL).
+// Returns the catalog handle string or null — NEVER a fabricated handle.
+function handleFor(entryOrHandle, market) {
+  const p = match(entryOrHandle, market);
+  return (p && (p.h || p.handle)) || null;
+}
+
+module.exports = { imageFor, handleFor, match };

@@ -4,6 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # VAHDAM Lifecycle OS — Project Memory
 
+## ⭐ Governing spec: Campaign Orchestration Master Operating Contract
+`docs/campaign-orchestration-master-spec.md` is the standing operating contract for all campaign
+calendar, cohort, mailer, ad, dashboard, and creative generation work. When building or generating
+any of those, obey it. Load-bearing rules (full detail in the doc):
+- **Zero fabrication** — never invent product facts, prices, URLs, images, ratings, reviews, claims,
+  segment sizes, or performance. Missing data -> `[DATA REQUIRED BEFORE LAUNCH: field, product, region]`.
+- **Closed source-of-truth** — only the repo + the exact official VAHDAM regional site for the exact
+  product/region. No cross-region reuse of facts/assets/reviews/claims/URLs.
+- **Design HARD rules** — never black/`#171717`/dark-neutral section backgrounds (use green); enforce
+  WCAG-AA contrast (no dark-on-dark / light-on-light); equal-size aligned parallel cards; proofread all
+  copy; source-map every fact.
+- **Frequency** — promotional cap 2 (absolute 3) per rolling 7 days; do not assume all ~111k are
+  contactable daily (preferred ~31.7k/day); reduce/delay/block when eligibility is short.
+- **Reviews/ratings** — only approved review data; never round 4.9 to 5, never invent reviewers, never
+  transfer across product/region.
+- **Launch gate** — weighted >= 9.5/10, no critical dim < 9; otherwise
+  `NOT LAUNCH READY — DATA/DESIGN/FACTUAL/TECHNICAL DEPENDENCY`.
+Known current gaps vs this spec (data feeds to wire before launch): approved review library, approved
+claims library, approved URL map, real eligible-segment sizes, valid `SUPABASE_SERVICE_ROLE_KEY`.
+
+
 A retention/lifecycle-marketing toolkit for VAHDAM Teas, deployed as a **single Vercel project** (no framework — `framework: null`, `outputDirectory: "."`). It started as the Mailer Studio (`vahdam_mailer_architect_v34.html`) and grew into a multi-page suite: data analysis → marketing calendar → mailer creation → competitor intelligence → knowledge base → ad/landing-page generation.
 
 Live: https://vahdam-marketing-mailers-architect.vercel.app/ · Canonical repo: `~/dev/anchit-hustle` (moved off iCloud, which was corrupting git — this iCloud copy may still be the working dir).
