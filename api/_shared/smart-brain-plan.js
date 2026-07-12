@@ -852,7 +852,7 @@ async function uploadCreative(dataUrl, name) {
 // One creative per asset, generated in parallel. Each → {brief, image, provider};
 // the image is a hosted Supabase URL when storage is configured, else an inline
 // data-URL; falls back to brief-only (image:null) if generation fails.
-async function generateCreatives(copy, entry) {
+async function generateCreatives(copy, entry, { only = null } = {}) {
   const hero = entry.heroProduct?.title ? ` Hero product: VAHDAM ${entry.heroProduct.title}.` : '';
   // ALL channels get TEXT-FREE photographs (mode:''). Diffusion models cannot
   // spell, so baking a headline/offer into the pixels (the old mode:'ad') always
@@ -867,8 +867,11 @@ async function generateCreatives(copy, entry) {
     ['google',  copy.ads?.google?.image_brief, '1536x1024', ''],
     ['tiktok',  copy.ads?.tiktok?.image_brief, '1024x1536', ''],
   ];
+  // `only` limits which creatives are built. Preview passes ['email'] so a single
+  // hero image renders inline fast (building all 5 here overran the function limit).
+  const activeSpecs = Array.isArray(only) ? specs.filter(([key]) => only.includes(key)) : specs;
   const out = {};
-  await Promise.all(specs.map(async ([key, rawBrief, size, mode]) => {
+  await Promise.all(activeSpecs.map(async ([key, rawBrief, size, mode]) => {
     const b = (rawBrief && String(rawBrief).trim()) || `VAHDAM ${entry.heroProduct?.title || 'tea'} hero creative — warm, premium, photoreal.`;
     const gen = await generateCreativeImage(b + hero, { size, mode }).catch(() => null);
     let image = gen?.image || null;
@@ -926,7 +929,9 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
     const copyA = scrubCopyDeep(rawA.copy);
     const copyB = scrubCopyDeep(rawB.copy);
     // ── Agent 3 · Asset Director — one text-free creative per asset, turn by turn.
-    const creatives = withCreatives ? await generateCreatives(copyA, entry) : {};
+    // withCreatives: true = full 5-asset build; 'hero' = email hero only (fast,
+    // for on-demand preview); false = none (copy + layout only).
+    const creatives = withCreatives ? await generateCreatives(copyA, entry, withCreatives === 'hero' ? { only: ['email'] } : {}) : {};
     const imgProviders = [...new Set(Object.values(creatives).map((c) => c && c.provider).filter(Boolean))];
     if (withCreatives) trace.push({ agent: 'Asset Director', role: 'Creative / Art Direction', ok: imgProviders.length > 0, provider: imgProviders.join(',') || null, output: { assets: Object.keys(creatives).length } });
     // ── Agent 4 · Design Integrator — assembles each variant in the layout the
@@ -992,11 +997,12 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
     if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
   }
-  // Fallback (slot not prebuilt yet): build copy + layout WITHOUT images. Preview
-  // must be fast — generating 5 images inline here overran the function limit and
-  // returned a non-JSON platform timeout page ("Preview failed: ... not valid
-  // JSON"). Images appear in preview once the prebuild queue has built the slot.
-  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: false });
+  // Fallback (slot not prebuilt yet): build copy + layout + the EMAIL HERO image
+  // only ('hero'). Generating all 5 images inline overran the function limit and
+  // returned a non-JSON timeout page; a single hero stays within budget so View
+  // shows a complete mailer (hero included) instead of an image-less shell. The
+  // full ad/LP image set still comes from the prebuild queue or Download.
+  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: 'hero' });
   campaign.status = 'preview';
   return {
     ok: true,
