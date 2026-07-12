@@ -35,6 +35,8 @@
     { "source": "/usa-july",    "destination": "/vahdam-usa-july-calendar-mailer-studio.html" },
     { "source": "/master-dashboard", "destination": "/all-in-one.html" },
     { "source": "/master",     "destination": "/all-in-one.html" },
+    { "source": "/audit",      "destination": "/app-audit.html" },
+    { "source": "/app-audit",  "destination": "/app-audit.html" },
     { "source": "/all-in-one", "destination": "/all-in-one.html" },
     { "source": "/os",         "destination": "/all-in-one.html" },
     { "source": "/dashboard-os","destination": "/all-in-one.html" },
