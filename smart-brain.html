@@ -119,6 +119,21 @@
     <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div></div>
     <div class="card" title="Total sends scheduled in the next 30 days across all regions. Target: 3-4 cohorts/day/market to support >=70-80k USD/month (~1000-1500 USD/day)."><div class="label">Sends / 30d</div><div id="sends30" class="metric">—</div></div>
 
+    <div class="card wide" id="dualmode">
+      <h2>Agentic Generation</h2>
+      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation), or pull the <b>5-scenario calendar</b>. Always runs on the <b>Premium</b> model cascade.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <span class="label" style="margin-right:4px">Mode</span>
+        <span class="btn sm" style="cursor:default;pointer-events:none" title="One mode: an agentic pipeline powered by the premium model cascade">🤖 Agentic</span>
+        <select id="amarket" class="btn sm secondary" style="padding:6px">
+          <option value="US">US</option><option value="UK">UK</option><option value="GLOBAL">Global</option><option value="IN">IN</option><option value="EU">EU</option><option value="AU">AU</option>
+        </select>
+        <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
+        <button id="runScenarios" class="btn secondary" onclick="loadScenarios()">🗓 5-Scenario Calendar</button>
+      </div>
+      <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow or load the 5-scenario calendar.</p></div>
+    </div>
+
     <div class="card wide">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <h2 style="margin:0">Rolling calendar (next 90 days)</h2>
@@ -159,21 +174,6 @@
 
     <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
     <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
-
-    <div class="card wide" id="dualmode">
-      <h2>Agentic Generation</h2>
-      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation), or pull the <b>5-scenario calendar</b>. Always runs on the <b>Premium</b> model cascade.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-        <span class="label" style="margin-right:4px">Mode</span>
-        <span class="btn sm" style="cursor:default;pointer-events:none" title="One mode: an agentic pipeline powered by the premium model cascade">🤖 Agentic</span>
-        <select id="amarket" class="btn sm secondary" style="padding:6px">
-          <option value="US">US</option><option value="UK">UK</option><option value="GLOBAL">Global</option><option value="IN">IN</option><option value="EU">EU</option><option value="AU">AU</option>
-        </select>
-        <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
-        <button id="runScenarios" class="btn secondary" onclick="loadScenarios()">🗓 5-Scenario Calendar</button>
-      </div>
-      <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow or load the 5-scenario calendar.</p></div>
-    </div>
 
     <div class="card wide">
       <h2 id="detailTitle">Details</h2>
