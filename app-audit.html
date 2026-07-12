@@ -77,7 +77,7 @@
     </div>
   </div>
 
-  <div class="sec-h">Three systemic blockers (clear these and most features jump to 9–9.5)</div>
+  <div class="sec-h">Systemic blockers — B2 cleared ✓; B1 + B3 remain (clear these and most features jump to 9–9.5)</div>
   <div class="blockers" id="blockers"></div>
 
   <div class="sec-h">Feature scorecard</div>
@@ -102,16 +102,16 @@
     { name:'Landing Pages (/lp)', path:'/lp/:id', a:7.5, i:8.5, e:8.5, r:7.5, note:'Safe ids, real images, region-correct links; CORS header + ?v=b→first-LP fallback DONE. Hardcoded stars/testimonial/guarantee route through the B1 gate (flip REAL_FACTS_ONLY + populate the library).' },
     { name:'Vahdam Agent', path:'/agent', a:7.5, i:7.5, e:8, r:7, note:'Contrast fixed. Consolidate with ChaiGPT or state a distinct purpose.' },
     { name:'Ad Campaigns', path:'/ad-campaigns', a:7.5, i:8.5, e:8, r:7.5, note:'URLs verified; fabricated 65%-OFF removed; char-limit clamps DONE; region-agnostic "US shipping" line now market-parameterised (US/UK/global). Claims sourced via the B1 gate.' },
-    { name:'Smart Brain (/brain)', path:'/brain', a:6.5, i:9, e:7.5, r:7, note:'Bounded, deterministic, real-image pivot done. Reach no longer fabricates ~20k (null + [DATA REQUIRED] when no real base) and a plan-time per-cohort rolling-7-day frequency cap now flags over-cap slots. Still needs B1 approved-facts + real reach counts (B3); cross-cohort per-profile capping runs at ESP.' },
+    { name:'Smart Brain (/brain)', path:'/brain', a:6.5, i:9, e:8, r:7, note:'Bounded, deterministic, real-image pivot done. B2 cleared — persistence + the sync engine are live (sync-status returns connected:true). Reach no longer fabricates ~20k (null + [DATA REQUIRED] when no real base) and a plan-time per-cohort rolling-7-day frequency cap now flags over-cap slots. Still needs B1 approved-facts + real reach counts (B3); cross-cohort per-profile capping runs at ESP.' },
     { name:'Mailer Studio', path:'/studio', a:5, i:8.5, e:7, r:6, note:'Great plumbing. Client-side brand gate now runs on the DETERMINISTIC render path (banned phrases + em/en dashes scrubbed from final HTML, CSS-safe) and the palette check is a 4-colour allowlist (not a 6-item denylist). Reviews/prices/proof render real-only under REAL_FACTS_ONLY. Remaining: flip the flag + populate the approved library (B1).' }
   ];
   var BLOCKERS = [
     { tag:'B1 · FABRICATION', h:'Approved-facts library', p:'Gate SHIPPED behind REAL_FACTS_ONLY (dark). Now wired across /lp, /brain AND /studio (render-path proof/review/price strip). Remaining is DATA, not code: populate data/brand-facts/<region>.json (reviews+claims+prices by SKU+region) and flip the flag to render real-only, else omit.' },
-    { tag:'B2 · KEY', h:'Rotate SUPABASE_SERVICE_ROLE_KEY', p:'HTTP 401 in prod degrades dashboard counts, Created Assets, Brain persistence and KB to the anon fallback. Rotate in Supabase, set in Vercel (Prod+Preview+Dev), redeploy.' },
+    { tag:'B2 · RESOLVED ✓', h:'Supabase service-role key live', p:'DONE. The live app (vahdam-lifecycle-os.vercel.app) reports supabase_configured:true and /api/calendar?action=smart-brain-sync-status returns connected:true — Brain persistence, dashboard counts, Created Assets and the sync engine are off the anon fallback. (The old vahdam-marketing-mailers-architect domain is a stale deploy; ignore it.)' },
     { tag:'B3 · FEEDS', h:'Wire Klaviyo + Shopify (read-only)', p:'Real cohort sizes, open/click history and live stock/price are absent, so frequency safety and confidence run on assumptions. Set KLAVIYO_API_KEY (read) + a read-only Shopify token.' }
   ];
   var ROAD = [
-    'B2 — rotate the Supabase service-role key (≈5 min; unblocks persistence app-wide).',
+    'B2 — DONE ✓ Supabase service-role key live on vahdam-lifecycle-os.vercel.app (supabase_configured:true, sync-status connected:true); persistence unblocked app-wide.',
     'B1 — build the approved-facts library (reviews + claims + prices by SKU+region). Highest-value correctness fix; lifts Studio, Brain, LP and Ads together.',
     'B3 — wire Klaviyo (read) + read-only Shopify token → real cohort sizes, send history and live stock; calibrates confidence + frequency and unlocks MER/ROAS/LTV.',
     'DONE: plan-time per-(market,cohort) rolling-7-day frequency cap flags over-cap slots in /brain; honest reach (no fabricated ~20k). Remaining: cross-cohort per-PROFILE capping at ESP send-time (needs B3 profile feed).',
