@@ -50,6 +50,8 @@ const SM = require('./scenario-model.js');
 // Guaranteed-online fallback: a real catalog product photo (Shopify CDN) so a
 // creative never ships an unrenderable data: URI when generation/upload fails.
 const catalogImage = require('./catalog-image.js');
+let reviewRecovery = null;
+try { reviewRecovery = require('./review-recovery.js'); } catch (_) { reviewRecovery = null; }
 // Shared mailer renderer, the SAME one the Mailer Studio / Mailer Calendar use,
 // so Smart Brain mailers come out as the same two named types (2 Text + 2 Text
 // + Visual) at the same quality. Guarded: falls back to the local single mailer.
@@ -939,6 +941,26 @@ async function generateCreatives(copy, entry, { only = null, lean = false } = {}
 // touch the DB or change any slot's status. Both previewEntry() and approveEntry()
 // call this so a reviewer sees EXACTLY what approving will produce.
 async function buildCampaign(entry, config, { id = null, withCreatives = true } = {}) {
+  // Review-recovery slots are a review INVITATION, not a promo: email-only, no
+  // offer, no ads/landing page, CTA to the product's own review section. Render
+  // the dedicated brand-compliant template directly (no LLM promo pipeline).
+  if (reviewRecovery && (entry.objective === 'review_recovery' || entry.review_recovery)) {
+    const product = entry.heroProduct || {};
+    const html = reviewRecovery.reviewMailerHtml(product, entry.market);
+    const subject = `A quick word on your ${product.title || 'last VAHDAM tea'}?`;
+    return {
+      campaign_id: id || `review_${entry.id || entry.date}`,
+      calendar_entry_id: entry.id || id || null,
+      objective: 'review_recovery',
+      copywriter: { provider: 'review-recovery-template', model: null, creatives: 'catalog', frameworks: ['review-invitation'] },
+      agent_trace: [{ agent: 'Review Recovery', role: 'Lifecycle / Reputation', ok: true, output: { product: product.title, rating: entry.product_rating, threshold: reviewRecovery.THRESHOLD } }],
+      assets: {
+        email: { subject, preheader: 'Rating plus a line, before the next cup.', html, variants: null, creative: { brief: '', image: null, provider: 'catalog' } },
+        ads: [],
+        landing_pages: [],
+      },
+    };
+  }
   const campaign = new GenerationService(config).generate(entry);
   let copyMeta = { provider: 'template-fallback', model: null, creatives: 'none' };
   // Agent pipeline trace, surfaced in the console so the reviewer sees which

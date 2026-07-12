@@ -205,7 +205,13 @@
   function downloadPost(post, kind) {
     var p = postPayload(post);
     var base = postFileBase(post);
-    if (kind === 'md') { downloadBlob(base + '.md', blogMarkdown(p), 'text/markdown'); return; }
+    if (kind === 'md') {
+      // Render the blog markdown to a formatted, print-ready page (Save as PDF)
+      // instead of a raw .md file — reads far better. Falls back to a .md blob
+      // only if the shared helper is unavailable.
+      if (typeof window.__mdToPdf === 'function') { window.__mdToPdf(blogMarkdown(p), (p.theme || 'VAHDAM blog')); return; }
+      downloadBlob(base + '.md', blogMarkdown(p), 'text/markdown'); return;
+    }
     downloadBlob(base + '.json', JSON.stringify(post, null, 2), 'application/json');
   }
   function openModal(post) {
@@ -220,7 +226,7 @@
     dl.appendChild(b1);
     if (isBlogPost(p)) {
       var b2 = document.createElement('button');
-      b2.className = 'btn sm secondary'; b2.type = 'button'; b2.textContent = 'Download .md';
+      b2.className = 'btn sm secondary'; b2.type = 'button'; b2.textContent = 'Download PDF';
       b2.addEventListener('click', function () { downloadPost(post, 'md'); });
       dl.appendChild(b2);
     }
@@ -379,7 +385,7 @@
       // Fail fast if the API is unreachable/hanging so the error banner shows
       // promptly instead of spinning (also keeps this deterministic under test).
       var ctrl = new AbortController();
-      var to = setTimeout(function () { ctrl.abort(); }, 6000);
+      var to = setTimeout(function () { ctrl.abort(); }, 3500);
       var r;
       try { r = await fetch(API + '?action=social-list&date=' + encodeURIComponent(d), { signal: ctrl.signal }); }
       finally { clearTimeout(to); }

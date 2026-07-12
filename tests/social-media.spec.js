@@ -52,10 +52,11 @@ test('social-media.html renders with zero page errors while API is unreachable',
   // Clicking "Load saved posts" against a dead API must fail gracefully into
   // the error banner — never an uncaught error.
   await page.locator('#loadBtn').click();
-  // On slower emulated mobile profiles the unreachable-API fetch can take well
-  // over 10s to reject, so the error banner appears late; 25s stops the flake
-  // without hiding a real regression (the banner still must appear + say so).
-  await expect(page.locator('#banner')).toBeVisible({ timeout: 25_000 });
+  // On slower emulated mobile profiles the unreachable-API fetch + auth init can
+  // take a while to settle, so the error banner appears late. The client aborts
+  // the list fetch at 3.5s, but CI scheduling jitter can still delay it; 40s stops
+  // the flake without hiding a real regression (the banner still must appear).
+  await expect(page.locator('#banner')).toBeVisible({ timeout: 40_000 });
   await expect(page.locator('#banner')).toContainText('Could not load posts');
 
   expect(pageErrors, 'uncaught page errors: ' + pageErrors.join(' | ')).toHaveLength(0);
