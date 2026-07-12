@@ -110,7 +110,7 @@
 
     <div class="card wide" id="dualmode">
       <h2>Agentic Generation</h2>
-      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation), or pull the <b>5-scenario calendar</b>. Always runs on the <b>Premium</b> model cascade.</p>
+      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation). The 5-scenario cadence model is computed inside this flow (see the calendar stage). Always runs on the <b>Premium</b> model cascade.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
         <span class="label" style="margin-right:4px">Mode</span>
         <span class="btn sm" style="cursor:default;pointer-events:none" title="One mode: an agentic pipeline powered by the premium model cascade">🤖 Agentic</span>
@@ -118,9 +118,8 @@
           <option value="US">US</option><option value="UK">UK</option><option value="GLOBAL">Global</option><option value="IN">IN</option><option value="EU">EU</option><option value="AU">AU</option>
         </select>
         <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
-        <button id="runScenarios" class="btn secondary" onclick="loadScenarios()">🗓 5-Scenario Calendar</button>
       </div>
-      <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow or load the 5-scenario calendar.</p></div>
+      <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow. Its calendar stage returns the cadence scenarios (A-E) inline.</p></div>
     </div>
 
     <div class="card wide">
@@ -168,7 +167,11 @@ async function runAgentic(){
   const out = $('agenticOut'), market = $('amarket').value || 'US';
   out.innerHTML = `<p>🤖 Running agentic flow — Premium, ${esc(market)} — 8 stages, please wait…</p>`;
   try{
-    const r = await fetch('/api/brain?action=agentic-run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ market, tier: TIER, withCreatives: true })});
+    // Return the plan fast; creatives (images/mailers/ads/LPs) prebuild in the
+    // background via the convergent smart-brain-prebuild queue. Building creatives
+    // inline used to blow past the serverless time limit (the "server took too
+    // long" timeout). The plan itself is quick; assets converge after.
+    const r = await fetch('/api/brain?action=agentic-run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ market, tier: TIER, withCreatives: false })});
     const d = await safeJson(r);
     if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
     const stages = (d.stages||[]).map(s => `<div style="padding:6px 0;border-bottom:1px solid #eee5d2"><b>${s.ok?'✓':'✗'} ${esc(s.stage)}</b> — ${esc(s.summary||'')}</div>`).join('');
@@ -177,7 +180,8 @@ async function runAgentic(){
     out.innerHTML = `<div class="label">Flow · ${esc(d.mode)} · tier ${esc(d.tier)}</div>
       <div style="margin:8px 0">${stages}</div>
       <h2 style="font-size:18px">Calendar scenarios</h2><div style="display:flex;gap:10px;flex-wrap:wrap">${scs||'—'}</div>
-      <h2 style="font-size:18px;margin-top:14px">Ideation — what to do next</h2><ul>${ideas||'<li>—</li>'}</ul>`;
+      <h2 style="font-size:18px;margin-top:14px">Ideation — what to do next</h2><ul>${ideas||'<li>—</li>'}</ul>
+      <p style="color:#789;margin-top:12px">Creative assets (mailers, ads, landing pages, images) are prebuilding in the background and will appear on the dashboard shortly.</p>`;
   }catch(e){ out.innerHTML = `<p style="color:#b00">Error: ${esc(e.message||e)}</p>`; }
 }
 async function loadScenarios(){
