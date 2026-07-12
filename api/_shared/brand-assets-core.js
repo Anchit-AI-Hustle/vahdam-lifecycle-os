@@ -118,6 +118,9 @@ async function upsertAssets(rows) {
 // public Storage URL, or null on failure (caller keeps the brand-CDN url).
 async function rehostToStorage(bucket, objectPath, sourceUrl) {
   if (!supa) return null;
+  // Only re-host assets that already pass origin validation — never fetch an
+  // arbitrary/off-allowlist URL (avoids server-side request forgery).
+  if (!isOriginValid(sourceUrl)) return null;
   try {
     const res = await fetch(sourceUrl);
     if (!res.ok) return null;
