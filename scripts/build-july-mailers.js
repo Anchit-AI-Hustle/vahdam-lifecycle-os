@@ -54,6 +54,34 @@ const ROOT = path.join(__dirname, '..');
 const MARKET = 'US';
 const STORE = 'https://www.vahdamteas.com';
 
+// ── Selected catalog collections — GOVERNANCE RULE ───────────────────────────
+// Every collection listed here MUST be represented by at least one send in the
+// calendar and its asset generation. The build hard-fails if any is uncovered,
+// so a selected collection can never be silently dropped. Edit this list to
+// change the selection; coverage is enforced automatically.
+const SELECTED_COLLECTIONS = [
+  { slug: 'chai-teas',    title: 'Chai Teas' },
+  { slug: 'samplers',     title: 'Samplers' },
+  { slug: 'gifts',        title: 'Gifts' },
+  { slug: 'best-sellers', title: 'Best Sellers' },
+];
+const SELECTED_SET = new Set(SELECTED_COLLECTIONS.map((c) => c.slug));
+const COLLECTION_TITLE = Object.fromEntries(SELECTED_COLLECTIONS.map((c) => [c.slug, c.title]));
+// Which SELECTED collections each SKU naturally belongs to (beyond a slot's explicit CTA collection).
+const SKU_COLLECTIONS = {
+  masala_chai_100ct: ['chai-teas'], masala_chai_12oz: ['chai-teas'], masala_chai_30ct: ['chai-teas'],
+  turmeric_ginger_100ct: [], daily_assam_12oz: [], himalayan_green_12oz: [],
+  english_breakfast_12oz: [], daily_darjeeling_2f_12oz: [], assorted_sampler_10: ['samplers'],
+};
+// Selected collections a slot represents = its natural SKU collections + its explicit CTA collection (if selected).
+function slotCollections(slot) {
+  const out = [];
+  // Explicit CTA collection leads (it is the slot's chosen destination), then natural SKU collections.
+  if (slot.collection && SELECTED_SET.has(slot.collection)) out.push(slot.collection);
+  for (const c of (SKU_COLLECTIONS[slot.sku] || [])) if (!out.includes(c)) out.push(c);
+  return out;
+}
+
 // ── Products (real US catalog facts) keyed by sku_key ────────────────────────
 const P = {
   masala_chai_100ct:        { name: "India's Original Masala Chai, 100 ct", price: '$22.49', handle: 'indias-original-masala-chai-tea-100-tea-bags' },
@@ -443,9 +471,15 @@ function main() {
     fs.writeFileSync(path.join(adsDir, adFile), ad.html);
     adCount++;
 
+    // Collections this send represents + a secondary collection CTA for the LP.
+    const cols = slotCollections(slot);
+    const primaryCol = cols[0] || null;
+    const collectionCta = primaryCol ? { slug: primaryCol, title: COLLECTION_TITLE[primaryCol], url: `${STORE}/collections/${primaryCol}` } : null;
+
     // Landing page (flagship long-form), with a slot-relevant FAQ.
     const lp = renderLandingPage(Object.assign({}, shared, {
       title: `${prod.name} · VAHDAM USA`,
+      collectionCta,
       faq: [
         { q: `How many cups is ${prod.name}?`, a: `${prod.name} is ${slot.sku.includes('12oz') ? 'loose leaf, about 170 cups' : slot.sku.includes('100ct') ? '100 pyramid bags' : slot.sku.includes('30ct') ? '30 pyramid bags' : 'a single-estate VAHDAM blend'}.` },
         { q: 'Where is it sourced?', a: 'Hand-picked at origin and shipped garden-fresh, single-estate wherever the leaf allows.' },
@@ -462,11 +496,25 @@ function main() {
       sku_key: slot.sku, product: prod.name, price: prod.price, cta_url: url,
       hero_asset: assets[slot.sku] ? { url: (assets[slot.sku].url || null), status: assets[slot.sku].status, origin_validated: assets[slot.sku].origin_validated } : { status: 'placeholder', origin_validated: false },
       reasoning: slot.reasoning,
+      collections: cols,
+      collection_cta: collectionCta,
       variants: variants.map((v) => ({ key: v.key, type: v.type, label: v.label, framework: v.framework, subject: v.copy.subject, preview: v.copy.preview, file: files[v.key], has_image: !!v.image })),
       ads: { file: `ads/usa-july/${adFile}`, copy: ad.copy },
       landing: { file: `landing-pages/usa-july/${lpFile}`, title: `${prod.name} · VAHDAM USA` },
     });
   }
+
+  // GOVERNANCE: every selected collection must be represented by >=1 send.
+  const covered = new Set();
+  manifest.slots.forEach((s) => (s.collections || []).forEach((c) => covered.add(c)));
+  const missing = SELECTED_COLLECTIONS.filter((c) => !covered.has(c.slug));
+  if (missing.length) {
+    throw new Error('Selected collections not covered by the calendar (add a send or map a SKU): ' + missing.map((c) => c.slug).join(', '));
+  }
+  manifest.selected_collections = SELECTED_COLLECTIONS.map((c) => ({
+    slug: c.slug, title: c.title, url: `${STORE}/collections/${c.slug}`,
+    sends: manifest.slots.filter((s) => (s.collections || []).includes(c.slug)).map((s) => s.date),
+  }));
 
   const calDir = path.join(ROOT, 'data', 'calendar');
   fs.mkdirSync(calDir, { recursive: true });
@@ -475,6 +523,7 @@ function main() {
   const withImg = manifest.slots.filter((s) => s.hero_asset.status === 'verified').length;
   console.log(`✓ ${CALENDAR.length} slots · ${fileCount} mailers + ${adCount} ad sets + ${lpCount} landing pages`);
   console.log(`  ${withImg}/${CALENDAR.length} slots use a verified hero image; the rest render image-free (no fabricated URLs).`);
+  console.log(`  collections covered (all selected): ${SELECTED_COLLECTIONS.map((c) => `${c.slug}(${manifest.selected_collections.find((x) => x.slug === c.slug).sends.length})`).join(', ')}`);
   console.log('✓ wrote data/calendar/usa-july-2026.json');
 }
 

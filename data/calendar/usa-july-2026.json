@@ -26,6 +26,14 @@
         "hypothesis": "Recognition + effortless restock lifts repeat rate more than a markdown that trains discount-waiting.",
         "expected": "Higher repeat-purchase rate and AOV vs a discounted control."
       },
+      "collections": [
+        "chai-teas"
+      ],
+      "collection_cta": {
+        "slug": "chai-teas",
+        "title": "Chai Teas",
+        "url": "https://www.vahdamteas.com/collections/chai-teas"
+      },
       "variants": [
         {
           "key": "text_a",
@@ -128,6 +136,8 @@
         "hypothesis": "Loyalists trade up on provenance storytelling, not price.",
         "expected": "Category expansion into premium loose-leaf; higher AOV."
       },
+      "collections": [],
+      "collection_cta": null,
       "variants": [
         {
           "key": "text_a",
@@ -229,6 +239,14 @@
         "how": "Teach brewing + suggest breadth; collection CTA to samplers.",
         "hypothesis": "Guided discovery raises second-order rate for new buyers.",
         "expected": "Higher new-to-repeat conversion within 30 days."
+      },
+      "collections": [
+        "samplers"
+      ],
+      "collection_cta": {
+        "slug": "samplers",
+        "title": "Samplers",
+        "url": "https://www.vahdamteas.com/collections/samplers"
       },
       "variants": [
         {
@@ -332,6 +350,8 @@
         "hypothesis": "Cross-category nudges deepen habit and frequency.",
         "expected": "More multi-category buyers; higher 60-day frequency."
       },
+      "collections": [],
+      "collection_cta": null,
       "variants": [
         {
           "key": "text_a",
@@ -434,6 +454,8 @@
         "hypothesis": "A gentle seasonal reason to return re-warms lapsing engagers without training discounts.",
         "expected": "Recovered open/click and re-engagement before deeper lapse."
       },
+      "collections": [],
+      "collection_cta": null,
       "variants": [
         {
           "key": "text_a",
@@ -536,6 +558,8 @@
         "hypothesis": "A relevant real-world moment lifts open + click for engaged cohorts.",
         "expected": "Above-baseline engagement on the match-day send."
       },
+      "collections": [],
+      "collection_cta": null,
       "variants": [
         {
           "key": "text_a",
@@ -637,6 +661,14 @@
         "how": "Usage-occasion content (iced-chai affogato); PDP CTA to loose-leaf.",
         "hypothesis": "Novel summer usage occasions drive incremental purchase from best customers.",
         "expected": "Incremental loose-leaf units + strong click on the recipe."
+      },
+      "collections": [
+        "chai-teas"
+      ],
+      "collection_cta": {
+        "slug": "chai-teas",
+        "title": "Chai Teas",
+        "url": "https://www.vahdamteas.com/collections/chai-teas"
       },
       "variants": [
         {
@@ -740,6 +772,14 @@
         "hypothesis": "Seasonal usage education raises trial and second order for new buyers.",
         "expected": "Higher sampler attach + repeat within 30 days."
       },
+      "collections": [
+        "samplers"
+      ],
+      "collection_cta": {
+        "slug": "samplers",
+        "title": "Samplers",
+        "url": "https://www.vahdamteas.com/collections/samplers"
+      },
       "variants": [
         {
           "key": "text_a",
@@ -841,6 +881,14 @@
         "how": "Soft reminder, no aggressive discount; bestsellers collection CTA.",
         "hypothesis": "A low-pressure, question-led nudge re-activates more than a hard offer at this stage.",
         "expected": "Reactivation lift without margin erosion."
+      },
+      "collections": [
+        "best-sellers"
+      ],
+      "collection_cta": {
+        "slug": "best-sellers",
+        "title": "Best Sellers",
+        "url": "https://www.vahdamteas.com/collections/best-sellers"
       },
       "variants": [
         {
@@ -944,6 +992,15 @@
         "hypothesis": "A concrete gifting occasion lifts conversion for mid-tier engagers.",
         "expected": "Higher order rate + gift-set attach around Jul 26."
       },
+      "collections": [
+        "gifts",
+        "chai-teas"
+      ],
+      "collection_cta": {
+        "slug": "gifts",
+        "title": "Gifts",
+        "url": "https://www.vahdamteas.com/collections/gifts"
+      },
       "variants": [
         {
           "key": "text_a",
@@ -1046,6 +1103,8 @@
         "hypothesis": "A human, shareable reason re-engages at-risk customers more durably than price.",
         "expected": "Reactivation on an emotional hook; protected margin."
       },
+      "collections": [],
+      "collection_cta": null,
       "variants": [
         {
           "key": "text_a",
@@ -1148,6 +1207,8 @@
         "hypothesis": "Framing a new-month reset sustains loyal frequency into August.",
         "expected": "Sustained repeat rate through the Aug ramp."
       },
+      "collections": [],
+      "collection_cta": null,
       "variants": [
         {
           "key": "text_a",
@@ -1228,6 +1289,43 @@
         "file": "landing-pages/usa-july/2026-07-31_loyal_himalayan-green-tea-12-oz_lp.html",
         "title": "Himalayan Green Tea, 12 oz · VAHDAM USA"
       }
+    }
+  ],
+  "selected_collections": [
+    {
+      "slug": "chai-teas",
+      "title": "Chai Teas",
+      "url": "https://www.vahdamteas.com/collections/chai-teas",
+      "sends": [
+        "2026-07-02",
+        "2026-07-18",
+        "2026-07-25"
+      ]
+    },
+    {
+      "slug": "samplers",
+      "title": "Samplers",
+      "url": "https://www.vahdamteas.com/collections/samplers",
+      "sends": [
+        "2026-07-08",
+        "2026-07-19"
+      ]
+    },
+    {
+      "slug": "gifts",
+      "title": "Gifts",
+      "url": "https://www.vahdamteas.com/collections/gifts",
+      "sends": [
+        "2026-07-25"
+      ]
+    },
+    {
+      "slug": "best-sellers",
+      "title": "Best Sellers",
+      "url": "https://www.vahdamteas.com/collections/best-sellers",
+      "sends": [
+        "2026-07-22"
+      ]
     }
   ]
 }
