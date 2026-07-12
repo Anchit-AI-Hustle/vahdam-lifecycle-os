@@ -238,9 +238,10 @@
     // bundle (mailer + ads + landing page). The older calendar surfaces stay
     // reachable by URL but are no longer separate nav features; this one
     // feature's match[] also lights up for them.
-    { id: 'brain', label: 'Automated Calendar Creation', href: '/brain', icon: 'calendar', ver: 'v2', match: ['/brain', '/smart-brain', '/smart-brain.html', '/mailer-calendar', '/lifecycle-calendar.html', '/calendar.html', '/plan'] },
+    { id: 'brain', label: 'VAHDAM Brain', href: '/brain', icon: 'calendar', ver: 'v2', match: ['/brain', '/smart-brain', '/smart-brain.html', '/mailer-calendar', '/lifecycle-calendar.html', '/calendar.html', '/plan'] },
     { id: 'retentionplaybook', label: 'Retention Playbook', href: '/retention-playbook', icon: 'calendar', ver: 'v2', match: ['/retention-playbook', '/retention-playbook.html'] },
-    { id: 'ukhub', label: 'UK Non-Engagers Hub', href: '/uk-non-engagers', icon: 'insights', ver: 'v2', match: ['/uk-non-engagers', '/uk-non-engagers.html'] },
+    // UK Non-Engagers Hub removed from the user-facing nav (route /uk-non-engagers
+    // stays reachable directly); it is no longer a raw nav item.
     { id: 'brain', label: 'VAHDAM Brain', href: '/brain', icon: 'calendar', ver: 'v2', match: ['/brain', '/smart-brain', '/smart-brain.html', '/mailer-calendar', '/lifecycle-calendar.html', '/calendar.html', '/plan'] },
 
     { section: 'Design & Create' },
