@@ -119,7 +119,7 @@
         <h2 style="margin:0">Rolling calendar (next 90 days)</h2>
         <button id="generateAll" class="btn sm ok" onclick="generateAll()" style="display:none" title="Generate the final best version of every asset (mailer, ads, landing page) for the sends currently shown (respects the region filter).">⚙ Generate all</button>
       </div>
-      <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 14px">
+      <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 8px">
         <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
         <button class="mkchip on" data-mkt="all" onclick="toggleMkt('all')">All</button>
         <button class="mkchip" data-mkt="US" onclick="toggleMkt('US')">US</button>
@@ -127,6 +127,22 @@
         <button class="mkchip" data-mkt="Global" onclick="toggleMkt('Global')">Global</button>
         <button class="mkchip" data-mkt="India" onclick="toggleMkt('India')">India</button>
         <span id="mktcount" style="color:#789;font-size:12px;margin-left:6px"></span>
+      </div>
+      <div id="durfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 14px">
+        <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Duration</span>
+        <button class="mkchip" data-dur="7" onclick="setDur(7)">Next 7 days</button>
+        <button class="mkchip" data-dur="30" onclick="setDur(30)">30 days</button>
+        <button class="mkchip" data-dur="60" onclick="setDur(60)">60 days</button>
+        <button class="mkchip on" data-dur="90" onclick="setDur(90)">90 days</button>
+        <button class="mkchip" data-dur="all" onclick="setDur('all')">All</button>
+        <span id="durcount" style="color:#789;font-size:12px;margin-left:6px"></span>
+      </div>
+      <div id="catfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 14px">
+        <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Catalog</span>
+        <button class="mkchip on" data-cat="tea" onclick="toggleCat('tea')">Teas &amp; Botanicals</button>
+        <button class="mkchip on" data-cat="coffee" onclick="toggleCat('coffee')">Ashwagandha Coffee</button>
+        <button class="mkchip on" data-cat="supplement" onclick="toggleCat('supplement')">Supplements</button>
+        <span id="catcount" style="color:#789;font-size:12px;margin-left:6px"></span>
       </div>
       <div class="tblscroll">
       <table id="plantable">
@@ -237,16 +253,52 @@ window.toggleMkt = function(mkt){
   renderPlan();
 };
 
+// Duration horizon: limit the calendar to sends within the next N days (from
+// today, inclusive). 'all' shows the whole rolling window. Default 90.
+let SELECTED_DAYS = 90;
+function durCutoff(){ return SELECTED_DAYS==='all' ? null : new Date(Date.now()+SELECTED_DAYS*86400000).toISOString().slice(0,10); }
+function durVisible(e){ if(SELECTED_DAYS==='all') return true; const today=new Date().toISOString().slice(0,10); const end=durCutoff(); return (!e.date) || (e.date>=today && e.date<=end); }
+// Catalog bucket: classify a slot by its hero product into one of the three
+// storefront catalogs. Default all three selected; at least one must stay on.
+const SELECTED_CAT = new Set(['tea','coffee','supplement']);
+function catBucket(e){
+  const hp = e.heroProduct || {};
+  const s = ((hp.title||hp.name||'') + ' ' + (hp.category||hp.type||'') + ' ' + (e.theme||'')).toLowerCase();
+  if(/coffee|cold brew|espresso|latte/.test(s)) return 'coffee';
+  if(/supplement|capsule|tablet|gummies|gummy|curcumin|\d+\s*mg|ksm-?66|magnesium|probiotic|collagen|shilajit/.test(s)) return 'supplement';
+  return 'tea'; // teas, chai, matcha, tisanes, herbals, botanicals (default)
+}
+function catVisible(e){ return SELECTED_CAT.size===0 || SELECTED_CAT.has(catBucket(e)); }
+window.toggleCat = function(cat){
+  // Enforce at-least-one: refuse to turn off the last selected catalog.
+  if(SELECTED_CAT.has(cat)){ if(SELECTED_CAT.size===1) return; SELECTED_CAT.delete(cat); }
+  else SELECTED_CAT.add(cat);
+  document.querySelectorAll('#catfilter .mkchip').forEach(b=>{ b.classList.toggle('on', SELECTED_CAT.has(b.dataset.cat)); });
+  renderPlan();
+};
+
+// Combined visibility used by the table, counts and Generate all.
+function slotVisible(e){ return mktVisible(e) && durVisible(e) && catVisible(e); }
+window.setDur = function(d){
+  SELECTED_DAYS = (d==='all') ? 'all' : Number(d);
+  document.querySelectorAll('#durfilter .mkchip').forEach(b=>{
+    b.classList.toggle('on', String(b.dataset.dur)===String(d));
+  });
+  renderPlan();
+};
+
 function renderPlan(){
   if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="9" style="color:#789">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }
   $('entries').textContent = PLAN.length;
   const isGenerated = e => !!(e.generated_campaign_id || e.status === 'approved' || e.status === 'final' || (e.__prebuilt && e.__prebuilt.campaign_id));
   $('pending').textContent = PLAN.filter(e => !isGenerated(e)).length;
-  const shown = PLAN.filter(mktVisible).length;
-  const mc = $('mktcount'); if(mc) mc.textContent = SELECTED_MKT.size ? `Showing ${shown} of ${PLAN.length}` : `${PLAN.length} sends · all regions`;
-  // "Generate all" — appears when there are sends in view that don't yet have
-  // their final assets built, and counts exactly what it will act on.
-  const pendingVisible = PLAN.filter(e => !isGenerated(e) && mktVisible(e)).length;
+  const shown = PLAN.filter(slotVisible).length;
+  const mc = $('mktcount'); if(mc) mc.textContent = SELECTED_MKT.size ? `Region: showing ${shown}` : `all regions`;
+  const dc = $('durcount'); if(dc) dc.textContent = `Showing ${shown} of ${PLAN.length} sends${SELECTED_DAYS==='all'?'':` · next ${SELECTED_DAYS} days`}`;
+  const cc = $('catcount'); if(cc) cc.textContent = SELECTED_CAT.size===3 ? 'all catalogs' : `${SELECTED_CAT.size} of 3 catalogs`;
+  // "Generate all" — appears when there are sends in view (region + duration)
+  // that don't yet have their final assets built; counts what it will act on.
+  const pendingVisible = PLAN.filter(e => !isGenerated(e) && slotVisible(e)).length;
   // Sends scheduled in the next 30 days (the 3-4/day cadence made concrete).
   const s30 = $('sends30');
   if(s30){
@@ -256,11 +308,11 @@ function renderPlan(){
   }
   const aa = $('generateAll');
   if(aa){ aa.style.display = pendingVisible ? '' : 'none'; aa.textContent = `⚙ Generate all (${pendingVisible})`; }
-  if(!shown){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#789">No sends for the selected region(s).</td></tr>`; return; }
+  if(!shown){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#789">No sends for the selected region + duration. Widen the duration or pick another region.</td></tr>`; return; }
   // Iterate over ALL entries (keep index i aligned to PLAN for viewEntry/approve),
   // emitting nothing for rows filtered out by the region selector.
   $('plan').innerHTML = PLAN.map((e,i)=>{
-    if(!mktVisible(e)) return '';
+    if(!slotVisible(e)) return '';
     const a = e.analysis || null;
     const why = a && a.summary ? a.summary : (e.rationale || '');
     const confLabel = a && a.confidence && a.confidence.label ? a.confidence.label : '';
@@ -659,7 +711,7 @@ async function downloadEntry(i){
 // asset run on a serverless function, so we avoid firing 90 at once. Progress
 // and a per-slot pass/fail tally stream into #detail; failures are collected.
 async function generateAll(){
-  const targets = PLAN.map((e,i)=>({e,i})).filter(({e})=> !(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id)) && mktVisible(e));
+  const targets = PLAN.map((e,i)=>({e,i})).filter(({e})=> !(e.generated_campaign_id || e.status==='approved' || e.status==='final' || (e.__prebuilt && e.__prebuilt.campaign_id)) && slotVisible(e));
   if(!targets.length){ return; }
   if(!confirm(`Generate the final assets for ${targets.length} send(s) currently shown?\nEach one builds its mailer, ads, and landing page. This can take a while.`)) return;
   const aa = $('generateAll'); if(aa){ aa.disabled = true; }
