@@ -26,6 +26,7 @@ const generate = require('./brain-generate.js');
 const kb = require('./brain-kb.js');
 const agents = require('./brain-agent.js');
 const marketAnalytics = require('./market-analytics.js');
+const webengage = require('./webengage-core.js');
 const agentic = require('./agentic-orchestrator.js');
 const klaviyo = require('./klaviyo-core.js');
 
@@ -118,6 +119,13 @@ const TOOLS = {
     mutates: false,
     desc: 'Answer an RFM / cohort / customer-segment analytics question from our Supabase data. params: {question}. NOTE: for product/revenue/top-seller/trend/projection questions use market_performance instead (real Shopify export numbers).',
     run: async (a) => agents.analyze({ message: a.question || a.message || '' }),
+  },
+  webengage_performance: {
+    mutates: false,
+    desc: 'REAL WebEngage push/campaign engagement from our synced webengage_events (US/UK/IN). params: {op:"campaigns"|"summary", event?(e.g. "Notification Clicked"|"Cart Abandoned"), hours?(default 24), market?}. Returns top campaigns by events + unique users, or the event-type mix. USE THIS for push-notification, web-push, cart-abandon and WebEngage campaign questions.',
+    run: async (a) => ((a.op || 'campaigns') === 'summary'
+      ? webengage.eventSummary({ hours: a.hours ? parseInt(a.hours, 10) : 24, market: a.market })
+      : webengage.campaignPerformance({ event: a.event || 'Notification Clicked', hours: a.hours ? parseInt(a.hours, 10) : 24, market: a.market })),
   },
   run_analysis: {
     mutates: false,
