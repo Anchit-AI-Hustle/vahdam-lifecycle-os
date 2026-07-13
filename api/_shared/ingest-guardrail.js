@@ -83,8 +83,45 @@ function assess(item) {
   return { keep: true, phase: 1, reason: brand ? `whitelisted brand: ${brand}` : `relevant (${rel.slice(0, 4).join(', ')})`, signals: { brand, relevanceHits: rel.length } };
 }
 
-// ── Phase 2: LLM gatekeeper (strict) ─────────────────────────────────────────
-const P2_SYS = `You are a strict relevance gatekeeper for a US/UK D2C tea, coffee, supplements & wellness brand's competitive-intelligence knowledge base. Decide whether the content is DIRECTLY useful to that exact context: a relevant brand/product, its marketing/lifecycle/retention, category trends, or consumer wellness insight for the US or UK market. REJECT generic ecommerce listicles, unrelated tech, other geographies or product categories, and social chatter. Return STRICT JSON ONLY: {"relevant":true|false,"topic":"<3-6 words>","reason":"<one short line>"}.`;
+// ── Metadata classification (zero-drift tags stored on every kept item) ──────
+// Deterministic {market, vertical} so every KB row carries a hard tag and the
+// analysis layer can inject a metadata filter (RAG sandbox) — the AI physically
+// cannot read outside the tea/coffee/supplements/wellness · US/UK box.
+const VERTICALS = {
+  Coffee: ['coffee', 'espresso', 'cold brew', 'mushroom coffee', 'latte', 'ryze', 'mud\\wtr', 'mudwtr', 'four sigmatic', 'foursigmatic', 'everyday dose', 'rise brewing', 'rasa'],
+  Tea: ['tea', 'chai', 'matcha', 'oolong', 'darjeeling', 'assam', 'rooibos', 'tisane', 'pukka', 'teapigs', 'twinings', 'clipper', 'yogi tea', 'bird & blend', 't2 tea', 'tea forte', 'harney', 'teabloom'],
+  Supplements: ['supplement', 'capsule', 'greens powder', 'ag1', 'athletic greens', 'ritual', 'seed', 'collagen', 'probiotic', 'ksm-66', 'multivitamin', 'bloom nutrition', 'huel'],
+  Wellness: ['wellness', 'longevity', 'adaptogen', 'nootropic', 'cortisol', 'sleep aid', 'calm', 'hydration', 'functional beverage', 'immunity', 'magic mind', 'moon juice', 'kin euphorics', 'liquid iv', 'olipop'],
+};
+function classify(item) {
+  const hay = haystack(item || {});
+  // Market from currency + geo signals.
+  let market = null;
+  if (/£|\bgbp\b|\.co\.uk|united kingdom|\buk\b|britain|england/i.test(hay)) market = 'UK';
+  else if (/\$|\busd\b|united states|\bus\b|\busa\b|america/i.test(hay)) market = 'US';
+  // Vertical = the category with the most keyword hits (Wellness as the catch-all).
+  let vertical = null, best = 0;
+  for (const [v, kws] of Object.entries(VERTICALS)) {
+    const n = hits(hay, kws).length;
+    if (n > best) { best = n; vertical = v; }
+  }
+  if (!vertical && hits(hay, RELEVANT).length) vertical = 'Wellness';
+  return { market, vertical };
+}
+
+// ── Phase 2: LLM gatekeeper (strict — the Context Guard) ─────────────────────
+const P2_SYS = `You are a hyper-focused data compliance engineer for a D2C Market Intelligence platform. Your single job is to analyze incoming data and classify whether it is strictly valuable or junk.
+
+Strict Context Bounds:
+1. Industry Focus: ONLY Tea, Coffee, Functional Beverages, Supplements, and Longevity/Wellness brands. Discard beauty, apparel, general fitness equipment, or generic SaaS.
+2. Core Strategy Pillars: Only accept data regarding: Offer Architecture (Pricing, Subscriptions, Bundles), Digital Acquisition Hooks (Ads, Landing Pages), Retention Flows (SMS/Email experiments), and physical retail expansion in the US/UK.
+3. Definition of Junk (Reject if ANY are true):
+- The data is a general marketing quote or "thought leadership" post without hard numbers or tangible changes.
+- The strategy is about general e-commerce (e.g., "How to optimize Shopify checkout for clothing brands").
+- The change is a minor backend bug fix or routine site maintenance with zero strategy impact.
+
+Output Requirement: output EXACTLY this JSON, no conversational text:
+{"is_actionable_context": true/false, "rejection_reason": "reason ONLY if false, else empty string"}`;
 
 async function phase2(item) {
   if (!callLLM) return { relevant: true, skipped: true, reason: 'no LLM configured — Phase 2 skipped (kept)' };
@@ -94,7 +131,8 @@ async function phase2(item) {
     const out = await callLLM({ systemPrompt: P2_SYS, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens: 120, temperature: 0, timeoutMs: 20000, stage: 'ingest-guardrail', tier: 'fast' });
     if (!out || !out.ok || !out.text) return { relevant: true, skipped: true, reason: 'LLM unavailable — kept' };
     const j = JSON.parse(out.text.replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1'));
-    return { relevant: j.relevant !== false, topic: j.topic || null, reason: j.reason || '' };
+    const actionable = j.is_actionable_context !== false;
+    return { relevant: actionable, reason: actionable ? '' : (j.rejection_reason || 'not actionable D2C context') };
   } catch (e) { return { relevant: true, skipped: true, reason: `Phase 2 error (${e.message}) — kept` }; }
 }
 
@@ -102,10 +140,11 @@ async function phase2(item) {
 async function gatekeep(item, { llm = true } = {}) {
   const p1 = assess(item);
   if (!p1.keep) return { keep: false, phase: 1, reason: p1.reason, p1 };
-  if (!llm) return { keep: true, phase: 1, reason: p1.reason, p1 };
+  const meta = classify(item);   // zero-drift tags travel with every kept item
+  if (!llm) return { keep: true, phase: 1, reason: p1.reason, meta, p1 };
   const p2 = await phase2(item);
-  if (!p2.relevant) return { keep: false, phase: 2, reason: `LLM gatekeeper: ${p2.reason || 'not relevant'}`, p1, p2 };
-  return { keep: true, phase: p2.skipped ? 1 : 2, reason: p2.skipped ? p1.reason : `relevant: ${p2.topic || p2.reason}`, p1, p2 };
+  if (!p2.relevant) return { keep: false, phase: 2, reason: `LLM gatekeeper: ${p2.reason || 'not actionable'}`, meta, p1, p2 };
+  return { keep: true, phase: p2.skipped ? 1 : 2, reason: p2.skipped ? p1.reason : 'actionable D2C context', meta, p1, p2 };
 }
 
 async function filterItems(items, opts) {
@@ -114,4 +153,4 @@ async function filterItems(items, opts) {
   return { kept, dropped, total: (items || []).length };
 }
 
-module.exports = { assess, phase2, gatekeep, filterItems, BRAND_WHITELIST, RELEVANT, BLOCK };
+module.exports = { assess, phase2, classify, gatekeep, filterItems, BRAND_WHITELIST, RELEVANT, BLOCK, VERTICALS };
