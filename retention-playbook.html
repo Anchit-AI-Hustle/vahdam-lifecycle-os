@@ -9,10 +9,10 @@
     --vahdam-green:#004A2B; --vahdam-gold:#AB8743; --vahdam-ink:#171717; --vahdam-cream:#FBF5EA;
     --font-head:"LAO MN",Georgia,"Times New Roman",serif;
     --font-body:"Proxima Nova","Helvetica Neue",Arial,sans-serif;
-    --bg:#06120d; --panel:#0b1a13; --hair:rgba(171,135,67,.22); --muted:#9fb3a8; --gold:var(--vahdam-gold);
+    --bg:#06120d; --panel:#0b1a13; --hair:rgba(171,135,67,.22); --muted:#556059; --gold:var(--vahdam-gold);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:#e8ede9;font-family:var(--font-body);line-height:1.55}
+  body{margin:0;background:var(--bg);color:#171717;font-family:var(--font-body);line-height:1.55}
   .wrap{max-width:1280px;margin:0 auto;padding:0 20px}
   h1,h2,h3,.eyebrow{font-family:var(--font-head)}
   .eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:700}
@@ -32,15 +32,15 @@
   .chip{border:1px solid rgba(171,135,67,.4);background:transparent;color:#cbd6ce;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}
   .chip:hover{border-color:var(--gold);color:#fff}
   .chip.on{background:var(--vahdam-green);color:#fff;border-color:var(--gold)}
-  .cnt{color:#789;font-size:12px;margin-left:6px}
+  .cnt{color:#48524c;font-size:12px;margin-left:6px}
   .tblscroll{overflow-x:auto}
   table{width:100%;border-collapse:collapse;min-width:820px;font-size:13.5px}
   th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:left;padding:11px 12px;border-bottom:1px solid var(--hair);white-space:nowrap}
   td{padding:12px 12px;border-bottom:1px solid rgba(171,135,67,.12);vertical-align:top}
   td.obj{font-weight:600;color:#fff;max-width:220px}
   td .sub{color:var(--muted);font-size:12px}
-  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#d9c18f}
-  .slotbadge{display:inline-block;background:#2a2411;color:#e6c979;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700}
+  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#7a5f2c}
+  .slotbadge{display:inline-block;background:#2a2411;color:#7a5f2c;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700}
   .note{color:var(--muted);font-size:12.5px}
 </style>
 <script src="/auth.js?v=20260712" defer></script>
@@ -66,11 +66,11 @@
     <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between">
       <div style="flex:1;min-width:240px">
         <div style="display:flex;align-items:center;gap:8px">
-          <span id="engdot" style="width:9px;height:9px;border-radius:50%;background:#8fe7b9;display:inline-block"></span>
+          <span id="engdot" style="width:9px;height:9px;border-radius:50%;background:#0a7d33;display:inline-block"></span>
           <b style="color:#fff">Agentic engine</b>
           <span id="engstatus" class="note">idle</span>
         </div>
-        <div id="engbar" style="height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:8px;display:none"><i style="display:block;height:100%;width:38%;background:linear-gradient(90deg,#1d6b45,#8fe7b9)"></i></div>
+        <div id="engbar" style="height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:8px;display:none"><i style="display:block;height:100%;width:38%;background:linear-gradient(90deg,#1d6b45,#0a7d33)"></i></div>
         <div id="engmsg" class="note" style="margin-top:6px">Plan a fresh calendar and write its content for the region selected below, without leaving this screen. Heavy generation runs in the background, so the filters stay responsive.</div>
       </div>
       <button id="syncbtn" class="chip" style="background:var(--vahdam-green);color:#fff;border-color:var(--gold);padding:9px 18px;font-size:13px" onclick="runAgenticSync()">Run Agentic Sync</button>
@@ -110,7 +110,7 @@
         <tbody id="rows"><tr><td colspan="6" class="note">Loading the plan…</td></tr></tbody>
       </table>
     </div>
-    <p class="note" style="margin-top:12px">Rows come from the live Automated Calendar plan. Full per-slot mailers, ads and landing pages are built and downloaded from <a href="/brain" style="color:#8fe7b9">the Automated Calendar</a>.</p>
+    <p class="note" style="margin-top:12px">Rows come from the live Automated Calendar plan. Full per-slot mailers, ads and landing pages are built and downloaded from <a href="/brain" style="color:#0a7d33">the Automated Calendar</a>.</p>
   </section>
 </main>
 
@@ -162,7 +162,7 @@
   window.runAgenticSync=function(){
     var btn=$('syncbtn'), st=$('engstatus'), dot=$('engdot'), bar=$('engbar'), msg=$('engmsg');
     if(btn){ btn.disabled=true; btn.textContent='Running…'; }
-    if(dot) dot.style.background='#e6c979';
+    if(dot) dot.style.background='#7a5f2c';
     if(st) st.textContent='running · '+agenticMarket();
     if(bar) bar.style.display='';
     if(msg) msg.textContent='Inspecting data, calculating funnel math, planning the calendar and writing content…';
@@ -171,7 +171,7 @@
       .then(function(d){
         if(!d.ok) throw new Error(d.error||'agentic flow failed');
         var stages=(d.stages||[]).filter(function(s){return s.ok;}).length;
-        if(st) st.textContent='synced'; if(dot) dot.style.background='#8fe7b9';
+        if(st) st.textContent='synced'; if(dot) dot.style.background='#0a7d33';
         if(msg) msg.textContent='Flow complete — '+stages+' stages ran. Creative assets (mailers, ads, landing pages) prebuild in the background; refreshing the plan…';
         load();
       })

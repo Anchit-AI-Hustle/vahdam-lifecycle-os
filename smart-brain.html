@@ -13,27 +13,27 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Automated Calendar">
 <style>
-  :root{--green:#004A2B;--gold:#AB8743;--ink:#171717;--cream:#FBF5EA;--muted:#6b7770}
-  *{box-sizing:border-box} body{margin:0;background:#0a1410;color:#e8ede9;font-family:Inter,system-ui,Arial,sans-serif;padding:28px}
+  :root{--green:#004A2B;--gold:#AB8743;--ink:#171717;--cream:#FBF5EA;--muted:#48524c}
+  *{box-sizing:border-box} body{margin:0;background:#ffffff;color:#171717;font-family:Inter,system-ui,Arial,sans-serif;padding:28px}
   .wrap{max-width:1280px;margin:0 auto}.top{display:flex;gap:18px;justify-content:space-between;align-items:flex-end;margin-bottom:22px;flex-wrap:wrap}
-  .eyebrow{color:var(--gold);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:800}h1{font-family:Georgia,serif;font-size:40px;line-height:1.05;margin:8px 0 10px}p{color:#a7b5ad;line-height:1.55}
-  .btn{border:0;border-radius:10px;background:var(--gold);color:#0a1410;padding:12px 16px;font-weight:800;cursor:pointer}
-  .btn.secondary{background:transparent;color:#e8ede9;border:1px solid rgba(171,135,67,.35)}
+  .eyebrow{color:var(--gold);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:800}h1{font-family:Georgia,serif;font-size:40px;line-height:1.05;margin:8px 0 10px}p{color:#556059;line-height:1.55}
+  .btn{border:0;border-radius:10px;background:var(--gold);color:#ffffff;padding:12px 16px;font-weight:800;cursor:pointer}
+  .btn.secondary{background:transparent;color:#171717;border:1px solid rgba(171,135,67,.35)}
   .btn:disabled{opacity:.5;cursor:wait}
   .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
   .mkchip{border:1px solid rgba(171,135,67,.4);background:transparent;color:#cbd6ce;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}
-  .mkchip:hover{border-color:var(--gold);color:#e8ede9}
+  .mkchip:hover{border-color:var(--gold);color:#171717}
   .mkchip.on{background:var(--forest,#004A2B);color:#fff;border-color:var(--gold)}
   .akbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 10px;padding:8px 0;border-bottom:1px solid rgba(171,135,67,.18)}
   .akstatus{font-size:12px;font-weight:700}
-  .akstatus.approved{color:#8fe7b9} .akstatus.rejected{color:#e89a9a}
-  .btn.ok{background:#1d6b45;color:#eafff3}.btn.no{background:transparent;color:#e89a9a;border:1px solid rgba(232,154,154,.4)}
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#0f1d18;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px}
-  .card h2{font-size:16px;margin:0 0 8px}.metric{font-size:30px;color:#FBF5EA;font-weight:800}.label{font-size:11px;color:#789;letter-spacing:.12em;text-transform:uppercase}
+  .akstatus.approved{color:#0a7d33} .akstatus.rejected{color:#e89a9a}
+  .btn.ok{background:#1d6b45;color:#171717}.btn.no{background:transparent;color:#e89a9a;border:1px solid rgba(232,154,154,.4)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#ffffff;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px}
+  .card h2{font-size:16px;margin:0 0 8px}.metric{font-size:30px;color:#FBF5EA;font-weight:800}.label{font-size:11px;color:#48524c;letter-spacing:.12em;text-transform:uppercase}
   .wide{grid-column:span 4}.two{grid-column:span 2}
-  pre{white-space:pre-wrap;word-break:break-word;background:#07100d;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;max-height:420px;overflow:auto;color:#cfe0d7;font-size:12px}
+  pre{white-space:pre-wrap;word-break:break-word;background:#f4f2ec;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;max-height:420px;overflow:auto;color:#cfe0d7;font-size:12px}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th{font-size:10px;color:#789;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 8px;border-bottom:1px solid rgba(171,135,67,.25)}
+  th{font-size:10px;color:#48524c;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 8px;border-bottom:1px solid rgba(171,135,67,.25)}
   td{padding:9px 8px;border-bottom:1px solid rgba(171,135,67,.1);vertical-align:top}
   tr:hover td{background:rgba(171,135,67,.05)}
   /* Calendar table: keep readable on narrow screens by scrolling horizontally
@@ -49,7 +49,7 @@
   #plantable td.chan,#plantable th.chan{white-space:normal;max-width:150px}
   /* Clamp long copy to 2 lines — the full text lives in View / the decision panel. */
   .clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#d9c18f;white-space:nowrap}
+  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#7a5f2c;white-space:nowrap}
   /* Why / Analysis panel — clear focus hierarchy */
   .an-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#AB8743;margin:0 0 6px}
   .an-focus{background:linear-gradient(90deg,rgba(0,74,43,.35),rgba(0,74,43,.08));border-left:3px solid #AB8743;border-radius:0 10px 10px 0;padding:14px 18px;margin:0 0 16px}
@@ -59,9 +59,9 @@
   @media(max-width:720px){.an-grid{grid-template-columns:1fr}}
   .an-card{background:rgba(171,135,67,.06);border:1px solid rgba(171,135,67,.2);border-radius:10px;padding:13px 15px}
   .an-callout{background:rgba(29,107,69,.18);border:1px solid rgba(143,231,185,.3);border-radius:10px;padding:13px 15px;margin:0 0 16px}
-  .an-callout .big{font-size:15px;color:#eafff3;font-weight:600}
+  .an-callout .big{font-size:15px;color:#171717;font-weight:600}
   .an-confbar{height:9px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0 10px}
-  .an-confbar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#1d6b45,#8fe7b9)}
+  .an-confbar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#1d6b45,#0a7d33)}
   .an-conf-num{font-size:26px;font-weight:800;color:#FBF5EA;font-variant-numeric:tabular-nums;line-height:1}
   .an-factor{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid rgba(171,135,67,.14);font-size:12.5px;color:#c8d6cd}
   .an-factor b{color:#e9dfc6;font-weight:600}
@@ -72,27 +72,27 @@
   .an-chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
   .an-chip{background:rgba(171,135,67,.12);border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:4px 11px;font-size:11.5px;color:#e9dfc6}
   .st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
-  .st.tentative{background:rgba(171,135,67,.16);color:#d9c18f}.st.approved{background:rgba(29,107,69,.3);color:#8fe7b9}.st.final{background:#1d6b45;color:#eafff3}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
+  .st.tentative{background:rgba(171,135,67,.16);color:#7a5f2c}.st.approved{background:rgba(29,107,69,.3);color:#0a7d33}.st.final{background:#1d6b45;color:#171717}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
   .feed{max-height:300px;overflow:auto}.feed p{margin:6px 0;font-size:13px;border-left:2px solid rgba(171,135,67,.35);padding-left:10px}
   .conf{font-variant-numeric:tabular-nums}
-  .sbspin{display:inline-block;width:11px;height:11px;border:2px solid rgba(171,135,67,.35);border-top-color:#e6c979;border-radius:50%;animation:sbspin .7s linear infinite;vertical-align:-1px}
+  .sbspin{display:inline-block;width:11px;height:11px;border:2px solid rgba(171,135,67,.35);border-top-color:#7a5f2c;border-radius:50%;animation:sbspin .7s linear infinite;vertical-align:-1px}
   @keyframes sbspin{to{transform:rotate(360deg)}}
   /* Funnel preview */
   #preview{margin:0 0 12px}
   .pvbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
   .pvtabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 12px;border-bottom:1px solid rgba(171,135,67,.2)}
-  .pvtab{background:transparent;border:0;border-bottom:2px solid transparent;color:#9fb3a8;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px 6px 0 0}
-  .pvtab:hover{color:#e8ede9}
+  .pvtab{background:transparent;border:0;border-bottom:2px solid transparent;color:#556059;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px 6px 0 0}
+  .pvtab:hover{color:#171717}
   .pvtab.on{color:#FBF5EA;border-bottom-color:var(--gold);background:rgba(171,135,67,.08)}
   .adimg{width:100%;max-height:420px;object-fit:cover;border-radius:8px;margin:4px 0 12px;border:1px solid rgba(171,135,67,.2);display:block}
   .pvpane{display:none}.pvpane.on{display:block}
   .pvframe{width:100%;height:560px;border:1px solid rgba(171,135,67,.22);border-radius:12px;background:#fff}
   .pvexport{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
-  .pvnote{color:#9fb3a8;font-size:12px;margin:0 0 10px}
-  .adcard{background:#07100d;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;margin-bottom:10px}
+  .pvnote{color:#556059;font-size:12px;margin:0 0 10px}
+  .adcard{background:#f4f2ec;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;margin-bottom:10px}
   .adcard h4{margin:0 0 6px;font-size:12px;color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
-  .adcard .k{color:#789;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
-  .adcard .v{color:#e8ede9;line-height:1.55;font-size:13px;white-space:pre-wrap}
+  .adcard .k{color:#48524c;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
+  .adcard .v{color:#171717;line-height:1.55;font-size:13px;white-space:pre-wrap}
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
   @keyframes spin{to{transform:rotate(360deg)}}
   @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}}
@@ -105,7 +105,7 @@
     <div>
       <div class="eyebrow">VAHDAM Lifecycle OS · VAHDAM Brain</div>
       <h1>VAHDAM Brain</h1>
-      <p style="color:#9fb3a8;margin:.1em 0 .4em;font-size:14px">Agentic campaign planning, cohort orchestration, and content generation</p>
+      <p style="color:#556059;margin:.1em 0 .4em;font-size:14px">Agentic campaign planning, cohort orchestration, and content generation</p>
       <p>This engine keeps a tentative <b>90-day calendar</b> per market, re-reviewed daily against the latest data (auto via cron at 03:30 UTC, or manually below). Approving a slot generates the full funnel: mailer, Meta/Google/TikTok ads, and a hosted landing page, for final human check.</p>
     </div>
     <div id="autobar">
@@ -124,13 +124,13 @@
 
     <div class="card wide" id="dualmode">
       <h2>Agentic Generation</h2>
-      <p style="color:#789;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation). Always runs on the <b>Premium</b> model cascade.</p>
+      <p style="color:#48524c;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation). Always runs on the <b>Premium</b> model cascade.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
         <span class="label" style="margin-right:4px">Mode</span>
         <span class="btn sm" style="cursor:default;pointer-events:none" title="One mode: an agentic pipeline powered by the premium model cascade">🤖 Agentic</span>
         <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
       </div>
-      <div id="agenticOut" class="feed"><p style="color:#789">Run the agentic flow. It plans the calendar, writes the content and returns the next-step ideation inline.</p></div>
+      <div id="agenticOut" class="feed"><p style="color:#48524c">Run the agentic flow. It plans the calendar, writes the content and returns the next-step ideation inline.</p></div>
     </div>
 
     <div class="card wide">
@@ -143,34 +143,34 @@
         </div>
       </div>
       <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 8px">
-        <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
+        <span style="color:#556059;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
         <button class="mkchip" data-mkt="all" onclick="toggleMkt('all')">All</button>
         <button class="mkchip on" data-mkt="US" onclick="toggleMkt('US')">US</button>
         <button class="mkchip" data-mkt="UK" onclick="toggleMkt('UK')">UK</button>
         <button class="mkchip" data-mkt="Global" onclick="toggleMkt('Global')">Global</button>
         <button class="mkchip" data-mkt="India" onclick="toggleMkt('India')">India</button>
-        <span id="mktcount" style="color:#789;font-size:12px;margin-left:6px"></span>
+        <span id="mktcount" style="color:#48524c;font-size:12px;margin-left:6px"></span>
       </div>
       <div id="durfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 14px">
-        <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Duration</span>
+        <span style="color:#556059;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Duration</span>
         <button class="mkchip" data-dur="7" onclick="setDur(7)">Next 7 days</button>
         <button class="mkchip" data-dur="30" onclick="setDur(30)">30 days</button>
         <button class="mkchip" data-dur="60" onclick="setDur(60)">60 days</button>
         <button class="mkchip on" data-dur="90" onclick="setDur(90)">90 days</button>
         <button class="mkchip" data-dur="all" onclick="setDur('all')">All</button>
-        <span id="durcount" style="color:#789;font-size:12px;margin-left:6px"></span>
+        <span id="durcount" style="color:#48524c;font-size:12px;margin-left:6px"></span>
       </div>
       <div id="catfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 14px">
-        <span style="color:#9fb3a8;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Catalog</span>
+        <span style="color:#556059;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Catalog</span>
         <button class="mkchip on" data-cat="tea" onclick="toggleCat('tea')">Teas &amp; Botanicals</button>
         <button class="mkchip on" data-cat="coffee" onclick="toggleCat('coffee')">Ashwagandha Coffee</button>
         <button class="mkchip on" data-cat="supplement" onclick="toggleCat('supplement')">Supplements</button>
-        <span id="catcount" style="color:#789;font-size:12px;margin-left:6px"></span>
+        <span id="catcount" style="color:#48524c;font-size:12px;margin-left:6px"></span>
       </div>
       <div class="tblscroll">
       <table id="plantable">
         <thead><tr><th>Date</th><th>Market</th><th class="cohort">Cohort</th><th class="obj">Objective · Hero</th><th class="why">Why (analysis)</th><th class="chan">Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="plan"><tr><td colspan="9" style="color:#789">Loading plan…</td></tr></tbody>
+        <tbody id="plan"><tr><td colspan="9" style="color:#48524c">Loading plan…</td></tr></tbody>
       </table>
       </div>
     </div>
@@ -233,11 +233,11 @@ async function runAgentic(){
     const d = await safeJson(r);
     if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
     const stages = (d.stages||[]).map(s => `<div style="padding:6px 0;border-bottom:1px solid #eee5d2"><b>${s.ok?'✓':'✗'} ${esc(s.stage)}</b> — ${esc(s.summary||'')}</div>`).join('');
-    const ideas = (d.ideation&&d.ideation.ideas||[]).map(i=>`<li><b>${esc(i.title)}</b> — ${esc(i.action||i.why||'')} <span style="color:#789">(${esc(i.impact||'')}/${esc(i.effort||'')})</span></li>`).join('');
+    const ideas = (d.ideation&&d.ideation.ideas||[]).map(i=>`<li><b>${esc(i.title)}</b> — ${esc(i.action||i.why||'')} <span style="color:#48524c">(${esc(i.impact||'')}/${esc(i.effort||'')})</span></li>`).join('');
     out.innerHTML = `<div class="label">Flow · ${esc(d.mode)} · tier ${esc(d.tier)}</div>
       <div style="margin:8px 0">${stages}</div>
       <h2 style="font-size:18px;margin-top:14px">Ideation — what to do next</h2><ul>${ideas||'<li>—</li>'}</ul>
-      <p style="color:#789;margin-top:12px">Creative assets (mailers, ads, landing pages, images) are prebuilding in the background and will appear on the dashboard shortly.</p>`;
+      <p style="color:#48524c;margin-top:12px">Creative assets (mailers, ads, landing pages, images) are prebuilding in the background and will appear on the dashboard shortly.</p>`;
   }catch(e){ out.innerHTML = `<p style="color:#b00">Error: ${esc(e.message||e)}</p>`; }
 }
 
@@ -286,7 +286,7 @@ function slotVisible(e){ return mktVisible(e) && durVisible(e) && catVisible(e);
 // feasibility verdict exists, so tiny cohorts are never shown as viable.
 function feasBadge(f){
   if(!f || !f.status) return '';
-  const m = { 'FEASIBLE':['#12362a','#8fe7b9'], 'REQUIRES MORE ELIGIBLE REACH':['#3a2f12','#e6c979'], 'NOT FEASIBLE':['#3a1c1c','#e89a9a'], 'DATA REQUIRED':['#1b2b33','#9fd0e6'] }[f.status] || ['#22323a','#9fb3a8'];
+  const m = { 'FEASIBLE':['#e8f3ec','#0a7d33'], 'REQUIRES MORE ELIGIBLE REACH':['#3a2f12','#7a5f2c'], 'NOT FEASIBLE':['#3a1c1c','#e89a9a'], 'DATA REQUIRED':['#1b2b33','#9fd0e6'] }[f.status] || ['#22323a','#556059'];
   const rev = (f.projected_revenue!=null) ? ` · ~$${f.projected_revenue}` : '';
   return `<br><span class="pill" style="background:${m[0]};color:${m[1]};font-size:10px" title="${esc(f.note||'')}">${esc(f.status)}${rev}</span>`;
 }
@@ -299,7 +299,7 @@ window.setDur = function(d){
 };
 
 function renderPlan(){
-  if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="9" style="color:#789">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }
+  if(!PLAN.length){ $('plan').innerHTML = '<tr><td colspan="9" style="color:#48524c">No plan yet — click “Run Daily Sync”.</td></tr>'; return; }
   $('entries').textContent = PLAN.length;
   const isGenerated = e => !!(e.generated_campaign_id || e.status === 'approved' || e.status === 'final' || (e.__prebuilt && e.__prebuilt.campaign_id));
   $('pending').textContent = PLAN.filter(e => !isGenerated(e)).length;
@@ -325,7 +325,7 @@ function renderPlan(){
   const approvableVisible = PLAN.filter(e => slotVisible(e) && e.status!=='approved' && e.status!=='final' && e.status!=='rejected').length;
   const ab = $('approveAll');
   if(ab){ ab.style.display = approvableVisible ? '' : 'none'; ab.textContent = `✓ Approve all (${approvableVisible})`; }
-  if(!shown){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#789">No sends for the selected region + duration. Widen the duration or pick another region.</td></tr>`; return; }
+  if(!shown){ $('plan').innerHTML = `<tr><td colspan="9" style="color:#48524c">No sends for the selected region + duration. Widen the duration or pick another region.</td></tr>`; return; }
   // Iterate over ALL entries (keep index i aligned to PLAN for viewEntry/approve),
   // emitting nothing for rows filtered out by the region selector.
   $('plan').innerHTML = PLAN.map((e,i)=>{
@@ -362,15 +362,15 @@ function renderPlan(){
         `<button class="btn sm ok" onclick="approveRow(${i})" title="Approve this send — generates and locks the final assets so it is ready to ship">✓ Approve</button>`+
         `<button class="btn sm secondary" onclick="rejectRow(${i})" title="Reject this send — logs the decision and the slot is re-planned on the next daily sync">✗ Reject</button>`+
         `</div>`;
-    const status = `${verdict}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#8fe7b9;font-size:11px">landing page ↗</a>` : ''}${reviewCtl}`;
+    const status = `${verdict}${e.generated_campaign_id ? `<br><a href="/lp/${esc(e.generated_campaign_id)}" target="_blank" style="color:#0a7d33;font-size:11px">landing page ↗</a>` : ''}${reviewCtl}`;
     return `<tr class="planrow" id="planrow-${i}">
-    <td>${esc(e.date)}${e.mailer_total > 1 ? `<br><span class="pill" style="background:#2a2411;color:#e6c979;font-size:10px">MAILER ${e.mailer_index}/${e.mailer_total}</span>` : ''}</td>
+    <td>${esc(e.date)}${e.mailer_total > 1 ? `<br><span class="pill" style="background:#2a2411;color:#7a5f2c;font-size:10px">MAILER ${e.mailer_index}/${e.mailer_total}</span>` : ''}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
-    <td class="cohort">${esc(e.cohort?.name)}<br><span style="color:#789;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}${feasBadge(e.feasibility)}</td>
-    <td class="obj"><div class="clamp2" style="font-weight:600;color:#e8ede9">${esc(e.objective)}</div><span style="color:#9fb3a8;font-size:12px">${esc(e.heroProduct?.title || '')}${(e.supportingProducts&&e.supportingProducts.length)?` <span style="color:#7a8a80">· + ${esc(e.supportingProducts.map(p=>p.title).filter(Boolean).join(', '))}</span>`:''}</span></td>
+    <td class="cohort">${esc(e.cohort?.name)}<br><span style="color:#48524c;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#e8f3ec;color:#0a7d33;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}${feasBadge(e.feasibility)}</td>
+    <td class="obj"><div class="clamp2" style="font-weight:600;color:#171717">${esc(e.objective)}</div><span style="color:#556059;font-size:12px">${esc(e.heroProduct?.title || '')}${(e.supportingProducts&&e.supportingProducts.length)?` <span style="color:#7a8a80">· + ${esc(e.supportingProducts.map(p=>p.title).filter(Boolean).join(', '))}</span>`:''}</span></td>
     <td class="why"><div class="clamp2" style="font-size:12px;color:#a9b8ad;line-height:1.45" title="${esc(why)}">${esc(why)}</div></td>
     <td class="chan">${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
-    <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#9fb3a8;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
+    <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#556059;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
     <td>${status}</td>
     <td style="white-space:nowrap">
       <button class="btn sm secondary" id="viewbtn-${i}" onclick="viewEntry(${i})">View</button>
@@ -378,7 +378,7 @@ function renderPlan(){
       <button class="btn sm secondary" onclick="viewDecision(${i})" title="The complete logic, analysis and reason for this send: why the slot was chosen, and why this design and content">❓ Why this mail?</button>
     </td>
   </tr>
-  <tr class="exprow" id="exprow-${i}" style="display:none"><td colspan="9" style="padding:0;background:#0b1813;border-bottom:2px solid rgba(171,135,67,.3)"><div class="expbody" id="expbody-${i}" style="padding:16px 18px"></div></td></tr>`;}).join('');
+  <tr class="exprow" id="exprow-${i}" style="display:none"><td colspan="9" style="padding:0;background:#f4f2ec;border-bottom:2px solid rgba(171,135,67,.3)"><div class="expbody" id="expbody-${i}" style="padding:16px 18px"></div></td></tr>`;}).join('');
 }
 
 // ── Funnel preview (generate-on-demand, before approval) ────────────────────
@@ -418,7 +418,7 @@ function analysisPanelHTML(a){
   const conf = a.confidence||{};
   const pct = conf.score!=null ? Math.round(conf.score*100) : null;
   const drivers = (a.drivers||[]).filter(d=>d && (d.signal||d.value)).map(d=>`<div class="an-driver"><span class="sig">${esc(d.signal||'')}</span><span class="val">${esc(d.value||'')}${d.implication?`<span class="imp">${esc(d.implication)}</span>`:''}</span></div>`).join('');
-  const factors = (conf.factors||[]).map(f=>`<div class="an-factor"><span><b>${esc(f.label)}</b>${f.detail?`<br><span style="color:#93a89c;font-size:11px">${esc(f.detail)}</span>`:''}</span><span style="color:${f.delta>=0?'#8fe7b9':'#e89a9a'};font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:700">${f.delta>=0?'+':''}${f.delta}</span></div>`).join('');
+  const factors = (conf.factors||[]).map(f=>`<div class="an-factor"><span><b>${esc(f.label)}</b>${f.detail?`<br><span style="color:#93a89c;font-size:11px">${esc(f.detail)}</span>`:''}</span><span style="color:${f.delta>=0?'#0a7d33':'#e89a9a'};font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:700">${f.delta>=0?'+':''}${f.delta}</span></div>`).join('');
   const ev = a.evidence||{};
   const evBits = [];
   if(ev.own_campaign && ev.own_campaign.name) evBits.push(`Proven: ${esc(ev.own_campaign.name)}`);
@@ -503,7 +503,7 @@ function renderPreview(payload, e, i, opts){
       first=false;
     });
   } else if(emailHtml){ const html = emailHtml.replace(/\{\{\s*landing_page_url\s*\}\}/g,'#'); tab('pv-mail','✉ Mailer',first); pane('pv-mail', `${expBar('mailer', html)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first); first=false; }
-  if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#8fe7b9">/lp/${esc(liveLpId)} ↗</a>.</p>`:''}${expBar('landing-page', lpHtml)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
+  if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#0a7d33">/lp/${esc(liveLpId)} ↗</a>.</p>`:''}${expBar('landing-page', lpHtml)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
   // Each platform ships an A/B pair. Give every ad a UNIQUE tab id + a label that
   // names its variant and angle, otherwise both A and B collide on the same id
   // ("pv-ad-meta") and read as a duplicate "meta ad" tile (B hidden behind A).
@@ -528,7 +528,7 @@ function renderPreview(payload, e, i, opts){
       <button class="btn sm secondary" onclick="closeExp(${i})" title="Collapse">✕</button>
     </div>
     <div class="pvnote">Copy by <b>${esc(cw.provider || 'template')}</b>${cw.model?` · ${esc(cw.model)}`:''} · channels: ${(e.channels||[]).map(esc).join(', ')||'—'}</div>
-    ${(() => { const tr = payload.agent_trace || campaign.agent_trace; if(!Array.isArray(tr)||!tr.length) return ''; return `<div class="pvnote" style="margin-top:4px">Agent pipeline: ${tr.map(a=>`<span class="pill" style="background:${a.ok?'#12362a':'#3a1414'};color:${a.ok?'#8fe7b9':'#ffd9d0'};font-size:10px" title="${esc(a.role||'')}${a.provider?' · '+esc(a.provider):''}">${a.ok?'✓':'⚠'} ${esc(a.agent)}</span>`).join(' → ')}</div>`; })()}
+    ${(() => { const tr = payload.agent_trace || campaign.agent_trace; if(!Array.isArray(tr)||!tr.length) return ''; return `<div class="pvnote" style="margin-top:4px">Agent pipeline: ${tr.map(a=>`<span class="pill" style="background:${a.ok?'#e8f3ec':'#3a1414'};color:${a.ok?'#0a7d33':'#ffd9d0'};font-size:10px" title="${esc(a.role||'')}${a.provider?' · '+esc(a.provider):''}">${a.ok?'✓':'⚠'} ${esc(a.agent)}</span>`).join(' → ')}</div>`; })()}
     ${(() => {
       // When copy fell back to the template (no LLM provider answered), show the
       // EXACT reason inline so the cause is visible — not buried in a tooltip.
@@ -559,7 +559,7 @@ function decisionPanelHTML(e){
   const dl = (label, value, sub) => (value || sub) ? `
       <tr>
         <td style="color:#cbb98f;font-size:12px;font-weight:700;vertical-align:top;padding:10px 18px 10px 0;white-space:nowrap">${esc(label)}</td>
-        <td style="color:#e8ede9;font-size:13.5px;line-height:1.55;padding:10px 0;border-bottom:1px solid rgba(171,135,67,.14)">${value||''}${sub?`<div style="color:#9fb3a8;font-size:12px;margin-top:3px">${sub}</div>`:''}</td>
+        <td style="color:#171717;font-size:13.5px;line-height:1.55;padding:10px 0;border-bottom:1px solid rgba(171,135,67,.14)">${value||''}${sub?`<div style="color:#556059;font-size:12px;margin-top:3px">${sub}</div>`:''}</td>
       </tr>` : '';
   const li = (label, text) => text ? `<li style="margin:0 0 9px;line-height:1.55;color:#dfe7e1;font-size:13.5px"><b style="color:#f2ead6">${esc(label)}:</b> ${esc(text)}</li>` : '';
 
@@ -569,9 +569,9 @@ function decisionPanelHTML(e){
   const dataBasis  = a.summary || d.topic?.why || d.theme?.why || e.rationale || '';
   const timingWhy  = d.timing?.why || reach.why || 'Scheduled to fit the rolling frequency plan and spaced from recent sends so the same profile is not over-mailed.';
   const offerText  = offer.code
-    ? `${Math.round((offer.pct||0)*100)}% via <b style="color:#e6c979">${esc(offer.code)}</b>${offer.why?` — ${esc(offer.why)}`:' (within the discount cap)'}`
+    ? `${Math.round((offer.pct||0)*100)}% via <b style="color:#7a5f2c">${esc(offer.code)}</b>${offer.why?` — ${esc(offer.why)}`:' (within the discount cap)'}`
     : 'No discount — full-price send';
-  const confText   = e.confidence!=null ? `<b style="color:#e6c979">${Math.round(e.confidence*100)}%</b>${a.confidence?.label?` · ${esc(a.confidence.label)}`:''}` : '—';
+  const confText   = e.confidence!=null ? `<b style="color:#7a5f2c">${Math.round(e.confidence*100)}%</b>${a.confidence?.label?` · ${esc(a.confidence.label)}`:''}` : '—';
 
   // ── Section 2 · why this design & content ──
   const hero = prod.hero || e.heroProduct?.title || '';
@@ -583,12 +583,12 @@ function decisionPanelHTML(e){
   const mix     = hero ? `Hero ${hero}${supporting.length?` plus ${supporting.join(', ')} to lift basket within the same ritual`:''}.` : '';
   const brand   = 'Lao MN headings, Proxima Nova body, the four brand colours only, no banned phrases or em/en-dashes.';
 
-  return `<div class="pvroot" style="border:1px solid rgba(171,135,67,.35);border-radius:14px;padding:18px 20px;background:#0e1b15">
+  return `<div class="pvroot" style="border:1px solid rgba(171,135,67,.35);border-radius:14px;padding:18px 20px;background:#f4f2ec">
     <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(171,135,67,.2);padding-bottom:12px;margin-bottom:14px">
-      <span class="pill" style="background:#12362a;color:#8fe7b9;font-size:10px;letter-spacing:.06em">WHY YOU'RE SEEING THIS</span>
+      <span class="pill" style="background:#e8f3ec;color:#0a7d33;font-size:10px;letter-spacing:.06em">WHY YOU'RE SEEING THIS</span>
       <span style="color:#f2ead6;font-size:15px;font-weight:700">The complete logic, analysis &amp; reason</span>
     </div>
-    <div style="color:#e6c979;font-size:14px;font-weight:700;margin:0 0 6px">1 · Why this slot was chosen for the calendar</div>
+    <div style="color:#7a5f2c;font-size:14px;font-weight:700;margin:0 0 6px">1 · Why this slot was chosen for the calendar</div>
     <table style="width:100%;border-collapse:collapse;margin:0 0 16px">
       ${dl('Cohort', esc(cohortName), cohortDef ? esc(cohortDef) : '')}
       ${dl('Data basis', esc(dataBasis))}
@@ -596,7 +596,7 @@ function decisionPanelHTML(e){
       ${dl('Offer', offerText)}
       ${dl('Confidence', confText)}
     </table>
-    <div style="color:#e6c979;font-size:14px;font-weight:700;margin:0 0 6px">2 · Why this design &amp; content</div>
+    <div style="color:#7a5f2c;font-size:14px;font-weight:700;margin:0 0 6px">2 · Why this design &amp; content</div>
     <ul style="margin:0;padding-left:18px">
       ${li('Layout', layout)}
       ${li('Copy (P01)', copyWhy)}
@@ -828,24 +828,32 @@ async function generateEntry(i, { silent = false } = {}){
   return data;
 }
 
-// Row "Download": ensure the final assets exist (generate on demand if needed),
-// render them into the expansion, then download every asset as one file.
+// Row "Download": RETRIEVE the saved assets (never regenerate), render them into
+// the expansion, then download every asset as one file. Uses smart-brain-preview,
+// which reuses the persisted campaign (prebuilt or a prior preview) — so a slot is
+// built at most once and every later download is an instant fetch. It does NOT
+// approve/lock the slot (that would be the wrong side effect for a download); only
+// a slot that has never been built anywhere triggers a one-time build server-side,
+// which is then persisted so the next download is instant.
 async function downloadEntry(i){
   const e = PLAN[i];
   const btn = $('dlbtn-'+i); const label = btn ? btn.textContent : '';
   if(btn){ btn.disabled = true; btn.textContent = '…'; }
+  const row = $('exprow-'+i), body = $('expbody-'+i);
   try{
-    if(PREVIEW_CACHE[e.id]){
-      const row = $('exprow-'+i), body = $('expbody-'+i);
-      document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
-      if(row) row.style.display='';
-      renderPreview(PREVIEW_CACHE[e.id], e, i, { persisted: true, target: body });
-      if(body) body.setAttribute('data-loaded','1');
-    } else {
-      await generateEntry(i);   // builds + renders (populates window.__SB_EXPORTS)
+    document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
+    if(row) row.style.display='';
+    if(!PREVIEW_CACHE[e.id]){
+      if(body) body.innerHTML = `<p class="pvnote"><span class="spinner"></span> Loading saved assets…</p>`;
+      const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
+      const data = await safeJson(r);
+      if(!data.ok) throw new Error(data.error || 'Load failed');
+      PREVIEW_CACHE[e.id] = data;
     }
+    renderPreview(PREVIEW_CACHE[e.id], e, i, { persisted: true, target: body });
+    if(body) body.setAttribute('data-loaded','1');
     sbDownloadAll();
-  }catch(err){ const b=$('expbody-'+i); if(b) b.innerHTML = `<p class="pvnote" style="color:#e89a9a">Download failed: ${esc(err.stack || err.message)}</p>`; }
+  }catch(err){ if(body) body.innerHTML = `<p class="pvnote" style="color:#e89a9a">Download failed: ${esc(err.stack || err.message)}</p>`; }
   finally{ if(btn){ btn.disabled = false; btn.textContent = label; } }
 }
 
@@ -884,7 +892,7 @@ async function sbPreflight(){
     return await sbConfirm((rep.summary||'All configured providers are rate-limited.') + ' Generate anyway? Copy will fall back to templates until they recover.');
   }
   if((rep.degraded||[]).length && det){
-    det.innerHTML = `<span style="color:#e6c979">⚠ Degraded (rate-limited): ${esc(rep.degraded.join(', '))} — the cascade will route around them.</span>`;
+    det.innerHTML = `<span style="color:#7a5f2c">⚠ Degraded (rate-limited): ${esc(rep.degraded.join(', '))} — the cascade will route around them.</span>`;
   }
   return true;
 }

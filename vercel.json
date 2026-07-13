@@ -51,6 +51,8 @@
     { "source": "/chai",       "destination": "/chaigpt.html" },
     { "source": "/ask",        "destination": "/chaigpt.html" },
     { "source": "/api/klaviyo","destination": "/api/brain?action=klaviyo" },
+    { "source": "/api/cron/webengage", "destination": "/api/brain?action=webengage-sync" },
+    { "source": "/api/webengage", "destination": "/api/brain?action=webengage-report" },
     { "source": "/api/cron/social", "destination": "/api/brain?action=social-run-daily" },
     { "source": "/social",       "destination": "/social-media.html" },
     { "source": "/social-media", "destination": "/social-media.html" },

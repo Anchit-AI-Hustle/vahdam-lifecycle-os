@@ -25,6 +25,8 @@ const calendar = require('./brain-calendar.js');
 const generate = require('./brain-generate.js');
 const kb = require('./brain-kb.js');
 const agents = require('./brain-agent.js');
+const marketAnalytics = require('./market-analytics.js');
+const webengage = require('./webengage-core.js');
 const agentic = require('./agentic-orchestrator.js');
 const klaviyo = require('./klaviyo-core.js');
 
@@ -108,10 +110,22 @@ const TOOLS = {
     desc: 'Look up REAL VAHDAM products with their exact names, prices and verified store URLs from the live product catalog. ALWAYS call this before naming a product or giving a product link. params: {query} (optional name/keyword to filter, e.g. "ashwagandha coffee"), {market} (US|UK|Global|IN, defaults to current market). Returns [{name, handle, price, url}] — the ONLY valid product names and URLs. Never invent or edit a handle or domain.',
     run: async (a) => catalogProducts(a),
   },
+  market_performance: {
+    mutates: false,
+    desc: 'REAL sales performance from our Shopify order exports (US or UK): top products by revenue AND by units (exact net sales, quantity, orders), full monthly revenue trend, month-on-month change, the CURRENT month run-rate PROJECTION, product-type mix, channel split, discount split, returning-customer rate. USE THIS for any "top/best/most-selling product", revenue, orders, AOV, trend, run-rate or projection question. params: {market} (US|UK, defaults to current market).',
+    run: async (a) => marketAnalytics.performance(a.market || a.region || 'US'),
+  },
   ask_analytics: {
     mutates: false,
-    desc: 'Answer a natural-language analytics question (RFM, cohorts, revenue, product/channel performance) with EXACT figures from our own Supabase data. params: {question}',
+    desc: 'Answer an RFM / cohort / customer-segment analytics question from our Supabase data. params: {question}. NOTE: for product/revenue/top-seller/trend/projection questions use market_performance instead (real Shopify export numbers).',
     run: async (a) => agents.analyze({ message: a.question || a.message || '' }),
+  },
+  webengage_performance: {
+    mutates: false,
+    desc: 'REAL WebEngage push/campaign engagement from our synced webengage_events (US/UK/IN). params: {op:"campaigns"|"summary", event?(e.g. "Notification Clicked"|"Cart Abandoned"), hours?(default 24), market?}. Returns top campaigns by events + unique users, or the event-type mix. USE THIS for push-notification, web-push, cart-abandon and WebEngage campaign questions.',
+    run: async (a) => ((a.op || 'campaigns') === 'summary'
+      ? webengage.eventSummary({ hours: a.hours ? parseInt(a.hours, 10) : 24, market: a.market })
+      : webengage.campaignPerformance({ event: a.event || 'Notification Clicked', hours: a.hours ? parseInt(a.hours, 10) : 24, market: a.market })),
   },
   run_analysis: {
     mutates: false,
@@ -280,10 +294,23 @@ EVIDENCE CONTRACT — non-negotiable for EVERY suggestion or recommendation you 
 3. COMPLETE HYPOTHESIS: state it in full — "Because [observed data], doing [specific action] for [specific segment] should move [metric] by [expected range], because [mechanism]."
 4. COMPETITIVE BENCHMARK: call get_competitor_benchmarks and QUOTE the relevant numbers (send cadence, offer depth, dominant angles) alongside ours. If it returns empty, write "no competitor benchmark captured yet" — never skip this silently.
 
+ANSWER DISCIPLINE — every reply:
+- Answer EXACTLY what was asked, fully and directly. No scope drift, no partial answers. If it is a single-fact question ("which product had the most sales"), LEAD with the answer AND its exact number.
+- Always give the REASON for the answer — how you derived it from the data (which figures, which tool, what comparison). The user must never have to ask "why".
+
+PERFORMANCE questions ("which product/collection/bundle is best/worst", "how is X doing", "top seller", revenue/orders/AOV of an entity) → ALWAYS call market_performance FIRST (real Shopify export: exact net sales, units, orders, monthly trend, month-on-month, current-month run-rate projection). Your answer MUST include:
+1. the EXACT figure for the named entity from market_performance (revenue in the market's currency, units, orders) — never "high"/"leading" without the number, never a $0 you didn't sanity-check;
+2. the MONTH-ON-MONTH trend from monthly_trend — and treat the latest month as PARTIAL: compare against current_month_projection, never report the raw partial month as a real decline;
+3. the current month's PROJECTION from current_month_projection, quoting its stated basis;
+4. WHAT IS WORKING and how to SCALE or MAINTAIN it (specific, doable in this app);
+5. any GAPS, RISKS or ISSUES you notice, called out explicitly (a dip, a thinning cohort, over-reliance on one product, a stalled repeat rate).
+State the data window (market_performance.window_note) so the user knows the period. Never estimate what a tool can return — call the tool. If market_performance returns no data for a market (e.g. Global), say so and name US/UK as the markets with real exports.
+
 FINAL-ANSWER FORMAT:
 - Recommendation / strategy / "what should we do" questions → a DETAILED, structured markdown reply: the answer in 1–2 lines, then "**What the data shows**" (bulleted exact numbers with tool sources), "**Hypothesis**", "**Expected metric impact**", "**Competitor benchmark**" (quoted figures), "**Next actions**" (numbered, each doable inside this app with slot ids/dates where relevant).
-- Simple factual lookups → a direct, concise answer with the exact figures. No sections, no padding.
-- Markdown tables are welcome for comparisons (ours vs competitors, cohort vs cohort).
+- Performance questions → lead with the exact answer + figure, then "**Trend & current month**" (MoM + run-rate projection), "**Why**", "**What's working / how to scale**", "**Gaps & risks**".
+- Simple factual lookups with no performance angle → a direct, concise answer with the exact figures. No padding.
+- Markdown tables are welcome for comparisons (ours vs competitors, cohort vs cohort, month vs month).
 
 RULES:
 - Prefer real data over guessing: if a question is about our numbers, audience, calendar, competitors, or Klaviyo, CALL TOOLS before answering — batched in parallel when independent, chained (e.g. get_calendar → generate_assets_for_slot) when dependent.

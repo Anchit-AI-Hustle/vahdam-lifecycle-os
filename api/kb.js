@@ -95,9 +95,75 @@ module.exports = async function handler(req, res) {
   if (action === 'classify-emails' || action === 'classify') {
     return classifyEmails(req, res, env);
   }
+  // ── 6. DAILY D2C DIGEST (Phase 3 synthesis) ─────────────────────────────
+  //   GET  → latest stored digest.   POST → synthesise the last 24h + store.
+  if (action === 'digest' || action === 'daily-digest') {
+    return dailyDigest(req, res, env);
+  }
 
-  return res.status(400).json({ ok: false, error: 'Unknown action. Use ?action=ingest|list|top-emails|brands|classify-emails' });
+  return res.status(400).json({ ok: false, error: 'Unknown action. Use ?action=ingest|list|top-emails|brands|classify-emails|digest' });
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 6. DAILY D2C DIGEST — synthesise the clean 24h learning log into one lesson
+// ═══════════════════════════════════════════════════════════════════════════
+async function dailyDigest(req, res, env) {
+  const headers = sbHeaders(env);
+  // GET: return the most recent stored digest (fast, for the UI).
+  if (req.method === 'GET') {
+    try {
+      const r = await fetch(`${env.url}/rest/v1/kb_daily_digest?select=*&order=digest_date.desc&limit=${Math.min(parseInt(req.query?.limit || '1', 10) || 1, 30)}`, { headers });
+      if (!r.ok) return res.status(r.status).json({ ok: false, items: [], error: (await r.text()).slice(0, 300) });
+      const items = await r.json();
+      return res.status(200).json({ ok: true, items, latest: items[0] || null });
+    } catch (err) { return res.status(500).json({ ok: false, items: [], error: err.message }); }
+  }
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'GET (read) or POST (synthesise) only' });
+
+  // POST: pull the last 24h of CLEAN (guardrail-passed, summarised) rows only —
+  // status='summarized' is exactly the set that cleared Phase 1 + Phase 2, so
+  // the digest physically cannot see filtered junk (RAG sandbox on the way in).
+  const sinceIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  let rows = [];
+  try {
+    const q = `${env.url}/rest/v1/kb_knowledge?select=title,summary,key_points,market,vertical,url,added_at&status=eq.summarized&added_at=gte.${encodeURIComponent(sinceIso)}&order=added_at.desc&limit=80`;
+    const r = await fetch(q, { headers });
+    if (r.ok) rows = await r.json();
+  } catch (_) { rows = []; }
+
+  if (!rows.length) return res.status(200).json({ ok: true, empty: true, note: 'No clean learning-log entries in the last 24h — nothing to synthesise.' });
+
+  const markets = [...new Set(rows.map((x) => x.market).filter(Boolean))];
+  const verticals = [...new Set(rows.map((x) => x.vertical).filter(Boolean))];
+  const digestDate = new Date().toISOString().slice(0, 10);
+
+  let digest_md = '';
+  let signals = [];
+  const callLLM = require('./_shared/llm.js');
+  const SYS = `You are a D2C market-intelligence analyst for a US/UK tea, coffee, supplements & wellness brand. Synthesise the last 24 hours of clean competitor/market signals into ONE concise operational daily lesson (2-4 short paragraphs). Group by PATTERN not by source: name the brands, quote hard numbers/changes where present, and call out coordinated shifts (e.g. several brands moving to the same hook, a shared offer-architecture change). Cover only Offer Architecture, Acquisition Hooks, Retention Flows, and US/UK retail expansion. No fluff, no thought-leadership. Return STRICT JSON: {"digest_md":"<markdown lesson>","signals":[{"pattern":"<short>","brands":["..."],"vertical":"Tea|Coffee|Supplements|Wellness","market":"US|UK","evidence":"<one line>"}]}.`;
+  const logLines = rows.map((x, i) => `[${i + 1}] (${x.market || '?'}/${x.vertical || '?'}) ${x.title || ''} — ${String(x.summary || '').slice(0, 300)}`).join('\n');
+  try {
+    const out = await callLLM({ systemPrompt: SYS, userMessage: `CLEAN LEARNING LOG (last 24h, ${rows.length} entries):\n${logLines}\n\nReturn the JSON digest.`, responseFormat: { type: 'json_object' }, maxTokens: 900, temperature: 0.4, timeoutMs: 40000, stage: 'kb-daily-digest', tier: 'fast' });
+    if (out && out.ok && out.text) {
+      const j = JSON.parse(out.text.replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1'));
+      digest_md = String(j.digest_md || '').slice(0, 6000);
+      signals = Array.isArray(j.signals) ? j.signals.slice(0, 12) : [];
+    }
+  } catch (_) { /* fall through to deterministic fallback */ }
+  if (!digest_md) {
+    // No LLM — a deterministic roll-up so the digest still ships (never fabricate).
+    digest_md = `Daily D2C digest ${digestDate}: ${rows.length} clean signals across ${verticals.join(', ') || 'n/a'} (${markets.join('/') || 'US/UK'}). Top items:\n` + rows.slice(0, 8).map((x) => `- ${x.title || x.url}`).join('\n') + `\n\n(LLM synthesis unavailable — set a text API key for the narrative lesson.)`;
+  }
+
+  try {
+    await fetch(`${env.url}/rest/v1/kb_daily_digest?on_conflict=digest_date`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=representation,resolution=merge-duplicates' },
+      body: JSON.stringify({ digest_date: digestDate, markets, verticals, sources_n: rows.length, digest_md, signals }),
+    });
+  } catch (_) { /* best-effort persist */ }
+  return res.status(200).json({ ok: true, digest_date: digestDate, sources_n: rows.length, markets, verticals, digest_md, signals });
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. INGEST
@@ -225,6 +291,22 @@ Rules:
   const author = extractAuthor(pageHtml);
   const rawText = stripHtml(pageHtml);
 
+  // ── Ingest guardrail ──────────────────────────────────────────────────────
+  // Keep the knowledge base ON-CONTEXT: US/UK D2C tea/coffee/supplements/wellness
+  // only. Phase 1 (deterministic: brand whitelist, US/UK geo + $/£ currency,
+  // relevance lexicon, junk blocklist) then Phase 2 (LLM relevance gate, fails
+  // open if no LLM). Junk is dropped BEFORE we spend tokens summarising it or let
+  // it pollute the KB. Errors fail open so a guardrail bug never blocks real data.
+  const guard = require('./_shared/ingest-guardrail.js');
+  const verdict = await guard.gatekeep({ title, text: rawText, url: canonical }, { llm: true }).catch(() => ({ keep: true, phase: 0, reason: 'guardrail error — kept' }));
+  if (!verdict.keep) {
+    await fetch(`${env.url}/rest/v1/kb_knowledge?id=eq.${rowId}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ title, author, status: 'filtered', summary: `Off-context, not ingested (guardrail phase ${verdict.phase}): ${verdict.reason}`, processed_at: new Date().toISOString() }),
+    }).catch(() => {});
+    return res.status(200).json({ ok: true, filtered: true, phase: verdict.phase, reason: verdict.reason, id: rowId, url: canonical });
+  }
+
   await fetch(`${env.url}/rest/v1/kb_knowledge?id=eq.${rowId}`, {
     method: 'PATCH', headers,
     body: JSON.stringify({ title, author, raw_text: rawText, status: 'fetched' }),
@@ -232,12 +314,13 @@ Rules:
 
   const out = await summarize(rawText, canonical);
   const mergedTags = [...new Set([...(userTags || []), ...(out.tags || [])])].slice(0, 8);
+  const meta = (verdict && verdict.meta) || {};   // zero-drift {market, vertical}
   try {
     await fetch(`${env.url}/rest/v1/kb_knowledge?id=eq.${rowId}`, {
       method: 'PATCH', headers,
-      body: JSON.stringify({ summary: out.summary, key_points: out.key_points, tags: mergedTags, status: 'summarized', processed_at: new Date().toISOString() }),
+      body: JSON.stringify({ summary: out.summary, key_points: out.key_points, tags: mergedTags, market: meta.market || null, vertical: meta.vertical || null, status: 'summarized', processed_at: new Date().toISOString() }),
     });
-    return res.status(200).json({ ok: true, id: rowId, title, author, summary: out.summary, key_points: out.key_points, tags: mergedTags, status: 'summarized', url: canonical });
+    return res.status(200).json({ ok: true, id: rowId, title, author, summary: out.summary, key_points: out.key_points, tags: mergedTags, market: meta.market || null, vertical: meta.vertical || null, status: 'summarized', url: canonical });
   } catch (err) { return res.status(500).json({ ok: false, stage: 'final-save', error: err.message, id: rowId }); }
 }
 

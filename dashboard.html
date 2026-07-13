@@ -27,8 +27,8 @@
   tailwind.config = {
     theme: { extend: {
       colors: {
-        bg:    { DEFAULT:'#0a1410', soft:'#0f1d18', card:'#142822', deep:'#06100c' },
-        ink:   { DEFAULT:'#e8ede9', dim:'#9aaaa1', mute:'#5d6e64' },
+        bg:    { DEFAULT:'#ffffff', soft:'#ffffff', card:'#eef3f0', deep:'#06100c' },
+        ink:   { DEFAULT:'#171717', dim:'#556059', mute:'#48524c' },
         green: { DEFAULT:'#004A2B', bright:'#16a34a', soft:'rgba(22,163,74,0.12)' },
         gold:  { DEFAULT:'#AB8743', soft:'rgba(171,135,67,0.12)' },
         cream: '#FBF5EA',
@@ -46,11 +46,11 @@
 </script>
 <style>
   * { box-sizing: border-box; }
-  body { background:#0a1410; color:#e8ede9; font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  body { background:#ffffff; color:#171717; font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
   .scrollbar-thin::-webkit-scrollbar { width:6px; height:6px; }
   .scrollbar-thin::-webkit-scrollbar-thumb { background:rgba(171,135,67,0.25); border-radius:3px; }
   .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
-  .card { background:#0f1d18; border:1px solid rgba(171,135,67,0.18); border-radius:12px; }
+  .card { background:#ffffff; border:1px solid rgba(171,135,67,0.18); border-radius:12px; }
   .card-hover:hover { border-color:rgba(171,135,67,0.35); transition:border-color .2s; }
   .kpi-val { font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
   /* ─── Mobile KPI tile clip fix ─────────────────────────────────────── */
@@ -71,17 +71,17 @@
     .card .text-2xl { font-size: 16px !important; }
     .card .text-2xl.kpi-val { font-size: 16px !important; }
   }
-  .label { font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:#5d6e64; font-weight:500; }
+  .label { font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:#48524c; font-weight:500; }
   .pill { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; padding:4px 10px; border-radius:99px; }
-  .nav-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:8px; font-size:13px; color:#9aaaa1; transition:all .15s; cursor:pointer; position:relative; }
-  .nav-item:hover { background:rgba(171,135,67,0.08); color:#e8ede9; }
+  .nav-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:8px; font-size:13px; color:#556059; transition:all .15s; cursor:pointer; position:relative; }
+  .nav-item:hover { background:rgba(171,135,67,0.08); color:#171717; }
   .nav-item.active { background:rgba(171,135,67,0.14); color:#FBF5EA; border-left:2px solid #AB8743; padding-left:10px; }
   .nav-item svg { width:14px; height:14px; opacity:.6; flex-shrink:0; margin-top:1px; }
   .nav-item.active svg { opacity:1; color:#AB8743; }
   .nav-text { display:flex; flex-direction:column; gap:1px; line-height:1.2; min-width:0; }
   .nav-title { font-weight:600; font-size:12.5px; }
-  .nav-sub { font-size:10px; color:#5d6e64; font-weight:400; }
-  .nav-item.active .nav-sub { color:#9aaaa1; }
+  .nav-sub { font-size:10px; color:#48524c; font-weight:400; }
+  .nav-item.active .nav-sub { color:#556059; }
 
   /* ── Sidebar collapse mode ─────────────────────────────────────────── */
   aside.sidebar { width:14rem; transition: width 0.22s cubic-bezier(0.65,0,0.35,1); }
@@ -105,7 +105,7 @@
     content: attr(data-tip);
     position: absolute; left: calc(100% + 8px); top: 50%;
     transform: translateY(-50%) translateX(-4px);
-    background: #1a2820; border: 1px solid rgba(171,135,67,0.3);
+    background: #eef3f0; border: 1px solid rgba(171,135,67,0.3);
     color: #FBF5EA; padding: 6px 10px; border-radius: 6px;
     font-size: 11px; white-space: nowrap;
     opacity: 0; pointer-events: none; transition: opacity 0.12s, transform 0.12s;
@@ -172,9 +172,9 @@
     header .h-5.w-px { display:none; }   /* drop vertical dividers when wrapped */
     main > .p-6 { padding:16px 14px !important; }
   }
-  .filter-chip { padding:5px 11px; border-radius:99px; font-size:11px; font-weight:600; border:1px solid rgba(171,135,67,0.25); color:#9aaaa1; cursor:pointer; transition:all .15s; user-select:none; }
-  .filter-chip:hover { border-color:#AB8743; color:#e8ede9; }
-  .filter-chip.active { background:#AB8743; color:#0a1410; border-color:#AB8743; }
+  .filter-chip { padding:5px 11px; border-radius:99px; font-size:11px; font-weight:600; border:1px solid rgba(171,135,67,0.25); color:#556059; cursor:pointer; transition:all .15s; user-select:none; }
+  .filter-chip:hover { border-color:#AB8743; color:#171717; }
+  .filter-chip.active { background:#AB8743; color:#ffffff; border-color:#AB8743; }
   .view { display:none; }
   .view.active { display:block; animation: fadeIn .25s ease; }
   /* Honest empty state — shown when no real data is connected/uploaded. */
@@ -182,28 +182,28 @@
   body.no-data #emptyState { display:block; animation: fadeIn .25s ease; }
   body.no-data .view.active { display:none; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
-  .insight { padding:14px 16px; border-radius:10px; border:1px solid rgba(171,135,67,0.2); background:#0f1d18; }
+  .insight { padding:14px 16px; border-radius:10px; border:1px solid rgba(171,135,67,0.2); background:#ffffff; }
   .insight.crit { border-color:rgba(239,68,68,0.35); background:rgba(239,68,68,0.04); }
   .insight.warn { border-color:rgba(245,158,11,0.35); background:rgba(245,158,11,0.04); }
   .insight.good { border-color:rgba(22,163,74,0.35); background:rgba(22,163,74,0.04); }
-  .insight-body { font-size:13px; line-height:1.55; color:#9aaaa1; margin-top:4px; }
-  .insight-meta { display:flex; gap:14px; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#5d6e64; margin-top:10px; font-weight:600; }
-  .insight-meta b { color:#e8ede9; }
+  .insight-body { font-size:13px; line-height:1.55; color:#556059; margin-top:4px; }
+  .insight-meta { display:flex; gap:14px; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#48524c; margin-top:10px; font-weight:600; }
+  .insight-meta b { color:#171717; }
   td.num { text-align:right; font-variant-numeric:tabular-nums; }
-  th { font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#5d6e64; font-weight:500; text-align:left; padding:10px 8px; border-bottom:1px solid rgba(171,135,67,0.18); }
+  th { font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#48524c; font-weight:500; text-align:left; padding:10px 8px; border-bottom:1px solid rgba(171,135,67,0.18); }
   td { padding:10px 8px; border-bottom:1px solid rgba(171,135,67,0.06); font-size:13px; }
   tr:hover td { background:rgba(171,135,67,0.04); }
   .badge { font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px; }
   .b-US { background:rgba(59,130,246,0.15); color:#93c5fd; }
   .b-UK { background:rgba(234,88,12,0.15); color:#fdba74; }
   .b-Global { background:rgba(171,135,67,0.18); color:#AB8743; }
-  .seg { padding:12px 14px; border-radius:10px; border:1px solid rgba(171,135,67,0.2); background:#142822; }
+  .seg { padding:12px 14px; border-radius:10px; border:1px solid rgba(171,135,67,0.2); background:#eef3f0; }
   .seg-name { font-weight:700; font-size:13px; }
-  .seg-meta { font-size:11px; color:#9aaaa1; margin-top:4px; }
+  .seg-meta { font-size:11px; color:#556059; margin-top:4px; }
   .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); z-index:80; display:none; align-items:center; justify-content:center; padding:20px; }
   .modal-backdrop.open { display:flex; }
-  .heatmap-cell { display:flex; align-items:center; justify-content:center; font-size:9px; color:#0a1410; font-weight:600; border-radius:2px; }
-  .apex-tooltip-custom { background:#0a1410 !important; border:1px solid #AB8743 !important; color:#e8ede9 !important; font-family:'Inter',sans-serif !important; }
+  .heatmap-cell { display:flex; align-items:center; justify-content:center; font-size:9px; color:#ffffff; font-weight:600; border-radius:2px; }
+  .apex-tooltip-custom { background:#ffffff !important; border:1px solid #AB8743 !important; color:#171717 !important; font-family:'Inter',sans-serif !important; }
   .delta { font-size:11px; font-weight:600; padding:2px 7px; border-radius:4px; }
   .delta-up { color:#22c55e; background:rgba(34,197,94,0.1); }
   .delta-down { color:#ef4444; background:rgba(239,68,68,0.1); }
@@ -1524,15 +1524,15 @@ function destroyCharts() {
 const APEX_BASE = {
   chart: {
     background: 'transparent',
-    foreColor: '#9aaaa1',
+    foreColor: '#556059',
     toolbar: { show: false },
     animations: { enabled: true, speed: 300 },
     fontFamily: 'Inter, system-ui, sans-serif',
   },
   grid: { borderColor: 'rgba(171,135,67,0.08)', strokeDashArray: 3 },
-  tooltip: { theme: 'dark' },
+  tooltip: { theme: 'light' },
   dataLabels: { enabled: false },
-  legend: { labels: { colors: '#9aaaa1' }, fontSize: '11px' },
+  legend: { labels: { colors: '#556059' }, fontSize: '11px' },
 };
 
 const REGION_COLORS = { US: '#3b82f6', UK: '#f97316', Global: '#AB8743', IN: '#22c55e' };
@@ -1580,7 +1580,7 @@ function renderExec() {
     fill: useBar ? { opacity: 1 } : { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0.05 } },
     plotOptions: useBar ? { bar: { columnWidth: '62%', borderRadius: 3 } } : {},
     dataLabels: { enabled: false },
-    tooltip: { theme: 'dark', y: { formatter: fmtCur } },
+    tooltip: { theme: 'light', y: { formatter: fmtCur } },
   });
   charts.execRev.render();
 
@@ -1595,7 +1595,7 @@ function renderExec() {
     colors: REGIONS.map((r) => REGION_COLORS[r]),
     legend: { ...APEX_BASE.legend, position: 'bottom' },
     plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: 'Total', formatter: (w) => fmtCur(w.globals.seriesTotals.reduce((a,b)=>a+b,0)) } } } } },
-    tooltip: { theme: 'dark', y: { formatter: fmtCur } },
+    tooltip: { theme: 'light', y: { formatter: fmtCur } },
   });
   charts.execReg.render();
 
@@ -1628,7 +1628,7 @@ function renderExec() {
     colors: ['#3b82f6','#16a34a','#a855f7'],
     legend: { ...APEX_BASE.legend, position: 'bottom' },
     plotOptions: { pie: { donut: { size: '60%' } } },
-    tooltip: { theme: 'dark', y: { formatter: fmtCur } },
+    tooltip: { theme: 'light', y: { formatter: fmtCur } },
   });
   charts.execLife.render();
 }
@@ -1661,13 +1661,13 @@ function renderCampaigns(filter='') {
       { name: 'CVR %', type: 'line', data: cvrData }
     ],
     labels: names,
-    xaxis: { type: 'category', labels: { style: { colors: '#5d6e64', fontSize: '9px' } } },
+    xaxis: { type: 'category', labels: { style: { colors: '#48524c', fontSize: '9px' } } },
     yaxis: [
-      { title: { text: 'Revenue', style: { color: '#5d6e64', fontSize: '11px' } }, labels: { formatter: (v) => '$' + (v/1000).toFixed(1) + 'k' } },
-      { opposite: true, title: { text: 'CVR %', style: { color: '#5d6e64', fontSize: '11px' } } }
+      { title: { text: 'Revenue', style: { color: '#48524c', fontSize: '11px' } }, labels: { formatter: (v) => '$' + (v/1000).toFixed(1) + 'k' } },
+      { opposite: true, title: { text: 'CVR %', style: { color: '#48524c', fontSize: '11px' } } }
     ],
     colors: ['#AB8743', '#16a34a'],
-    tooltip: { theme: 'dark', shared: true, intersect: false },
+    tooltip: { theme: 'light', shared: true, intersect: false },
   });
   charts.campScatter.render();
 
@@ -1681,7 +1681,7 @@ function renderCampaigns(filter='') {
     labels: ['Email', 'SMS'],
     colors: ['#3b82f6','#a855f7'],
     legend: { ...APEX_BASE.legend, position: 'bottom' },
-    tooltip: { theme: 'dark', y: { formatter: fmtCur } },
+    tooltip: { theme: 'light', y: { formatter: fmtCur } },
     plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: 'Revenue', formatter: (w) => fmtCur(w.globals.seriesTotals.reduce((a,b)=>a+b,0)) } } } } },
   });
   charts.campChan.render();
@@ -1721,7 +1721,7 @@ function renderCampaigns(filter='') {
     xaxis: { categories: subjectPerf.map((p) => `${p.label} (${p.n})`), labels: { formatter: (v) => v + '%' } },
     colors: ['#AB8743'],
     plotOptions: { bar: { horizontal: true, borderRadius: 3 } },
-    tooltip: { theme: 'dark', y: { formatter: (v) => v + '%' } },
+    tooltip: { theme: 'light', y: { formatter: (v) => v + '%' } },
   });
   charts.campSubj.render();
 
@@ -1737,7 +1737,7 @@ function renderCampaigns(filter='') {
     yaxis: { labels: { formatter: (v) => '$' + (v >= 1000 ? (v/1000).toFixed(1) + 'k' : v) } },
     colors: ['#16a34a'],
     plotOptions: { bar: { borderRadius: 4 } },
-    tooltip: { theme: 'dark', y: { formatter: fmtCur } },
+    tooltip: { theme: 'light', y: { formatter: fmtCur } },
   });
   charts.campContent.render();
 }
@@ -1761,10 +1761,10 @@ function renderSegments() {
     plotOptions: { treemap: { distributed: true, enableShades: false } },
     dataLabels: {
       enabled: true,
-      style: { fontSize: '12px', fontWeight: 600, colors: ['#0a1410'] },
+      style: { fontSize: '12px', fontWeight: 600, colors: ['#ffffff'] },
       formatter: (text, op) => [text, fmtCur(op.value)],
     },
-    tooltip: { theme: 'dark', y: { formatter: fmtCur } },
+    tooltip: { theme: 'light', y: { formatter: fmtCur } },
   });
   charts.segTree.render();
 
@@ -1782,7 +1782,7 @@ function renderSegments() {
     xaxis: { categories: ltvBins.map((_, i) => i < 9 ? `$${i*100}-${(i+1)*100}` : '$900+') },
     colors: ['#AB8743'],
     plotOptions: { bar: { borderRadius: 4 } },
-    tooltip: { theme: 'dark' },
+    tooltip: { theme: 'light' },
   });
   charts.segLtv.render();
 
@@ -1792,11 +1792,11 @@ function renderSegments() {
     ...APEX_BASE,
     chart: { ...APEX_BASE.chart, type: 'scatter', height: 260 },
     series: [{ name: 'Customers', data: scatterData.slice(0, 500) }],
-    xaxis: { title: { text: 'Discount rate %', style: { fontSize: '11px', color: '#5d6e64' } }, labels: { formatter: (v) => v + '%' }, type:'numeric' },
-    yaxis: { title: { text: 'LTV $', style: { fontSize: '11px', color: '#5d6e64' } }, labels: { formatter: (v) => '$' + v } },
+    xaxis: { title: { text: 'Discount rate %', style: { fontSize: '11px', color: '#48524c' } }, labels: { formatter: (v) => v + '%' }, type:'numeric' },
+    yaxis: { title: { text: 'LTV $', style: { fontSize: '11px', color: '#48524c' } }, labels: { formatter: (v) => '$' + v } },
     colors: ['#a855f7'],
     markers: { size: 3 },
-    tooltip: { theme: 'dark' },
+    tooltip: { theme: 'light' },
   });
   charts.segSens.render();
 
@@ -1809,7 +1809,7 @@ function renderSegments() {
     yaxis: { labels: { formatter: (v) => v + '%' } },
     colors: ['#16a34a'],
     plotOptions: { bar: { borderRadius: 3, distributed: true, colors: { backgroundBarColors: ['transparent'] } } },
-    tooltip: { theme: 'dark', y: { formatter: (v) => v + '%' } },
+    tooltip: { theme: 'light', y: { formatter: (v) => v + '%' } },
   });
   charts.segEng.render();
 }
@@ -1837,7 +1837,7 @@ function renderProducts() {
     xaxis: { categories: top.map((p) => p.title.length > 18 ? p.title.slice(0, 18) + '…' : p.title), labels: { rotate: -45, style: { fontSize: '9px' } } },
     colors: ['#a855f7', '#16a34a'],
     plotOptions: { bar: { borderRadius: 3 } },
-    tooltip: { theme: 'dark' },
+    tooltip: { theme: 'light' },
   });
   charts.prodGap.render();
 
@@ -1849,14 +1849,14 @@ function renderProducts() {
     series: matrix.map((row) => ({ name: row.name, data: row.data.map((c) => ({ x: c.x, y: +(c.y * 100).toFixed(0) })) })),
     colors: ['#AB8743'],
     plotOptions: { heatmap: { colorScale: { ranges: [
-      { from: 0, to: 5, color: '#1a2820', name: '0–5%' },
+      { from: 0, to: 5, color: '#eef3f0', name: '0–5%' },
       { from: 5, to: 15, color: '#3d4d2e', name: '5–15%' },
       { from: 15, to: 25, color: '#7a6a3a', name: '15–25%' },
       { from: 25, to: 50, color: '#AB8743', name: '25–50%' },
       { from: 50, to: 100, color: '#16a34a', name: '50%+' },
     ] } } },
-    dataLabels: { enabled: true, style: { fontSize: '9px', colors: ['#e8ede9'] }, formatter: (v) => v + '%' },
-    tooltip: { theme: 'dark', y: { formatter: (v) => v + '%' } },
+    dataLabels: { enabled: true, style: { fontSize: '9px', colors: ['#171717'] }, formatter: (v) => v + '%' },
+    tooltip: { theme: 'light', y: { formatter: (v) => v + '%' } },
   });
   charts.prodAff.render();
 
@@ -1923,7 +1923,7 @@ function renderTime() {
     colors: ['#AB8743'],
     plotOptions: { heatmap: {
       colorScale: { ranges: [
-        { from: 0, to: 0.001, color: '#0f1d18', name: 'no sends' },
+        { from: 0, to: 0.001, color: '#ffffff', name: 'no sends' },
         { from: 0.001, to: 20, color: '#3d4d2e', name: '<20%' },
         { from: 20, to: 35, color: '#7a6a3a', name: '20–35%' },
         { from: 35, to: 50, color: '#AB8743', name: '35–50%' },
@@ -1931,9 +1931,9 @@ function renderTime() {
         { from: 70, to: 100, color: '#22c55e', name: '70%+' },
       ] }
     } },
-    xaxis: { title: { text: 'Hour (UTC)', style: { fontSize: '11px', color: '#5d6e64' } } },
+    xaxis: { title: { text: 'Hour (UTC)', style: { fontSize: '11px', color: '#48524c' } } },
     dataLabels: { enabled: false },
-    tooltip: { theme: 'dark', y: { formatter: (v) => v + '% open' } },
+    tooltip: { theme: 'light', y: { formatter: (v) => v + '% open' } },
   });
   charts.timeHeat.render();
 
@@ -1962,7 +1962,7 @@ function renderTime() {
     xaxis: { categories: buckets.map((_, i) => (i * 6) + 'h'), labels: { rotate: -40, style: { fontSize: '9px' } } },
     colors: ['#3b82f6'],
     plotOptions: { bar: { borderRadius: 2 } },
-    tooltip: { theme: 'dark' },
+    tooltip: { theme: 'light' },
   });
   charts.timePW.render();
 
@@ -1980,8 +1980,8 @@ function renderTime() {
     colors: ['#AB8743'],
     plotOptions: { bar: { borderRadius: 4, columnWidth: '55%', distributed: false,
       colors: { backgroundBarColors: [], ranges: [{ from: 100, to: 100000, color: '#22c55e' }] } } },
-    dataLabels: { enabled: true, style: { fontSize: '10px', colors: ['#0a1410'] }, formatter: (v) => Math.round(v) },
-    tooltip: { theme: 'dark', y: { formatter: (v) => 'Index ' + Math.round(v) + ' (Mon = 100)' } },
+    dataLabels: { enabled: true, style: { fontSize: '10px', colors: ['#ffffff'] }, formatter: (v) => Math.round(v) },
+    tooltip: { theme: 'light', y: { formatter: (v) => 'Index ' + Math.round(v) + ' (Mon = 100)' } },
   });
   charts.timeSeas.render();
 }
@@ -2012,7 +2012,7 @@ function renderCohorts() {
     for (let m = 1; m <= 11; m++) {
       const p = (c.retPct?.[m] || 0) * 100;
       const bg = p > 0 ? `background:rgba(171,135,67,${Math.min(p / 60, 1)})` : '';
-      html += `<td class="num text-[11px]" style="${bg}; color:${p > 30 ? '#0a1410' : '#9aaaa1'};${p > 0 ? 'font-weight:600' : ''}">${p ? p.toFixed(1) + '%' : '—'}</td>`;
+      html += `<td class="num text-[11px]" style="${bg}; color:${p > 30 ? '#ffffff' : '#556059'};${p > 0 ? 'font-weight:600' : ''}">${p ? p.toFixed(1) + '%' : '—'}</td>`;
     }
     html += `</tr>`;
   });
@@ -2035,7 +2035,7 @@ function renderCohorts() {
     colors: ['#AB8743'],
     stroke: { curve: 'smooth', width: 2 },
     fill: { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0 } },
-    tooltip: { theme: 'dark', y: { formatter: (v) => v.toFixed(1) + '%' } },
+    tooltip: { theme: 'light', y: { formatter: (v) => v.toFixed(1) + '%' } },
   });
   charts.cohortCurve.render();
 
@@ -2054,8 +2054,8 @@ function renderCohorts() {
     xaxis: { categories: stages, labels: { style: { fontSize: '10px' } } },
     colors: ['#16a34a'],
     plotOptions: { bar: { horizontal: true, borderRadius: 3 } },
-    dataLabels: { enabled: true, style: { fontSize: '10px', colors: ['#0a1410'] }, formatter: (v) => fmtInt(v) },
-    tooltip: { theme: 'dark' },
+    dataLabels: { enabled: true, style: { fontSize: '10px', colors: ['#ffffff'] }, formatter: (v) => fmtInt(v) },
+    tooltip: { theme: 'light' },
   });
   charts.cohortFunnel.render();
 }

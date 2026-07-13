@@ -9,9 +9,9 @@
      Background is always forest/dark green; text is cream/white + gold. */
   /* NOTE: --panel2 is a SURFACE. It must map to a dark surface token — NOT to
      theme.css's --soft, which theme.css defines as a light DIM-TEXT colour
-     (#a7b5ad). Mapping a surface to it produced light bubbles with light --ink
-     text (unreadable). --card is the theme's card surface (#0f1d18, dark). */
-  :root { --green:#004A2B; --gold:#AB8743; --cream:#FBF5EA; --canvas:var(--bg,#004A2B); --panel:var(--surface,#075C39); --panel2:var(--card,#0f1d18); --ink:var(--vh-ink,#FBF5EA); --dim:var(--ink-dim,#E4CF94); }
+     (#556059). Mapping a surface to it produced light bubbles with light --ink
+     text (unreadable). --card is the theme's card surface (#ffffff, dark). */
+  :root { --green:#004A2B; --gold:#AB8743; --cream:#FBF5EA; --canvas:var(--bg,#004A2B); --panel:var(--surface,#075C39); --panel2:var(--card,#ffffff); --ink:var(--vh-ink,#FBF5EA); --dim:var(--ink-dim,#E4CF94); }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--canvas); font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif; color:var(--ink); }
   .shell { max-width:920px; margin:0 auto; padding:26px 18px 150px; }

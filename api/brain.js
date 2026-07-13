@@ -41,6 +41,7 @@ const calendarScenarios = require('./_shared/calendar-scenarios.js');
 const smartbrain = require('../lib/smart-brain/services.js');
 const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
+const webengage = require('./_shared/webengage-core.js');
 const video = require('./_shared/video-core.js');
 const social = require('./_shared/social-core.js');
 const osb = require('./_shared/os-backbone.js');
@@ -353,6 +354,25 @@ module.exports = async function handler(req, res) {
         return res.json(out);
       }
 
+      // ── WEBENGAGE ──────────────────────────────────────────────────────────
+      // Drain the WebEngage → Supabase Storage dumps into webengage_events. The
+      // scheduled path is CRON_SECRET-guarded (call twice daily off the same
+      // 12h cron); reads (campaign/cohort/event performance) are open.
+      case 'webengage-sync': {
+        if (!cronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized (run via cron with CRON_SECRET, or pass ?secret=)' });
+        const out = await webengage.syncFromStorage({ bucket: req.query.bucket });
+        return res.json(out);
+      }
+      case 'webengage-report': {
+        const op = (req.query.op || 'campaigns').toLowerCase();
+        const hours = parseInt(req.query.hours || '24', 10) || 24;
+        const market = req.query.market || null;
+        const out = op === 'summary'
+          ? await webengage.eventSummary({ hours, market })
+          : await webengage.campaignPerformance({ event: req.query.event || 'Notification Clicked', hours, market });
+        return res.json(out);
+      }
+
       // ── VIDEO (Veo 3.1 → Sora 2 → Higgsfield → Runway cascade — stubs until keys set) ──
       case 'video-generate': {
         if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
@@ -570,7 +590,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, ...(await osb.dashboard()) });
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'webengage-sync', 'webengage-report', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);
