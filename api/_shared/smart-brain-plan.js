@@ -831,14 +831,25 @@ async function writeCopyWithLLM(entry, fw = null, brief = null) {
     systemPrompt: BRAND_SYSTEM + sysLine,
     userMessage: copyPrompt(entry, fw, brief),
     responseFormat: { type: 'json_object' },
-    maxTokens: 1800,
+    // 1800 truncated the full email+landing+ads copy object on some providers, so
+    // the JSON came back incomplete and the whole mailer fell to template copy.
+    // 3200 gives the object room to close on every provider in the waterfall.
+    maxTokens: 3200,
     temperature: 0.75,
     timeoutMs: 40000,
     stage: 'smart-brain-copy',
     tier: 'premium',
   });
   const json = parseJSON(res.text);
-  if (!json || !json.email || !json.landing || !json.ads) throw new Error('LLM copy JSON incomplete');
+  if (!json || !json.email || !json.landing || !json.ads) {
+    // Distinguish the two real causes so the reviewer knows whether to fund a key
+    // or just Regenerate: empty text = no provider answered (quota/keys); non-empty
+    // but unparseable/partial = a provider replied with truncated or non-JSON copy.
+    const empty = !res.text || !String(res.text).trim();
+    throw new Error(empty
+      ? 'no LLM provider returned copy (all text keys missing or quota-exhausted for this deployment)'
+      : `LLM copy JSON incomplete from ${res.provider || 'provider'} (reply was ${String(res.text).length} chars) — Regenerate to retry the waterfall`);
+  }
   return { copy: json, provider: res.provider, model: res.model };
 }
 
