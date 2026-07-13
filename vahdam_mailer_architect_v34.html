@@ -42,10 +42,10 @@
   --gold:#AB8743;--gold2:#c9a05a;
   --cream:#FBF5EA;--cream2:#f5efe0;
   --dark:#0f1923;--body-txt:#2d3748;
-  --muted:#6b7280;--subtle:#9ca3af;
+  --muted:#48524c;--subtle:#556059;
   --border:#e8e3da;--border2:#d6cfc4;
   --bg:#f5f0e8;--panel:#ffffff;
-  --lightg:#e8f5ee;--lightgold:#FBF5EA;
+  --lightg:#0a3d24;--lightgold:#FBF5EA;
   --shadow-xs:0 1px 2px rgba(0,0,0,0.06);
   --shadow-sm:0 2px 6px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);
   --shadow-md:0 6px 18px rgba(0,0,0,0.09),0 2px 6px rgba(0,0,0,0.05);
@@ -137,12 +137,12 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
   width:30px;height:30px;border-radius:50%;
   border:2px solid var(--border2);
   display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:700;color:#9ca3af;background:#fff;
+  font-size:12px;font-weight:700;color:#556059;background:#fff;
   transition:all .3s;position:relative;z-index:1
 }
 .step-n.active{border-color:var(--g);color:#fff;background:var(--g);box-shadow:0 0 0 4px rgba(0,74,43,0.12)}
 .step-n.done{border-color:var(--g);background:var(--g);color:#fff}
-.step-l{font-size:9px;font-weight:600;letter-spacing:0.04em;color:#9ca3af;text-align:center;margin-top:2px}
+.step-l{font-size:9px;font-weight:600;letter-spacing:0.04em;color:#556059;text-align:center;margin-top:2px}
 .step-l.active{color:var(--g);font-weight:700}
 .step-l.done{color:var(--g)}
 .step-line{height:2px;flex:1;background:var(--border2);margin-bottom:22px;transition:background .4s;border-radius:2px}
@@ -150,7 +150,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 
 /* ── Form controls ─────────────────────────────────────────────────────────── */
 .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
-.field label{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280}
+.field label{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c}
 .req{color:#dc2626;margin-left:2px}
 .field input,.field select,.field textarea{
   padding:10px 13px;border:1.5px solid var(--border2);border-radius:var(--r);
@@ -177,7 +177,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .btn-gold:hover{background:#9a7639;box-shadow:0 4px 12px rgba(171,135,67,0.35)}
 .btn-outline{background:#fff;color:var(--g);border:1.5px solid var(--g)}
 .btn-outline:hover{background:var(--lightg)}
-.btn-ghost{background:transparent;color:#6b7280;border:1.5px solid var(--border2)}
+.btn-ghost{background:transparent;color:#48524c;border:1.5px solid var(--border2)}
 .btn-ghost:hover{border-color:var(--g);color:var(--g);background:var(--lightg)}
 .btn-sm{padding:7px 14px;font-size:11px}
 .btn-lg{padding:13px 28px;font-size:14px;font-weight:700}
@@ -194,7 +194,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .cat-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .cfbtn{
   padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;
-  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#6b7280;transition:all .15s
+  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#48524c;transition:all .15s
 }
 .cfbtn.on{background:var(--g);color:#FBF5EA;border-color:var(--g)}
 .cfbtn:hover:not(.on){border-color:var(--g);color:var(--g)}
@@ -228,11 +228,11 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
   border-radius:var(--r);background:#f9fafb;border:1.5px solid transparent;transition:all .3s
 }
 .stage.active{background:var(--lightg);border-color:rgba(0,74,43,0.25)}
-.stage.done{background:#f0fdf4;border-color:#86efac}
+.stage.done{background:#f0fdf4;border-color:#0a7d33}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--border2);flex-shrink:0;transition:all .3s}
 .dot.active{background:var(--g);box-shadow:0 0 0 3px rgba(0,74,43,0.18)}
 .dot.done{background:#22c55e}
-.stage-txt{font-size:13px;color:#6b7280;flex:1}
+.stage-txt{font-size:13px;color:#48524c;flex:1}
 .stage.active .stage-txt{color:var(--g);font-weight:600}
 .stage.done .stage-txt{color:#166534}
 .stage-check{color:#22c55e;font-weight:700;font-size:14px}
@@ -241,7 +241,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .p4tabs{display:flex;gap:6px;margin-bottom:18px;padding:4px;background:#f3f4f6;border-radius:var(--r2);width:fit-content}
 .p4tab{
   padding:7px 16px;font-size:12px;font-weight:600;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;
-  background:transparent;color:#6b7280;border:none;border-radius:8px;cursor:pointer;transition:all .2s
+  background:transparent;color:#48524c;border:none;border-radius:8px;cursor:pointer;transition:all .2s
 }
 .p4tab.on{background:#fff;color:var(--g);box-shadow:var(--shadow-sm)}
 .p4tab:hover:not(.on){color:var(--g)}
@@ -252,7 +252,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .canvas-area canvas{width:100%;display:block}
 .canvas-label{
   font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
-  color:#6b7280;text-align:center;padding:8px;background:#f9fafb;
+  color:#48524c;text-align:center;padding:8px;background:#f9fafb;
   border-top:1px solid var(--border)
 }
 .img-side-panel{min-width:0}
@@ -262,7 +262,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
   transition:border-color .15s
 }
 .fb-area textarea:focus{outline:none;border-color:var(--g);box-shadow:0 0 0 3px rgba(0,74,43,0.08)}
-.regen-count{font-size:11px;color:#9ca3af;margin-top:5px;text-align:right}
+.regen-count{font-size:11px;color:#556059;margin-top:5px;text-align:right}
 
 /* ── Info boxes ─────────────────────────────────────────────────────────────── */
 .strat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
@@ -278,7 +278,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .tab-bar{display:flex;gap:4px;margin-bottom:14px;padding:4px;background:#f3f4f6;border-radius:var(--r2);width:fit-content;max-width:100%}
 .tab{
   padding:6px 14px;font-size:12px;font-weight:600;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;
-  background:transparent;color:#6b7280;border:none;border-radius:8px;cursor:pointer;transition:all .2s
+  background:transparent;color:#48524c;border:none;border-radius:8px;cursor:pointer;transition:all .2s
 }
 .tab.on{background:#fff;color:var(--g);box-shadow:var(--shadow-sm)}
 .preview-wrap{border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;height:600px;box-shadow:var(--shadow-sm);background:#fff}
@@ -287,7 +287,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .html-raw{font-family:monospace;font-size:11px;color:#e6edf3;padding:16px;white-space:pre-wrap;word-break:break-all;min-height:60px}
 .copy-row{display:flex;gap:10px;justify-content:flex-end}
 /* The "HTML Source Code" panel inside Step 5 — hidden empty state */
-.empty-state-html{padding:18px 16px;text-align:center;color:#6b7280;font-size:11.5px;font-style:italic;background:#fff;border-radius:8px;border:1px dashed #d6cfc4}
+.empty-state-html{padding:18px 16px;text-align:center;color:#48524c;font-size:11.5px;font-style:italic;background:#fff;border-radius:8px;border:1px dashed #d6cfc4}
 .prompt-mono{
   background:#0d1117;color:#e6edf3;font-family:monospace;font-size:11px;
   padding:14px;border-radius:var(--r);overflow:auto;white-space:pre-wrap;
@@ -304,7 +304,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .mkt-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}
 .mkt-chip{
   padding:7px 15px;border-radius:20px;font-size:11px;font-weight:700;
-  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#6b7280;
+  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#48524c;
   transition:all .2s;user-select:none;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif
 }
 .mkt-chip.on{background:var(--g);color:#FBF5EA;border-color:var(--g);box-shadow:0 2px 8px rgba(0,74,43,0.2)}
@@ -312,7 +312,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 /* Campaign type chips */
 .type-chip{
   padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600;
-  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#6b7280;
+  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#48524c;
   transition:all .2s;user-select:none;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif
 }
 .type-chip.on{background:var(--gold);color:#171717;border-color:var(--gold);box-shadow:0 2px 8px rgba(171,135,67,0.25)}
@@ -320,7 +320,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .mkt-tab-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;padding:12px 0 4px;border-bottom:1px solid var(--border)}
 .mkt-tab-btn{
   padding:7px 16px;font-size:12px;font-weight:700;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;
-  background:#fff;color:#6b7280;border:1.5px solid var(--border2);border-radius:20px;cursor:pointer;transition:all .2s
+  background:#fff;color:#48524c;border:1.5px solid var(--border2);border-radius:20px;cursor:pointer;transition:all .2s
 }
 .mkt-tab-btn.on{background:var(--g);color:var(--cream);border-color:var(--g)}
 .mkt-tab-btn:hover:not(.on){border-color:var(--g);color:var(--g);background:var(--lightg)}
@@ -336,7 +336,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 }
 .sugg-hdr:hover{background:linear-gradient(90deg,#eeeae2 0%,#f5f1ea 100%)}
 .sugg-hdr-lbl{font-size:11px;font-weight:700;color:var(--g);letter-spacing:0.05em}
-.sugg-hdr-sub{font-size:10px;color:#9ca3af;font-style:italic}
+.sugg-hdr-sub{font-size:10px;color:#556059;font-style:italic}
 .sugg-arrow{font-size:10px;color:var(--gold);transition:transform .22s cubic-bezier(.4,0,.2,1);display:inline-block}
 .sugg-grid{
   display:grid;grid-template-columns:repeat(2,1fr);gap:10px;
@@ -502,8 +502,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
    blocks are already dark. Palette mirrors vahdam_mailer_studio_v2_dark.html.
    ════════════════════════════════════════════════════════════════════════════ */
 html[data-theme="green"]{
-  --body-txt:#e8ede9; --dark:#e8ede9;
-  --muted:#9aaaa1; --subtle:#7d8e84;
+  --body-txt:#171717; --dark:#171717;
+  --muted:#556059; --subtle:#7d8e84;
   --border:rgba(171,135,67,.18); --border2:rgba(171,135,67,.32);
   --bg:#004A2B; --panel:#075C39;
   --lightg:rgba(0,74,43,.28); --lightgold:rgba(171,135,67,.16);
@@ -625,7 +625,7 @@ html[data-theme="green"] .copilot-dock{background:rgba(10,20,16,.78);border-top:
 }
 .copilot-btn .ci{font-size:15px;line-height:1}
 .copilot-btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--g)}
-html[data-theme="green"] .copilot-btn{color:#e8ede9}
+html[data-theme="green"] .copilot-btn{color:#171717}
 .copilot-btn.cb-listen.playing{color:var(--gold);border-color:var(--gold)}
 .copilot-btn.cb-listen.playing .ci{animation:listenPulse 1s ease-in-out infinite}
 @keyframes listenPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.18)}}
@@ -820,7 +820,7 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
         <button id="smartAIBtn" onclick="smartAIBrief(event)" style="background:linear-gradient(135deg,#004A2B,#006b3e);color:#FBF5EA;font-weight:700;padding:9px 18px;border:none;border-radius:8px;cursor:pointer;font-size:12px;letter-spacing:0.02em;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,74,43,0.25);transition:all 0.2s">&#127775; Create Brief with AI</button>
         <!-- Secondary: "Start New" — only visible after brief exists -->
         <button id="newBriefBtn" onclick="clearAndCreate()" style="display:none;background:#fff;color:#004A2B;border:1.5px solid #004A2B;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;letter-spacing:0.02em;transition:all 0.2s">&#128260; New Brief</button>
-        <span id="smartAIHint" style="font-size:10.5px;color:#9ca3af;flex:1;line-height:1.5">AI creates a director-grade brief from scratch using your market, campaign type, and product picks. Or type any seed idea first.</span>
+        <span id="smartAIHint" style="font-size:10.5px;color:#556059;flex:1;line-height:1.5">AI creates a director-grade brief from scratch using your market, campaign type, and product picks. Or type any seed idea first.</span>
       </div>
       <!-- Brief creation progress panel -->
       <div id="briefProgressPanel" style="display:none;margin-top:14px;background:linear-gradient(135deg,#f8faf9,#f0f4f2);border:1.5px solid #d4e5dc;border-radius:12px;padding:16px 18px;overflow:hidden">
@@ -857,8 +857,8 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
     <!-- Target Market -->
     <div style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin:0">Target Market <span class="req">*</span></label>
-        <span style="font-size:10px;color:#9ca3af;font-weight:400">Multi-select — each market gets its own tailored mailer</span>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin:0">Target Market <span class="req">*</span></label>
+        <span style="font-size:10px;color:#556059;font-weight:400">Multi-select — each market gets its own tailored mailer</span>
       </div>
       <div class="mkt-chips" id="mktChips">
         <button class="mkt-chip on" data-mkt="US" onclick="toggleMarket('US',this)">&#127482;&#127480; United States</button>
@@ -874,8 +874,8 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
     <!-- Target User Segment -->
     <div class="field" style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin:0">Target User Segment</label>
-        <span style="font-size:10px;color:#9ca3af;font-weight:400">Who is this mailer for? — drives copy, imagery, and tone</span>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin:0">Target User Segment</label>
+        <span style="font-size:10px;color:#556059;font-weight:400">Who is this mailer for? — drives copy, imagery, and tone</span>
       </div>
       <textarea id="audienceIn"
         style="min-height:64px;font-size:13px;line-height:1.65;width:100%;padding:11px 13px;border:1.5px solid #e0d8cc;border-radius:9px;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;outline:none;resize:vertical"
@@ -884,15 +884,15 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
         placeholder="e.g. Urban wellness-curious professionals, 28-42, in NYC/LA. Buy premium grocery, drink 1-2 cups daily, trust farm-direct origin. Lapsed buyers in last 90 days who tried our chai but didn't repeat."></textarea>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button id="audienceAIBtn" type="button" onclick="generateAudienceWithAI(event)" style="background:#fff;color:#004A2B;border:1.5px solid #004A2B;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;letter-spacing:0.02em;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s">&#129504; Generate with AI</button>
-        <span style="font-size:10.5px;color:#9ca3af;flex:1;line-height:1.5">AI infers a precise segment from your brief, market, and campaign type — refine if needed.</span>
+        <span style="font-size:10.5px;color:#556059;flex:1;line-height:1.5">AI infers a precise segment from your brief, market, and campaign type — refine if needed.</span>
       </div>
     </div>
 
     <!-- Campaign Type -->
     <div style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin:0">Campaign Type</label>
-        <span style="font-size:10px;color:#9ca3af;font-weight:400">Multi-select — pick 1-3 to blend the vibe (e.g. Gift + Sale, Routine + Story)</span>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin:0">Campaign Type</label>
+        <span style="font-size:10px;color:#556059;font-weight:400">Multi-select — pick 1-3 to blend the vibe (e.g. Gift + Sale, Routine + Story)</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap" id="typeChips">
         <button class="type-chip on" data-type="" onclick="selectType('',this)">&#x1F916; Auto</button>
@@ -1011,15 +1011,15 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
       </div>
       <!-- Side panel: products + feedback + actions -->
       <div class="img-side-panel">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin-bottom:10px">Selected Products</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin-bottom:10px">Selected Products</div>
         <div class="prod-chips" id="prodChipsReview" style="flex-direction:column;gap:6px;margin-bottom:16px"></div>
         <div style="background:#f8f6f2;border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;margin-bottom:14px">
           <div style="font-size:10px;font-weight:700;color:#374151;margin-bottom:4px">&#x1F5BC; Add a hero image</div>
-          <p style="font-size:11px;color:#6b7280;line-height:1.5;margin-bottom:8px">Generate one with ChatGPT, Claude or Gemini — then upload it below.</p>
+          <p style="font-size:11px;color:#48524c;line-height:1.5;margin-bottom:8px">Generate one with ChatGPT, Claude or Gemini — then upload it below.</p>
           <button onclick="switchP4Tab('chatgpt',document.getElementById('tab-chatgpt'))" style="width:100%;padding:9px;background:#004A2B;color:#FBF5EA;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">Open AI Image Tools &#8599;</button>
         </div>
         <div class="fb-area">
-          <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">Regenerate with feedback</div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin-bottom:6px">Regenerate with feedback</div>
           <textarea id="fbIn" rows="3" placeholder="e.g. Stronger headline, warmer palette, move offer banner higher..."></textarea>
           <div class="regen-count" id="regenCt"></div>
         </div>
@@ -1032,7 +1032,7 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
     </div>
     <!-- Action row at bottom for quick access -->
     <div class="btn-row" style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-      <span style="font-size:11px;color:#9ca3af;flex:1">Happy with the layout?</span>
+      <span style="font-size:11px;color:#556059;flex:1">Happy with the layout?</span>
       <button class="btn btn-ghost btn-sm" onclick="goBack(2)">&larr; Back</button>
       <button class="btn btn-outline btn-sm" onclick="regenFeedback()">&#8635; Regenerate</button>
       <button class="btn btn-gold" onclick="approveAndBuild()">&#10003; Build HTML Mailer &rarr;</button>
@@ -1055,7 +1055,7 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
       <div style="padding:40px;text-align:center;color:#aaa;font-size:13px">Generating content preview...</div>
     </div>
     <div class="btn-row" style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-      <span style="font-size:11px;color:#9ca3af;flex:1">Happy with the content?</span>
+      <span style="font-size:11px;color:#556059;flex:1">Happy with the content?</span>
       <button class="btn btn-ghost btn-sm" onclick="goBack(2)">&larr; Back</button>
       <button class="btn btn-outline btn-sm" onclick="switchP4Tab('claude',document.getElementById('tab-claude'))">&#128065; Canvas View</button>
       <button class="btn btn-gold" onclick="approveAndBuild()">&#10003; Build HTML Mailer &rarr;</button>
@@ -1063,7 +1063,7 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
   </div>
 
   <div id="p4-chatgpt" style="display:none">
-    <p style="font-size:12px;color:#6b7280;margin-bottom:16px;line-height:1.6">Choose an AI image generation tool below. The full campaign prompt is <strong>auto-copied</strong> to your clipboard when you click Open. Paste it into the tool, generate your image, download it, then come back and upload it in the <strong>Upload Design File</strong> tab.</p>
+    <p style="font-size:12px;color:#48524c;margin-bottom:16px;line-height:1.6">Choose an AI image generation tool below. The full campaign prompt is <strong>auto-copied</strong> to your clipboard when you click Open. Paste it into the tool, generate your image, download it, then come back and upload it in the <strong>Upload Design File</strong> tab.</p>
 
     <!-- Three tool cards -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
@@ -2240,7 +2240,7 @@ function validateMailerCreative(){
     // black/white pass as structural neutrals). Every other hex is surfaced, so
     // off-palette drift is caught by what IS allowed, not just a fixed denylist
     // of six known-bad tints.
-    var ALLOWED={'#004a2b':1,'#ab8743':1,'#171717':1,'#fbf5ea':1,'#ffffff':1,'#fff':1,'#000000':1,'#000':1};
+    var ALLOWED={'#004a2b':1,'#ab8743':1,'#171717':1,'#fbf5ea':1,'#ffffff':1,'#fff':1,'#ffffff':1,'#000':1};
     var hexes=html.match(/#[0-9a-fA-F]{3,6}\b/g)||[];
     var off=Array.from(new Set(hexes.map(function(s){return s.toLowerCase();}))).filter(function(h){return !ALLOWED[h];});
     // The six known legacy drift tints stay a hard error; any other off-palette
@@ -2439,7 +2439,7 @@ async function createPromptWithAI(){
         return '<div style="display:flex;align-items:flex-start;gap:10px;padding:6px 0;opacity:0.4;transition:opacity 0.4s" id="bpstep-'+i+'">'
           +'<div style="width:22px;height:22px;border-radius:50%;background:#004A2B;color:#FBF5EA;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">'+(i+1)+'</div>'
           +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:#004A2B">'+s.label+'</div>'
-          +'<div style="font-size:10px;color:#6b7280;margin-top:2px">'+s.detail+'</div></div></div>';
+          +'<div style="font-size:10px;color:#48524c;margin-top:2px">'+s.detail+'</div></div></div>';
       }).join('');
     }
     if(_briefFill) _briefFill.style.width='10%';
@@ -5063,13 +5063,13 @@ function switchPromptTab(which){
   var layoutPane=document.getElementById('promptMono');
   var visualPane=document.getElementById('fluxPromptMono');
   if(which==='visual'){
-    if(layoutBtn){layoutBtn.style.background='transparent';layoutBtn.style.color='#6b7280';layoutBtn.style.fontWeight='600';}
+    if(layoutBtn){layoutBtn.style.background='transparent';layoutBtn.style.color='#48524c';layoutBtn.style.fontWeight='600';}
     if(visualBtn){visualBtn.style.background='#004A2B';visualBtn.style.color='#FBF5EA';visualBtn.style.fontWeight='700';}
     if(layoutPane)layoutPane.style.display='none';
     if(visualPane)visualPane.style.display='block';
   } else {
     if(layoutBtn){layoutBtn.style.background='#004A2B';layoutBtn.style.color='#FBF5EA';layoutBtn.style.fontWeight='700';}
-    if(visualBtn){visualBtn.style.background='transparent';visualBtn.style.color='#6b7280';visualBtn.style.fontWeight='600';}
+    if(visualBtn){visualBtn.style.background='transparent';visualBtn.style.color='#48524c';visualBtn.style.fontWeight='600';}
     if(layoutPane)layoutPane.style.display='block';
     if(visualPane)visualPane.style.display='none';
   }
@@ -5899,7 +5899,7 @@ function renderRegionVariantPanel(config){
   if(config.regions.indexOf(aMkt)<0)aMkt=config.regions[0];
   var aVar=config.activeVariant||'A';
   var mktLabels={US:'🇺🇸 US',UK:'🇬🇧 UK',IN:'🇮🇳 IN',Global:'🌍 Global',ME:'🇦🇪 ME',AU:'🇦🇺 AU',EU:'🇪🇺 EU'};
-  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#e8f5ee'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
+  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#0a3d24'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
   var content=config.getContentHTML?config.getContentHTML(aMkt,aVar):'';
   var extraTopHTML=(config.extraTopActions||[]).map(function(a){
     return '<button onclick="'+a.onclick+'" style="'+(a.style||'padding:6px 12px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.04em')+'">'+a.label+'</button>';
@@ -6077,7 +6077,7 @@ function renderStrategicBrief(){
         '<div style="font-family:\'Lao MN\',Georgia,serif;font-size:18px;font-weight:600;color:#004A2B;line-height:1.3;margin-bottom:4px">'+(seg.primary||'')+'</div>'+
         (seg.sub?'<div style="font-size:11.5px;color:#444;margin-bottom:6px">'+seg.sub+'</div>':'')+
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">'+
-          (seg.size?'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#e8f5ee;color:#004A2B;border-radius:10px;border:1px solid #b7e3c9">Audience: '+seg.size+'</span>':'')+
+          (seg.size?'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#0a3d24;color:#004A2B;border-radius:10px;border:1px solid #b7e3c9">Audience: '+seg.size+'</span>':'')+
           '<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#FBF5EA;color:#AB8743;border-radius:10px;border:1px solid #ecd9a8">Send: '+(d.send_window||'')+'</span>'+
           (d.primary_market?'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#fff;color:#374151;border-radius:10px;border:1px solid #d1d5db">'+(mktFlag[d.primary_market]||'')+' '+d.primary_market+'</span>':'')+
           (d.layout_variant?'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#fff;color:#374151;border-radius:10px;border:1px solid #d1d5db">Layout '+d.layout_variant+'</span>':'')+
@@ -6252,7 +6252,7 @@ window.__step5Download=function(m,v){
 function _legacyImagesGrid_unused(){
   var mkts=Object.keys(S.imagePrompts);
   var mktLabels={US:'🇺🇸 United States',UK:'🇬🇧 United Kingdom',IN:'🇮🇳 India',Global:'🌍 Global',ME:'🇦🇪 Middle East',AU:'🇦🇺 Australia',EU:'🇪🇺 Europe'};
-  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#e8f5ee'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
+  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#0a3d24'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
   var feedbackBadge=(S.feedbackHistory&&S.feedbackHistory.length)?
     '<span style="font-size:9px;font-weight:700;color:#fff;background:#AB8743;padding:3px 8px;border-radius:12px;letter-spacing:0.06em">REGEN ×'+S.feedbackHistory.length+'</span>':'';
   var totalCells=mkts.length*2;
@@ -6405,7 +6405,7 @@ function renderImageVariantSwitcher(){
   var st=S.strategy||{};
   var mktLabels={US:'🇺🇸 United States',UK:'🇬🇧 United Kingdom',IN:'🇮🇳 India',Global:'🌍 Global',ME:'🇦🇪 Middle East',AU:'🇦🇺 Australia',EU:'🇪🇺 Europe'};
   var rationale={
-    A:{title:'V1 · Complete Text',sub:'Pure copy · no imagery · stands alone · highest deliverability',accent:'#004A2B',bg:'#e8f5ee'},
+    A:{title:'V1 · Complete Text',sub:'Pure copy · no imagery · stands alone · highest deliverability',accent:'#004A2B',bg:'#0a3d24'},
     B:{title:'V2 · Text + Visual',sub:'Same copy + imagery/GIF/video (hosted media → auto GIF → AI video)',accent:'#AB8743',bg:'#FBF5EA'}
   };
   var totalCount=mkts.length*2;
@@ -9065,7 +9065,7 @@ async function renderDashboard(page){
     var mktFlags={US:'🇺🇸',UK:'🇬🇧',IN:'🇮🇳',Global:'🌍',ME:'🇦🇪',AU:'🇦🇺',EU:'🇪🇺'};
     var mktNames={US:'United States',UK:'United Kingdom',IN:'India',Global:'Global',ME:'Middle East',AU:'Australia',EU:'Europe'};
     var variantMeta={
-      A:{name:'V1 · Complete Text',sub:'Pure copy, no imagery',accent:'#004A2B',accentBg:'#e8f5ee'},
+      A:{name:'V1 · Complete Text',sub:'Pure copy, no imagery',accent:'#004A2B',accentBg:'#0a3d24'},
       B:{name:'V2 · Text + Visual',sub:'Copy + imagery/GIF/video',accent:'#AB8743',accentBg:'#FBF5EA'}
     };
     var mailerMatrix='';
@@ -9125,7 +9125,7 @@ async function renderDashboard(page){
       +'<div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start">'
         +'<div>'
         +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
-        +'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#e8f5ee;color:#004A2B;border-radius:10px;border:1px solid #b7e3c9">'+mkts+'</span>'
+        +'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#0a3d24;color:#004A2B;border-radius:10px;border:1px solid #b7e3c9">'+mkts+'</span>'
         +'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#FBF5EA;color:#AB8743;border-radius:10px;border:1px solid #ecd9a8">'+(e.type||'Campaign')+'</span>'
         +'</div>'
         +'<div style="font-family:\'Lao MN\',Georgia,serif;font-size:18px;color:#004A2B;font-weight:600;line-height:1.3;margin-bottom:4px">'+(e.title||generateCampaignTitle(e.fullPrompt||e.prompt||'',e.type,e.products,(e.markets||['US'])[0]))+'</div>'
@@ -9199,7 +9199,7 @@ function viewDashRecord(logIdx){
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">';
     html+='<div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Target Markets</div><div style="font-size:12px;font-weight:600;color:#004A2B;line-height:1.5">'+mkts.map(function(m){return mktLabels[m]||m;}).join('<br>')+'</div></div>';
     html+='<div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Products Featured</div>';
-    if(e.products&&e.products.length){html+='<div style="display:flex;flex-wrap:wrap;gap:4px">'+(e.products||[]).map(function(pr){return '<span style="font-size:9px;font-weight:600;padding:2px 8px;background:#e8f5ee;color:#004A2B;border-radius:12px;border:1px solid #b7e3c9">'+pr+'</span>';}).join('')+'</div>';}
+    if(e.products&&e.products.length){html+='<div style="display:flex;flex-wrap:wrap;gap:4px">'+(e.products||[]).map(function(pr){return '<span style="font-size:9px;font-weight:600;padding:2px 8px;background:#0a3d24;color:#004A2B;border-radius:12px;border:1px solid #b7e3c9">'+pr+'</span>';}).join('')+'</div>';}
     else{html+='<span style="font-size:11px;color:#bbb">Not recorded</span>';}
     html+='</div></div>';
     html+='</div>';
@@ -9239,7 +9239,7 @@ function viewDashRecord(logIdx){
     html+='<div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#AB8743;margin-bottom:12px">&#127919; Strategic Brief</div>';
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
     // Target segment (full width)
-    html+='<div style="grid-column:1 / -1;background:#fff;border:1.5px solid #d6cdb8;border-radius:8px;padding:12px 14px"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:#AB8743;margin-bottom:4px">&#128100; Target Segment</div><div style="font-family:\'Lao MN\',Georgia,serif;font-size:16px;font-weight:600;color:#004A2B;line-height:1.3">'+(seg.primary||'')+'</div>'+(seg.sub?'<div style="font-size:11px;color:#444;margin-top:4px">'+seg.sub+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+(seg.size?'<span style="font-size:9.5px;font-weight:700;padding:2px 8px;background:#e8f5ee;color:#004A2B;border-radius:9px;border:1px solid #b7e3c9">Audience: '+seg.size+'</span>':'')+(dep.send_window?'<span style="font-size:9.5px;font-weight:700;padding:2px 8px;background:#FBF5EA;color:#AB8743;border-radius:9px;border:1px solid #ecd9a8">Send: '+dep.send_window+'</span>':'')+'</div>'+(seg.rationale?'<div style="font-size:11px;color:#555;font-style:italic;margin-top:6px;line-height:1.5">'+seg.rationale+'</div>':'')+'</div>';
+    html+='<div style="grid-column:1 / -1;background:#fff;border:1.5px solid #d6cdb8;border-radius:8px;padding:12px 14px"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:#AB8743;margin-bottom:4px">&#128100; Target Segment</div><div style="font-family:\'Lao MN\',Georgia,serif;font-size:16px;font-weight:600;color:#004A2B;line-height:1.3">'+(seg.primary||'')+'</div>'+(seg.sub?'<div style="font-size:11px;color:#444;margin-top:4px">'+seg.sub+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+(seg.size?'<span style="font-size:9.5px;font-weight:700;padding:2px 8px;background:#0a3d24;color:#004A2B;border-radius:9px;border:1px solid #b7e3c9">Audience: '+seg.size+'</span>':'')+(dep.send_window?'<span style="font-size:9.5px;font-weight:700;padding:2px 8px;background:#FBF5EA;color:#AB8743;border-radius:9px;border:1px solid #ecd9a8">Send: '+dep.send_window+'</span>':'')+'</div>'+(seg.rationale?'<div style="font-size:11px;color:#555;font-style:italic;margin-top:6px;line-height:1.5">'+seg.rationale+'</div>':'')+'</div>';
     // Intent
     html+='<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#AB8743;margin-bottom:4px">Campaign Intent</div><div style="font-size:11.5px;color:#171717;line-height:1.55;font-weight:500">'+(dep.intent||'')+'</div></div>';
     // Expected impact
@@ -9271,7 +9271,7 @@ function viewDashRecord(logIdx){
         var entry=imgPrompts[mkt]||{};
         ['A','B'].forEach(function(v){
           if(!entry[v])return;
-          html+='<div style="margin-bottom:6px"><span style="font-size:9px;font-weight:700;color:#004A2B;background:#e8f5ee;padding:2px 8px;border-radius:9px;border:1px solid #b7e3c9">'+mkt+' · '+v+'</span><div style="font-size:10.5px;color:#444;font-family:ui-monospace,Menlo,monospace;background:#fafaf6;padding:6px 8px;border-radius:6px;margin-top:3px;line-height:1.5;max-height:60px;overflow:auto">'+entry[v]+'</div></div>';
+          html+='<div style="margin-bottom:6px"><span style="font-size:9px;font-weight:700;color:#004A2B;background:#0a3d24;padding:2px 8px;border-radius:9px;border:1px solid #b7e3c9">'+mkt+' · '+v+'</span><div style="font-size:10.5px;color:#444;font-family:ui-monospace,Menlo,monospace;background:#fafaf6;padding:6px 8px;border-radius:6px;margin-top:3px;line-height:1.5;max-height:60px;overflow:auto">'+entry[v]+'</div></div>';
         });
       });
       html+='</div>';

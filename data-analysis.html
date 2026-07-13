@@ -9,8 +9,8 @@
 <style>
   /* Palette locked to the /all-in-one dashboard (near-black-green canvas). */
   :root{
-    --forest:#004A2B; --gold:#AB8743; --ink:#e8ede9; --cream:#FBF5EA;
-    --bg:#0a1410; --surface:#0f1d18; --tile:#07100d; --line:rgba(171,135,67,.18); --soft:#a7b5ad; --chip:#07100d;
+    --forest:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA;
+    --bg:#ffffff; --surface:#ffffff; --tile:#f4f2ec; --line:rgba(171,135,67,.18); --soft:#556059; --chip:#f4f2ec;
     --head:#FBF5EA; --accent:#AB8743;
     /* Chart categorical palette — chosen for contrast on the dark canvas */
     --c1:#AB8743; --c2:#E4CF94; --c3:#5FB487; --c4:#C7A65C; --c5:#8FD3B0; --c6:#F2E6C9;
@@ -188,7 +188,7 @@
   function _tipEl(){
     if(_daTip) return _daTip;
     _daTip=document.createElement('div');
-    _daTip.style.cssText='position:fixed;z-index:99999;pointer-events:none;background:#0a1410;color:#e8ede9;border:1px solid #AB8743;border-radius:7px;padding:6px 9px;font:600 11.5px/1.35 Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .1s;white-space:pre;max-width:280px;';
+    _daTip.style.cssText='position:fixed;z-index:99999;pointer-events:none;background:#ffffff;color:#171717;border:1px solid #AB8743;border-radius:7px;padding:6px 9px;font:600 11.5px/1.35 Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .1s;white-space:pre;max-width:280px;';
     document.body.appendChild(_daTip);
     return _daTip;
   }

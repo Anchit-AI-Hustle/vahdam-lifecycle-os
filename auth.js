@@ -772,7 +772,7 @@
         #lifecycle-nav .lnav-mbar-spacer { display: none; }
         #lifecycle-nav .lnav-burger {
           background: transparent; border: 1px solid rgba(171,135,67,0.25);
-          color: #e8ede9; border-radius: 8px; width: 34px; height: 34px;
+          color: #171717; border-radius: 8px; width: 34px; height: 34px;
           font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
         #lifecycle-nav .lnav-mbrand { display: flex; align-items: center; gap: 8px;
@@ -791,7 +791,7 @@
           position: fixed; left: 0; top: 0; z-index: 110;
           width: var(--lsb-w); height: 100vh;
           display: flex; flex-direction: column;
-          background: #0b1813; border-right: 1px solid rgba(171,135,67,0.18);
+          background: #f4f2ec; border-right: 1px solid rgba(171,135,67,0.18);
           padding: 16px 12px 12px;
         }
         #lifecycle-nav .lnav-brand {
@@ -812,7 +812,7 @@
         #lifecycle-nav .lnav-collapse {
           flex-shrink: 0; width: 26px; height: 26px; margin-bottom: 16px;
           background: transparent; border: 1px solid rgba(171,135,67,0.22); border-radius: 7px;
-          color: #9aaaa1; cursor: pointer; font-size: 14px; line-height: 1;
+          color: #556059; cursor: pointer; font-size: 14px; line-height: 1;
           display: flex; align-items: center; justify-content: center; transition: all .12s;
         }
         #lifecycle-nav .lnav-collapse:hover { border-color: #AB8743; color: #FBF5EA; }
@@ -856,7 +856,7 @@
         #lifecycle-nav .lnav-link {
           display: flex; align-items: center; gap: 11px;
           padding: 7px 11px; margin: 1px 0; border-radius: 9px;
-          font-size: 13px; color: #9aaaa1; text-decoration: none;
+          font-size: 13px; color: #556059; text-decoration: none;
           border: 1px solid transparent; transition: all .12s;
         }
         #lifecycle-nav .lnav-link:focus-visible,
@@ -880,13 +880,13 @@
           line-height: 1.4; padding: 1px 4px; border-radius: 4px; white-space: nowrap;
         }
         #lifecycle-nav .lnav-ver.v1 {
-          color: #5d6e64; background: rgba(139,156,147,0.08);
+          color: #48524c; background: rgba(139,156,147,0.08);
         }
         #lifecycle-nav .lnav-ver.v2 {
           color: rgba(171,135,67,0.8); background: rgba(171,135,67,0.1);
         }
         html.lnav-collapsed #lifecycle-nav .lnav-ver { display: none; }
-        #lifecycle-nav .lnav-link:hover { color: #e8ede9; background: rgba(171,135,67,0.08); }
+        #lifecycle-nav .lnav-link:hover { color: #171717; background: rgba(171,135,67,0.08); }
         /* Current item = the STRONGEST, darkest highlight: solid forest-green fill
            with cream text (cream #FBF5EA on green #004A2B is high-contrast and fully
            legible) plus a bold gold left-accent. Applies to the active leaf AND the
@@ -902,15 +902,15 @@
         #lifecycle-nav .lnav-ghead {
           width: 100%; display: flex; align-items: center; gap: 11px;
           padding: 7px 11px; border: none; background: transparent; cursor: pointer;
-          font-family: inherit; font-size: 13px; color: #cdd8d2; text-align: left; border-radius: 9px;
+          font-family: inherit; font-size: 13px; color: #d3dbd5; text-align: left; border-radius: 9px;
         }
-        #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #e8ede9; }
+        #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #171717; }
         /* Parent of the active sub-item ALSO reads as selected, but LIGHTER than
            the sub-item: a gold-tint fill + faint gold accent, so both show and the
            sub-item stays the darker/stronger of the two. */
         #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #FBF5EA; background: rgba(171,135,67,0.13); box-shadow: inset 3px 0 0 rgba(171,135,67,0.55); }
         #lifecycle-nav .lnav-group.active-group .lnav-ghead .lnav-ic { color: #AB8743; }
-        #lifecycle-nav .lnav-caret { width: 15px; height: 15px; color: #5d6e64; transition: transform .18s; }
+        #lifecycle-nav .lnav-caret { width: 15px; height: 15px; color: #48524c; transition: transform .18s; }
         #lifecycle-nav .lnav-group.open .lnav-caret { transform: rotate(180deg); }
         #lifecycle-nav .lnav-gbody { display: none; padding-left: 14px; margin-left: 8px; border-left: 1px solid rgba(171,135,67,0.14); }
         #lifecycle-nav .lnav-group.open .lnav-gbody { display: block; }
@@ -953,7 +953,7 @@
           position: fixed; z-index: 126;
           top: 50%; left: 50%; transform: translate(-50%, -50%);
           width: min(560px, 94vw); max-height: min(78vh, 720px);
-          background: #0f1d18; border: 1px solid rgba(171,135,67,0.3);
+          background: #ffffff; border: 1px solid rgba(171,135,67,0.3);
           border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,0.7);
           display: none; flex-direction: column; overflow: hidden;
           font-family: 'Inter', system-ui, sans-serif;
@@ -976,13 +976,13 @@
         #lifecycle-nav .lnav-ipanel-close {
           flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
           background: transparent; border: 1px solid rgba(171,135,67,0.25);
-          color: #9aaaa1; font-size: 15px; line-height: 1; cursor: pointer;
+          color: #556059; font-size: 15px; line-height: 1; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
         }
         #lifecycle-nav .lnav-ipanel-close:hover { border-color: #AB8743; color: #FBF5EA; }
         #lifecycle-nav .lnav-ipanel-body {
           padding: 16px 20px 20px; overflow-y: auto; scrollbar-width: thin;
-          font-size: 13px; line-height: 1.65; color: #cdd8d2;
+          font-size: 13px; line-height: 1.65; color: #d3dbd5;
         }
         #lifecycle-nav .lnav-ipanel-body p { margin: 0 0 10px; }
         #lifecycle-nav .lnav-ipanel-q {
@@ -1013,7 +1013,7 @@
           width: 1px; background: rgba(171,135,67,0.18);
         }
         #lifecycle-nav .lnav-steps b { display: block; color: #FBF5EA; font-size: 12.5px; margin-bottom: 2px; }
-        #lifecycle-nav .lnav-steps .lnav-step-d { display: block; font-size: 12px; color: #9aaaa1; }
+        #lifecycle-nav .lnav-steps .lnav-step-d { display: block; font-size: 12px; color: #556059; }
         #lifecycle-nav .lnav-steps .lnav-step-via {
           display: inline-block; margin-top: 4px; font-family: 'JetBrains Mono', monospace;
           font-size: 10px; color: #6f8278; background: rgba(171,135,67,0.08);
@@ -1023,7 +1023,7 @@
         /* User footer */
         #lifecycle-nav .lnav-user {
           display: flex; align-items: center; gap: 9px; margin-top: 8px;
-          padding: 10px 8px 4px; border-top: 1px solid rgba(171,135,67,0.14); font-size: 12px; color: #9aaaa1;
+          padding: 10px 8px 4px; border-top: 1px solid rgba(171,135,67,0.14); font-size: 12px; color: #556059;
         }
         #lifecycle-nav .lnav-avatar { width: 28px; height: 28px; border-radius: 50%;
           background: linear-gradient(135deg,#AB8743,#004A2B); display: flex; align-items: center; justify-content: center;
@@ -1031,7 +1031,7 @@
         #lifecycle-nav .lnav-avatar img { width: 100%; height: 100%; object-fit: cover; }
         #lifecycle-nav .lnav-uname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #lifecycle-nav .lnav-signout { background: transparent; border: 1px solid rgba(171,135,67,0.25);
-          color: #9aaaa1; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 13px; flex-shrink: 0; }
+          color: #556059; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 13px; flex-shrink: 0; }
         #lifecycle-nav .lnav-signout:hover { border-color: #AB8743; color: #FBF5EA; }
         #lifecycle-nav .lnav-signin { color: #AB8743; text-decoration: none; font-weight: 600; padding: 4px 8px; }
 
@@ -1301,14 +1301,14 @@
       <style>
         #lifecycle-loginwall {
           position: fixed; inset: 0; z-index: 9999;
-          background: #0a1410;
+          background: #ffffff;
           display: flex; align-items: center; justify-content: center;
           font-family: 'Inter', system-ui, sans-serif;
           padding: 20px;
         }
         #lifecycle-loginwall .llw-card {
           max-width: 460px; width: 100%;
-          background: #0f1d18; border: 1px solid rgba(171,135,67,0.25);
+          background: #ffffff; border: 1px solid rgba(171,135,67,0.25);
           border-radius: 16px; padding: 40px 36px;
           text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.7);
         }
@@ -1328,13 +1328,13 @@
         }
         #lifecycle-loginwall h1 em { color: #AB8743; font-style: italic; }
         #lifecycle-loginwall p {
-          color: #9aaaa1; font-size: 13.5px; line-height: 1.6;
+          color: #556059; font-size: 13.5px; line-height: 1.6;
           margin: 0 0 24px;
         }
         #lifecycle-loginwall button {
           display: inline-flex; align-items: center; justify-content: center;
           gap: 10px; padding: 13px 22px;
-          background: #FBF5EA; color: #0a1410;
+          background: #FBF5EA; color: #ffffff;
           border: none; border-radius: 9px;
           font-family: inherit; font-size: 14px; font-weight: 600;
           letter-spacing: 0.02em; cursor: pointer;
@@ -1343,7 +1343,7 @@
         #lifecycle-loginwall button:hover  { opacity: 0.92; }
         #lifecycle-loginwall button:disabled { opacity: 0.5; cursor: not-allowed; }
         #lifecycle-loginwall .llw-foot {
-          margin-top: 18px; font-size: 11px; color: #5d6e64;
+          margin-top: 18px; font-size: 11px; color: #48524c;
           font-family: 'JetBrains Mono', monospace;
         }
         #lifecycle-loginwall .llw-err {
@@ -1427,7 +1427,7 @@
     el.innerHTML = `
       <style>
         #lifecycle-signingin {
-          position: fixed; inset: 0; z-index: 9999; background: #0a1410;
+          position: fixed; inset: 0; z-index: 9999; background: #ffffff;
           display: flex; flex-direction: column; align-items: center; justify-content: center;
           gap: 18px; font-family: 'Inter', system-ui, sans-serif; color: #FBF5EA;
         }
@@ -1437,7 +1437,7 @@
           animation: lsi-spin 0.8s linear infinite;
         }
         @keyframes lsi-spin { to { transform: rotate(360deg); } }
-        #lifecycle-signingin .lsi-t { font-size: 13.5px; color: #9aaaa1; letter-spacing: 0.02em; }
+        #lifecycle-signingin .lsi-t { font-size: 13.5px; color: #556059; letter-spacing: 0.02em; }
       </style>
       <div class="lsi-ring"></div>
       <div class="lsi-t">Completing sign-in…</div>
@@ -1703,28 +1703,28 @@
         }
         #lifecycle-profile-modal .lpm-card {
           max-width: 460px; width: 100%;
-          background: #0f1d18; border: 1px solid rgba(171,135,67,0.25);
+          background: #ffffff; border: 1px solid rgba(171,135,67,0.25);
           border-radius: 14px; padding: 28px 26px; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
         }
         #lifecycle-profile-modal .lpm-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: #AB8743; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
         #lifecycle-profile-modal h2 { font-family: 'Lora','Inter',serif; font-size: 22px; color: #FBF5EA; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
         #lifecycle-profile-modal h2 em { color: #AB8743; font-style: italic; }
-        #lifecycle-profile-modal .lpm-sub { color: #9aaaa1; font-size: 13px; line-height: 1.55; margin: 0 0 18px; }
-        #lifecycle-profile-modal label { display: block; font-size: 11px; color: #5d6e64; text-transform: uppercase; letter-spacing: 0.1em; margin: 12px 0 5px; font-weight: 600; }
+        #lifecycle-profile-modal .lpm-sub { color: #556059; font-size: 13px; line-height: 1.55; margin: 0 0 18px; }
+        #lifecycle-profile-modal label { display: block; font-size: 11px; color: #48524c; text-transform: uppercase; letter-spacing: 0.1em; margin: 12px 0 5px; font-weight: 600; }
         #lifecycle-profile-modal input, #lifecycle-profile-modal select {
           width: 100%; box-sizing: border-box;
-          background: #0a1410; border: 1px solid rgba(171,135,67,0.2); border-radius: 8px;
-          color: #e8ede9; padding: 10px 12px; font-size: 13px; font-family: inherit;
+          background: #ffffff; border: 1px solid rgba(171,135,67,0.2); border-radius: 8px;
+          color: #171717; padding: 10px 12px; font-size: 13px; font-family: inherit;
         }
         #lifecycle-profile-modal input:focus, #lifecycle-profile-modal select:focus { outline: none; border-color: #AB8743; }
         #lifecycle-profile-modal .lpm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         #lifecycle-profile-modal .lpm-actions { display: flex; gap: 10px; margin-top: 22px; }
         #lifecycle-profile-modal button { font-family: inherit; font-size: 12.5px; padding: 11px 18px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; letter-spacing: 0.02em; transition: opacity .15s; }
-        #lifecycle-profile-modal .lpm-skip   { background: transparent; color: #9aaaa1; border: 1px solid rgba(171,135,67,0.25); }
-        #lifecycle-profile-modal .lpm-skip:hover { color: #e8ede9; }
-        #lifecycle-profile-modal .lpm-save   { background: #AB8743; color: #0a1410; flex: 1; }
+        #lifecycle-profile-modal .lpm-skip   { background: transparent; color: #556059; border: 1px solid rgba(171,135,67,0.25); }
+        #lifecycle-profile-modal .lpm-skip:hover { color: #171717; }
+        #lifecycle-profile-modal .lpm-save   { background: #AB8743; color: #ffffff; flex: 1; }
         #lifecycle-profile-modal .lpm-save:hover { opacity: 0.92; }
-        #lifecycle-profile-modal .lpm-foot { font-size: 11px; color: #5d6e64; margin-top: 14px; text-align: center; font-family: 'JetBrains Mono', monospace; }
+        #lifecycle-profile-modal .lpm-foot { font-size: 11px; color: #48524c; margin-top: 14px; text-align: center; font-family: 'JetBrains Mono', monospace; }
         #lifecycle-profile-modal .lpm-err { color: #f87171; font-size: 12px; margin-top: 10px; padding: 8px; background: rgba(239,68,68,0.08); border-radius: 6px; }
       </style>
       <div class="lpm-card">
