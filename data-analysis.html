@@ -175,6 +175,29 @@
   function mLabel(m){ if(!m) return ''; var p=String(m).split('-'); var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return (mo[(+p[1]||1)-1]||'')+" "+(p[0]||'').slice(2); }
   var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // Attribute-safe escape (data-tip values live inside double quotes).
+  function escA(s){ return esc(s).replace(/"/g,'&quot;'); }
+
+  // ── hover tooltips: show the exact metric at the hovered point ─────────────
+  // One shared floating tooltip, driven by delegated listeners on any element
+  // carrying data-tip. Because it is document-level delegation it covers every
+  // chart (mini + detail) and any re-render, with no per-chart wiring. The
+  // tooltip never intercepts clicks (pointer-events:none), so cards stay
+  // clickable. data-tip carries "Label\nValue"; rendered via textContent.
+  var _daTip=null;
+  function _tipEl(){
+    if(_daTip) return _daTip;
+    _daTip=document.createElement('div');
+    _daTip.style.cssText='position:fixed;z-index:99999;pointer-events:none;background:#0a1410;color:#e8ede9;border:1px solid #AB8743;border-radius:7px;padding:6px 9px;font:600 11.5px/1.35 Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .1s;white-space:pre;max-width:280px;';
+    document.body.appendChild(_daTip);
+    return _daTip;
+  }
+  function _tipShow(txt,x,y){ var t=_tipEl(); t.textContent=txt; t.style.opacity='1'; var w=t.offsetWidth,h=t.offsetHeight; t.style.left=Math.min(Math.max(8,x+14),window.innerWidth-w-8)+'px'; t.style.top=Math.max(8,y-h-12)+'px'; }
+  function _tipHide(){ if(_daTip) _daTip.style.opacity='0'; }
+  function _tipTarget(e){ return (e.target && e.target.closest) ? e.target.closest('[data-tip]') : null; }
+  document.addEventListener('mouseover', function(e){ var el=_tipTarget(e); if(el) _tipShow(el.getAttribute('data-tip'),e.clientX,e.clientY); });
+  document.addEventListener('mousemove', function(e){ if(!_daTip||_daTip.style.opacity==='0') return; var el=_tipTarget(e); if(el) _tipShow(el.getAttribute('data-tip'),e.clientX,e.clientY); else _tipHide(); });
+  document.addEventListener('mouseout', function(e){ if(_tipTarget(e)) _tipHide(); });
 
   // ── tiny SVG chart kit (brand palette, high contrast on green) ────────────
   var PAL=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'];
@@ -199,7 +222,7 @@
     var meanLine='<line x1="'+pad+'" y1="'+ay.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+ay.toFixed(1)+'" stroke="var(--c2)" stroke-width="1" stroke-dasharray="4 3" opacity="0.85"/><text x="'+(W-padR+3)+'" y="'+(ay+3).toFixed(1)+'" font-size="8.5" fill="var(--c2)">avg '+fmt(avg)+'</text>';
     var lbls=''; var step=Math.ceil(pts.length/8);
     pts.forEach(function(p,i){ if(i%step===0||i===pts.length-1) lbls+='<text x="'+X(i).toFixed(1)+'" y="'+(H-10)+'" text-anchor="middle" font-size="9" fill="var(--soft)">'+esc(p.label||'')+'</text>'; });
-    var dots=pts.map(function(p,i){return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="2.1" fill="var(--c1)"/>';}).join('');
+    var dots=pts.map(function(p,i){var cx=X(i).toFixed(1),cy=Y(p.y).toFixed(1);var tip=(p.label?p.label+'\n':'')+fmt(p.y);return '<circle cx="'+cx+'" cy="'+cy+'" r="2.1" fill="var(--c1)"/><circle cx="'+cx+'" cy="'+cy+'" r="11" fill="transparent" data-tip="'+escA(tip)+'" style="cursor:pointer"/>';}).join('');
     // Peak + latest callouts (peak highlighted; latest carries its value).
     var peakI=0; ys.forEach(function(v,i){ if(v>ys[peakI]) peakI=i; });
     var lastI=pts.length-1;
@@ -220,7 +243,7 @@
     var rows=items.map(function(d,i){
       var y=i*rowH+4, bw=Math.max(2,(d.v/max)*iw), col=PAL[i%PAL.length];
       return '<text x="'+(pad-8)+'" y="'+(y+rowH/2+3)+'" text-anchor="end" font-size="11" fill="var(--ink)">'+esc(d.label)+'</text>'+
-        '<rect x="'+pad+'" y="'+(y+3)+'" width="'+bw.toFixed(1)+'" height="'+(rowH-9)+'" rx="3" fill="'+col+'"/>'+
+        '<rect x="'+pad+'" y="'+(y+3)+'" width="'+bw.toFixed(1)+'" height="'+(rowH-9)+'" rx="3" fill="'+col+'" data-tip="'+escA(d.label+'\n'+(d.disp!=null?d.disp:d.v))+'" style="cursor:pointer"/>'+
         '<text x="'+(pad+bw+6)+'" y="'+(y+rowH/2+3)+'" font-size="10.5" fill="var(--soft)">'+esc(d.disp)+'</text>';
     }).join('');
     return '<svg viewBox="0 0 '+W+' '+H+'" role="img">'+rows+'</svg>';
@@ -238,8 +261,8 @@
     var out=items.map(function(d,i){
       var x=pad+i*gap+(gap-bw)/2, ha=(d.a/max)*ih, hb=(d.b/max)*ih;
       var yb=padT+ih-ha, ya=yb-hb;   // new (c1) sits on the axis, returning (c3) on top
-      return '<rect x="'+x.toFixed(1)+'" y="'+yb.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+ha.toFixed(1)+'" fill="var(--c1)"/>'+
-             '<rect x="'+x.toFixed(1)+'" y="'+ya.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hb.toFixed(1)+'" fill="var(--c3)"/>'+
+      return '<rect x="'+x.toFixed(1)+'" y="'+yb.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+ha.toFixed(1)+'" fill="var(--c1)" data-tip="'+escA(d.label+'\nNew: '+fmt(d.a)+'\nTotal: '+fmt(d.a+d.b))+'" style="cursor:pointer"/>'+
+             '<rect x="'+x.toFixed(1)+'" y="'+ya.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hb.toFixed(1)+'" fill="var(--c3)" data-tip="'+escA(d.label+'\nReturning: '+fmt(d.b)+'\nTotal: '+fmt(d.a+d.b))+'" style="cursor:pointer"/>'+
              (i%Math.ceil(items.length/8)===0||i===items.length-1?'<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="var(--soft)">'+esc(d.label)+'</text>':'');
     }).join('');
     var yTitle=opts.yLabel?'<text x="12" y="'+(padT+ih/2).toFixed(1)+'" transform="rotate(-90 12 '+(padT+ih/2).toFixed(1)+')" text-anchor="middle" font-size="9" fill="var(--soft)">'+esc(opts.yLabel)+'</text>':'';
@@ -249,7 +272,7 @@
     opts=opts||{}; var S=opts.s||150, r=54, cx=S/2, cy=S/2, C=2*Math.PI*r;
     var total=items.reduce(function(a,d){return a+d.v;},0)||1, off=0;
     var segs=items.map(function(d,i){
-      var frac=d.v/total, len=frac*C, seg='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+PAL[i%PAL.length]+'" stroke-width="20" stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
+      var frac=d.v/total, len=frac*C, seg='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+PAL[i%PAL.length]+'" stroke-width="20" stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 '+cx+' '+cy+')" data-tip="'+escA(d.label+'\n'+money(d.v)+' ('+(frac*100).toFixed(1)+'%)')+'" style="cursor:pointer"/>';
       off+=len; return seg;
     }).join('');
     return '<svg viewBox="0 0 '+S+' '+S+'" width="'+S+'" role="img">'+segs+
@@ -391,7 +414,7 @@
     var out=items.map(function(dd,i){ var x=pad+i*gap+(gap-bw)/2, h=(dd.v/max)*ih, y=padT+ih-h;
       var col=(i===peakI)?'var(--c4)':'var(--c1)';
       var valLbl=(i===peakI||i===lastI)?'<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y-4).toFixed(1)+'" text-anchor="middle" font-size="8.5" font-weight="700" fill="var(--head)">'+fmt(dd.v)+'</text>':'';
-      return '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" fill="'+col+'"/>'+valLbl+
+      return '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" fill="'+col+'" data-tip="'+escA(dd.label+'\n'+fmt(dd.v))+'" style="cursor:pointer"/>'+valLbl+
         (i%Math.ceil(items.length/8)===0||i===lastI?'<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="var(--soft)">'+esc(dd.label)+'</text>':'');
     }).join('');
     var yTitle=opts.yLabel?'<text x="12" y="'+(padT+ih/2).toFixed(1)+'" transform="rotate(-90 12 '+(padT+ih/2).toFixed(1)+')" text-anchor="middle" font-size="9" fill="var(--soft)">'+esc(opts.yLabel)+'</text>':'';
@@ -405,7 +428,7 @@
     var head='<tr><th>Cohort (quarter)</th><th>Base</th>'; for(var c=0;c<cols;c++) head+='<th>'+(c===0?'Q+0 (acq)':'Q+'+c)+'</th>'; head+='</tr>';
     var body=cohorts.map(function(row){
       var tds='<td class="lbl">'+esc(mLabel(row.cohort))+'</td><td class="lbl">'+intf(row.base)+'</td>';
-      for(var i=0;i<cols;i++){ var v=row.retention[i]; tds+='<td style="background:'+heatColor(v)+';color:'+heatText(v)+'">'+(v==null?'':v+'%')+'</td>'; }
+      for(var i=0;i<cols;i++){ var v=row.retention[i]; var qt=(i===0?'Q+0 (acquisition)':'Q+'+i); tds+='<td style="background:'+heatColor(v)+';color:'+heatText(v)+(v==null?'':';cursor:pointer')+'"'+(v==null?'':' data-tip="'+escA(mLabel(row.cohort)+' · '+qt+'\nRetention: '+v+'%\nBase: '+intf(row.base))+'"')+'>'+(v==null?'':v+'%')+'</td>'; }
       return '<tr>'+tds+'</tr>';
     }).join('');
     return '<div class="tbl-wrap"><table class="heat">'+head+body+'</table></div>';
