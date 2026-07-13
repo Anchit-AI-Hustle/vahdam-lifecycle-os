@@ -54,10 +54,14 @@ const BLOCK = [
   'political', 'election', 'celebrity gossip', 'horoscope',
 ];
 
-const OK_CURRENCY = /(\$|\busd\b|£|\bgbp\b)/i;
-const BAD_CURRENCY = /(€|\beur\b|₹|\binr\b|¥|\bjpy\b|\bcny\b|a\$|\baud\b|c\$|\bcad\b)/i;
-const US_UK_GEO = /(united states|u\.s\.|\bus\b|\busa\b|america|united kingdom|\buk\b|britain|england|\.co\.uk)/i;
-const NON_US_UK_GEO = /(\.eu\b|\.de\b|\.fr\b|\.in\b|\.au\b|\.ca\b|\.jp\b|europe|germany|france|\bindia\b|australia|\bcanada\b|japan)/i;
+// VAHDAM operates US(.com) · UK(.co.uk) · IN(.in) · Global(.global), so the
+// knowledge base spans all four. Accepted currencies: $, £, ₹ (+ a generic
+// global signal). Truly off-target competitor geos (EU/AU/CA/JP) with no known
+// brand and no vertical relevance are still dropped as noise.
+const OK_CURRENCY = /(\$|\busd\b|£|\bgbp\b|₹|\binr\b)/i;
+const BAD_CURRENCY = /(€|\beur\b|¥|\bjpy\b|\bcny\b|a\$|\baud\b|c\$|\bcad\b)/i;
+const TARGET_GEO = /(united states|u\.s\.|\bus\b|\busa\b|america|united kingdom|\buk\b|britain|england|\.co\.uk|\bindia\b|\.in\b|vahdamindia|\.global\b)/i;
+const OFF_TARGET_GEO = /(\.eu\b|\.de\b|\.fr\b|\.au\b|\.ca\b|\.jp\b|europe|germany|france|australia|\bcanada\b|japan)/i;
 
 function haystack(item) {
   return [item && item.title, (item && (item.text || item.raw_text || item.body)) || '', item && item.url, item && item.brand, item && item.source]
@@ -72,10 +76,12 @@ function assess(item) {
   const rel = hits(hay, RELEVANT);
   const blk = hits(hay, BLOCK);
   const brand = BRAND_WHITELIST.find((b) => hay.includes(b)) || null;
-  // Currency gate: a non-US/UK currency with NO $/£ present is off-market pricing.
-  if (BAD_CURRENCY.test(hay) && !OK_CURRENCY.test(hay)) return { keep: false, phase: 1, reason: 'non-US/UK currency (no $/£)', signals: { brand } };
-  // Geo gate: an explicit non-US/UK geo with no US/UK signal and no known brand.
-  if (NON_US_UK_GEO.test(hay) && !US_UK_GEO.test(hay) && !brand) return { keep: false, phase: 1, reason: 'off-geo (not US/UK)', signals: { brand } };
+  // Currency gate: an off-target currency (€/¥/A$/C$) with no $/£/₹ and no known
+  // brand is off-market pricing. ₹ (India) is IN-scope, so it passes.
+  if (BAD_CURRENCY.test(hay) && !OK_CURRENCY.test(hay) && !brand) return { keep: false, phase: 1, reason: 'off-target currency (not $/£/₹)', signals: { brand } };
+  // Geo gate: an explicit off-target geo (EU/AU/CA/JP) with no US/UK/IN/Global
+  // signal and no known brand.
+  if (OFF_TARGET_GEO.test(hay) && !TARGET_GEO.test(hay) && !brand) return { keep: false, phase: 1, reason: 'off-target geo (not US/UK/IN/Global)', signals: { brand } };
   // Junk-dominated with no relevance and not a whitelisted brand.
   if (blk.length >= 2 && rel.length === 0 && !brand) return { keep: false, phase: 1, reason: `junk/off-context (${blk.slice(0, 3).join(', ')})`, signals: { brand } };
   // Must carry a category/D2C relevance signal OR come from a whitelisted brand.
@@ -95,10 +101,12 @@ const VERTICALS = {
 };
 function classify(item) {
   const hay = haystack(item || {});
-  // Market from currency + geo signals.
+  // Market from currency + geo signals (US · UK · IN · Global — VAHDAM's stores).
   let market = null;
-  if (/£|\bgbp\b|\.co\.uk|united kingdom|\buk\b|britain|england/i.test(hay)) market = 'UK';
+  if (/₹|\binr\b|\.in\b|\bindia\b|vahdamindia/i.test(hay)) market = 'IN';
+  else if (/£|\bgbp\b|\.co\.uk|united kingdom|\buk\b|britain|england/i.test(hay)) market = 'UK';
   else if (/\$|\busd\b|united states|\bus\b|\busa\b|america/i.test(hay)) market = 'US';
+  else if (/\.global\b|vahdam\.global|worldwide|international/i.test(hay)) market = 'Global';
   // Vertical = the category with the most keyword hits (Wellness as the catch-all).
   let vertical = null, best = 0;
   for (const [v, kws] of Object.entries(VERTICALS)) {
