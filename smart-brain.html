@@ -828,24 +828,32 @@ async function generateEntry(i, { silent = false } = {}){
   return data;
 }
 
-// Row "Download": ensure the final assets exist (generate on demand if needed),
-// render them into the expansion, then download every asset as one file.
+// Row "Download": RETRIEVE the saved assets (never regenerate), render them into
+// the expansion, then download every asset as one file. Uses smart-brain-preview,
+// which reuses the persisted campaign (prebuilt or a prior preview) — so a slot is
+// built at most once and every later download is an instant fetch. It does NOT
+// approve/lock the slot (that would be the wrong side effect for a download); only
+// a slot that has never been built anywhere triggers a one-time build server-side,
+// which is then persisted so the next download is instant.
 async function downloadEntry(i){
   const e = PLAN[i];
   const btn = $('dlbtn-'+i); const label = btn ? btn.textContent : '';
   if(btn){ btn.disabled = true; btn.textContent = '…'; }
+  const row = $('exprow-'+i), body = $('expbody-'+i);
   try{
-    if(PREVIEW_CACHE[e.id]){
-      const row = $('exprow-'+i), body = $('expbody-'+i);
-      document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
-      if(row) row.style.display='';
-      renderPreview(PREVIEW_CACHE[e.id], e, i, { persisted: true, target: body });
-      if(body) body.setAttribute('data-loaded','1');
-    } else {
-      await generateEntry(i);   // builds + renders (populates window.__SB_EXPORTS)
+    document.querySelectorAll('.exprow').forEach(r=>{ if(r!==row) r.style.display='none'; });
+    if(row) row.style.display='';
+    if(!PREVIEW_CACHE[e.id]){
+      if(body) body.innerHTML = `<p class="pvnote"><span class="spinner"></span> Loading saved assets…</p>`;
+      const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
+      const data = await safeJson(r);
+      if(!data.ok) throw new Error(data.error || 'Load failed');
+      PREVIEW_CACHE[e.id] = data;
     }
+    renderPreview(PREVIEW_CACHE[e.id], e, i, { persisted: true, target: body });
+    if(body) body.setAttribute('data-loaded','1');
     sbDownloadAll();
-  }catch(err){ const b=$('expbody-'+i); if(b) b.innerHTML = `<p class="pvnote" style="color:#e89a9a">Download failed: ${esc(err.stack || err.message)}</p>`; }
+  }catch(err){ if(body) body.innerHTML = `<p class="pvnote" style="color:#e89a9a">Download failed: ${esc(err.stack || err.message)}</p>`; }
   finally{ if(btn){ btn.disabled = false; btn.textContent = label; } }
 }
 

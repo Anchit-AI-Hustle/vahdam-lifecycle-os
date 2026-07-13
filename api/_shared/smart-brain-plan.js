@@ -1114,12 +1114,19 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
 // Resolve a slot's entry payload — from the inline entry the UI already holds,
 // or by id from the stored calendar. Used by preview + approve.
 async function resolveEntry({ id, inlineEntry, config, db }) {
-  if (inlineEntry) return { entry: inlineEntry, row: null };
+  // Always load the DB row when we can (id + connected), EVEN when the client
+  // passed an inline entry. The row carries persisted markers (__prebuilt /
+  // __preview) and the real status, which preview/approve need to REUSE a saved
+  // campaign and to stamp the slot — so a slot is generated once and every later
+  // view/download is an instant DB read, never a rebuild. The inline entry (the
+  // client's current view, e.g. a scenario switch) still wins as the build input.
+  let row = null;
   if (db.connected && id) {
     const rows = await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
-    const row = rows && rows[0];
-    if (row) return { entry: row.payload, row };
+    row = (rows && rows[0]) || null;
   }
+  if (inlineEntry) return { entry: inlineEntry, row };
+  if (row) return { entry: row.payload, row };
   return { entry: null, row: null };
 }
 
@@ -1148,26 +1155,48 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     }
   }
 
-  // Preview EXACTLY what approving produces. If the prebuild queue already built
-  // this slot, show that persisted bundle (instant, and identical to what ships);
-  // otherwise generate on demand. Internal/projection keys stripped so numbers
-  // can't reach the asset builders.
+  // Preview EXACTLY what approving produces. REUSE the saved bundle when this slot
+  // has already been built — by the prebuild queue (__prebuilt, full creatives) OR
+  // by a prior on-demand preview (__preview). That makes every view after the first
+  // an instant DB read, not a rebuild. Only build on demand when nothing is saved.
   let campaign = null;
-  const prebuiltId = entry && entry[PREBUILD_MARKER] && entry[PREBUILD_MARKER].campaign_id;
-  if (db.connected && prebuiltId) {
-    const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
+  const reuseId = reuseCampaignId(entry, row);
+  if (db.connected && reuseId) {
+    const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${reuseId}` }, limit: 1 }).catch(() => []);
     if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
   }
-  // Fallback (slot not prebuilt yet): build copy + layout + the EMAIL HERO image
+  // Fallback (slot never built yet): build copy + layout + the EMAIL HERO image
   // only ('hero'). Generating all 5 images inline overran the function limit and
   // returned a non-JSON timeout page; a single hero stays within budget so View
   // shows a complete mailer (hero included) instead of an image-less shell. The
   // full ad/LP image set still comes from the prebuild queue or Download.
-  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: 'hero' });
-  campaign.status = 'preview';
+  let builtFresh = false;
+  if (!campaign) {
+    campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: 'hero' });
+    campaign.status = 'preview';
+    campaign.calendar_entry_id = entry.id || id || null;
+    builtFresh = true;
+  }
+  // PERSIST the fresh on-demand build + stamp the slot, so the NEXT view/download
+  // reuses it instantly instead of rebuilding. Best-effort: a persistence hiccup
+  // must never break the preview the reviewer is waiting on. mirror:false keeps
+  // unapproved drafts out of the Ads/Landing dashboards. Stamp __preview (not
+  // __prebuilt) so the prebuild queue still upgrades this slot to full creatives.
+  if (builtFresh && db.connected && row) {
+    try {
+      await persistCampaignAssets(db, config, campaign, { status: 'preview', origin: 'smart-brain-preview', reviewer, mirror: false });
+      const fresh = (await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${row.id}` }, limit: 1 }).catch(() => []))?.[0];
+      if (fresh && (fresh.status === 'tentative' || fresh.status === 'rejected') && !isPrebuilt(fresh)) {
+        const payload = { ...(fresh.payload || {}) };
+        payload[PREVIEW_MARKER] = { campaign_id: campaign.campaign_id, at: nowIso() };
+        await db.update(config.tableNames.calendarEntries, { id: `eq.${row.id}`, status: SYNC_WRITABLE_STATUSES }, { payload, updated_at: nowIso() });
+      }
+    } catch (_) { /* best-effort persistent cache; preview still returns below */ }
+  }
   return {
     ok: true,
-    preview: true,
+    preview: builtFresh,
+    persisted: !builtFresh,
     campaign,
     copywriter: campaign.copywriter,
     email_html: campaign.assets.email?.html || null,
@@ -1205,7 +1234,7 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   // already built this slot — approval then just locks + publishes, no wait, no
   // regeneration (so what the reviewer saw in preview is exactly what ships).
   let campaign = null;
-  const prebuiltId = entry && entry[PREBUILD_MARKER] && entry[PREBUILD_MARKER].campaign_id;
+  const prebuiltId = reuseCampaignId(entry, row);
   if (db.connected && prebuiltId) {
     const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
     if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
@@ -1386,6 +1415,20 @@ async function landingPageHtml(id, cfg = {}, variant = null) {
 // of the now-stale assets. Human-approved/final slots are skipped (they own a
 // real campaign already).
 const PREBUILD_MARKER = '__prebuilt';
+// Marker for an ON-DEMAND preview build that has been persisted so it is reused
+// (instant) on every later view/download instead of rebuilt. Distinct from
+// __prebuilt so the background prebuild queue STILL upgrades the slot to the full
+// creative bundle later (isPrebuilt only checks __prebuilt). __prebuilt is always
+// preferred over __preview when both exist.
+const PREVIEW_MARKER = '__preview';
+function reuseCampaignId(entry, row) {
+  const p = (row && row.payload) || {};
+  return (entry && entry[PREBUILD_MARKER] && entry[PREBUILD_MARKER].campaign_id)
+    || (p[PREBUILD_MARKER] && p[PREBUILD_MARKER].campaign_id)
+    || (entry && entry[PREVIEW_MARKER] && entry[PREVIEW_MARKER].campaign_id)
+    || (p[PREVIEW_MARKER] && p[PREVIEW_MARKER].campaign_id)
+    || null;
+}
 
 function isPrebuilt(row) {
   const p = row && row.payload && row.payload[PREBUILD_MARKER];
