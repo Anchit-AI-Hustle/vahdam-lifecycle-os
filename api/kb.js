@@ -225,6 +225,22 @@ Rules:
   const author = extractAuthor(pageHtml);
   const rawText = stripHtml(pageHtml);
 
+  // ── Ingest guardrail ──────────────────────────────────────────────────────
+  // Keep the knowledge base ON-CONTEXT: US/UK D2C tea/coffee/supplements/wellness
+  // only. Phase 1 (deterministic: brand whitelist, US/UK geo + $/£ currency,
+  // relevance lexicon, junk blocklist) then Phase 2 (LLM relevance gate, fails
+  // open if no LLM). Junk is dropped BEFORE we spend tokens summarising it or let
+  // it pollute the KB. Errors fail open so a guardrail bug never blocks real data.
+  const guard = require('./_shared/ingest-guardrail.js');
+  const verdict = await guard.gatekeep({ title, text: rawText, url: canonical }, { llm: true }).catch(() => ({ keep: true, phase: 0, reason: 'guardrail error — kept' }));
+  if (!verdict.keep) {
+    await fetch(`${env.url}/rest/v1/kb_knowledge?id=eq.${rowId}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ title, author, status: 'filtered', summary: `Off-context, not ingested (guardrail phase ${verdict.phase}): ${verdict.reason}`, processed_at: new Date().toISOString() }),
+    }).catch(() => {});
+    return res.status(200).json({ ok: true, filtered: true, phase: verdict.phase, reason: verdict.reason, id: rowId, url: canonical });
+  }
+
   await fetch(`${env.url}/rest/v1/kb_knowledge?id=eq.${rowId}`, {
     method: 'PATCH', headers,
     body: JSON.stringify({ title, author, raw_text: rawText, status: 'fetched' }),
