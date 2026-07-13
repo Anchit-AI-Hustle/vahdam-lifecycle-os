@@ -54,11 +54,11 @@ function formatRow(e) {
   const id = e.id || e.event_id || e.messageId || e.eventId;
   if (!id) return null;
   return {
-    event_id: String(id),
+    webengage_event_id: String(id),
     event_name: String(e.event_name || e.eventName || e.name || 'unknown'),
     user_id: e.userId || e.user_id || e.uid || null,
     event_time: e.eventTime || e.event_time || e.timestamp || e.time || null,
-    attributes: e.attributes || e.eventData || e.data || {},
+    raw_payload: e,   // full source object; hot fields extracted above
   };
 }
 function parseDump(buf, name) {
@@ -79,7 +79,7 @@ async function upsert(url, key, rows) {
   let n = 0;
   for (let i = 0; i < rows.length; i += 500) {
     const batch = rows.slice(i, i + 500);
-    const r = await fetch(`${url}/rest/v1/webengage_events?on_conflict=event_id`, {
+    const r = await fetch(`${url}/rest/v1/webengage_events?on_conflict=webengage_event_id`, {
       method: 'POST', headers: { ...hdrs(key), Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify(batch),
     });
@@ -111,15 +111,21 @@ async function syncFromStorage({ bucket } = {}) {
 
 // ── Reads (campaigns / cohorts / dashboards / ChaiGPT) ──────────────────────
 function sinceIso(hours) { return new Date(Date.now() - (hours || 24) * 3600 * 1000).toISOString(); }
+// Look a field up in the raw event payload (top-level or nested .attributes).
+function attr(row, key) {
+  const p = (row && row.raw_payload) || {};
+  const a = p.attributes || p.eventData || p.data || {};
+  return p[key] != null ? p[key] : (a[key] != null ? a[key] : undefined);
+}
 async function fetchRows({ event, hours = 24, market, limit = 10000 }) {
   const { url, key } = env();
   if (!url || !key) return { connected: false, rows: [] };
-  const parts = ['select=event_name,user_id,event_time,attributes', `event_time=gte.${encodeURIComponent(sinceIso(hours))}`, `limit=${limit}`, 'order=event_time.desc'];
+  const parts = ['select=event_name,user_id,event_time,raw_payload', `event_time=gte.${encodeURIComponent(sinceIso(hours))}`, `limit=${limit}`, 'order=event_time.desc'];
   if (event) parts.push(`event_name=eq.${encodeURIComponent(event)}`);
   const r = await fetch(`${url}/rest/v1/webengage_events?${parts.join('&')}`, { headers: hdrs(key) }).catch(() => null);
   if (!r || !r.ok) return { connected: true, rows: [] };
   let rows = await r.json();
-  if (market) { const m = String(market).toLowerCase(); rows = rows.filter((x) => String((x.attributes && (x.attributes.target_region || x.attributes.region || x.attributes.market)) || '').toLowerCase().includes(m)); }
+  if (market) { const m = String(market).toLowerCase(); rows = rows.filter((x) => String(attr(x, 'target_region') || attr(x, 'region') || attr(x, 'market') || '').toLowerCase().includes(m)); }
   return { connected: true, rows };
 }
 
@@ -129,7 +135,7 @@ async function campaignPerformance({ event = 'Notification Clicked', hours = 24,
   if (!c) return { ok: false, connected: false, note: 'WebEngage store not configured (SUPABASE_SERVICE_ROLE_KEY).' };
   const by = new Map();
   for (const r of rows) {
-    const name = (r.attributes && (r.attributes.campaign_name || r.attributes.campaignName || r.attributes.campaign)) || '(unnamed)';
+    const name = attr(r, 'campaign_name') || attr(r, 'campaignName') || attr(r, 'campaign') || '(unnamed)';
     const e = by.get(name) || { campaign: name, events: 0, users: new Set() };
     e.events += 1; if (r.user_id) e.users.add(r.user_id); by.set(name, e);
   }
