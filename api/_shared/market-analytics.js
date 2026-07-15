@@ -23,8 +23,15 @@ function data() {
   return DATA;
 }
 
-// Only US + UK exports exist; everything else has no order-level export yet.
-function normMarket(m) { return String(m || 'US').toUpperCase().startsWith('UK') ? 'UK' : 'US'; }
+// Only US + UK exports exist; everything else must resolve to itself so
+// performance() can honestly return ok:false (never silently serve US numbers
+// for an IN/EU/AU/Global request — a confidently-wrong answer).
+function normMarket(m) {
+  const s = String(m || 'US').toUpperCase().replace(/[^A-Z]/g, '');
+  if (s === 'UK' || s === 'GB' || s === 'GBR' || s === 'UNITEDKINGDOM' || s === 'BRITAIN') return 'UK';
+  if (s === 'US' || s === 'USA' || s === 'AMERICA' || s === 'UNITEDSTATES' || s === '') return 'US';
+  return s; // IN, GLOBAL, EU, AU, ... -> unsupported -> ok:false downstream
+}
 function cur(market) { const d = data(); return (d.currency && d.currency[normMarket(market)]) || (normMarket(market) === 'UK' ? 'GBP' : 'USD'); }
 function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 function monthLabel(m) { return String(m || '').slice(0, 7); }         // 2026-07-01 -> 2026-07

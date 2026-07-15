@@ -83,7 +83,12 @@ async function upsert(url, key, rows) {
       method: 'POST', headers: { ...hdrs(key), Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify(batch),
     });
-    if (r.ok) n += batch.length;
+    // THROW on a failed batch so syncFromStorage does NOT delete the source dump
+    // (deleting after a partial/failed write would permanently drop events while
+    // reporting success). The caller's per-file try/catch records the error and
+    // leaves the file in the bucket for the next run to retry.
+    if (!r.ok) throw new Error(`webengage upsert ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`);
+    n += batch.length;
   }
   return n;
 }
