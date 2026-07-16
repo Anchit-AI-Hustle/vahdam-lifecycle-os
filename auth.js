@@ -40,7 +40,7 @@
       if (!d.querySelector('link[data-vh-theme]')) {
         var l = d.createElement('link');
         l.rel = 'stylesheet';
-        l.href = '/theme.css?v=20260706-greenlock';
+        l.href = '/theme.css?v=20260716-3d';
         l.setAttribute('data-vh-theme', '1');
         (d.head || d.documentElement).appendChild(l);
       }
