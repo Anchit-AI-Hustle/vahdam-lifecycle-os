@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VAHDAM — 3D Storefront</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<meta name="theme-color" content="#004A2B">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Proxima+Nova&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Intentionally NO auth.js: this is a public, sign-in-free 3D storefront demo. -->
+<style>
+  :root{
+    --green:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA;
+    --head:'Cormorant Garamond','Lao MN',Georgia,serif;
+    --body:'Proxima Nova','Inter','Helvetica Neue',Arial,sans-serif;
+    --panel:rgba(4,32,20,0.55); --panel-line:rgba(171,135,67,0.35);
+    --fg:var(--cream); --sub:#cfe0d5;
+  }
+  /* Light variation */
+  :root[data-variant="light"]{
+    --panel:rgba(255,255,255,0.72); --panel-line:rgba(171,135,67,0.4);
+    --fg:#171717; --sub:#4a544e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--body);background:#041b10;color:var(--fg);overflow:hidden}
+  :root[data-variant="light"] body{background:#eef3f0}
+  #stage{position:fixed;inset:0}
+  #gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+  #gl:active{cursor:grabbing}
+
+  .overlay{position:absolute;pointer-events:none;z-index:5}
+  .panel{background:var(--panel);border:1px solid var(--panel-line);border-radius:16px;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 20px 60px rgba(0,0,0,.35);pointer-events:auto}
+
+  /* Top bar */
+  .topbar{top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:18px 26px}
+  .brand{font-family:var(--head);font-weight:600;letter-spacing:.22em;font-size:22px;color:var(--fg)}
+  .brand small{display:block;font-family:var(--body);font-size:9px;letter-spacing:.4em;color:var(--gold);margin-top:-2px}
+  .topbar .right{display:flex;gap:10px;align-items:center}
+  .icobtn{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--fg);font-size:16px;text-decoration:none}
+  .cart{position:relative}
+  .cart .n{position:absolute;top:-4px;right:-4px;background:var(--gold);color:#0a1410;font-size:10px;font-weight:800;border-radius:99px;padding:1px 6px}
+
+  /* Collections rail */
+  .collections{top:96px;left:26px;width:210px;padding:14px}
+  .collections h4{font-family:var(--body);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:10px}
+  .collections button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--sub);font-family:var(--body);
+    font-size:14px;font-weight:600;padding:9px 12px;border-radius:9px;cursor:pointer;transition:all .15s}
+  .collections button:hover{color:var(--fg)}
+  .collections button.active{background:rgba(171,135,67,0.18);color:var(--fg)}
+
+  /* Hero eyebrow */
+  .hero{bottom:34px;left:26px;max-width:360px;padding:2px 4px}
+  .hero .eb{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:8px}
+  .hero h1{font-family:var(--head);font-size:38px;line-height:1.02;color:var(--fg);text-shadow:0 2px 20px rgba(0,0,0,.4)}
+  .hero p{color:var(--sub);font-size:13.5px;line-height:1.55;margin-top:8px}
+
+  /* Instant checkout */
+  .checkout{top:96px;right:26px;width:300px;padding:18px;display:flex;flex-direction:column;gap:12px}
+  .checkout .lab{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:800}
+  .checkout .thumb{width:100%;height:150px;border-radius:12px;background:#0a2a1c center/cover no-repeat;border:1px solid var(--panel-line)}
+  .checkout .nm{font-family:var(--head);font-size:20px;line-height:1.1;color:var(--fg)}
+  .checkout .pr{font-size:17px;font-weight:700;color:var(--gold)}
+  .checkout .qty{display:flex;align-items:center;gap:14px;font-size:14px;color:var(--fg)}
+  .checkout .qty button{width:30px;height:30px;border-radius:8px;border:1px solid var(--panel-line);background:transparent;color:var(--fg);font-size:16px;cursor:pointer}
+  .checkout .buy{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--gold);color:#0a1410;border:0;border-radius:12px;
+    padding:14px;font-family:var(--body);font-weight:800;font-size:15px;cursor:pointer;text-decoration:none}
+  .checkout .buy:hover{filter:brightness(1.05)}
+  .checkout .pw{font-size:10px;letter-spacing:.1em;color:var(--sub);text-align:center}
+
+  /* variation toggle */
+  .vartoggle{bottom:34px;right:26px;display:flex;gap:6px;padding:5px}
+  .vartoggle button{background:transparent;border:1px solid var(--panel-line);color:var(--sub);border-radius:8px;padding:7px 12px;font-family:var(--body);font-weight:700;font-size:12px;cursor:pointer}
+  .vartoggle button.active{background:var(--gold);color:#0a1410;border-color:var(--gold)}
+
+  /* loading + fallback */
+  #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;color:var(--gold);font-size:14px;letter-spacing:.05em}
+  #fallback{position:absolute;inset:0;z-index:15;overflow:auto;padding:90px 26px 40px;display:none}
+  #fallback.on{display:block}
+  #fallback h1{font-family:var(--head);font-size:34px;color:var(--fg);margin-bottom:14px}
+  #fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+  #fgrid a{display:block;background:var(--panel);border:1px solid var(--panel-line);border-radius:14px;overflow:hidden;text-decoration:none;color:var(--fg)}
+  #fgrid .im{height:150px;background:#0a2a1c center/cover no-repeat}
+  #fgrid .bd{padding:12px}
+  #fgrid .t{font-family:var(--head);font-size:17px}
+  #fgrid .p{color:var(--gold);font-weight:700;margin-top:4px}
+  @media (max-width:820px){ .collections,.checkout{position:static;width:auto;margin:0} .overlay.side{display:none} }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="gl"></canvas>
+
+  <div class="overlay topbar">
+    <div class="brand">VAHDAM<small>INDIA</small></div>
+    <div class="right">
+      <a class="icobtn panel" href="#" title="Search">&#9906;</a>
+      <a class="icobtn panel cart" href="#" title="Cart">&#128722;<span class="n" id="cartN">2</span></a>
+    </div>
+  </div>
+
+  <div class="overlay side panel collections" id="collections">
+    <h4>Collections</h4>
+    <div id="collist"></div>
+  </div>
+
+  <div class="overlay hero">
+    <div class="eb">Single-estate · Hand-picked</div>
+    <h1>Steep a moment that restores.</h1>
+    <p>Spin the collection. Tap a tin to bring it forward and check out in one tap.</p>
+  </div>
+
+  <div class="overlay side panel checkout" id="checkout">
+    <div class="lab">Instant Checkout</div>
+    <div class="thumb" id="coThumb"></div>
+    <div class="nm" id="coName">Select a product</div>
+    <div class="pr" id="coPrice"></div>
+    <div class="qty">Qty
+      <button id="qMinus" aria-label="decrease">&minus;</button>
+      <span id="qVal">1</span>
+      <button id="qPlus" aria-label="increase">+</button>
+    </div>
+    <a class="buy" id="coBuy" href="#" target="_blank" rel="noopener">Buy now &#9889;</a>
+    <div class="pw">Powered by Shopify</div>
+  </div>
+
+  <div class="overlay vartoggle panel">
+    <button data-v="dark" class="active">Dark</button>
+    <button data-v="light">Light</button>
+  </div>
+
+  <div id="loading">Steeping the storefront&hellip;</div>
+  <div id="fallback"><h1>VAHDAM Teas</h1><div id="fgrid"></div></div>
+</div>
+
+<script type="module">
+const THREE_CDN='https://esm.sh/three@0.169.0';
+const STORE_BASE='https://www.vahdamteas.com';
+const COLLECTIONS=['Best Sellers','Black Tea','Green Tea','Herbal Tea','Chai','Teaware','Gifts'];
+
+// Minimal, honest fallback (no fabricated prices/handles) — used only if the
+// live catalog fetch fails. Links go to the storefront, images are omitted.
+const FALLBACK=[
+  {title:'Turmeric Spiced Herbal Tea',price:'',img:null,url:STORE_BASE},
+  {title:'English Breakfast Black Tea',price:'',img:null,url:STORE_BASE},
+  {title:'Himalayan Green Tea',price:'',img:null,url:STORE_BASE},
+  {title:'Sweet Chamomile Herbal Tea',price:'',img:null,url:STORE_BASE},
+  {title:'Earl Grey Citrus Black Tea',price:'',img:null,url:STORE_BASE},
+  {title:"India's Original Masala Chai",price:'',img:null,url:STORE_BASE},
+];
+
+const $=id=>document.getElementById(id);
+const state={products:[],selected:0,qty:1};
+
+async function loadCatalog(){
+  try{
+    const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),9000);
+    const res=await fetch('/data/catalog/products_us.json',{signal:ctrl.signal,headers:{Accept:'application/json'}});
+    clearTimeout(t);
+    if(res.ok){
+      const list=await res.json();
+      if(Array.isArray(list)&&list.length){
+        return list.slice(0,10).map(p=>({
+          title:p.n||'',img:p.i||null,
+          price:p.price?(String(p.price).startsWith('$')?p.price:'$'+p.price):'',
+          url:`${STORE_BASE}/products/${p.h||''}`
+        }));
+      }
+    }
+  }catch(_){}
+  return FALLBACK;
+}
+
+function hasWebGL(){try{const c=document.createElement('canvas');return !!(c.getContext('webgl2')||c.getContext('webgl'));}catch(_){return false;}}
+
+function buildCollections(){
+  const wrap=$('collist');
+  wrap.innerHTML=COLLECTIONS.map((c,i)=>`<button class="${i===0?'active':''}" data-c="${i}">${c}</button>`).join('');
+  wrap.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    wrap.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  }));
+}
+
+function renderCheckout(){
+  const p=state.products[state.selected]; if(!p)return;
+  $('coName').textContent=p.title||'Select a product';
+  $('coPrice').textContent=p.price||'';
+  $('coThumb').style.backgroundImage=p.img?`url("${p.img}")`:'none';
+  $('coBuy').href=p.url||STORE_BASE;
+  $('qVal').textContent=state.qty;
+}
+
+function renderFallback(){
+  $('fallback').classList.add('on');
+  $('fgrid').innerHTML=state.products.map(p=>
+    `<a href="${p.url}" target="_blank" rel="noopener"><div class="im" style="${p.img?`background-image:url('${p.img}')`:''}"></div>
+      <div class="bd"><div class="t">${p.title}</div><div class="p">${p.price||'View'}</div></div></a>`).join('');
+}
+
+async function init(){
+  buildCollections();
+  state.products=await loadCatalog();
+  renderCheckout();
+
+  // qty + variation wiring (works in both 3D and 2D)
+  $('qMinus').onclick=()=>{state.qty=Math.max(1,state.qty-1);renderCheckout();};
+  $('qPlus').onclick=()=>{state.qty++;renderCheckout();};
+  document.querySelectorAll('.vartoggle button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.vartoggle button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    document.documentElement.setAttribute('data-variant',b.dataset.v);
+    if(scene) scene.background=new THREE.Color(b.dataset.v==='light'?0xeef3f0:0x041b10);
+  });
+
+  if(!hasWebGL()){ $('loading').style.display='none'; renderFallback(); return; }
+  try{ await start3D(); }
+  catch(e){ console.warn('[storefront-3d] falling back to 2D:',e); $('loading').style.display='none'; renderFallback(); }
+}
+
+let THREE, scene;
+async function start3D(){
+  THREE=await import(THREE_CDN);
+  const canvas=$('gl');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+  const size=()=>({w:innerWidth,h:innerHeight});
+  renderer.setSize(size().w,size().h,false);
+
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x041b10);
+  scene.fog=new THREE.Fog(0x041b10,9,26);
+
+  const camera=new THREE.PerspectiveCamera(42,size().w/size().h,0.1,100);
+  camera.position.set(0,0.6,9);
+
+  scene.add(new THREE.AmbientLight(0xffffff,0.7));
+  const key=new THREE.DirectionalLight(0xffe6b0,1.25);key.position.set(5,8,6);scene.add(key);
+  const rim=new THREE.PointLight(0x1f8a4d,0.7);rim.position.set(-7,-2,3);scene.add(rim);
+
+  // Pedestal ring
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(3.5,0.03,16,120),new THREE.MeshStandardMaterial({color:0xAB8743,metalness:0.7,roughness:0.3}));
+  ring.rotation.x=Math.PI/2;ring.position.y=-2.1;scene.add(ring);
+
+  const group=new THREE.Group();scene.add(group);
+  const loader=new THREE.TextureLoader();loader.crossOrigin='anonymous';
+  const panels=[];
+  const N=state.products.length;const R=3.4;
+  state.products.forEach((p,i)=>{
+    const ang=(i/N)*Math.PI*2;
+    const geo=new THREE.PlaneGeometry(1.7,2.15);
+    const mat=new THREE.MeshStandardMaterial({color:0xFBF5EA,roughness:0.35,metalness:0.05,side:THREE.DoubleSide});
+    if(p.img){loader.load(p.img,tex=>{mat.map=tex;mat.color.set(0xffffff);mat.needsUpdate=true;},undefined,()=>{});}
+    const m=new THREE.Mesh(geo,mat);
+    m.position.set(Math.sin(ang)*R,0,Math.cos(ang)*R);
+    m.userData={i};
+    group.add(m);panels.push(m);
+  });
+
+  // drag to rotate
+  let drag=false,px=0,vel=0,targetVel=0;
+  canvas.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;});
+  addEventListener('pointerup',()=>drag=false);
+  addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-px;px=e.clientX;targetVel=dx*0.005;group.rotation.y+=dx*0.005;});
+
+  // click to select (bring forward + update checkout)
+  const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+  canvas.addEventListener('click',e=>{
+    mouse.x=(e.clientX/innerWidth)*2-1;mouse.y=-(e.clientY/innerHeight)*2+1;
+    ray.setFromCamera(mouse,camera);
+    const hit=ray.intersectObjects(panels)[0];
+    if(hit){state.selected=hit.object.userData.i;state.qty=1;renderCheckout();
+      // rotate selected panel to the front (nearest angle to camera at z+)
+      const target=-(state.selected/N)*Math.PI*2;
+      group.userData.spin=target;}
+  });
+
+  addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
+
+  $('loading').style.display='none';
+  let last=0;
+  function frame(t){
+    const dt=Math.min((t-last)/1000||0,0.05);last=t;
+    if(!drag){
+      if(group.userData.spin!==undefined){
+        // ease toward selected-front
+        let d=group.userData.spin-group.rotation.y;group.rotation.y+=d*0.08;
+        if(Math.abs(d)<0.002){group.rotation.y=group.userData.spin;delete group.userData.spin;}
+      }else{
+        targetVel*=0.92;group.rotation.y+=0.0025+targetVel; // gentle idle spin
+      }
+    }
+    panels.forEach(m=>{ // billboard-ish: face outward already; add subtle bob
+      m.position.y=Math.sin(t/900+m.userData.i)*0.06;
+      m.lookAt(camera.position.x,m.position.y,camera.position.z);
+    });
+    ring.rotation.z+=0.0015;
+    renderer.render(scene,camera);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+init();
+</script>
+</body>
+</html>
