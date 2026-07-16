@@ -841,7 +841,7 @@
         #lifecycle-nav .lnav-brand:hover .lnav-mark,
         #lifecycle-nav .lnav-mbrand:hover .lnav-mark { filter: brightness(1.15) saturate(1.05); transform: translateY(-1px); }
         #lifecycle-nav .lnav-brand .lnav-bt { display: flex; flex-direction: column; line-height: 1.15; }
-        #lifecycle-nav .lnav-brand .lnav-bt b { font-family: 'Lora', serif; font-size: 14px; color: #FBF5EA; font-weight: 600; }
+        #lifecycle-nav .lnav-brand .lnav-bt b { font-family: 'Lora', serif; font-size: 14px; color: #004A2B; font-weight: 600; }
         #lifecycle-nav .lnav-brand .lnav-bt small { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #AB8743; }
         #lifecycle-nav .lnav-head { display: flex; align-items: center; gap: 6px; }
         #lifecycle-nav .lnav-head .lnav-brand { flex: 1; padding-right: 0; }
@@ -851,7 +851,7 @@
           color: #556059; cursor: pointer; font-size: 14px; line-height: 1;
           display: flex; align-items: center; justify-content: center; transition: all .12s;
         }
-        #lifecycle-nav .lnav-collapse:hover { border-color: #AB8743; color: #FBF5EA; }
+        #lifecycle-nav .lnav-collapse:hover { border-color: #AB8743; color: #171717; }
 
         /* ── Collapsed (icon-only) rail — desktop only ── */
         @media (min-width: 961px) {
@@ -938,13 +938,13 @@
         #lifecycle-nav .lnav-ghead {
           width: 100%; display: flex; align-items: center; gap: 11px;
           padding: 7px 11px; border: none; background: transparent; cursor: pointer;
-          font-family: inherit; font-size: 13px; color: #d3dbd5; text-align: left; border-radius: 9px;
+          font-family: inherit; font-size: 13px; color: #556059; text-align: left; border-radius: 9px;
         }
         #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #171717; }
         /* Parent of the active sub-item ALSO reads as selected, but LIGHTER than
            the sub-item: a gold-tint fill + faint gold accent, so both show and the
            sub-item stays the darker/stronger of the two. */
-        #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #FBF5EA; background: rgba(171,135,67,0.13); box-shadow: inset 3px 0 0 rgba(171,135,67,0.55); }
+        #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #004A2B; background: rgba(171,135,67,0.13); box-shadow: inset 3px 0 0 rgba(171,135,67,0.55); }
         #lifecycle-nav .lnav-group.active-group .lnav-ghead .lnav-ic { color: #AB8743; }
         #lifecycle-nav .lnav-caret { width: 15px; height: 15px; color: #48524c; transition: transform .18s; }
         #lifecycle-nav .lnav-group.open .lnav-caret { transform: rotate(180deg); }
@@ -963,8 +963,8 @@
           cursor: pointer; display: flex; align-items: center; justify-content: center;
           transition: all .12s; padding: 0;
         }
-        #lifecycle-nav .lnav-i:hover { border-color: #AB8743; color: #FBF5EA; }
-        #lifecycle-nav .lnav-i.on { background: rgba(171,135,67,0.2); border-color: #AB8743; color: #FBF5EA; }
+        #lifecycle-nav .lnav-i:hover { border-color: #AB8743; color: #171717; }
+        #lifecycle-nav .lnav-i.on { background: rgba(171,135,67,0.2); border-color: #AB8743; color: #171717; }
         #lifecycle-nav .lnav-info { display: none; margin: 2px 0 4px 8px; padding-left: 12px; border-left: 1px dashed rgba(171,135,67,0.28); }
         #lifecycle-nav .lnav-info.open { display: block; }
         #lifecycle-nav .lnav-info-item {
@@ -973,7 +973,7 @@
           font-family: inherit; font-size: 11.5px; color: #8b9c93;
           padding: 5px 8px; border-radius: 7px; transition: all .12s;
         }
-        #lifecycle-nav .lnav-info-item:hover { color: #FBF5EA; background: rgba(171,135,67,0.08); }
+        #lifecycle-nav .lnav-info-item:hover { color: #171717; background: rgba(171,135,67,0.08); }
         #lifecycle-nav .lnav-info-n {
           flex-shrink: 0; width: 15px; height: 15px; border-radius: 4px;
           background: rgba(171,135,67,0.14); color: #AB8743;
@@ -1006,7 +1006,7 @@
         }
         #lifecycle-nav .lnav-ipanel-title {
           font-family: 'Lora', Georgia, serif; font-size: 18px; font-weight: 600;
-          color: #FBF5EA; letter-spacing: -0.01em; flex: 1;
+          color: #171717; letter-spacing: -0.01em; flex: 1;
         }
         #lifecycle-nav .lnav-ipanel-htxt { flex: 1; min-width: 0; }
         #lifecycle-nav .lnav-ipanel-close {
@@ -1015,15 +1015,15 @@
           color: #556059; font-size: 15px; line-height: 1; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
         }
-        #lifecycle-nav .lnav-ipanel-close:hover { border-color: #AB8743; color: #FBF5EA; }
+        #lifecycle-nav .lnav-ipanel-close:hover { border-color: #AB8743; color: #171717; }
         #lifecycle-nav .lnav-ipanel-body {
           padding: 16px 20px 20px; overflow-y: auto; scrollbar-width: thin;
-          font-size: 13px; line-height: 1.65; color: #d3dbd5;
+          font-size: 13px; line-height: 1.65; color: #556059;
         }
         #lifecycle-nav .lnav-ipanel-body p { margin: 0 0 10px; }
         #lifecycle-nav .lnav-ipanel-q {
           font-family: 'Lora', Georgia, serif; font-size: 14.5px; font-weight: 600;
-          color: #FBF5EA; margin: 18px 0 6px; padding-top: 12px;
+          color: #171717; margin: 18px 0 6px; padding-top: 12px;
           border-top: 1px solid rgba(171,135,67,0.16);
         }
         #lifecycle-nav .lnav-ipanel-q:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
@@ -1048,7 +1048,7 @@
           content: ''; position: absolute; left: 10.5px; top: 26px; bottom: 2px;
           width: 1px; background: rgba(171,135,67,0.18);
         }
-        #lifecycle-nav .lnav-steps b { display: block; color: #FBF5EA; font-size: 12.5px; margin-bottom: 2px; }
+        #lifecycle-nav .lnav-steps b { display: block; color: #171717; font-size: 12.5px; margin-bottom: 2px; }
         #lifecycle-nav .lnav-steps .lnav-step-d { display: block; font-size: 12px; color: #556059; }
         #lifecycle-nav .lnav-steps .lnav-step-via {
           display: inline-block; margin-top: 4px; font-family: 'JetBrains Mono', monospace;
@@ -1068,8 +1068,8 @@
         #lifecycle-nav .lnav-uname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #lifecycle-nav .lnav-signout { background: transparent; border: 1px solid rgba(171,135,67,0.25);
           color: #556059; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 13px; flex-shrink: 0; }
-        #lifecycle-nav .lnav-signout:hover { border-color: #AB8743; color: #FBF5EA; }
-        #lifecycle-nav .lnav-signin { color: #AB8743; text-decoration: none; font-weight: 600; padding: 4px 8px; }
+        #lifecycle-nav .lnav-signout:hover { border-color: #AB8743; color: #171717; }
+        #lifecycle-nav .lnav-signin { color: #7a5f28; text-decoration: none; font-weight: 600; padding: 4px 8px; }
 
         @media (max-width: 960px) {
           #lifecycle-nav .lnav-mbar { display: flex; }
