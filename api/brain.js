@@ -528,6 +528,29 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         // secret needed, sends nothing, useful from the dashboard/console.
         return res.json({ ok: true, kind: 'anomaly-preview', anomalies: alerts.detectAnomalies(), thresholds: alerts.TH, recipient: alerts.ALERT_EMAIL() });
 =======
+      // ── ACCESS AUDIT NARRATIVE (strictly read-only) ─────────────────────
+      // Turns the CLIENT-derived audit findings into an executive summary.
+      // Reads only the posted report; issues no Shopify call, no mutation.
+      case 'access-narrative': {
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        const report = b.report || {};
+        if (!callLLM) return res.json({ ok: true, narrative: '' });
+        const policy = [
+          'You are writing an executive summary for a STRICTLY READ-ONLY Shopify access and application audit.',
+          'Rules: never suggest mutations, --allow-mutations, or write_* scopes; never tell anyone to invite/suspend/remove users or install/uninstall apps as if you are doing it.',
+          'Produce findings and recommendations ONLY, for a human to approve and implement separately.',
+          'Clearly separate observed fact, inferred finding, missing evidence, and recommended action.',
+          'Do not invent team, agency, purpose, cost, or justification data that is not in the report.',
+        ].join(' ');
+        const sys = policy + '\n\nWrite a concise executive summary (200-350 words): headline risk posture, the most material access findings, the most material app/cost findings, the estimated avoidable annual run-rate, and the top 5 prioritised recommendations. Use plain hyphens, no em dashes.';
+        let narrative = '';
+        try {
+          const out = await callLLM({ systemPrompt: sys, userMessage: 'AUDIT REPORT JSON:\n' + JSON.stringify(report).slice(0, 12000), maxTokens: 800, temperature: 0.3, timeoutMs: 35000, stage: 'access-audit' });
+          narrative = (typeof out === 'string' ? out : out.text || '').trim();
+        } catch (e) { return res.json({ ok: false, error: 'Provider error: ' + e.message }); }
+        return res.json({ ok: true, narrative });
+      }
+
       // ── SNOWFLAKE → SUPABASE MIRROR ──────────────────────────────────────
       // Webhook / pub-sub trigger for the daily Snowflake pull. Also runs off
       // the daily ?action=cron (below) so no 3rd Hobby-limited cron is added.

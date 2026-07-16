@@ -42,6 +42,8 @@
     { "source": "/os",         "destination": "/all-in-one.html" },
     { "source": "/dashboard-os","destination": "/all-in-one.html" },
     { "source": "/connectors", "destination": "/connectors.html" },
+    { "source": "/access-issues", "destination": "/access-issues.html" },
+    { "source": "/access", "destination": "/access-issues.html" },
     { "source": "/official-designs", "destination": "/official-designs.html" },
     { "source": "/store-3d", "destination": "/official-designs.html" },
     { "source": "/designs", "destination": "/official-designs.html" },
