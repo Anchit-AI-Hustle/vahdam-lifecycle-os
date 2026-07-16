@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Official Website Designs — VAHDAM Lifecycle OS</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/favicon.png">
+<meta name="theme-color" content="#004A2B">
+<style>
+  :root{--green:#004A2B;--gold:#AB8743;--ink:#171717;--cream:#FBF5EA;--muted:#6b7770}
+  *{box-sizing:border-box} body{margin:0;background:#0a1410;color:#e8ede9;font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;padding:28px}
+  .wrap{max-width:1180px;margin:0 auto}
+  .eyebrow{color:var(--gold);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:800}
+  h1{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:38px;line-height:1.05;margin:8px 0 10px}
+  p{color:#a7b5ad;line-height:1.55;max-width:720px}
+  .badge{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:3px 10px;font-size:11px;color:#d9c18f;margin-bottom:10px}
+  .stage{margin:22px 0;border:1px solid rgba(171,135,67,.18);border-radius:16px;overflow:hidden;background:#07100d;height:66vh;min-height:460px;position:relative}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+  .btn{border:0;border-radius:10px;background:var(--gold);color:#0a1410;padding:9px 14px;font-weight:800;cursor:pointer;font-family:inherit}
+  .btn.secondary{background:transparent;color:#e8ede9;border:1px solid rgba(171,135,67,.35)}
+  .note{font-size:12px;color:#9fb3a8;background:#0f1d18;border:1px solid rgba(171,135,67,.12);border-radius:12px;padding:14px;margin-top:16px;line-height:1.6}
+  .note b{color:#FBF5EA}
+</style>
+<script src="/auth.js?v=20260717" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">V2 · 3D Engine</div>
+  <div class="eyebrow">Official Website Designs</div>
+  <h1>The store, rebuilt as a 3D scene</h1>
+  <p>A true-to-brand replica of Vahdam's digital signature rendered as a continuous WebGL scene:
+     floating product panels, glassmorphic surfaces, brand-cloned colours and typography. Live
+     catalog and pricing come from the regional Shopify storefront; historical metrics come from the
+     Snowflake → Supabase daily mirror. On low-end / mobile / reduced-motion devices it degrades
+     automatically to a fast 2D brand layout so ad-traffic conversion is never sacrificed.</p>
+
+  <div class="controls">
+    <button class="btn" data-region="us">US store</button>
+    <button class="btn secondary" data-region="uk">UK store</button>
+    <button class="btn secondary" data-region="global">Global store</button>
+    <button class="btn secondary" id="toggleTier">Force 2D preview</button>
+  </div>
+
+  <div class="stage"><div data-vahdam3d data-region="us" id="mount" style="width:100%;height:100%"></div></div>
+
+  <div class="note">
+    <b>Powered by Vahdam3DConnectorEngine.</b> On the bundled React app it mounts as a context provider
+    (<code>marketing_automation/src/Vahdam3DConnectorEngine.tsx</code>); here on the static site it loads
+    through the no-build ESM bridge (<code>/assets/vahdam3d-bridge.js</code>). Meta-ads landers
+    (<code>try.vahdam.com</code>, <code>try.vahdam.co.uk</code>) auto-collapse the scene into a single-product
+    spatial checkout.
+  </div>
+</div>
+
+<script type="module">
+  import { mountVahdam3D } from '/assets/vahdam3d-bridge.js';
+  const mount = document.getElementById('mount');
+  let disposer = null, tier = null;
+  async function remount(region) {
+    if (typeof disposer === 'function') { try { disposer(); } catch(_){} }
+    mount.setAttribute('data-region', region);
+    disposer = await mountVahdam3D(mount, { region, tier });
+  }
+  document.querySelectorAll('[data-region]').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('[data-region]').forEach((x) => x.className = 'btn secondary');
+      b.className = 'btn';
+      remount(b.getAttribute('data-region'));
+    });
+  });
+  document.getElementById('toggleTier').addEventListener('click', (e) => {
+    tier = tier === '2d' ? null : '2d';
+    e.target.textContent = tier === '2d' ? 'Back to 3D' : 'Force 2D preview';
+    remount(mount.getAttribute('data-region') || 'us');
+  });
+  remount('us');
+</script>
+</body>
+</html>

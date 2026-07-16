@@ -248,6 +248,11 @@
     { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
+<<<<<<< Updated upstream
+=======
+    { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
+    { id: 'officialdesigns', label: 'Official Website Designs', href: '/official-designs', icon: 'vahdam', ver: 'v2', match: ['/official-designs', '/store-3d', '/designs', '/official-designs.html'] },
+>>>>>>> Stashed changes
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
@@ -576,6 +581,23 @@
         ['Design + layout + structure', 'Section architecture in the 4-colour palette with Lao MN / Proxima Nova; hero imagery via the image cascade.'],
         ['Coding', 'Compiles to a self-contained HTML page honouring the /lp/:id serving contract.'],
         ['Final compilation + presentation', 'Stored in landing_pages_generated and served live at /lp/:campaignId.', '/api/calendar?action=lp&id=…'],
+      ],
+    },
+    officialdesigns: {
+      title: 'Official Website Designs',
+      what: "A true-to-brand 3D replica of the Vahdam storefront and Meta-ads landers, rendered as a continuous WebGL scene of floating product panels and glassmorphic surfaces. Live catalog and pricing come from the regional Shopify storefront; historical metrics come from the Snowflake to Supabase daily mirror. It degrades automatically to a fast 2D brand layout on low-end, mobile, reduced-motion or crawler traffic so conversion is never sacrificed.",
+      who: "Shoppers across the US, UK and Global regions, plus paid-social traffic landing on try.vahdam.com and try.vahdam.co.uk — where the scene collapses into a single-product spatial checkout to minimise friction.",
+      how: "The Vahdam3DConnectorEngine (React context provider + data-orchestration middleware) resolves the region and lander from the hostname, connects Shopify and the Snowflake mirror, extracts the live theme colours and typography, injects them into the 3D materials and CSS custom properties, and renders the scene with three and react-three-fiber. Static pages mount the same engine through a no-build ESM bridge.",
+      input: "Nothing from you at view time — the hostname decides region and lander mode. Operators can force a region or a 2D preview on the showcase page.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'The spatial concept: floating mesh product panels over a unified viewport, brand-cloned lighting and surfaces.'],
+        ['Data analysis + review + hypothesis', 'Shopify catalog and pricing are the live source; the Snowflake mirror supplies historical metrics that shape which products lead.', '/api/brain?action=snowflake-metrics'],
+        ['Business & strategy decisions', 'Meta-ads landers isolate one product or bundle for zero-friction checkout; the full store shows the exploration constellation.'],
+        ['Content', 'Product copy and pricing pulled live per region, formatted to the correct currency.'],
+        ['Design + layout + structure', 'Live theme colours and Lao MN / Proxima Nova typography injected into shader uniforms and CSS variables for an exact brand replica.'],
+        ['Coding', 'Rendered with three and react-three-fiber in the React app; mounted on static pages via the ESM bridge, with an automatic 2D fallback.', '/assets/vahdam3d-bridge.js'],
+        ['Final compilation + presentation', 'Served as the Official Website Designs showcase and reused inside landing-page templates.', '/official-designs'],
       ],
     },
     social: {

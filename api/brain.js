@@ -45,7 +45,12 @@ const webengage = require('./_shared/webengage-core.js');
 const video = require('./_shared/video-core.js');
 const social = require('./_shared/social-core.js');
 const osb = require('./_shared/os-backbone.js');
+<<<<<<< Updated upstream
 const alerts = require('./_shared/alerts-core.js');
+=======
+let snowflake = null;
+try { snowflake = require('./_shared/snowflake-sync-core.js'); } catch (_) { snowflake = null; }
+>>>>>>> Stashed changes
 
 let callLLM = null;
 try { callLLM = require('./_shared/llm.js'); } catch (_) { callLLM = null; }
@@ -504,6 +509,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, reply });
       }
 
+<<<<<<< Updated upstream
       // ── ALERTS (revenue/number monitoring by email — _shared/alerts-core.js) ──
       // Anomaly runs NOW on real monthly market data. Pulse/EOD degrade cleanly
       // until INTRADAY_FEED_READY=1 (needs the live Shopify/Klaviyo feed, B3).
@@ -521,6 +527,28 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         // Read-only: what anomalies WOULD fire right now (no email). Open — no
         // secret needed, sends nothing, useful from the dashboard/console.
         return res.json({ ok: true, kind: 'anomaly-preview', anomalies: alerts.detectAnomalies(), thresholds: alerts.TH, recipient: alerts.ALERT_EMAIL() });
+=======
+      // ── SNOWFLAKE → SUPABASE MIRROR ──────────────────────────────────────
+      // Webhook / pub-sub trigger for the daily Snowflake pull. Also runs off
+      // the daily ?action=cron (below) so no 3rd Hobby-limited cron is added.
+      // Guarded exactly like ?action=cron. Returns a typed stub until
+      // SNOWFLAKE_* env is set (klaviyo-style { connected:false }).
+      case 'snowflake-sync': {
+        if (!snowflake) return res.status(501).json({ ok: false, error: 'snowflake core unavailable' });
+        if (!cronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+        return res.json(await snowflake.runSync({ region: (req.query || {}).region, source: b.source || 'manual' }));
+      }
+      // What the Vahdam3DConnectorEngine reads for its historical/metric tier.
+      case 'snowflake-metrics': {
+        if (!snowflake) return res.status(501).json({ ok: false, error: 'snowflake core unavailable' });
+        const out = await snowflake.readMirror({
+          region: String((req.query || {}).region || 'global').toLowerCase(),
+          metric: String((req.query || {}).metric || ''),
+          window: String((req.query || {}).window || ''),
+        });
+        if (!out.ok || !out.connected) return res.status(501).json(Object.assign({ ok: false }, out));
+        return res.json({ ok: true, rows: out.rows });
+>>>>>>> Stashed changes
       }
 
       // ── CRON: the daily automated loop ───────────────────────────────────
@@ -573,6 +601,10 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
           }
           steps.smart_brain_plan = { synced: true, mode: sync.mode, changes: (sync.changes || []).length, prebuild_kicked: prebuildKicked };
         } catch (e) { steps.smart_brain_plan = { error: e.message }; }
+        // Snowflake → Supabase daily mirror (historical/deep metrics for the
+        // Vahdam3DConnectorEngine). No-op stub when SNOWFLAKE_* env is unset.
+        try { steps.snowflake_sync = snowflake ? await snowflake.runSync({ source: 'cron' }) : { skipped: true }; }
+        catch (e) { steps.snowflake_sync = { error: e.message }; }
         const summary = { steps, ms: Date.now() - started };
         await core.logRun('cron', summary, true);
         return res.json({ ok: true, ...summary });
@@ -596,7 +628,11 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, ...(await osb.dashboard()) });
 
       default:
+<<<<<<< Updated upstream
         return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'webengage-sync', 'webengage-report', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+=======
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'snowflake-sync', 'snowflake-metrics', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+>>>>>>> Stashed changes
     }
   } catch (err) {
     console.error('[api/brain]', action, err);
