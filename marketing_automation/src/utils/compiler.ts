@@ -679,7 +679,7 @@ export function compileHTML(theme: ThemeContent, variant: FunnelVariant, baseOri
     }
 
     .btn-primary:hover {
-      background-color: #003635;
+      background-color: var(--color-brand);
       transform: translateY(-1px);
     }
 

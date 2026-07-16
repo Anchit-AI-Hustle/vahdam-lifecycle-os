@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+:root {
+  color: #171717;
+  background: #fbf5ea;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #fbf5ea;
+  color: #171717;
+}
+
+button,
+select,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, select, a):focus-visible {
+  outline: 3px solid #ab8743;
+  outline-offset: 3px;
+}
+
+::selection {
+  background: #ab8743;
+  color: #171717;
+}
