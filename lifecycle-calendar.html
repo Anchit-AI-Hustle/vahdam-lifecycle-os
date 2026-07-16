@@ -38,15 +38,15 @@
   .card { background:#ffffff; border:1px solid rgba(171,135,67,0.18); border-radius:12px; }
   .pill { display:inline-flex; align-items:center; gap:6px; font-size:10px; font-weight:600; padding:3px 9px; border-radius:99px; }
   .b-UK { background:rgba(234,88,12,0.15); color:#b45309; }
-  .co-A { background:rgba(59,130,246,0.12); color:#93c5fd; }
+  .co-A { background:rgba(59,130,246,0.12); color:#1d4ed8; }
   .co-B { background:rgba(34,197,94,0.12); color:#0a7d33; }
   .pt-coffee      { background:rgba(171,135,67,0.18); color:#AB8743; }
   .pt-tb          { background:rgba(34,197,94,0.12); color:#0a7d33; }
-  .pt-supplements { background:rgba(168,85,247,0.12); color:#d8b4fe; }
+  .pt-supplements { background:rgba(168,85,247,0.12); color:#7c3aed; }
   .pm-one  { color:#b45309; }
   .pm-sub  { color:#0a7d33; }
   .st-built { background:rgba(22,163,74,0.18); color:#0a7d33; }
-  .st-planned { background:rgba(148,163,184,0.12); color:#cbd5e1; }
+  .st-planned { background:rgba(148,163,184,0.12); color:#6b7770; }
   .day { background:#ffffff; border:1px solid rgba(171,135,67,0.18); border-radius:10px; padding:10px; min-height:96px; transition: border-color .15s; }
   .day:hover { border-color:rgba(171,135,67,0.35); cursor:pointer; }
   .day.festival { border-color: rgba(171,135,67,0.45); background: rgba(171,135,67,0.04); }
@@ -217,7 +217,7 @@ function analysisDetails(p) {
       '<div style="margin:3px 0;color:#171717"><b style="color:#AB8743">' + escAttr(d.signal) + ':</b> ' + escAttr(d.value) +
       (d.implication ? '<div style="font-size:10px;color:#556059">' + escAttr(d.implication) + '</div>' : '') + '</div>').join('');
     const factors = (a.confidence && a.confidence.factors || []).map((f) =>
-      '<div style="display:flex;justify-content:space-between;gap:8px;color:#171717"><span>' + escAttr(f.label) + '</span><span style="color:' + (f.delta >= 0 ? '#16a34a' : '#e89a9a') + '">' + (f.delta >= 0 ? '+' : '') + f.delta + '</span></div>').join('');
+      '<div style="display:flex;justify-content:space-between;gap:8px;color:#171717"><span>' + escAttr(f.label) + '</span><span style="color:' + (f.delta >= 0 ? '#16a34a' : '#b91c1c') + '">' + (f.delta >= 0 ? '+' : '') + f.delta + '</span></div>').join('');
     body =
       '<div style="font-size:11px;line-height:1.5;max-width:320px;color:#171717">' +
         drivers +

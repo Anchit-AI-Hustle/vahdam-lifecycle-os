@@ -32,6 +32,21 @@
   --vh-warn: #c9a227;
   --vh-err:  #b0483f;
 
+  /* ── US D2C Review design system (source: VAHDAM_USA_D2C_Dashboard.html) ──
+     The official business-review dashboard shares the same four brand colors,
+     LAO MN + Proxima Nova, and adds this semantic set. Its CANONICAL page
+     surface is brand CREAM (not #fff); dark ink text on cream is the reference
+     pairing. These tokens align the Lifecycle OS light theme to that review. */
+  --vh-surface:      #FBF5EA;  /* canonical light page surface (cream) */
+  --vh-surface-card: #ffffff;  /* cards sit slightly above the cream page */
+  --vh-panel-tan:    #eadfce;  /* tan info panel */
+  --vh-border-soft:  #cddbd2;  /* soft green-gray hairline */
+  --vh-pos:          #1a7f37;  /* positive / uptrend (AA on cream) */
+  --vh-neg:          #c0392b;  /* negative / downtrend (AA on cream) */
+  --vh-coffee:       #6f4e37;  /* coffee-category accent */
+  --vh-text-on-light:#171717;  /* body text on any light surface */
+  --vh-text-muted:   #556059;  /* secondary text on light */
+
   /* Type */
   --vh-font-head: 'Lora', 'Lao MN', Georgia, serif;
   --vh-font-body: 'Inter', 'Proxima Nova', system-ui, -apple-system, Segoe UI, sans-serif;

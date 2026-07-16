@@ -105,7 +105,7 @@
   (function(){
     "use strict";
     var A = window.VAHDAM_ANALYTICS;
-    if(!A){ document.getElementById('kpis').innerHTML = '<div class="card p-5" style="color:#ff8f7a">Analytics module not loaded.</div>'; return; }
+    if(!A){ document.getElementById('kpis').innerHTML = '<div class="card p-5" style="color:#b91c1c">Analytics module not loaded.</div>'; return; }
     var market = 'US';
     var symByCur = { USD:'$', GBP:'£' };
 
@@ -144,7 +144,7 @@
         bar.title = row.month + ': ' + money(row.sales) + (isPartial ? ' (partial)' : '');
         chart.appendChild(bar);
         var lab = document.createElement('div');
-        lab.style.flex = '1'; lab.style.textAlign = 'center'; lab.style.fontSize = '9px'; lab.style.color = '#8fa39a';
+        lab.style.flex = '1'; lab.style.textAlign = 'center'; lab.style.fontSize = '9px'; lab.style.color = '#6b7770';
         lab.textContent = row.month.slice(2, 7);
         labels.appendChild(lab);
       });
