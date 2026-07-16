@@ -144,9 +144,11 @@ export function resolveShopifyFirst(
 function setCssTheme(theme: ShopifyThemeSettings): void {
   if (typeof document === 'undefined') return;
   const style = document.documentElement.style;
-  style.setProperty('--vahdam-primary-green', theme.colors.primary);
-  style.setProperty('--vahdam-accent-gold', theme.colors.accent);
-  style.setProperty('--vahdam-body-font', JSON.stringify(theme.typography.bodyFamily));
+  // Single token contract (matches the architecture spec + Vahdam3DConnectorEngine):
+  // --vahdam-green / --vahdam-gold / --vahdam-font.
+  style.setProperty('--vahdam-green', theme.colors.primary);
+  style.setProperty('--vahdam-gold', theme.colors.accent);
+  style.setProperty('--vahdam-font', JSON.stringify(theme.typography.bodyFamily));
 }
 
 function loadTexture(url: string | undefined, signal: AbortSignal): Promise<Texture | null> {
