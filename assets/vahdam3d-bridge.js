@@ -80,12 +80,14 @@ function detectTier(override) {
 /* ── Brand CSS variable injection ─────────────────────────────────────────── */
 export function injectBrandCSSVars(theme) {
   const r = document.documentElement;
-  r.style.setProperty('--v3d-primary', theme.primary);
-  r.style.setProperty('--v3d-accent', theme.accent);
-  r.style.setProperty('--v3d-ink', theme.ink);
-  r.style.setProperty('--v3d-surface', theme.surface);
-  r.style.setProperty('--v3d-heading-font', theme.headingFont);
-  r.style.setProperty('--v3d-body-font', theme.bodyFont);
+  // Var names mirror the architecture spec (--vahdam-green/-gold/-font); values
+  // stay locked to the brand style guide.
+  r.style.setProperty('--vahdam-green', theme.primary);
+  r.style.setProperty('--vahdam-gold', theme.accent);
+  r.style.setProperty('--vahdam-ink', theme.ink);
+  r.style.setProperty('--vahdam-surface', theme.surface);
+  r.style.setProperty('--vahdam-head-font', theme.headingFont);
+  r.style.setProperty('--vahdam-font', theme.bodyFont);
 }
 
 /* ── Data: catalog (Shopify-built, same-origin) with public fallback ──────── */

@@ -154,11 +154,24 @@ export interface SpringPreset {
   mass: number;
 }
 
-/** Result of host parsing for multi-region + Meta-ads routing. */
+/** Live brand tokens surfaced with the route (shape mirrors the architecture spec). */
+export interface RouteThemeTokens {
+  primaryGreen: string;
+  accentGold: string;
+  bodyFont: string;
+}
+
+/**
+ * Result of host parsing for multi-region + Meta-ads routing.
+ * Field names mirror the architecture diagram's region resolver:
+ * { detectedRegion, isMetaLander, currency, themeTokens }.
+ */
 export interface RouteResolution {
   host: string;
-  region: Region;
+  detectedRegion: Region;
   isMetaLander: boolean;
+  currency: string;
+  themeTokens: RouteThemeTokens;
   /** When a lander, the single product/bundle handle to isolate (if in path). */
   isolatedHandle: string | null;
   storeBase: string;
@@ -335,8 +348,11 @@ export function parseRoute(
 
   return {
     host: cleanHost,
-    region,
+    detectedRegion: region,
     isMetaLander,
+    currency: STORE_DOMAINS[region].currency,
+    // Live brand tokens (values stay locked to the brand style guide).
+    themeTokens: { primaryGreen: BRAND.primary, accentGold: BRAND.accent, bodyFont: BRAND.bodyFont },
     isolatedHandle,
     storeBase: STORE_DOMAINS[region].storeBase,
   };
@@ -662,12 +678,14 @@ export class SnowflakeMirrorConnector {
 export function injectBrandCSSVars(theme: BrandTheme): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  root.style.setProperty('--v3d-primary', theme.primary);
-  root.style.setProperty('--v3d-accent', theme.accent);
-  root.style.setProperty('--v3d-ink', theme.ink);
-  root.style.setProperty('--v3d-surface', theme.surface);
-  root.style.setProperty('--v3d-heading-font', theme.headingFont);
-  root.style.setProperty('--v3d-body-font', theme.bodyFont);
+  // Var names mirror the architecture spec (--vahdam-green/-gold/-font); values
+  // stay locked to the brand style guide.
+  root.style.setProperty('--vahdam-green', theme.primary);
+  root.style.setProperty('--vahdam-gold', theme.accent);
+  root.style.setProperty('--vahdam-ink', theme.ink);
+  root.style.setProperty('--vahdam-surface', theme.surface);
+  root.style.setProperty('--vahdam-head-font', theme.headingFont);
+  root.style.setProperty('--vahdam-font', theme.bodyFont);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -714,8 +732,8 @@ export function Vahdam3DConnectorEngine({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<EngineError | null>(null);
 
-  const shopify = useMemo(() => new ShopifyStorefrontConnector(route.region), [route.region]);
-  const snowflake = useMemo(() => new SnowflakeMirrorConnector(route.region), [route.region]);
+  const shopify = useMemo(() => new ShopifyStorefrontConnector(route.detectedRegion), [route.detectedRegion]);
+  const snowflake = useMemo(() => new SnowflakeMirrorConnector(route.detectedRegion), [route.detectedRegion]);
 
   const refreshCatalog = useCallback(async () => {
     // Meta landers only need the single isolated product/bundle.
