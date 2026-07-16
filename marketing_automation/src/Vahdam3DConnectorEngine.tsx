@@ -76,6 +76,9 @@ export type Region = 'us' | 'uk' | 'global';
 /** Render tier resolved from device / environment capability detection. */
 export type RenderTier = '3d' | '2d';
 
+/** Theme variation: dark background + light text, or light background + dark text. */
+export type RenderVariant = 'dark' | 'light';
+
 /** Lifecycle of any single connector or the engine as a whole. */
 export type ConnectorPhase = 'idle' | 'connecting' | 'ready' | 'error' | 'stub';
 
@@ -151,11 +154,24 @@ export interface SpringPreset {
   mass: number;
 }
 
-/** Result of host parsing for multi-region + Meta-ads routing. */
+/** Live brand tokens surfaced with the route (shape mirrors the architecture spec). */
+export interface RouteThemeTokens {
+  primaryGreen: string;
+  accentGold: string;
+  bodyFont: string;
+}
+
+/**
+ * Result of host parsing for multi-region + Meta-ads routing.
+ * Field names mirror the architecture diagram's region resolver:
+ * { detectedRegion, isMetaLander, currency, themeTokens }.
+ */
 export interface RouteResolution {
   host: string;
-  region: Region;
+  detectedRegion: Region;
   isMetaLander: boolean;
+  currency: string;
+  themeTokens: RouteThemeTokens;
   /** When a lander, the single product/bundle handle to isolate (if in path). */
   isolatedHandle: string | null;
   storeBase: string;
@@ -175,6 +191,10 @@ export interface Vahdam3DContextValue {
   refreshCatalog: () => Promise<void>;
   triggerSnowflakeSync: () => Promise<EngineResult<{ queued: boolean }>>;
   springPreset: (name: keyof typeof FRAMER_SPRING_PRESETS) => SpringPreset;
+  variant: RenderVariant;
+  /** Resolved scene backdrop + foreground for the active variant. */
+  sceneBg: string;
+  sceneFg: string;
 }
 
 /** A unit of work for the data-orchestration middleware. */
@@ -191,6 +211,8 @@ export interface Vahdam3DConnectorEngineProps {
   regionOverride?: Region;
   /** Force a render tier (mostly for testing / storybook). */
   tierOverride?: RenderTier;
+  /** Theme variation: 'dark' (default) or 'light'. */
+  variant?: RenderVariant;
   /** Fill the whole viewport with the canvas. Default true. */
   fullViewport?: boolean;
   /** Render the 3D store scene as the provider's own child. Default true. */
@@ -326,8 +348,11 @@ export function parseRoute(
 
   return {
     host: cleanHost,
-    region,
+    detectedRegion: region,
     isMetaLander,
+    currency: STORE_DOMAINS[region].currency,
+    // Live brand tokens (values stay locked to the brand style guide).
+    themeTokens: { primaryGreen: BRAND.primary, accentGold: BRAND.accent, bodyFont: BRAND.bodyFont },
     isolatedHandle,
     storeBase: STORE_DOMAINS[region].storeBase,
   };
@@ -653,12 +678,14 @@ export class SnowflakeMirrorConnector {
 export function injectBrandCSSVars(theme: BrandTheme): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  root.style.setProperty('--v3d-primary', theme.primary);
-  root.style.setProperty('--v3d-accent', theme.accent);
-  root.style.setProperty('--v3d-ink', theme.ink);
-  root.style.setProperty('--v3d-surface', theme.surface);
-  root.style.setProperty('--v3d-heading-font', theme.headingFont);
-  root.style.setProperty('--v3d-body-font', theme.bodyFont);
+  // Var names mirror the architecture spec (--vahdam-green/-gold/-font); values
+  // stay locked to the brand style guide.
+  root.style.setProperty('--vahdam-green', theme.primary);
+  root.style.setProperty('--vahdam-gold', theme.accent);
+  root.style.setProperty('--vahdam-ink', theme.ink);
+  root.style.setProperty('--vahdam-surface', theme.surface);
+  root.style.setProperty('--vahdam-head-font', theme.headingFont);
+  root.style.setProperty('--vahdam-font', theme.bodyFont);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -685,9 +712,12 @@ export function Vahdam3DConnectorEngine({
   children,
   regionOverride,
   tierOverride,
+  variant = 'dark',
   fullViewport = true,
   renderScene = true,
 }: Vahdam3DConnectorEngineProps) {
+  const sceneBg = variant === 'light' ? '#ffffff' : BRAND.ink;
+  const sceneFg = variant === 'light' ? BRAND.ink : BRAND.surface;
   const route = useMemo<RouteResolution>(() => {
     if (typeof window === 'undefined') {
       return parseRoute('www.vahdamteas.com', '/', regionOverride);
@@ -702,8 +732,8 @@ export function Vahdam3DConnectorEngine({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<EngineError | null>(null);
 
-  const shopify = useMemo(() => new ShopifyStorefrontConnector(route.region), [route.region]);
-  const snowflake = useMemo(() => new SnowflakeMirrorConnector(route.region), [route.region]);
+  const shopify = useMemo(() => new ShopifyStorefrontConnector(route.detectedRegion), [route.detectedRegion]);
+  const snowflake = useMemo(() => new SnowflakeMirrorConnector(route.detectedRegion), [route.detectedRegion]);
 
   const refreshCatalog = useCallback(async () => {
     // Meta landers only need the single isolated product/bundle.
@@ -803,8 +833,11 @@ export function Vahdam3DConnectorEngine({
       refreshCatalog,
       triggerSnowflakeSync,
       springPreset,
+      variant,
+      sceneBg,
+      sceneFg,
     }),
-    [phase, route, theme, tier, products, loading, error, resolveData, refreshCatalog, triggerSnowflakeSync, springPreset],
+    [phase, route, theme, tier, products, loading, error, resolveData, refreshCatalog, triggerSnowflakeSync, springPreset, variant, sceneBg, sceneFg],
   );
 
   return (
@@ -887,7 +920,7 @@ function CanvasLoader() {
 }
 
 function ThreeStoreScene() {
-  const { theme, route, products, loading } = useVahdam3D();
+  const { theme, route, products, loading, sceneBg } = useVahdam3D();
   const primary = new THREE.Color(theme.primary);
   const accent = new THREE.Color(theme.accent);
 
@@ -901,8 +934,8 @@ function ThreeStoreScene() {
       style={{ background: 'transparent' }}
       shadows
     >
-      <color attach="background" args={[theme.ink]} />
-      <fog attach="fog" args={[theme.ink, 8, 24]} />
+      <color attach="background" args={[sceneBg]} />
+      <fog attach="fog" args={[sceneBg, 8, 24]} />
       <AdaptiveDpr pixelated />
       <PerspectiveCamera makeDefault position={[0, 0.4, route.isMetaLander ? 5 : 8]} fov={45} />
 
@@ -1095,25 +1128,26 @@ function PanelCard({
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 function Fallback2DStore() {
-  const { products, theme, route, loading, error } = useVahdam3D();
+  const { products, theme, route, loading, error, sceneBg, sceneFg } = useVahdam3D();
   const list = route.isMetaLander ? products.slice(0, 1) : products.slice(0, 12);
+  const subFg = sceneFg === theme.ink ? '#556059' : `${theme.surface}aa`;
   return (
     <div
       style={{
         width: '100%',
         minHeight: '100%',
-        background: theme.ink,
-        color: theme.surface,
+        background: sceneBg,
+        color: sceneFg,
         fontFamily: theme.bodyFont,
         padding: '48px 24px',
         boxSizing: 'border-box',
       }}
     >
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <h1 style={{ fontFamily: theme.headingFont, color: theme.surface, fontSize: 34, marginBottom: 6 }}>
+        <h1 style={{ fontFamily: theme.headingFont, color: sceneFg, fontSize: 34, marginBottom: 6 }}>
           {route.isMetaLander ? 'Your ritual, one tap away' : 'Vahdam Teas'}
         </h1>
-        <p style={{ color: `${theme.surface}aa`, marginBottom: 28, maxWidth: 560 }}>
+        <p style={{ color: subFg, marginBottom: 28, maxWidth: 560 }}>
           {route.isMetaLander
             ? 'A single, considered choice. Fast checkout, nothing in the way.'
             : 'Single-estate, hand-picked. Steep a moment that restores.'}

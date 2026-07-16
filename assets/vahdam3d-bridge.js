@@ -80,12 +80,14 @@ function detectTier(override) {
 /* ── Brand CSS variable injection ─────────────────────────────────────────── */
 export function injectBrandCSSVars(theme) {
   const r = document.documentElement;
-  r.style.setProperty('--v3d-primary', theme.primary);
-  r.style.setProperty('--v3d-accent', theme.accent);
-  r.style.setProperty('--v3d-ink', theme.ink);
-  r.style.setProperty('--v3d-surface', theme.surface);
-  r.style.setProperty('--v3d-heading-font', theme.headingFont);
-  r.style.setProperty('--v3d-body-font', theme.bodyFont);
+  // Var names mirror the architecture spec (--vahdam-green/-gold/-font); values
+  // stay locked to the brand style guide.
+  r.style.setProperty('--vahdam-green', theme.primary);
+  r.style.setProperty('--vahdam-gold', theme.accent);
+  r.style.setProperty('--vahdam-ink', theme.ink);
+  r.style.setProperty('--vahdam-surface', theme.surface);
+  r.style.setProperty('--vahdam-head-font', theme.headingFont);
+  r.style.setProperty('--vahdam-font', theme.bodyFont);
 }
 
 /* ── Data: catalog (Shopify-built, same-origin) with public fallback ──────── */
@@ -140,10 +142,10 @@ function render2D(el, products, route, theme) {
   el.innerHTML = '';
   const wrap = document.createElement('div');
   wrap.setAttribute('data-v3d-tier', '2d');
-  wrap.style.cssText = `background:${theme.ink};color:${theme.surface};font-family:${theme.bodyFont};padding:40px 22px;border-radius:16px;`;
+  wrap.style.cssText = `background:${theme.sceneBg || theme.ink};color:${theme.sceneFg || theme.surface};font-family:${theme.bodyFont};padding:40px 22px;border-radius:16px;`;
   const h = document.createElement('h2');
   h.textContent = route.isMetaLander ? 'Your ritual, one tap away' : 'Vahdam Teas';
-  h.style.cssText = `font-family:${theme.headingFont};font-size:30px;margin:0 0 6px;color:${theme.surface};`;
+  h.style.cssText = `font-family:${theme.headingFont};font-size:30px;margin:0 0 6px;color:${theme.sceneFg || theme.surface};`;
   wrap.appendChild(h);
   const grid = document.createElement('div');
   grid.style.cssText = `display:grid;grid-template-columns:${route.isMetaLander ? '1fr' : 'repeat(auto-fill,minmax(210px,1fr))'};gap:16px;margin-top:22px;`;
@@ -174,8 +176,8 @@ async function render3D(el, products, route, theme) {
   const height = el.clientHeight || 520;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(theme.ink);
-  scene.fog = new THREE.Fog(new THREE.Color(theme.ink).getHex(), 9, 26);
+  scene.background = new THREE.Color(theme.sceneBg || theme.ink);
+  scene.fog = new THREE.Fog(new THREE.Color(theme.sceneBg || theme.ink).getHex(), 9, 26);
 
   const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
   camera.position.set(0, 0.5, route.isMetaLander ? 5 : 8);
@@ -268,6 +270,14 @@ async function render3D(el, products, route, theme) {
 export async function mountVahdam3D(el, opts) {
   opts = opts || {};
   const theme = Object.assign({}, BRAND, opts.theme || {});
+  // Both variations: 'dark' (dark background + light text) and 'light'
+  // (light background + dark text). Product panels stay cream-with-dark-text in
+  // both (high contrast either way); only the scene backdrop + headings flip.
+  const variant = String(opts.variant || el.getAttribute('data-variant') || 'dark').toLowerCase();
+  theme.variant = variant;
+  theme.sceneBg = variant === 'light' ? '#ffffff' : theme.ink;
+  theme.sceneFg = variant === 'light' ? theme.ink : theme.surface;
+  theme.sceneSub = variant === 'light' ? '#556059' : (theme.surface + 'aa');
   injectBrandCSSVars(theme);
 
   const regionHint = opts.region || el.getAttribute('data-region') || null;

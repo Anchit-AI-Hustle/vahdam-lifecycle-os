@@ -284,6 +284,7 @@
 
     { section: 'Settings' },
     { id: 'connectors', label: 'Connectors', href: '/connectors', icon: 'insights', ver: 'v2', match: ['/connectors', '/connectors.html'] },
+    { id: 'accessissues', label: 'Access Issues', href: '/access-issues', icon: 'insights', ver: 'v2', match: ['/access-issues', '/access', '/access-issues.html'] },
 
     // ── "Aman's version" (aka "Aman's code") — the frozen 3 Jul 2026 build ──
     // Hidden from the rail per product-owner request, but KEPT as a feature: the
@@ -598,6 +599,23 @@
         ['Design + layout + structure', 'Live theme colours and Lao MN / Proxima Nova typography injected into shader uniforms and CSS variables for an exact brand replica.'],
         ['Coding', 'Rendered with three and react-three-fiber in the React app; mounted on static pages via the ESM bridge, with an automatic 2D fallback.', '/assets/vahdam3d-bridge.js'],
         ['Final compilation + presentation', 'Served as the Official Website Designs showcase and reused inside landing-page templates.', '/official-designs'],
+      ],
+    },
+    accessissues: {
+      title: 'Access Issues',
+      what: "A strictly read-only audit of Shopify account access and installed apps. It runs entirely in the browser over evidence you provide (user, role, group and activity CSV exports, an app register, login history, and HR/agency/contract context), aggregates effective access per user, and flags unnecessary users, excessive permissions, unused apps, duplicate functionality, security concerns, and avoidable cost. It emits findings and recommendations only.",
+      who: "The operator and store owner. Read-only by architecture: it never authenticates to Shopify, never issues a GraphQL mutation, never requests a write scope, and cannot invite, suspend, remove, install or uninstall anything. Remediation stays with a human who approves and implements separately.",
+      how: "Model A (offline audit): an authorized admin exports the CSVs and captures read-only app, billing and login evidence; this tool parses it locally and derives findings. Model B (controlled live read-only via Shopify CLI with read_* scopes only, no --allow-mutations) is run externally and its JSON pasted in as evidence. A governing read-only policy is applied to any AI narrative step.",
+      input: "Shopify user CSV (required), plus optional role CSV, group CSV, activity-log CSV, app register (CSV/JSON), login-history JSON, and free-text HR/agency/contract context.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'Least-privilege and no-change-by-architecture: the audit can never modify the account.'],
+        ['Data analysis + review + hypothesis', 'Parses the exports locally, aggregates rows by user ID, and joins user to role to effective permissions and store access.'],
+        ['Business & strategy decisions', 'Separates observed fact, inferred finding, missing evidence, and recommended action for every flag; never guesses missing justification.'],
+        ['Content', 'Applies the rule engine: unnecessary users, excessive permissions, unused apps, duplicate functionality, security concerns, and an avoidable annual cost run-rate.'],
+        ['Design + layout + structure', 'Renders a light, high-contrast findings dashboard with severity-ranked cards and exportable report.'],
+        ['Coding', 'Runs client-side; an optional AI executive summary posts only the derived findings under a strict read-only policy.', '/api/brain?action=access-narrative'],
+        ['Final compilation + presentation', 'Findings and recommendations only; a human approves and implements any remediation.', '/access-issues'],
       ],
     },
     social: {
