@@ -1245,7 +1245,13 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   // already built this slot — approval then just locks + publishes, no wait, no
   // regeneration (so what the reviewer saw in preview is exactly what ships).
   let campaign = null;
-  const prebuiltId = reuseCampaignId(entry, row);
+  // Approval publishes ship-ready assets, so REUSE only a FULL prebuilt bundle
+  // (__prebuilt) — never the hero-only __preview draft. If a slot has only a
+  // __preview cache, rebuild below so the shipped campaign has the full creative
+  // set, not the preview-level one.
+  const prebuiltId = (entry && entry[PREBUILD_MARKER] && entry[PREBUILD_MARKER].campaign_id)
+    || (row && row.payload && row.payload[PREBUILD_MARKER] && row.payload[PREBUILD_MARKER].campaign_id)
+    || null;
   if (db.connected && prebuiltId) {
     const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${prebuiltId}` }, limit: 1 }).catch(() => []);
     if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;

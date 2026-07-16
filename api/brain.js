@@ -363,6 +363,12 @@ module.exports = async function handler(req, res) {
         const out = await webengage.syncFromStorage({ bucket: req.query.bucket });
         return res.json(out);
       }
+      case 'connectors-health': {
+        // REAL live probe of every data platform (Shopify/Klaviyo/WebEngage/
+        // Supabase) — actual round-trips, honest live/blocked + the exact blocker.
+        const health = require('./_shared/connectors-health.js');
+        return res.json(await health.health());
+      }
       case 'webengage-report': {
         const op = (req.query.op || 'campaigns').toLowerCase();
         const hours = parseInt(req.query.hours || '24', 10) || 24;
