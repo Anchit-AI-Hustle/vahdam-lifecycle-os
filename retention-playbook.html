@@ -39,8 +39,8 @@
   td{padding:12px 12px;border-bottom:1px solid rgba(171,135,67,.12);vertical-align:top}
   td.obj{font-weight:600;color:#fff;max-width:220px}
   td .sub{color:var(--muted);font-size:12px}
-  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#7a5f2c}
-  .slotbadge{display:inline-block;background:#2a2411;color:#7a5f2c;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700}
+  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#7a5f28}
+  .slotbadge{display:inline-block;background:#2a2411;color:#7a5f28;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700}
   .note{color:var(--muted);font-size:12.5px}
 </style>
 <script src="/auth.js?v=20260712" defer></script>
@@ -162,7 +162,7 @@
   window.runAgenticSync=function(){
     var btn=$('syncbtn'), st=$('engstatus'), dot=$('engdot'), bar=$('engbar'), msg=$('engmsg');
     if(btn){ btn.disabled=true; btn.textContent='Running…'; }
-    if(dot) dot.style.background='#7a5f2c';
+    if(dot) dot.style.background='#7a5f28';
     if(st) st.textContent='running · '+agenticMarket();
     if(bar) bar.style.display='';
     if(msg) msg.textContent='Inspecting data, calculating funnel math, planning the calendar and writing content…';
