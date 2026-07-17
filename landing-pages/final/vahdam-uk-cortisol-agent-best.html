@@ -162,19 +162,24 @@
     .section-head h2 { font-size: clamp(30px, 4.6vw, 46px); margin-bottom: 14px; }
     .section-head p { font-size: 17px; }
 
-    /* Problem grid */
+    /* Problem grid. Keep this section self-contained so host/preview themes
+       cannot put light text on a light canvas. */
+    .problem-section { background: var(--moss-dk); color: var(--cream); }
+    .problem-section .section-kicker { color: var(--gold-li); }
+    .problem-section .section-head h2 { color: var(--white); }
+    .problem-section .section-head p { color: var(--cream); }
     .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 920px; margin: 0 auto; }
     .problem-card {
-      border: 1px solid var(--line); border-radius: var(--radius);
-      background: rgba(255,255,255,0.03); padding: 20px 22px;
+      border: 1px solid rgba(227,200,121,0.62); border-radius: var(--radius);
+      background: var(--moss-deep); padding: 20px 22px;
       display: flex; gap: 13px; align-items: flex-start;
     }
-    .problem-card .x { color: var(--red-x); font-size: 20px; line-height: 1; flex: none; }
+    .problem-card .x { color: #ff8c82; font-size: 20px; line-height: 1; flex: none; }
     .problem-card b { color: var(--white); }
-    .problem-card span { font-size: 15px; color: var(--cream-soft); }
+    .problem-card span { font-size: 16px; color: var(--cream); line-height: 1.55; }
     .problem-pull {
       max-width: 720px; margin: 32px auto 0; text-align: center;
-      font-size: 19px; font-weight: 800; color: var(--white); line-height: 1.4;
+      font-size: 19px; font-weight: 800; color: var(--white); line-height: 1.5;
     }
     .problem-pull em { color: var(--gold-li); font-style: normal; }
 
@@ -489,7 +494,7 @@
     </div>
 
     <!-- PROBLEM / AGITATION -->
-    <section>
+    <section class="problem-section">
       <div class="container">
         <div class="section-head">
           <div class="section-kicker">The real reason</div>

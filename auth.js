@@ -255,7 +255,8 @@
       { id: 'ads-google',  label: 'Google Ads', href: '/ad-campaigns.html#google',   icon: 'google' },
       { id: 'ads-tiktok',  label: 'TikTok Ads', href: '/ad-campaigns.html#tiktok',   icon: 'tiktok' },
     ]},
-    { group: 'Landing Pages', icon: 'landing', gid: 'landing', ver: 'v1', children: [
+    { group: 'Website Designs', icon: 'landing', gid: 'landing', ver: 'v1', children: [
+      { id: 'lp-overview', label: 'Designs Overview', href: '/landing-pages', icon: 'landing', match: ['/landing', '/landing-pages', '/landing-pages.html'] },
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
       { id: 'lp-agent',   label: 'Landing Page with All-In-One Voice+Chat+Talk Agent',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
       { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages.html#mailers',  icon: 'mailer' },
