@@ -8,6 +8,7 @@
   "trailingSlash": false,
   "functions": {
     "api/ai/generate.js":          { "maxDuration": 60 },
+    "api/ai/landing-page.js":      { "maxDuration": 120 },
     "api/ai/image.js":             { "maxDuration": 120 },
     "api/brain.js":                { "maxDuration": 120 },
     "api/ai/pipeline/strategy.js": { "maxDuration": 45 },
