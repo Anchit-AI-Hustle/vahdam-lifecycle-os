@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { THEMES, FUNNEL_VARIANTS, compileHTML } from './utils/compiler';
 import { ThemeContent, FunnelVariant } from './types';
-import { 
-  CheckCircle2, 
-  Copy, 
-  ExternalLink, 
-  Sparkles, 
-  BookOpen, 
-  Download, 
-  Eye, 
-  FileCode, 
-  ChevronRight, 
-  Mail, 
-  Layers, 
-  Smartphone, 
-  Monitor, 
+import {
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  Sparkles,
+  BookOpen,
+  Download,
+  Eye,
+  FileCode,
+  ChevronRight,
+  Mail,
+  Layers,
+  Smartphone,
+  Monitor,
   Zap,
   Flame,
   Award,
@@ -47,7 +47,7 @@ const AD_CAMPAIGN_TEMPLATES: AdCopyTemplate[] = [
     angleName: "Face Puffiness & Water Retention",
     targetInterests: ["Waking Puffiness", "Lymphatic Drainage Specialists", "Gua Sha Enthusiasts", "Morning Face Routine", "Organic Wellness"],
     metaHook: "Waking up with swelling cheeks & heavy eyes? 🤢 Read this.",
-    metaBody: `Elevated waking cortisol acts like a biological water trap, pooling fluid directly in your cheeks and jawline every morning. Standard high-acid coffee caffeine actually makes it WORSE by triggering immediate cortisol alarms. 
+    metaBody: `Elevated waking cortisol acts like a biological water trap, pooling fluid directly in your cheeks and jawline every morning. Standard high-acid coffee caffeine actually makes it WORSE by triggering immediate cortisol alarms.
 
 Switch your routine to VAHDAM® Ashwagandha Adaptogen Coffee instead. Our premium formula balances high-altitude Arabica with clinical-grade KSM-66 to buffer morning cortisol spikes and flush systemic water retention naturally. re-contour your facial profile!`,
     metaCTA: "Buy Now - Claim Free Electric Frother Wand & 40% Off",
@@ -79,7 +79,7 @@ Stop standard caffeinated spikes that lock your metabolism! Switch to VAHDAM® A
     angleName: "Anxiety, Jitters & Coffee Crashes",
     targetInterests: ["High Caffeine Sensitivity", "Caffeine Jitters Alert", "Stress Relief Hacks", "Brain Fog & ADHD Hacks", "Alternative Clean Energy"],
     metaHook: "Love gourmet coffee flavor but terrified of the 3 PM crash? ☕",
-    metaBody: `Standard commercial instant coffees release caffeine into your blood in an aggressive, concentrated surge. This triggers adrenaline panics, sweaty palms, and that major 3 PM afternoon sleepiness collapse. 
+    metaBody: `Standard commercial instant coffees release caffeine into your blood in an aggressive, concentrated surge. This triggers adrenaline panics, sweaty palms, and that major 3 PM afternoon sleepiness collapse.
 
 VAHDAM® India blends AA-grade sun-dried coffee with calming L-Theanine, Lion's Mane, and standardized KSM-66 Ashwagandha. It buffers absorption curves to deliver a stable, silky 6 hours of compose, laser focus with absolute safety. No racing hearts, no panic.`,
     metaCTA: "Claim Barista-Grade Flavor and Zero Jitters (40% Off Order)",
@@ -176,42 +176,42 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#222222] flex flex-col font-sans">
-      
+    <div className="min-h-screen bg-[#FBF5EA] text-[#171717] flex flex-col font-sans">
+
       {/* Dynamic Navigation Header */}
-      <header className="bg-[#004B49] text-white border-b border-[#D4A373]/20 py-4 px-6 sticky top-0 z-50 shadow-md">
+      <header className="bg-[#004A2B] text-white border-b border-[#AB8743] py-4 px-6 sticky top-0 z-50 shadow-md">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center justify-between w-full md:w-auto">
             <div className="flex items-center gap-3">
-              <span className="p-2 bg-[#D4A373] rounded-lg text-[#004B49] font-bold shadow-inner animate-pulse">
+              <span className="p-2 bg-[#AB8743] rounded-lg text-[#171717] font-bold shadow-inner animate-pulse">
                 <Sparkles className="w-6 h-6" />
               </span>
               <div>
                 <h1 className="text-xl font-bold tracking-tight uppercase font-serif">VAHDAM India</h1>
-                <p className="text-xs text-[#D4A373] font-mono tracking-wider">LIFECYCLE OS &bull; Campaign Suite</p>
+                <p className="text-xs text-[#FBF5EA] font-mono tracking-wider">LIFECYCLE OS &bull; Campaign Suite</p>
               </div>
             </div>
-            
+
             {/* Core back-link on mobile preview */}
-            <a 
-              href="https://vahdam-lifecycle-os.vercel.app/" 
-              target="_blank" 
+            <a
+              href="https://vahdam-lifecycle-os.vercel.app/"
+              target="_blank"
               rel="noopener noreferrer"
-              className="md:hidden flex items-center gap-1 px-2.5 py-1 text-xs rounded border border-[#D4A373]/40 text-[#D4A373] hover:text-white hover:border-[#D4A373] font-mono transition-all bg-[#0B4A47]"
+              className="md:hidden flex items-center gap-1 px-2.5 py-1 text-xs rounded border border-[#AB8743] text-[#FBF5EA] hover:text-white hover:border-white font-mono transition-all bg-[#004A2B]"
               id="back-to-vercel-mobile"
             >
               <Globe className="w-3.5 h-3.5 animate-spin-slow" />
               <span>Core OS</span>
             </a>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setActiveTab('landing')}
               className={`px-4 py-2 text-sm font-semibold rounded-md transition-all flex items-center gap-2 ${
-                activeTab === 'landing' 
-                  ? 'bg-[#D4A373] text-[#004B49] shadow-sm font-medium' 
-                  : 'hover:bg-white/10 text-white/90'
+                activeTab === 'landing'
+                  ? 'bg-[#AB8743] text-[#171717] shadow-sm font-medium'
+                  : 'hover:bg-white/10 text-white'
               }`}
               id="nav-landing-hub-tab"
             >
@@ -221,9 +221,9 @@ export default function App() {
             <button
               onClick={() => setActiveTab('ads')}
               className={`px-4 py-2 text-sm font-semibold rounded-md transition-all flex items-center gap-2 ${
-                activeTab === 'ads' 
-                  ? 'bg-[#D4A373] text-[#004B49] shadow-sm font-medium' 
-                  : 'hover:bg-white/10 text-white/90'
+                activeTab === 'ads'
+                  ? 'bg-[#AB8743] text-[#171717] shadow-sm font-medium'
+                  : 'hover:bg-white/10 text-white'
               }`}
               id="nav-campaign-ads-tab"
             >
@@ -233,9 +233,9 @@ export default function App() {
             <button
               onClick={() => setActiveTab('mailer')}
               className={`px-4 py-2 text-sm font-semibold rounded-md transition-all flex items-center gap-2 ${
-                activeTab === 'mailer' 
-                  ? 'bg-[#D4A373] text-[#004B49] shadow-sm font-medium' 
-                  : 'hover:bg-white/10 text-white/90'
+                activeTab === 'mailer'
+                  ? 'bg-[#AB8743] text-[#171717] shadow-sm font-medium'
+                  : 'hover:bg-white/10 text-white'
               }`}
               id="nav-mailer-matrix-tab"
             >
@@ -245,8 +245,8 @@ export default function App() {
             <button
               onClick={() => setActiveTab('automation')}
               className={`px-4 py-2 text-sm font-semibold rounded-md transition-all flex items-center gap-2 ${
-                activeTab === 'automation' 
-                  ? 'bg-[#D4A373] text-[#004B49] shadow-sm' 
+                activeTab === 'automation'
+                  ? 'bg-[#AB8743] text-[#171717] shadow-sm'
                   : 'hover:bg-white/10 text-white'
               }`}
               id="nav-automation-prd-tab"
@@ -257,8 +257,8 @@ export default function App() {
             <button
               onClick={() => setActiveTab('prompt')}
               className={`px-4 py-2 text-sm font-semibold rounded-md transition-all flex items-center gap-2 ${
-                activeTab === 'prompt' 
-                  ? 'bg-[#D4A373] text-[#004B49] shadow-sm' 
+                activeTab === 'prompt'
+                  ? 'bg-[#AB8743] text-[#171717] shadow-sm'
                   : 'hover:bg-white/10 text-white'
               }`}
               id="nav-master-prompts-tab"
@@ -268,11 +268,11 @@ export default function App() {
             </button>
 
             {/* Core backlink on desktop view */}
-            <a 
-              href="https://vahdam-lifecycle-os.vercel.app/" 
-              target="_blank" 
+            <a
+              href="https://vahdam-lifecycle-os.vercel.app/"
+              target="_blank"
               rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-md border border-[#D4A373]/30 hover:border-[#D4A373] text-xs font-mono font-bold uppercase tracking-wider text-[#D4A373] hover:text-white hover:bg-white/5 transition-all ml-2"
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-md border border-[#AB8743] hover:border-white text-xs font-mono font-bold uppercase tracking-wider text-[#FBF5EA] hover:text-white hover:bg-white/10 transition-all ml-2"
               id="back-to-vercel-desktop"
             >
               <Globe className="w-3.5 h-3.5" />
@@ -283,18 +283,18 @@ export default function App() {
       </header>
 
       {/* Control Panel Area */}
-      <section className="bg-[#0B4A47] text-[#FDFBF7] py-6 px-6 shadow-md border-b border-[#D4A373]/10">
+      <section className="bg-[#004A2B] text-[#FBF5EA] py-6 px-6 shadow-md border-b border-[#AB8743]">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <label className="block text-xs font-mono text-[#D4A373] uppercase tracking-widest mb-2 font-bold">1. Select Target Campaign Angle</label>
+            <label className="block text-xs font-mono text-[#FBF5EA] uppercase tracking-widest mb-2 font-bold">1. Select Target Campaign Angle</label>
             <div className="relative">
-              <select 
+              <select
                 value={selectedTheme.id}
                 onChange={(e) => {
                   const t = THEMES.find(item => item.id === parseInt(e.target.value));
                   if (t) setSelectedTheme(t);
                 }}
-                className="w-full bg-[#004B49] text-white border border-[#D4A373]/30 px-4 py-3 rounded-md font-serif text-lg focus:outline-none focus:border-[#D4A373] cursor-pointer"
+                className="w-full bg-[#004A2B] text-white border border-[#AB8743] px-4 py-3 rounded-md font-serif text-lg focus:border-white cursor-pointer"
               >
                 {THEMES.map(theme => (
                   <option key={theme.id} value={theme.id}>
@@ -303,20 +303,20 @@ export default function App() {
                 ))}
               </select>
             </div>
-            <p className="mt-2 text-xs text-cream/70 italic font-sans">
+            <p className="mt-2 text-sm text-[#FBF5EA] italic font-sans leading-relaxed">
               <strong>Core Root Cause:</strong> {selectedTheme.coreProblem}
             </p>
           </div>
 
           <div>
-            <label className="block text-xs font-mono text-[#D4A373] uppercase tracking-widest mb-2 font-bold">2. Select Funnel Conversion Architecture Type</label>
+            <label className="block text-xs font-mono text-[#FBF5EA] uppercase tracking-widest mb-2 font-bold">2. Select Funnel Conversion Architecture Type</label>
             <select
               value={selectedVariant.code}
               onChange={(e) => {
                 const v = FUNNEL_VARIANTS.find(item => item.code === e.target.value);
                 if (v) setSelectedVariant(v);
               }}
-              className="w-full bg-[#004B49] text-white border border-[#D4A373]/30 px-4 py-3 rounded-md font-sans text-sm md:text-base focus:outline-none focus:border-[#D4A373] cursor-pointer"
+              className="w-full bg-[#004A2B] text-white border border-[#AB8743] px-4 py-3 rounded-md font-sans text-sm md:text-base focus:border-white cursor-pointer"
             >
               {FUNNEL_VARIANTS.map(variant => (
                 <option key={variant.code} value={variant.code}>
@@ -324,7 +324,7 @@ export default function App() {
                 </option>
               ))}
             </select>
-            <p className="mt-2 text-xs text-cream/70 italic font-sans">
+            <p className="mt-2 text-sm text-[#FBF5EA] italic font-sans leading-relaxed">
               <strong>Audience Strategy:</strong> {selectedVariant.targetAudience}
             </p>
           </div>
@@ -333,46 +333,46 @@ export default function App() {
 
       {/* Main Multi-Tab Output Space */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8">
-        
+
         {activeTab === 'landing' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
+
             {/* Left Hand: Theme Metadata Dashboard */}
             <div className="lg:col-span-4 flex flex-col gap-6">
-              <div className="card border border-[#D4A373]/15 transform transition-all p-6">
+              <div className="card border border-[#AB8743]/15 transform transition-all p-6">
                 <span className="badge mb-3">VARIANT CONFIG</span>
-                <h3 className="text-xl font-serif text-[#004B49] font-bold mb-2">{selectedVariant.name}</h3>
+                <h3 className="text-xl font-serif text-[#004A2B] font-bold mb-2">{selectedVariant.name}</h3>
                 <p className="text-sm text-gray-600 mb-4">{selectedVariant.description}</p>
-                
+
                 <div className="space-y-3 font-sans text-xs border-t border-gray-100 pt-4">
                   <div className="flex justify-between py-1">
-                    <span className="text-gray-400 font-mono">Journey Flow:</span>
-                    <span className="font-bold text-[#004B49] text-right">{selectedVariant.flowShort}</span>
+                    <span className="text-gray-600 font-mono">Journey Flow:</span>
+                    <span className="font-bold text-[#004A2B] text-right">{selectedVariant.flowShort}</span>
                   </div>
                   <div className="flex justify-between py-1 border-t border-gray-50">
-                    <span className="text-gray-400 font-mono">Routing Logic:</span>
+                    <span className="text-gray-600 font-mono">Routing Logic:</span>
                     <span className="font-bold text-amber-700 uppercase">
                       {selectedVariant.deliveryPath === 'checkout' ? 'Direct Loop Checkout' : 'Standard Cart Flow'}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-t border-gray-50">
-                    <span className="text-gray-400 font-mono">Strategic Use:</span>
+                    <span className="text-gray-600 font-mono">Strategic Use:</span>
                     <span className="font-bold text-gray-700 text-right">{selectedVariant.why}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="card bg-[#004B49] text-white p-6">
-                <h4 className="font-serif text-lg text-[#D4A373] mb-3">Live Compilation Actions</h4>
+              <div className="card bg-[#004A2B] text-white p-6">
+                <h4 className="font-serif text-lg text-[#FBF5EA] mb-3">Live Compilation Actions</h4>
                 <div className="flex flex-col gap-3">
-                  <button 
+                  <button
                     onClick={handleCopyCode}
-                    className="w-full bg-[#D4A373] text-[#004B49] hover:bg-[#E1B246] py-3 rounded font-bold uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all min-h-[48px]"
+                    className="w-full bg-[#AB8743] text-[#171717] hover:bg-[#AB8743] py-3 rounded font-bold uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all min-h-[48px]"
                   >
                     {copied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     <span>{copied ? 'Code Copied!' : 'Copy Code Output'}</span>
                   </button>
-                  <button 
+                  <button
                     onClick={downloadHTMLFile}
                     className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white py-3 rounded font-bold uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all min-h-[48px]"
                   >
@@ -381,7 +381,7 @@ export default function App() {
                   </button>
                 </div>
                 <div className="mt-4 p-3 bg-white/5 rounded text-left">
-                  <p className="text-[11px] text-[#D4A373] font-mono leading-relaxed">
+                  <p className="text-sm text-[#FBF5EA] font-mono leading-relaxed">
                     💡 <strong>Pro Tip:</strong> Embed this fully self-contained HTML directly inside PageDeck or Shopify Funnels for high-precision campaign deployment.
                   </p>
                 </div>
@@ -389,18 +389,18 @@ export default function App() {
 
               {/* Review Highlights */}
               <div className="card p-6 border border-gray-150">
-                <h4 className="font-serif text-[#004B49] font-bold mb-3 flex items-center gap-2">
-                  <Award className="w-5 h-5 text-[#D4A373]" />
+                <h4 className="font-serif text-[#004A2B] font-bold mb-3 flex items-center gap-2">
+                  <Award className="w-5 h-5 text-[#AB8743]" />
                   <span>Verified Target Review Insights</span>
                 </h4>
                 <div className="space-y-4 text-xs font-sans">
-                  <div className="p-3 bg-[#FDFBF7] rounded border border-gray-100">
+                  <div className="p-3 bg-[#FBF5EA] rounded border border-gray-100">
                     <p className="italic text-gray-600 mb-2">"Woke up with heavy puffiness every single day. Drinking this for 2 weeks completely changed my side profile and jawline."</p>
-                    <span className="font-bold text-[#004B49]">— Emma H. (Verified London Buyer)</span>
+                    <span className="font-bold text-[#004A2B]">— Emma H. (Verified London Buyer)</span>
                   </div>
-                  <div className="p-3 bg-[#FDFBF7] rounded border border-gray-100">
+                  <div className="p-3 bg-[#FBF5EA] rounded border border-gray-100">
                     <p className="italic text-gray-600 mb-2">"The standard caffeine jitter spike was gone. Love the chocolatey rich and smooth low-acid flavor notes too."</p>
-                    <span className="font-bold text-[#004B49]">— Chloe S. (Verified Manchester Buyer)</span>
+                    <span className="font-bold text-[#004A2B]">— Chloe S. (Verified Manchester Buyer)</span>
                   </div>
                 </div>
               </div>
@@ -408,32 +408,32 @@ export default function App() {
 
             {/* Right Hand: Visual Live Compilation & Code Preview Container */}
             <div className="lg:col-span-8 flex flex-col gap-4">
-              
-              <div className="bg-white border border-[#D4A373]/15 rounded-lg overflow-hidden flex flex-col shadow-sm">
-                
+
+              <div className="bg-white border border-[#AB8743]/15 rounded-lg overflow-hidden flex flex-col shadow-sm">
+
                 {/* Header controls inside canvas */}
                 <div className="bg-[#FBF5EA] border-b border-gray-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <span className="w-3 h-3 rounded-full bg-red-400"></span>
                     <span className="w-3 h-3 rounded-full bg-yellow-400"></span>
                     <span className="w-3 h-3 rounded-full bg-green-400"></span>
-                    <span className="text-xs text-gray-400 font-mono italic ml-2">Variant{selectedVariant.code}_{selectedTheme.slug}.html</span>
+                    <span className="text-xs text-gray-600 font-mono italic ml-2">Variant{selectedVariant.code}_{selectedTheme.slug}.html</span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       onClick={() => setPreviewMode('desktop')}
                       className={`px-3 py-1.5 rounded text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                        previewMode === 'desktop' ? 'bg-[#004B49] text-white shadow-sm' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        previewMode === 'desktop' ? 'bg-[#004A2B] text-white shadow-sm' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                       }`}
                     >
                       <Monitor className="w-3.5 h-3.5" />
                       <span>Desktop View</span>
                     </button>
-                    <button 
+                    <button
                       onClick={() => setPreviewMode('mobile')}
                       className={`px-3 py-1.5 rounded text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                        previewMode === 'mobile' ? 'bg-[#004B49] text-white shadow-sm' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        previewMode === 'mobile' ? 'bg-[#004A2B] text-white shadow-sm' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                       }`}
                     >
                       <Smartphone className="w-3.5 h-3.5" />
@@ -444,14 +444,14 @@ export default function App() {
 
                 {/* Simulated IFrame viewport rendering built HTML directly */}
                 <div className="bg-[#EAE5D9] flex justify-center items-center p-4 min-h-[600px] overflow-hidden">
-                  <div 
+                  <div
                     className="bg-white shadow-lg transition-all duration-300 border border-gray-200 relative overflow-hidden"
                     style={{
                       width: previewMode === 'desktop' ? '100%' : '375px',
                       height: '750px',
                     }}
                   >
-                    <iframe 
+                    <iframe
                       title="VAHDAM Custom LP Compile Frame"
                       srcDoc={generatedHTML}
                       className="w-full h-full border-0"
@@ -469,15 +469,15 @@ export default function App() {
         {activeTab === 'ads' && (
           <div className="space-y-8 animate-fadeIn">
             {/* Header Description */}
-            <div className="card p-6 border border-[#D4A373]/20 bg-[#004B49] text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="card p-6 border border-[#AB8743]/20 bg-[#004A2B] text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <span className="text-xs font-mono text-[#D4A373] tracking-widest uppercase font-bold">CROSS-CHANNEL ACQUISITION ENGINE</span>
+                <span className="text-xs font-mono text-[#FBF5EA] tracking-widest uppercase font-bold">CROSS-CHANNEL ACQUISITION ENGINE</span>
                 <h3 className="font-serif text-3xl font-bold mt-1 text-white">Interactive Ad Campaign Studio</h3>
-                <p className="text-sm text-cream/70 mt-1 max-w-2xl">
+                <p className="text-sm text-[#FBF5EA] mt-1 max-w-2xl leading-relaxed">
                   Deploy targeted Meta and Google Ads optimized across our 6 biological cortisol-conversion pillars. Fully synced with campaign funnels.
                 </p>
               </div>
-              <div className="flex items-center gap-2 bg-[#0B4A47] p-2.5 rounded border border-[#D4A373]/30 text-xs font-mono">
+              <div className="flex items-center gap-2 bg-[#004A2B] p-2.5 rounded border border-[#AB8743]/30 text-xs font-mono">
                 <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
                 <span>SYSTEM LINK ACTIVE &bull; VAHDAM CLOUD</span>
               </div>
@@ -485,7 +485,7 @@ export default function App() {
 
             {/* Selector Pills across all 6 variations */}
             <div className="space-y-2">
-              <label className="block text-xs font-mono text-[#004B49] uppercase tracking-widest font-bold">
+              <label className="block text-xs font-mono text-[#004A2B] uppercase tracking-widest font-bold">
                 1. Switch Campaign Variations (6 Channels)
               </label>
               <div className="flex flex-wrap gap-2">
@@ -495,7 +495,7 @@ export default function App() {
                     onClick={() => setSelectedAdThemeId(tpl.themeId)}
                     className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all ${
                       selectedAdThemeId === tpl.themeId
-                        ? 'bg-[#004B49] text-white border-[#004B49] shadow-sm'
+                        ? 'bg-[#004A2B] text-white border-[#004A2B] shadow-sm'
                         : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-200'
                     }`}
                   >
@@ -509,31 +509,31 @@ export default function App() {
             {(() => {
               const currentTpl = AD_CAMPAIGN_TEMPLATES.find(t => t.themeId === selectedAdThemeId) || AD_CAMPAIGN_TEMPLATES[0];
               const correspondingThemeObj = THEMES.find(t => t.id === selectedAdThemeId);
-              
+
               return (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   {/* Left Column: Media Buyer Strategy Setup */}
                   <div className="lg:col-span-5 space-y-6">
                     <div className="card p-6 bg-white border border-gray-200 shadow-sm space-y-4">
                       <div>
-                        <span className="badge mb-2 bg-[#FBF5EA] text-[#004B49]">BUYER PARAMETERS Matrix</span>
-                        <h4 className="text-lg font-serif font-bold text-[#004B49]">{currentTpl.angleName}</h4>
-                        <p className="text-xs text-gray-500 mt-1 italic">
+                        <span className="badge mb-2 bg-[#FBF5EA] text-[#004A2B]">BUYER PARAMETERS Matrix</span>
+                        <h4 className="text-lg font-serif font-bold text-[#004A2B]">{currentTpl.angleName}</h4>
+                        <p className="text-xs text-gray-700 mt-1 italic">
                           <strong>Active Strategy Path:</strong> {correspondingThemeObj?.landingPageVariant || "No associated Variant Path"}
                         </p>
                       </div>
 
                       <div className="border-t border-gray-100 pt-3 space-y-2.5">
                         <div className="text-xs">
-                          <span className="font-mono text-gray-400 block uppercase font-semibold">Core Medical Problem:</span>
+                          <span className="font-mono text-gray-600 block uppercase font-semibold">Core Medical Problem:</span>
                           <span className="text-gray-700 leading-relaxed font-sans">{correspondingThemeObj?.coreProblem}</span>
                         </div>
-                        
+
                         <div className="text-xs">
-                          <span className="font-mono text-gray-400 block uppercase font-semibold">Target Interest Demographics (Meta/Google Adwords):</span>
+                          <span className="font-mono text-gray-600 block uppercase font-semibold">Target Interest Demographics (Meta/Google Adwords):</span>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {currentTpl.targetInterests.map((interest, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px] font-mono border border-gray-150">
+                              <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-mono border border-gray-150">
                                 {interest}
                               </span>
                             ))}
@@ -541,7 +541,7 @@ export default function App() {
                         </div>
 
                         <div className="text-xs">
-                          <span className="font-mono text-gray-400 block uppercase font-semibold">PMax Callout Highlights:</span>
+                          <span className="font-mono text-gray-600 block uppercase font-semibold">PMax Callout Highlights:</span>
                           <ul className="list-disc list-inside space-y-1 mt-1 text-gray-600 font-sans">
                             {currentTpl.pMaxCallouts.map((callout, idx) => (
                               <li key={idx}>{callout}</li>
@@ -554,14 +554,14 @@ export default function App() {
                         <button
                           onClick={() => {
                             const data = `--- ${activeAdNetwork.toUpperCase()} COLLATERAL ---\n` +
-                              (activeAdNetwork === 'meta' 
+                              (activeAdNetwork === 'meta'
                                 ? `Hook: ${currentTpl.metaHook}\n\nCopy:\n${currentTpl.metaBody}\n\nCTA: ${currentTpl.metaCTA}`
                                 : `Headline 1: ${currentTpl.googleHeadline1}\nHeadline 2: ${currentTpl.googleHeadline2}\nHeadline 3: ${currentTpl.googleHeadline3}\nDescription 1: ${currentTpl.googleDescription1}\nDescription 2: ${currentTpl.googleDescription2}`);
                             navigator.clipboard.writeText(data);
                             setCopiedAdText(true);
                             setTimeout(() => setCopiedAdText(false), 2000);
                           }}
-                          className="flex-1 px-4 py-2 bg-[#D4A373] text-[#004B49] text-xs font-bold rounded hover:bg-[#c39262] transition-colors flex items-center justify-center gap-1.5"
+                          className="flex-1 px-4 py-2 bg-[#AB8743] text-[#171717] text-xs font-bold rounded hover:bg-[#AB8743] transition-colors flex items-center justify-center gap-1.5"
                         >
                           {copiedAdText ? (
                             <>
@@ -575,8 +575,8 @@ export default function App() {
                             </>
                           )}
                         </button>
-                        
-                        <a 
+
+                        <a
                           href={correspondingThemeObj?.variantLink || "https://try.vahdam.co.uk"}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -587,9 +587,9 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="card p-5 bg-[#FAF5EA] border border-[#D4A373]/30 rounded text-xs space-y-2.5">
-                      <h5 className="font-serif font-bold text-[#004B49] flex items-center gap-1.5">
-                        <Award className="w-4 h-4 text-[#D4A373]" />
+                    <div className="card p-5 bg-[#FBF5EA] border border-[#AB8743]/30 rounded text-xs space-y-2.5">
+                      <h5 className="font-serif font-bold text-[#004A2B] flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-[#AB8743]" />
                         <span>Creative Alignment Guidelines</span>
                       </h5>
                       <p className="text-gray-600 leading-relaxed font-sans">
@@ -602,13 +602,13 @@ export default function App() {
                   <div className="lg:col-span-7 flex flex-col gap-4">
                     {/* Mockup tabs trigger */}
                     <div className="bg-white p-3 rounded-lg border border-gray-200 flex items-center justify-between shadow-sm">
-                      <span className="text-xs font-mono font-bold text-[#004B49] uppercase">2. Select Screen Mockup Channel:</span>
+                      <span className="text-xs font-mono font-bold text-[#004A2B] uppercase">2. Select Screen Mockup Channel:</span>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setActiveAdNetwork('meta')}
                           className={`px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider rounded transition-all ${
                             activeAdNetwork === 'meta'
-                              ? 'bg-[#004B49] text-white'
+                              ? 'bg-[#004A2B] text-white'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                         >
@@ -618,7 +618,7 @@ export default function App() {
                           onClick={() => setActiveAdNetwork('google')}
                           className={`px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider rounded transition-all ${
                             activeAdNetwork === 'google'
-                              ? 'bg-[#004B49] text-white'
+                              ? 'bg-[#004A2B] text-white'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                         >
@@ -635,18 +635,18 @@ export default function App() {
                           {/* Profile details */}
                           <div className="p-4 flex items-center justify-between border-b border-gray-100">
                             <div className="flex items-center gap-2">
-                              <div className="w-9 h-9 rounded-full bg-[#004B49] text-white flex items-center justify-center font-serif font-extrabold text-sm border-2 border-[#D4A373]">
+                              <div className="w-9 h-9 rounded-full bg-[#004A2B] text-white flex items-center justify-center font-serif font-extrabold text-sm border-2 border-[#AB8743]">
                                 V
                               </div>
                               <div>
                                 <div className="font-bold flex items-center gap-1 text-[13px] text-gray-900">
                                   <span>VAHDAM India</span>
-                                  <span className="bg-blue-500 text-white rounded-full p-0.5 text-[8px] flex items-center justify-center" style={{ width: '12px', height: '12px' }}>✓</span>
+                                  <span className="bg-blue-500 text-white rounded-full p-0.5 text-xs flex items-center justify-center" style={{ width: '12px', height: '12px' }}>✓</span>
                                 </div>
-                                <span className="text-[10px] text-gray-500 font-mono">Sponsored &bull; Fully Tracked Link</span>
+                                <span className="text-xs text-gray-700 font-mono">Sponsored &bull; Fully Tracked Link</span>
                               </div>
                             </div>
-                            <span className="text-gray-400 font-bold hover:text-gray-600 cursor-pointer text-base pb-2">•••</span>
+                            <span className="text-gray-600 font-bold hover:text-gray-600 cursor-pointer text-base pb-2">•••</span>
                           </div>
 
                           {/* Post caption text */}
@@ -666,10 +666,10 @@ export default function App() {
                             {/* CTA Banner overlay */}
                             <div className="bg-white border-t border-gray-100 p-3 flex items-center justify-between">
                               <div className="space-y-0.5 pr-2">
-                                <span className="text-[10px] tracking-wider text-gray-400 font-mono uppercase block">TRY.VAHDAM.CO.UK</span>
+                                <span className="text-xs tracking-wider text-gray-600 font-mono uppercase block">TRY.VAHDAM.CO.UK</span>
                                 <span className="text-xs font-bold text-gray-900 line-clamp-1">{currentTpl.metaCTA}</span>
                               </div>
-                              <a 
+                              <a
                                 href={correspondingThemeObj?.variantLink || "https://try.vahdam.co.uk"}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -681,7 +681,7 @@ export default function App() {
                           </div>
 
                           {/* Mock bottom icons */}
-                          <div className="px-4 py-2.5 bg-white text-gray-500 text-[11px] flex justify-between border-b border-gray-100">
+                          <div className="px-4 py-2.5 bg-white text-gray-700 text-xs flex justify-between border-b border-gray-100">
                             <span>👍 🚀 Over 4.8k comments and engagements</span>
                             <div className="flex gap-3">
                               <span>324 Comments</span>
@@ -692,9 +692,9 @@ export default function App() {
                       ) : (
                         /* Google Mockup */
                         <div className="w-full max-w-xl bg-white border border-gray-200 rounded-lg p-5 shadow-md font-sans text-xs">
-                          <div className="flex items-center gap-1 text-gray-500 mb-1">
-                            <span className="p-1 px-1.5 bg-gray-100 text-[9px] font-bold rounded uppercase tracking-wider text-gray-600 mr-1.5">Ad</span>
-                            <span className="text-[11px]">https://try.vahdam.co.uk/ashwagandha-coffee</span>
+                          <div className="flex items-center gap-1 text-gray-700 mb-1">
+                            <span className="p-1 px-1.5 bg-gray-100 text-xs font-bold rounded uppercase tracking-wider text-gray-600 mr-1.5">Ad</span>
+                            <span className="text-xs">https://try.vahdam.co.uk/ashwagandha-coffee</span>
                           </div>
 
                           {/* Clickable Blue headlines */}
@@ -711,19 +711,19 @@ export default function App() {
                           <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-4 pt-3 border-t border-gray-100 text-[#1a0dab]">
                             <div>
                               <span className="hover:underline cursor-pointer block font-semibold text-[13px]">40% Off Direct Launch Deal</span>
-                              <span className="text-gray-500 text-xs mt-0.5 block line-clamp-1">Auto-applied coupon discount limits online copies.</span>
+                              <span className="text-gray-700 text-xs mt-0.5 block line-clamp-1">Auto-applied coupon discount limits online copies.</span>
                             </div>
                             <div>
                               <span className="hover:underline cursor-pointer block font-semibold text-[13px]">Free Premium Milk Frother</span>
-                              <span className="text-gray-500 text-xs mt-0.5 block line-clamp-1">Every bundle contains custom barista frothing kit tools.</span>
+                              <span className="text-gray-700 text-xs mt-0.5 block line-clamp-1">Every bundle contains custom barista frothing kit tools.</span>
                             </div>
                             <div>
                               <span className="hover:underline cursor-pointer block font-semibold text-[13px]">Rich Chocolate Hazelnut</span>
-                              <span className="text-gray-500 text-xs mt-0.5 block line-clamp-1">No bitter medicinal taste. Low acid gastro safety.</span>
+                              <span className="text-gray-700 text-xs mt-0.5 block line-clamp-1">No bitter medicinal taste. Low acid gastro safety.</span>
                             </div>
                             <div>
                               <span className="hover:underline cursor-pointer block font-semibold text-[13px]">2,500+ Verified Trust Reviews</span>
-                              <span className="text-gray-500 text-xs mt-0.5 block line-clamp-1">Sourced from real UK buyers over active 14 days periods.</span>
+                              <span className="text-gray-700 text-xs mt-0.5 block line-clamp-1">Sourced from real UK buyers over active 14 days periods.</span>
                             </div>
                           </div>
                         </div>
@@ -736,21 +736,21 @@ export default function App() {
 
             {/* Campaign Summary Deck footer */}
             <div className="card p-6 border border-gray-200 bg-white shadow-sm space-y-4">
-              <h4 className="font-serif text-xl text-[#004B49] font-bold">Cross-Channel Deployment Matrix Overview</h4>
-              <p className="text-xs text-gray-500 leading-relaxed">
+              <h4 className="font-serif text-xl text-[#004A2B] font-bold">Cross-Channel Deployment Matrix Overview</h4>
+              <p className="text-xs text-gray-700 leading-relaxed">
                 Review strategy parameters for all campaign variants. Sourced directly to Klaviyo flow handles and PageDeck components.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-sans">
                 {AD_CAMPAIGN_TEMPLATES.map(tpl => (
                   <div key={tpl.themeId} className="p-4 bg-gray-50 border border-gray-150 rounded flex flex-col justify-between">
                     <div>
-                      <span className="font-mono text-[#D4A373] uppercase font-bold text-[10px]">Variant {tpl.themeId} Angle</span>
-                      <h5 className="font-bold text-[#004B49] mt-0.5 mb-1.5">{tpl.angleName}</h5>
-                      <p className="text-gray-600 line-clamp-2 text-[11px] leading-relaxed mb-3">{tpl.metaHook}</p>
+                      <span className="font-mono text-[#004A2B] uppercase font-bold text-xs">Variant {tpl.themeId} Angle</span>
+                      <h5 className="font-bold text-[#004A2B] mt-0.5 mb-1.5">{tpl.angleName}</h5>
+                      <p className="text-gray-600 line-clamp-2 text-xs leading-relaxed mb-3">{tpl.metaHook}</p>
                     </div>
                     <button
                       onClick={() => setSelectedAdThemeId(tpl.themeId)}
-                      className="w-full py-1 border border-[#004B49]/20 hover:border-[#004B49] text-center font-bold font-mono text-[9px] uppercase tracking-wider text-[#004B49] rounded mt-2 bg-white transition-all"
+                      className="w-full py-1 border border-[#004A2B]/20 hover:border-[#004A2B] text-center font-bold font-mono text-xs uppercase tracking-wider text-[#004A2B] rounded mt-2 bg-white transition-all"
                     >
                       Load Creative Workspace
                     </button>
@@ -764,8 +764,8 @@ export default function App() {
         {/* MAIL MATRIX TAB */}
         {activeTab === 'mailer' && (
           <div className="space-y-8">
-            <div className="card p-6 border border-[#D4A373]/20 bg-white">
-              <h3 className="font-serif text-2xl text-[#004B49] font-bold mb-2">Campaign Content & Klaviyo Mailer Blueprints</h3>
+            <div className="card p-6 border border-[#AB8743]/20 bg-white">
+              <h3 className="font-serif text-2xl text-[#004A2B] font-bold mb-2">Campaign Content & Klaviyo Mailer Blueprints</h3>
               <p className="text-sm text-gray-600">Deep-dive segment matrix connecting target stress/cortisol profiles to high-open rate mailing pointer copy variants.</p>
             </div>
 
@@ -773,21 +773,21 @@ export default function App() {
               {THEMES.map(theme => (
                 <div key={theme.id} className="card p-6 border border-gray-100 bg-white relative flex flex-col justify-between hover:shadow-md transition-all">
                   <div>
-                    <span className="badge bg-[#FBF5EA] text-[#004B49] mb-3">Theme {theme.id}</span>
-                    <h4 className="font-serif text-lg font-bold text-[#004B49] mb-2">{theme.name}</h4>
-                    
-                    <div className="bg-[#FDFBF7] p-3 rounded border border-gray-150 mb-4 text-xs font-sans">
-                      <p className="font-bold text-gray-400 font-mono text-[10px] uppercase mb-1">Core Root Problem</p>
+                    <span className="badge bg-[#FBF5EA] text-[#004A2B] mb-3">Theme {theme.id}</span>
+                    <h4 className="font-serif text-lg font-bold text-[#004A2B] mb-2">{theme.name}</h4>
+
+                    <div className="bg-[#FBF5EA] p-3 rounded border border-gray-150 mb-4 text-xs font-sans">
+                      <p className="font-bold text-gray-600 font-mono text-xs uppercase mb-1">Core Root Problem</p>
                       <p className="text-gray-600 leading-relaxed">{theme.coreProblem}</p>
                     </div>
 
                     <div className="space-y-3 mb-6">
                       <div>
-                        <span className="text-[10px] font-mono font-bold text-gold uppercase block">Recommended Subject Line:</span>
-                        <p className="text-xs font-sans font-medium italic text-[#004B49]">{theme.subjectLines[0]}</p>
+                        <span className="text-xs font-mono font-bold text-gold uppercase block">Recommended Subject Line:</span>
+                        <p className="text-xs font-sans font-medium italic text-[#004A2B]">{theme.subjectLines[0]}</p>
                       </div>
                       <div>
-                        <span className="text-[10px] font-mono font-bold text-gold uppercase block">Body Copy Pointers:</span>
+                        <span className="text-xs font-mono font-bold text-gold uppercase block">Body Copy Pointers:</span>
                         <ul className="list-disc pl-4 text-xs text-gray-600 space-y-1.5 font-sans">
                           {theme.mailerPointers.map((ptr, idx) => (
                             <li key={idx}>{ptr}</li>
@@ -798,13 +798,13 @@ export default function App() {
                   </div>
 
                   <div className="border-t border-gray-50 pt-4 mt-auto">
-                    <span className="text-[10px] font-mono text-gray-400 block mb-2">TARGET FUNNEL TUNNEL:</span>
+                    <span className="text-xs font-mono text-gray-600 block mb-2">TARGET FUNNEL TUNNEL:</span>
                     <button
                       onClick={() => {
                         setSelectedTheme(theme);
                         setActiveTab('landing');
                       }}
-                      className="w-full bg-[#004B49] text-white py-2.5 rounded font-sans uppercase font-bold text-xs tracking-wider flex items-center justify-center gap-1 hover:bg-[#0B4A47]"
+                      className="w-full bg-[#004A2B] text-white py-2.5 rounded font-sans uppercase font-bold text-xs tracking-wider flex items-center justify-center gap-1 hover:bg-[#004A2B]"
                     >
                       <span>Pre-Compile Landing Page</span>
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -820,15 +820,15 @@ export default function App() {
         {activeTab === 'automation' && (
           <div className="card p-8 bg-white border border-gray-200 font-sans shadow-sm leading-relaxed max-w-4xl mx-auto space-y-8">
             <div className="border-b border-gray-150 pb-6 text-center">
-              <span className="text-xs font-mono text-[#D4A373] tracking-widest uppercase font-bold">SYSTEM OPERATIONS CONFIG</span>
-              <h2 className="font-serif text-3xl text-[#004B49] font-bold mt-1">Growth Automation & Engineering PRD</h2>
-              <p className="text-sm text-gray-500 mt-2">TECHNICAL CONVERSION MACHINE MATRIX • FOR UNIVERSAL CAMPAIGN GENERATOR PLATFORMS</p>
+              <span className="text-xs font-mono text-[#004A2B] tracking-widest uppercase font-bold">SYSTEM OPERATIONS CONFIG</span>
+              <h2 className="font-serif text-3xl text-[#004A2B] font-bold mt-1">Growth Automation & Engineering PRD</h2>
+              <p className="text-sm text-gray-700 mt-2">TECHNICAL CONVERSION MACHINE MATRIX • FOR UNIVERSAL CAMPAIGN GENERATOR PLATFORMS</p>
             </div>
 
             {/* Architecture Overview */}
             <div>
-              <h3 className="font-serif text-xl text-[#004B49] font-bold mb-3 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-[#D4A373]" />
+              <h3 className="font-serif text-xl text-[#004A2B] font-bold mb-3 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-[#AB8743]" />
                 <span>1. Technical Core Architecture</span>
               </h3>
               <p className="text-sm text-gray-600 mb-4">
@@ -838,11 +838,11 @@ export default function App() {
 
             {/* DB Schema */}
             <div>
-              <h3 className="font-serif text-xl text-[#004B49] font-bold mb-3 flex items-center gap-2">
-                <Layers className="w-5 h-5 text-[#D4A373]" />
+              <h3 className="font-serif text-xl text-[#004A2B] font-bold mb-3 flex items-center gap-2">
+                <Layers className="w-5 h-5 text-[#AB8743]" />
                 <span>2. Relational Postgres Database Schemas</span>
               </h3>
-              <div className="bg-[#0B4A47] text-[#FDFBF7] p-5 rounded font-mono text-xs overflow-x-auto shadow-inner border border-[#D4A373]/30">
+              <div className="bg-[#004A2B] text-[#FBF5EA] p-5 rounded font-mono text-xs overflow-x-auto shadow-inner border border-[#AB8743]/30">
                 <pre>{`-- Core Product Registry Table
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -886,19 +886,19 @@ CREATE TABLE campaign_pages (
 
             {/* Performance Indicators */}
             <div>
-              <h3 className="font-serif text-xl text-[#004B49] font-bold mb-3 flex items-center gap-2">
-                <Flame className="w-5 h-5 text-[#D4A373]" />
+              <h3 className="font-serif text-xl text-[#004A2B] font-bold mb-3 flex items-center gap-2">
+                <Flame className="w-5 h-5 text-[#AB8743]" />
                 <span>3. Meta & GA4 Automation Pipeline Logic</span>
               </h3>
               <p className="text-sm text-gray-600 mb-3">
                 Our Node.js compiler processes real-time database inputs, injecting precise theme content and custom URL handles into layout files. To close the optimizer loop, we deploy periodic sync workers targeting Facebook Lead Ads and conversion events. Performance metrics are evaluated continuously:
               </p>
-              <div className="bg-[#FAF5EA] p-4 text-center rounded border border-[#D4A373]/40">
-                <span className="font-serif text-lg font-bold text-[#004B49]">
+              <div className="bg-[#FBF5EA] p-4 text-center rounded border border-[#AB8743]/40">
+                <span className="font-serif text-lg font-bold text-[#004A2B]">
                   Performance Evaluation Weight Metric = (Total Conversions / Total Page Views) × Average Order Value (AOV)
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-700 mt-2">
                 Whenever performance indexes drop under the preset baseline, automated webhooks signal media buyer coordinators on Slack and shift destination routing safely on Vercel Edge networks.
               </p>
             </div>
@@ -909,17 +909,17 @@ CREATE TABLE campaign_pages (
         {activeTab === 'prompt' && (
           <div className="space-y-8 max-w-4xl mx-auto">
             <div className="card p-6 bg-white border border-gray-200">
-              <h3 className="font-serif text-2xl text-[#004B49] font-bold mb-2">Master Code Prompts for Claude & Gemini</h3>
+              <h3 className="font-serif text-2xl text-[#004A2B] font-bold mb-2">Master Code Prompts for Claude & Gemini</h3>
               <p className="text-sm text-gray-600">Pre-configured operational prompts to copy directly into your AI workspace to recreate or generate extra landing page styles.</p>
             </div>
 
             <div className="card p-6 bg-white border border-gray-100 flex flex-col gap-4">
               <div>
-                <span className="badge bg-[#004B49] text-white mb-2">1. Claude Code Optimization Prompt</span>
-                <p className="text-xs text-gray-500 mb-3">Crafted specifically to compile clean single-file HTML layout scripts with direct loops.</p>
+                <span className="badge bg-[#004A2B] text-white mb-2">1. Claude Code Optimization Prompt</span>
+                <p className="text-xs text-gray-700 mb-3">Crafted specifically to compile clean single-file HTML layout scripts with direct loops.</p>
               </div>
               <div className="bg-gray-100 p-4 rounded text-xs font-mono overflow-y-auto max-h-60 border border-gray-200">
-                <pre>{`You are a Staff Growth Engineer and Conversion Rate Optimization (CRO) expert. 
+                <pre>{`You are a Staff Growth Engineer and Conversion Rate Optimization (CRO) expert.
 Your goal is to generate completely functional, production-ready, ultra-fast vanilla HTML/CSS landing pages for Vahdam Ashwagandha Coffee.
 
 [CRITICAL ARCHITECTURAL COMMANDS]
@@ -947,14 +947,14 @@ Please compile completely following mobile-first design guides.`}</pre>
 
             <div className="card p-6 bg-white border border-gray-100 flex flex-col gap-4">
               <div>
-                <span className="badge bg-[#D4A373] text-[#004B49] mb-2">2. Gemini Campaign & Copywriting Prompt</span>
-                <p className="text-xs text-gray-500 mb-3">Designed for structural layout, behavioral customer targeting, and deep-benefit copywriting.</p>
+                <span className="badge bg-[#AB8743] text-[#171717] mb-2">2. Gemini Campaign & Copywriting Prompt</span>
+                <p className="text-xs text-gray-700 mb-3">Designed for structural layout, behavioral customer targeting, and deep-benefit copywriting.</p>
               </div>
               <div className="bg-gray-100 p-4 rounded text-xs font-mono overflow-y-auto max-h-60 border border-gray-200">
                 <pre>{`You are a Lead Conversion Architect and Frontend Engineer. Your task is to output a complete, responsive, semantic vanilla HTML/CSS landing page code block for the VAHDAM UK Ashwagandha Coffee product. The theme for this page is completely focused on addressing "Face Puffiness and Water Retention" using clean adaptogens.
 
 [DESIGN SPECIFICATIONS]
-- Colors: Deep Teal (#004B49) as primary, Warm Gold (#D4A373) as secondary, Soft Cream (#FDFBF7) as background, and Dark Charcoal (#222222) for clear reading.
+- Colors: Deep Teal (#004A2B) as primary, Warm Gold (#AB8743) as secondary, Soft Cream (#FBF5EA) as background, and Dark Charcoal (#171717) for clear reading.
 - Typography: Use elegant fallback Serif fonts (like Georgia, "Playfair Display") for main headings, and clean Sans-Serif fonts (like Inter, system-ui) for body text and product options.
 - Layout: Apply a clean mobile-first flexbox/grid layout. Use single-column structures for small devices with a minimum 16px font size, and expand to 2 columns on screens 1024px or wider.
 
@@ -968,13 +968,13 @@ Assemble high-performance, responsive HTML layouts optimized for consumer retent
       </main>
 
       {/* Corporate Professional Footer */}
-      <footer className="bg-[#004B49] border-t border-[#D4A373]/20 text-white/85 py-8 mt-auto px-6 font-sans">
+      <footer className="bg-[#004A2B] border-t border-[#AB8743]/20 text-[#FBF5EA] py-8 mt-auto px-6 font-sans">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left text-xs space-y-1">
-            <p className="font-serif text-sm font-semibold tracking-wide text-[#D4A373]">VAHDAM India Lifecycle OS &bull; Campaign Expansion Engine</p>
-            <p className="text-white/60">Fully synced with vahdam-lifecycle-os.vercel.app to optimize acquisition and retention funnels across the UK.</p>
+            <p className="font-serif text-sm font-semibold tracking-wide text-[#FBF5EA]">VAHDAM India Lifecycle OS &bull; Campaign Expansion Engine</p>
+            <p className="text-[#FBF5EA]">Fully synced with vahdam-lifecycle-os.vercel.app to optimize acquisition and retention funnels across the UK.</p>
           </div>
-          <div className="text-xs text-white/50 font-mono text-center sm:text-right">
+          <div className="text-xs text-[#FBF5EA] font-mono text-center sm:text-right">
             <span>Lifecycle OS Node Active • Live Session 2026</span>
           </div>
         </div>
