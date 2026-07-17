@@ -1,5 +1,5 @@
-const callLLM = require('../_shared/llm.js');
-const SM = require('../_shared/scenario-model.js');
+const callLLM = require('./llm.js');
+const SM = require('./scenario-model.js');
 let DESIGN = null;
 try { DESIGN = require('../../data/design-intelligence.js'); } catch (_) { DESIGN = null; }
 
@@ -139,4 +139,3 @@ TECHNICAL QUALITY
   }
 };
 
-module.exports.config = { maxDuration: 120 };

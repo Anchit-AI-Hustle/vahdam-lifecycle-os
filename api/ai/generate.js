@@ -317,6 +317,12 @@ First char { · last char }. No markdown. No commentary.`;
 // ────────────────────────────────────────────────────────────────────────────
 
 module.exports = async function handler(req, res) {
+  // Landing-page generation is hosted here (via /api/ai/landing-page rewrite →
+  // ?action=landing-page) so it does NOT add a 13th serverless function past the
+  // Hobby 12-cap. The core handles its own CORS/method/body.
+  if (req.query && req.query.action === 'landing-page') {
+    return require('../_shared/landing-page-core.js')(req, res);
+  }
   // CORS — allow same-origin + preview deploys
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
