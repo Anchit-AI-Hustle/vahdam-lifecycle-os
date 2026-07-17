@@ -104,7 +104,11 @@ TECHNICAL QUALITY
       systemPrompt,
       userMessage,
       temperature: 0.65,
-      maxTokens: 15000,
+      // 15000 exceeds the free-tier per-minute token budgets (Groq ~6K TPM,
+      // Cerebras ~8K output), which forced an instant 429 and left no working
+      // fallback rung. 8000 fits the free rungs so the cascade can actually
+      // complete; paid providers (if keyed) still get the full budget.
+      maxTokens: 8000,
       timeoutMs: 110000,
       stage: 'landing-page-spatial',
     });
@@ -115,7 +119,14 @@ TECHNICAL QUALITY
     }
     return res.status(200).json({ ok: true, html });
   } catch (error) {
-    return res.status(500).json({ error: 'generation_failed', detail: error && error.message ? error.message : String(error) });
+    const msg = error && error.message ? error.message : String(error);
+    const busy = /rate limit|rate.?limit|quota|429|credit|balance|insufficient|overloaded/i.test(msg);
+    return res.status(busy ? 503 : 500).json({
+      error: busy ? 'providers_busy' : 'generation_failed',
+      detail: busy
+        ? 'AI providers are rate-limited or out of quota right now. Please retry in a minute. For reliable generation, add a paid provider key (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY) in Vercel.'
+        : msg
+    });
   }
 };
 
