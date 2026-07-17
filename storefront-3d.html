@@ -153,7 +153,11 @@ const REGIONS={
 };
 const CCY_RE=/^[₹£$€]/;
 const _q=new URLSearchParams(location.search);
-let REGION=(_q.get('region')||'us').toLowerCase(); if(!REGIONS[REGION]) REGION='us';
+// Accept ?region= (this page) OR ?variant= (the /3d, /3d/us, /3d/uk, /3d/global
+// routes). 'signature' is the brand/default view → US catalog.
+let REGION=(_q.get('region')||_q.get('variant')||'us').toLowerCase();
+if(REGION==='signature') REGION='us';
+if(!REGIONS[REGION]) REGION='us';
 const RC=REGIONS[REGION];
 const COLLECTIONS=['Best Sellers','Black Tea','Green Tea','Herbal Tea','Chai','Teaware','Gifts'];
 const COLLECTION_TAGS={'Best Sellers':null,'Black Tea':'black','Green Tea':'green','Herbal Tea':'herbal','Chai':'chai','Teaware':'teaware','Gifts':'gift'};
