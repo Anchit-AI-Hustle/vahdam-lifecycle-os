@@ -118,3 +118,5 @@ TECHNICAL QUALITY
     return res.status(500).json({ error: 'generation_failed', detail: error && error.message ? error.message : String(error) });
   }
 };
+
+module.exports.config = { maxDuration: 120 };
