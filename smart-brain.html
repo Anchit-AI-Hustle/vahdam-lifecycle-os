@@ -863,13 +863,24 @@ async function downloadEntry(i){
 // and a per-slot pass/fail tally stream into #detail; failures are collected.
 // Non-blocking confirm rendered into #detail (native confirm() blocks the main
 // thread — that is the INP freeze on this button). Resolves true/false.
+// Centered modal confirm — ALWAYS visible regardless of scroll position. (It
+// previously wrote into #detail, a <pre> far below the action buttons, so the
+// prompt appeared off-screen and clicks looked like they did nothing.)
 function sbConfirm(msg, okLabel){
   return new Promise(resolve=>{
-    const det = $('detail'); if(!det){ resolve(true); return; }
-    det.innerHTML = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>${esc(msg)}</span>`+
-      `<button class="btn sm ok" id="sbcy">${esc(okLabel || 'Generate')}</button><button class="btn sm secondary" id="sbcn">Cancel</button></div>`;
-    $('sbcy').onclick = ()=>resolve(true);
-    $('sbcn').onclick = ()=>{ resolve(false); det.textContent=''; };
+    const old = document.getElementById('sbconfirm'); if(old) old.remove();
+    const ov = document.createElement('div'); ov.id = 'sbconfirm';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(10,20,16,.55);padding:20px';
+    ov.innerHTML = `<div role="dialog" aria-modal="true" style="background:#fff;border:1px solid rgba(171,135,67,.3);border-radius:14px;max-width:460px;width:100%;padding:22px 22px 18px;box-shadow:0 30px 80px rgba(0,0,0,.45);font-family:inherit">`+
+      `<div style="font-size:14px;line-height:1.55;color:#171717;margin-bottom:18px">${esc(msg)}</div>`+
+      `<div style="display:flex;gap:10px;justify-content:flex-end">`+
+      `<button class="btn sm secondary" id="sbcn">Cancel</button>`+
+      `<button class="btn sm ok" id="sbcy">${esc(okLabel || 'Generate')}</button></div></div>`;
+    document.body.appendChild(ov);
+    const done = (v)=>{ ov.remove(); resolve(v); };
+    ov.querySelector('#sbcy').onclick = ()=>done(true);
+    ov.querySelector('#sbcn').onclick = ()=>done(false);
+    ov.addEventListener('click', e=>{ if(e.target===ov) done(false); });
   });
 }
 // Pre-flight connector diagnostic — checks which text LLM providers are usable
@@ -908,7 +919,7 @@ async function generateAll(){
   // Connector pre-flight — abort cleanly if nothing can serve text generation.
   if(!(await sbPreflight())) return;
   const aa = $('generateAll'); if(aa){ aa.disabled = true; }
-  const det = $('detail');
+  const det = $('detail'); if(det) det.scrollIntoView({ behavior:'smooth', block:'center' });
   window.__SB_GEN_CANCEL = false;
   let ok = 0; const fails = [];
   for(let n=0; n<targets.length; n++){
@@ -943,7 +954,7 @@ async function approveAll(){
   const go = await sbConfirm(`Approve and lock ${targets.length} send(s) shown? Each is built (if needed) and locked as ship-ready. Rejected sends are skipped.`, 'Approve all');
   if(!go) return;
   const ab = $('approveAll'); if(ab){ ab.disabled = true; }
-  const det = $('detail');
+  const det = $('detail'); if(det) det.scrollIntoView({ behavior:'smooth', block:'center' });
   window.__SB_GEN_CANCEL = false;
   let ok = 0; const fails = [];
   for(let n=0; n<targets.length; n++){
