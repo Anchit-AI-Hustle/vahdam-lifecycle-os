@@ -100,6 +100,8 @@
     { "source": "/uk-non-engagers", "destination": "/uk-non-engagers.html" },
     { "source": "/competitor-benchmarking", "destination": "/competitor-benchmarking.html" },
     { "source": "/competitor", "destination": "/competitor-benchmarking.html" },
+    { "source": "/design-intel", "destination": "/design-intelligence.html" },
+    { "source": "/design-intelligence", "destination": "/design-intelligence.html" },
     { "source": "/ads", "destination": "/ad-campaigns.html" },
     { "source": "/website-designs", "destination": "/website-designs.html" },
     { "source": "/landing", "destination": "/landing-pages.html" },

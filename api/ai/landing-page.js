@@ -1,5 +1,7 @@
 const callLLM = require('../_shared/llm.js');
 const SM = require('../_shared/scenario-model.js');
+let DESIGN = null;
+try { DESIGN = require('../../data/design-intelligence.js'); } catch (_) { DESIGN = null; }
 
 const scrub = (value) => {
   try { return SM.sanitizeBrand ? SM.sanitizeBrand(String(value || '')) : SM.scrubDashes(String(value || '')); }
@@ -35,6 +37,12 @@ module.exports = async function handler(req, res) {
   const motionProfile = String(body.motion_profile || 'immersive-balanced');
   const brief = String(body.brief || body.prompt || '').slice(0, 9000);
   if (brief.trim().length < 20) return res.status(400).json({ error: 'brief_required' });
+
+  // Design-intelligence directive (from data/design-intelligence.js): when the
+  // caller requests a variation (big-number-hero, problem-solution-presell,
+  // social-proof-led, long-form-story), inject that design pattern.
+  const designVariation = String(body.design_variation || body.variation || '');
+  const designDirective = (DESIGN && designVariation) ? DESIGN.directivePrompt('landing_page', designVariation) : '';
 
   const systemPrompt = `You are a senior D2C conversion copywriter, interaction designer, and front-end developer for VAHDAM India.
 
@@ -96,7 +104,8 @@ TECHNICAL QUALITY
 - Currency and links must match ${market}. Primary store base: ${store}.
 - Channel intent: ${channel}. Match message continuity to how visitors arrive.`;
 
-  const userMessage = `Create the final page from this exact input. Preserve every supplied factual detail and offer, but do not invent missing facts.\n\n${brief}`;
+  const userMessage = `Create the final page from this exact input. Preserve every supplied factual detail and offer, but do not invent missing facts.\n\n${brief}`
+    + (designDirective ? `\n\n${designDirective}` : '');
 
   try {
     const out = await callLLM({
