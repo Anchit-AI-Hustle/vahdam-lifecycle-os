@@ -22,10 +22,14 @@
     --fg:#171717; --sub:#4a544e;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{font-family:var(--body);background:#041b10;color:var(--fg);overflow:hidden}
+  html{scroll-behavior:smooth}
+  html,body{min-height:100%}
+  /* Full-depth page: the site SCROLLS (like the real storefront), it does not
+     end in a single viewport. The 3D hero is the first screen; real content
+     sections follow below. */
+  body{font-family:var(--body);background:#041b10;color:var(--fg);overflow-x:hidden;overflow-y:auto}
   :root[data-variant="light"] body{background:#eef3f0}
-  #stage{position:fixed;inset:0}
+  #stage{position:relative;height:100vh;width:100%}
   #gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
   #gl:active{cursor:grabbing}
 
@@ -123,6 +127,48 @@
   }
   /* larger tap targets on any touch device */
   @media (hover:none){ .collections button,.regionsw button,.vartoggle button{min-height:40px} }
+
+  /* ── Full-depth scroll content (below the 3D hero) — mobile-first ── */
+  .scrollcue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;color:var(--sub);
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;pointer-events:none;text-align:center}
+  .scrollcue span{display:block;font-size:18px;margin-top:2px;animation:cuebob 1.8s ease-in-out infinite}
+  @keyframes cuebob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+  main.site{position:relative;z-index:8;background:var(--cream);color:var(--ink);
+    border-radius:26px 26px 0 0;box-shadow:0 -30px 80px rgba(0,0,0,.35)}
+  main.site section{max-width:1180px;margin:0 auto;padding:56px 20px}
+  .sec-eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7a5f28;font-weight:800;margin-bottom:8px}
+  .sec-h{font-family:var(--head);font-size:30px;line-height:1.08;color:var(--ink);margin-bottom:8px}
+  .sec-sub{color:#556059;font-size:14px;line-height:1.6;max-width:620px;margin-bottom:24px}
+  /* collection tiles */
+  .colgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .coltile{display:flex;align-items:flex-end;min-height:120px;padding:14px;border-radius:16px;text-decoration:none;
+    color:#FBF5EA;font-family:var(--head);font-size:20px;background:var(--green);border:1px solid rgba(171,135,67,.3)}
+  .coltile:nth-child(even){background:#0a3d24}
+  /* product grid */
+  .pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .pcard{display:flex;flex-direction:column;background:#fff;border:1px solid rgba(171,135,67,.2);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--ink)}
+  .pcard .im{aspect-ratio:1/1;background:#eadfce center/cover no-repeat}
+  .pcard .bd{padding:12px 13px;display:flex;flex-direction:column;gap:4px;flex:1}
+  .pcard .t{font-family:var(--head);font-size:16px;line-height:1.15}
+  .pcard .pr{color:#7a5f28;font-weight:800}
+  .pcard .cta{margin-top:6px;text-align:center;background:var(--green);color:#FBF5EA;border-radius:10px;padding:10px;font-weight:700;font-size:13px}
+  /* story + trust + footer */
+  .story{background:var(--green);color:#FBF5EA;border-radius:20px;padding:40px 26px;text-align:center}
+  .story .sec-h,.story .sec-eyebrow{color:#FBF5EA}
+  .story .sec-eyebrow{color:#e3c879}
+  .trust{display:flex;flex-wrap:wrap;justify-content:center;gap:26px;text-align:center;color:#3f4a44;font-weight:700;font-size:14px;border-top:1px solid rgba(171,135,67,.2);border-bottom:1px solid rgba(171,135,67,.2)}
+  .site footer{background:#0a1410;color:#cfe0d5}
+  .site footer .inner{max-width:1180px;margin:0 auto;padding:40px 20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .site footer a{color:#cfe0d5;text-decoration:none;display:block;padding:5px 0;font-size:14px}
+  .site footer a:hover{color:#fff}
+  .site footer h5{font-family:var(--head);color:#FBF5EA;font-size:16px;margin-bottom:8px}
+  @media (min-width:721px){
+    .colgrid{grid-template-columns:repeat(4,1fr)}
+    .pgrid{grid-template-columns:repeat(4,1fr)}
+    .sec-h{font-size:38px}
+    main.site section{padding:72px 24px}
+    .site footer .inner{grid-template-columns:repeat(4,1fr)}
+  }
 </style>
 </head>
 <body>
@@ -170,7 +216,38 @@
 
   <div id="loading">Steeping the storefront&hellip;</div>
   <div id="fallback"><h1>VAHDAM Teas</h1><div id="fgrid"></div></div>
+  <div class="scrollcue">Scroll to explore<span>&#8595;</span></div>
 </div>
+
+<main class="site">
+  <section id="collections-sec">
+    <div class="sec-eyebrow">Shop by collection</div>
+    <h2 class="sec-h">Find your ritual</h2>
+    <p class="sec-sub">Single-estate teas, hand-picked and shipped garden-fresh. Tap a collection to filter the atelier above, or explore the bestsellers below.</p>
+    <div class="colgrid" id="colTiles"></div>
+  </section>
+
+  <section id="bestsellers-sec">
+    <div class="sec-eyebrow">Bestsellers</div>
+    <h2 class="sec-h">Loved by the ritual-keepers</h2>
+    <p class="sec-sub">Live from the <span id="bsRegion">US</span> store — every card opens the real product page.</p>
+    <div class="pgrid" id="pGrid"></div>
+  </section>
+
+  <section class="story">
+    <div class="sec-eyebrow">Our origin</div>
+    <h2 class="sec-h">From the garden, within 48 hours</h2>
+    <p class="sec-sub" style="margin:0 auto;color:#dce8df">There is a moment when the right cup of tea does more than warm your hands. VAHDAM sources single-estate leaves and ships them fresh from India, so every steep carries the season it was picked in.</p>
+  </section>
+
+  <section class="trust">
+    <div>Rated 4.9/5</div><div>250,000+ reviews</div><div>Oprah's Favorite Things</div><div>Garden-fresh · Ethically sourced</div>
+  </section>
+
+  <footer>
+    <div class="inner" id="footLinks"></div>
+  </footer>
+</main>
 
 <script type="module">
 const THREE_CDN='https://esm.sh/three@0.169.0';
@@ -280,6 +357,47 @@ function renderFallback(tag){
 }
 function note(msg){ const l=$('loading'); if(!l)return; l.style.display='flex'; l.textContent=msg; setTimeout(()=>{l.style.display='none';},4500); }
 
+// Full-depth scroll content: collection tiles (filter the hero), a bestsellers
+// grid with REAL PDP links, and a footer with real store + region links.
+function renderContent(){
+  const ct=$('colTiles');
+  if(ct){
+    ct.innerHTML=COLLECTIONS.map(c=>`<a class="coltile" href="#stage" data-c="${c}">${c}</a>`).join('');
+    ct.querySelectorAll('.coltile').forEach(a=>a.addEventListener('click',ev=>{
+      ev.preventDefault();
+      const name=a.getAttribute('data-c');
+      document.querySelectorAll('#collist button').forEach(x=>x.classList.toggle('active',x.dataset.c===name));
+      filterCollection(COLLECTION_TAGS[name]);
+      $('stage').scrollIntoView({behavior:'smooth'});
+    }));
+  }
+  const br=$('bsRegion'); if(br) br.textContent=RC.label;
+  const pg=$('pGrid');
+  if(pg){
+    pg.innerHTML=state.products.map(p=>
+      `<a class="pcard" href="${p.url}" target="_blank" rel="noopener">
+        <div class="im" style="${p.img?`background-image:url('${p.img}')`:''}"></div>
+        <div class="bd"><div class="t">${p.title}</div><div class="pr">${p.price||''}</div>
+        <div class="cta">View product</div></div></a>`).join('');
+  }
+  const fl=$('footLinks');
+  if(fl){
+    fl.innerHTML=
+      `<div><h5>Shop</h5>
+        <a href="${RC.base}/collections" target="_blank" rel="noopener">All collections</a>
+        <a href="${RC.base}" target="_blank" rel="noopener">${RC.label} store home</a></div>`+
+      `<div><h5>Regions</h5>
+        <a href="?variant=us">United States</a><a href="?variant=uk">United Kingdom</a>
+        <a href="?variant=global">Global</a><a href="?variant=in">India</a></div>`+
+      `<div><h5>Explore</h5>
+        <a href="#stage">The 3D atelier</a><a href="#bestsellers-sec">Bestsellers</a>
+        <a href="#collections-sec">Collections</a></div>`+
+      `<div><h5>VAHDAM</h5>
+        <a href="${RC.base}" target="_blank" rel="noopener">${RC.label} storefront</a>
+        <div style="font-size:12px;color:#9fb3a8;margin-top:6px">Powered by Shopify · Prices in ${RC.ccy}</div></div>`;
+  }
+}
+
 async function init(){
   // Region switcher — each button reloads with ?region=, so catalog + currency
   // + store base all switch cleanly.
@@ -291,6 +409,7 @@ async function init(){
   buildCollections();
   state.products=await loadCatalog();
   renderCheckout();
+  renderContent();   // populate the full-depth scroll sections (works with 3D or 2D)
   if(state.usedFallback) note(`Live ${RC.label} catalog unavailable right now — showing a limited sample. Product links still open the ${RC.label} store.`);
 
   // qty + variation wiring (works in both 3D and 2D)
