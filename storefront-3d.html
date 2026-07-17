@@ -29,8 +29,10 @@
      sections follow below. */
   body{font-family:var(--body);background:#041b10;color:var(--fg);overflow-x:hidden;overflow-y:auto}
   :root[data-variant="light"] body{background:#eef3f0}
-  #stage{position:relative;height:100vh;width:100%}
-  #gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+  #stage{position:relative;height:100vh;width:100%;z-index:1}
+  /* Full-page 3D: the canvas is a FIXED backdrop behind the ENTIRE scrolling
+     page, so 3D stays present under every section (not just the hero). */
+  #gl{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none;cursor:grab;z-index:0}
   #gl:active{cursor:grabbing}
 
   .overlay{position:absolute;pointer-events:none;z-index:5}
@@ -133,12 +135,14 @@
     font-size:11px;letter-spacing:.18em;text-transform:uppercase;pointer-events:none;text-align:center}
   .scrollcue span{display:block;font-size:18px;margin-top:2px;animation:cuebob 1.8s ease-in-out infinite}
   @keyframes cuebob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
-  main.site{position:relative;z-index:8;background:var(--cream);color:var(--ink);
-    border-radius:26px 26px 0 0;box-shadow:0 -30px 80px rgba(0,0,0,.35)}
-  main.site section{max-width:1180px;margin:0 auto;padding:56px 20px}
-  .sec-eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7a5f28;font-weight:800;margin-bottom:8px}
-  .sec-h{font-family:var(--head);font-size:30px;line-height:1.08;color:var(--ink);margin-bottom:8px}
-  .sec-sub{color:#556059;font-size:14px;line-height:1.6;max-width:620px;margin-bottom:24px}
+  /* content scrolls OVER the fixed 3D backdrop → sections are glass panels */
+  main.site{position:relative;z-index:8;background:transparent;color:var(--cream)}
+  main.site>section{max-width:1180px;margin:22px auto;padding:40px 22px;
+    background:rgba(4,26,16,0.58);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+    border:1px solid rgba(171,135,67,.25);border-radius:22px}
+  .sec-eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#e3c879;font-weight:800;margin-bottom:8px}
+  .sec-h{font-family:var(--head);font-size:30px;line-height:1.08;color:#FBF5EA;margin-bottom:8px;text-shadow:0 2px 18px rgba(0,0,0,.4)}
+  .sec-sub{color:#cfe0d5;font-size:14px;line-height:1.6;max-width:620px;margin-bottom:24px}
   /* collection tiles */
   .colgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   .coltile{display:flex;align-items:flex-end;min-height:120px;padding:14px;border-radius:16px;text-decoration:none;
@@ -156,7 +160,7 @@
   .story{background:var(--green);color:#FBF5EA;border-radius:20px;padding:40px 26px;text-align:center}
   .story .sec-h,.story .sec-eyebrow{color:#FBF5EA}
   .story .sec-eyebrow{color:#e3c879}
-  .trust{display:flex;flex-wrap:wrap;justify-content:center;gap:26px;text-align:center;color:#3f4a44;font-weight:700;font-size:14px;border-top:1px solid rgba(171,135,67,.2);border-bottom:1px solid rgba(171,135,67,.2)}
+  .trust{display:flex;flex-wrap:wrap;justify-content:center;gap:26px;text-align:center;color:#FBF5EA;font-weight:700;font-size:14px}
   .site footer{background:#0a1410;color:#cfe0d5}
   .site footer .inner{max-width:1180px;margin:0 auto;padding:40px 20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
   .site footer a{color:#cfe0d5;text-decoration:none;display:block;padding:5px 0;font-size:14px}
@@ -505,6 +509,12 @@ async function start3D(){
       m.lookAt(camera.position.x,m.position.y,camera.position.z);
     });
     ring.rotation.z+=0.0015;
+    // Scroll parallax: the 3D backdrop rises, dollies in slightly and tilts as
+    // the page scrolls, so depth carries through the whole page (not just hero).
+    const sp=Math.min((window.scrollY||0)/Math.max(innerHeight,1),5);
+    camera.position.y=0.6+sp*0.7;
+    camera.position.z=9-Math.min(sp*0.8,3);
+    camera.lookAt(0,0.2+sp*0.35,0);
     renderer.render(scene,camera);
     requestAnimationFrame(frame);
   }
