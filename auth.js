@@ -40,7 +40,7 @@
       if (!d.querySelector('link[data-vh-theme]')) {
         var l = d.createElement('link');
         l.rel = 'stylesheet';
-        l.href = '/theme.css?v=20260706-greenlock';
+        l.href = '/theme.css?v=20260716-3d';
         l.setAttribute('data-vh-theme', '1');
         (d.head || d.documentElement).appendChild(l);
       }
@@ -248,6 +248,7 @@
     { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
+    { id: 'officialdesigns', label: 'Official Website Designs', href: '/official-designs', icon: 'vahdam', ver: 'v2', match: ['/official-designs', '/store-3d', '/designs', '/official-designs.html'] },
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
@@ -283,6 +284,7 @@
 
     { section: 'Settings' },
     { id: 'connectors', label: 'Connectors', href: '/connectors', icon: 'insights', ver: 'v2', match: ['/connectors', '/connectors.html'] },
+    { id: 'accessissues', label: 'Access Issues', href: '/access-issues', icon: 'insights', ver: 'v2', match: ['/access-issues', '/access', '/access-issues.html'] },
 
     // ── "Aman's version" (aka "Aman's code") — the frozen 3 Jul 2026 build ──
     // Hidden from the rail per product-owner request, but KEPT as a feature: the
@@ -582,6 +584,40 @@
         ['Final compilation + presentation', 'Stored in landing_pages_generated and served live at /lp/:campaignId.', '/api/calendar?action=lp&id=…'],
       ],
     },
+    officialdesigns: {
+      title: 'Official Website Designs',
+      what: "A true-to-brand 3D replica of the Vahdam storefront and Meta-ads landers, rendered as a continuous WebGL scene of floating product panels and glassmorphic surfaces. Live catalog and pricing come from the regional Shopify storefront; historical metrics come from the Snowflake to Supabase daily mirror. It degrades automatically to a fast 2D brand layout on low-end, mobile, reduced-motion or crawler traffic so conversion is never sacrificed.",
+      who: "Shoppers across the US, UK and Global regions, plus paid-social traffic landing on try.vahdam.com and try.vahdam.co.uk — where the scene collapses into a single-product spatial checkout to minimise friction.",
+      how: "The Vahdam3DConnectorEngine (React context provider + data-orchestration middleware) resolves the region and lander from the hostname, connects Shopify and the Snowflake mirror, extracts the live theme colours and typography, injects them into the 3D materials and CSS custom properties, and renders the scene with three and react-three-fiber. Static pages mount the same engine through a no-build ESM bridge.",
+      input: "Nothing from you at view time — the hostname decides region and lander mode. Operators can force a region or a 2D preview on the showcase page.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'The spatial concept: floating mesh product panels over a unified viewport, brand-cloned lighting and surfaces.'],
+        ['Data analysis + review + hypothesis', 'Shopify catalog and pricing are the live source; the Snowflake mirror supplies historical metrics that shape which products lead.', '/api/brain?action=snowflake-metrics'],
+        ['Business & strategy decisions', 'Meta-ads landers isolate one product or bundle for zero-friction checkout; the full store shows the exploration constellation.'],
+        ['Content', 'Product copy and pricing pulled live per region, formatted to the correct currency.'],
+        ['Design + layout + structure', 'Live theme colours and Lao MN / Proxima Nova typography injected into shader uniforms and CSS variables for an exact brand replica.'],
+        ['Coding', 'Rendered with three and react-three-fiber in the React app; mounted on static pages via the ESM bridge, with an automatic 2D fallback.', '/assets/vahdam3d-bridge.js'],
+        ['Final compilation + presentation', 'Served as the Official Website Designs showcase and reused inside landing-page templates.', '/official-designs'],
+      ],
+    },
+    accessissues: {
+      title: 'Access Issues',
+      what: "A strictly read-only audit of Shopify account access and installed apps. It runs entirely in the browser over evidence you provide (user, role, group and activity CSV exports, an app register, login history, and HR/agency/contract context), aggregates effective access per user, and flags unnecessary users, excessive permissions, unused apps, duplicate functionality, security concerns, and avoidable cost. It emits findings and recommendations only.",
+      who: "The operator and store owner. Read-only by architecture: it never authenticates to Shopify, never issues a GraphQL mutation, never requests a write scope, and cannot invite, suspend, remove, install or uninstall anything. Remediation stays with a human who approves and implements separately.",
+      how: "Model A (offline audit): an authorized admin exports the CSVs and captures read-only app, billing and login evidence; this tool parses it locally and derives findings. Model B (controlled live read-only via Shopify CLI with read_* scopes only, no --allow-mutations) is run externally and its JSON pasted in as evidence. A governing read-only policy is applied to any AI narrative step.",
+      input: "Shopify user CSV (required), plus optional role CSV, group CSV, activity-log CSV, app register (CSV/JSON), login-history JSON, and free-text HR/agency/contract context.",
+      pipeline: true,
+      steps: [
+        ['Ideology', 'Least-privilege and no-change-by-architecture: the audit can never modify the account.'],
+        ['Data analysis + review + hypothesis', 'Parses the exports locally, aggregates rows by user ID, and joins user to role to effective permissions and store access.'],
+        ['Business & strategy decisions', 'Separates observed fact, inferred finding, missing evidence, and recommended action for every flag; never guesses missing justification.'],
+        ['Content', 'Applies the rule engine: unnecessary users, excessive permissions, unused apps, duplicate functionality, security concerns, and an avoidable annual cost run-rate.'],
+        ['Design + layout + structure', 'Renders a light, high-contrast findings dashboard with severity-ranked cards and exportable report.'],
+        ['Coding', 'Runs client-side; an optional AI executive summary posts only the derived findings under a strict read-only policy.', '/api/brain?action=access-narrative'],
+        ['Final compilation + presentation', 'Findings and recommendations only; a human approves and implements any remediation.', '/access-issues'],
+      ],
+    },
     social: {
       title: 'Social Media OS',
       what: "The daily social engine (V2 — Lifecycle OS): a 7-agent pipeline produces one complete day-package of posts across 11 platform formats — Instagram Feed, Reels and Stories, Facebook, TikTok, LinkedIn, X, Threads, Pinterest, YouTube Shorts, plus a long-form blog — every string brand-scrubbed, nothing published without a human approve.",
@@ -809,7 +845,7 @@
         #lifecycle-nav .lnav-brand:hover .lnav-mark,
         #lifecycle-nav .lnav-mbrand:hover .lnav-mark { filter: brightness(1.15) saturate(1.05); transform: translateY(-1px); }
         #lifecycle-nav .lnav-brand .lnav-bt { display: flex; flex-direction: column; line-height: 1.15; }
-        #lifecycle-nav .lnav-brand .lnav-bt b { font-family: 'Lora', serif; font-size: 14px; color: #FBF5EA; font-weight: 600; }
+        #lifecycle-nav .lnav-brand .lnav-bt b { font-family: 'Lora', serif; font-size: 14px; color: #004A2B; font-weight: 600; }
         #lifecycle-nav .lnav-brand .lnav-bt small { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #AB8743; }
         #lifecycle-nav .lnav-head { display: flex; align-items: center; gap: 6px; }
         #lifecycle-nav .lnav-head .lnav-brand { flex: 1; padding-right: 0; }
@@ -819,7 +855,7 @@
           color: #556059; cursor: pointer; font-size: 14px; line-height: 1;
           display: flex; align-items: center; justify-content: center; transition: all .12s;
         }
-        #lifecycle-nav .lnav-collapse:hover { border-color: #AB8743; color: #FBF5EA; }
+        #lifecycle-nav .lnav-collapse:hover { border-color: #AB8743; color: #171717; }
 
         /* ── Collapsed (icon-only) rail — desktop only ── */
         @media (min-width: 961px) {
@@ -906,13 +942,13 @@
         #lifecycle-nav .lnav-ghead {
           width: 100%; display: flex; align-items: center; gap: 11px;
           padding: 7px 11px; border: none; background: transparent; cursor: pointer;
-          font-family: inherit; font-size: 13px; color: #d3dbd5; text-align: left; border-radius: 9px;
+          font-family: inherit; font-size: 13px; color: #556059; text-align: left; border-radius: 9px;
         }
         #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #171717; }
         /* Parent of the active sub-item ALSO reads as selected, but LIGHTER than
            the sub-item: a gold-tint fill + faint gold accent, so both show and the
            sub-item stays the darker/stronger of the two. */
-        #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #FBF5EA; background: rgba(171,135,67,0.13); box-shadow: inset 3px 0 0 rgba(171,135,67,0.55); }
+        #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #004A2B; background: rgba(171,135,67,0.13); box-shadow: inset 3px 0 0 rgba(171,135,67,0.55); }
         #lifecycle-nav .lnav-group.active-group .lnav-ghead .lnav-ic { color: #AB8743; }
         #lifecycle-nav .lnav-caret { width: 15px; height: 15px; color: #48524c; transition: transform .18s; }
         #lifecycle-nav .lnav-group.open .lnav-caret { transform: rotate(180deg); }
@@ -931,8 +967,8 @@
           cursor: pointer; display: flex; align-items: center; justify-content: center;
           transition: all .12s; padding: 0;
         }
-        #lifecycle-nav .lnav-i:hover { border-color: #AB8743; color: #FBF5EA; }
-        #lifecycle-nav .lnav-i.on { background: rgba(171,135,67,0.2); border-color: #AB8743; color: #FBF5EA; }
+        #lifecycle-nav .lnav-i:hover { border-color: #AB8743; color: #171717; }
+        #lifecycle-nav .lnav-i.on { background: rgba(171,135,67,0.2); border-color: #AB8743; color: #171717; }
         #lifecycle-nav .lnav-info { display: none; margin: 2px 0 4px 8px; padding-left: 12px; border-left: 1px dashed rgba(171,135,67,0.28); }
         #lifecycle-nav .lnav-info.open { display: block; }
         #lifecycle-nav .lnav-info-item {
@@ -941,7 +977,7 @@
           font-family: inherit; font-size: 11.5px; color: #8b9c93;
           padding: 5px 8px; border-radius: 7px; transition: all .12s;
         }
-        #lifecycle-nav .lnav-info-item:hover { color: #FBF5EA; background: rgba(171,135,67,0.08); }
+        #lifecycle-nav .lnav-info-item:hover { color: #171717; background: rgba(171,135,67,0.08); }
         #lifecycle-nav .lnav-info-n {
           flex-shrink: 0; width: 15px; height: 15px; border-radius: 4px;
           background: rgba(171,135,67,0.14); color: #AB8743;
@@ -974,7 +1010,7 @@
         }
         #lifecycle-nav .lnav-ipanel-title {
           font-family: 'Lora', Georgia, serif; font-size: 18px; font-weight: 600;
-          color: #FBF5EA; letter-spacing: -0.01em; flex: 1;
+          color: #171717; letter-spacing: -0.01em; flex: 1;
         }
         #lifecycle-nav .lnav-ipanel-htxt { flex: 1; min-width: 0; }
         #lifecycle-nav .lnav-ipanel-close {
@@ -983,15 +1019,15 @@
           color: #556059; font-size: 15px; line-height: 1; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
         }
-        #lifecycle-nav .lnav-ipanel-close:hover { border-color: #AB8743; color: #FBF5EA; }
+        #lifecycle-nav .lnav-ipanel-close:hover { border-color: #AB8743; color: #171717; }
         #lifecycle-nav .lnav-ipanel-body {
           padding: 16px 20px 20px; overflow-y: auto; scrollbar-width: thin;
-          font-size: 13px; line-height: 1.65; color: #d3dbd5;
+          font-size: 13px; line-height: 1.65; color: #556059;
         }
         #lifecycle-nav .lnav-ipanel-body p { margin: 0 0 10px; }
         #lifecycle-nav .lnav-ipanel-q {
           font-family: 'Lora', Georgia, serif; font-size: 14.5px; font-weight: 600;
-          color: #FBF5EA; margin: 18px 0 6px; padding-top: 12px;
+          color: #171717; margin: 18px 0 6px; padding-top: 12px;
           border-top: 1px solid rgba(171,135,67,0.16);
         }
         #lifecycle-nav .lnav-ipanel-q:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
@@ -1016,7 +1052,7 @@
           content: ''; position: absolute; left: 10.5px; top: 26px; bottom: 2px;
           width: 1px; background: rgba(171,135,67,0.18);
         }
-        #lifecycle-nav .lnav-steps b { display: block; color: #FBF5EA; font-size: 12.5px; margin-bottom: 2px; }
+        #lifecycle-nav .lnav-steps b { display: block; color: #171717; font-size: 12.5px; margin-bottom: 2px; }
         #lifecycle-nav .lnav-steps .lnav-step-d { display: block; font-size: 12px; color: #556059; }
         #lifecycle-nav .lnav-steps .lnav-step-via {
           display: inline-block; margin-top: 4px; font-family: 'JetBrains Mono', monospace;
@@ -1036,8 +1072,8 @@
         #lifecycle-nav .lnav-uname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #lifecycle-nav .lnav-signout { background: transparent; border: 1px solid rgba(171,135,67,0.25);
           color: #556059; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 13px; flex-shrink: 0; }
-        #lifecycle-nav .lnav-signout:hover { border-color: #AB8743; color: #FBF5EA; }
-        #lifecycle-nav .lnav-signin { color: #AB8743; text-decoration: none; font-weight: 600; padding: 4px 8px; }
+        #lifecycle-nav .lnav-signout:hover { border-color: #AB8743; color: #171717; }
+        #lifecycle-nav .lnav-signin { color: #7a5f28; text-decoration: none; font-weight: 600; padding: 4px 8px; }
 
         @media (max-width: 960px) {
           #lifecycle-nav .lnav-mbar { display: flex; }
