@@ -1,21 +1,6 @@
+import type { Texture } from 'three';
+
 export type VahdamRegion = 'US' | 'UK' | 'GLOBAL';
-
-/** Minimal resource contract implemented by Three.js Texture without coupling this package to Three. */
-export interface DisposableTexture {
-  dispose(): void;
-}
-
-/** Renderer is owned by the canvas host so the data engine remains SSR and test safe. */
-export interface SpatialRenderer {
-  dispose(): void;
-  setPixelRatio?(ratio: number): void;
-  setSize?(width: number, height: number, updateStyle?: boolean): void;
-}
-
-export type SpatialTextureLoader = (
-  url: string,
-  signal: AbortSignal,
-) => Promise<DisposableTexture | null>;
 
 export interface MoneyV2 {
   amount: string;
@@ -98,8 +83,8 @@ export interface VahdamRegionState {
 export interface MaterialUniforms {
   uPrimaryGreen: { value: string };
   uAccentGold: { value: string };
-  uEnvironmentMap: { value: DisposableTexture | null };
-  uProductTexture: { value: DisposableTexture | null };
+  uEnvironmentMap: { value: Texture | null };
+  uProductTexture: { value: Texture | null };
 }
 
 export interface SpatialLayout {
