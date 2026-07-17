@@ -7,7 +7,7 @@
     "node": ">=20.x"
   },
   "scripts": {
-    "build": "node scripts/build-catalog.js",
+    "build": "node scripts/build-catalog.js && node scripts/build-website-designs.js",
     "preflight": "bash scripts/preflight-credentials.sh",
     "migrate:domains": "node scripts/migrate-domains.js",
     "migrate:oauth": "node scripts/migrate-oauth.js",
@@ -24,8 +24,8 @@
     "collect:landing": "node workers/collect-landing.js",
     "collect:wayback": "node workers/collect-wayback.js",
     "seed:products": "node scripts/seed-smart-products.js",
-  "seed:assets": "node scripts/seed-brand-assets.js",
-  "build:july": "node scripts/build-july-mailers.js && node scripts/build-july-studio.js",
+    "seed:assets": "node scripts/seed-brand-assets.js",
+    "build:july": "node scripts/build-july-mailers.js && node scripts/build-july-studio.js",
     "mobile:sync": "cap sync",
     "mobile:android": "cap sync android && cd android && ./gradlew assembleDebug",
     "mobile:android:open": "cap open android",

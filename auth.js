@@ -40,7 +40,7 @@
       if (!d.querySelector('link[data-vh-theme]')) {
         var l = d.createElement('link');
         l.rel = 'stylesheet';
-        l.href = '/theme.css?v=20260706-greenlock';
+        l.href = '/theme.css?v=20260716-3d';
         l.setAttribute('data-vh-theme', '1');
         (d.head || d.documentElement).appendChild(l);
       }
@@ -255,7 +255,11 @@
       { id: 'ads-google',  label: 'Google Ads', href: '/ad-campaigns.html#google',   icon: 'google' },
       { id: 'ads-tiktok',  label: 'TikTok Ads', href: '/ad-campaigns.html#tiktok',   icon: 'tiktok' },
     ]},
-    { group: 'Landing Pages', icon: 'landing', gid: 'landing', ver: 'v1', children: [
+    { group: 'Website Designs', icon: 'landing', gid: 'landing', ver: 'v1', children: [
+      { id: 'lp-overview', label: 'Designs Overview', href: '/website-designs', icon: 'landing', match: ['/website-designs', '/website-designs.html'] },
+      { id: 'web-us', label: 'US Website', href: '/website-designs?market=US', icon: 'vahdam' },
+      { id: 'web-uk', label: 'UK Website', href: '/website-designs?market=UK', icon: 'vahdam' },
+      { id: 'web-global', label: 'Global Website', href: '/website-designs?market=GLOBAL', icon: 'vahdam' },
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
       { id: 'lp-agent',   label: 'Landing Page with All-In-One Voice+Chat+Talk Agent',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
       { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages.html#mailers',  icon: 'mailer' },

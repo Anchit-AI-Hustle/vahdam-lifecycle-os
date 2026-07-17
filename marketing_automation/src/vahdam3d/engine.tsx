@@ -1,7 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { WebGLRenderer, TextureLoader } from 'three';
-import type { Texture } from 'three';
-import { motion } from 'framer-motion/3d';
 import type {
   MaterialUniforms,
   McpSpatialAdapter,
@@ -10,13 +7,14 @@ import type {
   ShopifyStorefrontPayload,
   ShopifyThemeSettings,
   SnowflakeQueryPayload,
+  SpatialRenderer,
   SpatialLayout,
+  SpatialTextureLoader,
   VahdamRegion,
   VahdamRegionState,
 } from './types';
 
 export * from './types';
-export { motion };
 
 const META_LANDERS = {
   US: /^https?:\/\/try\.vahdam\.com(?:[/:?#]|$)/i,
@@ -41,7 +39,9 @@ export interface Vahdam3DEngineOptions {
   storefrontTokens: Record<VahdamRegion, string>;
   snowflakeEndpoint: string;
   fetcher?: typeof fetch;
-  renderer?: WebGLRenderer | null;
+  renderer?: SpatialRenderer | null;
+  /** Inject `(url, signal) => new THREE.TextureLoader().loadAsync(url)` at the canvas boundary. */
+  textureLoader?: SpatialTextureLoader;
   mcp?: McpSpatialAdapter;
 }
 
@@ -49,7 +49,7 @@ export interface Vahdam3DEngineResult extends VahdamRegionState {
   products: ResolvedCatalogProduct[];
   uniforms: MaterialUniforms;
   layout: SpatialLayout;
-  renderer: WebGLRenderer | null;
+  renderer: SpatialRenderer | null;
   loading: boolean;
   error: Error | null;
   mcp: { animation: Record<string, unknown>; physics: Record<string, unknown> } | null;
@@ -144,32 +144,32 @@ export function resolveShopifyFirst(
 function setCssTheme(theme: ShopifyThemeSettings): void {
   if (typeof document === 'undefined') return;
   const style = document.documentElement.style;
-  // Single token contract (matches the architecture spec + Vahdam3DConnectorEngine):
-  // --vahdam-green / --vahdam-gold / --vahdam-font.
-  style.setProperty('--vahdam-green', theme.colors.primary);
-  style.setProperty('--vahdam-gold', theme.colors.accent);
-  style.setProperty('--vahdam-font', JSON.stringify(theme.typography.bodyFamily));
+  style.setProperty('--vahdam-primary-green', theme.colors.primary);
+  style.setProperty('--vahdam-accent-gold', theme.colors.accent);
+  style.setProperty('--vahdam-body-font', JSON.stringify(theme.typography.bodyFamily));
 }
 
-function loadTexture(url: string | undefined, signal: AbortSignal): Promise<Texture | null> {
-  if (!url) return Promise.resolve(null);
-  return new Promise(resolve => {
-    const loader = new TextureLoader();
-    loader.load(url, texture => resolve(signal.aborted ? null : texture), undefined, () => resolve(null));
-  });
+function loadTexture(
+  url: string | undefined,
+  textureLoader: SpatialTextureLoader | undefined,
+  signal: AbortSignal,
+) {
+  if (!url || !textureLoader) return Promise.resolve(null);
+  return textureLoader(url, signal).catch(() => null);
 }
 
 export async function injectTheme(
   theme: ShopifyThemeSettings,
   uniforms: MaterialUniforms,
   signal: AbortSignal,
+  textureLoader?: SpatialTextureLoader,
 ): Promise<void> {
   setCssTheme(theme);
   uniforms.uPrimaryGreen.value = theme.colors.primary;
   uniforms.uAccentGold.value = theme.colors.accent;
   const [environment, product] = await Promise.all([
-    loadTexture(theme.assets.environmentMapUrl, signal),
-    loadTexture(theme.assets.productTextureUrl, signal),
+    loadTexture(theme.assets.environmentMapUrl, textureLoader, signal),
+    loadTexture(theme.assets.productTextureUrl, textureLoader, signal),
   ]);
   if (!signal.aborted) {
     uniforms.uEnvironmentMap.value?.dispose();
@@ -227,7 +227,7 @@ export function useVahdam3DEngine(options: Vahdam3DEngineOptions): Vahdam3DEngin
           options.mcp.animation('vahdam-product-orbit', controller.signal),
           options.mcp.physics('vahdam-glass-spring', controller.signal),
         ]) : null;
-        await injectTheme(shopify.theme, uniforms, controller.signal);
+        await injectTheme(shopify.theme, uniforms, controller.signal, options.textureLoader);
         if (!controller.signal.aborted) {
           setProducts(resolveShopifyFirst(shopify.products, snowflake));
           setTheme(shopify.theme);
@@ -241,7 +241,7 @@ export function useVahdam3DEngine(options: Vahdam3DEngineOptions): Vahdam3DEngin
     })();
     return () => controller.abort();
   }, [options.fetcher, options.mcp, options.snowflakeEndpoint, options.storefrontEndpoints,
-    options.storefrontTokens, revision, route.detectedRegion, uniforms]);
+    options.storefrontTokens, options.textureLoader, revision, route.detectedRegion, uniforms]);
 
   useEffect(() => () => {
     uniforms.uEnvironmentMap.value?.dispose();
