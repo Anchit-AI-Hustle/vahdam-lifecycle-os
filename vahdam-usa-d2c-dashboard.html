@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VAHDAM USA D2C Dashboard</title>
+<style>
+  :root{
+    --forest:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA;
+    --forest-2:#00623a; --line:#e4dcc9; --muted:#5b5b52; --bad:#8B1A10; --ok:#0B6B2E;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);
+    font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;line-height:1.5;}
+  h1,h2,h3{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-weight:700;margin:0;}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 24px 64px;}
+  header{background:var(--forest);color:var(--cream);padding:36px 0;}
+  header .wrap{padding-top:0;padding-bottom:0;}
+  header h1{font-size:34px;color:#fff;letter-spacing:.3px}
+  header p{margin:8px 0 0;color:#dfeee4;font-size:14px}
+  .badge{display:inline-block;margin-top:14px;background:var(--gold);color:#2a2000;
+    font-weight:700;font-size:12px;padding:5px 12px;border-radius:999px;letter-spacing:.4px}
+  section{margin-top:40px}
+  .eyebrow{color:var(--gold);font-weight:700;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+  h2{font-size:24px;color:var(--forest)}
+  .lead{color:var(--muted);max-width:760px;margin-top:6px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}
+  .kpi .v{font-family:'Lao MN',Georgia,serif;font-weight:700;font-size:26px;color:var(--forest)}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:2px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;margin-top:18px}
+  .chartwrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{background:var(--forest);color:#fff;border-bottom:none;position:sticky;top:0}
+  tbody tr:nth-child(even){background:#faf6ec}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+  .p-bad{background:#FCE8E6;color:var(--bad)} .p-ok{background:#E6F4EA;color:var(--ok)}
+  .p-warn{background:#FEF7E0;color:#8A6D00}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .verdict{background:var(--forest);color:var(--cream);border-radius:14px;padding:22px;margin-top:18px}
+  .verdict h3{color:#fff;font-size:19px}
+  .verdict ul{margin:10px 0 0;padding-left:18px} .verdict li{margin:5px 0;color:#e7f2ea}
+  .bar-lbl{font-size:11px;fill:var(--muted)} .bar-val{font-size:10px;fill:var(--ink)}
+  footer{margin-top:44px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+  @media (max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}}
+  @media print{
+    body{background:#fff}
+    header{background:var(--forest) !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .kpi,.card,.verdict,thead th,.pill{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    section{break-inside:avoid} .card{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>VAHDAM USA . D2C Website Report</h1>
+    <p>vahdam.com (Shopify Plus) . Full historical performance 2015 to 2026 . Report generated July 13, 2026</p>
+    <span class="badge">SOURCE OF TRUTH: SHOPIFY (vahdamusa.myshopify.com)</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <div class="eyebrow">All-time</div>
+    <h2>The business at a glance</h2>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Year on year</div>
+    <h2>Total sales by year (2015 to 2026)</h2>
+    <p class="lead">Scaled 50x into a $3.30M peak in 2021, lost roughly 70% over three years, and is now in a supplement-led recovery. 2026 is a partial year (through Jul 13).</p>
+    <div class="card"><div class="chartwrap"><svg id="chart-sales" width="1040" height="320" role="img" aria-label="Total sales by year"></svg></div></div>
+    <div class="card"><div class="chartwrap"><svg id="chart-orders" width="1040" height="300" role="img" aria-label="Orders by year"></svg></div></div>
+    <div class="card chartwrap">
+      <table id="tbl-yearly"></table>
+      <div class="note">Total Sales = gross sales - discounts - returns + shipping + taxes (Shopify definition). Buyer counts before 2018 and traffic before 2022 are unavailable. 2022 conversion (4.3%) is a partial-year artifact.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Like for like</div>
+    <h2>2025 vs 2026 YTD (Jan 1 to Jul 13)</h2>
+    <p class="lead">Growing again on the supplements line: orders up 56.5% and buyers up 44.3%, but AOV is down 17% and discounting is up 80%.</p>
+    <div class="card chartwrap"><table id="tbl-ytd"></table></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Product mix</div>
+    <h2>Top products: the supplements takeover</h2>
+    <div class="cols">
+      <div class="card chartwrap"><h3 style="color:var(--gold);font-size:15px;margin-bottom:8px">H1 2025</h3><table id="tbl-t25"></table></div>
+      <div class="card chartwrap"><h3 style="color:var(--gold);font-size:15px;margin-bottom:8px">H1 2026</h3><table id="tbl-t26"></table></div>
+    </div>
+    <div class="note">Ashwagandha Coffee alone did $85.8K across 2,009 orders in H1 2026, more than 5x the #1 product of a year earlier.</div>
+  </section>
+
+  <section>
+    <div class="eyebrow">The target</div>
+    <h2>The Rs 100 Cr bridge</h2>
+    <div class="card chartwrap"><table id="tbl-bridge"></table></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Data accuracy</div>
+    <h2>Does our repo data match this report?</h2>
+    <p class="lead">Verified every stored analytics dataset against the report. Result below.</p>
+    <div class="verdict">
+      <h3>Verdict: our stored data does NOT fully match the report</h3>
+      <ul>
+        <li><b>Live dashboard (trailing 12mo)</b> $1.12M total is consistent with the report's ~$1.1M/yr run-rate, but it is a different scope, not the calendar-year table.</li>
+        <li><b>Historical shopify_analytics CSVs</b> are wrong and appear synthetic: 2024 revenue overstated ~50 to 56%, 2023 orders off 44%, nonsense AOV column, coverage stops at 2025-03.</li>
+        <li><b>Cohort base</b> uses the import-inflated 430,000 profile count instead of the report's 154,822 true purchasers.</li>
+        <li><b>All-time figures</b> ($14.76M lifetime, 268,500 orders, 154,822 customers) had no representation in the repo until this transcription.</li>
+      </ul>
+    </div>
+    <div class="card chartwrap"><table id="tbl-recon"></table></div>
+  </section>
+
+  <footer>
+    Figures transcribed verbatim from VAHDAM_USA_D2C_Report.pdf (Shopify). Repo values tallied from data/shopify_analytics, data/market, and data/cohort-sizes.json. Canonical machine-readable copy: data/analytics/usa-d2c-report-2026-07-13.json. Full write-up: docs/data-accuracy-validation-2026-07-13.md.
+  </footer>
+</div>
+
+<script>
+const F="#004A2B", G="#AB8743", MUT="#5b5b52";
+const kpis=[["$14.76M","Lifetime gross sales"],["268,500","Total orders (all-time)"],
+  ["154,822","Unique customers"],["$3.30M","Peak year (2021)"],
+  ["$1.00M","2025 full year"],["~$1.1M/yr","Current run-rate"],
+  ["430,743","Shopify profiles"],["8,028","Active buyers 2026 YTD (5.2%)"]];
+document.getElementById("kpis").innerHTML=kpis.map(k=>
+  `<div class="kpi"><div class="v">${k[0]}</div><div class="l">${k[1]}</div></div>`).join("");
+
+const yearly=[
+ ["2015",996,64400,3200,62900,61.4,"","","","",""],
+ ["2016",1045,67600,2400,67500,62.4,"","","","",""],
+ ["2017",1564,108000,9600,102000,62.9,"","","","",""],
+ ["2018",6512,420000,23800,406200,60.8,5422,"15.3%","","",""],
+ ["2019",15702,880600,85700,818100,50.6,12653,"19.8%","","",""],
+ ["2020",38096,1840000,173900,1780000,43.7,29385,"22.2%","","",""],
+ ["2021",70816,3370000,320100,3300000,43.0,49913,"27.0%","","",""],
+ ["2022",57644,3600000,800100,3100000,48.6,41401,"31.3%","500K*","365K*","4.3%*"],
+ ["2023",28058,1720000,298600,1600000,50.7,19441,"43.2%","1.42M","1.10M","1.67%"],
+ ["2024",17511,1030000,126800,980000,51.7,12639,"51.2%","906K","727K","1.67%"],
+ ["2025",16538,1070000,139600,1000000,56.5,11802,"46.5%","675K","542K","2.16%"],
+ ["2026 YTD",11348,586600,80400,536200,44.5,8028,"52.5%","436K","368K","1.94%"]];
+const money=v=> v>=1e6? "$"+(v/1e6).toFixed(2)+"M" : "$"+Math.round(v/1000)+"K";
+const num=v=> v===""?"":Number(v).toLocaleString();
+
+function barChart(svgId, rows, valIdx, color, fmt, title){
+  const svg=document.getElementById(svgId); const W=1040,H=+svg.getAttribute("height");
+  const padL=54,padR=16,padT=34,padB=42; const iw=W-padL-padR, ih=H-padT-padB;
+  const vals=rows.map(r=>r[valIdx]); const max=Math.max(...vals)*1.1;
+  const bw=iw/rows.length*0.66, gap=iw/rows.length;
+  let s=`<text x="${padL}" y="20" style="font-family:Georgia" font-size="14" font-weight="700" fill="${F}">${title}</text>`;
+  // gridlines
+  for(let g=0; g<=4; g++){ const y=padT+ih-(ih*g/4); const gv=max*g/4;
+    s+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eee2cc"/>`;
+    s+=`<text x="${padL-6}" y="${y+3}" text-anchor="end" font-size="10" fill="${MUT}">${fmt(gv)}</text>`; }
+  rows.forEach((r,i)=>{ const x=padL+gap*i+(gap-bw)/2; const h=ih*(r[valIdx]/max);
+    const y=padT+ih-h;
+    s+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${color}"></rect>`;
+    s+=`<text class="bar-val" x="${x+bw/2}" y="${y-4}" text-anchor="middle">${fmt(r[valIdx])}</text>`;
+    s+=`<text class="bar-lbl" x="${x+bw/2}" y="${H-padB+16}" text-anchor="middle">${r[0]}</text>`; });
+  svg.innerHTML=s;
+}
+barChart("chart-sales",yearly,4,F,money,"Total sales ($)");
+barChart("chart-orders",yearly,1,G,v=>Math.round(v/1000)+"K","Orders");
+
+function table(id,head,rows,fmts){
+  const el=document.getElementById(id);
+  let h="<thead><tr>"+head.map(x=>`<th>${x}</th>`).join("")+"</tr></thead><tbody>";
+  h+=rows.map(r=>"<tr>"+r.map((c,i)=>`<td>${fmts&&fmts[i]?fmts[i](c):c}</td>`).join("")+"</tr>").join("");
+  el.innerHTML=h+"</tbody>";
+}
+table("tbl-yearly",["Year","Orders","Gross","Discounts","Total","AOV","Buyers","Ret %","Sessions","Visitors","Conv %"],
+  yearly,[null,num,money,money,money,v=>"$"+v,num,null,null,null,null]);
+
+const ytd=[["Total sales","$417.8K","$536.2K","+28.3%"],["Gross sales","$433.2K","$586.6K","+35.4%"],
+ ["Orders","7,251","11,348","+56.5%"],["Average order value","$53.57","$44.54","-16.9%"],
+ ["Unique buyers","5,564","8,028","+44.3%"],["New buyers","2,484","3,815","+53.6%"],
+ ["Returning buyers","3,080","4,213","+36.8%"],["Returning buyer share","55.4%","52.5%","-2.9 pts"],
+ ["Discounts given","$44.6K (10.3%)","$80.4K (13.7%)","+80.1%"],["Returns","$3.7K","$10.6K","+182.8%"],
+ ["Sessions","317,563","436,131","+37.3%"],["Unique visitors","251,018","367,509","+46.4%"],
+ ["Conversion rate","2.01%","1.94%","-0.07 pts"]];
+table("tbl-ytd",["Metric","2025 YTD","2026 YTD","Change"],ytd);
+
+const t25=[[1,"Masala Chai Tea, 12 oz","$16.6K"],[2,"Turmeric Ginger Tisane, 100 Ct","$12.7K"],
+ [3,"Double Spice Masala Chai","$11.7K"],[4,"Ashwagandha Coffee (80 Serv.)","$11.4K"],
+ [5,"Ashwagandha Coffee 3-Pack bundle","$10.9K"],[6,"Daily Assam Black Tea, 12 oz","$10.2K"],
+ [7,"English Breakfast, 12 oz","$10.0K"],[8,"Himalayan Green Tea, 12 oz","$8.7K"],
+ [9,"Earl Grey Black Tea, 12 oz","$8.1K"]];
+const t26=[[1,"Ashwagandha Coffee","$85.8K"],[2,"Ashwagandha 1800mg KSM-66 Capsules","$36.3K"],
+ [3,"Ashwagandha Coffee Refill","$29.3K"],[4,"Masala Chai Tea, 12 oz","$15.5K"],
+ [5,"Turmeric Curcumin 2000mg","$12.1K"],[6,"Daily Assam Black Tea, 12 oz","$11.4K"],
+ [7,"Double Spice Masala Chai","$11.0K"],[8,"Turmeric Ginger Tisane, 100 Ct","$10.8K"],
+ [9,"English Breakfast, 12 oz","$9.7K"]];
+table("tbl-t25",["#","Product","Sales"],t25);
+table("tbl-t26",["#","Product","Sales"],t26);
+
+const bridge=[["Annual total sales","~$1.1M (Rs 9-9.5 Cr)","~$11.5-12M","~12x"],
+ ["Monthly sales","~$85K","~$1M","~12x"],["Annual sessions","~815K","8-10M","~10-12x"],
+ ["Conversion rate","~2.0%","3.0%+","1.5x"],["AOV","$44 (falling)","$55-60","1.3x"],
+ ["Active buyers / year","~14-15K","150-180K","~11x"]];
+table("tbl-bridge",["Lever","Today (run-rate)","Required for Rs 100 Cr","Multiple"],bridge);
+
+const recon=[
+ ["2023 orders","15,757","28,058","-44%","MISMATCH"],
+ ["2023 gross sales","$1.62M","$1.72M","-6%","Close"],
+ ["2023 discounts","$188.6K","$298.6K","-37%","MISMATCH"],
+ ["2023 total sales","$1.58M","$1.60M","-1%","OK"],
+ ["2023 buyers","11,995","19,441","-38%","MISMATCH"],
+ ["2024 orders","16,564","17,511","-5%","Close"],
+ ["2024 gross sales","$1.55M","$1.03M","+50%","MISMATCH"],
+ ["2024 total sales","$1.53M","$0.98M","+56%","MISMATCH"],
+ ["2024 discounts","$167.8K","$126.8K","+32%","MISMATCH"],
+ ["2024 buyers","12,440","12,639","-2%","Close"],
+ ["2025 orders (repo Jan-Mar only)","5,055","16,538","n/a","PARTIAL"],
+ ["Live dashboard total (trailing 12mo)","$1.12M","~$1.1M","+2%","CONSISTENT"],
+ ["Customer base for cohorts","430,000","154,822","+178%","MISLEADING"],
+ ["All-time lifetime gross","(absent)","$14.76M","n/a","MISSING"],
+ ["All-time orders","(absent)","268,500","n/a","MISSING"],
+ ["All-time unique customers","(absent)","154,822","n/a","MISSING"]];
+const pill=v=>{const c=(["MISMATCH","MISSING","MISLEADING","PARTIAL"].includes(v))?"p-bad":(["OK","CONSISTENT"].includes(v)?"p-ok":"p-warn");
+  return `<span class="pill ${c}">${v}</span>`;};
+table("tbl-recon",["Metric","Repo value","Report value","Delta","Verdict"],recon,[null,null,null,null,pill]);
+</script>
+</body>
+</html>
