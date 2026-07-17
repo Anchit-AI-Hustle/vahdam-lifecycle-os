@@ -157,7 +157,7 @@
     </div>
     <div class="drop">
       <label>Apps register CSV / JSON</label>
-      <div class="hint">Settings → Apps. Columns like app, developer, owner, purpose, permissions, last_activity, plan, monthly_cost, usage_cost, external_billed, category.</div>
+      <div class="hint">Settings → Apps. Columns like app, developer, owner, purpose, permissions, last_activity, plan, monthly_cost (per month), usage_cost (per month), external_billed (per YEAR), category.</div>
       <input type="file" accept=".csv,.json" data-kind="apps">
       <div class="loaded" data-loaded="apps"></div>
     </div>
@@ -527,7 +527,9 @@
     return out;
   }
 
-  function annual(a) { return a.monthly * 12 + a.usage * 12 + a.external * 12; }
+  // monthly_cost + usage_cost are MONTHLY (annualized x12); external_billed is
+  // the ANNUAL external-subscription amount (added as-is, not x12).
+  function annual(a) { return a.monthly * 12 + a.usage * 12 + a.external; }
   function money(n) { return "$" + (Math.round(n * 100) / 100).toLocaleString(); }
 
   function costBlock(m) {
@@ -539,7 +541,7 @@
     });
     var total = flagged.reduce(function (s, a) { return s + annual(a); }, 0);
     var rows = flagged.map(function (a) {
-      return "<tr><td>" + esc(a.name) + "</td><td class='muted'>" + esc(a.plan || "-") + "</td><td>" + money(a.monthly * 12) + "</td><td>" + money(a.usage * 12) + "</td><td>" + money(a.external * 12) + "</td><td><b>" + money(annual(a)) + "</b></td></tr>";
+      return "<tr><td>" + esc(a.name) + "</td><td class='muted'>" + esc(a.plan || "-") + "</td><td>" + money(a.monthly * 12) + "</td><td>" + money(a.usage * 12) + "</td><td>" + money(a.external) + "</td><td><b>" + money(annual(a)) + "</b></td></tr>";
     }).join("");
     return { total: total, count: flagged.length, html:
       "<div class='card'><div style='font-size:13px;color:#556059;margin-bottom:10px'>Potential avoidable annual run-rate across " + flagged.length + " flagged app(s): <b style='color:#b45309;font-size:16px'>" + money(total) + "</b>. Externally-billed lines require finance confirmation.</div>" +
