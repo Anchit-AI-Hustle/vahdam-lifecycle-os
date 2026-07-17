@@ -1522,7 +1522,8 @@ Output: packaging mockups, ecommerce hero, social ads, carousels, motion-ready f
       });
 
       send.addEventListener('click', function () {
-        input.value = 'Base locked. Use the VAHDAM Weightless Wellness antigravity system for the next page generation.';
+        var message = input.value.trim() || 'Use the VAHDAM Weightless Wellness antigravity system for the next page generation.';
+        window.dispatchEvent(new CustomEvent('vahdam-agent:open', { detail: { message: message } }));
       });
     })();
   </script>

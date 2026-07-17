@@ -28,10 +28,10 @@
   .mkt button{border:0;background:transparent;color:var(--soft);font-family:inherit;font-weight:700;font-size:13px;padding:7px 16px;border-radius:999px;cursor:pointer;transition:all .15s;}
   .mkt button.on{background:var(--forest);color:var(--cream);box-shadow:0 0 0 1.5px var(--gold);}
   /* KPI tiles */
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:18px 0 6px;}
-  .kpi{background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:15px 16px;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;margin:18px 0 6px;}
+  .kpi{background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:15px 16px;min-width:0;overflow:hidden;}
   .kpi .kl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);font-weight:700;}
-  .kpi .kv{font-family:'Lao MN',Georgia,serif;font-size:25px;color:var(--head);margin-top:4px;font-variant-numeric:tabular-nums;line-height:1;}
+  .kpi .kv{font-family:'Lao MN',Georgia,serif;font-size:clamp(20px,2vw,25px);color:var(--head);margin-top:4px;font-variant-numeric:tabular-nums;line-height:1.15;overflow-wrap:anywhere;}
   .kpi .kd{font-size:11.5px;margin-top:6px;color:var(--soft);}
   .kpi .up{color:#3fa46a;font-weight:700;} .kpi .down{color:#c47b6b;font-weight:700;}
   /* Signals board — auto-computed "what needs attention", ranked by severity. */
@@ -51,6 +51,7 @@
   .w{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;grid-column:span 6;display:flex;flex-direction:column;min-width:0;}
   .w.span4{grid-column:span 4;} .w.span8{grid-column:span 8;} .w.span12{grid-column:span 12;} .w.span6{grid-column:span 6;}
   @media (max-width:900px){.w,.w.span4,.w.span8,.w.span6{grid-column:span 12;}}
+  @media (max-width:520px){.kpis{grid-template-columns:1fr;}.kpi .kv{font-size:22px;}}
   .w .wh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px;}
   .w .wt{font-family:'Lao MN',Georgia,serif;font-size:16px;color:var(--head);font-weight:700;}
   .w .ws{font-size:12px;color:var(--soft);}

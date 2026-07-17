@@ -303,4 +303,27 @@
     }
   }
   fab.onclick = function () { if (open) { open = false; panel.classList.remove('open'); } else { openPanel(); } };
+
+  // Public integration contract for landing pages. A link to #agent must open
+  // the real concierge rather than merely scrolling to a decorative preview.
+  function openFromPage(message) {
+    openPanel();
+    window.requestAnimationFrame(function () {
+      if (message) input.value = String(message);
+      input.focus();
+    });
+  }
+  window.VahdamAgent = { open: openFromPage, ask: function (message) { openFromPage(); ask(String(message || '').trim()); } };
+  window.addEventListener('vahdam-agent:open', function (event) {
+    openFromPage(event.detail && event.detail.message);
+  });
+  window.addEventListener('hashchange', function () {
+    if (window.location.hash === '#agent') openFromPage();
+  });
+  document.addEventListener('click', function (event) {
+    var link = event.target.closest && event.target.closest('a[href="#agent"]');
+    // A repeated click on the current hash does not fire hashchange.
+    if (link && window.location.hash === '#agent') openFromPage();
+  });
+  if (window.location.hash === '#agent') openFromPage();
 })();
