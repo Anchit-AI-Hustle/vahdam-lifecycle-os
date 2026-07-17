@@ -243,20 +243,18 @@ table:has(th) th:first-child, table:has(th) td:first-child { text-align: left; }
    classes + generic [class*="card"], never to nav/header/sticky chrome.
    ============================================================================ */
 @media (prefers-reduced-motion: no-preference) {
-  /* Elevation + hover lift for card-like surfaces across every page. */
-  .card, .vh-card, .kpi, .tile, .panel, .p3d, .coll, [data-chart-host],
-  [class*="card"]:not(nav):not(header):not(.nav):not(.topbar),
-  [class*="tile"], [class*="kpi"] {
-    transition: transform .28s cubic-bezier(.2,.7,.3,1), box-shadow .28s ease;
-    transform: perspective(900px) translateZ(0);
-    will-change: transform;
+  /* Subtle hover lift for SMALL card/tile/kpi surfaces only — a flat raise, no
+     3D tilt. The previous rule applied a perspective+rotateX(2.5deg)+scale tilt
+     to .panel and any [class*="card"], so large sections (e.g. the calendar
+     panel) lurched/swung when the cursor entered. Large sections + panels are
+     no longer transformed; small cards get a gentle 2px lift + shadow. */
+  .vh-card, .kpi, .tile, .coll, .card, [class*="kpi"], [class*="tile"] {
+    transition: transform .2s ease, box-shadow .2s ease;
   }
-  .card:hover, .vh-card:hover, .kpi:hover, .tile:hover, .panel:hover, .p3d:hover,
-  .coll:hover, [data-chart-host]:hover,
-  [class*="card"]:not(nav):not(header):not(.nav):not(.topbar):hover,
-  [class*="tile"]:hover, [class*="kpi"]:hover {
-    transform: perspective(900px) translateY(-6px) rotateX(2.5deg) scale(1.012);
-    box-shadow: 0 22px 48px rgba(23,23,23,.16), 0 4px 12px rgba(23,23,23,.08);
+  .vh-card:hover, .kpi:hover, .tile:hover, .coll:hover, .card:hover,
+  [class*="kpi"]:hover, [class*="tile"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 32px rgba(23,23,23,.12), 0 3px 10px rgba(23,23,23,.06);
   }
   /* Buttons feel physical: raised at rest, press down on click. */
   button, .btn, .vh-btn, [role="button"], input[type="submit"] {
