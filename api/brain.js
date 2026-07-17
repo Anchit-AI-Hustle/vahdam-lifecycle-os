@@ -46,6 +46,8 @@ const video = require('./_shared/video-core.js');
 const social = require('./_shared/social-core.js');
 const osb = require('./_shared/os-backbone.js');
 const alerts = require('./_shared/alerts-core.js');
+let snowflake = null;
+try { snowflake = require('./_shared/snowflake-sync-core.js'); } catch (_) { snowflake = null; }
 
 let callLLM = null;
 try { callLLM = require('./_shared/llm.js'); } catch (_) { callLLM = null; }
@@ -523,6 +525,51 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, kind: 'anomaly-preview', anomalies: alerts.detectAnomalies(), thresholds: alerts.TH, recipient: alerts.ALERT_EMAIL() });
       }
 
+      // ── ACCESS AUDIT NARRATIVE (strictly read-only) ─────────────────────
+      // Turns the CLIENT-derived audit findings into an executive summary.
+      // Reads only the posted report; issues no Shopify call, no mutation.
+      case 'access-narrative': {
+        if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+        const report = b.report || {};
+        if (!callLLM) return res.json({ ok: true, narrative: '' });
+        const policy = [
+          'You are writing an executive summary for a STRICTLY READ-ONLY Shopify access and application audit.',
+          'Rules: never suggest mutations, --allow-mutations, or write_* scopes; never tell anyone to invite/suspend/remove users or install/uninstall apps as if you are doing it.',
+          'Produce findings and recommendations ONLY, for a human to approve and implement separately.',
+          'Clearly separate observed fact, inferred finding, missing evidence, and recommended action.',
+          'Do not invent team, agency, purpose, cost, or justification data that is not in the report.',
+        ].join(' ');
+        const sys = policy + '\n\nWrite a concise executive summary (200-350 words): headline risk posture, the most material access findings, the most material app/cost findings, the estimated avoidable annual run-rate, and the top 5 prioritised recommendations. Use plain hyphens, no em dashes.';
+        let narrative = '';
+        try {
+          const out = await callLLM({ systemPrompt: sys, userMessage: 'AUDIT REPORT JSON:\n' + JSON.stringify(report).slice(0, 12000), maxTokens: 800, temperature: 0.3, timeoutMs: 35000, stage: 'access-audit' });
+          narrative = (typeof out === 'string' ? out : out.text || '').trim();
+        } catch (e) { return res.json({ ok: false, error: 'Provider error: ' + e.message }); }
+        return res.json({ ok: true, narrative });
+      }
+
+      // ── SNOWFLAKE → SUPABASE MIRROR ──────────────────────────────────────
+      // Webhook / pub-sub trigger for the daily Snowflake pull. Also runs off
+      // the daily ?action=cron (below) so no 3rd Hobby-limited cron is added.
+      // Guarded exactly like ?action=cron. Returns a typed stub until
+      // SNOWFLAKE_* env is set (klaviyo-style { connected:false }).
+      case 'snowflake-sync': {
+        if (!snowflake) return res.status(501).json({ ok: false, error: 'snowflake core unavailable' });
+        if (!cronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+        return res.json(await snowflake.runSync({ region: (req.query || {}).region, source: b.source || 'manual' }));
+      }
+      // What the Vahdam3DConnectorEngine reads for its historical/metric tier.
+      case 'snowflake-metrics': {
+        if (!snowflake) return res.status(501).json({ ok: false, error: 'snowflake core unavailable' });
+        const out = await snowflake.readMirror({
+          region: String((req.query || {}).region || 'global').toLowerCase(),
+          metric: String((req.query || {}).metric || ''),
+          window: String((req.query || {}).window || ''),
+        });
+        if (!out.ok || !out.connected) return res.status(501).json(Object.assign({ ok: false }, out));
+        return res.json({ ok: true, rows: out.rows });
+      }
+
       // ── CRON: the daily automated loop ───────────────────────────────────
       case 'cron': {
         if (!cronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
@@ -573,6 +620,10 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
           }
           steps.smart_brain_plan = { synced: true, mode: sync.mode, changes: (sync.changes || []).length, prebuild_kicked: prebuildKicked };
         } catch (e) { steps.smart_brain_plan = { error: e.message }; }
+        // Snowflake → Supabase daily mirror (historical/deep metrics for the
+        // Vahdam3DConnectorEngine). No-op stub when SNOWFLAKE_* env is unset.
+        try { steps.snowflake_sync = snowflake ? await snowflake.runSync({ source: 'cron' }) : { skipped: true }; }
+        catch (e) { steps.snowflake_sync = { error: e.message }; }
         const summary = { steps, ms: Date.now() - started };
         await core.logRun('cron', summary, true);
         return res.json({ ok: true, ...summary });
@@ -596,7 +647,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, ...(await osb.dashboard()) });
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'webengage-sync', 'webengage-report', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'webengage-sync', 'webengage-report', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'access-narrative', 'snowflake-sync', 'snowflake-metrics', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);

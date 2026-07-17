@@ -14,18 +14,18 @@
   .btn.secondary{background:transparent;color:#171717;border:1px solid rgba(171,135,67,.35)}
   .btn:disabled{opacity:.5;cursor:wait}
   .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
-  .btn.ok{background:#1d6b45;color:#171717}.btn.no{background:transparent;color:#e89a9a;border:1px solid rgba(232,154,154,.4)}
+  .btn.ok{background:#1d6b45;color:#171717}.btn.no{background:transparent;color:#b91c1c;border:1px solid rgba(232,154,154,.4)}
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#ffffff;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px}
-  .card h2{font-size:16px;margin:0 0 8px}.metric{font-size:30px;color:#FBF5EA;font-weight:800}.label{font-size:11px;color:#48524c;letter-spacing:.12em;text-transform:uppercase}
+  .card h2{font-size:16px;margin:0 0 8px}.metric{font-size:30px;color:#171717;font-weight:800}.label{font-size:11px;color:#48524c;letter-spacing:.12em;text-transform:uppercase}
   .wide{grid-column:span 4}.two{grid-column:span 2}
-  pre{white-space:pre-wrap;word-break:break-word;background:#f4f2ec;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;max-height:420px;overflow:auto;color:#cfe0d7;font-size:12px}
+  pre{white-space:pre-wrap;word-break:break-word;background:#f4f2ec;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;max-height:420px;overflow:auto;color:#556059;font-size:12px}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th{font-size:10px;color:#48524c;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 8px;border-bottom:1px solid rgba(171,135,67,.25)}
   td{padding:9px 8px;border-bottom:1px solid rgba(171,135,67,.1);vertical-align:top}
   tr:hover td{background:rgba(171,135,67,.05)}
-  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#7a5f2c;white-space:nowrap}
+  .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#7a5f28;white-space:nowrap}
   .st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
-  .st.tentative{background:rgba(171,135,67,.16);color:#7a5f2c}.st.approved{background:rgba(29,107,69,.3);color:#0a7d33}.st.final{background:#1d6b45;color:#171717}.st.rejected{background:rgba(180,60,60,.22);color:#e89a9a}
+  .st.tentative{background:rgba(171,135,67,.16);color:#7a5f28}.st.approved{background:rgba(29,107,69,.3);color:#0a7d33}.st.final{background:#1d6b45;color:#171717}.st.rejected{background:rgba(180,60,60,.22);color:#b91c1c}
   .feed{max-height:300px;overflow:auto}.feed p{margin:6px 0;font-size:13px;border-left:2px solid rgba(171,135,67,.35);padding-left:10px}
   .conf{font-variant-numeric:tabular-nums}
   /* Funnel preview */
@@ -34,7 +34,7 @@
   .pvtabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 12px;border-bottom:1px solid rgba(171,135,67,.2)}
   .pvtab{background:transparent;border:0;border-bottom:2px solid transparent;color:#556059;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px 6px 0 0}
   .pvtab:hover{color:#171717}
-  .pvtab.on{color:#FBF5EA;border-bottom-color:var(--gold);background:rgba(171,135,67,.08)}
+  .pvtab.on{color:#171717;border-bottom-color:var(--gold);background:rgba(171,135,67,.08)}
   .pvpane{display:none}.pvpane.on{display:block}
   .pvframe{width:100%;height:560px;border:1px solid rgba(171,135,67,.22);border-radius:12px;background:#fff}
   .pvnote{color:#556059;font-size:12px;margin:0 0 10px}
@@ -173,7 +173,7 @@ function renderPreview(payload, e, i, opts){
       return `<div class="adcard">
         <h4>${esc(k.replace(/_/g,' '))} <span style="background:#1d6b45;color:#171717;border-radius:999px;padding:2px 8px;font-size:10px;margin-left:6px;text-transform:none">best: ${esc(p.platform_label)}</span></h4>
         <div class="pvnote" style="margin:2px 0 8px">${esc(p.platform_reason||'')}</div>
-        <textarea id="${tid}" readonly style="width:100%;height:150px;background:#ffffff;color:#cfe0d7;border:1px solid rgba(171,135,67,.25);border-radius:8px;padding:10px;font-size:11.5px;font-family:ui-monospace,SFMono-Regular,monospace">${esc(p.prompt)}</textarea>
+        <textarea id="${tid}" readonly style="width:100%;height:150px;background:#ffffff;color:#556059;border:1px solid rgba(171,135,67,.25);border-radius:8px;padding:10px;font-size:11.5px;font-family:ui-monospace,SFMono-Regular,monospace">${esc(p.prompt)}</textarea>
         <div style="margin-top:6px"><button class="btn sm secondary" onclick="pvCopy('${tid}',this)">Copy prompt → ${esc(p.platform_label)}</button></div>
       </div>`;
     }).join('');
@@ -215,7 +215,7 @@ async function viewEntry(i, forceRegen){
     if(!data.ok) throw new Error(data.error || 'Preview failed');
     PREVIEW_CACHE[e.id] = data;
     renderPreview(data, e, i);
-  }catch(err){ $('preview').innerHTML = `<p class="pvnote" style="color:#e89a9a">Preview failed: ${esc(err.message)}</p>`; }
+  }catch(err){ $('preview').innerHTML = `<p class="pvnote" style="color:#b91c1c">Preview failed: ${esc(err.message)}</p>`; }
 }
 window.viewEntry = viewEntry;
 
@@ -228,7 +228,7 @@ async function loadPlan(){
     PLAN = data.entries || [];
     renderPlan();
     if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; approvals will generate assets but the calendar itself is not persisted.</p>';
-  }catch(e){ $('plan').innerHTML = `<tr><td colspan="8" style="color:#e89a9a">${esc(e.message)}</td></tr>`; }
+  }catch(e){ $('plan').innerHTML = `<tr><td colspan="8" style="color:#b91c1c">${esc(e.message)}</td></tr>`; }
 }
 
 async function runSync(){
