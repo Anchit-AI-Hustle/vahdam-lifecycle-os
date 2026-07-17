@@ -16,10 +16,19 @@ const roots = [
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 }
+function sanitizeTitleText(value) {
+  return value
+    .replace(/&amp;/gi, '&')
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/[<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 function title(file) {
   const html = fs.readFileSync(path.join(ROOT, file), 'utf8');
   const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  return (match ? match[1] : path.basename(file, '.html')).replace(/<[^>]+>|&amp;/g, m => m === '&amp;' ? '&' : '').replace(/\s+/g, ' ').trim();
+  return sanitizeTitleText(match ? match[1] : path.basename(file, '.html'));
 }
 function entry(file, family) {
   const parts = file.split('/');
