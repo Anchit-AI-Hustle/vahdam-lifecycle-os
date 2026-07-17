@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
   const brief = String(body.brief || body.prompt || '').slice(0, 9000);
   if (brief.trim().length < 20) return res.status(400).json({ error: 'brief_required' });
 
-  const system = `You are a senior D2C conversion copywriter, interaction designer, and front-end developer for VAHDAM India.
+  const systemPrompt = `You are a senior D2C conversion copywriter, interaction designer, and front-end developer for VAHDAM India.
 
 OUTPUT CONTRACT
 Return ONLY one complete production-ready HTML document from <!doctype html> to </html>. No markdown fences or commentary. Use inline CSS and a small inline JavaScript block. No external libraries, CDNs, Google Fonts, remote JS, React, Three.js, Framer runtime, or Motion runtime. The page must work by opening the downloaded HTML file directly.
@@ -96,17 +96,19 @@ TECHNICAL QUALITY
 - Currency and links must match ${market}. Primary store base: ${store}.
 - Channel intent: ${channel}. Match message continuity to how visitors arrive.`;
 
-  const user = `Create the final page from this exact input. Preserve every supplied factual detail and offer, but do not invent missing facts.\n\n${brief}`;
+  const userMessage = `Create the final page from this exact input. Preserve every supplied factual detail and offer, but do not invent missing facts.\n\n${brief}`;
 
   try {
     const out = await callLLM({
       tier: 'premium',
-      system,
-      messages: [{ role: 'user', content: user }],
+      systemPrompt,
+      userMessage,
       temperature: 0.65,
-      max_tokens: 15000,
+      maxTokens: 15000,
+      timeoutMs: 110000,
+      stage: 'landing-page-spatial',
     });
-    let html = scrub(out && (out.text || out.content || out.output_text || out));
+    let html = scrub(out && out.text);
     html = String(html).replace(/^\s*```(?:html)?\s*/i, '').replace(/```\s*$/, '').trim();
     if (!/<!doctype/i.test(html) || !/<body/i.test(html) || !/<\/html>/i.test(html)) {
       return res.status(502).json({ error: 'invalid_html_generation' });
