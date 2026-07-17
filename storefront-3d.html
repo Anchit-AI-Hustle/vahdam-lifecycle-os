@@ -73,6 +73,11 @@
   .vartoggle{bottom:34px;right:26px;display:flex;gap:6px;padding:5px}
   .vartoggle button{background:transparent;border:1px solid var(--panel-line);color:var(--sub);border-radius:8px;padding:7px 12px;font-family:var(--body);font-weight:700;font-size:12px;cursor:pointer}
   .vartoggle button.active{background:var(--gold);color:#0a1410;border-color:var(--gold)}
+  .regionsw{display:flex;gap:3px;padding:4px}
+  .regionsw button{background:transparent;border:0;color:var(--sub);font-family:var(--body);font-weight:700;font-size:12px;padding:6px 10px;border-radius:8px;cursor:pointer}
+  .regionsw button:hover{color:var(--fg)}
+  .regionsw button.active{background:var(--green);color:#FBF5EA}
+  :root[data-variant="light"] .regionsw button.active{background:var(--gold);color:#0a1410}
 
   /* loading + fallback */
   #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;color:var(--gold);font-size:14px;letter-spacing:.05em}
@@ -93,8 +98,9 @@
   <canvas id="gl"></canvas>
 
   <div class="overlay topbar">
-    <div class="brand">VAHDAM<small>INDIA</small></div>
+    <div class="brand">VAHDAM<small id="brandRegion">INDIA</small></div>
     <div class="right">
+      <div class="panel regionsw" id="regionsw" title="Switch regional store"></div>
       <a class="icobtn panel" href="#" title="Search">&#9906;</a>
       <a class="icobtn panel cart" href="#" title="Cart">&#128722;<span class="n" id="cartN">2</span></a>
     </div>
@@ -136,49 +142,87 @@
 
 <script type="module">
 const THREE_CDN='https://esm.sh/three@0.169.0';
-const STORE_BASE='https://www.vahdamteas.com';
+// Verified regional storefronts (real PDPs + /products.json live here). The
+// marketing hosts vahdam.com / vahdam.co.uk / vahdam.in / vahdam.global redirect
+// to these. Prices in each built catalog are already in the region's currency.
+const REGIONS={
+  us:    {label:'US',     base:'https://www.vahdamteas.com',  ccy:'$', cat:'/data/catalog/products_us.json'},
+  uk:    {label:'UK',     base:'https://uk.vahdamteas.com',   ccy:'£', cat:'/data/catalog/products_uk.json'},
+  global:{label:'Global', base:'https://www.vahdamteas.com',  ccy:'$', cat:'/data/catalog/products_global.json'},
+  in:    {label:'India',  base:'https://www.vahdamindia.com', ccy:'₹', cat:null} // no built catalog → live /products.json
+};
+const CCY_RE=/^[₹£$€]/;
+const _q=new URLSearchParams(location.search);
+let REGION=(_q.get('region')||'us').toLowerCase(); if(!REGIONS[REGION]) REGION='us';
+const RC=REGIONS[REGION];
 const COLLECTIONS=['Best Sellers','Black Tea','Green Tea','Herbal Tea','Chai','Teaware','Gifts'];
+const COLLECTION_TAGS={'Best Sellers':null,'Black Tea':'black','Green Tea':'green','Herbal Tea':'herbal','Chai':'chai','Teaware':'teaware','Gifts':'gift'};
 
 // Minimal, honest fallback (no fabricated prices/handles) — used only if the
-// live catalog fetch fails. Links go to the storefront, images are omitted.
+// live catalog fetch fails. Links go to the region's storefront home.
 const FALLBACK=[
-  {title:'Turmeric Spiced Herbal Tea',price:'',img:null,url:STORE_BASE},
-  {title:'English Breakfast Black Tea',price:'',img:null,url:STORE_BASE},
-  {title:'Himalayan Green Tea',price:'',img:null,url:STORE_BASE},
-  {title:'Sweet Chamomile Herbal Tea',price:'',img:null,url:STORE_BASE},
-  {title:'Earl Grey Citrus Black Tea',price:'',img:null,url:STORE_BASE},
-  {title:"India's Original Masala Chai",price:'',img:null,url:STORE_BASE},
+  {title:'Turmeric Spiced Herbal Tea',price:'',img:null,url:RC.base,tags:['herbal']},
+  {title:'English Breakfast Black Tea',price:'',img:null,url:RC.base,tags:['black']},
+  {title:'Himalayan Green Tea',price:'',img:null,url:RC.base,tags:['green']},
+  {title:'Sweet Chamomile Herbal Tea',price:'',img:null,url:RC.base,tags:['herbal']},
+  {title:'Earl Grey Citrus Black Tea',price:'',img:null,url:RC.base,tags:['black']},
+  {title:"India's Original Masala Chai",price:'',img:null,url:RC.base,tags:['chai']}
 ];
 
 const $=id=>document.getElementById(id);
-const state={products:[],selected:0,qty:1};
+const state={products:[],selected:0,qty:1,usedFallback:false};
+
+function normProducts(list){
+  return list.slice(0,12).map(p=>({
+    title:p.n||'', img:p.i||null,
+    price:p.price?(CCY_RE.test(String(p.price))?String(p.price):RC.ccy+p.price):'',
+    url:`${RC.base}/products/${p.h||''}`,
+    tags:Array.isArray(p.t)?p.t.map(x=>String(x).toLowerCase()):[]
+  }));
+}
 
 async function loadCatalog(){
+  // 1) same-origin built catalog (US/UK/Global), CORS-enabled + fast.
+  if(RC.cat){
+    try{
+      const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),9000);
+      const res=await fetch(RC.cat,{signal:ctrl.signal,headers:{Accept:'application/json'}});
+      clearTimeout(t);
+      if(res.ok){const list=await res.json(); if(Array.isArray(list)&&list.length) return normProducts(list);}
+    }catch(_){}
+  }
+  // 2) public storefront /products.json (India, or if the built file is missing).
   try{
     const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),9000);
-    const res=await fetch('/data/catalog/products_us.json',{signal:ctrl.signal,headers:{Accept:'application/json'}});
+    const res=await fetch(`${RC.base}/products.json?limit=24`,{signal:ctrl.signal,headers:{Accept:'application/json'}});
     clearTimeout(t);
     if(res.ok){
-      const list=await res.json();
-      if(Array.isArray(list)&&list.length){
-        return list.slice(0,10).map(p=>({
-          title:p.n||'',img:p.i||null,
-          price:p.price?(String(p.price).startsWith('$')?p.price:'$'+p.price):'',
-          url:`${STORE_BASE}/products/${p.h||''}`
-        }));
-      }
+      const j=await res.json();
+      const list=(j.products||[]).map(p=>{const v=(p.variants||[])[0]||{};
+        return {n:p.title,i:(p.images&&p.images[0]&&p.images[0].src)||null,price:v.price?RC.ccy+v.price:'',h:p.handle,t:(p.tags||[])};});
+      if(list.length) return normProducts(list);
     }
   }catch(_){}
+  state.usedFallback=true;
   return FALLBACK;
 }
 
 function hasWebGL(){try{const c=document.createElement('canvas');return !!(c.getContext('webgl2')||c.getContext('webgl'));}catch(_){return false;}}
 
+// Collection filter state + engine hook (set by start3D for 3D, else 2D grid).
+let PANELS=[], IS3D=false, CUR_TAG=null;
+function productMatches(p,tag){ return !tag || (p&&p.tags||[]).some(t=>t.includes(tag)); }
+function filterCollection(tag){
+  CUR_TAG=tag;
+  if(IS3D){ PANELS.forEach(m=>{ m.visible=productMatches(state.products[m.userData.i],tag); }); }
+  else if($('fallback').classList.contains('on')){ renderFallback(tag); }
+}
 function buildCollections(){
   const wrap=$('collist');
-  wrap.innerHTML=COLLECTIONS.map((c,i)=>`<button class="${i===0?'active':''}" data-c="${i}">${c}</button>`).join('');
+  wrap.innerHTML=COLLECTIONS.map((c,i)=>`<button class="${i===0?'active':''}" data-c="${c}">${c}</button>`).join('');
   wrap.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
     wrap.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    filterCollection(COLLECTION_TAGS[b.dataset.c]);
   }));
 }
 
@@ -187,21 +231,31 @@ function renderCheckout(){
   $('coName').textContent=p.title||'Select a product';
   $('coPrice').textContent=p.price||'';
   $('coThumb').style.backgroundImage=p.img?`url("${p.img}")`:'none';
-  $('coBuy').href=p.url||STORE_BASE;
+  $('coBuy').href=p.url||RC.base;
   $('qVal').textContent=state.qty;
 }
 
-function renderFallback(){
+function renderFallback(tag){
   $('fallback').classList.add('on');
-  $('fgrid').innerHTML=state.products.map(p=>
+  const list=state.products.filter(p=>productMatches(p,tag===undefined?CUR_TAG:tag));
+  $('fgrid').innerHTML=(list.length?list:state.products).map(p=>
     `<a href="${p.url}" target="_blank" rel="noopener"><div class="im" style="${p.img?`background-image:url('${p.img}')`:''}"></div>
       <div class="bd"><div class="t">${p.title}</div><div class="p">${p.price||'View'}</div></div></a>`).join('');
 }
+function note(msg){ const l=$('loading'); if(!l)return; l.style.display='flex'; l.textContent=msg; setTimeout(()=>{l.style.display='none';},4500); }
 
 async function init(){
+  // Region switcher — each button reloads with ?region=, so catalog + currency
+  // + store base all switch cleanly.
+  const rsw=$('regionsw');
+  rsw.innerHTML=Object.keys(REGIONS).map(k=>`<button data-r="${k}" class="${k===REGION?'active':''}">${REGIONS[k].label}</button>`).join('');
+  rsw.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const q=new URLSearchParams(location.search); q.set('region',b.dataset.r); location.search=q.toString(); });
+  $('brandRegion').textContent=(RC.label==='US'?'USA':RC.label).toUpperCase();
+
   buildCollections();
   state.products=await loadCatalog();
   renderCheckout();
+  if(state.usedFallback) note(`Live ${RC.label} catalog unavailable right now — showing a limited sample. Product links still open the ${RC.label} store.`);
 
   // qty + variation wiring (works in both 3D and 2D)
   $('qMinus').onclick=()=>{state.qty=Math.max(1,state.qty-1);renderCheckout();};
@@ -252,9 +306,11 @@ async function start3D(){
     if(p.img){loader.load(p.img,tex=>{mat.map=tex;mat.color.set(0xffffff);mat.needsUpdate=true;},undefined,()=>{});}
     const m=new THREE.Mesh(geo,mat);
     m.position.set(Math.sin(ang)*R,0,Math.cos(ang)*R);
-    m.userData={i};
+    m.userData={i,tags:p.tags||[]};
     group.add(m);panels.push(m);
   });
+  // Expose panels for collection filtering + apply the active collection.
+  PANELS=panels; IS3D=true; if(CUR_TAG) filterCollection(CUR_TAG);
 
   // drag to rotate
   let drag=false,px=0,vel=0,targetVel=0;
@@ -267,7 +323,7 @@ async function start3D(){
   canvas.addEventListener('click',e=>{
     mouse.x=(e.clientX/innerWidth)*2-1;mouse.y=-(e.clientY/innerHeight)*2+1;
     ray.setFromCamera(mouse,camera);
-    const hit=ray.intersectObjects(panels)[0];
+    const hit=ray.intersectObjects(panels.filter(m=>m.visible))[0];
     if(hit){state.selected=hit.object.userData.i;state.qty=1;renderCheckout();
       // rotate selected panel to the front (nearest angle to camera at z+)
       const target=-(state.selected/N)*Math.PI*2;
