@@ -473,7 +473,7 @@ export default function App() {
               <div>
                 <span className="text-xs font-mono text-[#FBF5EA] tracking-widest uppercase font-bold">CROSS-CHANNEL ACQUISITION ENGINE</span>
                 <h3 className="font-serif text-3xl font-bold mt-1 text-white">Interactive Ad Campaign Studio</h3>
-                <p className="text-sm text-cream/70 mt-1 max-w-2xl">
+                <p className="text-sm text-[#FBF5EA] mt-1 max-w-2xl leading-relaxed">
                   Deploy targeted Meta and Google Ads optimized across our 6 biological cortisol-conversion pillars. Fully synced with campaign funnels.
                 </p>
               </div>
@@ -533,7 +533,7 @@ export default function App() {
                           <span className="font-mono text-gray-600 block uppercase font-semibold">Target Interest Demographics (Meta/Google Adwords):</span>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {currentTpl.targetInterests.map((interest, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px] font-mono border border-gray-150">
+                              <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-mono border border-gray-150">
                                 {interest}
                               </span>
                             ))}
@@ -641,9 +641,9 @@ export default function App() {
                               <div>
                                 <div className="font-bold flex items-center gap-1 text-[13px] text-gray-900">
                                   <span>VAHDAM India</span>
-                                  <span className="bg-blue-500 text-white rounded-full p-0.5 text-[8px] flex items-center justify-center" style={{ width: '12px', height: '12px' }}>✓</span>
+                                  <span className="bg-blue-500 text-white rounded-full p-0.5 text-xs flex items-center justify-center" style={{ width: '12px', height: '12px' }}>✓</span>
                                 </div>
-                                <span className="text-[10px] text-gray-700 font-mono">Sponsored &bull; Fully Tracked Link</span>
+                                <span className="text-xs text-gray-700 font-mono">Sponsored &bull; Fully Tracked Link</span>
                               </div>
                             </div>
                             <span className="text-gray-600 font-bold hover:text-gray-600 cursor-pointer text-base pb-2">•••</span>
@@ -666,7 +666,7 @@ export default function App() {
                             {/* CTA Banner overlay */}
                             <div className="bg-white border-t border-gray-100 p-3 flex items-center justify-between">
                               <div className="space-y-0.5 pr-2">
-                                <span className="text-[10px] tracking-wider text-gray-600 font-mono uppercase block">TRY.VAHDAM.CO.UK</span>
+                                <span className="text-xs tracking-wider text-gray-600 font-mono uppercase block">TRY.VAHDAM.CO.UK</span>
                                 <span className="text-xs font-bold text-gray-900 line-clamp-1">{currentTpl.metaCTA}</span>
                               </div>
                               <a
@@ -681,7 +681,7 @@ export default function App() {
                           </div>
 
                           {/* Mock bottom icons */}
-                          <div className="px-4 py-2.5 bg-white text-gray-700 text-[11px] flex justify-between border-b border-gray-100">
+                          <div className="px-4 py-2.5 bg-white text-gray-700 text-xs flex justify-between border-b border-gray-100">
                             <span>👍 🚀 Over 4.8k comments and engagements</span>
                             <div className="flex gap-3">
                               <span>324 Comments</span>
@@ -693,8 +693,8 @@ export default function App() {
                         /* Google Mockup */
                         <div className="w-full max-w-xl bg-white border border-gray-200 rounded-lg p-5 shadow-md font-sans text-xs">
                           <div className="flex items-center gap-1 text-gray-700 mb-1">
-                            <span className="p-1 px-1.5 bg-gray-100 text-[9px] font-bold rounded uppercase tracking-wider text-gray-600 mr-1.5">Ad</span>
-                            <span className="text-[11px]">https://try.vahdam.co.uk/ashwagandha-coffee</span>
+                            <span className="p-1 px-1.5 bg-gray-100 text-xs font-bold rounded uppercase tracking-wider text-gray-600 mr-1.5">Ad</span>
+                            <span className="text-xs">https://try.vahdam.co.uk/ashwagandha-coffee</span>
                           </div>
 
                           {/* Clickable Blue headlines */}
@@ -746,11 +746,11 @@ export default function App() {
                     <div>
                       <span className="font-mono text-[#004A2B] uppercase font-bold text-xs">Variant {tpl.themeId} Angle</span>
                       <h5 className="font-bold text-[#004A2B] mt-0.5 mb-1.5">{tpl.angleName}</h5>
-                      <p className="text-gray-600 line-clamp-2 text-[11px] leading-relaxed mb-3">{tpl.metaHook}</p>
+                      <p className="text-gray-600 line-clamp-2 text-xs leading-relaxed mb-3">{tpl.metaHook}</p>
                     </div>
                     <button
                       onClick={() => setSelectedAdThemeId(tpl.themeId)}
-                      className="w-full py-1 border border-[#004A2B]/20 hover:border-[#004A2B] text-center font-bold font-mono text-[9px] uppercase tracking-wider text-[#004A2B] rounded mt-2 bg-white transition-all"
+                      className="w-full py-1 border border-[#004A2B]/20 hover:border-[#004A2B] text-center font-bold font-mono text-xs uppercase tracking-wider text-[#004A2B] rounded mt-2 bg-white transition-all"
                     >
                       Load Creative Workspace
                     </button>
@@ -777,17 +777,17 @@ export default function App() {
                     <h4 className="font-serif text-lg font-bold text-[#004A2B] mb-2">{theme.name}</h4>
 
                     <div className="bg-[#FBF5EA] p-3 rounded border border-gray-150 mb-4 text-xs font-sans">
-                      <p className="font-bold text-gray-600 font-mono text-[10px] uppercase mb-1">Core Root Problem</p>
+                      <p className="font-bold text-gray-600 font-mono text-xs uppercase mb-1">Core Root Problem</p>
                       <p className="text-gray-600 leading-relaxed">{theme.coreProblem}</p>
                     </div>
 
                     <div className="space-y-3 mb-6">
                       <div>
-                        <span className="text-[10px] font-mono font-bold text-gold uppercase block">Recommended Subject Line:</span>
+                        <span className="text-xs font-mono font-bold text-gold uppercase block">Recommended Subject Line:</span>
                         <p className="text-xs font-sans font-medium italic text-[#004A2B]">{theme.subjectLines[0]}</p>
                       </div>
                       <div>
-                        <span className="text-[10px] font-mono font-bold text-gold uppercase block">Body Copy Pointers:</span>
+                        <span className="text-xs font-mono font-bold text-gold uppercase block">Body Copy Pointers:</span>
                         <ul className="list-disc pl-4 text-xs text-gray-600 space-y-1.5 font-sans">
                           {theme.mailerPointers.map((ptr, idx) => (
                             <li key={idx}>{ptr}</li>
@@ -798,7 +798,7 @@ export default function App() {
                   </div>
 
                   <div className="border-t border-gray-50 pt-4 mt-auto">
-                    <span className="text-[10px] font-mono text-gray-600 block mb-2">TARGET FUNNEL TUNNEL:</span>
+                    <span className="text-xs font-mono text-gray-600 block mb-2">TARGET FUNNEL TUNNEL:</span>
                     <button
                       onClick={() => {
                         setSelectedTheme(theme);

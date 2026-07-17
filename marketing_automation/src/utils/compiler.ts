@@ -693,9 +693,9 @@ export function compileHTML(theme: ThemeContent, variant: FunnelVariant, baseOri
     .badge {
       display: inline-block;
       background-color: var(--color-gold);
-      color: var(--color-brand);
+      color: var(--color-charcoal);
       font-weight: 700;
-      font-size: 11px;
+      font-size: 12px;
       padding: 0.25rem 0.75rem;
       border-radius: 9999px;
       text-transform: uppercase;

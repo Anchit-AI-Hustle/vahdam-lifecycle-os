@@ -12,6 +12,32 @@ body {
   min-width: 320px;
   background: #fbf5ea;
   color: #171717;
+  line-height: 1.6;
+}
+
+/* Give unthemed content planes an opaque, readable surface. Explicit brand
+   backgrounds on feature cards continue to take precedence. */
+.card:not([class*="bg-"]) {
+  background-color: #ffffff;
+  color: #171717;
+  box-shadow: 0 4px 18px rgb(23 23 23 / 8%);
+}
+
+.badge:not([class*="bg-"]) {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 9999px;
+  background-color: #ab8743;
+  color: #171717;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+small {
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
 
 button,
