@@ -1,0 +1,1221 @@
+{
+  "count": 152,
+  "designs": [
+    {
+      "id": "landing-pages-ashwagandha-matrix-anxiety-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Anxiety",
+      "family": "Ashwagandha Matrix",
+      "angle": "anxiety",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/anxiety/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-anxiety-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Anxiety | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "anxiety",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/anxiety/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-anxiety-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Anxiety | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "anxiety",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/anxiety/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-anxiety-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Anxiety | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "anxiety",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/anxiety/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-anxiety-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Anxiety | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "anxiety",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/anxiety/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-anxiety-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Anxiety | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "anxiety",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/anxiety/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-anxiety-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Anxiety | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "anxiety",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/anxiety/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-anxiety-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Anxiety | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "anxiety",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/anxiety/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-burnout-recovery-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Burnout Recovery",
+      "family": "Ashwagandha Matrix",
+      "angle": "burnout recovery",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/burnout-recovery/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-burnout-recovery-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Burnout Recovery | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "burnout recovery",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/burnout-recovery/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-burnout-recovery-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Burnout Recovery | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "burnout recovery",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/burnout-recovery/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-burnout-recovery-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Burnout Recovery | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "burnout recovery",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/burnout-recovery/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-burnout-recovery-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Burnout Recovery | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "burnout recovery",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/burnout-recovery/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-burnout-recovery-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Burnout Recovery | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "burnout recovery",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/burnout-recovery/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-burnout-recovery-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Burnout Recovery | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "burnout recovery",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/burnout-recovery/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-burnout-recovery-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Burnout Recovery | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "burnout recovery",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/burnout-recovery/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-confidence-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Confidence",
+      "family": "Ashwagandha Matrix",
+      "angle": "confidence",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/confidence/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-confidence-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Confidence | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "confidence",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/confidence/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-confidence-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Confidence | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "confidence",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/confidence/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-confidence-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Confidence | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "confidence",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/confidence/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-confidence-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Confidence | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "confidence",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/confidence/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-confidence-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Confidence | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "confidence",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/confidence/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-confidence-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Confidence | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "confidence",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/confidence/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-confidence-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Confidence | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "confidence",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/confidence/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-cortisol-reset-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Cortisol Reset",
+      "family": "Ashwagandha Matrix",
+      "angle": "cortisol reset",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/cortisol-reset/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-cortisol-reset-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Cortisol Reset | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "cortisol reset",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/cortisol-reset/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-cortisol-reset-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Cortisol Reset | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "cortisol reset",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/cortisol-reset/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-cortisol-reset-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Cortisol Reset | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "cortisol reset",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/cortisol-reset/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-cortisol-reset-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Cortisol Reset | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "cortisol reset",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/cortisol-reset/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-cortisol-reset-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Cortisol Reset | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "cortisol reset",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/cortisol-reset/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-cortisol-reset-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Cortisol Reset | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "cortisol reset",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/cortisol-reset/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-cortisol-reset-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Cortisol Reset | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "cortisol reset",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/cortisol-reset/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-emotional-resilience-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Emotional Resilience",
+      "family": "Ashwagandha Matrix",
+      "angle": "emotional resilience",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/emotional-resilience/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-emotional-resilience-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Emotional Resilience | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "emotional resilience",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/emotional-resilience/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-emotional-resilience-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Emotional Resilience | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "emotional resilience",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/emotional-resilience/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-emotional-resilience-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Emotional Resilience | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "emotional resilience",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/emotional-resilience/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-emotional-resilience-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Emotional Resilience | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "emotional resilience",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/emotional-resilience/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-emotional-resilience-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Emotional Resilience | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "emotional resilience",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/emotional-resilience/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-emotional-resilience-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Emotional Resilience | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "emotional resilience",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/emotional-resilience/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-emotional-resilience-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Emotional Resilience | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "emotional resilience",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/emotional-resilience/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-gut-health-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Gut Health",
+      "family": "Ashwagandha Matrix",
+      "angle": "gut health",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/gut-health/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-gut-health-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Gut Health | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "gut health",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/gut-health/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-gut-health-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Gut Health | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "gut health",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/gut-health/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-gut-health-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Gut Health | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "gut health",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/gut-health/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-gut-health-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Gut Health | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "gut health",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/gut-health/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-gut-health-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Gut Health | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "gut health",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/gut-health/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-gut-health-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Gut Health | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "gut health",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/gut-health/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-gut-health-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Gut Health | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "gut health",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/gut-health/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-healthy-aging-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Healthy Aging",
+      "family": "Ashwagandha Matrix",
+      "angle": "healthy aging",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/healthy-aging/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-healthy-aging-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Healthy Aging | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "healthy aging",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/healthy-aging/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-healthy-aging-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Healthy Aging | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "healthy aging",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/healthy-aging/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-healthy-aging-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Healthy Aging | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "healthy aging",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/healthy-aging/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-healthy-aging-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Healthy Aging | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "healthy aging",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/healthy-aging/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-healthy-aging-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Healthy Aging | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "healthy aging",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/healthy-aging/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-healthy-aging-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Healthy Aging | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "healthy aging",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/healthy-aging/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-healthy-aging-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Healthy Aging | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "healthy aging",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/healthy-aging/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-hormone-balance-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Hormone Balance",
+      "family": "Ashwagandha Matrix",
+      "angle": "hormone balance",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/hormone-balance/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-hormone-balance-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Hormone Balance | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "hormone balance",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/hormone-balance/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-hormone-balance-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Hormone Balance | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "hormone balance",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/hormone-balance/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-hormone-balance-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Hormone Balance | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "hormone balance",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/hormone-balance/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-hormone-balance-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Hormone Balance | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "hormone balance",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/hormone-balance/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-hormone-balance-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Hormone Balance | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "hormone balance",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/hormone-balance/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-hormone-balance-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Hormone Balance | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "hormone balance",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/hormone-balance/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-hormone-balance-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Hormone Balance | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "hormone balance",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/hormone-balance/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-metabolic-health-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Metabolic Health",
+      "family": "Ashwagandha Matrix",
+      "angle": "metabolic health",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/metabolic-health/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-metabolic-health-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Metabolic Health | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "metabolic health",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/metabolic-health/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-metabolic-health-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Metabolic Health | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "metabolic health",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/metabolic-health/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-metabolic-health-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Metabolic Health | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "metabolic health",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/metabolic-health/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-metabolic-health-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Metabolic Health | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "metabolic health",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/metabolic-health/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-metabolic-health-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Metabolic Health | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "metabolic health",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/metabolic-health/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-metabolic-health-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Metabolic Health | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "metabolic health",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/metabolic-health/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-metabolic-health-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Metabolic Health | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "metabolic health",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/metabolic-health/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-midlife-wellness-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Midlife Wellness",
+      "family": "Ashwagandha Matrix",
+      "angle": "midlife wellness",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/midlife-wellness/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-midlife-wellness-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Midlife Wellness | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "midlife wellness",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/midlife-wellness/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-midlife-wellness-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Midlife Wellness | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "midlife wellness",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/midlife-wellness/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-midlife-wellness-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Midlife Wellness | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "midlife wellness",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/midlife-wellness/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-midlife-wellness-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Midlife Wellness | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "midlife wellness",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/midlife-wellness/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-midlife-wellness-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Midlife Wellness | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "midlife wellness",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/midlife-wellness/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-midlife-wellness-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Midlife Wellness | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "midlife wellness",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/midlife-wellness/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-midlife-wellness-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Midlife Wellness | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "midlife wellness",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/midlife-wellness/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-mood-support-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Mood Support",
+      "family": "Ashwagandha Matrix",
+      "angle": "mood support",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/mood-support/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-mood-support-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Mood Support | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "mood support",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/mood-support/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-mood-support-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Mood Support | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "mood support",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/mood-support/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-mood-support-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Mood Support | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "mood support",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/mood-support/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-mood-support-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Mood Support | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "mood support",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/mood-support/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-mood-support-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Mood Support | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "mood support",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/mood-support/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-mood-support-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Mood Support | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "mood support",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/mood-support/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-mood-support-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Mood Support | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "mood support",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/mood-support/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-morning-routine-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Morning Routine",
+      "family": "Ashwagandha Matrix",
+      "angle": "morning routine",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/morning-routine/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-morning-routine-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Morning Routine | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "morning routine",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/morning-routine/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-morning-routine-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Morning Routine | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "morning routine",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/morning-routine/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-morning-routine-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Morning Routine | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "morning routine",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/morning-routine/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-morning-routine-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Morning Routine | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "morning routine",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/morning-routine/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-morning-routine-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Morning Routine | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "morning routine",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/morning-routine/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-morning-routine-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Morning Routine | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "morning routine",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/morning-routine/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-morning-routine-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Morning Routine | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "morning routine",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/morning-routine/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-productivity-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Productivity",
+      "family": "Ashwagandha Matrix",
+      "angle": "productivity",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/productivity/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-productivity-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Productivity | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "productivity",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/productivity/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-productivity-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Productivity | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "productivity",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/productivity/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-productivity-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Productivity | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "productivity",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/productivity/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-productivity-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Productivity | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "productivity",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/productivity/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-productivity-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Productivity | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "productivity",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/productivity/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-productivity-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Productivity | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "productivity",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/productivity/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-productivity-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Productivity | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "productivity",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/productivity/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-stress-eating-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Stress Eating",
+      "family": "Ashwagandha Matrix",
+      "angle": "stress eating",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/stress-eating/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-stress-eating-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Stress Eating | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "stress eating",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/stress-eating/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-stress-eating-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Stress Eating | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "stress eating",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/stress-eating/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-stress-eating-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Stress Eating | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "stress eating",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/stress-eating/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-stress-eating-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Stress Eating | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "stress eating",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/stress-eating/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-stress-eating-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Stress Eating | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "stress eating",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/stress-eating/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-stress-eating-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Stress Eating | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "stress eating",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/stress-eating/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-stress-eating-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Stress Eating | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "stress eating",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/stress-eating/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-water-retention-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Water Retention",
+      "family": "Ashwagandha Matrix",
+      "angle": "water retention",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/water-retention/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-water-retention-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Water Retention | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "water retention",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/water-retention/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-water-retention-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Water Retention | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "water retention",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/water-retention/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-water-retention-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Water Retention | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "water retention",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/water-retention/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-water-retention-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Water Retention | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "water retention",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/water-retention/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-water-retention-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Water Retention | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "water retention",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/water-retention/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-water-retention-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Water Retention | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "water retention",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/water-retention/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-water-retention-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Water Retention | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "water retention",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/water-retention/VariantE.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-weight-loss-varianta",
+      "title": "VAHDAM® Ashwagandha Coffee — Weight Loss",
+      "family": "Ashwagandha Matrix",
+      "angle": "weight loss",
+      "variant": "A",
+      "url": "/landing-pages/ashwagandha-matrix/weight-loss/VariantA.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-weight-loss-variantb1",
+      "title": "VAHDAM® Ashwagandha Coffee — Weight Loss | The Cortisol Loop",
+      "family": "Ashwagandha Matrix",
+      "angle": "weight loss",
+      "variant": "B1",
+      "url": "/landing-pages/ashwagandha-matrix/weight-loss/VariantB1.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-weight-loss-variantb2",
+      "title": "VAHDAM® Ashwagandha Coffee — Weight Loss | Feel Like Yourself Again",
+      "family": "Ashwagandha Matrix",
+      "angle": "weight loss",
+      "variant": "B2",
+      "url": "/landing-pages/ashwagandha-matrix/weight-loss/VariantB2.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-weight-loss-variantb3",
+      "title": "VAHDAM® Ashwagandha Coffee — Weight Loss | Clinically Proven KSM-66®",
+      "family": "Ashwagandha Matrix",
+      "angle": "weight loss",
+      "variant": "B3",
+      "url": "/landing-pages/ashwagandha-matrix/weight-loss/VariantB3.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-weight-loss-variantb4",
+      "title": "VAHDAM® Ashwagandha Coffee — Weight Loss | A Better Way (No Injections)",
+      "family": "Ashwagandha Matrix",
+      "angle": "weight loss",
+      "variant": "B4",
+      "url": "/landing-pages/ashwagandha-matrix/weight-loss/VariantB4.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-weight-loss-variantc",
+      "title": "VAHDAM® Ashwagandha Coffee — Weight Loss | Is It Ageing or Cortisol?",
+      "family": "Ashwagandha Matrix",
+      "angle": "weight loss",
+      "variant": "C",
+      "url": "/landing-pages/ashwagandha-matrix/weight-loss/VariantC.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-weight-loss-variantd",
+      "title": "VAHDAM® Ashwagandha Coffee — Weight Loss | Editorial",
+      "family": "Ashwagandha Matrix",
+      "angle": "weight loss",
+      "variant": "D",
+      "url": "/landing-pages/ashwagandha-matrix/weight-loss/VariantD.html"
+    },
+    {
+      "id": "landing-pages-ashwagandha-matrix-weight-loss-variante",
+      "title": "VAHDAM® Ashwagandha Coffee — Weight Loss | Real Women, Real Results",
+      "family": "Ashwagandha Matrix",
+      "angle": "weight loss",
+      "variant": "E",
+      "url": "/landing-pages/ashwagandha-matrix/weight-loss/VariantE.html"
+    },
+    {
+      "id": "landing-pages-final-lp-all-in-one-agent-v2",
+      "title": "VAHDAM Weightless Wellness - All-in-One Agent Landing Page",
+      "family": "Final Landing Pages",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/final/lp_all_in_one_agent_v2.html"
+    },
+    {
+      "id": "landing-pages-final-vahdam-uk-cortisol-agent-best",
+      "title": "Calm Your Cortisol — VAHDAM Ashwagandha Coffee | Try Risk-Free",
+      "family": "Final Landing Pages",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/final/vahdam-uk-cortisol-agent-best.html"
+    },
+    {
+      "id": "landing-pages-final-vahdam-uk-presell-cortisol-mars-structure",
+      "title": "Beat the Cortisol Belly With This Natural Coffee Upgrade — Vahdam",
+      "family": "Final Landing Pages",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/final/vahdam-uk-presell-cortisol-mars-structure.html"
+    },
+    {
+      "id": "landing-pages-final-vahdam-uk-presell-cortisol-v1",
+      "title": "Beat the Cortisol Belly With This Natural Coffee Upgrade — Vahdam",
+      "family": "Final Landing Pages",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/final/vahdam-uk-presell-cortisol-v1.html"
+    },
+    {
+      "id": "landing-pages-final-vahdam-uk-presell-cortisol-v2-mars-layout",
+      "title": "Beat the Cortisol Belly With This Natural Coffee Upgrade - VAHDAM",
+      "family": "Final Landing Pages",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/final/vahdam-uk-presell-cortisol-v2-mars-layout.html"
+    },
+    {
+      "id": "landing-pages-final-vahdam-uk-presell-cortisol-v2",
+      "title": "[V2] Beat the Cortisol Belly With This Natural Coffee Upgrade — Vahdam",
+      "family": "Final Landing Pages",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/final/vahdam-uk-presell-cortisol-v2.html"
+    },
+    {
+      "id": "landing-pages-final-vahdam-uk-presell-cortisol-v3",
+      "title": "[V3] Beat the Cortisol Belly With This Natural Coffee Upgrade — Vahdam",
+      "family": "Final Landing Pages",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/final/vahdam-uk-presell-cortisol-v3.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-02-champions-indias-original-masala-chai-100-ct-lp",
+      "title": "India's Original Masala Chai, 100 ct · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-02_champions_indias-original-masala-chai-100-ct_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-05-loyal-castleton-darjeeling-second-flush-lp",
+      "title": "Castleton Darjeeling Second Flush · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-05_loyal_castleton-darjeeling-second-flush_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-08-new-assorted-tea-bags-sampler-20-flavors-lp",
+      "title": "Assorted Tea Bags Sampler, 20 Flavors · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-08_new_assorted-tea-bags-sampler-20-flavors_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-11-promising-himalayan-green-tea-12-oz-lp",
+      "title": "Himalayan Green Tea, 12 oz · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-11_promising_himalayan-green-tea-12-oz_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-14-need-attention-turmeric-ginger-herbal-tea-100-ct-lp",
+      "title": "Turmeric Ginger Herbal Tea, 100 ct · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-14_need-attention_turmeric-ginger-herbal-tea-100-ct_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-16-loyal-english-breakfast-black-tea-12-oz-lp",
+      "title": "English Breakfast Black Tea, 12 oz · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-16_loyal_english-breakfast-black-tea-12-oz_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-18-champions-indias-original-masala-chai-12-oz-lp",
+      "title": "India's Original Masala Chai, 12 oz · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-18_champions_indias-original-masala-chai-12-oz_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-19-new-assorted-tea-bags-sampler-20-flavors-lp",
+      "title": "Assorted Tea Bags Sampler, 20 Flavors · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-19_new_assorted-tea-bags-sampler-20-flavors_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-22-about-to-sleep-daily-assam-black-tea-12-oz-lp",
+      "title": "Daily Assam Black Tea, 12 oz · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-22_about-to-sleep_daily-assam-black-tea-12-oz_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-25-promising-indias-original-masala-chai-30-ct-lp",
+      "title": "India's Original Masala Chai, 30 ct · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-25_promising_indias-original-masala-chai-30-ct_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-29-at-risk-turmeric-ginger-herbal-tea-100-ct-lp",
+      "title": "Turmeric Ginger Herbal Tea, 100 ct · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-29_at-risk_turmeric-ginger-herbal-tea-100-ct_lp.html"
+    },
+    {
+      "id": "landing-pages-usa-july-2026-07-31-loyal-himalayan-green-tea-12-oz-lp",
+      "title": "Himalayan Green Tea, 12 oz · VAHDAM USA",
+      "family": "USA July Campaigns",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/usa-july/2026-07-31_loyal_himalayan-green-tea-12-oz_lp.html"
+    },
+    {
+      "id": "ashwagandha-coffee-landing-no-agent",
+      "title": "Beat the Cortisol Belly With This Natural Coffee Upgrade - Vahdam",
+      "family": "Standalone Concepts",
+      "angle": "",
+      "variant": "",
+      "url": "/ashwagandha-coffee-landing-no-agent.html"
+    },
+    {
+      "id": "ashwagandha-coffee-landing-with-agent",
+      "title": "Beat the Cortisol Belly With This Natural Coffee Upgrade - Vahdam",
+      "family": "Standalone Concepts",
+      "angle": "",
+      "variant": "",
+      "url": "/ashwagandha-coffee-landing-with-agent.html"
+    },
+    {
+      "id": "vahdam-cortisol-presell-v5-varianta",
+      "title": "VAHDAM Ashwagandha Coffee · Cortisol Presell · Variant A (Interactive Cortisol Graph)",
+      "family": "Standalone Concepts",
+      "angle": "",
+      "variant": "A",
+      "url": "/vahdam-cortisol-presell-v5-variantA.html"
+    },
+    {
+      "id": "vahdam-cortisol-presell-v5-variantb",
+      "title": "VAHDAM Ashwagandha Coffee · Cortisol Presell · Variant B (Progress Rail Filmstrip)",
+      "family": "Standalone Concepts",
+      "angle": "",
+      "variant": "B",
+      "url": "/vahdam-cortisol-presell-v5-variantB.html"
+    },
+    {
+      "id": "vahdam-lifecycle-campaign-from-the-30-d-us-variantb",
+      "title": "VAHDAM · The Gentle Art of Waking Well",
+      "family": "Standalone Concepts",
+      "angle": "",
+      "variant": "B",
+      "url": "/vahdam-lifecycle-campaign-from-the-30-d-us-variantB.html"
+    }
+  ]
+}
