@@ -62,6 +62,13 @@
   .wbody{margin-top:8px;flex:1;min-width:0;}
   /* charts */
   svg{display:block;max-width:100%;height:auto;overflow:visible;}
+  /* time-granularity view toggle (detail drill-down) */
+  .tv-toggle{display:inline-flex;gap:4px;background:var(--chip,#f4f2ec);border:1px solid var(--line);border-radius:11px;padding:4px;margin-top:14px;flex-wrap:wrap;}
+  .tv-tile{border:none;background:transparent;color:var(--soft);font:inherit;font-size:12.5px;font-weight:700;padding:6px 13px;border-radius:8px;cursor:pointer;transition:background .12s,color .12s;}
+  .tv-tile:hover:not(.dis):not(.on){color:var(--ink);}
+  .tv-tile.on{background:#004A2B;color:#FBF5EA;}
+  .tv-tile.dis{opacity:.42;cursor:not-allowed;}
+  .tv-note{font-size:11.5px;color:var(--soft);margin-top:9px;line-height:1.5;}
   .legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px;font-size:12px;color:var(--soft);}
   .legend .li{display:inline-flex;align-items:center;gap:6px;}
   .legend .sw{width:11px;height:11px;border-radius:3px;display:inline-block;}
@@ -210,7 +217,7 @@
     opts=opts||{}; var W=opts.w||560, H=opts.h||190, pad=46, padR=54, padT=18, padB=30;
     if(!pts.length) return '<div class="empty">No data.</div>';
     var ys=pts.map(function(p){return p.y;});
-    var maxY=Math.max.apply(null,ys)*1.14||1, minY=0;
+    var maxY=(opts.max!=null?opts.max:Math.max.apply(null,ys)*1.14)||1, minY=(opts.min!=null?opts.min:0);
     var iw=W-pad-padR, ih=H-padT-padB;
     var fmt=function(v){ return opts.money?money(v):(opts.pct?(v.toFixed(1)+'%'):Math.round(v).toLocaleString()); };
     function X(i){ return pad + (pts.length<=1?iw/2:(i/(pts.length-1))*iw); }
@@ -585,19 +592,92 @@
     if(sg) sg.style.display = onControl ? '' : 'none';
   }
 
+  // ── time-granularity views (Week on Week / Month on Month / Year on Year) ──
+  // A per-graph view selector. EVERY view is built from real exported series,
+  // never fabricated: WoW from the weekly export (53 wks), MoM from the monthly
+  // export (default), YoY as same-month-vs-prior-year % change off the 25-month
+  // acquisition series (2024-07..2026-07, which carries month/new_c/orders/sales;
+  // AOV is derived as sales/orders). Where a metric has no series at a chosen
+  // granularity (e.g. no weekly new-customer split, or <24 months for YoY), that
+  // tile is disabled and states the exact data dependency. No daily feed exists
+  // in the current exports, so there is deliberately no Day-on-Day tile.
+  var TV_VIEWS=[{k:'wow',label:'Week on Week'},{k:'mom',label:'Month on Month'},{k:'yoy',label:'Year on Year'}];
+  var TV_METRIC={ 'revenue':'sales', 'kpi-orders':'orders', 'aov':'aov', 'acq':'new_c' };
+  function weekLabel(w){ var p=String(w||'').split('-'); if(p.length<3) return w||''; var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][(+p[1]||1)-1]; return mo+' '+(+p[2]); }
+  function metricVal(row, metric){
+    if(metric==='aov') return (row.aov!=null && !isNaN(row.aov)) ? row.aov : (row.orders ? row.sales/row.orders : 0);
+    if(metric==='new_c') return row.new_c!=null?row.new_c:0;
+    return row[metric]!=null?row[metric]:0;
+  }
+  // Returns {available, note, pct, pts:[{x,y,label}]} for a metric at a view.
+  function tvData(m, metric, view){
+    if(view==='wow'){
+      if(metric==='new_c') return {available:false, note:'No weekly new-customer split in the export. Week on Week covers sales, orders and AOV.'};
+      var wk=m.weekly||[]; if(wk.length<2) return {available:false, note:'No weekly series in this market export.'};
+      return {available:true, pct:false, pts:wk.map(function(x){return {x:x.week, y:metricVal(x,metric), label:weekLabel(x.week)};}), note:wk.length+' weeks of real weekly data.'};
+    }
+    if(view==='yoy'){
+      // YoY must be metric-correct. Only the new-customer acquisition series spans
+      // 2 years (25 mo); total sales/orders/AOV only have the 13-month monthly
+      // export, and the acquisition series is new-customer-only (its orders===new_c,
+      // its sales are a fraction of total), so it must NOT be reused as total YoY.
+      var a = (metric==='new_c') ? (m.acquisition||[]) : (m.monthly||[]);
+      if(a.length<24) return {available:false, note: metric==='new_c'
+        ? ('Year on Year needs 24+ months; this series has '+a.length+'.')
+        : ('Year on Year needs 24+ months of total '+metric+'; the export holds only '+a.length+'. The one 2-year series we have is new-customer acquisition, so YoY is live on the New Customers graph.')};
+      var pts=[]; for(var i=12;i<a.length;i++){ var cur=metricVal(a[i],metric), prev=metricVal(a[i-12],metric); if(prev) pts.push({x:a[i].month, y:(cur-prev)/prev*100, label:mLabel(a[i].month)}); }
+      if(pts.length<2) return {available:false, note:'Not enough overlapping months for a Year on Year trend.'};
+      return {available:true, pct:true, pts:pts, note:'Year-over-year % change: each month vs the same month a year earlier ('+a.length+'-month new-customer acquisition series).'};
+    }
+    var src = (metric==='new_c') ? (m.acquisition||[]) : (m.monthly||[]);
+    if(src.length<2) return {available:false, note:'No monthly series in this market export.'};
+    return {available:true, pct:false, pts:src.map(function(x){return {x:x.month, y:metricVal(x,metric), label:mLabel(x.month)};}), note:src.length+' months of real monthly data.'};
+  }
+  function tvIsMoney(metric){ return metric==='sales'||metric==='aov'; }
+  function tvChart(m, metric, view){
+    var r=tvData(m, metric, view);
+    if(!r.available) return '<div class="empty" style="padding:26px 18px;text-align:center;line-height:1.6">'+esc(r.note)+'</div>';
+    var opts={w:820,h:280}; if(view==='yoy'){ opts.yLabel='YoY % change'; }
+    if(r.pct){ opts.pct=true; var ys=r.pts.map(function(p){return p.y;}); var lo=Math.min.apply(null,ys), hi=Math.max.apply(null,ys); opts.min=lo<0?lo*1.15:0; opts.max=hi>0?hi*1.15:(hi||1); }
+    else if(tvIsMoney(metric)) opts.money=true;
+    return lineChart(r.pts, opts)+'<div class="tv-note">'+esc(r.note)+'</div>';
+  }
+  function tvToggle(m, id, metric, active){
+    var tiles=TV_VIEWS.map(function(v){ var r=tvData(m, metric, v.k); var on=v.k===active; var dis=!r.available;
+      return '<button class="tv-tile'+(on?' on':'')+(dis?' dis':'')+'" data-view="'+v.k+'"'+(dis?' title="'+escA(r.note)+'" aria-disabled="true"':'')+'>'+esc(v.label)+'</button>';
+    }).join('');
+    return '<div class="tv-toggle" role="group" aria-label="Time granularity view">'+tiles+'</div>';
+  }
+
   // ── detail view ───────────────────────────────────────────────────────────
   function openDetail(id){
     var w=WIDGETS.find(function(x){return x.id===id;}); if(!w) return;
     var m=d(); var det; try{ det=w.detail(m); }catch(e){ det={insight:'—',chart:'',table:'',csv:''}; }
     var dl = det.csv ? '<button class="btn-dl" data-csv="'+det.csv+'">Download CSV</button>' : '';
+    var metric=TV_METRIC[id];
+    var chartBlock;
+    if(metric){
+      chartBlock='<div id="tvwrap">'+tvToggle(m,id,metric,'mom')+
+        '<div class="w span12" style="margin-top:10px"><div class="wbody" id="tvchart">'+tvChart(m,metric,'mom')+'</div></div></div>';
+    } else {
+      chartBlock='<div class="w span12" style="margin-top:14px"><div class="wbody">'+(det.chart||'')+'</div></div>';
+    }
     document.getElementById('detail').innerHTML =
       '<button class="crumb" id="backBtn">← Back to dashboard</button>'+
       '<div class="topbar"><div><h1>'+esc(w.title)+'</h1><p class="lede">'+esc(w.sub||'')+' · '+(MKT==='US'?'United States':'United Kingdom')+' market</p></div>'+dl+'</div>'+
-      '<div class="w span12" style="margin-top:14px"><div class="wbody">'+(det.chart||'')+'</div></div>'+
+      chartBlock+
       (det.insight?'<div class="insight">'+det.insight+'</div>':'')+
       (det.table||'');
     document.getElementById('backBtn').addEventListener('click', closeDetail);
     var dlb=document.querySelector('#detail .btn-dl'); if(dlb) dlb.addEventListener('click',function(){ downloadCSV(dlb.dataset.csv); });
+    if(metric){
+      document.querySelectorAll('#tvwrap .tv-tile').forEach(function(t){ t.addEventListener('click',function(){
+        if(t.classList.contains('dis')) return;
+        var v=t.getAttribute('data-view');
+        document.querySelectorAll('#tvwrap .tv-tile').forEach(function(x){ x.classList.toggle('on', x===t); });
+        var cw=document.getElementById('tvchart'); if(cw) cw.innerHTML=tvChart(m, metric, v);
+      }); });
+    }
     document.body.classList.add('detailing');
     history.replaceState(null,'','?mkt='+MKT+'#'+id);
     window.scrollTo(0,0);
