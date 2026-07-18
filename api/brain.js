@@ -145,6 +145,31 @@ module.exports = async function handler(req, res) {
         const rows = await core.db().select('smart_library_scores', { limit: 1000, order: 'score.desc' });
         return res.json({ ok: true, scores: rows });
       }
+      // Analyst agent — grounded interpretation of the live analytics, made
+      // caveat-aware by the data-accuracy validator so it never builds a
+      // recommendation on a flagged figure. (_shared/feature-agent.js analyst role.)
+      case 'analysis-narrative': {
+        const { runAnalyst } = require('./_shared/feature-agent.js');
+        const { runValidation, loadMarketData } = require('./_shared/data-validation-core.js');
+        let md = null; try { md = loadMarketData(); } catch (_) { md = null; }
+        const us = md && md.markets && md.markets.US ? md.markets.US : {};
+        const val = (() => { try { return runValidation(); } catch (_) { return { checks: [] }; } })();
+        const caveats = val.checks
+          .filter(c => ['MISMATCH', 'MISSING', 'MISLEADING'].includes(c.verdict))
+          .map(c => ({ metric: c.metric, verdict: c.verdict, note: c.note }));
+        const inputs = {
+          window: 'trailing 12 months (US)',
+          summary: us.summary || null,
+          monthly: (us.monthly || []).slice(-13),
+          data_accuracy: val.summary || null,
+        };
+        const out = await runAnalyst({
+          feature: 'analytics',
+          question: (b.question || req.query.q || 'What are the highest-leverage growth moves right now, and what data should I not trust?'),
+          inputs, caveats,
+        });
+        return res.json({ ok: true, ...out, caveats_considered: caveats.length });
+      }
 
       // ── COMPETITOR (isolated) ────────────────────────────────────────────
       case 'benchmarks': {

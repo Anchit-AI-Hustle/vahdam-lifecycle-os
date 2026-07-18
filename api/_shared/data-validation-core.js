@@ -248,4 +248,4 @@ async function validate(opts) {
   return result;
 }
 
-module.exports = { validate, runValidation };
+module.exports = { validate, runValidation, loadMarketData };

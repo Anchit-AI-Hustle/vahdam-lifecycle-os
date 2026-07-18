@@ -135,6 +135,28 @@ const TOOLS = {
       return { summary: out.summary, patterns: { angle: (out.patterns?.angle || []).slice(0, 6), format: (out.patterns?.format || []).slice(0, 6), offer: (out.patterns?.offer || []).slice(0, 6) } };
     },
   },
+  validate_data_accuracy: {
+    mutates: false,
+    desc: 'Run the data-accuracy validation agent: re-derives every analytics metric from live repo data and checks it against the canonical USA D2C report (source of truth). Returns per-metric verdicts (PASS/CONSISTENT/MISMATCH/MISSING/MISLEADING) + counts. USE THIS before quoting a historical/all-time number so you never cite a figure our own validator has flagged. No params.',
+    run: async () => {
+      const { runValidation } = require('./data-validation-core.js');
+      const r = runValidation();
+      return { summary: r.summary, flagged: r.checks.filter(c => ['MISMATCH', 'MISSING', 'MISLEADING'].includes(c.verdict)).map(c => ({ metric: c.metric, verdict: c.verdict, delta: c.delta, note: c.note })) };
+    },
+  },
+  analyst_insights: {
+    mutates: false,
+    desc: 'Grounded growth-analyst agent over the live trailing-12mo analytics, made caveat-aware by the data-accuracy validator (it will not build a recommendation on a flagged figure). Returns ranked insights with hypothesis + target metric + expected impact. params: {question?}.',
+    run: async (a) => {
+      const { runAnalyst } = require('./feature-agent.js');
+      const { runValidation, loadMarketData } = require('./data-validation-core.js');
+      let md = null; try { md = loadMarketData(); } catch (_) { md = null; }
+      const us = md && md.markets && md.markets.US ? md.markets.US : {};
+      const val = (() => { try { return runValidation(); } catch (_) { return { checks: [], summary: null }; } })();
+      const caveats = val.checks.filter(c => ['MISMATCH', 'MISSING', 'MISLEADING'].includes(c.verdict)).map(c => ({ metric: c.metric, verdict: c.verdict, note: c.note }));
+      return runAnalyst({ feature: 'analytics', question: a.question || a.q || '', inputs: { window: 'trailing 12 months (US)', summary: us.summary || null, monthly: (us.monthly || []).slice(-13), data_accuracy: val.summary || null }, caveats });
+    },
+  },
   list_cohorts: {
     mutates: false,
     desc: 'List active customer cohorts (highest value first). No params.',
