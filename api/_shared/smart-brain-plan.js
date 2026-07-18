@@ -1040,7 +1040,7 @@ async function generateCreatives(copy, entry, { only = null, lean = false } = {}
 // LLM-written copy applied to the email + landing page + ads. Pure: it does NOT
 // touch the DB or change any slot's status. Both previewEntry() and approveEntry()
 // call this so a reviewer sees EXACTLY what approving will produce.
-async function buildCampaign(entry, config, { id = null, withCreatives = true } = {}) {
+async function buildCampaign(entry, config, { id = null, withCreatives = true, noLLM = false } = {}) {
   // Review-recovery slots are a review INVITATION, not a promo: email-only, no
   // offer, no ads/landing page, CTA to the product's own review section. Render
   // the dedicated brand-compliant template directly (no LLM promo pipeline).
@@ -1066,7 +1066,11 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
   // Agent pipeline trace, surfaced in the console so the reviewer sees which
   // specialist agent produced each part of the mailer.
   const trace = [];
-  try {
+  // noLLM: skip the whole LLM copy/creative pipeline and ship the deterministic
+  // template campaign GenerationService already built (real catalog data, brand
+  // palette, servable LP html). Used by the orphan-heal path so pages can be
+  // republished fast + offline when providers are rate-limited / keys are unset.
+  if (!noLLM) try {
     // ── Agent 1 · Strategy Analyst — a growth-strategy brief for THIS send.
     // OPTIONAL enrichment: it seeds the copy with an angle/differentiator, but the
     // copy writer runs fine without it. So it is NON-BLOCKING and only appears in
@@ -1164,6 +1168,21 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
         ads: c.assets?.ads || [],
       };
     }
+    // Orphaned approved slot (its campaign row was wiped): republish under the
+    // stamped id so this View — and any external /lp link — resolves again. Best
+    // effort with creatives; buildCampaign falls back to template assets if the
+    // LLM/image providers are unavailable, so it never blocks the reviewer.
+    try {
+      const healedC = await republishOrphan(db, config, entry, row, { reviewer, withCreatives: 'hero', noLLM: false });
+      return {
+        ok: true, preview: false, persisted: true, healed: true, campaign: healedC,
+        copywriter: healedC.copywriter,
+        email_html: healedC.assets?.email?.html || null,
+        email_variants: healedC.assets?.email?.variants || null,
+        landing_html: healedC.assets?.landing_pages?.[0]?.html || null,
+        ads: healedC.assets?.ads || [],
+      };
+    } catch (_) { /* fall through to a fresh on-demand preview build below */ }
   }
 
   // Preview EXACTLY what approving produces. REUSE the saved bundle when this slot
@@ -1433,6 +1452,47 @@ async function landingPageHtml(id, cfg = {}, variant = null) {
   return (await landingPageResolve(id, cfg, variant)).html;
 }
 
+// ── Orphan heal: republish approved slots whose campaign row is missing ──────
+// A wipe/reset of smart_generated_campaigns leaves approved calendar slots
+// pointing at campaign ids that no longer exist, so /lp/:id 404s. buildCampaign
+// mints a DETERMINISTIC id from the entry (idFor = sha1(entry)), so rebuilding a
+// slot reproduces the SAME id it already advertises — republishing under it makes
+// the existing /lp link resolve again. Runs offline by default (noLLM) so it works
+// even when providers are rate-limited: the template LP html is real catalog data.
+async function republishOrphan(db, config, entry, row, { reviewer = null, withCreatives = false, noLLM = true } = {}) {
+  const rebuilt = await buildCampaign(effectiveEntry(entry), config, { id: row.generated_campaign_id, withCreatives, noLLM });
+  rebuilt.status = 'approved';
+  rebuilt.calendar_entry_id = row.id;
+  await persistCampaignAssets(db, config, rebuilt, { status: 'approved', origin: 'smart-brain-heal', reviewer, mirror: true });
+  // Reconcile the slot pointer to the rebuilt id so /lp resolves even if the entry
+  // changed since approval and the deterministic hash drifted from the old stamp.
+  if (rebuilt.campaign_id && rebuilt.campaign_id !== row.generated_campaign_id) {
+    await db.update(config.tableNames.calendarEntries, { id: `eq.${row.id}` }, { generated_campaign_id: rebuilt.campaign_id, updated_at: nowIso() }).catch(() => {});
+  }
+  return rebuilt;
+}
+
+// Find approved/final slots whose campaign row is missing and republish a batch.
+// Idempotent + resumable: returns `remaining` so the caller re-invokes until 0.
+async function healOrphans({ config: cfg = {}, batchSize = 12, reviewer = 'system-heal' } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  if (!db.connected) return { ok: true, skipped: true, reason: 'Supabase not configured', healed: [], failed: [], remaining: 0 };
+  const rows = (await db.select(config.tableNames.calendarEntries, { filters: { status: 'in.(approved,final)' }, order: 'date.asc', limit: 2000 }).catch(() => [])) || [];
+  const withId = rows.filter((r) => r.generated_campaign_id);
+  // One query for all existing campaign ids, then diff (no N per-slot selects).
+  const existingRows = (await db.select(config.tableNames.generatedCampaigns, { limit: 5000 }).catch(() => [])) || [];
+  const existing = new Set(existingRows.map((c) => c.id));
+  const orphans = withId.filter((r) => !existing.has(r.generated_campaign_id));
+  const batch = orphans.slice(0, Math.max(1, batchSize));
+  const healed = [], failed = [];
+  for (const r of batch) {
+    try { const c = await republishOrphan(db, config, r.payload, r, { reviewer }); healed.push({ slot: r.id, campaign_id: c.campaign_id }); }
+    catch (e) { failed.push({ slot: r.id, error: String((e && e.message) || e).slice(0, 160) }); }
+  }
+  return { ok: true, orphans_total: orphans.length, healed, failed, remaining: Math.max(0, orphans.length - batch.length) };
+}
+
 // ── Convergent asset prebuild queue ─────────────────────────────────────────
 // Contract (product owner, 2026-07-09): every slot in the 90-day rolling window
 // must not merely EXIST but arrive with its FULL asset bundle already built —
@@ -1612,7 +1672,7 @@ async function dbCheck({ config: cfg = {} } = {}) {
 
 module.exports = {
   syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, unrejectEntry, activateScenario, landingPageHtml, landingPageResolve, buildCampaign,
-  prebuildAssets, dbCheck, syncStatus,
+  prebuildAssets, healOrphans, dbCheck, syncStatus,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
 };

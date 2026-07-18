@@ -165,6 +165,20 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json({ ok: true, prebuild: true, depth, chained, ...result });
     }
 
+    if (smartAction === 'heal') {
+      // Republish approved/final slots whose smart_generated_campaigns row is
+      // missing (e.g. after a table wipe/reset) so /lp/:id resolves again. The
+      // rebuild is DETERMINISTIC (idFor = sha1(entry)) so it lands under the id the
+      // slot already advertises, and runs offline (noLLM template) so it works even
+      // when LLM/image providers are down. Idempotent + orphan-only + cheap, so it
+      // carries the same OPEN posture as preview/sync-daily (no CRON_SECRET); it is
+      // a no-op when there are no orphans. Batched + resumable via `remaining`.
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+      const batchSize = Math.max(1, Math.min(40, +((body && body.batchSize) || req.query?.batchSize || 20)));
+      const result = await plan.healOrphans({ config: (body && body.config) || {}, batchSize });
+      return res.status(200).json({ ok: true, heal: true, ...result });
+    }
+
     if (smartAction === 'cron') {
       // Vercel Cron sends GET with Authorization: Bearer <CRON_SECRET> when the env var is set.
       const secret = process.env.CRON_SECRET || '';
@@ -250,7 +264,7 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json(result);
     }
 
-    return res.status(400).json({ ok: false, error: 'Unknown Smart Brain action. Use smart-brain-health|smart-brain-schema|smart-brain-plan|smart-brain-sync-daily|smart-brain-cron|smart-brain-prebuild|smart-brain-preview|smart-brain-approve|smart-brain-reject|smart-brain-run-daily|smart-brain-generate-slot|smart-brain-feedback|smart-brain-weekly-recalibration' });
+    return res.status(400).json({ ok: false, error: 'Unknown Smart Brain action. Use smart-brain-health|smart-brain-schema|smart-brain-plan|smart-brain-sync-daily|smart-brain-cron|smart-brain-prebuild|smart-brain-heal|smart-brain-preview|smart-brain-approve|smart-brain-reject|smart-brain-run-daily|smart-brain-generate-slot|smart-brain-feedback|smart-brain-weekly-recalibration' });
   } catch (err) {
     console.error('[api/calendar smart-brain]', err);
     return res.status(500).json({ ok: false, error: err.message });
