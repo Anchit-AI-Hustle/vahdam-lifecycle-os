@@ -15,6 +15,16 @@
 const supa = require('./supa');
 const offers = require('./ci-offers');
 
+// Real-time subscriber fan-out (lazy require to avoid a load cycle). Fully
+// detached: we never await it in the capture path and swallow all errors so a
+// notification failure can never affect whether an asset is stored.
+function notifyAsset(channel, assetRow) {
+  try {
+    const subs = require('./ci-subscriptions-core');
+    Promise.resolve(subs.notifyNewAsset({ channel, asset: assetRow })).catch(() => {});
+  } catch (_) { /* subscriptions module unavailable — ignore */ }
+}
+
 // ── URL canonicalization (mirror of kb.js so hashes are consistent) ──────────
 function canonicalUrl(raw) {
   try {
@@ -144,6 +154,11 @@ async function collectAd(raw) {
   await offers.extractAndStore({ assetType: 'ad', assetId: created.id, brand, source: raw.source,
     text: [raw.headline, raw.primary_copy, raw.description, raw.cta].filter(Boolean).join(' \n ') });
 
+  // Real-time fan-out: email every user who follows this brand's ads. New
+  // creatives only (prior=changed still counts as a new asset the user hasn't
+  // seen). Fire-and-forget — never blocks or fails the capture.
+  notifyAsset('ads', created);
+
   return { id: created.id, status: prior ? 'changed' : 'new', content_hash, changed: versioned?.changed || [] };
 }
 
@@ -170,6 +185,9 @@ async function collectEmail(raw) {
 
   await offers.extractAndStore({ assetType: 'email', assetId: created.id, brand, source: row.source,
     text: [raw.subject, raw.preheader, raw.plain_text].filter(Boolean).join(' \n ') });
+
+  // Real-time fan-out: email every user who follows this brand's mailers.
+  notifyAsset('mailers', created);
 
   return { id: created.id, status: 'new', content_hash };
 }

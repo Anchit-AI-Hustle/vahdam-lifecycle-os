@@ -115,6 +115,25 @@
     .form-grp label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #48524c; font-weight: 600; }
     .form-grp input, .form-grp select { background: #ffffff; border: 1px solid rgba(171,135,67,0.2); border-radius: 8px; color: #171717; padding: 10px 12px; font-size: 13px; font-family: inherit; width: 100%; }
     .form-grp input:focus, .form-grp select:focus { outline: none; border-color: #AB8743; }
+    /* Brand-detail modal — mirrors the #pm preview modal chrome. */
+    #bm { position: fixed; inset: 0; z-index: 9500; display: none; }
+    #bm.open { display: block; }
+    #bm .bk { position: absolute; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(6px); }
+    #bm .mc { position: absolute; inset: 4vh 4vw; background: #f4f2ec; border: 1px solid rgba(171,135,67,0.3); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+    #bm .mh { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #ffffff; }
+    #bm .mh .badge { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #AB8743; border: 1px solid rgba(171,135,67,0.3); padding: 3px 8px; border-radius: 99px; }
+    #bm .mh .t { font-family: 'Lora', serif; font-size: 16px; color: #171717; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #bm .mh .sp { flex: 1; }
+    #bm .mb { flex: 1; overflow-y: auto; padding: 18px; }
+    /* Landing sub-tabs, groups, and follow chips */
+    .lp-subtab.active { background: #004A2B; color: #FBF5EA; border-color: #004A2B; }
+    .lp-group { margin-top: 20px; }
+    .lp-group-h { font-family: 'Lora', serif; color: #004A2B; font-size: 17px; margin: 0 0 10px; }
+    .follow-wrap { display: inline-flex; gap: 6px; }
+    .follow-chip { font: inherit; font-size: 11px; font-weight: 700; border: 1px solid rgba(171,135,67,0.4); background: #fff; color: #7a5f28; border-radius: 99px; padding: 3px 9px; cursor: pointer; }
+    .follow-chip.on { background: #004A2B; color: #FBF5EA; border-color: #004A2B; }
+    .follow-chip:disabled { opacity: 0.5; cursor: default; }
+    .brand-link { cursor: pointer; }
     /* On a phone, use the entire screen so the email render gets every pixel. */
     @media (max-width: 620px) {
       #pm .mc { inset: 0; border-radius: 0; border: none; }
@@ -326,7 +345,7 @@
   <div style="background:rgba(171,135,67,0.04); border:1px solid rgba(171,135,67,0.15); border-radius:10px; padding:10px 14px; margin-bottom:10px; font-size:12px; color:#556059; line-height:1.6">
     <b style="color:#AB8743">Column key:</b>
     <span style="margin:0 14px 0 6px"><b>Newsletter</b> — direct signup link for this brand's mailing list (opens in new tab).</span>
-    <span style="margin-right:14px"><b>Subscription</b> — whether <i>your</i> capture inbox is subscribed to this brand. Click <b>Subscribe</b> to add it to the capture pipeline once newsletter sign-up automation lands.</span>
+    <span style="margin-right:14px"><b>Follow (real-time)</b> — toggle <b>Mailers</b> and/or <b>Ads</b> to get a real-time email to your logged-in address for every new mailer or ad captured for that brand. <b>Newsletter</b> is a direct signup link for the brand's own list (opens a new tab).</span>
   </div>
 
   <div style="overflow-x:auto;border:1px solid rgba(171,135,67,0.18);border-radius:12px">
@@ -335,7 +354,7 @@
         <tr style="text-align:left;color:#48524c;text-transform:uppercase;font-size:10px;letter-spacing:.08em">
           <th style="padding:10px 12px">Brand</th><th style="padding:10px 12px">Category</th>
           <th style="padding:10px 12px">Country</th><th style="padding:10px 12px">Positioning</th>
-          <th style="padding:10px 12px">Newsletter</th><th style="padding:10px 12px">Capture status</th>
+          <th style="padding:10px 12px">Newsletter</th><th style="padding:10px 12px">Follow (real-time)</th>
         </tr>
       </thead>
       <tbody id="bd-rows"></tbody>
@@ -347,18 +366,26 @@
 <!-- ════ LANDING PAGES VIEW ════ -->
 <div id="landing-view" style="display:none">
   <div class="ads-note">
-    Open any tracked competitor's <b>live landing &amp; product pages</b> to benchmark structure, offers, and CRO patterns. Deep-links go straight to each brand's site — automated capture (storing snapshots like we do for mailers) is on the roadmap.
+    Two distinct things: <b>Website</b> = each brand's homepage / storefront. <b>Landing Pages</b> = the actual destination pages behind their ads and mailers (Meta / Google / TikTok / email), shown with the driving asset. Landing pages populate as ads and mailers are captured; nothing is ever fabricated.
   </div>
   <div class="toolbar">
+    <div class="filters" id="lp-subtabs">
+      <button class="btn-ghost lp-subtab active" data-lp="website">🏠 Website (homepages)</button>
+      <button class="btn-ghost lp-subtab" data-lp="landing">🎯 Landing Pages (from ads &amp; mailers)</button>
+    </div>
     <div class="filters">
       <a class="btn-ghost" href="#discover" style="text-decoration:none">＋ Manage brands in Discover →</a>
       <a class="btn-ghost" href="https://pagedeck.com/" target="_blank" rel="noopener" title="Search PageDeck for landing pages">PageDeck ↗</a>
       <a class="btn-ghost" href="https://land-book.com/" target="_blank" rel="noopener" title="Search Land-book">Land-book ↗</a>
-      <a class="btn-ghost" href="https://lapaninja.com/" target="_blank" rel="noopener" title="Search Lapa Ninja">Lapa Ninja ↗</a>
     </div>
   </div>
-  <div id="lpBrands" class="ad-grid"></div>
-  <p class="count" style="margin-top:14px">Landing pages resolve from each brand's known domain — all brands sync from your <b>Discover Brands</b> universe.</p>
+  <!-- WEBSITE sub-view (homepages) -->
+  <div id="lp-website">
+    <div id="lpBrands" class="ad-grid"></div>
+    <p class="count" style="margin-top:14px">Homepages resolve from each brand's known domain — all brands sync from your <b>Discover Brands</b> universe.</p>
+  </div>
+  <!-- LANDING PAGES sub-view (real destinations behind ads/mailers) -->
+  <div id="lp-landing" style="display:none"></div>
 </div>
 
 <!-- ════ INSIGHTS VIEW ════ -->
@@ -477,6 +504,21 @@
       <button class="pm-act pm-close" data-close aria-label="Close">×</button>
     </div>
     <div class="mb" id="pm-body"></div>
+  </div>
+</div>
+
+<!-- ════ BRAND DETAIL MODAL — all assets of one brand ════ -->
+<div id="bm" aria-hidden="true">
+  <div class="bk" data-bclose></div>
+  <div class="mc" role="dialog" aria-modal="true">
+    <div class="mh">
+      <span class="badge">Brand</span>
+      <span class="t" id="bm-title"></span>
+      <span class="sp"></span>
+      <a class="pm-act" id="bm-site" href="#" target="_blank" rel="noopener" style="display:none">Website ↗</a>
+      <button class="pm-act pm-close" data-bclose aria-label="Close">×</button>
+    </div>
+    <div class="mb" id="bm-body"></div>
   </div>
 </div>
 
@@ -677,7 +719,7 @@
     $('insights-view').style.display = name === 'insights' ? 'block' : 'none';
     if (isAd) { state.adPlatform = name; renderAds(); }
     if (name === 'discover') renderBrands();
-    if (name === 'landing') renderLanding();
+    if (name === 'landing') setLpMode(lpMode);
     if (name === 'insights') renderInsights();
     if (window.triggerMotionAnimations) setTimeout(() => window.triggerMotionAnimations(), 10);
     const want = '#' + name;
@@ -902,15 +944,151 @@
                onerror="this.style.display='none'">
         </a>
         <div style="padding:12px 14px">
-          <h4 style="margin:0 0 6px">${esc(o.name)}</h4>
+          <h4 style="margin:0 0 6px" class="brand-link" onclick="openBrandDetail('${esc(o.name).replace(/'/g, "\\'")}','${esc(o.domain)}')">${esc(o.name)}</h4>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a class="ad-src" style="margin:0;flex:1" href="${home}" target="_blank" rel="noopener">Home ↗</a>
+            <a class="ad-src" style="margin:0;flex:1" href="${home}" target="_blank" rel="noopener">Website ↗</a>
             <a class="ad-src" style="margin:0;flex:1" href="${home}/collections" target="_blank" rel="noopener">Collections ↗</a>
           </div>
+          <button class="ad-src" style="width:100%;margin-top:8px;border:none;cursor:pointer;background:#004A2B;color:#FBF5EA" onclick="openBrandDetail('${esc(o.name).replace(/'/g, "\\'")}','${esc(o.domain)}')">View all assets →</button>
           <div style="font-size:11px;color:#48524c;margin-top:8px">${esc(o.domain)}</div>
         </div>
       </div>`; }).join('') + (withDomain.length > MAX_TILES ? `<div class="count" style="grid-column:1/-1">Showing first ${MAX_TILES} of ${withDomain.length} brands — narrow the universe in Discover.</div>` : '') : '<div class="empty">No brands with a known domain yet — add some under <b>Discover Brands</b> (the brand DB stores each domain).</div>';
   }
+
+  // ── Logged-in user (for real-time follow/subscribe) ─────────────────
+  function currentUserEmail() {
+    try {
+      const s = window.LifecycleAuth && window.LifecycleAuth.session;
+      return (s && s.user && s.user.email) || '';
+    } catch (_) { return ''; }
+  }
+  // Client mirror of the server brandKey() so follow-state matches.
+  function brandKeyOf(name, domain) {
+    const base = String(name || domain || '').toLowerCase().trim();
+    return base.replace(/^www\./, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  // ── Follow state (which brands the user follows for mailers/ads) ────
+  const followState = {};  // brand_key -> {mailers, ads}
+  async function loadFollows() {
+    const user = currentUserEmail();
+    if (!user) return;
+    try {
+      const r = await fetch(API + '?action=sub-list&user=' + encodeURIComponent(user));
+      const d = await r.json();
+      (d.subscriptions || []).forEach((s) => { followState[s.brand_key] = { mailers: s.mailers !== false, ads: s.ads !== false, active: s.active !== false }; });
+    } catch (_) {}
+  }
+  async function toggleFollow(name, domain, channel, on) {
+    const user = currentUserEmail();
+    if (!user) { alert('Sign in to receive real-time updates.'); return false; }
+    const key = brandKeyOf(name, domain);
+    const cur = followState[key] || { mailers: false, ads: false };
+    const next = { mailers: cur.mailers, ads: cur.ads, active: true };
+    next[channel] = on;
+    try {
+      const r = await fetch(API + '?action=sub-set', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user, brand_name: name, domain: domain || '', mailers: next.mailers, ads: next.ads, active: true }) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || 'failed');
+      followState[key] = next;
+      return true;
+    } catch (e) { alert('Could not update: ' + (e.message || e)); return false; }
+  }
+  // Renders the two follow chips for a brand (mailers + ads).
+  function followChips(name, domain) {
+    const key = brandKeyOf(name, domain);
+    const st = followState[key] || { mailers: false, ads: false };
+    const chip = (ch, label) => {
+      const on = !!st[ch];
+      return `<button class="follow-chip${on ? ' on' : ''}" data-follow="${ch}" data-name="${esc(name)}" data-domain="${esc(domain || '')}" title="${on ? 'Following — real-time email on each new ' + label : 'Follow to get a real-time email on each new ' + label}">${on ? '✓ ' : '+ '}${label}</button>`;
+    };
+    return `<span class="follow-wrap">${chip('mailers', 'Mailers')}${chip('ads', 'Ads')}</span>`;
+  }
+  // Delegated handler for all follow chips.
+  document.addEventListener('click', async function (ev) {
+    const btn = ev.target.closest && ev.target.closest('.follow-chip');
+    if (!btn) return;
+    ev.preventDefault(); ev.stopPropagation();
+    const ch = btn.dataset.follow, name = btn.dataset.name, domain = btn.dataset.domain;
+    const key = brandKeyOf(name, domain);
+    const on = !(followState[key] && followState[key][ch]);
+    btn.disabled = true;
+    const okd = await toggleFollow(name, domain, ch, on);
+    btn.disabled = false;
+    if (okd) {
+      btn.classList.toggle('on', on);
+      btn.textContent = (on ? '✓ ' : '+ ') + (ch === 'mailers' ? 'Mailers' : 'Ads');
+    }
+  });
+
+  // ── Landing view: Website (homepages) vs Landing Pages (real) ───────
+  let lpMode = 'website';
+  function setLpMode(mode) {
+    lpMode = mode === 'landing' ? 'landing' : 'website';
+    document.querySelectorAll('.lp-subtab').forEach((b) => b.classList.toggle('active', b.dataset.lp === lpMode));
+    $('lp-website').style.display = lpMode === 'website' ? '' : 'none';
+    $('lp-landing').style.display = lpMode === 'landing' ? 'block' : 'none';
+    if (lpMode === 'website') renderLanding();
+    else renderLandingReal();
+  }
+  document.querySelectorAll('.lp-subtab').forEach((b) => b.addEventListener('click', () => setLpMode(b.dataset.lp)));
+
+  // Real landing pages behind ads/mailers, grouped by platform, with the asset.
+  async function renderLandingReal() {
+    const host = $('lp-landing');
+    host.innerHTML = '<div class="empty">Loading captured landing pages…</div>';
+    let groups = [];
+    try { const r = await fetch(API + '?action=landing-real'); const d = await r.json(); groups = d.groups || []; } catch (_) {}
+    const total = groups.reduce((n, g) => n + g.items.length, 0);
+    if (!total) {
+      host.innerHTML = '<div class="empty">No landing pages captured yet. These populate automatically as this brand set\'s <b>ads</b> and <b>mailers</b> are captured — each ad/mailer\'s real destination page is linked here with its creative. Nothing is fabricated.</div>';
+      return;
+    }
+    host.innerHTML = groups.map((g) => {
+      if (!g.items.length) return `<div class="lp-group"><h3 class="lp-group-h">${esc(g.platform)}</h3><div class="empty" style="margin:0">No captured ${esc(g.platform)} landing pages yet.</div></div>`;
+      const cards = g.items.map((it) => `
+        <div class="ad-card" style="padding:0;overflow:hidden">
+          ${it.asset_url ? `<a href="${esc(it.landing_url)}" target="_blank" rel="noopener"><img src="${esc(it.asset_url)}" alt="${esc(it.brand || '')} ${esc(g.platform)} creative" loading="lazy" style="width:100%;aspect-ratio:1/1;object-fit:cover;background:#fff;display:block" onerror="this.style.display='none'"></a>` : '<div style="aspect-ratio:1/1;background:#f3eee1;display:flex;align-items:center;justify-content:center;color:#8a8a80;font-size:12px">creative pending</div>'}
+          <div style="padding:12px 14px">
+            <div style="font-weight:700;font-size:13px">${esc(it.brand || 'Unknown')}</div>
+            ${it.headline ? `<div style="font-size:12px;color:#556059;margin:4px 0">${esc(String(it.headline).slice(0, 90))}</div>` : ''}
+            <a class="ad-src" style="margin-top:6px" href="${esc(it.landing_url)}" target="_blank" rel="noopener">Open landing page ↗</a>
+            <div style="font-size:11px;color:#8a8a80;margin-top:6px">${it.captured_lp ? '📸 snapshot captured' : 'live destination'}${it.source_link ? ` · <a href="${esc(it.source_link)}" target="_blank" rel="noopener" style="color:#AB8743">source</a>` : ''}</div>
+          </div>
+        </div>`).join('');
+      return `<div class="lp-group"><h3 class="lp-group-h">${esc(g.platform)} <span style="color:#8a8a80;font-weight:400;font-size:13px">${g.items.length}</span></h3><div class="ad-grid">${cards}</div></div>`;
+    }).join('');
+  }
+
+  // ── Brand detail modal: ALL assets of one brand ─────────────────────
+  const bm = $('bm');
+  function closeBrandDetail() { bm.classList.remove('open'); bm.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
+  bm.querySelectorAll('[data-bclose]').forEach((el) => el.addEventListener('click', closeBrandDetail));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && bm.classList.contains('open')) closeBrandDetail(); });
+  window.openBrandDetail = async function (name, domain) {
+    $('bm-title').textContent = name || 'Brand';
+    const site = $('bm-site');
+    if (domain) { site.href = 'https://' + domain; site.style.display = ''; } else { site.style.display = 'none'; }
+    $('bm-body').innerHTML = '<div class="ph" style="padding:24px">Loading all assets…</div>';
+    bm.classList.add('open'); bm.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
+    let d = {};
+    try { const r = await fetch(API + '?action=brand-detail&brand=' + encodeURIComponent(name)); d = await r.json(); } catch (_) { d = {}; }
+    const c = d.counts || { mailers: 0, ads: 0, landing: 0 };
+    const adsAll = d.ads ? [].concat(d.ads.meta || [], d.ads.google || [], d.ads.tiktok || [], d.ads.other || []) : [];
+    const mailers = d.emails || [], landing = d.landing || [];
+    const assetCard = (img, title, sub, href) => `
+      <div class="ad-card" style="padding:0;overflow:hidden">
+        ${img ? `<a href="${esc(href || '#')}" target="_blank" rel="noopener"><img src="${esc(img)}" loading="lazy" style="width:100%;aspect-ratio:1/1;object-fit:cover;background:#fff;display:block" onerror="this.style.display='none'"></a>` : '<div style="aspect-ratio:1/1;background:#f3eee1"></div>'}
+        <div style="padding:10px 12px"><div style="font-weight:600;font-size:12px">${esc(String(title || '').slice(0, 80))}</div>${sub ? `<div style="font-size:11px;color:#8a8a80;margin-top:3px">${esc(sub)}</div>` : ''}</div>
+      </div>`;
+    const section = (label, count, inner) => `<div class="d-section"><div class="sh"><h4>${label} <span style="color:#8a8a80">${count}</span></h4></div>${count ? inner : '<div class="empty" style="margin:0">None captured yet.</div>'}</div>`;
+    $('bm-body').innerHTML =
+      `<div class="d-meta" style="margin-bottom:12px">${followChips(name, domain)}<span style="font-size:12px;color:#556059;margin-left:10px">Follow to get a real-time email on each new mailer or ad.</span></div>` +
+      section('Mailers', c.mailers, '<div class="ad-grid">' + mailers.map((e) => assetCard((e.images && e.images[0]) || '', e.subject, e.send_date ? new Date(e.send_date).toLocaleDateString() : '', (e.ctas && e.ctas[0] && e.ctas[0].href) || e.source_link)).join('') + '</div>') +
+      section('Ads (Meta / Google / TikTok)', c.ads, '<div class="ad-grid">' + adsAll.map((a) => assetCard((a.image_urls && a.image_urls[0]) || (a.video_urls && a.video_urls[0]) || '', (a.headline || a.source || 'Ad'), a.source, a.landing_url || a.source_link)).join('') + '</div>') +
+      section('Landing pages', c.landing, '<div class="ad-grid">' + landing.map((l) => assetCard('', l.url, l.captured_at ? new Date(l.captured_at).toLocaleDateString() : '', l.url)).join('') + '</div>');
+  };
 
   // ── Insights: quick rollup over the captured competitor mailers ─────
   function renderInsights() {
@@ -941,6 +1119,7 @@
     let brands = [];
     try { const r = await fetch(API + '?action=brands'); const d = await r.json(); brands = d.brands || []; } catch {}
     brandsLoaded = true;
+    await loadFollows();
     // Refresh the shared universe so Mailers/Meta/Google/TikTok/Landing tabs
     // all track the SAME brands as this Discover tab.
     await fetchBrandUniverse(true);
@@ -949,12 +1128,12 @@
     const pill = (s) => { const ok = /subscribed/i.test(s) && !/not/i.test(s); return `<span style="font-size:11px;padding:2px 8px;border-radius:99px;background:${ok ? 'rgba(34,197,94,.15)' : 'rgba(171,135,67,.12)'};color:${ok ? '#0a7d33' : '#7a5f28'}">${esc(s || 'Not subscribed')}</span>`; };
     $('bd-rows').innerHTML = brands.map((b) => `
       <tr style="border-top:1px solid rgba(171,135,67,0.1)">
-        <td style="padding:9px 12px"><a href="${esc(b.websiteUrl)}" target="_blank" rel="noopener" style="color:#171717;font-weight:600;text-decoration:none">${esc(b.brandName)}</a><div style="font-size:11px;color:#48524c">${esc(b.domain)}</div></td>
+        <td style="padding:9px 12px"><span class="brand-link" onclick="openBrandDetail('${esc(b.brandName).replace(/'/g, "\\'")}','${esc(b.domain || '')}')" style="color:#171717;font-weight:600">${esc(b.brandName)}</span><div style="font-size:11px;color:#48524c">${esc(b.domain)}</div></td>
         <td style="padding:9px 12px;color:#556059">${esc(b.category)}</td>
         <td style="padding:9px 12px;color:#556059">${esc(b.country)}</td>
         <td style="padding:9px 12px;color:#556059">${esc(b.positioning)}</td>
         <td style="padding:9px 12px">${(b.newsletterSignupUrl || b.websiteUrl) ? `<a href="${esc(b.newsletterSignupUrl || b.websiteUrl)}" target="_blank" rel="noopener" style="color:#AB8743">Signup ↗</a>` : '<span style="color:#48524c">—</span>'}</td>
-        <td style="padding:9px 12px;white-space:nowrap">${pill(b.subscriptionStatus)}${(b.newsletterSignupUrl || b.websiteUrl) && !(/subscribed/i.test(b.subscriptionStatus) && !/not/i.test(b.subscriptionStatus)) ? ` <a href="${esc(b.newsletterSignupUrl || b.websiteUrl)}" target="_blank" rel="noopener" style="color:#AB8743;font-size:11px;margin-left:6px">Subscribe ↗</a>` : ''}</td>
+        <td style="padding:9px 12px;white-space:nowrap">${followChips(b.brandName, b.domain || '')}</td>
       </tr>`).join('');
   }
   async function runBrandAction(btn, action, busyText) {
