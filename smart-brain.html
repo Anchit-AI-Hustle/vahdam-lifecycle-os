@@ -402,11 +402,12 @@ function renderAd(ad){
   const ctype = ad.creative_type || ((ad.storyboard||ad.script) && !ad.creative_brief ? 'video' : 'static');
   const vtag = `<span class="pill" style="font-size:10px;background:${ctype==='video'?'#7a5f28':'#004A2B'};color:#FBF5EA">${esc(ad.variant||(ctype==='video'?'Video':'Static'))}</span>`;
   const cta = esc(ad.cta||'Shop Now');
+  const qa = ad.__qa ? `<span class="pill" title="${esc((ad.__qa.issues||[]).join(' · ')||'passed all checks')}" style="font-size:10px;background:${ad.__qa.ok?'#0a7d33':'#b45309'};color:#fff">QA ${ad.__qa.ok?'✓':'⚠'} ${ad.__qa.score}/10</span>` : '';
   if(ctype==='video'){
     // Video ad: a shot-by-shot storyboard strip + hook — not a wall of text.
     const board = (ad.storyboard||[]).map(s=>`<div style="flex:0 0 128px;border:1px solid rgba(171,135,67,.3);border-radius:8px;overflow:hidden;background:#0c1c14"><div style="background:#004A2B;color:#AB8743;font-size:10px;font-weight:800;padding:3px 7px">${esc(s.t||'')}</div><div style="color:#e9efe9;font-size:11px;line-height:1.4;padding:7px 8px">${esc(s.scene||s.shot||'')}</div></div>`).join('');
     add('Hook', ad.hook); add('Caption', ad.caption); if(!ad.storyboard) add('Script', ad.script);
-    return `<div class="adcard"><h4>${esc(platform)} · Video ad ${vtag}</h4>
+    return `<div class="adcard"><h4>${esc(platform)} · Video ad ${vtag} ${qa}</h4>
       <div style="position:relative;border-radius:12px;height:150px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#0f2a1c,#04120b);border:1px solid rgba(171,135,67,.3)">
         <span style="width:0;height:0;border-left:22px solid #FBF5EA;border-top:14px solid transparent;border-bottom:14px solid transparent;margin-left:6px"></span>
         <span style="position:absolute;top:8px;left:10px;font-size:10px;font-weight:800;letter-spacing:.08em;color:#AB8743">VIDEO · ${esc(ad.placement||'9:16')} · ${esc(String(ad.duration_s||15))}s</span>
@@ -422,7 +423,7 @@ function renderAd(ad){
   const cr = ad.creative||{}; const ov = ad.overlay||{};
   const bg = cr.image ? `background-image:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.45)),url('${esc(cr.image)}');background-size:cover;background-position:center` : 'background:radial-gradient(circle at 30% 25%,#0f2a1c,#04120b)';
   if(ad.creative_brief) add('Creative brief', ad.creative_brief);
-  return `<div class="adcard"><h4>${esc(platform)} · Static ad ${vtag}</h4>
+  return `<div class="adcard"><h4>${esc(platform)} · Static ad ${vtag} ${qa}</h4>
     <div style="position:relative;border-radius:12px;height:190px;overflow:hidden;border:1px solid rgba(171,135,67,.3);${bg}">
       <span style="position:absolute;top:8px;right:10px;font-size:10px;font-weight:800;color:#FBF5EA;opacity:.85">${esc(ad.aspect||'1:1')}</span>
       <div style="position:absolute;top:12px;left:14px;right:14px;font-family:'Lora',Georgia,serif;font-size:19px;font-weight:700;color:#FBF5EA;text-shadow:0 1px 6px rgba(0,0,0,.5)">${esc(ov.headline||ad.headline||'')}</div>

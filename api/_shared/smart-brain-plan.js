@@ -1119,6 +1119,14 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
     console.warn('[smart-brain] LLM copy failed, using template assets:', e.message);
     trace.push({ agent: 'fallback', role: 'template assets', ok: false, output: { reason: String(e && e.message || e).slice(0, 160) } });
   }
+  // Ads QA Critic — deterministic review of the paid-social creatives; runs in BOTH
+  // the LLM and noLLM paths. Attaches a verdict + stamps each ad for the studio badge.
+  // Advisory (never blocks generation); surfaces type/brand/offer/limit violations.
+  try {
+    const adsQa = require('./ads-qa.js').qaAds(campaign.assets && campaign.assets.ads);
+    campaign.ads_qa = adsQa;
+    trace.push({ agent: 'Ads QA Critic', role: 'Paid Social QA', ok: adsQa.passed, provider: 'rule-based', output: { avg_score: adsQa.avg_score, critical: adsQa.critical, ads: adsQa.count, missing: adsQa.missing } });
+  } catch (_) { /* QA is advisory; never block generation */ }
   campaign.copywriter = copyMeta;
   campaign.agent_trace = trace;
   campaign.calendar_entry_id = entry.id || id || null;
