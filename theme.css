@@ -91,22 +91,28 @@
 :root[data-theme="dusk"],
 :root[data-theme="light"],
 :root[data-theme="green"] {
-  /* Palette aligned to the /all-in-one dashboard: near-black-green canvas
-     #0a1410, cards #0f1d18, inner tiles #07100d, gold accents, cream metrics,
-     light body text, cool-muted secondary. This is the single source of truth
-     for the whole suite's dark surface + text pairing. */
-  --vh-bg: #0a1410; --vh-panel: #0f1d18; --vh-panel-2: #07100d;
-  --vh-line: rgba(171,135,67,0.18); --vh-line-hot: rgba(171,135,67,0.45);
-  /* Text: light body, cool-muted secondary, faint tertiary. */
-  --vh-ink: #e8ede9; --vh-ink-dim: #a7b5ad; --vh-ink-faint: #8a9a92;
-  /* legacy aliases (family A + family B) — all point at the locked dark set.
-     NOTE: --soft is used across pages as a *dim text* color (never a surface),
-     so it stays a readable muted tone on the dark canvas. */
-  --bg: #0a1410; --panel: #0f1d18; --surface: #0f1d18; --card: #0f1d18; --soft: #a7b5ad; --chip: #07100d;
-  --ink: #e8ede9; --ink-dim: #a7b5ad; --ink-faint: #8a9a92; --muted: #a7b5ad; --head: #FBF5EA;
-  --line: rgba(171,135,67,0.18); --line-hot: rgba(171,135,67,0.45);
-  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #0f1d18; --moss-deep: #07100d;
-  color-scheme: dark;
+  /* LIGHT theme lock (2026-07-18): the suite is standardized to ONE light theme
+     so every tool tab renders consistently light — cream canvas #FBF5EA, white
+     cards/tiles, near-black ink, forest heads, gold accents, cool-muted secondary.
+     Every data-theme value resolves here (auth.js sets data-theme="green"). This
+     MATCHES the light :root each page already declares, so pages stop rendering
+     dark against their own intent. NOTE: --cream stays page-owned (it is used as
+     text on hard-coded dark/forest elements like hero bands + CTA buttons, so it
+     must remain cream there); pages that placed --cream text on a light surface
+     are corrected per-page (e.g. app-audit remaps --cream to forest). Two themed
+     pages opt back to dark on purpose: diff-version (frozen dark diff) and /3d
+     (WebGL storefront) — they carry their own high-specificity dark override. */
+  --vh-bg: #FBF5EA; --vh-panel: #ffffff; --vh-panel-2: #f4f2ec;
+  --vh-line: rgba(171,135,67,0.24); --vh-line-hot: rgba(171,135,67,0.5);
+  /* Text: near-black body, muted secondary, faint tertiary — readable on light. */
+  --vh-ink: #171717; --vh-ink-dim: #556059; --vh-ink-faint: #6b7770;
+  /* legacy aliases (family A + family B) — all point at the locked light set.
+     --soft is a *dim text* color (never a surface): a readable muted tone. */
+  --bg: #FBF5EA; --panel: #ffffff; --surface: #ffffff; --card: #ffffff; --soft: #556059; --chip: #f4f2ec;
+  --ink: #171717; --ink-dim: #556059; --ink-faint: #6b7770; --muted: #556059; --head: #004A2B;
+  --line: rgba(171,135,67,0.24); --line-hot: rgba(171,135,67,0.5);
+  --forest: #004A2B; --green: #004A2B; --accent: #AB8743; --moss: #eef3f0; --moss-deep: #e7efe9;
+  color-scheme: light;
 }
 
 /* ── Globally safe polish (no layout-affecting bare-element restyles) ─────── */
