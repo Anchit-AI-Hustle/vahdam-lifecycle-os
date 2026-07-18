@@ -561,7 +561,7 @@ async function start3D(){
         let d=group.userData.spin-group.rotation.y;group.rotation.y+=d*0.08;
         if(Math.abs(d)<0.002){group.rotation.y=group.userData.spin;delete group.userData.spin;}
       }else{
-        targetVel*=0.92;group.rotation.y+=0.0025+targetVel; // gentle idle spin
+        targetVel*=0.92;group.rotation.y+=0.0011+targetVel; // gentle idle spin (slowed)
       }
     }
     panels.forEach(m=>{ // billboard-ish: face outward already; add subtle bob

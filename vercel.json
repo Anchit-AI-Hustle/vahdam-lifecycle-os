@@ -111,6 +111,7 @@
     { "source": "/lp/agent", "destination": "/landing-page-agent.html" },
     { "source": "/landing-page-agent", "destination": "/landing-page-agent.html" },
     { "source": "/lp/best", "destination": "/landing-pages/final/vahdam-uk-cortisol-agent-best.html" },
+    { "source": "/lp/best-3d", "destination": "/landing-pages/final/vahdam-cortisol-3d.html" },
     { "source": "/lp/:id", "destination": "/api/calendar?action=lp&id=:id" },
     { "source": "/knowledge-base", "destination": "/knowledge-base.html" },
     { "source": "/kb", "destination": "/knowledge-base.html" },

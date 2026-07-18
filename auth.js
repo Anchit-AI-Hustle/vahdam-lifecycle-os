@@ -250,6 +250,7 @@
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
     { id: 'officialdesigns', label: 'Official Website Designs', href: '/official-designs', icon: 'vahdam', ver: 'v2', match: ['/official-designs', '/store-3d', '/designs', '/official-designs.html'] },
+    { id: 'storefront3d', label: '3D Storefront (Home)', href: '/3d', icon: 'vahdam', ver: 'v2', match: ['/3d', '/storefront-3d', '/shop-3d', '/storefront-3d.html'] },
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
@@ -262,6 +263,7 @@
       { id: 'web-uk', label: 'UK Website', href: '/website-designs?market=UK', icon: 'vahdam' },
       { id: 'web-global', label: 'Global Website', href: '/website-designs?market=GLOBAL', icon: 'vahdam' },
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
+      { id: 'lp-best-3d', label: '★ 3D Agent Page (motion)', href: '/lp/best-3d', icon: 'vahdam', match: ['/lp/best-3d'] },
       { id: 'lp-agent',   label: 'Landing Page with All-In-One Voice+Chat+Talk Agent',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
       { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages.html#mailers',  icon: 'mailer' },
       { id: 'lp-meta',    label: 'For Meta Ads',   href: '/landing-pages.html#meta',     icon: 'meta' },
