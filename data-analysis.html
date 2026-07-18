@@ -145,8 +145,10 @@
 <script>
 (function(){
   var A = (window.VAHDAM_ANALYTICS) || {markets:{}};
-  var MKT = (new URLSearchParams(location.search).get('mkt') || 'US').toUpperCase();
-  if(!A.markets[MKT]) MKT = 'US';
+  // MKT comes from the ?mkt= URL param — remap through a literal allowlist so the
+  // stored value is always a constant (never the raw, potentially-hostile input).
+  // This clears the taint at the source; every use below is then a fixed string.
+  var MKT = ({ US:'US', UK:'UK', GLOBAL:'GLOBAL', IN:'IN' })[(new URLSearchParams(location.search).get('mkt') || 'US').toUpperCase()] || 'US';
 
   // Normalise each market so a widget only appears when its data actually
   // exists (some markets export fewer datasets than others — e.g. UK ships
@@ -530,7 +532,7 @@
     var dh='';
     if(dec){ var dir=dec.dRev>=0?'up':'down';
       dh='<div class="sig-decomp"><b>Revenue driver split</b> ('+mLabel(dec.from.month)+' to '+mLabel(dec.to.month)+', order volume × basket size): <b class="'+dir+'">'+(dec.dRev>=0?'+':'')+moneyFull(dec.dRev)+'</b> total, of which <b class="'+(dec.ordersEffect>=0?'up':'down')+'">'+(dec.ordersEffect>=0?'+':'')+moneyFull(dec.ordersEffect)+'</b> is from order volume and <b class="'+(dec.aovEffect>=0?'up':'down')+'">'+(dec.aovEffect>=0?'+':'')+moneyFull(dec.aovEffect)+'</b> is from AOV. This is where the month moved, and which lever moved it.</div>'; }
-    document.getElementById('signals').innerHTML='<div class="sig-head">Signals · what needs attention<span class="sig-sub">auto-computed from the live '+mktLabel()+' data</span></div><div class="sig-grid">'+cards+'</div>'+dh;
+    document.getElementById('signals').innerHTML='<div class="sig-head">Signals · what needs attention<span class="sig-sub">auto-computed from the live '+esc(mktLabel())+' data</span></div><div class="sig-grid">'+cards+'</div>'+dh;
   }
 
   function renderKPIs(){
@@ -675,7 +677,7 @@
     }
     document.getElementById('detail').innerHTML =
       '<button class="crumb" id="backBtn">← Back to dashboard</button>'+
-      '<div class="topbar"><div><h1>'+esc(w.title)+'</h1><p class="lede">'+esc(w.sub||'')+' · '+mktLabel()+' market</p></div>'+dl+'</div>'+
+      '<div class="topbar"><div><h1>'+esc(w.title)+'</h1><p class="lede">'+esc(w.sub||'')+' · '+esc(mktLabel())+' market</p></div>'+dl+'</div>'+
       chartBlock+
       (det.insight?'<div class="insight">'+det.insight+'</div>':'')+
       (det.table||'');
@@ -704,8 +706,8 @@
   function renderFootnote(){
     var m=d()||{}; var live=m.__live;
     var src = live
-      ? 'Source: <b>live Shopify Admin</b> snapshot for '+mktLabel()+' ('+(live.store_url||live.shop||meta(MKT).store)+', pulled '+(live.pulled_at||'recently')+') overlaying the '+mktLabel()+' market exports.'
-      : 'Source: live VAHDAM '+mktLabel()+' market exports in <span class="datalink">data/market/'+meta(MKT).region+'/</span>, compiled by <span class="datalink">scripts/build-market-analytics.js</span>.';
+      ? 'Source: <b>live Shopify Admin</b> snapshot for '+esc(mktLabel())+' ('+esc(live.store_url||live.shop||meta(MKT).store)+', pulled '+esc(live.pulled_at||'recently')+') overlaying the '+esc(mktLabel())+' market exports.'
+      : 'Source: live VAHDAM '+esc(mktLabel())+' market exports in <span class="datalink">data/market/'+esc(meta(MKT).region)+'/</span>, compiled by <span class="datalink">scripts/build-market-analytics.js</span>.';
     document.getElementById('footnote').innerHTML=src+' Trailing 12-month window. The upstream ingestion + DuckDB engine lives in <a class="datalink" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">vahdam_dtc_data_engine</a> (live: <a class="datalink" href="/data-engine">DTC Data Engine</a>).';
   }
 
