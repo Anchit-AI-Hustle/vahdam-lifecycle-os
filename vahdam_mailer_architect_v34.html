@@ -16,7 +16,7 @@
 <!-- Supabase JS SDK (used for cross-device dashboard storage) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- Lifecycle OS shared auth + cross-step nav -->
-<script src="/auth.js?v=20260705" defer></script>
+<script src="/auth.js?v=20260718light" defer></script>
 <style id="lifecycle-os-overrides">
   /* When this Studio is rendered inside the Lifecycle OS shell (auth.js
      injects body.lifecycle-os-mode), suppress the Studio's own duplicate
@@ -502,8 +502,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
    blocks are already dark. Palette mirrors vahdam_mailer_studio_v2_dark.html.
    ════════════════════════════════════════════════════════════════════════════ */
 html[data-theme="green"]{
-  --body-txt:#171717; --dark:#171717;
-  --muted:#556059; --subtle:#7d8e84;
+  --body-txt:#F5EFE0; --dark:#171717;
+  --muted:#cfe0d5; --subtle:#9fb8ab;
   --border:rgba(171,135,67,.18); --border2:rgba(171,135,67,.32);
   --bg:#004A2B; --panel:#075C39;
   --lightg:rgba(0,74,43,.28); --lightgold:rgba(171,135,67,.16);
@@ -512,6 +512,11 @@ html[data-theme="green"]{
   --shadow-md:0 6px 18px rgba(0,0,0,.5),0 2px 6px rgba(0,0,0,.35);
   --shadow-lg:0 16px 40px rgba(0,0,0,.55),0 4px 12px rgba(0,0,0,.4);
 }
+/* Restore the studio's dark-green surface tokens: theme.css (light) targets
+   :root[data-theme="green"] (spec 0,2,0) and would otherwise force --panel/--bg
+   light while this UI's chrome + text are built dark. html[data-theme]:root wins
+   (0,2,1) so the dark studio stays coherent (light text on dark surfaces). */
+html[data-theme="green"]:root{ --panel:#075C39; --bg:#004A2B; --muted:#cfe0d5; }
 html[data-theme="green"] body{
   background:#004A2B;
   background-image:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(0,74,43,.18) 0%,transparent 70%);
@@ -568,6 +573,7 @@ html[data-theme="green"] .mkt-tab-btn:hover:not(.on){border-color:var(--gold);co
 html[data-theme="green"] .sugg-hdr{background:linear-gradient(90deg,#075C39 0%,#003D24 100%)}
 html[data-theme="green"] .sugg-hdr:hover{background:linear-gradient(90deg,#12241d 0%,#0e1f18 100%)}
 html[data-theme="green"] .sugg-hdr-sub{color:var(--subtle)}
+html[data-theme="green"] .sugg-hdr-lbl{color:#FBF5EA}
 html[data-theme="green"] .sugg-grid{background:var(--panel)}
 html[data-theme="green"] .sugg-card{background:#003D24}
 html[data-theme="green"] .sugg-text{color:var(--muted)}
@@ -625,7 +631,7 @@ html[data-theme="green"] .copilot-dock{background:rgba(10,20,16,.78);border-top:
 }
 .copilot-btn .ci{font-size:15px;line-height:1}
 .copilot-btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--g)}
-html[data-theme="green"] .copilot-btn{color:#171717}
+html[data-theme="green"] .copilot-btn{color:#FBF5EA}
 .copilot-btn.cb-listen.playing{color:var(--gold);border-color:var(--gold)}
 .copilot-btn.cb-listen.playing .ci{animation:listenPulse 1s ease-in-out infinite}
 @keyframes listenPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.18)}}
@@ -851,13 +857,13 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
 
     <!-- Divider -->
     <div style="height:1px;background:var(--border);margin-bottom:22px;position:relative">
-      <span style="position:absolute;top:-8px;left:0;background:#fff;padding:0 10px 0 0;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#d1d5db">Targeting</span>
+      <span style="position:absolute;top:-8px;left:0;background:transparent;padding:0 10px 0 0;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#cfe0d5">Targeting</span>
     </div>
 
     <!-- Target Market -->
     <div style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin:0">Target Market <span class="req">*</span></label>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#cfe0d5;margin:0">Target Market <span class="req">*</span></label>
         <span style="font-size:10px;color:#556059;font-weight:400">Multi-select — each market gets its own tailored mailer</span>
       </div>
       <div class="mkt-chips" id="mktChips">
@@ -874,7 +880,7 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
     <!-- Target User Segment -->
     <div class="field" style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin:0">Target User Segment</label>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#cfe0d5;margin:0">Target User Segment</label>
         <span style="font-size:10px;color:#556059;font-weight:400">Who is this mailer for? — drives copy, imagery, and tone</span>
       </div>
       <textarea id="audienceIn"
@@ -891,7 +897,7 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
     <!-- Campaign Type -->
     <div style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin:0">Campaign Type</label>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#cfe0d5;margin:0">Campaign Type</label>
         <span style="font-size:10px;color:#556059;font-weight:400">Multi-select — pick 1-3 to blend the vibe (e.g. Gift + Sale, Routine + Story)</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap" id="typeChips">

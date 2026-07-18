@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#004A2B">
   <meta name="apple-mobile-web-app-title" content="Lifecycle OS">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <script src="/auth.js?v=20260705" defer></script>
+  <script src="/auth.js?v=20260718light" defer></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,7 +25,7 @@
 
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 22px 0; }
     @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
-    .stat { background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px 18px; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .stat { background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px 18px; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     .stat:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(171,135,67,0.12); border-color: rgba(171,135,67,0.4); }
     .stat .v { font-family: 'Lora', serif; font-size: 26px; font-weight: 600; color: #171717; }
     .stat .l { font-size: 11px; color: #556059; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
@@ -48,11 +48,11 @@
     .live .pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: lp 1.8s ease-in-out infinite; }
     @keyframes lp { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-    .table-wrap { background: rgba(15, 29, 24, 0.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+    .table-wrap { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
     table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13px; }
-    thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #48524c; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #0c1813; }
+    thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #48524c; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #eef3f0; }
     thead th.sortable { cursor: pointer; }
-    thead th.sortable:hover { color: #d3dbd5; }
+    thead th.sortable:hover { color: #171717; }
     tbody td { padding: 12px 14px; border-bottom: 1px solid rgba(171,135,67,0.08); vertical-align: middle; }
     tbody tr:hover { background: rgba(171,135,67,0.05); }
     .brand { font-weight: 600; color: #171717; }
@@ -97,8 +97,8 @@
     @media (max-width: 620px) {
       .frame-wrap iframe { min-width: 100%; }
     }
-    .ph { padding: 30px; text-align: center; color: #48524c; font-size: 12.5px; background: #0c1813; border: 1px dashed rgba(171,135,67,0.2); border-radius: 10px; }
-    pre.body { max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; background: #0c1813; border: 1px solid rgba(171,135,67,0.14); border-radius: 10px; padding: 14px; font-family: inherit; font-size: 12.5px; line-height: 1.6; color: #d3dbd5; }
+    .ph { padding: 30px; text-align: center; color: #48524c; font-size: 12.5px; background: #eef3f0; border: 1px dashed rgba(171,135,67,0.2); border-radius: 10px; }
+    pre.body { max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; background: #eef3f0; border: 1px solid rgba(171,135,67,0.14); border-radius: 10px; padding: 14px; font-family: inherit; font-size: 12.5px; line-height: 1.6; color: #171717; }
 
     /* ── Preview modal ── */
     #pm, #jm, #fcm { position: fixed; inset: 0; z-index: 9500; display: none; }
@@ -131,7 +131,7 @@
 
     /* ── Section sub-nav (Mailers | Ads) + header CTAs ── */
     .cb-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px 20px; margin-top: 22px; }
-    .subnav { display: inline-flex; gap: 4px; padding: 4px; background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .subnav { display: inline-flex; gap: 4px; padding: 4px; background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
     .snav { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; color: #556059; background: transparent; border: none; cursor: pointer; font-family: inherit; transition: all .14s; }
     .snav:hover { color: #171717; }
     .snav.active { color: #171717; background: rgba(171,135,67,0.16); }
@@ -147,7 +147,7 @@
     #ads-view { display: none; margin-top: 22px; }
     .ads-note { background: rgba(171,135,67,0.06); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: #556059; line-height: 1.55; margin-bottom: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .ad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-    .ad-card { background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px; position: relative; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .ad-card { background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px; position: relative; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
     .ad-card:hover { transform: translateY(-4px); border-color: rgba(171,135,67,0.45); box-shadow: 0 12px 32px rgba(171,135,67,0.15); }
     .ad-card h4 { font-family: 'Lora', serif; font-size: 16px; font-weight: 600; color: #171717; margin-bottom: 12px; }
     .ad-card .ad-x { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #48524c; cursor: pointer; font-size: 15px; }

@@ -1040,7 +1040,7 @@ async function generateCreatives(copy, entry, { only = null, lean = false } = {}
 // LLM-written copy applied to the email + landing page + ads. Pure: it does NOT
 // touch the DB or change any slot's status. Both previewEntry() and approveEntry()
 // call this so a reviewer sees EXACTLY what approving will produce.
-async function buildCampaign(entry, config, { id = null, withCreatives = true } = {}) {
+async function buildCampaign(entry, config, { id = null, withCreatives = true, noLLM = false } = {}) {
   // Review-recovery slots are a review INVITATION, not a promo: email-only, no
   // offer, no ads/landing page, CTA to the product's own review section. Render
   // the dedicated brand-compliant template directly (no LLM promo pipeline).
@@ -1066,7 +1066,11 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true } 
   // Agent pipeline trace, surfaced in the console so the reviewer sees which
   // specialist agent produced each part of the mailer.
   const trace = [];
-  try {
+  // noLLM: skip the whole LLM copy/creative pipeline and ship the deterministic
+  // template campaign GenerationService already built (real catalog data, brand
+  // palette, servable LP html). Used by the orphan-heal path so pages can be
+  // republished fast + offline when providers are rate-limited / keys are unset.
+  if (!noLLM) try {
     // ── Agent 1 · Strategy Analyst — a growth-strategy brief for THIS send.
     // OPTIONAL enrichment: it seeds the copy with an angle/differentiator, but the
     // copy writer runs fine without it. So it is NON-BLOCKING and only appears in
@@ -1164,6 +1168,21 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
         ads: c.assets?.ads || [],
       };
     }
+    // Orphaned approved slot (its campaign row was wiped): republish under the
+    // stamped id so this View — and any external /lp link — resolves again. Best
+    // effort with creatives; buildCampaign falls back to template assets if the
+    // LLM/image providers are unavailable, so it never blocks the reviewer.
+    try {
+      const healedC = await republishOrphan(db, config, entry, row, { reviewer, withCreatives: 'hero', noLLM: false });
+      return {
+        ok: true, preview: false, persisted: true, healed: true, campaign: healedC,
+        copywriter: healedC.copywriter,
+        email_html: healedC.assets?.email?.html || null,
+        email_variants: healedC.assets?.email?.variants || null,
+        landing_html: healedC.assets?.landing_pages?.[0]?.html || null,
+        ads: healedC.assets?.ads || [],
+      };
+    } catch (_) { /* fall through to a fresh on-demand preview build below */ }
   }
 
   // Preview EXACTLY what approving produces. REUSE the saved bundle when this slot
@@ -1398,22 +1417,92 @@ async function activateScenario({ scenario, reviewer = null, scope = 'all', conf
 
 // ── Landing-page resolver for /lp/:id ───────────────────────────────────────
 
-async function landingPageHtml(id, cfg = {}, variant = null) {
+// Resolve stored LP HTML for /lp/:id. Returns { html, diag } — diag says exactly
+// WHY a page could not be served (storage disconnected / campaign not persisted /
+// campaign has no LP asset), so a 404 is actionable instead of a mystery. Looks
+// the campaign up by BOTH the row id AND payload.campaign_id (id-scheme drift
+// safety net), then falls back to the landing_pages_generated mirror.
+async function landingPageResolve(id, cfg = {}, variant = null) {
   const config = smartConfig(cfg);
   const db = new SmartBrainDbAdapter(config);
-  if (!db.connected) return null;
-  const camp = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
-  const lps = camp?.[0]?.payload?.assets?.landing_pages || [];
-  // ?v=b serves the story-led B variant; default serves A (the first LP).
-  // If B is requested but the slot only built one LP, fall back to the first
-  // page rather than 404-ing a valid campaign.
-  const want = /^b$/i.test(String(variant || '')) ? (lps.find((l) => l.variant === 'B') || lps[1] || lps[0]) : (lps.find((l) => l.variant === 'A') || lps[0]);
-  const html = want?.html;
-  if (html) return html;
-  // fall back to landing_pages_generated (numeric id or campaign_id in payload)
+  const diag = { id, dbConnected: !!db.connected, campaignFound: false, hasLpHtml: false, fallbackFound: false, source: null };
+  if (!db.connected) return { html: null, diag };
+  // 1) generated campaign by row id, then 2) by payload.campaign_id.
+  let camp = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
+  if (camp && camp[0]) diag.source = 'generated_campaigns.id';
+  else {
+    camp = await db.select(config.tableNames.generatedCampaigns, { filters: { 'payload->>campaign_id': `eq.${id}` }, limit: 1 }).catch(() => []);
+    if (camp && camp[0]) diag.source = 'generated_campaigns.campaign_id';
+  }
+  if (camp && camp[0]) {
+    diag.campaignFound = true;
+    const lps = camp[0]?.payload?.assets?.landing_pages || [];
+    // ?v=b serves the story-led B variant; default serves A (first LP). If B is
+    // requested but only one LP was built, fall back rather than 404 a valid page.
+    const want = /^b$/i.test(String(variant || '')) ? (lps.find((l) => l.variant === 'B') || lps[1] || lps[0]) : (lps.find((l) => l.variant === 'A') || lps[0]);
+    if (want?.html) { diag.hasLpHtml = true; return { html: want.html, diag }; }
+  }
+  // 3) landing_pages_generated mirror (numeric id or campaign_id in payload).
   const filters = /^\d+$/.test(String(id)) ? { id: `eq.${id}` } : { 'payload->>campaign_id': `eq.${id}` };
   const lp = await db.select(config.tableNames.landingPagesGenerated, { filters, limit: 1 }).catch(() => []);
-  return lp?.[0]?.payload?.html || null;
+  if (lp?.[0]?.payload?.html) { diag.fallbackFound = true; diag.source = 'landing_pages_generated'; return { html: lp[0].payload.html, diag }; }
+  return { html: null, diag };
+}
+async function landingPageHtml(id, cfg = {}, variant = null) {
+  return (await landingPageResolve(id, cfg, variant)).html;
+}
+
+// ── Orphan heal: republish approved slots whose campaign row is missing ──────
+// A wipe/reset of smart_generated_campaigns leaves approved calendar slots
+// pointing at campaign ids that no longer exist, so /lp/:id 404s. buildCampaign
+// mints a DETERMINISTIC id from the entry (idFor = sha1(entry)), so rebuilding a
+// slot reproduces the SAME id it already advertises — republishing under it makes
+// the existing /lp link resolve again. Runs offline by default (noLLM) so it works
+// even when providers are rate-limited: the template LP html is real catalog data.
+async function republishOrphan(db, config, entry, row, { reviewer = null, withCreatives = false, noLLM = true } = {}) {
+  const rebuilt = await buildCampaign(effectiveEntry(entry), config, { id: row.generated_campaign_id, withCreatives, noLLM });
+  // FORCE the campaign id to the id the slot already advertises. buildCampaign mints
+  // its OWN deterministic id (idFor over the current entry), which no longer matches
+  // the stamped generated_campaign_id once the entry has drifted since approval — so
+  // without this the row lands under a new id and the existing /lp/<stamped> link
+  // stays a 404. Persisting under the stamped id makes that exact link resolve and
+  // leaves the slot pointer already consistent (no reconcile needed). The template LP
+  // html carries no self-referential /lp links, so only the path metadata needs sync.
+  const targetId = row.generated_campaign_id;
+  rebuilt.campaign_id = targetId;
+  (rebuilt.assets && rebuilt.assets.landing_pages ? rebuilt.assets.landing_pages : []).forEach((lp) => {
+    const isB = /^b$/i.test(String(lp.variant || ''));
+    lp.id = `${targetId}_landing_${isB ? 'b' : 'a'}`;
+    lp.path = isB ? `/lp/${targetId}?v=b` : `/lp/${targetId}`;
+  });
+  rebuilt.status = 'approved';
+  rebuilt.calendar_entry_id = row.id;
+  // mirror:false — /lp only needs the smart_generated_campaigns row (payload carries
+  // the LP html). Skipping the ads/mailer/landing dashboard mirrors keeps heal from
+  // depending on tables that may not exist in this project, so it never throws.
+  await persistCampaignAssets(db, config, rebuilt, { status: 'approved', origin: 'smart-brain-heal', reviewer, mirror: false });
+  return rebuilt;
+}
+
+// Find approved/final slots whose campaign row is missing and republish a batch.
+// Idempotent + resumable: returns `remaining` so the caller re-invokes until 0.
+async function healOrphans({ config: cfg = {}, batchSize = 12, reviewer = 'system-heal' } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  if (!db.connected) return { ok: true, skipped: true, reason: 'Supabase not configured', healed: [], failed: [], remaining: 0 };
+  const rows = (await db.select(config.tableNames.calendarEntries, { filters: { status: 'in.(approved,final)' }, order: 'date.asc', limit: 2000 }).catch(() => [])) || [];
+  const withId = rows.filter((r) => r.generated_campaign_id);
+  // One query for all existing campaign ids, then diff (no N per-slot selects).
+  const existingRows = (await db.select(config.tableNames.generatedCampaigns, { limit: 5000 }).catch(() => [])) || [];
+  const existing = new Set(existingRows.map((c) => c.id));
+  const orphans = withId.filter((r) => !existing.has(r.generated_campaign_id));
+  const batch = orphans.slice(0, Math.max(1, batchSize));
+  const healed = [], failed = [];
+  for (const r of batch) {
+    try { const c = await republishOrphan(db, config, r.payload, r, { reviewer }); healed.push({ slot: r.id, campaign_id: c.campaign_id }); }
+    catch (e) { failed.push({ slot: r.id, error: String((e && e.message) || e).slice(0, 160) }); }
+  }
+  return { ok: true, orphans_total: orphans.length, healed, failed, remaining: Math.max(0, orphans.length - batch.length) };
 }
 
 // ── Convergent asset prebuild queue ─────────────────────────────────────────
@@ -1594,8 +1683,8 @@ async function dbCheck({ config: cfg = {} } = {}) {
 }
 
 module.exports = {
-  syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, unrejectEntry, activateScenario, landingPageHtml, buildCampaign,
-  prebuildAssets, dbCheck, syncStatus,
+  syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, unrejectEntry, activateScenario, landingPageHtml, landingPageResolve, buildCampaign,
+  prebuildAssets, healOrphans, dbCheck, syncStatus,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
 };

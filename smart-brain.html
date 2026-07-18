@@ -21,7 +21,7 @@
   .btn.secondary{background:transparent;color:#171717;border:1px solid rgba(171,135,67,.35)}
   .btn:disabled{opacity:.5;cursor:wait}
   .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
-  .mkchip{border:1px solid rgba(171,135,67,.4);background:transparent;color:#cbd6ce;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}
+  .mkchip{border:1px solid rgba(171,135,67,.4);background:transparent;color:#171717;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}
   .mkchip:hover{border-color:var(--gold);color:#171717}
   .mkchip.on{background:var(--forest,#004A2B);color:#fff;border-color:var(--gold)}
   .akbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 10px;padding:8px 0;border-bottom:1px solid rgba(171,135,67,.18)}
@@ -97,7 +97,7 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}}
 </style>
-<script src="/auth.js?v=20260705" defer></script>
+<script src="/auth.js?v=20260718light" defer></script>
 </head>
 <body>
 <main class="wrap">
@@ -398,16 +398,38 @@ window.pvTab = function(btn, paneId){
 function renderAd(ad){
   const rows = [];
   const add = (k,v)=>{ if(v!=null && String(v).trim()!=='') rows.push(`<div class="k">${esc(k)}</div><div class="v">${esc(Array.isArray(v)?v.filter(Boolean).join('\n'):v)}</div>`); };
-  if(ad.platform==='meta'){ add('Primary text',ad.primary_text); add('Headline',ad.headline); add('Description',ad.description); }
-  else if(ad.platform==='google'){ add('Headlines',ad.headlines); add('Descriptions',ad.descriptions); }
-  else if(ad.platform==='tiktok'){ add('Script',ad.script); add('Caption',ad.caption); }
-  else { Object.keys(ad).forEach(k=>{ if(!['platform','creative_brief','creative'].includes(k)) add(k, ad[k]); }); }
-  const cr = ad.creative || {};
-  const brief = cr.brief || ad.creative_brief;
-  if(brief) add('Creative brief', brief);
-  const img = cr.image ? `<img class="adimg" src="${esc(cr.image)}" alt="${esc((ad.platform||'ad')+' creative')}" loading="lazy"/>` : '';
-  const vtag = ad.variant ? ` <span class="pill" style="font-size:10px">${esc(ad.variant)}${ad.angle?' · '+esc(ad.angle):''}</span>` : '';
-  return `<div class="adcard"><h4>${esc((ad.platform||'ad').toUpperCase())} ad${vtag}</h4>${img}${rows.join('')}</div>`;
+  const platform = (ad.platform||'ad').toUpperCase();
+  const ctype = ad.creative_type || ((ad.storyboard||ad.script) && !ad.creative_brief ? 'video' : 'static');
+  const vtag = `<span class="pill" style="font-size:10px;background:${ctype==='video'?'#7a5f28':'#004A2B'};color:#FBF5EA">${esc(ad.variant||(ctype==='video'?'Video':'Static'))}</span>`;
+  const cta = esc(ad.cta||'Shop Now');
+  if(ctype==='video'){
+    // Video ad: a shot-by-shot storyboard strip + hook — not a wall of text.
+    const board = (ad.storyboard||[]).map(s=>`<div style="flex:0 0 128px;border:1px solid rgba(171,135,67,.3);border-radius:8px;overflow:hidden;background:#0c1c14"><div style="background:#004A2B;color:#AB8743;font-size:10px;font-weight:800;padding:3px 7px">${esc(s.t||'')}</div><div style="color:#e9efe9;font-size:11px;line-height:1.4;padding:7px 8px">${esc(s.scene||s.shot||'')}</div></div>`).join('');
+    add('Hook', ad.hook); add('Caption', ad.caption); if(!ad.storyboard) add('Script', ad.script);
+    return `<div class="adcard"><h4>${esc(platform)} · Video ad ${vtag}</h4>
+      <div style="position:relative;border-radius:12px;height:150px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#0f2a1c,#04120b);border:1px solid rgba(171,135,67,.3)">
+        <span style="width:0;height:0;border-left:22px solid #FBF5EA;border-top:14px solid transparent;border-bottom:14px solid transparent;margin-left:6px"></span>
+        <span style="position:absolute;top:8px;left:10px;font-size:10px;font-weight:800;letter-spacing:.08em;color:#AB8743">VIDEO · ${esc(ad.placement||'9:16')} · ${esc(String(ad.duration_s||15))}s</span>
+      </div>
+      ${board?`<div style="display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px">${board}</div>`:''}
+      <div style="display:inline-block;background:#AB8743;color:#171717;font-weight:800;font-size:12px;padding:8px 16px;border-radius:8px;margin:4px 0 8px">${cta} &rarr;</div>
+      ${rows.join('')}</div>`;
+  }
+  // Static ad: a framed mockup with overlay (headline + proof chip + CTA) so it
+  // reads as an actual creative unit even before the packshot image is generated.
+  add('Primary text', ad.primary_text);
+  if(ad.platform==='google'){ add('Headlines', ad.headlines); add('Descriptions', ad.descriptions); }
+  const cr = ad.creative||{}; const ov = ad.overlay||{};
+  const bg = cr.image ? `background-image:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.45)),url('${esc(cr.image)}');background-size:cover;background-position:center` : 'background:radial-gradient(circle at 30% 25%,#0f2a1c,#04120b)';
+  if(ad.creative_brief) add('Creative brief', ad.creative_brief);
+  return `<div class="adcard"><h4>${esc(platform)} · Static ad ${vtag}</h4>
+    <div style="position:relative;border-radius:12px;height:190px;overflow:hidden;border:1px solid rgba(171,135,67,.3);${bg}">
+      <span style="position:absolute;top:8px;right:10px;font-size:10px;font-weight:800;color:#FBF5EA;opacity:.85">${esc(ad.aspect||'1:1')}</span>
+      <div style="position:absolute;top:12px;left:14px;right:14px;font-family:'Lora',Georgia,serif;font-size:19px;font-weight:700;color:#FBF5EA;text-shadow:0 1px 6px rgba(0,0,0,.5)">${esc(ov.headline||ad.headline||'')}</div>
+      <div style="position:absolute;bottom:14px;left:14px;font-size:11px;font-weight:700;color:#FBF5EA;background:rgba(0,0,0,.35);padding:4px 9px;border-radius:99px">★ ${esc(ov.proof||'Rated 4.9/5')}</div>
+      <div style="position:absolute;bottom:12px;right:14px;background:#AB8743;color:#171717;font-weight:800;font-size:12px;padding:8px 15px;border-radius:8px">${esc(ov.cta||cta)}</div>
+    </div>
+    ${rows.join('')}</div>`;
 }
 
 // Full "why this was generated" analysis panel — renders the shared analysis
@@ -558,10 +580,10 @@ function decisionPanelHTML(e){
   // Row of section 1 (a labelled reason line). value may carry inline markup.
   const dl = (label, value, sub) => (value || sub) ? `
       <tr>
-        <td style="color:#cbb98f;font-size:12px;font-weight:700;vertical-align:top;padding:10px 18px 10px 0;white-space:nowrap">${esc(label)}</td>
+        <td style="color:#7a5f28;font-size:12px;font-weight:700;vertical-align:top;padding:10px 18px 10px 0;white-space:nowrap">${esc(label)}</td>
         <td style="color:#171717;font-size:13.5px;line-height:1.55;padding:10px 0;border-bottom:1px solid rgba(171,135,67,.14)">${value||''}${sub?`<div style="color:#556059;font-size:12px;margin-top:3px">${sub}</div>`:''}</td>
       </tr>` : '';
-  const li = (label, text) => text ? `<li style="margin:0 0 9px;line-height:1.55;color:#dfe7e1;font-size:13.5px"><b style="color:#f2ead6">${esc(label)}:</b> ${esc(text)}</li>` : '';
+  const li = (label, text) => text ? `<li style="margin:0 0 9px;line-height:1.55;color:#171717;font-size:13.5px"><b style="color:#004A2B">${esc(label)}:</b> ${esc(text)}</li>` : '';
 
   // ── Section 1 · why this slot was chosen ──
   const cohortName = e.cohort?.name || d.cohort?.choice || '—';
@@ -586,7 +608,7 @@ function decisionPanelHTML(e){
   return `<div class="pvroot" style="border:1px solid rgba(171,135,67,.35);border-radius:14px;padding:18px 20px;background:#f4f2ec">
     <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(171,135,67,.2);padding-bottom:12px;margin-bottom:14px">
       <span class="pill" style="background:#e8f3ec;color:#0a7d33;font-size:10px;letter-spacing:.06em">WHY YOU'RE SEEING THIS</span>
-      <span style="color:#f2ead6;font-size:15px;font-weight:700">The complete logic, analysis &amp; reason</span>
+      <span style="color:#004A2B;font-size:15px;font-weight:700">The complete logic, analysis &amp; reason</span>
     </div>
     <div style="color:#7a5f28;font-size:14px;font-weight:700;margin:0 0 6px">1 · Why this slot was chosen for the calendar</div>
     <table style="width:100%;border-collapse:collapse;margin:0 0 16px">
@@ -863,13 +885,24 @@ async function downloadEntry(i){
 // and a per-slot pass/fail tally stream into #detail; failures are collected.
 // Non-blocking confirm rendered into #detail (native confirm() blocks the main
 // thread — that is the INP freeze on this button). Resolves true/false.
+// Centered modal confirm — ALWAYS visible regardless of scroll position. (It
+// previously wrote into #detail, a <pre> far below the action buttons, so the
+// prompt appeared off-screen and clicks looked like they did nothing.)
 function sbConfirm(msg, okLabel){
   return new Promise(resolve=>{
-    const det = $('detail'); if(!det){ resolve(true); return; }
-    det.innerHTML = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>${esc(msg)}</span>`+
-      `<button class="btn sm ok" id="sbcy">${esc(okLabel || 'Generate')}</button><button class="btn sm secondary" id="sbcn">Cancel</button></div>`;
-    $('sbcy').onclick = ()=>resolve(true);
-    $('sbcn').onclick = ()=>{ resolve(false); det.textContent=''; };
+    const old = document.getElementById('sbconfirm'); if(old) old.remove();
+    const ov = document.createElement('div'); ov.id = 'sbconfirm';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(10,20,16,.55);padding:20px';
+    ov.innerHTML = `<div role="dialog" aria-modal="true" style="background:#fff;border:1px solid rgba(171,135,67,.3);border-radius:14px;max-width:460px;width:100%;padding:22px 22px 18px;box-shadow:0 30px 80px rgba(0,0,0,.45);font-family:inherit">`+
+      `<div style="font-size:14px;line-height:1.55;color:#171717;margin-bottom:18px">${esc(msg)}</div>`+
+      `<div style="display:flex;gap:10px;justify-content:flex-end">`+
+      `<button class="btn sm secondary" id="sbcn">Cancel</button>`+
+      `<button class="btn sm ok" id="sbcy">${esc(okLabel || 'Generate')}</button></div></div>`;
+    document.body.appendChild(ov);
+    const done = (v)=>{ ov.remove(); resolve(v); };
+    ov.querySelector('#sbcy').onclick = ()=>done(true);
+    ov.querySelector('#sbcn').onclick = ()=>done(false);
+    ov.addEventListener('click', e=>{ if(e.target===ov) done(false); });
   });
 }
 // Pre-flight connector diagnostic — checks which text LLM providers are usable
@@ -908,7 +941,7 @@ async function generateAll(){
   // Connector pre-flight — abort cleanly if nothing can serve text generation.
   if(!(await sbPreflight())) return;
   const aa = $('generateAll'); if(aa){ aa.disabled = true; }
-  const det = $('detail');
+  const det = $('detail'); if(det) det.scrollIntoView({ behavior:'smooth', block:'center' });
   window.__SB_GEN_CANCEL = false;
   let ok = 0; const fails = [];
   for(let n=0; n<targets.length; n++){
@@ -943,7 +976,7 @@ async function approveAll(){
   const go = await sbConfirm(`Approve and lock ${targets.length} send(s) shown? Each is built (if needed) and locked as ship-ready. Rejected sends are skipped.`, 'Approve all');
   if(!go) return;
   const ab = $('approveAll'); if(ab){ ab.disabled = true; }
-  const det = $('detail');
+  const det = $('detail'); if(det) det.scrollIntoView({ behavior:'smooth', block:'center' });
   window.__SB_GEN_CANCEL = false;
   let ok = 0; const fails = [];
   for(let n=0; n<targets.length; n++){

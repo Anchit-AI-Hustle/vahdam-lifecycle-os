@@ -7,8 +7,7 @@
   "cleanUrls": false,
   "trailingSlash": false,
   "functions": {
-    "api/ai/generate.js":          { "maxDuration": 60 },
-    "api/ai/landing-page.js":      { "maxDuration": 120 },
+    "api/ai/generate.js":          { "maxDuration": 120 },
     "api/ai/image.js":             { "maxDuration": 120 },
     "api/brain.js":                { "maxDuration": 120 },
     "api/ai/pipeline/strategy.js": { "maxDuration": 45 },
@@ -28,6 +27,7 @@
   ],
   "rewrites": [
     { "source": "/api/ai/pipeline/health", "destination": "/api/public-config?pipeline=1" },
+    { "source": "/api/ai/landing-page", "destination": "/api/ai/generate?action=landing-page" },
     { "source": "/api/voice", "destination": "/api/brain?action=tts" },
     { "source": "/api/smart-brain", "destination": "/api/brain?action=status" },
     { "source": "/api/snowflake-sync", "destination": "/api/brain?action=snowflake-sync" },
@@ -111,6 +111,7 @@
     { "source": "/lp/agent", "destination": "/landing-page-agent.html" },
     { "source": "/landing-page-agent", "destination": "/landing-page-agent.html" },
     { "source": "/lp/best", "destination": "/landing-pages/final/vahdam-uk-cortisol-agent-best.html" },
+    { "source": "/lp/best-3d", "destination": "/landing-pages/final/vahdam-cortisol-3d.html" },
     { "source": "/lp/:id", "destination": "/api/calendar?action=lp&id=:id" },
     { "source": "/knowledge-base", "destination": "/knowledge-base.html" },
     { "source": "/kb", "destination": "/knowledge-base.html" },

@@ -111,6 +111,7 @@ async function generateCopy(slot, products, brand, library) {
   const sys = `You are the lifecycle copy chief for VAHDAM India, a premium single-estate tea & wellness brand.
 Voice: ${brand.voice}. Use this lexicon where natural: ${(brand.preferred_lexicon || []).join(', ')}.
 NEVER use: ${(brand.banned_phrases || []).join(', ')}.
+QUALITY BAR — before you return, silently score every field 1-10 on: Clarity, Conversion pull, Brand-voice fit, Concrete proof (a specific detail/number, never a vague claim), and Format/character-limits. If any field scores below 8, rewrite it. Prefer a specific, sensory, benefit-led line over a generic category claim: a reason tied to THIS cohort/angle beats "origin-fresh tea" every time. Each headline/description must read better than the obvious generic version.
 Return STRICT JSON only.`;
   const strat = designStrategy.strategyFor(slot);
   const user = `Create campaign copy for:
@@ -120,6 +121,12 @@ Reference hooks that worked before: ${ref || 'n/a'}
 Design format for THIS mailer: ${strat.label}. ${strat.influencerAngle}
 Write the copy so it fits that format specifically (this send must not read like a generic template).
 Featured products:\n${productLines}
+
+AD-COPY RULES (apply to google, meta and tiktok blocks):
+- Make every headline and DESCRIPTION specific to this cohort (${slot.cohort_id || 'general'}) and angle (${slot.angle}). No generic "origin-fresh tea" filler that could belong to any send.
+- Lead each ad description with the angle's benefit, then a concrete proof or offer, then a light CTA. It must read as a finished ad, never a label or the schema hint.
+- Respect platform limits EXACTLY (count characters): Google headlines <=30, Google descriptions <=90, Meta headline <=40, Meta description <=30. If it does not fit, rewrite shorter — do not exceed.
+- Use ONLY the product names/prices given above. Invent no discounts, promo codes, ratings, review counts, claims, or URLs. If an offer is not supplied, do not state one.
 
 JSON shape:
 {"subject":"","preheader":"","headline":"","subheadline":"","body_intro":"2-3 sentence sensory opening","story":"4-5 sentence narrative for the angle","cta_primary":"","cta_secondary":"","testimonial":{"quote":"tiny personal story, 2 sentences","name":"first name + city"},"google":{"headlines":["12 short headlines ≤30 chars"],"descriptions":["4 descriptions ≤90 chars"],"callouts":["4 callouts ≤25 chars e.g. Free shipping over $35"],"sitelinks":[{"text":"≤25 chars","desc":"≤35 chars"},{"text":"","desc":""},{"text":"","desc":""},{"text":"","desc":""}]},"meta":{"primary_text":"best single primary text","primary_text_variants":["unaware-stage hook","problem-aware angle","solution-aware/offer angle"],"headline":"≤40 chars","headlines":["3 headline options ≤40 chars"],"description":"≤30 chars","creative_concept":"one-line art direction for the hero image"},"tiktok":{"hook_line":"first 2s spoken hook","script":"15s spoken script, conversational","shot_list":["4 beats: 0-2s hook / 3-6s problem / 7-11s product+proof / 12-15s CTA"],"captions":["3 on-screen caption lines"]},"landing":{"hero_eyebrow":"3-5 word kicker","hero_headline":"big emotional promise","hero_sub":"1-2 sentence support","offer_bar":"short sticky offer line e.g. Free sampler + free shipping over $35","trust_badges":["4 very short proof points"],"problem":{"headline":"name the pain","body":"3-4 sentences on what they settle for today"},"mechanism":{"headline":"why origin-fresh changes it","steps":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}]},"benefits":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}],"comparison":{"us_label":"VAHDAM","them_label":"Supermarket tea","rows":[{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""}]},"testimonials":[{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"}],"offer_stack":{"headline":"what you get","items":["3-5 included lines, each with a small value note"],"price_note":"value framing e.g. about 40c a cup","cta":"buy CTA"},"faq":[{"q":"","a":""},{"q":"","a":""},{"q":"","a":""},{"q":"","a":""}],"guarantee":{"headline":"risk reversal","body":"1-2 sentences"}}}`;
@@ -133,13 +140,39 @@ JSON shape:
     if (o && typeof o === 'object') return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, walk(v)]));
     return o;
   };
-  return walk(copy);
+  return clampAds(walk(copy));
+}
+
+// Enforce ad-platform character limits on every ad field, whatever the source
+// (LLM or fallback), so a description is never rejected/truncated for being too
+// long. Trims at a word boundary and strips trailing punctuation.
+function clampStr(s, n) {
+  s = String(s == null ? '' : s).trim();
+  if (s.length <= n) return s;
+  const cut = s.slice(0, n);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > n * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:.\-]+$/, '');
+}
+function clampAds(copy) {
+  if (!copy) return copy;
+  if (copy.meta) {
+    if (copy.meta.headline) copy.meta.headline = clampStr(copy.meta.headline, 40);
+    if (copy.meta.description) copy.meta.description = clampStr(copy.meta.description, 30);
+    if (Array.isArray(copy.meta.headlines)) copy.meta.headlines = copy.meta.headlines.map((h) => clampStr(h, 40));
+  }
+  if (copy.google) {
+    if (Array.isArray(copy.google.headlines)) copy.google.headlines = copy.google.headlines.map((h) => clampStr(h, 30));
+    if (Array.isArray(copy.google.descriptions)) copy.google.descriptions = copy.google.descriptions.map((d) => clampStr(d, 90));
+    if (Array.isArray(copy.google.callouts)) copy.google.callouts = copy.google.callouts.map((c) => clampStr(c, 25));
+  }
+  return copy;
 }
 
 function fallbackCopy(slot, products) {
   const p = products[0] || { title: 'Original Masala Chai', price: 19.99, category: 'Chai' };
   const theme = slot.theme || 'Morning Ritual';
   const fest = slot.festival;
+  const angle = slot.angle || theme;   // weave the slot's angle into ad copy so fallback is not identical per slot
   return {
     subject: fest ? `${fest}: a gift they will steep all season` : `There is a moment the right cup restores`,
     preheader: `${p.title}, hand-picked at origin — crafted for your ${String(theme).toLowerCase()}`,
@@ -152,7 +185,7 @@ function fallbackCopy(slot, products) {
     testimonial: { quote: `I started with one tin in January. My kitchen now has a shelf my family calls the apothecary.`, name: `Sarah, Austin` },
     google: {
       headlines: ['Single-Estate Indian Teas', 'Garden-Fresh, Origin Packed', `${p.category} From India`, 'Hand-Picked At Origin', 'Steep A Better Morning', 'Heritage Teas, Crafted', 'From Estate To Cup', 'The Daily Ritual Upgrade', 'Award-Winning Teas', 'Fresh Harvest Teas', 'Balance In Every Steep', 'Origin-Direct Teas'],
-      descriptions: ['Hand-picked, single-estate teas shipped garden-fresh from India. Crafted for your daily ritual.', 'From estate to cup in days, not years. Taste the difference origin-fresh makes.', 'Premium teas and wellness blends, packed at source. Free shipping over $35.', 'A ritual worth keeping: heritage teas, hand-picked and crafted at origin.'],
+      descriptions: [`${angle}: hand-picked single-estate teas, shipped garden-fresh from India.`, 'From estate to cup in days, not years. Taste the difference origin-fresh makes.', 'Premium teas and wellness blends, packed at source. Free shipping over $35.', 'A ritual worth keeping: heritage teas, hand-picked and crafted at origin.'],
       callouts: ['Free shipping over $35', 'Packed at origin', 'Carbon & plastic neutral', 'Single-estate'],
       sitelinks: [
         { text: 'Best-Selling Teas', desc: 'Start where most people begin' },
@@ -170,7 +203,7 @@ function fallbackCopy(slot, products) {
       ],
       headline: `The ritual, restored`,
       headlines: ['The ritual, restored', 'Origin-fresh, in days', 'Tea worth slowing down for'],
-      description: `Origin-fresh, crafted for balance`,
+      description: `Origin-fresh single-estate`,
       creative_concept: `Calm morning cup of ${p.title} on cream linen, steam visible, gold props, soft dawn light — emotional, premium (headline + offer baked in for the ad creative).`,
     },
     tiktok: {

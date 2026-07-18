@@ -173,6 +173,11 @@
   .site footer a{color:#cfe0d5;text-decoration:none;display:block;padding:5px 0;font-size:14px}
   .site footer a:hover{color:#fff}
   .site footer h5{font-family:var(--head);color:#FBF5EA;font-size:16px;margin-bottom:8px}
+  /* ── Luxury scroll-reveal: elements fade + rise as they enter the viewport,
+     with a per-item stagger. Disabled under prefers-reduced-motion. ── */
+  .reveal{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.7,.3,1),transform .8s cubic-bezier(.2,.7,.3,1);will-change:opacity,transform}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){ .reveal{opacity:1;transform:none;transition:none} }
   @media (min-width:721px){
     .colgrid{grid-template-columns:repeat(4,1fr)}
     .pgrid{grid-template-columns:repeat(4,1fr)}
@@ -189,7 +194,6 @@
   <div class="overlay topbar">
     <div class="brand">VAHDAM<small id="brandRegion">INDIA</small></div>
     <div class="right">
-      <div class="panel regionsw" id="regionsw" title="Switch regional store"></div>
       <a class="icobtn panel" href="#" title="Search">&#9906;</a>
       <a class="icobtn panel cart" href="#" title="Cart">&#128722;<span class="n" id="cartN">2</span></a>
     </div>
@@ -279,8 +283,12 @@ let REGION=(_q.get('region')||_q.get('variant')||'us').toLowerCase();
 if(REGION==='signature') REGION='us';
 if(!REGIONS[REGION]) REGION='us';
 const RC=REGIONS[REGION];
-const COLLECTIONS=['Best Sellers','Black Tea','Green Tea','Herbal Tea','Chai','Teaware','Gifts'];
-const COLLECTION_TAGS={'Best Sellers':null,'Black Tea':'black','Green Tea':'green','Herbal Tea':'herbal','Chai':'chai','Teaware':'teaware','Gifts':'gift'};
+// Collections map to the REAL tags produced by scripts/build-catalog.js deriveTags()
+// (chai, green, black, detox, immunity, sleep, gift, bestseller, ...). Earlier this
+// pointed Herbal->'herbal' and Teaware->'teaware' (tags that never exist) so those
+// collections were always empty; fixed to the actual tag vocabulary.
+const COLLECTIONS=['Best Sellers','Black Tea','Green Tea','Herbal','Chai','Immunity','Gifts'];
+const COLLECTION_TAGS={'Best Sellers':'bestseller','Black Tea':'black','Green Tea':'green','Herbal':'detox','Chai':'chai','Immunity':'immunity','Gifts':'gift'};
 
 // Minimal, honest fallback (no fabricated prices/handles) — used only if the
 // live catalog fetch fails. Links go to the region's storefront home.
@@ -294,10 +302,10 @@ const FALLBACK=[
 ];
 
 const $=id=>document.getElementById(id);
-const state={products:[],selected:0,qty:1,usedFallback:false};
+const state={all:[],products:[],selected:0,qty:1,usedFallback:false};
 
 function normProducts(list){
-  return list.slice(0,12).map(p=>({
+  return list.map(p=>({
     title:p.n||'', img:p.i||null,
     price:p.price?(CCY_RE.test(String(p.price))?String(p.price):RC.ccy+p.price):'',
     url:`${RC.base}/products/${p.h||''}`,
@@ -336,6 +344,17 @@ function hasWebGL(){try{const c=document.createElement('canvas');return !!(c.get
 // Collection filter state + engine hook (set by start3D for 3D, else 2D grid).
 let PANELS=[], IS3D=false, CUR_TAG=null;
 function productMatches(p,tag){ return !tag || (p&&p.tags||[]).some(t=>t.includes(tag)); }
+// Seed the 3D atelier (limited number of panels) with products spanning EVERY
+// collection, so each collection filter reveals its own real products instead of
+// hiding a random slice of the first 12. The 2D grid below still lists the full
+// collection from state.all.
+function pickScene(all){
+  const cap=15, perTag=3, out=[], seen=new Set();
+  Object.values(COLLECTION_TAGS).forEach(function(tag){ if(!tag) return; let c=0;
+    for(const p of all){ if(c>=perTag) break; if(!seen.has(p.url)&&productMatches(p,tag)){ out.push(p); seen.add(p.url); c++; } } });
+  for(const p of all){ if(out.length>=cap) break; if(!seen.has(p.url)){ out.push(p); seen.add(p.url); } }
+  return out.length?out.slice(0,cap):all.slice(0,cap);
+}
 function filterCollection(tag){
   CUR_TAG=tag;
   if(IS3D){ PANELS.forEach(m=>{ m.visible=productMatches(state.products[m.userData.i],tag); }); }
@@ -361,12 +380,34 @@ function renderCheckout(){
 
 function renderFallback(tag){
   $('fallback').classList.add('on');
-  const list=state.products.filter(p=>productMatches(p,tag===undefined?CUR_TAG:tag));
-  $('fgrid').innerHTML=(list.length?list:state.products).map(p=>
+  const pool=(state.all&&state.all.length)?state.all:state.products;
+  const list=pool.filter(p=>productMatches(p,tag===undefined?CUR_TAG:tag));
+  $('fgrid').innerHTML=(list.length?list:pool).slice(0,24).map(p=>
     `<a href="${p.url}" target="_blank" rel="noopener"><div class="im" style="${p.img?`background-image:url('${p.img}')`:''}"></div>
       <div class="bd"><div class="t">${p.title}</div><div class="p">${p.price||'View'}</div></div></a>`).join('');
 }
 function note(msg){ const l=$('loading'); if(!l)return; l.style.display='flex'; l.textContent=msg; setTimeout(()=>{l.style.display='none';},4500); }
+
+// Scroll-reveal: fade + rise content as it enters the viewport, staggered within
+// each section. Dependency-free (IntersectionObserver). Reduced-motion → instant.
+function setupReveal(){
+  const items=document.querySelectorAll('main.site .sec-eyebrow, main.site .sec-h, main.site .sec-sub, main.site .coltile, main.site .pcard, main.site .trust>div, main.site footer .inner>div, main.site .story>*');
+  if(!items.length) return;
+  if(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches){ items.forEach(el=>el.classList.add('in')); return; }
+  // stagger index resets per parent section so each block cascades on its own
+  const perSection=new Map();
+  items.forEach(el=>{
+    el.classList.add('reveal');
+    const sec=el.closest('section, footer')||el.parentNode;
+    const n=(perSection.get(sec)||0); perSection.set(sec,n+1);
+    el.style.transitionDelay=Math.min(n*60,360)+'ms';
+  });
+  if(!('IntersectionObserver' in window)){ items.forEach(el=>el.classList.add('in')); return; }
+  const io=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  },{threshold:0.12, rootMargin:'0px 0px -8% 0px'});
+  items.forEach(el=>io.observe(el));
+}
 
 // Full-depth scroll content: collection tiles (filter the hero), a bestsellers
 // grid with REAL PDP links, and a footer with real store + region links.
@@ -412,15 +453,17 @@ function renderContent(){
 async function init(){
   // Region switcher — each button reloads with ?region=, so catalog + currency
   // + store base all switch cleanly.
-  const rsw=$('regionsw');
-  rsw.innerHTML=Object.keys(REGIONS).map(k=>`<button data-r="${k}" class="${k===REGION?'active':''}">${REGIONS[k].label}</button>`).join('');
-  rsw.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const q=new URLSearchParams(location.search); q.set('region',b.dataset.r); location.search=q.toString(); });
+  // Region is fixed by the URL the page was opened with (/3d, /3d/us, /3d/uk,
+  // /3d/global). There is deliberately NO in-page country switcher: the region is
+  // chosen upstream so the storefront stays a single focused market.
   $('brandRegion').textContent=(RC.label==='US'?'USA':RC.label).toUpperCase();
 
   buildCollections();
-  state.products=await loadCatalog();
+  state.all=await loadCatalog();
+  state.products=pickScene(state.all);
   renderCheckout();
   renderContent();   // populate the full-depth scroll sections (works with 3D or 2D)
+  setupReveal();     // luxury scroll-reveal on the content sections
   if(state.usedFallback) note(`Live ${RC.label} catalog unavailable right now — showing a limited sample. Product links still open the ${RC.label} store.`);
 
   // qty + variation wiring (works in both 3D and 2D)
@@ -478,6 +521,32 @@ async function start3D(){
   // Expose panels for collection filtering + apply the active collection.
   PANELS=panels; IS3D=true; if(CUR_TAG) filterCollection(CUR_TAG);
 
+  // ── Ambient story motion: natural ingredients (tea leaves) drifting as if
+  // sourced into the scene, and steam rising from a freshly-poured cup. Both
+  // respect reduced-motion (skipped) and never block the product panels. ──
+  const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const leaves = [], steam = [];
+  if (!reduceMotion) {
+    const leafGeo = new THREE.PlaneGeometry(0.17, 0.09);
+    for (let i = 0; i < 26; i++) {
+      const mat = new THREE.MeshStandardMaterial({ color: i % 3 ? 0x1f8a4d : 0xAB8743, roughness: 0.6, metalness: 0.1, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+      const leaf = new THREE.Mesh(leafGeo, mat);
+      leaf.position.set((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 11, (Math.random() - 0.5) * 8 - 1);
+      leaf.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+      leaf.userData = { rise: 0.15 + Math.random() * 0.35, spin: (Math.random() - 0.5) * 0.9, sway: Math.random() * 6.28, swayAmp: 0.2 + Math.random() * 0.5 };
+      scene.add(leaf); leaves.push(leaf);
+    }
+    // steam wisps rising near the front-centre (the "poured cup")
+    const steamGeo = new THREE.PlaneGeometry(0.55, 1.6);
+    for (let i = 0; i < 7; i++) {
+      const mat = new THREE.MeshBasicMaterial({ color: 0xFBF5EA, transparent: true, opacity: 0.05, depthWrite: false });
+      const w = new THREE.Mesh(steamGeo, mat);
+      w.position.set((Math.random() - 0.5) * 2.4, -1.6 + Math.random() * 3.5, 1.4 + Math.random());
+      w.userData = { rise: 0.28 + Math.random() * 0.4, drift: (Math.random() - 0.5) * 0.15 };
+      scene.add(w); steam.push(w);
+    }
+  }
+
   // drag to rotate
   let drag=false,px=0,vel=0,targetVel=0;
   canvas.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;});
@@ -508,7 +577,7 @@ async function start3D(){
         let d=group.userData.spin-group.rotation.y;group.rotation.y+=d*0.08;
         if(Math.abs(d)<0.002){group.rotation.y=group.userData.spin;delete group.userData.spin;}
       }else{
-        targetVel*=0.92;group.rotation.y+=0.0025+targetVel; // gentle idle spin
+        targetVel*=0.92;group.rotation.y+=0.0011+targetVel; // gentle idle spin (slowed)
       }
     }
     panels.forEach(m=>{ // billboard-ish: face outward already; add subtle bob
@@ -516,6 +585,20 @@ async function start3D(){
       m.lookAt(camera.position.x,m.position.y,camera.position.z);
     });
     ring.rotation.z+=0.0015;
+    // drifting tea leaves (recycle from top back to bottom)
+    for(let li=0; li<leaves.length; li++){ const l=leaves[li];
+      l.position.y += l.userData.rise*dt;
+      l.position.x += Math.sin(t/1000 + l.userData.sway)*l.userData.swayAmp*dt;
+      l.rotation.z += l.userData.spin*dt; l.rotation.x += l.userData.spin*0.6*dt;
+      if(l.position.y > 6){ l.position.y = -6; l.position.x = (Math.random()-0.5)*15; }
+    }
+    // rising steam wisps (fade with height, always face camera)
+    for(let si=0; si<steam.length; si++){ const w=steam[si];
+      w.position.y += w.userData.rise*dt; w.position.x += w.userData.drift*dt;
+      w.material.opacity = Math.max(0, 0.09*(1 - (w.position.y+1.6)/5.2));
+      w.lookAt(camera.position.x, w.position.y, camera.position.z);
+      if(w.position.y > 3.6){ w.position.y = -1.6; w.position.x = (Math.random()-0.5)*2.4; }
+    }
     // Scroll parallax: the 3D backdrop rises, dollies in slightly and tilts as
     // the page scrolls, so depth carries through the whole page (not just hero).
     const sp=Math.min((window.scrollY||0)/Math.max(innerHeight,1),5);

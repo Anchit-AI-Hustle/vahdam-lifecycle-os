@@ -18,7 +18,7 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <!-- xlsx-js-style: drop-in SheetJS fork that also writes cell fills/fonts (keeps colour in Excel exports) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script src="/auth.js?v=20260705" defer></script>
+<script src="/auth.js?v=20260718light" defer></script>
 <script src="/table-sort.js?v=20260530b" defer></script>
 <script src="/chart-enhance.js?v=20260530b" defer></script>
 <!-- Vercel Speed Insights — static-HTML form (bare-specifier import does not resolve in the browser) -->
@@ -27,7 +27,7 @@
   tailwind.config = {
     theme: { extend: {
       colors: {
-        bg:    { DEFAULT:'#ffffff', soft:'#ffffff', card:'#eef3f0', deep:'#06100c' },
+        bg:    { DEFAULT:'#ffffff', soft:'#ffffff', card:'#eef3f0', deep:'#eef3f0' },
         ink:   { DEFAULT:'#171717', dim:'#556059', mute:'#48524c' },
         green: { DEFAULT:'#004A2B', bright:'#16a34a', soft:'rgba(22,163,74,0.12)' },
         gold:  { DEFAULT:'#AB8743', soft:'rgba(171,135,67,0.12)' },
@@ -223,7 +223,7 @@
       </button>
       <div class="nav-brand-head sb-full-label">
         <div class="nav-brand-title text-gold font-bold tracking-widest text-[11px]">VAHDAM · DTC</div>
-        <div class="text-cream font-semibold text-sm leading-tight">Retention OS</div>
+        <div class="text-green font-semibold text-sm leading-tight">Retention OS</div>
       </div>
     </div>
     <div class="nav-brand-sub text-ink-mute text-[10px] px-5 pt-2 pb-2 font-mono sb-full-label">Intelligence Layer v1</div>

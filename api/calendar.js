@@ -165,6 +165,20 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json({ ok: true, prebuild: true, depth, chained, ...result });
     }
 
+    if (smartAction === 'heal') {
+      // Republish approved/final slots whose smart_generated_campaigns row is
+      // missing (e.g. after a table wipe/reset) so /lp/:id resolves again. The
+      // rebuild is DETERMINISTIC (idFor = sha1(entry)) so it lands under the id the
+      // slot already advertises, and runs offline (noLLM template) so it works even
+      // when LLM/image providers are down. Idempotent + orphan-only + cheap, so it
+      // carries the same OPEN posture as preview/sync-daily (no CRON_SECRET); it is
+      // a no-op when there are no orphans. Batched + resumable via `remaining`.
+      if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
+      const batchSize = Math.max(1, Math.min(40, +((body && body.batchSize) || req.query?.batchSize || 20)));
+      const result = await plan.healOrphans({ config: (body && body.config) || {}, batchSize });
+      return res.status(200).json({ ok: true, heal: true, ...result });
+    }
+
     if (smartAction === 'cron') {
       // Vercel Cron sends GET with Authorization: Bearer <CRON_SECRET> when the env var is set.
       const secret = process.env.CRON_SECRET || '';
@@ -250,7 +264,7 @@ async function smartBrain(req, res, smartAction) {
       return res.status(200).json(result);
     }
 
-    return res.status(400).json({ ok: false, error: 'Unknown Smart Brain action. Use smart-brain-health|smart-brain-schema|smart-brain-plan|smart-brain-sync-daily|smart-brain-cron|smart-brain-prebuild|smart-brain-preview|smart-brain-approve|smart-brain-reject|smart-brain-run-daily|smart-brain-generate-slot|smart-brain-feedback|smart-brain-weekly-recalibration' });
+    return res.status(400).json({ ok: false, error: 'Unknown Smart Brain action. Use smart-brain-health|smart-brain-schema|smart-brain-plan|smart-brain-sync-daily|smart-brain-cron|smart-brain-prebuild|smart-brain-heal|smart-brain-preview|smart-brain-approve|smart-brain-reject|smart-brain-run-daily|smart-brain-generate-slot|smart-brain-feedback|smart-brain-weekly-recalibration' });
   } catch (err) {
     console.error('[api/calendar smart-brain]', err);
     return res.status(500).json({ ok: false, error: err.message });
@@ -328,8 +342,19 @@ module.exports = async function handler(req, res) {
     try {
       res.setHeader('Access-Control-Allow-Origin', '*');
       const id = String(req.query?.id || '');
-      const html = await plan.landingPageHtml(id, {}, req.query?.v || null);
-      if (!html) { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.status(404).send('<!doctype html><title>Not found</title><p style="font-family:Arial;padding:40px">Landing page not found. It may not have been approved/generated yet.</p>'); }
+      const { html, diag } = await plan.landingPageResolve(id, {}, req.query?.v || null);
+      // ?debug=1 → JSON diagnostics (no secrets) so a 404 is diagnosable live.
+      if (req.query?.debug) { res.setHeader('Content-Type', 'application/json'); return res.status(200).json({ ok: true, diag }); }
+      if (!html) {
+        // Actionable message keyed to the real reason, not a blanket "not found".
+        const why = !diag.dbConnected
+          ? 'Asset storage is not connected on this deployment (SUPABASE_SERVICE_ROLE_KEY missing), so hosted pages cannot be served yet.'
+          : !diag.campaignFound
+            ? 'This campaign is not persisted yet. Open it in VAHDAM Brain and click Approve — approving hosts the page at this URL. (A View-only preview is not hosted.)'
+            : 'This campaign has no landing-page asset built. Regenerate it in VAHDAM Brain with the landing page channel enabled.';
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(404).send(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Landing page not available</title><div style="font-family:'Proxima Nova',Arial,sans-serif;max-width:640px;margin:12vh auto;padding:0 24px;color:#171717"><h1 style="font-family:Georgia,serif;color:#004A2B;font-size:24px">Landing page not available yet</h1><p style="line-height:1.6;color:#556059">${why}</p><p style="font-size:12px;color:#6b7770">Ref: ${id}</p></div>`);
+      }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       // ?download=1 → export the self-contained, deploy-ready HTML file (drop onto try.vahdam.*).
       if (req.query?.download) {
