@@ -944,12 +944,12 @@
                onerror="this.style.display='none'">
         </a>
         <div style="padding:12px 14px">
-          <h4 style="margin:0 0 6px" class="brand-link" onclick="openBrandDetail('${esc(o.name).replace(/'/g, "\\'")}','${esc(o.domain)}')">${esc(o.name)}</h4>
+          <h4 style="margin:0 0 6px" class="brand-link" data-brand="${esc(o.name)}" data-domain="${esc(o.domain)}">${esc(o.name)}</h4>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <a class="ad-src" style="margin:0;flex:1" href="${home}" target="_blank" rel="noopener">Website ↗</a>
             <a class="ad-src" style="margin:0;flex:1" href="${home}/collections" target="_blank" rel="noopener">Collections ↗</a>
           </div>
-          <button class="ad-src" style="width:100%;margin-top:8px;border:none;cursor:pointer;background:#004A2B;color:#FBF5EA" onclick="openBrandDetail('${esc(o.name).replace(/'/g, "\\'")}','${esc(o.domain)}')">View all assets →</button>
+          <button class="ad-src brand-link" style="width:100%;margin-top:8px;border:none;cursor:pointer;background:#004A2B;color:#FBF5EA" data-brand="${esc(o.name)}" data-domain="${esc(o.domain)}">View all assets →</button>
           <div style="font-size:11px;color:#48524c;margin-top:8px">${esc(o.domain)}</div>
         </div>
       </div>`; }).join('') + (withDomain.length > MAX_TILES ? `<div class="count" style="grid-column:1/-1">Showing first ${MAX_TILES} of ${withDomain.length} brands — narrow the universe in Discover.</div>` : '') : '<div class="empty">No brands with a known domain yet — add some under <b>Discover Brands</b> (the brand DB stores each domain).</div>';
@@ -1020,6 +1020,16 @@
       btn.classList.toggle('on', on);
       btn.textContent = (on ? '✓ ' : '+ ') + (ch === 'mailers' ? 'Mailers' : 'Ads');
     }
+  });
+
+  // Delegated brand-detail opener. Uses data-attributes (HTML-escaped via esc())
+  // instead of inline onclick with JS-string interpolation, so brand names
+  // containing quotes OR backslashes can never break out of the handler.
+  document.addEventListener('click', function (ev) {
+    const el = ev.target.closest && ev.target.closest('.brand-link[data-brand]');
+    if (!el) return;
+    ev.preventDefault();
+    window.openBrandDetail(el.dataset.brand || '', el.dataset.domain || '');
   });
 
   // ── Landing view: Website (homepages) vs Landing Pages (real) ───────
@@ -1128,7 +1138,7 @@
     const pill = (s) => { const ok = /subscribed/i.test(s) && !/not/i.test(s); return `<span style="font-size:11px;padding:2px 8px;border-radius:99px;background:${ok ? 'rgba(34,197,94,.15)' : 'rgba(171,135,67,.12)'};color:${ok ? '#0a7d33' : '#7a5f28'}">${esc(s || 'Not subscribed')}</span>`; };
     $('bd-rows').innerHTML = brands.map((b) => `
       <tr style="border-top:1px solid rgba(171,135,67,0.1)">
-        <td style="padding:9px 12px"><span class="brand-link" onclick="openBrandDetail('${esc(b.brandName).replace(/'/g, "\\'")}','${esc(b.domain || '')}')" style="color:#171717;font-weight:600">${esc(b.brandName)}</span><div style="font-size:11px;color:#48524c">${esc(b.domain)}</div></td>
+        <td style="padding:9px 12px"><span class="brand-link" data-brand="${esc(b.brandName)}" data-domain="${esc(b.domain || '')}" style="color:#171717;font-weight:600">${esc(b.brandName)}</span><div style="font-size:11px;color:#48524c">${esc(b.domain)}</div></td>
         <td style="padding:9px 12px;color:#556059">${esc(b.category)}</td>
         <td style="padding:9px 12px;color:#556059">${esc(b.country)}</td>
         <td style="padding:9px 12px;color:#556059">${esc(b.positioning)}</td>
