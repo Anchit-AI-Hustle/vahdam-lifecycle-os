@@ -111,6 +111,7 @@ async function generateCopy(slot, products, brand, library) {
   const sys = `You are the lifecycle copy chief for VAHDAM India, a premium single-estate tea & wellness brand.
 Voice: ${brand.voice}. Use this lexicon where natural: ${(brand.preferred_lexicon || []).join(', ')}.
 NEVER use: ${(brand.banned_phrases || []).join(', ')}.
+QUALITY BAR — before you return, silently score every field 1-10 on: Clarity, Conversion pull, Brand-voice fit, Concrete proof (a specific detail/number, never a vague claim), and Format/character-limits. If any field scores below 8, rewrite it. Prefer a specific, sensory, benefit-led line over a generic category claim: a reason tied to THIS cohort/angle beats "origin-fresh tea" every time. Each headline/description must read better than the obvious generic version.
 Return STRICT JSON only.`;
   const strat = designStrategy.strategyFor(slot);
   const user = `Create campaign copy for:
