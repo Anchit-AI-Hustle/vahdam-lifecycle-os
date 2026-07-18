@@ -194,7 +194,6 @@
   <div class="overlay topbar">
     <div class="brand">VAHDAM<small id="brandRegion">INDIA</small></div>
     <div class="right">
-      <div class="panel regionsw" id="regionsw" title="Switch regional store"></div>
       <a class="icobtn panel" href="#" title="Search">&#9906;</a>
       <a class="icobtn panel cart" href="#" title="Cart">&#128722;<span class="n" id="cartN">2</span></a>
     </div>
@@ -284,8 +283,12 @@ let REGION=(_q.get('region')||_q.get('variant')||'us').toLowerCase();
 if(REGION==='signature') REGION='us';
 if(!REGIONS[REGION]) REGION='us';
 const RC=REGIONS[REGION];
-const COLLECTIONS=['Best Sellers','Black Tea','Green Tea','Herbal Tea','Chai','Teaware','Gifts'];
-const COLLECTION_TAGS={'Best Sellers':null,'Black Tea':'black','Green Tea':'green','Herbal Tea':'herbal','Chai':'chai','Teaware':'teaware','Gifts':'gift'};
+// Collections map to the REAL tags produced by scripts/build-catalog.js deriveTags()
+// (chai, green, black, detox, immunity, sleep, gift, bestseller, ...). Earlier this
+// pointed Herbal->'herbal' and Teaware->'teaware' (tags that never exist) so those
+// collections were always empty; fixed to the actual tag vocabulary.
+const COLLECTIONS=['Best Sellers','Black Tea','Green Tea','Herbal','Chai','Immunity','Gifts'];
+const COLLECTION_TAGS={'Best Sellers':'bestseller','Black Tea':'black','Green Tea':'green','Herbal':'detox','Chai':'chai','Immunity':'immunity','Gifts':'gift'};
 
 // Minimal, honest fallback (no fabricated prices/handles) — used only if the
 // live catalog fetch fails. Links go to the region's storefront home.
@@ -299,10 +302,10 @@ const FALLBACK=[
 ];
 
 const $=id=>document.getElementById(id);
-const state={products:[],selected:0,qty:1,usedFallback:false};
+const state={all:[],products:[],selected:0,qty:1,usedFallback:false};
 
 function normProducts(list){
-  return list.slice(0,12).map(p=>({
+  return list.map(p=>({
     title:p.n||'', img:p.i||null,
     price:p.price?(CCY_RE.test(String(p.price))?String(p.price):RC.ccy+p.price):'',
     url:`${RC.base}/products/${p.h||''}`,
@@ -341,6 +344,17 @@ function hasWebGL(){try{const c=document.createElement('canvas');return !!(c.get
 // Collection filter state + engine hook (set by start3D for 3D, else 2D grid).
 let PANELS=[], IS3D=false, CUR_TAG=null;
 function productMatches(p,tag){ return !tag || (p&&p.tags||[]).some(t=>t.includes(tag)); }
+// Seed the 3D atelier (limited number of panels) with products spanning EVERY
+// collection, so each collection filter reveals its own real products instead of
+// hiding a random slice of the first 12. The 2D grid below still lists the full
+// collection from state.all.
+function pickScene(all){
+  const cap=15, perTag=3, out=[], seen=new Set();
+  Object.values(COLLECTION_TAGS).forEach(function(tag){ if(!tag) return; let c=0;
+    for(const p of all){ if(c>=perTag) break; if(!seen.has(p.url)&&productMatches(p,tag)){ out.push(p); seen.add(p.url); c++; } } });
+  for(const p of all){ if(out.length>=cap) break; if(!seen.has(p.url)){ out.push(p); seen.add(p.url); } }
+  return out.length?out.slice(0,cap):all.slice(0,cap);
+}
 function filterCollection(tag){
   CUR_TAG=tag;
   if(IS3D){ PANELS.forEach(m=>{ m.visible=productMatches(state.products[m.userData.i],tag); }); }
@@ -366,8 +380,9 @@ function renderCheckout(){
 
 function renderFallback(tag){
   $('fallback').classList.add('on');
-  const list=state.products.filter(p=>productMatches(p,tag===undefined?CUR_TAG:tag));
-  $('fgrid').innerHTML=(list.length?list:state.products).map(p=>
+  const pool=(state.all&&state.all.length)?state.all:state.products;
+  const list=pool.filter(p=>productMatches(p,tag===undefined?CUR_TAG:tag));
+  $('fgrid').innerHTML=(list.length?list:pool).slice(0,24).map(p=>
     `<a href="${p.url}" target="_blank" rel="noopener"><div class="im" style="${p.img?`background-image:url('${p.img}')`:''}"></div>
       <div class="bd"><div class="t">${p.title}</div><div class="p">${p.price||'View'}</div></div></a>`).join('');
 }
@@ -438,13 +453,14 @@ function renderContent(){
 async function init(){
   // Region switcher — each button reloads with ?region=, so catalog + currency
   // + store base all switch cleanly.
-  const rsw=$('regionsw');
-  rsw.innerHTML=Object.keys(REGIONS).map(k=>`<button data-r="${k}" class="${k===REGION?'active':''}">${REGIONS[k].label}</button>`).join('');
-  rsw.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const q=new URLSearchParams(location.search); q.set('region',b.dataset.r); location.search=q.toString(); });
+  // Region is fixed by the URL the page was opened with (/3d, /3d/us, /3d/uk,
+  // /3d/global). There is deliberately NO in-page country switcher: the region is
+  // chosen upstream so the storefront stays a single focused market.
   $('brandRegion').textContent=(RC.label==='US'?'USA':RC.label).toUpperCase();
 
   buildCollections();
-  state.products=await loadCatalog();
+  state.all=await loadCatalog();
+  state.products=pickScene(state.all);
   renderCheckout();
   renderContent();   // populate the full-depth scroll sections (works with 3D or 2D)
   setupReveal();     // luxury scroll-reveal on the content sections
