@@ -1461,17 +1461,26 @@ async function landingPageHtml(id, cfg = {}, variant = null) {
 // even when providers are rate-limited: the template LP html is real catalog data.
 async function republishOrphan(db, config, entry, row, { reviewer = null, withCreatives = false, noLLM = true } = {}) {
   const rebuilt = await buildCampaign(effectiveEntry(entry), config, { id: row.generated_campaign_id, withCreatives, noLLM });
+  // FORCE the campaign id to the id the slot already advertises. buildCampaign mints
+  // its OWN deterministic id (idFor over the current entry), which no longer matches
+  // the stamped generated_campaign_id once the entry has drifted since approval — so
+  // without this the row lands under a new id and the existing /lp/<stamped> link
+  // stays a 404. Persisting under the stamped id makes that exact link resolve and
+  // leaves the slot pointer already consistent (no reconcile needed). The template LP
+  // html carries no self-referential /lp links, so only the path metadata needs sync.
+  const targetId = row.generated_campaign_id;
+  rebuilt.campaign_id = targetId;
+  (rebuilt.assets && rebuilt.assets.landing_pages ? rebuilt.assets.landing_pages : []).forEach((lp) => {
+    const isB = /^b$/i.test(String(lp.variant || ''));
+    lp.id = `${targetId}_landing_${isB ? 'b' : 'a'}`;
+    lp.path = isB ? `/lp/${targetId}?v=b` : `/lp/${targetId}`;
+  });
   rebuilt.status = 'approved';
   rebuilt.calendar_entry_id = row.id;
   // mirror:false — /lp only needs the smart_generated_campaigns row (payload carries
   // the LP html). Skipping the ads/mailer/landing dashboard mirrors keeps heal from
   // depending on tables that may not exist in this project, so it never throws.
   await persistCampaignAssets(db, config, rebuilt, { status: 'approved', origin: 'smart-brain-heal', reviewer, mirror: false });
-  // Reconcile the slot pointer to the rebuilt id so /lp resolves even if the entry
-  // changed since approval and the deterministic hash drifted from the old stamp.
-  if (rebuilt.campaign_id && rebuilt.campaign_id !== row.generated_campaign_id) {
-    await db.update(config.tableNames.calendarEntries, { id: `eq.${row.id}` }, { generated_campaign_id: rebuilt.campaign_id, updated_at: nowIso() }).catch(() => {});
-  }
   return rebuilt;
 }
 
