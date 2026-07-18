@@ -17,14 +17,17 @@
   h1{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;color:var(--cream);font-size:32px;margin:6px 0 4px;}
   .lede{color:var(--soft);font-size:14px;line-height:1.6;max-width:760px;margin:0 0 20px;}
   /* overall gauge */
-  .overall{display:flex;gap:22px;align-items:center;flex-wrap:wrap;background:linear-gradient(160deg,#ffffff,#0c1814);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:0 0 26px;}
+  .overall{display:flex;gap:22px;align-items:center;flex-wrap:wrap;background:linear-gradient(160deg,#16301f,#0b1712);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:0 0 26px;}
   .score-ring{position:relative;width:132px;height:132px;flex:0 0 auto;}
   .score-ring .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
   .score-ring .num b{font-family:'Lao MN',Georgia,serif;font-size:34px;color:var(--cream);line-height:1;}
-  .score-ring .num span{font-size:11px;color:var(--soft);margin-top:3px;}
+  .score-ring .num span{font-size:11px;color:#cfe0d5;margin-top:3px;}
   .overall .meta{flex:1;min-width:240px;}
   .overall .meta h2{font-family:'Lao MN',Georgia,serif;color:var(--cream);font-size:20px;margin:0 0 6px;font-weight:500;}
-  .overall .meta p{color:var(--soft);font-size:13px;line-height:1.6;margin:0 0 8px;}
+  /* card is a dark panel → its muted text must be LIGHT, not --soft (#556059),
+     which was near-invisible on the dark surface. */
+  .overall .meta p{color:#cfe0d5;font-size:13px;line-height:1.6;margin:0 0 8px;}
+  .overall .target{color:#e3c879;}
   .target{display:inline-block;background:rgba(171,135,67,.16);color:#7a5f28;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;}
   .axes{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
   .axis{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--soft);}
