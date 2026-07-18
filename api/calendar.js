@@ -328,8 +328,19 @@ module.exports = async function handler(req, res) {
     try {
       res.setHeader('Access-Control-Allow-Origin', '*');
       const id = String(req.query?.id || '');
-      const html = await plan.landingPageHtml(id, {}, req.query?.v || null);
-      if (!html) { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.status(404).send('<!doctype html><title>Not found</title><p style="font-family:Arial;padding:40px">Landing page not found. It may not have been approved/generated yet.</p>'); }
+      const { html, diag } = await plan.landingPageResolve(id, {}, req.query?.v || null);
+      // ?debug=1 → JSON diagnostics (no secrets) so a 404 is diagnosable live.
+      if (req.query?.debug) { res.setHeader('Content-Type', 'application/json'); return res.status(200).json({ ok: true, diag }); }
+      if (!html) {
+        // Actionable message keyed to the real reason, not a blanket "not found".
+        const why = !diag.dbConnected
+          ? 'Asset storage is not connected on this deployment (SUPABASE_SERVICE_ROLE_KEY missing), so hosted pages cannot be served yet.'
+          : !diag.campaignFound
+            ? 'This campaign is not persisted yet. Open it in VAHDAM Brain and click Approve — approving hosts the page at this URL. (A View-only preview is not hosted.)'
+            : 'This campaign has no landing-page asset built. Regenerate it in VAHDAM Brain with the landing page channel enabled.';
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(404).send(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Landing page not available</title><div style="font-family:'Proxima Nova',Arial,sans-serif;max-width:640px;margin:12vh auto;padding:0 24px;color:#171717"><h1 style="font-family:Georgia,serif;color:#004A2B;font-size:24px">Landing page not available yet</h1><p style="line-height:1.6;color:#556059">${why}</p><p style="font-size:12px;color:#6b7770">Ref: ${id}</p></div>`);
+      }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       // ?download=1 → export the self-contained, deploy-ready HTML file (drop onto try.vahdam.*).
       if (req.query?.download) {

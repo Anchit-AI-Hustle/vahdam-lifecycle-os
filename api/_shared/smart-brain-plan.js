@@ -1398,22 +1398,39 @@ async function activateScenario({ scenario, reviewer = null, scope = 'all', conf
 
 // ── Landing-page resolver for /lp/:id ───────────────────────────────────────
 
-async function landingPageHtml(id, cfg = {}, variant = null) {
+// Resolve stored LP HTML for /lp/:id. Returns { html, diag } — diag says exactly
+// WHY a page could not be served (storage disconnected / campaign not persisted /
+// campaign has no LP asset), so a 404 is actionable instead of a mystery. Looks
+// the campaign up by BOTH the row id AND payload.campaign_id (id-scheme drift
+// safety net), then falls back to the landing_pages_generated mirror.
+async function landingPageResolve(id, cfg = {}, variant = null) {
   const config = smartConfig(cfg);
   const db = new SmartBrainDbAdapter(config);
-  if (!db.connected) return null;
-  const camp = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
-  const lps = camp?.[0]?.payload?.assets?.landing_pages || [];
-  // ?v=b serves the story-led B variant; default serves A (the first LP).
-  // If B is requested but the slot only built one LP, fall back to the first
-  // page rather than 404-ing a valid campaign.
-  const want = /^b$/i.test(String(variant || '')) ? (lps.find((l) => l.variant === 'B') || lps[1] || lps[0]) : (lps.find((l) => l.variant === 'A') || lps[0]);
-  const html = want?.html;
-  if (html) return html;
-  // fall back to landing_pages_generated (numeric id or campaign_id in payload)
+  const diag = { id, dbConnected: !!db.connected, campaignFound: false, hasLpHtml: false, fallbackFound: false, source: null };
+  if (!db.connected) return { html: null, diag };
+  // 1) generated campaign by row id, then 2) by payload.campaign_id.
+  let camp = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
+  if (camp && camp[0]) diag.source = 'generated_campaigns.id';
+  else {
+    camp = await db.select(config.tableNames.generatedCampaigns, { filters: { 'payload->>campaign_id': `eq.${id}` }, limit: 1 }).catch(() => []);
+    if (camp && camp[0]) diag.source = 'generated_campaigns.campaign_id';
+  }
+  if (camp && camp[0]) {
+    diag.campaignFound = true;
+    const lps = camp[0]?.payload?.assets?.landing_pages || [];
+    // ?v=b serves the story-led B variant; default serves A (first LP). If B is
+    // requested but only one LP was built, fall back rather than 404 a valid page.
+    const want = /^b$/i.test(String(variant || '')) ? (lps.find((l) => l.variant === 'B') || lps[1] || lps[0]) : (lps.find((l) => l.variant === 'A') || lps[0]);
+    if (want?.html) { diag.hasLpHtml = true; return { html: want.html, diag }; }
+  }
+  // 3) landing_pages_generated mirror (numeric id or campaign_id in payload).
   const filters = /^\d+$/.test(String(id)) ? { id: `eq.${id}` } : { 'payload->>campaign_id': `eq.${id}` };
   const lp = await db.select(config.tableNames.landingPagesGenerated, { filters, limit: 1 }).catch(() => []);
-  return lp?.[0]?.payload?.html || null;
+  if (lp?.[0]?.payload?.html) { diag.fallbackFound = true; diag.source = 'landing_pages_generated'; return { html: lp[0].payload.html, diag }; }
+  return { html: null, diag };
+}
+async function landingPageHtml(id, cfg = {}, variant = null) {
+  return (await landingPageResolve(id, cfg, variant)).html;
 }
 
 // ── Convergent asset prebuild queue ─────────────────────────────────────────
@@ -1594,7 +1611,7 @@ async function dbCheck({ config: cfg = {} } = {}) {
 }
 
 module.exports = {
-  syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, unrejectEntry, activateScenario, landingPageHtml, buildCampaign,
+  syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, unrejectEntry, activateScenario, landingPageHtml, landingPageResolve, buildCampaign,
   prebuildAssets, dbCheck, syncStatus,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
