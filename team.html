@@ -8,11 +8,11 @@
   /* Forest-green canvas, consistent with the locked shell theme (theme.css).
      --ink stays dark for text ON the gold badge/button; body text is cream. */
   :root{--moss:#004A2B;--cream:#FBF5EA;--gold:#AB8743;--ink:#171717;
-    --canvas:var(--bg,#004A2B);--panel:var(--surface,#075C39);--panel2:var(--soft,#003D24);
+    --canvas:var(--bg,#004A2B);--panel:var(--surface,#075C39);--panel2:var(--chip,#f4f2ec);
     --txt:var(--vh-ink,#FBF5EA);--dim:var(--ink-dim,#E4CF94);--line:rgba(171,135,67,0.28)}
   *{box-sizing:border-box}
   body{margin:0;background:var(--canvas);color:var(--txt);font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;line-height:1.55}
-  .head{background:var(--panel);color:var(--cream);padding:18px 22px}
+  .head{background:#004A2B;color:var(--cream);padding:18px 22px}
   .head h1{font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:22px;margin:0}
   .head .sub{color:rgba(251,245,234,.75);font-size:13px;margin-top:4px}
   .badge{display:inline-block;background:var(--gold);color:var(--ink);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;margin-left:8px;vertical-align:middle}
@@ -20,7 +20,7 @@
   .msg{margin:14px 0;display:flex;gap:10px}
   .msg .who{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);font-weight:700;min-width:64px;padding-top:3px}
   .msg .body{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;white-space:pre-wrap;flex:1}
-  .msg.user .body{background:var(--moss);color:var(--cream);border-color:var(--moss)}
+  .msg.user .body{background:#004A2B;color:var(--cream);border-color:#004A2B}
   .data{margin-top:10px;font-size:12px;color:var(--dim);background:rgba(0,0,0,.22);border-radius:8px;padding:8px 10px;overflow:auto}
   .empty{color:var(--dim);text-align:center;padding:40px 0}
   .bar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 16px}
