@@ -18,12 +18,12 @@
        Was light-first (cream bg, green accent-text); accents re-assigned to
        gold/cream so nothing renders green-on-green. */
     :root{ --green:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA;
-      --canvas:var(--bg,#004A2B); --panel:var(--surface,#075C39); --panel2:var(--soft,#003D24);
+      --canvas:var(--bg,#004A2B); --panel:var(--surface,#075C39); --panel2:var(--chip,#f4f2ec);
       --txt:var(--vh-ink,#FBF5EA); --dim:var(--ink-dim,#E4CF94); --line:rgba(171,135,67,0.28); }
     *{ box-sizing:border-box; }
     body{ margin:0; font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif; color:var(--txt); background:var(--canvas); }
     .wrap{ max-width:1180px; margin:0 auto; padding:24px 20px 80px; }
-    h1{ font-family:'Lao MN','Cormorant Garamond',Georgia,serif; font-weight:700; color:var(--cream); margin:.2em 0 .1em; font-size:30px; }
+    h1{ font-family:'Lao MN','Cormorant Garamond',Georgia,serif; font-weight:700; color:var(--green); margin:.2em 0 .1em; font-size:30px; }
     .sub{ color:var(--dim); margin:0 0 22px; }
     .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     select,input{ padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel2); color:var(--txt); font:inherit; }
@@ -32,7 +32,7 @@
     .tile{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; cursor:pointer; transition:.15s; }
     .tile:hover{ border-color:var(--gold); transform:translateY(-1px); }
     .tile.active{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(171,135,67,.25); }
-    .tile .n{ font-size:26px; font-weight:700; color:var(--cream); }
+    .tile .n{ font-size:26px; font-weight:700; color:var(--ink); }
     .tile .l{ font-size:13px; color:var(--dim); margin-top:2px; }
     .panel{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:22px; min-height:120px; }
     .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
@@ -40,7 +40,7 @@
     .card h4{ margin:0 0 6px; font-size:14px; }
     .card .meta{ font-size:12px; color:var(--dim); }
     .pill{ display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:rgba(171,135,67,.14); color:var(--gold); margin:2px 4px 2px 0; }
-    .pill.gold{ background:rgba(171,135,67,.22); color:var(--cream); }
+    .pill.gold{ background:rgba(171,135,67,.22); color:var(--green); }
     .tl{ position:relative; padding-left:22px; }
     .tl .ev{ position:relative; padding:8px 0 8px 14px; border-left:2px solid var(--line); }
     .tl .ev::before{ content:''; position:absolute; left:-7px; top:14px; width:10px; height:10px; border-radius:50%; background:var(--gold); }

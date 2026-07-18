@@ -74,10 +74,10 @@
   <div class="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
     <div>
       <div class="text-[10px] uppercase tracking-widest text-gold font-bold">VAHDAM</div>
-      <div class="text-cream font-semibold text-base">Lifecycle Calendar · UK engagement cohorts</div>
+      <div class="text-green font-semibold text-base">Lifecycle Calendar · UK engagement cohorts</div>
     </div>
     <div class="flex-1"></div>
-    <a href="/plan" class="text-[11px] uppercase tracking-wider text-gold hover:text-cream">RFM calendar →</a>
+    <a href="/plan" class="text-[11px] uppercase tracking-wider text-gold hover:text-green">RFM calendar →</a>
   </div>
 </header>
 
@@ -87,9 +87,9 @@
   <section class="card p-4">
     <div class="label mb-2">Program rules (hard-coded)</div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[12px] leading-relaxed text-ink-dim">
-      <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-cream">Teas &amp; Botanicals</b><br>One-time purchase only - no subscription language, ever.</div>
-      <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-cream">Ashwagandha Coffee</b><br>Subscription-priority CTA. Pack of 1: £29.99 sub / £49.99 one-time. Pack of 3: £59.99 sub (B2G1) / £99.99.</div>
-      <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-cream">Supplements</b><br>Just launched, subscription-priority. Never priced in copy. No founder voice anywhere.</div>
+      <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-ink">Teas &amp; Botanicals</b><br>One-time purchase only - no subscription language, ever.</div>
+      <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-ink">Ashwagandha Coffee</b><br>Subscription-priority CTA. Pack of 1: £29.99 sub / £49.99 one-time. Pack of 3: £59.99 sub (B2G1) / £99.99.</div>
+      <div class="p-3 bg-bg-card rounded-lg border border-gold/10"><b class="text-ink">Supplements</b><br>Just launched, subscription-priority. Never priced in copy. No founder voice anywhere.</div>
     </div>
   </section>
 
@@ -420,7 +420,7 @@ function selectVariant(idx) {
   if (!pane) return;
   pane.innerHTML =
     '<div class="text-[11px] text-gold mb-1 uppercase tracking-wider">' + escAttr(v.type || '') + '</div>' +
-    '<div class="text-xs text-ink-dim mb-1">Subject: <b class="text-cream">' + escAttr(v.subject_line || '') + '</b></div>' +
+    '<div class="text-xs text-ink-dim mb-1">Subject: <b class="text-ink">' + escAttr(v.subject_line || '') + '</b></div>' +
     '<div class="text-xs text-ink-dim mb-2">Preheader: ' + escAttr(v.preview_text || '') + (ctaUrl ? ' · CTA → <a class="text-gold hover:underline" target="_blank" rel="noopener" href="' + escAttr(ctaUrl) + '">' + escAttr(ctaUrl) + '</a>' : '') + '</div>' +
     '<iframe class="preview" srcdoc="' + escAttr(v.html) + '"></iframe>' +
     imgNote +

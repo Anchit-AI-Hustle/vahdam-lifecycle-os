@@ -21,7 +21,7 @@
   .btn.secondary{background:transparent;color:#171717;border:1px solid rgba(171,135,67,.35)}
   .btn:disabled{opacity:.5;cursor:wait}
   .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
-  .mkchip{border:1px solid rgba(171,135,67,.4);background:transparent;color:#cbd6ce;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}
+  .mkchip{border:1px solid rgba(171,135,67,.4);background:transparent;color:#171717;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}
   .mkchip:hover{border-color:var(--gold);color:#171717}
   .mkchip.on{background:var(--forest,#004A2B);color:#fff;border-color:var(--gold)}
   .akbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 10px;padding:8px 0;border-bottom:1px solid rgba(171,135,67,.18)}
@@ -558,10 +558,10 @@ function decisionPanelHTML(e){
   // Row of section 1 (a labelled reason line). value may carry inline markup.
   const dl = (label, value, sub) => (value || sub) ? `
       <tr>
-        <td style="color:#cbb98f;font-size:12px;font-weight:700;vertical-align:top;padding:10px 18px 10px 0;white-space:nowrap">${esc(label)}</td>
+        <td style="color:#7a5f28;font-size:12px;font-weight:700;vertical-align:top;padding:10px 18px 10px 0;white-space:nowrap">${esc(label)}</td>
         <td style="color:#171717;font-size:13.5px;line-height:1.55;padding:10px 0;border-bottom:1px solid rgba(171,135,67,.14)">${value||''}${sub?`<div style="color:#556059;font-size:12px;margin-top:3px">${sub}</div>`:''}</td>
       </tr>` : '';
-  const li = (label, text) => text ? `<li style="margin:0 0 9px;line-height:1.55;color:#dfe7e1;font-size:13.5px"><b style="color:#f2ead6">${esc(label)}:</b> ${esc(text)}</li>` : '';
+  const li = (label, text) => text ? `<li style="margin:0 0 9px;line-height:1.55;color:#171717;font-size:13.5px"><b style="color:#004A2B">${esc(label)}:</b> ${esc(text)}</li>` : '';
 
   // ── Section 1 · why this slot was chosen ──
   const cohortName = e.cohort?.name || d.cohort?.choice || '—';
@@ -586,7 +586,7 @@ function decisionPanelHTML(e){
   return `<div class="pvroot" style="border:1px solid rgba(171,135,67,.35);border-radius:14px;padding:18px 20px;background:#f4f2ec">
     <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(171,135,67,.2);padding-bottom:12px;margin-bottom:14px">
       <span class="pill" style="background:#e8f3ec;color:#0a7d33;font-size:10px;letter-spacing:.06em">WHY YOU'RE SEEING THIS</span>
-      <span style="color:#f2ead6;font-size:15px;font-weight:700">The complete logic, analysis &amp; reason</span>
+      <span style="color:#004A2B;font-size:15px;font-weight:700">The complete logic, analysis &amp; reason</span>
     </div>
     <div style="color:#7a5f28;font-size:14px;font-weight:700;margin:0 0 6px">1 · Why this slot was chosen for the calendar</div>
     <table style="width:100%;border-collapse:collapse;margin:0 0 16px">
