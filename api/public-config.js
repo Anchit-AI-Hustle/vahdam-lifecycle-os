@@ -17,11 +17,29 @@ function linkedDb() {
   } catch (_) { return {}; }
 }
 
-module.exports = function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
   // CORS on every branch (the bootstrap config is fetched cross-origin from
   // preview deployments and the PWA shell).
   res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // Real-time data-accuracy validator — /api/validate-data rewrites here as
+  // ?action=validate-data (also ?validate=1). Runs the analytics validation
+  // AGENT (deterministic checks + best-effort LLM assessment) against the
+  // canonical report and returns one verdict per metric. Logic lives in the
+  // cap-free _shared module so no new serverless function is added.
+  const wantsValidate = req.query && (req.query.action === 'validate-data' || req.query.validate !== undefined);
+  if (wantsValidate) {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const { validate } = require('./_shared/data-validation-core.js');
+      const narrative = !(req.query.narrative === '0' || req.query.narrative === 'false');
+      const result = await validate({ narrative });
+      return res.status(200).json(result);
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: 'validation_failed', message: String(e && e.message || e), checks: [] });
+    }
+  }
 
   // Pipeline health mode — /api/ai/pipeline/health rewrites here as ?pipeline=1
   // (the standalone function was retired to free a Hobby function slot for /api/brain).

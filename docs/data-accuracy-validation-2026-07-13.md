@@ -38,7 +38,7 @@ Yearly tallies of the repo CSVs vs the report:
 \* `customer_metrics.csv` sums monthly `total_customers`, which double-counts buyers across months, so it is not a valid annual unique-buyer figure regardless.
 
 **Additional problems:**
-- **The `aov` column is nonsense / internally inconsistent.** It does not equal gross/orders or total/orders. Examples: 2023-04 shows AOV $167.56 (gross $165,395 / 851 orders = $194); 2024-08 shows $175.74; 2024-12 shows $36.79. Real VAHDAM AOV sits ~$44-56 per the report. These values look randomly generated.
+- **The `aov` column yields implausible values.** Correction (2026-07-18 re-validation): the column is *not* internally broken. It is arithmetically `net_sales / orders_count` (e.g. 2023-01: 98,092.38 / 2,104 = 46.62), i.e. net-based rather than gross/orders. The problem is that because `orders_count` is understated, the resulting AOVs are unreal: 2023-04 shows $167.56, 2024-08 $175.74, 2024-12 $36.79, versus the report's ~$44-56. So the column is inconsistent with reality, not with itself.
 - **Coverage gap.** The dataset covers only 2023-01 → 2025-03. It has no 2015-2022 (the entire hypergrowth + $3.30M peak era), no full-year 2025, and no 2026. It therefore cannot reflect the report's $14.76M lifetime, 268,500 all-time orders, or 154,822 lifetime customers.
 
 **Conclusion:** this dataset is placeholder/synthetic, not a real Shopify export. It should not be trusted for any historical analysis, forecasting, or Supabase sync.

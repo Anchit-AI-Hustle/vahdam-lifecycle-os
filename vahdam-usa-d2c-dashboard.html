@@ -40,6 +40,17 @@
   .p-warn{background:#FEF7E0;color:#8A6D00}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .dv-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-top:18px}
+  .dv-counts{font-weight:700;color:var(--forest);font-size:14px;display:flex;align-items:center;gap:8px}
+  .dv-counts .chip{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .dv-dot{width:9px;height:9px;border-radius:50%;background:var(--gold);display:inline-block;animation:pulse 1.1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .dv-meta{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px}
+  #dv-refresh{font:inherit;font-size:12px;font-weight:700;color:#fff;background:var(--forest);border:none;
+    border-radius:8px;padding:6px 12px;cursor:pointer}
+  #dv-refresh:disabled{opacity:.5;cursor:default}
+  code{background:#f0e9d8;padding:1px 5px;border-radius:4px;font-size:12px}
   .verdict{background:var(--forest);color:var(--cream);border-radius:14px;padding:22px;margin-top:18px}
   .verdict h3{color:#fff;font-size:19px}
   .verdict ul{margin:10px 0 0;padding-left:18px} .verdict li{margin:5px 0;color:#e7f2ea}
@@ -107,19 +118,19 @@
   </section>
 
   <section>
-    <div class="eyebrow">Data accuracy</div>
+    <div class="eyebrow">Data accuracy . live agent</div>
     <h2>Does our repo data match this report?</h2>
-    <p class="lead">Verified every stored analytics dataset against the report. Result below.</p>
-    <div class="verdict">
-      <h3>Verdict: our stored data does NOT fully match the report</h3>
-      <ul>
-        <li><b>Live dashboard (trailing 12mo)</b> $1.12M total is consistent with the report's ~$1.1M/yr run-rate, but it is a different scope, not the calendar-year table.</li>
-        <li><b>Historical shopify_analytics CSVs</b> are wrong and appear synthetic: 2024 revenue overstated ~50 to 56%, 2023 orders off 44%, nonsense AOV column, coverage stops at 2025-03.</li>
-        <li><b>Cohort base</b> uses the import-inflated 430,000 profile count instead of the report's 154,822 true purchasers.</li>
-        <li><b>All-time figures</b> ($14.76M lifetime, 268,500 orders, 154,822 customers) had no representation in the repo until this transcription.</li>
-      </ul>
+    <p class="lead">A validation agent re-derives every metric from the live repo data on each run and checks it against this report. Verdicts flip to PASS automatically once the underlying data is corrected.</p>
+    <div class="dv-bar" id="dv-bar">
+      <div class="dv-counts" id="dv-counts"><span class="dv-dot"></span> Running validation agent…</div>
+      <div class="dv-meta"><span id="dv-updated"></span> <button id="dv-refresh" type="button">Re-run</button></div>
+    </div>
+    <div class="verdict" id="dv-verdict">
+      <h3 id="dv-verdict-h">Verdict</h3>
+      <p id="dv-assessment" style="margin:8px 0 0;color:#e7f2ea">Asking the agent for a plain-English read…</p>
     </div>
     <div class="card chartwrap"><table id="tbl-recon"></table></div>
+    <div class="note" id="dv-note">Live source: <code>/api/validate-data</code>. Falls back to the last known snapshot if the endpoint is unreachable.</div>
   </section>
 
   <footer>
@@ -209,26 +220,74 @@ const bridge=[["Annual total sales","~$1.1M (Rs 9-9.5 Cr)","~$11.5-12M","~12x"],
  ["Active buyers / year","~14-15K","150-180K","~11x"]];
 table("tbl-bridge",["Lever","Today (run-rate)","Required for Rs 100 Cr","Multiple"],bridge);
 
-const recon=[
- ["2023 orders","15,757","28,058","-44%","MISMATCH"],
- ["2023 gross sales","$1.62M","$1.72M","-6%","Close"],
- ["2023 discounts","$188.6K","$298.6K","-37%","MISMATCH"],
- ["2023 total sales","$1.58M","$1.60M","-1%","OK"],
- ["2023 buyers","11,995","19,441","-38%","MISMATCH"],
- ["2024 orders","16,564","17,511","-5%","Close"],
- ["2024 gross sales","$1.55M","$1.03M","+50%","MISMATCH"],
- ["2024 total sales","$1.53M","$0.98M","+56%","MISMATCH"],
- ["2024 discounts","$167.8K","$126.8K","+32%","MISMATCH"],
- ["2024 buyers","12,440","12,639","-2%","Close"],
- ["2025 orders (repo Jan-Mar only)","5,055","16,538","n/a","PARTIAL"],
- ["Live dashboard total (trailing 12mo)","$1.12M","~$1.1M","+2%","CONSISTENT"],
- ["Customer base for cohorts","430,000","154,822","+178%","MISLEADING"],
+// Offline fallback snapshot (used only if /api/validate-data is unreachable,
+// e.g. opening the file directly or printing to PDF).
+const reconFallback=[
+ ["2023 orders","15,757","28,058","-43.8%","MISMATCH"],
+ ["2023 gross sales","1,618,688","1,720,000","-5.9%","CONSISTENT"],
+ ["2023 total sales","1,583,583","1,600,000","-1.0%","PASS"],
+ ["2023 discounts","188,590","298,600","-36.8%","MISMATCH"],
+ ["2024 orders","16,564","17,511","-5.4%","CONSISTENT"],
+ ["2024 gross sales","1,546,140","1,030,000","+50.1%","MISMATCH"],
+ ["2024 total sales","1,530,257","980,000","+56.1%","MISMATCH"],
+ ["2024 discounts","167,760","126,800","+32.3%","MISMATCH"],
+ ["Trailing-12mo US total sales","1,120,765","~$1.1M run-rate","2% vs run-rate","CONSISTENT"],
+ ["Returning-rate build self-consistency","0.4066","0.4635","-0.0569","MISMATCH"],
+ ["Customer base for cohorts","430,000","154,822 true purchasers","+178%","MISLEADING"],
+ ["Cohort 90-day AOV","42.73","44.5","-4.0%","CONSISTENT"],
  ["All-time lifetime gross","(absent)","$14.76M","n/a","MISSING"],
  ["All-time orders","(absent)","268,500","n/a","MISSING"],
  ["All-time unique customers","(absent)","154,822","n/a","MISSING"]];
-const pill=v=>{const c=(["MISMATCH","MISSING","MISLEADING","PARTIAL"].includes(v))?"p-bad":(["OK","CONSISTENT"].includes(v)?"p-ok":"p-warn");
+
+const pill=v=>{const c=(["MISMATCH","MISSING","MISLEADING","PARTIAL"].includes(v))?"p-bad":(["OK","PASS","CONSISTENT"].includes(v)?"p-ok":"p-warn");
   return `<span class="pill ${c}">${v}</span>`;};
-table("tbl-recon",["Metric","Repo value","Report value","Delta","Verdict"],recon,[null,null,null,null,pill]);
+
+function renderRecon(rows){
+  table("tbl-recon",["Metric","Repo value","Report value","Delta","Verdict"],rows,[null,null,null,null,pill]);
+}
+function fmtVal(v){ if(v===null||v===undefined) return "(absent)"; return typeof v==="number"? v.toLocaleString() : v; }
+
+async function runLiveValidation(){
+  const bar=document.getElementById("dv-counts");
+  const btn=document.getElementById("dv-refresh");
+  const upd=document.getElementById("dv-updated");
+  const vh=document.getElementById("dv-verdict-h");
+  const va=document.getElementById("dv-assessment");
+  if(btn) btn.disabled=true;
+  bar.innerHTML='<span class="dv-dot"></span> Running validation agent…';
+  try{
+    const r=await fetch("/api/validate-data",{headers:{accept:"application/json"}});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d=await r.json();
+    if(!d.checks || !d.checks.length) throw new Error("no checks");
+    const rows=d.checks.map(c=>[c.metric, fmtVal(c.observed_value), fmtVal(c.source_of_truth_value), c.delta||"", c.verdict]);
+    renderRecon(rows);
+    const s=d.summary||{};
+    const ok=(s.pass||0)+(s.consistent||0);
+    const flagged=(s.mismatch||0)+(s.missing||0)+(s.misleading||0);
+    bar.innerHTML='<span class="dv-dot" style="background:'+(flagged? "#8B1A10":"#0B6B2E")+';animation:none"></span> '+
+      '<span>'+ok+' of '+(s.total||0)+' checks pass / consistent</span>'+
+      '<span class="chip p-bad">'+(s.mismatch||0)+' mismatch</span>'+
+      '<span class="chip p-warn">'+(s.missing||0)+' missing</span>'+
+      '<span class="chip p-warn">'+(s.misleading||0)+' misleading</span>';
+    vh.textContent = flagged? "Verdict: our stored data does NOT fully match the report"
+                            : "Verdict: our stored data matches the report";
+    va.textContent = d.assessment || "Deterministic checks complete. "+flagged+" metric(s) need attention; the historical shopify_analytics CSVs and the cohort base are the primary gaps.";
+    if(upd) upd.textContent="Validated "+new Date(d.generated_at||Date.now()).toLocaleString();
+  }catch(e){
+    renderRecon(reconFallback);
+    const flagged=reconFallback.filter(r=>["MISMATCH","MISSING","MISLEADING"].includes(r[4])).length;
+    bar.innerHTML='<span class="dv-dot" style="background:#8B1A10;animation:none"></span> Live endpoint unavailable . showing last snapshot ('+flagged+' flagged)';
+    vh.textContent="Verdict: our stored data does NOT fully match the report";
+    va.textContent="Offline snapshot: the historical shopify_analytics CSVs are wrong/synthetic (2024 revenue overstated ~50 to 56%), the cohort base uses the inflated 430k profile count vs 154,822 true purchasers, and all-time figures are absent from the analysis layer.";
+    if(upd) upd.textContent="";
+  }finally{
+    if(btn) btn.disabled=false;
+  }
+}
+document.getElementById("dv-refresh").addEventListener("click",runLiveValidation);
+renderRecon(reconFallback);   // instant paint, then upgrade to live
+runLiveValidation();
 </script>
 </body>
 </html>

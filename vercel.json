@@ -131,7 +131,8 @@
     { "source": "/frameworks", "destination": "/frameworks.html" },
     { "source": "/diff-version", "destination": "/diff-version.html" },
     { "source": "/diff-version/comparison", "destination": "/diff-version/comparison.md" },
-    { "source": "/api/health", "destination": "/api/public-config?health=1" }
+    { "source": "/api/health", "destination": "/api/public-config?health=1" },
+    { "source": "/api/validate-data", "destination": "/api/public-config?action=validate-data" }
   ],
   "headers": [
     { "source": "/(.*)", "headers": [

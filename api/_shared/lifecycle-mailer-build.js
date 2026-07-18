@@ -138,7 +138,35 @@ async function writeCopy(brief, frameworkLine) {
   });
   const json = (llm.parseJSON ? llm.parseJSON(out.text) : JSON.parse(out.text));
   if (!json || !json.subject_line || !json.hero_headline) throw new Error('LLM copy JSON incomplete');
-  return { copy: json, provider: out.provider || null, model: out.model || null };
+
+  // Critic agent — parity with the /studio quality loop the Mailer Calendar V2
+  // previously lacked: score the copy and, if weak, take ONE bounded revision.
+  // Fully fail-soft (returns the original copy on any error/timeout), so the
+  // build never fails because the critic did. (_shared/feature-agent.js critic role.)
+  let copy = json;
+  let quality = null;
+  try {
+    const { runCritic } = require('./feature-agent.js');
+    const crit = await runCritic({
+      feature: 'lifecycle email copy',
+      content: json,
+      context: brief,
+      rubric: {
+        passThreshold: 7,
+        dimensions: [
+          { key: 'copy_quality', label: 'copy', guide: '10 = premium, sensory, brand-voice, concrete reason to act; 0 = generic.' },
+          { key: 'brand_safety', label: 'brand gates', guide: '10 = no banned phrases, no invented prices/claims, no medical/founder voice; 0 = violations.' },
+          { key: 'offer_clarity', label: 'clarity + limits', guide: '10 = subject <=60 chars, preview <=90, cta <=4 words, one clear promise; 0 = vague or over-length.' },
+        ],
+        shapeOk: (r) => r && r.subject_line && r.hero_headline,
+      },
+      timeBoxMs: 15000,
+    });
+    if (crit && crit.content) copy = crit.content;
+    quality = crit && crit.quality || null;
+  } catch (_) { /* keep original copy */ }
+
+  return { copy, provider: out.provider || null, model: out.model || null, quality };
 }
 
 // Sanitize every LLM-authored string through the shared brand scrub, then
