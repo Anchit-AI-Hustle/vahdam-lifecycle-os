@@ -18,19 +18,58 @@
 let DATA = null;
 function data() {
   if (DATA) return DATA;
-  try { DATA = require('../../data/analytics/market-data.json'); }
-  catch (_) { DATA = { currency: {}, markets: {} }; }
+  let base;
+  try { base = require('../../data/analytics/market-data.json'); }
+  catch (_) { base = { currency: {}, markets: {} }; }
+  DATA = mergeLive(base);
   return DATA;
 }
 
-// Only US + UK exports exist; everything else must resolve to itself so
-// performance() can honestly return ok:false (never silently serve US numbers
-// for an IN/EU/AU/Global request — a confidently-wrong answer).
+// LIVE Shopify Admin overlay (pulled via the connected Shopify MCP). When a
+// market is present here, its fresher figures win over the CSV-derived export.
+// Rebuild-safe: scripts/build-market-analytics.js never touches this file.
+let LIVE = undefined;
+function live() {
+  if (LIVE !== undefined) return LIVE;
+  try { LIVE = require('../../data/analytics/live-shopify.json'); }
+  catch (_) { LIVE = { markets: {} }; }
+  return LIVE;
+}
+
+// Merge the live overlay onto the CSV base. Live monthly / summary / top_products /
+// referrers / sessions replace the CSV equivalents for that market; every other
+// CSV field (weekly, product_types, cohort, ...) is preserved. Markets that exist
+// ONLY in the live overlay (e.g. GLOBAL, IN once authorized) are added wholesale.
+function mergeLive(base) {
+  const lv = live();
+  const out = { ...base, currency: { ...(base.currency || {}) }, markets: { ...(base.markets || {}) } };
+  for (const [mk, l] of Object.entries(lv.markets || {})) {
+    const prev = out.markets[mk] || {};
+    out.markets[mk] = {
+      ...prev,
+      ...(l.monthly ? { monthly: l.monthly } : {}),
+      ...(l.summary ? { summary: { ...(prev.summary || {}), ...l.summary } } : {}),
+      ...(l.top_products ? { top_products: l.top_products } : {}),
+      ...(l.referrers ? { referrers: l.referrers } : {}),
+      ...(l.sessions ? { sessions: l.sessions } : {}),
+      ...(l.customers_monthly ? { customers_monthly: l.customers_monthly } : {}),
+      live: { source: lv.source || 'shopify_admin_mcp', pulled_at: l.pulled_at || lv.pulled_at || null, shop: l.shop || null, store_url: l.store_url || null },
+    };
+    if (l.currency) out.currency[mk] = l.currency;
+  }
+  return out;
+}
+
+// Supported markets = whatever the CSV base or the live overlay actually carry.
+// Everything else resolves to itself so performance() honestly returns ok:false
+// (never silently serve US numbers for a market we have no data for).
 function normMarket(m) {
   const s = String(m || 'US').toUpperCase().replace(/[^A-Z]/g, '');
-  if (s === 'UK' || s === 'GB' || s === 'GBR' || s === 'UNITEDKINGDOM' || s === 'BRITAIN') return 'UK';
+  if (s === 'UK' || s === 'GB' || s === 'GBR' || s === 'UNITEDKINGDOM' || s === 'BRITAIN' || s === 'ENGLAND') return 'UK';
   if (s === 'US' || s === 'USA' || s === 'AMERICA' || s === 'UNITEDSTATES' || s === '') return 'US';
-  return s; // IN, GLOBAL, EU, AU, ... -> unsupported -> ok:false downstream
+  if (s === 'IN' || s === 'IND' || s === 'INDIA' || s === 'BHARAT') return 'IN';
+  if (s === 'GLOBAL' || s === 'INTERNATIONAL' || s === 'WORLD' || s === 'ROW' || s === 'GLOBE') return 'GLOBAL';
+  return s; // EU, AU, ... -> unsupported unless present in data -> ok:false downstream
 }
 function cur(market) { const d = data(); return (d.currency && d.currency[normMarket(market)]) || (normMarket(market) === 'UK' ? 'GBP' : 'USD'); }
 function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
@@ -61,7 +100,10 @@ function projectCurrentMonth(monthly) {
 function performance(market) {
   const mk = normMarket(market);
   const m = (data().markets || {})[mk];
-  if (!m) return { ok: false, market: mk, error: `No market analytics for ${mk} — only US and UK order exports exist.` };
+  if (!m) {
+    const have = Object.keys((data().markets) || {}).join(', ') || 'none';
+    return { ok: false, market: mk, error: `No market analytics loaded for ${mk} yet. Available now: ${have}. To add ${mk}, authorize the ${mk} Shopify store via the connected Shopify MCP (or drop its CSV export) — no numbers are ever fabricated for a market we have no data for.` };
+  }
   const monthly = m.monthly || [];
   const topRev = (m.top_products || []).slice(0, 10);
   const topQty = (m.top_by_qty || m.top_products || []).slice().sort((a, b) => (b.quantity || 0) - (a.quantity || 0)).slice(0, 10);
@@ -69,9 +111,12 @@ function performance(market) {
     const a = monthly[monthly.length - 1], b = monthly[monthly.length - 2];
     return { latest: monthLabel(a.month), latest_sales: round2(a.sales), prev: monthLabel(b.month), prev_sales: round2(b.sales), change_pct: pctChange(a.sales, b.sales), note: 'latest month is partial — compare with the run-rate projection, not the raw month total' };
   })() : null;
+  const src = m.live ? `Live Shopify Admin snapshot (${m.live.store_url || m.live.shop || 'connected store'}, pulled ${m.live.pulled_at || 'recently'})` : 'Real Shopify CSV export';
   return {
     ok: true, market: mk, currency: cur(mk),
-    window_note: `Real Shopify export${monthly.length ? ` covering ${monthLabel(monthly[0].month)} → ${monthLabel(monthly[monthly.length - 1].month)}` : ''}. The latest month is partial (in progress).`,
+    data_source: m.live ? 'shopify_admin_live' : 'shopify_csv_export',
+    live: m.live || null,
+    window_note: `${src}${monthly.length ? ` covering ${monthLabel(monthly[0].month)} → ${monthLabel(monthly[monthly.length - 1].month)}` : ''}. The latest month is partial (in progress).`,
     summary: m.summary || null,
     top_products_by_revenue: topRev,
     top_products_by_units: topQty,
@@ -80,6 +125,8 @@ function performance(market) {
     current_month_projection: projectCurrentMonth(monthly),
     product_types: (m.product_types || []).slice(0, 12),
     channels: m.channels || [],
+    referrers: m.referrers || [],
+    sessions: m.sessions || [],
     discount_split: m.discount || [],
     returning_customer_rate: m.summary ? round2((m.summary.returning_rate || 0) * 100) : null,
   };
