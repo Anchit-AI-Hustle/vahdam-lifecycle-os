@@ -173,6 +173,11 @@
   .site footer a{color:#cfe0d5;text-decoration:none;display:block;padding:5px 0;font-size:14px}
   .site footer a:hover{color:#fff}
   .site footer h5{font-family:var(--head);color:#FBF5EA;font-size:16px;margin-bottom:8px}
+  /* ── Luxury scroll-reveal: elements fade + rise as they enter the viewport,
+     with a per-item stagger. Disabled under prefers-reduced-motion. ── */
+  .reveal{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.7,.3,1),transform .8s cubic-bezier(.2,.7,.3,1);will-change:opacity,transform}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){ .reveal{opacity:1;transform:none;transition:none} }
   @media (min-width:721px){
     .colgrid{grid-template-columns:repeat(4,1fr)}
     .pgrid{grid-template-columns:repeat(4,1fr)}
@@ -368,6 +373,27 @@ function renderFallback(tag){
 }
 function note(msg){ const l=$('loading'); if(!l)return; l.style.display='flex'; l.textContent=msg; setTimeout(()=>{l.style.display='none';},4500); }
 
+// Scroll-reveal: fade + rise content as it enters the viewport, staggered within
+// each section. Dependency-free (IntersectionObserver). Reduced-motion → instant.
+function setupReveal(){
+  const items=document.querySelectorAll('main.site .sec-eyebrow, main.site .sec-h, main.site .sec-sub, main.site .coltile, main.site .pcard, main.site .trust>div, main.site footer .inner>div, main.site .story>*');
+  if(!items.length) return;
+  if(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches){ items.forEach(el=>el.classList.add('in')); return; }
+  // stagger index resets per parent section so each block cascades on its own
+  const perSection=new Map();
+  items.forEach(el=>{
+    el.classList.add('reveal');
+    const sec=el.closest('section, footer')||el.parentNode;
+    const n=(perSection.get(sec)||0); perSection.set(sec,n+1);
+    el.style.transitionDelay=Math.min(n*60,360)+'ms';
+  });
+  if(!('IntersectionObserver' in window)){ items.forEach(el=>el.classList.add('in')); return; }
+  const io=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  },{threshold:0.12, rootMargin:'0px 0px -8% 0px'});
+  items.forEach(el=>io.observe(el));
+}
+
 // Full-depth scroll content: collection tiles (filter the hero), a bestsellers
 // grid with REAL PDP links, and a footer with real store + region links.
 function renderContent(){
@@ -421,6 +447,7 @@ async function init(){
   state.products=await loadCatalog();
   renderCheckout();
   renderContent();   // populate the full-depth scroll sections (works with 3D or 2D)
+  setupReveal();     // luxury scroll-reveal on the content sections
   if(state.usedFallback) note(`Live ${RC.label} catalog unavailable right now — showing a limited sample. Product links still open the ${RC.label} store.`);
 
   // qty + variation wiring (works in both 3D and 2D)
