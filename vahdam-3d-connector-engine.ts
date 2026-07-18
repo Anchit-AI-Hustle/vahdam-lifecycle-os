@@ -485,7 +485,7 @@ export class DataResolver {
     let cursor: string | null = null;
     const pageSize = Math.min(opts.limit ?? 250, 250);
     for (let guard = 0; guard < 20; guard++) {
-      const res = await fetchJson<any>(
+      const res: Result<any> = await fetchJson<any>(
         this.cfg,
         url,
         {
@@ -500,7 +500,7 @@ export class DataResolver {
         'shopify_storefront_api',
       );
       if (!res.ok) return res;
-      const conn = res.value?.data?.products;
+      const conn: any = res.value?.data?.products;
       if (!conn) return err({ code: 'bad_response', message: 'Storefront API returned no products connection', source: 'shopify_storefront_api' });
       for (const edge of conn.edges || []) {
         out.push(normalizeStorefrontNode(edge.node, region));
@@ -962,10 +962,10 @@ export function createReactBinding(React: any): {
   const Ctx = React.createContext(null);
 
   function Provider(props: { config?: Partial<EngineConfig>; children?: any }) {
-    const engineRef = React.useRef<Vahdam3DConnectorEngine | null>(null);
+    const engineRef = React.useRef(null);
     if (!engineRef.current) engineRef.current = new Vahdam3DConnectorEngine(props.config || {});
     const engine = engineRef.current as Vahdam3DConnectorEngine;
-    const [state, setState] = React.useState<EngineState>(engine.getState());
+    const [state, setState] = React.useState(engine.getState());
 
     React.useEffect(() => {
       const off = engine.subscribe(setState);
