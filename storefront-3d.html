@@ -567,16 +567,43 @@ async function start3D(){
       leaf.userData = { rise: 0.15 + Math.random() * 0.35, spin: (Math.random() - 0.5) * 0.9, sway: Math.random() * 6.28, swayAmp: 0.2 + Math.random() * 0.5 };
       scene.add(leaf); leaves.push(leaf);
     }
-    // steam wisps rising near the front-centre (the "poured cup")
-    const steamGeo = new THREE.PlaneGeometry(0.55, 1.6);
-    for (let i = 0; i < 7; i++) {
+    // steam wisps rising FROM the cup rim (front-centre); intensity tracks fill
+    const steamGeo = new THREE.PlaneGeometry(0.4, 1.3);
+    for (let i = 0; i < 8; i++) {
       const mat = new THREE.MeshBasicMaterial({ color: 0xFBF5EA, transparent: true, opacity: 0.05, depthWrite: false });
       const w = new THREE.Mesh(steamGeo, mat);
-      w.position.set((Math.random() - 0.5) * 2.4, -1.6 + Math.random() * 3.5, 1.4 + Math.random());
-      w.userData = { rise: 0.28 + Math.random() * 0.4, drift: (Math.random() - 0.5) * 0.15 };
+      w.position.set((Math.random() - 0.5) * 0.7, -1.15 + Math.random() * 2.2, 2.35 + (Math.random() - 0.5) * 0.3);
+      w.userData = { rise: 0.3 + Math.random() * 0.4, drift: (Math.random() - 0.5) * 0.12 };
       scene.add(w); steam.push(w);
     }
   }
+
+  // ── Signature CUP PREPARATION centrepiece: a ceramic cup that fills with
+  // freshly-steeped tea on a loop, steam rising from the rim. Stationary front-
+  // centre (NOT on the spinning carousel). Static-full under reduced motion. ──
+  const cup = new THREE.Group();
+  cup.position.set(0, -1.82, 2.35);
+  scene.add(cup);
+  const ceramic = new THREE.MeshStandardMaterial({ color: 0xFBF5EA, roughness: 0.38, metalness: 0.05 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xAB8743, roughness: 0.3, metalness: 0.75 });
+  (function buildCup() {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.38, 0.6, 40, 1, true), ceramic); body.position.y = 0.32; cup.add(body);
+    const bottom = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.02, 40), ceramic); bottom.position.y = 0.03; cup.add(bottom);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.02, 12, 40), goldMat); rim.rotation.x = Math.PI / 2; rim.position.y = 0.62; cup.add(rim);
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.045, 12, 26), ceramic); handle.position.set(0.53, 0.34, 0); handle.rotation.y = Math.PI / 2; cup.add(handle);
+    const saucer = new THREE.Mesh(new THREE.CylinderGeometry(0.84, 0.84, 0.03, 46), ceramic); saucer.position.y = -0.01; cup.add(saucer);
+    const saucerRim = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.015, 12, 46), goldMat); saucerRim.rotation.x = Math.PI / 2; saucerRim.position.y = 0.01; cup.add(saucerRim);
+  }());
+  const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.36, 1, 40),
+    new THREE.MeshStandardMaterial({ color: 0x7a3b12, roughness: 0.18, metalness: 0.12, transparent: true, opacity: 0.96 }));
+  cup.add(liquid);
+  const pour = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.03, 0.62, 12),
+    new THREE.MeshStandardMaterial({ color: 0x8a4416, transparent: true, opacity: 0.85 }));
+  pour.position.set(0, 0.95, 0); cup.add(pour);
+  const cupState = { phase: 'pour', t: 0, level: 0 };
+  function setCupLevel(v) { const h = Math.max(0.001, v * 0.5); liquid.scale.y = h; liquid.position.y = 0.06 + h / 2; liquid.visible = v > 0.02; }
+  setCupLevel(reduceMotion ? 0.86 : 0);
+  if (reduceMotion) pour.visible = false;
 
   // drag to rotate
   let drag=false,px=0,vel=0,targetVel=0;
@@ -623,12 +650,28 @@ async function start3D(){
       l.rotation.z += l.userData.spin*dt; l.rotation.x += l.userData.spin*0.6*dt;
       if(l.position.y > 6){ l.position.y = -6; l.position.x = (Math.random()-0.5)*15; }
     }
-    // rising steam wisps (fade with height, always face camera)
+    // CUP PREPARATION loop: pour → steep → drain → repeat (skipped if reduced motion)
+    if(!reduceMotion){
+      cupState.t += dt;
+      if(cupState.phase==='pour'){
+        cupState.level = Math.min(0.86, cupState.level + dt*0.32); setCupLevel(cupState.level);
+        pour.visible = true; pour.position.x = Math.sin(t/120)*0.015; // subtle stream wobble
+        if(cupState.level>=0.86){ cupState.phase='steep'; cupState.t=0; pour.visible=false; }
+      } else if(cupState.phase==='steep'){
+        if(cupState.t>3.4){ cupState.phase='drain'; cupState.t=0; }
+      } else if(cupState.phase==='drain'){
+        cupState.level = Math.max(0, cupState.level - dt*0.85); setCupLevel(cupState.level);
+        if(cupState.level<=0){ cupState.phase='pour'; cupState.t=0; }
+      }
+      cup.rotation.y = Math.sin(t/2600)*0.12; // gentle presentation turn
+    }
+    // rising steam wisps from the cup — more steam when the cup is fuller/hotter
+    const steamGain = reduceMotion ? 0.7 : (0.28 + cupState.level*0.85);
     for(let si=0; si<steam.length; si++){ const w=steam[si];
       w.position.y += w.userData.rise*dt; w.position.x += w.userData.drift*dt;
-      w.material.opacity = Math.max(0, 0.09*(1 - (w.position.y+1.6)/5.2));
+      w.material.opacity = Math.max(0, 0.12*steamGain*(1 - (w.position.y+1.15)/4.0));
       w.lookAt(camera.position.x, w.position.y, camera.position.z);
-      if(w.position.y > 3.6){ w.position.y = -1.6; w.position.x = (Math.random()-0.5)*2.4; }
+      if(w.position.y > 2.4){ w.position.y = -1.15; w.position.x = (Math.random()-0.5)*0.7; }
     }
     // Scroll parallax: the 3D backdrop rises, dollies in slightly and tilts as
     // the page scrolls, so depth carries through the whole page (not just hero).
