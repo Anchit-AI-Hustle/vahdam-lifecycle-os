@@ -295,6 +295,27 @@ function sanitizeReply(raw) {
   return s;
 }
 
+// A PUBLISHABLE final answer — never blank, never raw JSON/array scaffolding like
+// the "[ ]" a stray {"action":"final","reply":[]} used to render. Returns '' when
+// the text is unusable so the caller can synthesize a real fallback instead.
+function cleanFinal(raw) {
+  let r = sanitizeReply(typeof raw === 'string' ? raw : (raw == null ? '' : JSON.stringify(raw)));
+  r = String(r || '').trim();
+  if (!r) return '';
+  if (/^[\[\]{}()\s"'`,:;.\-]*$/.test(r)) return '';        // only brackets/punctuation/whitespace
+  if (/^[\[{][\s\S]*[\]}]$/.test(r) && !/\s[a-z]/i.test(r.replace(/["'\[\]{}:,]/g, ''))) return ''; // a bare JSON blob
+  return r;
+}
+// When the model returns nothing usable, don't show a blank — summarize what the
+// tools actually returned (and point at the real cause: no funded text key).
+function synthFromWorking(working) {
+  if (working && working.length) {
+    const used = working.map((w) => w.tool).filter((v, i, a) => a.indexOf(v) === i);
+    return `I pulled live data from ${used.join(', ')}, but the language model did not return a written summary this turn — the exact figures are in the tool trace above. This usually means no funded text provider answered; set OPENAI_API_KEY or ANTHROPIC_API_KEY (or check quota) for full narrative answers. You can also ask me to "summarize what you found".`;
+  }
+  return 'I could not compose an answer just now. Please rephrase, or check that a text-LLM key (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY) is set and not quota-exhausted for this deployment.';
+}
+
 function systemPrompt(market) {
   return `You are ${BRAND_LLM_NAME} — ${BRAND_LLM_TAGLINE}. You are the in-house AI operator for VAHDAM Teas (premium Indian heritage tea, B-Corp, single-estate, garden-fresh within 72 hours). You don't just chat — you OPERATE the brand's growth stack by calling tools, then explain the results like a sharp, warm growth lead.
 
@@ -369,7 +390,7 @@ function renderTranscript(history, message, working) {
  * The conversational tool-calling loop.
  * @returns {ok, reply, steps:[{tool,args,summary}], provider, brand}
  */
-async function chat({ message, history = [], market = 'US', maxSteps = 4 } = {}) {
+async function chat({ message, history = [], market = 'US', maxSteps = 3 } = {}) {
   const brand = { name: BRAND_LLM_NAME, tagline: BRAND_LLM_TAGLINE };
   if (!message || !String(message).trim()) return { ok: false, error: 'message required', brand };
   if (!callLLM) {
@@ -380,15 +401,23 @@ async function chat({ message, history = [], market = 'US', maxSteps = 4 } = {})
   const working = [];
   const steps = [];
   let provider = null;
+  // Hard wall-clock budget so a turn can never stall like the old 105s runs: once
+  // a provider is pinned (see preferProvider below) later steps are fast, and if
+  // we near the budget we force a final synthesis instead of another tool round.
+  const t0 = Date.now();
+  const TURN_BUDGET_MS = 40000;   // total turn ceiling
+  const RESERVE_FINAL_MS = 12000; // keep this much for the closing answer
 
   for (let step = 0; step < maxSteps; step++) {
-    const force = step === maxSteps - 1;
+    const nearDeadline = (Date.now() - t0) > (TURN_BUDGET_MS - RESERVE_FINAL_MS);
+    const force = step === maxSteps - 1 || nearDeadline;
     const userMessage = renderTranscript(history, message, working) +
       (force ? '\n\nYou have gathered enough. Respond with {"action":"final",...} now — do not call more tools.' : '');
     // maxTokens is a cap, not a target: tool actions stay tiny, but detailed
-    // evidence-backed finals get room. 20s timeout per provider keeps a hung
-    // provider from stalling the turn — the cascade moves on instead.
-    const llmOpts = { systemPrompt: sys, userMessage, responseFormat: { type: 'json_object' }, maxTokens: 2800, temperature: 0.4, timeoutMs: 15000, stage: 'chaigpt', tier: 'premium' };
+    // evidence-backed finals get room. A tighter 9s per-provider timeout means a
+    // dead/quota'd key is skipped fast instead of stalling the whole turn; the
+    // sticky provider then keeps subsequent steps quick.
+    const llmOpts = { systemPrompt: sys, userMessage, responseFormat: { type: 'json_object' }, maxTokens: 2600, temperature: 0.4, timeoutMs: force ? 14000 : 9000, stage: 'chaigpt', tier: 'premium' };
     let out;
     try {
       // Sticky provider: once a provider answers, later steps of this turn go
@@ -410,14 +439,14 @@ async function chat({ message, history = [], market = 'US', maxSteps = 4 } = {})
     // No parseable action → the model replied in prose (ignored JSON mode) or
     // truncated. Salvage a CLEAN answer; never dump raw scaffolding/instructions.
     if (!parsed || !parsed.action) {
-      const salvaged = sanitizeReply(text);
-      const junk = !salvaged || /^\{|"action"\s*:/.test(salvaged);
-      return { ok: true, brand, provider, steps, reply: junk
-        ? 'Sorry, I could not compose a clean answer to that. Could you rephrase or narrow the question a little?'
-        : salvaged };
+      const salvaged = cleanFinal(text);
+      return { ok: true, brand, provider, steps, reply: salvaged || synthFromWorking(working) };
     }
 
-    if (parsed.action === 'final') return { ok: true, brand, provider, steps, reply: sanitizeReply(parsed.reply) || 'Done.' };
+    if (parsed.action === 'final') {
+      const rep = cleanFinal(parsed.reply);
+      return { ok: true, brand, provider, steps, reply: rep || synthFromWorking(working) };
+    }
 
     if (parsed.action === 'tool' || parsed.action === 'tools') {
       // Accept a single tool or a batch — batched lookups execute in parallel.
@@ -449,12 +478,12 @@ async function chat({ message, history = [], market = 'US', maxSteps = 4 } = {})
     }
 
     // Unknown action shape → salvage a clean answer, never raw scaffolding.
-    const salv = sanitizeReply(text);
-    return { ok: true, brand, provider, steps, reply: (salv && !/^\{|"action"\s*:/.test(salv)) ? salv : 'Sorry, I could not compose a clean answer to that. Could you rephrase?' };
+    const salv = cleanFinal(text);
+    return { ok: true, brand, provider, steps, reply: salv || synthFromWorking(working) };
   }
 
-  // Exhausted steps without a final — synthesize from gathered results.
-  return { ok: true, brand, provider, steps, reply: 'I gathered the data above but ran out of reasoning steps before composing a summary. Ask me to "summarize what you found" and I will.' };
+  // Exhausted steps without a final — synthesize from gathered results (never blank).
+  return { ok: true, brand, provider, steps, reply: synthFromWorking(working) };
 }
 
 module.exports = { chat, toolManifest, TOOLS, BRAND_LLM_NAME, BRAND_LLM_TAGLINE, sanitizeReply, catalogProducts };
