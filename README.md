@@ -10,6 +10,13 @@ retention dashboard + calendar generator on top.
 
 ---
 
+## 🛠 Development guide
+
+- **How it's built (architecture + build narrative):** [`DEVELOPMENT.md`](DEVELOPMENT.md)
+  — the 12-function Hobby-cap strategy, the think→lock→execute mailer pipeline, the
+  8-provider LLM cascade, Smart Brain, the data layer, guardrails, mobile, CI, and
+  a "where to make common changes" map.
+
 ## 📄 PRD & business deck
 
 - **Complete PRD (v1.0):** [`docs/PRD.md`](docs/PRD.md) — vision, origin story, every
