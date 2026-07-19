@@ -267,18 +267,19 @@
     { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
-    { id: 'storefront3d', label: '3D Storefront', href: '/3d', icon: 'vahdam', ver: 'v2', match: ['/3d', '/storefront-3d', '/shop-3d', '/storefront-3d.html', '/official-designs', '/official-designs.html', '/store-3d', '/designs'] },
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
       { id: 'ads-google',  label: 'Google Ads', href: '/ad-campaigns.html#google',   icon: 'google' },
       { id: 'ads-tiktok',  label: 'TikTok Ads', href: '/ad-campaigns.html#tiktok',   icon: 'tiktok' },
     ]},
-    { group: 'Website Designs', icon: 'landing', gid: 'landing', ver: 'v1', children: [
-      { id: 'lp-overview', label: 'Designs Overview', href: '/website-designs', icon: 'landing', match: ['/website-designs', '/website-designs.html'] },
-      { id: 'web-us', label: 'US Website', href: '/website-designs?market=US', icon: 'vahdam' },
-      { id: 'web-uk', label: 'UK Website', href: '/website-designs?market=UK', icon: 'vahdam' },
-      { id: 'web-global', label: 'Global Website', href: '/website-designs?market=GLOBAL', icon: 'vahdam' },
+    { group: '3D Storefront & Websites', icon: 'landing', gid: 'landing', ver: 'v2', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d', '/store-3d', '/official-designs', '/official-designs.html', '/designs'], children: [
+      { id: 'store3d-all', label: '3D Storefront (overview)', href: '/3d', icon: 'vahdam', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d'] },
+      { id: 'web-us',     label: '🇺🇸 US Website',     href: '/3d/us',     icon: 'vahdam', match: ['/3d/us', '/store-3d-us'] },
+      { id: 'web-uk',     label: '🇬🇧 UK Website',     href: '/3d/uk',     icon: 'vahdam', match: ['/3d/uk', '/store-3d-uk'] },
+      { id: 'web-global', label: '🌍 Global Website',  href: '/3d/global', icon: 'vahdam', match: ['/3d/global', '/store-3d-global'] },
+      { id: 'web-india',  label: '🇮🇳 India Website',  href: '/3d/in',     icon: 'vahdam', match: ['/3d/in', '/3d/india', '/store-3d-in'] },
+      { id: 'lp-overview', label: 'Design References', href: '/website-designs', icon: 'landing', match: ['/website-designs', '/website-designs.html'] },
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
       { id: 'lp-best-3d', label: '★ 3D Agent Page (motion)', href: '/lp/best-3d', icon: 'vahdam', match: ['/lp/best-3d'] },
       { id: 'lp-agent',   label: 'Landing Page with All-In-One Voice+Chat+Talk Agent',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },

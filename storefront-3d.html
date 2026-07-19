@@ -162,6 +162,12 @@
     linear-gradient(150deg, #0f4a2c 0%, #004A2B 55%, #072616 100%)}
   .coltile:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.35)}
   .coltile>span{position:relative;z-index:2}
+  /* Why-VAHDAM benefits band */
+  .benefits{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-top:22px}
+  .bcard{background:rgba(4,32,20,.5);border:1px solid rgba(171,135,67,.3);border-radius:16px;padding:22px 20px}
+  .bcard .bicon{font-size:26px;margin-bottom:10px}
+  .bcard h4{font-family:var(--head);font-size:19px;color:var(--fg);margin:0 0 6px}
+  .bcard p{color:var(--sub);font-size:13.5px;line-height:1.55;margin:0}
   /* product grid */
   .pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
   .pcard{display:flex;flex-direction:column;background:#fff;border:1px solid rgba(171,135,67,.2);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--ink)}
@@ -260,6 +266,17 @@
     <div class="sec-eyebrow">Our origin</div>
     <h2 class="sec-h">From the garden, within 48 hours</h2>
     <p class="sec-sub" style="margin:0 auto;color:#dce8df">There is a moment when the right cup of tea does more than warm your hands. VAHDAM sources single-estate leaves and ships them fresh from India, so every steep carries the season it was picked in.</p>
+  </section>
+
+  <section id="why-sec">
+    <div class="sec-eyebrow">Why VAHDAM</div>
+    <h2 class="sec-h">Tea worth the ritual</h2>
+    <div class="benefits">
+      <div class="bcard"><div class="bicon">🌿</div><h4>Single-estate, garden-fresh</h4><p>Leaves picked at peak season and shipped fresh from India within 48 hours, never blended into anonymity.</p></div>
+      <div class="bcard"><div class="bicon">⭐</div><h4>Rated 4.9 / 5</h4><p>Over 250,000 five-star reviews from tea drinkers around the world.</p></div>
+      <div class="bcard"><div class="bicon">✨</div><h4>Oprah's Favorite Things</h4><p>A celebrated pick on Oprah's Favorite Things list.</p></div>
+      <div class="bcard"><div class="bicon">🤝</div><h4>Ethically sourced</h4><p>Bought direct from the gardens that grow it, so the ritual is fair from leaf to cup.</p></div>
+    </div>
   </section>
 
   <section class="trust">
@@ -420,7 +437,7 @@ function note(msg){ const l=$('loading'); if(!l)return; l.style.display='flex'; 
 // Scroll-reveal: fade + rise content as it enters the viewport, staggered within
 // each section. Dependency-free (IntersectionObserver). Reduced-motion → instant.
 function setupReveal(){
-  const items=document.querySelectorAll('main.site .sec-eyebrow, main.site .sec-h, main.site .sec-sub, main.site .coltile, main.site .pcard, main.site .trust>div, main.site footer .inner>div, main.site .story>*');
+  const items=document.querySelectorAll('main.site .sec-eyebrow, main.site .sec-h, main.site .sec-sub, main.site .coltile, main.site .pcard, main.site .bcard, main.site .trust>div, main.site footer .inner>div, main.site .story>*');
   if(!items.length) return;
   if(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches){ items.forEach(el=>el.classList.add('in')); return; }
   // stagger index resets per parent section so each block cascades on its own
