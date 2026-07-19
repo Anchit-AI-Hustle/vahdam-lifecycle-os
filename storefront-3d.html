@@ -153,8 +153,12 @@
   /* collection tiles */
   .colgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   .coltile{display:flex;align-items:flex-end;min-height:120px;padding:14px;border-radius:16px;text-decoration:none;
-    color:#FBF5EA;font-family:var(--head);font-size:20px;background:var(--green);border:1px solid rgba(171,135,67,.3)}
+    color:#FBF5EA;font-family:var(--head);font-size:20px;background:var(--green);border:1px solid rgba(171,135,67,.3);
+    background-size:cover;background-position:center;position:relative;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.55);transition:transform .18s ease,box-shadow .18s ease}
   .coltile:nth-child(even){background:#0a3d24}
+  .coltile[style*="url"]:nth-child(even),.coltile[style*="url"]{background-color:#0a3d24}
+  .coltile:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.35)}
+  .coltile>span{position:relative;z-index:2}
   /* product grid */
   .pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
   .pcard{display:flex;flex-direction:column;background:#fff;border:1px solid rgba(171,135,67,.2);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--ink)}
@@ -344,6 +348,16 @@ function hasWebGL(){try{const c=document.createElement('canvas');return !!(c.get
 // Collection filter state + engine hook (set by start3D for 3D, else 2D grid).
 let PANELS=[], IS3D=false, CUR_TAG=null;
 function productMatches(p,tag){ return !tag || (p&&p.tags||[]).some(t=>t.includes(tag)); }
+// A representative REAL product image for a collection tile (zero fabrication):
+// the first catalog product whose tags match the collection, else any product
+// with an image. Returns null only if the catalog has no images at all.
+function collectionImage(name){
+  const tag=COLLECTION_TAGS[name];
+  const pool=(state.all&&state.all.length)?state.all:state.products;
+  let hit=pool.find(p=>p.img&&productMatches(p,tag));
+  if(!hit) hit=pool.find(p=>p.img);
+  return hit?hit.img:null;
+}
 // Seed the 3D atelier (limited number of panels) with products spanning EVERY
 // collection, so each collection filter reveals its own real products instead of
 // hiding a random slice of the first 12. The 2D grid below still lists the full
@@ -414,7 +428,11 @@ function setupReveal(){
 function renderContent(){
   const ct=$('colTiles');
   if(ct){
-    ct.innerHTML=COLLECTIONS.map(c=>`<a class="coltile" href="#stage" data-c="${c}">${c}</a>`).join('');
+    ct.innerHTML=COLLECTIONS.map(c=>{
+      const img=collectionImage(c);
+      const bg=img?`style="background-image:linear-gradient(160deg,rgba(0,32,20,.12) 0%,rgba(0,32,20,.72) 100%),url('${img}')"`:'';
+      return `<a class="coltile" href="#stage" data-c="${c}" ${bg}><span>${c}</span></a>`;
+    }).join('');
     ct.querySelectorAll('.coltile').forEach(a=>a.addEventListener('click',ev=>{
       ev.preventDefault();
       const name=a.getAttribute('data-c');
