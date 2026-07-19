@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SteepSense — VAHDAM's brand intelligence</title>
+<title>ChaiGPT — VAHDAM's brand intelligence</title>
 <style>
   /* Brand-green canvas, consistent with the shared dark shell (theme.css).
      Background is always forest/dark green; text is cream/white + gold. */
@@ -84,7 +84,7 @@
     <input id="q" placeholder="Ask me to analyze, plan, generate, or check Klaviyo — e.g. “what's our best cohort and plan a winback campaign”" autocomplete="off">
     <button class="btn send" id="send">Send</button>
   </div>
-  <div class="foot">SteepSense runs real tools on VAHDAM data. It never invents figures — if data isn't connected, it tells you what to set.</div>
+  <div class="foot">ChaiGPT runs real tools on VAHDAM data. It never invents figures — if data isn't connected, it tells you what to set.</div>
 </div>
 
 <script src="/auth.js?v=20260718light" defer></script>
@@ -171,9 +171,9 @@
     var PHASES=['reading your data','running the tools','checking benchmarks','composing the answer'];
     var tick=setInterval(function(){
       var secs=Math.round((Date.now()-t0)/1000);
-      t.textContent='SteepSense is '+PHASES[Math.min(Math.floor(secs/6),PHASES.length-1)]+'… '+secs+'s';
+      t.textContent='ChaiGPT is '+PHASES[Math.min(Math.floor(secs/6),PHASES.length-1)]+'… '+secs+'s';
     },1000);
-    t.textContent='SteepSense is '+PHASES[0]+'…';
+    t.textContent='ChaiGPT is '+PHASES[0]+'…';
     try{
       var r=await fetch(API+'?action=brand-chat',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({message:msg, history:history.slice(-12), market:marketEl.value})});
@@ -201,7 +201,7 @@
   }).catch(function(){});
 
   renderSuggestions();
-  addBot('Namaste — I’m **SteepSense**, VAHDAM’s brand intelligence. Ask me to analyze the business, read the calendar, generate a campaign, check competitors, or work your Klaviyo lifecycle. I’ll run the real tools and show my work.');
+  addBot('Namaste — I’m **ChaiGPT**, VAHDAM’s brand intelligence. Ask me to analyze the business, read the calendar, generate a campaign, check competitors, or work your Klaviyo lifecycle. I’ll run the real tools and show my work.');
 })();
 </script>
 </body>

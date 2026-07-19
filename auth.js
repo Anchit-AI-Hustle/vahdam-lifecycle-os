@@ -295,11 +295,11 @@
     { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
 
     { section: 'Assistants' },
-    // SteepSense (internal team chat/info tool) and Vahdam Agent (customer-facing
+    // ChaiGPT (internal team chat/info tool) and Vahdam Agent (customer-facing
     // concierge) are conversational assistants and stay here. The former Smart
     // Brain moved to Plan and was renamed Automated Calendar Creation — it is a
     // calendar-creation feature, not a chat assistant, so it no longer lives here.
-    { id: 'chaigpt', label: 'SteepSense',   href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
+    { id: 'chaigpt', label: 'ChaiGPT',   href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
     { id: 'agent',   label: 'Vahdam Agent', href: '/agent',   icon: 'vahdam', ver: 'v1', match: ['/agent', '/agent.html'] },
 
     { section: 'Settings' },
@@ -352,8 +352,8 @@
       ]
     },
     chaigpt: {
-      title: 'SteepSense',
-      what: "INTERNAL TOOL, for the VAHDAM team only (not customer-facing). SteepSense is VAHDAM's own brand LLM: a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
+      title: 'ChaiGPT',
+      what: "INTERNAL TOOL, for the VAHDAM team only (not customer-facing). ChaiGPT is VAHDAM's own brand LLM: a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
       who: "The operator (growth and retention team). Its recommendations span every cohort — the nine RFM segments (Champions through Lost) and the UK engagement cohorts (Non-Buyers/Non-Engagers and T&B Buyers/Non-Engagers).",
       how: "A provider-agnostic tool-calling loop: the model emits strict JSON actions, the server executes them against the same _shared cores the public API routes use, feeds results back, and loops (default 5 steps, up to 3 tools in parallel). Because tool calls are plain JSON, it works across the whole 6-provider text waterfall, including free tiers. An evidence contract forces every recommendation to quote exact tool-sourced figures.",
       input: "A plain-English question or instruction in the chat. Write and generate tools (generate_calendar, generate_assets_for_slot, run_agentic_campaign, klaviyo) fire only when you explicitly ask.",
@@ -476,13 +476,13 @@
         ['Classify', 'LLM classification tags each email with its angle, offer, and structure.', '/api/kb?action=classify-emails'],
         ['Brand-tag', 'Assets are attributed to brands, cross-referencing Competitor Benchmarking.', '/api/kb?action=brands'],
         ['Rank', 'Top-performing emails are ranked and kept fresh.', '/api/kb?action=top-emails'],
-        ['Serve', 'Generators and SteepSense search this library while writing new work.', '/api/kb?action=list'],
+        ['Serve', 'Generators and ChaiGPT search this library while writing new work.', '/api/kb?action=list'],
       ],
     },
     competitor: {
       title: 'Competitor Benchmarking',
       what: "Competitor intelligence: captures rival tea, coffee, and wellness brands' marketing emails from a dedicated Gmail inbox into a Google Sheet, renders them for side-by-side study, and distils benchmarks — cadence, offer depth, creative angles. It also owns brand discovery.",
-      who: "The strategy layer. Benchmarks feed SteepSense's evidence contract, Smart Brain planning, and the human planner — informing campaigns for every cohort.",
+      who: "The strategy layer. Benchmarks feed ChaiGPT's evidence contract, Smart Brain planning, and the human planner — informing campaigns for every cohort.",
       how: "One router dispatched by ?action=list|html|poll|sync. Poll reads the capture inbox over IMAP; parsed emails become rows (columns A–K) in the Google Sheet database; sync runs on a CRON_SECRET-protected schedule. Google auth is keyless via Workload Identity Federation (Vercel OIDC → Google STS → service-account impersonation), with a legacy JSON-key fallback.",
       input: "Subscribe the capture inbox to competitor newsletters — the system does the rest. Optionally add brands to discover and track.",
       steps: [
@@ -490,7 +490,7 @@
         ['Poll', 'IMAP polling pulls new messages and parses brand, subject, offer, and full HTML.', '/api/competitor?action=poll'],
         ['Store', 'Each email becomes a row (columns A–K) in the Google Sheet via keyless WIF auth.', '/api/competitor?action=sync (cron)'],
         ['Browse', 'The page lists captured emails and renders their full HTML for study.', '/api/competitor?action=list · ?action=html'],
-        ['Benchmark', 'Cadence, offer, and angle insights feed SteepSense, Smart Brain, and human planning.'],
+        ['Benchmark', 'Cadence, offer, and angle insights feed ChaiGPT, Smart Brain, and human planning.'],
       ],
     },
     calendar: {

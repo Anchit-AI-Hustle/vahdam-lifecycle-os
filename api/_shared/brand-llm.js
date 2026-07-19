@@ -15,7 +15,7 @@
  * Rename the product: change BRAND_LLM_NAME below (single source of truth).
  */
 
-const BRAND_LLM_NAME = 'SteepSense';
+const BRAND_LLM_NAME = 'ChaiGPT';
 const BRAND_LLM_TAGLINE = "VAHDAM's brand intelligence — steeped in your own data";
 
 const core = require('./brain-core.js');
