@@ -88,10 +88,23 @@
 </div>
 
 <script src="/auth.js?v=20260718light" defer></script>
+<script src="/chat-history.js"></script>
+<style>
+  .convobar{display:flex;gap:8px;align-items:center;margin:0 0 12px;position:relative;flex-wrap:wrap}
+  .cbtn{font:inherit;font-size:12px;font-weight:700;padding:7px 12px;border-radius:10px;border:1px solid rgba(171,135,67,.4);background:rgba(171,135,67,.12);color:var(--gold,#AB8743);cursor:pointer}
+  .cbtn:hover{background:rgba(171,135,67,.22)}
+  .histpanel{position:absolute;top:40px;left:0;z-index:20;min-width:280px;max-width:420px;max-height:340px;overflow:auto;background:#0b2c1c;border:1px solid rgba(171,135,67,.4);border-radius:12px;padding:6px;box-shadow:0 16px 40px rgba(0,0,0,.4)}
+  .hitem{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer;color:#e8f0ea}
+  .hitem:hover{background:rgba(171,135,67,.14)} .hitem.on{background:rgba(171,135,67,.22)}
+  .htitle{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hdel{background:none;border:0;color:#cdbf9a;cursor:pointer;font-size:12px} .hdel:hover{color:#ff9d8a}
+  .hempty{padding:14px;color:#cdbf9a;font-size:12px;text-align:center}
+</style>
 <script>
 (function(){
   'use strict';
   var API = '/api/brain';
+  var CH = (typeof VHChat === 'function') ? VHChat('chaigpt') : null;
   var history = [];
   var chatEl = document.getElementById('chat');
   var qEl = document.getElementById('q');
@@ -166,6 +179,7 @@
   async function ask(){
     var msg=qEl.value.trim(); if(!msg) return;
     qEl.value=''; addUser(msg); history.push({role:'user',content:msg});
+    if(CH) CH.append('user', msg);
     var t=document.createElement('div'); t.className='typing'; chatEl.appendChild(t); scroll();
     var t0=Date.now();
     var PHASES=['reading your data','running the tools','checking benchmarks','composing the answer'];
@@ -184,8 +198,10 @@
         var reply=j.reply||'(no response)';
         addBot(reply);
         history.push({role:'agent',content:reply});
+        if(CH) CH.append('agent', reply, (j.steps&&j.steps.length)?{steps:j.steps}:null);
       } else {
-        addBot('Something went wrong: '+escapeHtml(j.error||'unknown')+'.');
+        var em='Something went wrong: '+(j.error||'unknown')+'.';
+        addBot(em); if(CH) CH.append('agent', em);
       }
     }catch(e){ clearInterval(tick); t.remove(); addBot('I could not reach the brain just now — please try again in a moment.'); }
   }
@@ -200,8 +216,45 @@
     else { pill.className='pill off'; pill.textContent='Klaviyo: scaffolded (set KLAVIYO_API_KEY)'; }
   }).catch(function(){});
 
+  var GREETING = 'Namaste — I’m **ChaiGPT**, VAHDAM’s brand intelligence. Ask me to analyze the business, read the calendar, generate a campaign, check competitors, or work your Klaviyo lifecycle. I’ll run the real tools and show my work.';
+  function greet(){ addBot(GREETING); }
+
+  // ── Conversation history (saved locally; new / switch / continue) ──────────
+  function buildConvoBar(){
+    if(!CH || !chatEl || !chatEl.parentNode) return;
+    var bar=document.createElement('div'); bar.className='convobar';
+    bar.innerHTML='<button id="newChat" class="cbtn">＋ New chat</button><button id="histToggle" class="cbtn">🕘 History</button><div id="histPanel" class="histpanel" style="display:none"></div>';
+    chatEl.parentNode.insertBefore(bar, chatEl);
+    document.getElementById('newChat').onclick=function(){ CH.create(); chatEl.innerHTML=''; history=[]; greet(); renderHist(); };
+    document.getElementById('histToggle').onclick=function(){ var p=document.getElementById('histPanel'); p.style.display=(p.style.display==='none'?'block':'none'); renderHist(); };
+    document.addEventListener('click',function(e){ var p=document.getElementById('histPanel'); if(p&&p.style.display==='block'&&!e.target.closest('.convobar')) p.style.display='none'; });
+  }
+  function renderHist(){
+    var p=document.getElementById('histPanel'); if(!p) return;
+    var items=CH.list();
+    if(!items.length){ p.innerHTML='<div class="hempty">No saved conversations yet.</div>'; return; }
+    p.innerHTML=items.map(function(c){ return '<div class="hitem'+(c.id===CH.currentId()?' on':'')+'" data-id="'+c.id+'"><span class="htitle">'+escapeHtml(c.title||'New chat')+'</span><button class="hdel" data-del="'+c.id+'" title="Delete">✕</button></div>'; }).join('');
+    p.querySelectorAll('.hitem').forEach(function(el){ el.addEventListener('click',function(e){ if(e.target.closest('[data-del]'))return; loadConvo(el.getAttribute('data-id')); }); });
+    p.querySelectorAll('[data-del]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); CH.remove(b.getAttribute('data-del')); if(!CH.current()){ CH.create(); chatEl.innerHTML=''; history=[]; greet(); } renderHist(); }); });
+  }
+  function replay(convo){
+    chatEl.innerHTML=''; history=[];
+    var msgs=(convo&&convo.messages)||[];
+    if(!msgs.length){ greet(); return; }
+    msgs.forEach(function(m){
+      if(m.role==='user'){ addUser(m.text); history.push({role:'user',content:m.text}); }
+      else { if(m.steps) addTools(m.steps); addBot(m.text); history.push({role:'agent',content:m.text}); }
+    });
+  }
+  function loadConvo(id){ var c=CH.setCurrent(id); if(c){ replay(c); var p=document.getElementById('histPanel'); if(p)p.style.display='none'; } }
+
   renderSuggestions();
-  addBot('Namaste — I’m **ChaiGPT**, VAHDAM’s brand intelligence. Ask me to analyze the business, read the calendar, generate a campaign, check competitors, or work your Klaviyo lifecycle. I’ll run the real tools and show my work.');
+  if(CH){
+    buildConvoBar();
+    var lastC = CH.current() || CH.last();
+    if(lastC){ CH.setCurrent(lastC.id); replay(lastC); }
+    else { CH.create(); greet(); }
+  } else { greet(); }
 })();
 </script>
 </body>
