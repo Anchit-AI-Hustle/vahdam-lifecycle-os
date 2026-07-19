@@ -60,6 +60,24 @@
     } catch (_) {}
   })();
 
+  // ─── Shared motion layer: load /motion.js once on every page ────────────
+  // Additive scroll-reveal + depth choreography (Design DNA / Motion). It is
+  // fully fail-safe (never hides content if it doesn't run) and self-skips the
+  // frozen diff snapshot + reduced-motion users. Loaded deferred so it never
+  // blocks first paint.
+  (function ensureMotion() {
+    try {
+      if (IS_FROZEN_DIFF) return;
+      var d = document;
+      if (d.querySelector('script[data-vh-motion]')) return;
+      var s = d.createElement('script');
+      s.src = '/motion.js?v=20260719';
+      s.defer = true;
+      s.setAttribute('data-vh-motion', '1');
+      (d.head || d.documentElement).appendChild(s);
+    } catch (_) {}
+  })();
+
   // Theme switcher removed — the theme is locked to green (see theme.css).
   // Clean up the old floating button if a cached page still has one.
   (function removeLegacyThemeSwitch() {
