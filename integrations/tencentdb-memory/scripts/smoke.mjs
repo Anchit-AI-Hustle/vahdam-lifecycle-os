@@ -8,9 +8,11 @@
  *
  *   TDAI_GATEWAY_URL=http://127.0.0.1:8420 node scripts/smoke.mjs
  */
+import { randomUUID } from 'node:crypto';
 const BASE = (process.env.TDAI_GATEWAY_URL || 'http://127.0.0.1:8420').replace(/\/+$/, '');
 const KEY = process.env.TDAI_GATEWAY_API_KEY || '';
-const SESSION = process.env.TDAI_SESSION_KEY || 'smoke-' + Math.random().toString(36).slice(2, 8);
+// A throwaway session id for this run — cryptographically random, never from env.
+const SESSION = 'smoke-' + randomUUID().slice(0, 8);
 
 async function call(method, path, body) {
   const headers = { 'Content-Type': 'application/json' };

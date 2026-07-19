@@ -17,7 +17,7 @@
  * Config (env):
  *   TDAI_GATEWAY_URL      base URL of the running gateway (default http://127.0.0.1:8420)
  *   TDAI_GATEWAY_API_KEY  Bearer token, only if the gateway was started with one
- *   TDAI_SESSION_KEY      default session_key used when a tool call omits it
+ *   TDAI_SESSION          default session_key used when a tool call omits it
  *                         (default "claude-default"). Lets single-shot calls work.
  *   TDAI_HTTP_TIMEOUT_MS  per-request timeout (default 20000)
  */
@@ -26,7 +26,7 @@
 
 const GATEWAY = (process.env.TDAI_GATEWAY_URL || 'http://127.0.0.1:8420').replace(/\/+$/, '');
 const API_KEY = process.env.TDAI_GATEWAY_API_KEY || '';
-const DEFAULT_SESSION = process.env.TDAI_SESSION_KEY || 'claude-default';
+const DEFAULT_SESSION = process.env.TDAI_SESSION || 'claude-default';
 const TIMEOUT_MS = parseInt(process.env.TDAI_HTTP_TIMEOUT_MS || '20000', 10);
 const SERVER_INFO = { name: 'tencentdb-memory', version: '1.0.0' };
 const PROTOCOL_VERSION = '2024-11-05';
