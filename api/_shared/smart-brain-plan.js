@@ -827,30 +827,52 @@ async function writeCopyWithLLM(entry, fw = null, brief = null) {
   // generation with no fallback — one hiccup on that provider failed the whole
   // mailer. Copy is critical, so it must run the FULL cascaded waterfall every
   // time (OpenAI -> Anthropic -> Gemini -> Grok -> Groq -> Cerebras).
-  const res = await callLLMTiered({
-    systemPrompt: BRAND_SYSTEM + sysLine,
-    userMessage: copyPrompt(entry, fw, brief),
-    responseFormat: { type: 'json_object' },
-    // 1800 truncated the full email+landing+ads copy object on some providers, so
-    // the JSON came back incomplete and the whole mailer fell to template copy.
-    // 3200 gives the object room to close on every provider in the waterfall.
-    maxTokens: 3200,
-    temperature: 0.75,
-    timeoutMs: 40000,
-    stage: 'smart-brain-copy',
-    tier: 'premium',
-  });
-  const json = parseJSON(res.text);
-  if (!json || !json.email || !json.landing || !json.ads) {
-    // Distinguish the two real causes so the reviewer knows whether to fund a key
-    // or just Regenerate: empty text = no provider answered (quota/keys); non-empty
-    // but unparseable/partial = a provider replied with truncated or non-JSON copy.
+  // Copy is critical, so make it resilient to a transient rate-limit STORM (the
+  // free Gemini/Groq tiers can all 429 at once when Smart Brain fires many slots)
+  // AND to a reasoning-model TRUNCATION of the big email+landing+ads JSON. Each
+  // round re-runs the FULL premium->standard->fast waterfall; between rounds we
+  // back off (so per-minute limits reset) and widen maxTokens (so the object has
+  // more room to close). Only after every round fails do we surface the error that
+  // drops the slot to template copy.
+  const ROUNDS = [
+    { maxTokens: 3200, waitBefore: 0 },
+    { maxTokens: 4096, waitBefore: 2500 },
+    { maxTokens: 4096, waitBefore: 5000 },
+  ];
+  let lastErr;
+  for (let i = 0; i < ROUNDS.length; i++) {
+    const r = ROUNDS[i];
+    if (r.waitBefore) await new Promise((res) => setTimeout(res, r.waitBefore));
+    let res;
+    try {
+      res = await callLLMTiered({
+        systemPrompt: BRAND_SYSTEM + sysLine,
+        userMessage: copyPrompt(entry, fw, brief),
+        responseFormat: { type: 'json_object' },
+        maxTokens: r.maxTokens,
+        temperature: 0.75,
+        timeoutMs: 40000,
+        stage: 'smart-brain-copy',
+        tier: 'premium',
+      });
+    } catch (e) {
+      // Whole waterfall threw (every provider rate-limited/failed this round).
+      lastErr = new Error('no LLM provider returned copy (all text keys missing or quota-exhausted for this deployment)');
+      continue; // back off + retry the waterfall
+    }
+    let json = null;
+    try { json = parseJSON(res.text); } catch (_) { json = null; }
+    if (json && json.email && json.landing && json.ads) {
+      return { copy: json, provider: res.provider, model: res.model };
+    }
+    // Non-empty but incomplete/unparseable (usually a reasoning model truncating
+    // the big JSON). Retry with more room / a fresh roll of the waterfall.
     const empty = !res.text || !String(res.text).trim();
-    throw new Error(empty
+    lastErr = new Error(empty
       ? 'no LLM provider returned copy (all text keys missing or quota-exhausted for this deployment)'
-      : `LLM copy JSON incomplete from ${res.provider || 'provider'} (reply was ${String(res.text).length} chars) — Regenerate to retry the waterfall`);
+      : `LLM copy JSON incomplete from ${res.provider || 'provider'} (reply was ${String(res.text).length} chars)`);
   }
-  return { copy: json, provider: res.provider, model: res.model };
+  throw lastErr || new Error('copy generation failed');
 }
 
 // Deep brand scrub of an LLM copy object: every string through sanitizeBrand
@@ -1085,7 +1107,12 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
     const fwA = CF.pickCopyFramework({ play_key: entry.objective || '', cohort_key: (entry.cohort && (entry.cohort.key || entry.cohort.name)) || '', seed: entry.id || entry.date || '' });
     const otherKeys = Object.keys(CF.COPY_FRAMEWORKS).filter((k) => k !== fwA.key);
     const fwB = CF.frameworkByKey(otherKeys[CF.stableIndex(`${entry.id || entry.date || ''}|b`, otherKeys.length)]) || fwA;
-    const [pA, pB] = await Promise.allSettled([writeCopyWithLLM(entry, fwA, brief), writeCopyWithLLM(entry, fwB, brief)]);
+    // Stagger the two copy directions by ~600ms so they don't hit the same
+    // provider's per-minute limit in the exact same instant (reduces burst-429s).
+    const [pA, pB] = await Promise.allSettled([
+      writeCopyWithLLM(entry, fwA, brief),
+      (async () => { await new Promise((r) => setTimeout(r, 600)); return writeCopyWithLLM(entry, fwB, brief); })(),
+    ]);
     if (pA.status !== 'fulfilled' && pB.status !== 'fulfilled') {
       throw new Error('copy generation failed for both directions: ' + String((pA.reason && pA.reason.message) || pA.reason));
     }
