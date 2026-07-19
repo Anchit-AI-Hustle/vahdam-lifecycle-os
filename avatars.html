@@ -140,60 +140,6 @@ const PERSONAS = [
     churn:'No compelling second-order reason; taste or price expectation missed on first try.',
     cohorts:['Engagement: Cohort C - Non-Buyers / Engaged','Engagement: Cohort A - Non-Buyers / Non-Engagers','Lifecycle: NEW-00 Prospect / NEW-02 Second-Order Pending','RFM: New / About-to-Sleep','Product: Samplers / One-Time Buyers','Behavioral: Engaged Non-buyers / Discount Responsive / New Customers'] },
 ];
-const SIZING = [
-  {mv:'~$28B', ml:'US Coffee TAM', ms:'Total US coffee retail across all channels.'},
-  {mv:'~$4.5B', ml:'US Coffee D2C SAM', ms:'Direct-to-consumer, subscription and online-first coffee.'},
-  {mv:'~$650M', ml:'Functional Coffee SOM', ms:'Adaptogen / functional coffee VAHDAM realistically competes for.'},
-  {mv:'22 to 34%', ml:'Subscription attach', ms:'Share of functional-coffee buyers on an active subscription.'},
-];
-const BENCH = {
-  head:['Metric','Standard Coffee D2C','Functional / Wellness Coffee'],
-  rows:[
-    ['Blended CAC','$18 to $32','$38 to $65'],
-    ['Day-0 retention (repeat intent)','62 to 70%','70 to 80%'],
-    ['Day-30 retention','34 to 42%','44 to 55%'],
-    ['Day-180 retention','16 to 24%','28 to 38%'],
-    ['AOV','$26 to $38','$42 to $68'],
-    ['12-month LTV','$70 to $110','$150 to $260'],
-    ['LTV:CAC','2.8 to 3.6x','3.2 to 4.5x'],
-    ['Blended gross margin','55 to 65%','62 to 74%'],
-  ],
-};
-const BRANDS = {
-  head:['Brand','Category','Share tier','Primary channels','Retention stack','Churn mitigation'],
-  rows:[
-    ['Blue Bottle','Premium subscription','Tier 1','SEO, Retail, Email','Recharge, Klaviyo','Roast-freshness cadence, cafe halo'],
-    ['Trade Coffee','Premium subscription','Tier 1','Meta, Affiliate, SEO','Recharge, Klaviyo','Quiz-matched roasts, easy swap/skip'],
-    ['Onyx Coffee Lab','Premium subscription','Tier 2','Instagram, SEO, Community','Recharge, Klaviyo','Craft storytelling, limited drops'],
-    ['Four Sigmatic','Functional / mushroom','Tier 1','Meta, TikTok, Affiliate','Stay AI, Klaviyo','Ritual-replacement copy, bundle subscribe'],
-    ['MUD\\WTR','Functional / adaptogen','Tier 1','Podcast, Meta, Affiliate','Stay AI, Klaviyo','Starter-kit onboarding, community rebrand of habit'],
-    ['Ryze','Functional / mushroom','Tier 2','TikTok, Meta, UGC','Skio, Klaviyo','Aggressive first-order offer, subscribe-and-save default'],
-    ['Vital Proteins','Collagen / functional','Tier 1','Retail, Meta, Influencer','Recharge, Klaviyo','Retail ubiquity, routine-anchored SKUs'],
-    ['Cometeer','Flash-frozen capsules','Tier 2','Meta, PR, Affiliate','Recharge, Klaviyo','Convenience proof, capsule lock-in'],
-    ['Jot','Ultra-concentrate','Tier 2','Meta, TikTok, SEO','Recharge, Klaviyo','One-bottle-per-month math, ease messaging'],
-    ['Bruvi','Pod system','Tier 3','Meta, Retail, SEO','Recharge, Klaviyo','Hardware plus pod razor-and-blade lock-in'],
-    ['VAHDAM','Heritage tea + functional coffee','Challenger','Meta, TikTok, SEO, Email','Klaviyo (Skio-ready)','Single-estate provenance, subscription anchor, refill rhythm'],
-  ],
-};
-const REGIONS = {
-  head:['US Region','Monthly coffee wallet share','Core product vector','Dominant acquisition hook','Primary retention driver'],
-  rows:[
-    ['Northeast','High ($42 to $60)','Premium + functional blends','Provenance and craft story','Ritual consistency, subscription'],
-    ['West Coast','Highest ($48 to $70)','Functional / adaptogen coffee','Wellness proof, creator UGC','Benefit reinforcement, new drops'],
-    ['South / Southeast','Moderate ($30 to $44)','Flavour-forward + gifting','Value bundles, seasonal gifting','Occasion cadence, loyalty perks'],
-    ['Midwest','Moderate ($28 to $40)','Everyday + routine staples','Convenience and free shipping','Replenishment rhythm, easy reorder'],
-  ],
-};
-const BLUEPRINT = {
-  head:['Path','Purpose'],
-  rows:[
-    ['docs/market-intelligence/us-coffee-d2c-landscape.md','The market study: TAM/SAM/SOM, benchmarks, brand matrix, cohorts, regional matrix, the source of truth these avatars are built from.'],
-    ['schemas/cohort-profile.json','JSON Schema for a live customer profile, capturing the demographics, geography, purchase vectors and lifecycle health flags each avatar describes.'],
-    ['config/retention-triggers.yaml','Automated webhook and segmentation config, the churn, replenishment, win-back and VIP triggers that fire per avatar.'],
-    ['/cohorts','The raw cohort dictionary (RFM, engagement, lifecycle, product, behavioral) each avatar composites.'],
-    ['/avatars','This page, the named persona layer briefs target.'],
-  ],
-};
 
 function esc(s){return String(s==null?'':s);}
 function renderPersonas(){
@@ -212,15 +158,6 @@ function renderPersonas(){
         <dt>Maps to cohorts</dt><dd><span class="mix">${p.cohorts.map(c=>`<span>${esc(c)}</span>`).join('')}</span></dd>
       </dl>
     </div>`).join('');
-}
-function renderMetrics(){
-  document.getElementById('sizing-metrics').innerHTML = SIZING.map(m=>`
-    <div class="m"><div class="mv">${esc(m.mv)}</div><div class="ml">${esc(m.ml)}</div><div class="ms">${esc(m.ms)}</div></div>`).join('');
-}
-function renderTable(id, data){
-  const thead = '<thead><tr>'+data.head.map(h=>`<th>${esc(h)}</th>`).join('')+'</tr></thead>';
-  const tbody = '<tbody>'+data.rows.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('')+'</tbody>';
-  document.getElementById(id).innerHTML = thead+tbody;
 }
 renderPersonas();
 

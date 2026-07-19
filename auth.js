@@ -280,6 +280,7 @@
       { id: 'web-global', label: '🌍 Global Website',  href: '/3d/global', icon: 'vahdam', match: ['/3d/global', '/store-3d-global'] },
       { id: 'web-india',  label: '🇮🇳 India Website',  href: '/3d/in',     icon: 'vahdam', match: ['/3d/in', '/3d/india', '/store-3d-in'] },
       { id: 'lp-overview', label: 'Design References', href: '/website-designs', icon: 'landing', match: ['/website-designs', '/website-designs.html'] },
+      { id: 'lp-templates', label: 'Landing Page Templates', href: '/landing-page-templates', icon: 'landing', match: ['/landing-page-templates', '/templates', '/template-gallery', '/template-gallery.html'] },
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
       { id: 'lp-best-3d', label: '★ 3D Agent Page (motion)', href: '/lp/best-3d', icon: 'vahdam', match: ['/lp/best-3d'] },
       { id: 'lp-agent',   label: 'Landing Page with All-In-One Voice+Chat+Talk Agent',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
