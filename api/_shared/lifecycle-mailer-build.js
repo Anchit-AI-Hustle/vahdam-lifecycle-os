@@ -208,15 +208,33 @@ function placeholderImage(label, w, h) {
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
 
+// Stable non-crypto hash of a slot's identity → a deterministic gallery index, so
+// the SAME slot always resolves the SAME photo but DIFFERENT slots (even of the
+// same product) get DIFFERENT real photos. Not a security context.
+function slotHash(entry) {
+  const key = String(entry.id || `${entry.date || ''}|${entry.cohort_key || entry.cohort_label || ''}|${entry.hero_handle || entry.hero_product || ''}|${entry.play_key || ''}`);
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) { h = ((h << 5) + h) + key.charCodeAt(i); h |= 0; }
+  return Math.abs(h);
+}
+
 function resolveHero(entry, w, h) {
   // Real, already-hosted product image is the guarantee. Prefer an explicit
-  // hero_image on the slot; otherwise resolve the product's own catalog photo
-  // by handle (the generator does not always stamp hero_image, and older
-  // persisted rows never did — this is why Text + Visual heroes rendered as a
-  // broken data: placeholder). Only fall back to the fillable placeholder when
-  // the catalog genuinely has no photo for this handle.
-  const real = (entry.hero_image && /^https?:\/\//.test(entry.hero_image) ? entry.hero_image : null)
-    || catalogImage.imageFor(entry.hero_handle || entry.hero_product || entry, entry.market);
+  // hero_image on the slot; otherwise resolve the product's own catalog photo.
+  // For UNIQUENESS, rotate through the product's REAL PDP gallery keyed by the
+  // slot's identity, so two slots featuring the same product don't repeat one
+  // shot — while every image is still a genuine hosted product photo (zero
+  // fabrication). Only fall back to the fillable placeholder when the catalog
+  // genuinely has no photo for this handle.
+  if (entry.hero_image && /^https?:\/\//.test(entry.hero_image)) {
+    return { url: entry.hero_image, mode: 'catalog', size: `${w}x${h}`, prompt: null };
+  }
+  const gallery = catalogImage.imagesFor(entry.hero_handle || entry.hero_product || entry, entry.market, { width: Math.max(w, 1200) }) || [];
+  if (gallery.length) {
+    const idx = slotHash(entry) % gallery.length;
+    return { url: gallery[idx], mode: 'catalog', size: `${w}x${h}`, prompt: null, gallery_index: idx, gallery_size: gallery.length };
+  }
+  const real = catalogImage.imageFor(entry.hero_handle || entry.hero_product || entry, entry.market);
   if (real) {
     return { url: real, mode: 'catalog', size: `${w}x${h}`, prompt: null };
   }
