@@ -121,6 +121,17 @@ Competitor data lives in a Google Sheet. Auth has **two modes** (see `docs/workl
 - **USA July calendar + mailers** (`npm run build:july`): `scripts/build-july-mailers.js` keeps the automated-calendar 4-variant STRUCTURE (2 Text + 2 Text+Visual, framework A/B) and the same `sanitizeBrand`/`assertNoBanned` gates (`scenario-model.js`), but renders each variant in the **flagship design system** (`scripts/lib/flagship-mailer.js`: web fonts, green utility bar, colorway hero band — forest/midnight/daylight, price pill, MSO-safe CTA, trust badges, "Rated 4.9/5 · 250,000+ reviews · Oprah's Favorite Things" proof bar, non-clickable footer). Hosted image URLs only (never base64). 12 cohort sends × 4 = 48 files in `mailers/usa-july/`; hero images come ONLY from verified `brand_assets` rows (image-free otherwise, never a fake URL). The same pass also renders, per send, a paid-social **ad set** (Meta/Google/TikTok, `scripts/lib/ad-creative.js` → `ads/usa-july/`) and a flagship **landing page** (`scripts/lib/landing-page.js` → `landing-pages/usa-july/`), all from the same scrubbed copy + verified assets (no invented discount codes). `scripts/build-july-studio.js` assembles `vahdam-usa-july-calendar-mailer-studio.html` (served at `/july-studio` · `/usa-july`): Card/List toggle, scenario tabs (C = executed model, 2-3 emails/user/week), per-send **Mailers / Ads / Landing** tabs whose preview = the exact embedded downloadable file (Blob URL, no `srcdoc`), plus the data-grounded reasoning per row. Manifest: `data/calendar/usa-july-2026.json`. Event hooks wired into reasoning: WC Final Jul 19 @ MetLife, National Ice Cream Day Jul 19, Parents' Day Jul 26, Int'l Day of Friendship Jul 30, National Wellness Month (Aug) ramp.
 - **Selected-collection coverage rule:** `SELECTED_COLLECTIONS` in `build-july-mailers.js` (default: chai-teas, samplers, gifts, best-sellers) MUST each be represented by ≥1 send — the build **hard-fails** if any is uncovered, so a selected collection is never silently dropped. Each slot carries `collections` + a `collection_cta`; the collection is wired into asset generation (landing-page "Explore all {collection}" CTA) and surfaced in the studio (chips + a "Collections covered" stat). `manifest.selected_collections` lists each with its covering send dates.
 
+## Agent memory (TencentDB-Agent-Memory bridge, 2026-07-19)
+`integrations/tencentdb-memory/` gives Claude persistent long-term memory (TencentDB-Agent-Memory's
+local L0->L3 pyramid: conversation -> atoms -> scenarios -> persona). That project has NO native
+MCP/Claude connector — only a "Hermes" REST gateway (`:8420`) — so `mcp-server.mjs` is a **zero-dependency
+MCP bridge** mapping the gateway (`/recall /capture /search/* /session/end /health`) onto MCP tools
+(`memory_recall`, `memory_capture`, `memory_search`, `memory_search_conversations`, `memory_session_end`,
+`memory_health`). Wired into this repo's Claude Code sessions via root `.mcp.json`. Start the gateway with
+`integrations/tencentdb-memory/setup.sh` (clones the upstream gateway into gitignored `vendor/`, needs an
+LLM key for distillation only), verify with `npm run smoke`. Full setup (repo + CLI + Desktop) in that
+folder's README. Habit: `memory_recall` at task start, `memory_capture` after meaningful turns.
+
 ## Product Catalogs
 US: 173 · UK: 101 · Global: 102 active products. Built at deploy from `products_export_{usa,uk,global}.csv` via `scripts/build-catalog.js` → `data/catalog/products_{region}.json` (served with CORS + cache headers per `vercel.json`).
 
