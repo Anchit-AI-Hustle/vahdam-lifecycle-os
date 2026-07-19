@@ -18,7 +18,7 @@
     "api/calendar.js":             { "maxDuration": 90 },
     "api/competitor.js":           { "maxDuration": 60 },
     "api/kb.js":                   { "maxDuration": 60 },
-    "api/public-config.js":        { "maxDuration": 3 }
+    "api/public-config.js":        { "maxDuration": 25 }
   },
   "redirects": [{ "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false }],
   "crons": [
