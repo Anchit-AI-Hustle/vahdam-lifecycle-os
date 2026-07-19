@@ -169,12 +169,17 @@
   .bcard h4{font-family:var(--head);font-size:19px;color:var(--fg);margin:0 0 6px}
   .bcard p{color:var(--sub);font-size:13.5px;line-height:1.55;margin:0}
   /* Reviews / testimonials (real verified reviews only) */
-  .reviewgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-top:24px}
-  .rcard{background:rgba(4,32,20,.5);border:1px solid rgba(171,135,67,.3);border-radius:16px;padding:22px}
-  .rcard .rstars{color:var(--gold);letter-spacing:2px;font-size:14px;margin-bottom:9px}
-  .rcard blockquote{margin:0 0 12px;color:var(--fg);font-size:14.5px;line-height:1.56}
-  .rcard .who{color:var(--sub);font-size:12.5px;font-weight:700}
-  .rcard .vf{color:#7fd9a9;font-size:11px;margin-left:6px;font-weight:700}
+  .reviewgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:24px}
+  .rcard{position:relative;background:linear-gradient(160deg,rgba(6,42,26,.72),rgba(3,24,15,.6));border:1px solid rgba(171,135,67,.34);border-radius:18px;padding:24px 24px 22px;box-shadow:0 12px 30px rgba(0,0,0,.28);transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease}
+  .rcard:hover{transform:translateY(-4px);box-shadow:0 20px 44px rgba(0,0,0,.4);border-color:rgba(171,135,67,.6)}
+  .rcard::before{content:'\201C';position:absolute;top:6px;right:20px;font-family:Georgia,serif;font-size:66px;line-height:1;color:rgba(171,135,67,.22)}
+  .rcard .rhead{display:flex;align-items:center;gap:13px;margin-bottom:13px}
+  .rcard .ravatar{flex:0 0 46px;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font:800 16px/1 'Lao MN',Georgia,serif;color:#04210f;letter-spacing:.02em;box-shadow:0 4px 12px rgba(0,0,0,.3);border:1.5px solid rgba(251,245,234,.28)}
+  .rcard .rmeta{min-width:0}
+  .rcard .rmeta .who{color:var(--fg);font-size:14px;font-weight:800;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rcard .rmeta .rstars{color:var(--gold);letter-spacing:2px;font-size:13px;margin-top:3px}
+  .rcard blockquote{margin:0 0 14px;color:var(--fg);font-size:14.5px;line-height:1.58}
+  .rcard .vf{display:inline-flex;align-items:center;gap:4px;color:#7fd9a9;font-size:11px;font-weight:800;background:rgba(127,217,169,.12);border:1px solid rgba(127,217,169,.32);border-radius:999px;padding:3px 9px}
   /* product grid */
   .pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
   .pcard{display:flex;flex-direction:column;background:#fff;border:1px solid rgba(171,135,67,.2);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--ink)}
@@ -499,8 +504,31 @@ async function loadReviews(){
     var top=picks.slice(0,6);
     if(!top.length) return;
     var grid=$('reviewGrid'); if(!grid) return;
+    // Deterministic monogram avatar from the reviewer's real name (initials only —
+    // never a fabricated photo of a real person). Brand-palette gradient, hue picked
+    // stably from the name so each reviewer keeps a consistent colour.
+    var initialsOf=function(name){
+      var parts=String(name||'').trim().split(/\s+/).filter(Boolean);
+      if(!parts.length) return 'V';
+      var a=parts[0][0]||''; var b=parts.length>1?(parts[parts.length-1][0]||''):'';
+      return (a+b).toUpperCase().slice(0,2)||'V';
+    };
+    var avatarBg=function(name){
+      var s=String(name||''),h=0; for(var i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; }
+      var pal=[['#AB8743','#c9a55e'],['#0f6b3f','#128a4f'],['#8a6d2f','#b5904a'],['#046a3d','#0a8a52'],['#b58a3c','#d0a95e']];
+      var c=pal[h%pal.length];
+      return 'linear-gradient(140deg,'+c[0]+','+c[1]+')';
+    };
     grid.innerHTML=top.map(function(r){
-      return '<div class="rcard"><div class="rstars">'+'★★★★★'.slice(0,r.stars)+'</div><blockquote>'+esc(r.q)+'</blockquote><div class="who">'+esc(r.who)+(r.verified?'<span class="vf">✓ Verified</span>':'')+'</div></div>';
+      var stars='★★★★★'.slice(0,r.stars);
+      return '<div class="rcard">'+
+        '<div class="rhead">'+
+          '<div class="ravatar" style="background:'+avatarBg(r.who)+'" aria-hidden="true">'+esc(initialsOf(r.who))+'</div>'+
+          '<div class="rmeta"><div class="who">'+esc(r.who)+'</div><div class="rstars">'+stars+'</div></div>'+
+        '</div>'+
+        '<blockquote>'+esc(r.q)+'</blockquote>'+
+        (r.verified?'<span class="vf">✓ Verified Buyer</span>':'')+
+      '</div>';
     }).join('');
     var sec=document.getElementById('reviews-sec'); if(sec){ sec.hidden=false; setupReveal(); }
   }catch(_){}
