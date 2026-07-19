@@ -101,10 +101,17 @@ module.exports = async function handler(req, res) {
           : id === 'cloudflare'
             ? !!(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID)
             : !!process.env[PROVIDERS.find((p) => p.id === id).env];
+    // Hard per-provider cap so the whole probe stays well under the function
+    // timeout even when a provider's model chain is slow. maxTokens is generous
+    // enough that reasoning models (e.g. Groq gpt-oss) still emit real content.
+    const withCap = (promise, ms) => Promise.race([
+      promise,
+      new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('probe_cap'), { _providerErrors: [{ status: 0, err: 'probe time cap' }] })), ms)),
+    ]);
     const results = await Promise.all(PROVIDERS.map(async (p) => {
       if (!keyPresent(p.id)) return { provider: p.id, label: p.label, configured: false, ok: false, verdict: 'not configured', generate_key_at: p.gen };
       try {
-        const r = await callLLM({ systemPrompt: 'Reply with the single word: ok', userMessage: 'ping', maxTokens: 8, temperature: 0, timeoutMs: 8000, stage: 'probe', preferProvider: p.id });
+        const r = await withCap(callLLM({ systemPrompt: 'Reply with the single word: ok', userMessage: 'ping', maxTokens: 64, temperature: 0, timeoutMs: 4500, stage: 'probe', preferProvider: p.id }), 6500);
         return { provider: p.id, label: p.label, configured: true, ok: true, model: r.model, verdict: 'ok — answered' };
       } catch (e) {
         const det = (e && e._providerErrors && e._providerErrors[0]) || {};

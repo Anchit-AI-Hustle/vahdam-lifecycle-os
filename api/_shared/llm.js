@@ -281,6 +281,7 @@ module.exports = async function callLLM(opts) {
       }
       const data = await r.json();
       const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      if (!String(text).trim()) { console.warn('[llm][' + stage + '] openai EMPTY content on ' + model + ' — demoting'); return { ok: false, status: 502, err: 'empty_response' }; }
       console.log('[llm][' + stage + '] openai ok len=' + text.length);
       return { ok: true, text, provider: 'openai', model };
     } catch (e) {
@@ -324,6 +325,7 @@ module.exports = async function callLLM(opts) {
       }
       const data = await r.json();
       const text = (data.content && data.content[0] && data.content[0].text) || '';
+      if (!String(text).trim()) { console.warn('[llm][' + stage + '] anthropic EMPTY content on ' + model + ' — demoting'); return { ok: false, status: 502, err: 'empty_response' }; }
       console.log('[llm][' + stage + '] anthropic ok model=' + model + ' len=' + text.length);
       return { ok: true, text, provider: 'anthropic', model };
     } catch (e) {
@@ -368,6 +370,7 @@ module.exports = async function callLLM(opts) {
         data.candidates[0].content && data.candidates[0].content.parts &&
         data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text
       ) || '';
+      if (!String(text).trim()) { console.warn('[llm][' + stage + '] gemini EMPTY content on ' + model + ' — demoting'); return { ok: false, status: 502, err: 'empty_response' }; }
       console.log('[llm][' + stage + '] gemini ok model=' + model + ' len=' + text.length);
       return { ok: true, text, provider: 'gemini', model };
     } catch (e) {
@@ -401,6 +404,11 @@ module.exports = async function callLLM(opts) {
         }
         const data = await r.json();
         const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+        // Empty content (e.g. a reasoning model that spent the whole token budget on
+        // its hidden reasoning field, or a JSON-mode truncation) is NOT a usable
+        // answer — demote so the cascade tries the next model/provider instead of
+        // returning a blank "success" that surfaces downstream as an LLM error.
+        if (!String(text).trim()) { console.warn('[llm][' + stage + '] ' + providerName + ' EMPTY content on ' + model + ' — demoting'); return { ok: false, status: 502, err: 'empty_response' }; }
         console.log('[llm][' + stage + '] ' + providerName + ' ok model=' + model + ' len=' + text.length);
         return { ok: true, text, provider: providerName, model };
       } catch (e) {
