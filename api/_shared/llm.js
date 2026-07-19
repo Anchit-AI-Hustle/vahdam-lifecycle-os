@@ -40,6 +40,11 @@ const GEMINI_BASE    = 'https://generativelanguage.googleapis.com/v1beta';
 const GROK_BASE      = 'https://api.x.ai/v1';
 const GROQ_BASE      = 'https://api.groq.com/openai/v1';
 const CEREBRAS_BASE  = 'https://api.cerebras.ai/v1';
+// OpenRouter — one OpenAI-compatible gateway that routes to Claude / GPT / Gemini /
+// Llama etc. via a single key. Placed as a PAID BACKSTOP rung (after the free
+// tiers) so a funded OpenRouter key catches burst-overflow instead of dropping to
+// the template. Unfunded (free-tier) it simply 402/404s and the cascade continues.
+const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 // Optional tail rungs — only active when their env config is present.
 // Ollama exposes an OpenAI-compatible API at ${OLLAMA_BASE_URL}/v1.
 const OLLAMA_BASE    = (process.env.OLLAMA_BASE_URL || '').replace(/\/+$/, '') + (process.env.OLLAMA_BASE_URL ? '/v1' : '');
@@ -85,6 +90,14 @@ function modelsFor(provider, tier) {
       return _dedupe([env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile']);
     case 'cerebras':
       return _dedupe([env.CEREBRAS_TEXT_MODEL || 'gpt-oss-120b', 'llama-3.3-70b']);
+    case 'openrouter':
+      // Defaults are slugs verified to answer on the currently-provisioned key
+      // (GPT-4o / GPT-4o-mini / Gemini-2.5-flash / Llama-3.3-70b). All env-overridable
+      // — to route premium through Claude once OpenRouter credits are added, set
+      // OPENROUTER_TEXT_MODEL_MAX=anthropic/claude-sonnet-4.5 (etc).
+      if (tier === 'premium') return _dedupe([env.OPENROUTER_TEXT_MODEL_MAX || 'openai/gpt-4o', 'google/gemini-2.5-flash', 'meta-llama/llama-3.3-70b-instruct']);
+      if (tier === 'fast')    return _dedupe([env.OPENROUTER_TEXT_MODEL_FAST || 'openai/gpt-4o-mini', 'google/gemini-2.5-flash']);
+      return _dedupe([env.OPENROUTER_TEXT_MODEL || 'openai/gpt-4o-mini', 'google/gemini-2.5-flash', 'meta-llama/llama-3.3-70b-instruct']);
     case 'ollama':
       if (tier === 'premium') return _dedupe([env.OLLAMA_TEXT_MODEL_MAX || env.OLLAMA_TEXT_MODEL || 'llama3.3']);
       if (tier === 'fast')    return _dedupe([env.OLLAMA_TEXT_MODEL_FAST || env.OLLAMA_TEXT_MODEL || 'llama3.2']);
@@ -99,8 +112,8 @@ function modelsFor(provider, tier) {
 // Provider ORDER per tier (blueprint). Fast skips Grok (no cheap rung there).
 function providerOrder(tier) {
   return tier === 'fast'
-    ? ['anthropic', 'openai', 'gemini', 'groq', 'cerebras', 'ollama', 'sakana']
-    : ['anthropic', 'openai', 'gemini', 'grok', 'groq', 'cerebras', 'ollama', 'sakana'];
+    ? ['anthropic', 'openai', 'gemini', 'groq', 'cerebras', 'openrouter', 'ollama', 'sakana']
+    : ['anthropic', 'openai', 'gemini', 'grok', 'groq', 'cerebras', 'openrouter', 'ollama', 'sakana'];
 }
 
 // ── Failure classification (drives demotion) ─────────────────────────────────
@@ -162,6 +175,10 @@ module.exports = async function callLLM(opts) {
   const grokKey      = _clean(process.env.XAI_API_KEY);
   const groqKey      = _clean(process.env.GROQ_API_KEY);
   const cerebrasKey  = _clean(process.env.CEREBRAS_API_KEY);
+  // OpenRouter — accept the canonical name OR the existing mixed-case env var name
+  // (`OpenRouter_API_KEY`) already provisioned in this project. Node env names are
+  // case-sensitive, so both spellings are read explicitly.
+  const openrouterKey = _clean(process.env.OPENROUTER_API_KEY) || _clean(process.env.OpenRouter_API_KEY);
   // Optional tail rungs (skipped cleanly unless configured):
   //   Ollama gate = OLLAMA_BASE_URL present (auth optional).
   //   Sakana gate = both SAKANA_BASE_URL and SAKANA_API_KEY present. Forward-looking:
@@ -174,8 +191,8 @@ module.exports = async function callLLM(opts) {
   // Debug: log key presence (not values) for cascade diagnostics
   console.log('[llm] Keys present: groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' gemini=' + !!geminiKey + ' tier=' + tierNorm);
 
-  if (!openaiKeys.length && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey) {
-    throw new Error('No AI provider configured. Set at least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY');
+  if (!openaiKeys.length && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey && !openrouterKey) {
+    throw new Error('No AI provider configured. Set at least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY');
   }
 
   // When a preferred provider is set, skip others to avoid wasting time on failed providers
@@ -188,6 +205,7 @@ module.exports = async function callLLM(opts) {
     grok:      isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'grok'),
     groq:      isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'groq'),
     cerebras:  isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'cerebras'),
+    openrouter: isGeminiPlus ? true : !!(preferredProvider && preferredProvider !== 'openrouter'),
     ollama:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'ollama'),
     sakana:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'sakana')
   };
@@ -199,6 +217,7 @@ module.exports = async function callLLM(opts) {
     grok:      !!grokKey,
     groq:      !!groqKey,
     cerebras:  !!cerebrasKey,
+    openrouter: !!openrouterKey,
     ollama:    ollamaOn,   // gated on OLLAMA_BASE_URL (auth optional)
     sakana:    sakanaOn    // gated on SAKANA_BASE_URL + SAKANA_API_KEY
   };
@@ -373,6 +392,11 @@ module.exports = async function callLLM(opts) {
   const _cerebras = _openaiCompatible('cerebras', CEREBRAS_BASE, cerebrasKey, () => ({
     max_tokens: Math.min(maxTokens, 8192)
   }));
+  // OpenRouter (OpenAI-compatible). Optional ranking headers omitted (not required).
+  const _openrouter = _openaiCompatible('openrouter', OPENROUTER_BASE, openrouterKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
+  }));
   // Optional tail rungs (OpenAI-compatible). Only ever reached if configured
   // (hasKey.ollama / hasKey.sakana gate them in the cascade loop).
   const _ollama = _openaiCompatible('ollama', OLLAMA_BASE, ollamaKey, () => ({
@@ -485,6 +509,7 @@ module.exports = async function callLLM(opts) {
         : providerName === 'grok' ? _grok
         : providerName === 'groq' ? _groq
         : providerName === 'cerebras' ? _cerebras
+        : providerName === 'openrouter' ? _openrouter
         : providerName === 'ollama' ? _ollama
         : _sakana;
       result = await runChain(providerName, fn, models);

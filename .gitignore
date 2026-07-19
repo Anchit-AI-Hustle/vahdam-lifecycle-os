@@ -73,3 +73,4 @@ workers/.artifacts/
 
 # local dashboard build artifacts
 scratchpad/
+.env*

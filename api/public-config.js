@@ -88,10 +88,13 @@ module.exports = async function handler(req, res) {
       { id: 'grok',      label: 'xAI / Grok',          env: 'XAI_API_KEY',       gen: 'https://console.x.ai' },
       { id: 'groq',      label: 'Groq (free)',         env: 'GROQ_API_KEY',      gen: 'https://console.groq.com/keys' },
       { id: 'cerebras',  label: 'Cerebras (free)',     env: 'CEREBRAS_API_KEY',  gen: 'https://cloud.cerebras.ai' },
+      { id: 'openrouter', label: 'OpenRouter (gateway → Claude/GPT/…)', env: 'OPENROUTER_API_KEY', gen: 'https://openrouter.ai/credits' },
     ];
     const keyPresent = (id) => id === 'openai'
       ? !!(process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_2 || process.env.OPENAI_API_KEY_3)
-      : !!process.env[PROVIDERS.find((p) => p.id === id).env];
+      : id === 'openrouter'
+        ? !!(process.env.OPENROUTER_API_KEY || process.env.OpenRouter_API_KEY)
+        : !!process.env[PROVIDERS.find((p) => p.id === id).env];
     const results = await Promise.all(PROVIDERS.map(async (p) => {
       if (!keyPresent(p.id)) return { provider: p.id, label: p.label, configured: false, ok: false, verdict: 'not configured', generate_key_at: p.gen };
       try {
