@@ -99,6 +99,13 @@
   .htitle{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hdel{background:none;border:0;color:#cdbf9a;cursor:pointer;font-size:12px} .hdel:hover{color:#ff9d8a}
   .hempty{padding:14px;color:#cdbf9a;font-size:12px;text-align:center}
+  .assets{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:6px 0 4px}
+  .acard{background:rgba(4,32,20,.5);border:1px solid rgba(171,135,67,.4);border-radius:12px;padding:12px 13px}
+  .acard .akind{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold,#AB8743);font-weight:800}
+  .acard .alabel{font-size:13px;color:#eaf2ec;margin:4px 0 9px;font-weight:600;line-height:1.3}
+  .acard .arow{display:flex;gap:7px}
+  .abtn{flex:1;text-align:center;font-size:11px;font-weight:700;padding:7px 8px;border-radius:8px;border:1px solid rgba(171,135,67,.5);background:rgba(171,135,67,.14);color:#f0e6cf;cursor:pointer;text-decoration:none}
+  .abtn:hover{background:rgba(171,135,67,.26)}
 </style>
 <script>
 (function(){
@@ -171,6 +178,31 @@
     chatEl.appendChild(det); scroll();
   }
 
+  // Real generated assets → clickable View (opens the rendered asset) + Download.
+  function addAssets(assets){
+    if(!assets || !assets.length) return;
+    var wrap=document.createElement('div'); wrap.className='assets';
+    assets.forEach(function(a, i){
+      var card=document.createElement('div'); card.className='acard';
+      var safeLabel=escapeHtml(a.label||('Asset '+(i+1)));
+      var kind=escapeHtml((a.kind||'asset').toUpperCase());
+      var row=document.createElement('div'); row.className='arow';
+      card.innerHTML='<div class="akind">'+kind+'</div><div class="alabel">'+safeLabel+'</div>';
+      function fileName(ext){ return (a.label||a.kind||'asset').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,48)+'.'+ext; }
+      var viewBtn=document.createElement('a'); viewBtn.className='abtn'; viewBtn.textContent='👁 View'; viewBtn.target='_blank'; viewBtn.rel='noopener';
+      var dlBtn=document.createElement('a'); dlBtn.className='abtn'; dlBtn.textContent='⬇ Download';
+      if(a.html){
+        var blob=new Blob([a.html],{type:'text/html'}); var u=URL.createObjectURL(blob);
+        viewBtn.href=u; dlBtn.href=u; dlBtn.download=fileName('html');
+      } else if(a.url){
+        viewBtn.href=a.url; dlBtn.href=a.url; dlBtn.download=fileName((a.kind==='image'?'png':'html'));
+      }
+      row.appendChild(viewBtn); row.appendChild(dlBtn); card.appendChild(row);
+      wrap.appendChild(card);
+    });
+    chatEl.appendChild(wrap); scroll();
+  }
+
   function renderSuggestions(){
     var box=document.getElementById('suggest'); box.innerHTML='';
     SUGGESTIONS.forEach(function(s){ var b=document.createElement('button'); b.className='schip'; b.textContent=s; b.onclick=function(){ qEl.value=s; ask(); }; box.appendChild(b); });
@@ -197,8 +229,9 @@
         addTools(j.steps);
         var reply=j.reply||'(no response)';
         addBot(reply);
+        addAssets(j.assets);
         history.push({role:'agent',content:reply});
-        if(CH) CH.append('agent', reply, (j.steps&&j.steps.length)?{steps:j.steps}:null);
+        if(CH) CH.append('agent', reply, { steps:(j.steps&&j.steps.length)?j.steps:undefined, assets:(j.assets&&j.assets.length)?j.assets:undefined });
       } else {
         var em='Something went wrong: '+(j.error||'unknown')+'.';
         addBot(em); if(CH) CH.append('agent', em);
@@ -243,7 +276,7 @@
     if(!msgs.length){ greet(); return; }
     msgs.forEach(function(m){
       if(m.role==='user'){ addUser(m.text); history.push({role:'user',content:m.text}); }
-      else { if(m.steps) addTools(m.steps); addBot(m.text); history.push({role:'agent',content:m.text}); }
+      else { if(m.steps) addTools(m.steps); addBot(m.text); if(m.assets) addAssets(m.assets); history.push({role:'agent',content:m.text}); }
     });
   }
   function loadConvo(id){ var c=CH.setCurrent(id); if(c){ replay(c); var p=document.getElementById('histPanel'); if(p)p.style.display='none'; } }
