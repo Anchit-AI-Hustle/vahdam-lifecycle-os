@@ -153,12 +153,21 @@
   /* collection tiles */
   .colgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   .coltile{display:flex;align-items:flex-end;min-height:120px;padding:14px;border-radius:16px;text-decoration:none;
-    color:#FBF5EA;font-family:var(--head);font-size:20px;background:var(--green);border:1px solid rgba(171,135,67,.3);
-    background-size:cover;background-position:center;position:relative;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.55);transition:transform .18s ease,box-shadow .18s ease}
-  .coltile:nth-child(even){background:#0a3d24}
-  .coltile[style*="url"]:nth-child(even),.coltile[style*="url"]{background-color:#0a3d24}
+    color:#FBF5EA;font-family:var(--head);font-size:20px;border:1px solid rgba(171,135,67,.3);
+    background-color:#0a3d24;background-size:cover;background-position:center;background-repeat:no-repeat;
+    position:relative;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.55);transition:transform .18s ease,box-shadow .18s ease}
+  /* Branded fill for tiles whose product image is missing/broken — never blank. */
+  .coltile--fallback{background-image:
+    radial-gradient(120% 90% at 15% 20%, rgba(171,135,67,.28) 0%, transparent 55%),
+    linear-gradient(150deg, #0f4a2c 0%, #004A2B 55%, #072616 100%)}
   .coltile:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.35)}
   .coltile>span{position:relative;z-index:2}
+  /* Why-VAHDAM benefits band */
+  .benefits{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-top:22px}
+  .bcard{background:rgba(4,32,20,.5);border:1px solid rgba(171,135,67,.3);border-radius:16px;padding:22px 20px}
+  .bcard .bicon{font-size:26px;margin-bottom:10px}
+  .bcard h4{font-family:var(--head);font-size:19px;color:var(--fg);margin:0 0 6px}
+  .bcard p{color:var(--sub);font-size:13.5px;line-height:1.55;margin:0}
   /* product grid */
   .pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
   .pcard{display:flex;flex-direction:column;background:#fff;border:1px solid rgba(171,135,67,.2);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--ink)}
@@ -259,6 +268,17 @@
     <p class="sec-sub" style="margin:0 auto;color:#dce8df">There is a moment when the right cup of tea does more than warm your hands. VAHDAM sources single-estate leaves and ships them fresh from India, so every steep carries the season it was picked in.</p>
   </section>
 
+  <section id="why-sec">
+    <div class="sec-eyebrow">Why VAHDAM</div>
+    <h2 class="sec-h">Tea worth the ritual</h2>
+    <div class="benefits">
+      <div class="bcard"><div class="bicon">🌿</div><h4>Single-estate, garden-fresh</h4><p>Leaves picked at peak season and shipped fresh from India within 48 hours, never blended into anonymity.</p></div>
+      <div class="bcard"><div class="bicon">⭐</div><h4>Rated 4.9 / 5</h4><p>Over 250,000 five-star reviews from tea drinkers around the world.</p></div>
+      <div class="bcard"><div class="bicon">✨</div><h4>Oprah's Favorite Things</h4><p>A celebrated pick on Oprah's Favorite Things list.</p></div>
+      <div class="bcard"><div class="bicon">🤝</div><h4>Ethically sourced</h4><p>Bought direct from the gardens that grow it, so the ritual is fair from leaf to cup.</p></div>
+    </div>
+  </section>
+
   <section class="trust">
     <div>Rated 4.9/5</div><div>250,000+ reviews</div><div>Oprah's Favorite Things</div><div>Garden-fresh · Ethically sourced</div>
   </section>
@@ -348,15 +368,27 @@ function hasWebGL(){try{const c=document.createElement('canvas');return !!(c.get
 // Collection filter state + engine hook (set by start3D for 3D, else 2D grid).
 let PANELS=[], IS3D=false, CUR_TAG=null;
 function productMatches(p,tag){ return !tag || (p&&p.tags||[]).some(t=>t.includes(tag)); }
-// A representative REAL product image for a collection tile (zero fabrication):
-// the first catalog product whose tags match the collection, else any product
-// with an image. Returns null only if the catalog has no images at all.
-function collectionImage(name){
+// Ordered candidate REAL product images for a collection tile (zero fabrication):
+// tag-matching products first, then any product with an image. A LIST (not one)
+// so a broken/404 URL can be skipped and the tile is never left blank.
+function collectionCandidates(name){
   const tag=COLLECTION_TAGS[name];
   const pool=(state.all&&state.all.length)?state.all:state.products;
-  let hit=pool.find(p=>p.img&&productMatches(p,tag));
-  if(!hit) hit=pool.find(p=>p.img);
-  return hit?hit.img:null;
+  const seen=new Set(), out=[];
+  pool.forEach(p=>{ if(p.img&&productMatches(p,tag)&&!seen.has(p.img)){ seen.add(p.img); out.push(p.img); } });
+  pool.forEach(p=>{ if(p.img&&!seen.has(p.img)){ seen.add(p.img); out.push(p.img); } });
+  return out;
+}
+// Paint a tile with the FIRST candidate image that actually loads (background-image
+// has no onerror, so we preload). If none load, a branded fallback class keeps the
+// tile richly filled — never a blank grey box.
+function paintTile(el, candidates, i){
+  i=i||0;
+  if(!candidates || i>=candidates.length){ el.classList.add('coltile--fallback'); return; }
+  const im=new Image();
+  im.onload=function(){ el.style.backgroundImage="linear-gradient(160deg,rgba(0,32,20,.14) 0%,rgba(0,32,20,.74) 100%),url('"+candidates[i]+"')"; el.classList.remove('coltile--fallback'); };
+  im.onerror=function(){ paintTile(el, candidates, i+1); };
+  im.src=candidates[i];
 }
 // Seed the 3D atelier (limited number of panels) with products spanning EVERY
 // collection, so each collection filter reveals its own real products instead of
@@ -405,7 +437,7 @@ function note(msg){ const l=$('loading'); if(!l)return; l.style.display='flex'; 
 // Scroll-reveal: fade + rise content as it enters the viewport, staggered within
 // each section. Dependency-free (IntersectionObserver). Reduced-motion → instant.
 function setupReveal(){
-  const items=document.querySelectorAll('main.site .sec-eyebrow, main.site .sec-h, main.site .sec-sub, main.site .coltile, main.site .pcard, main.site .trust>div, main.site footer .inner>div, main.site .story>*');
+  const items=document.querySelectorAll('main.site .sec-eyebrow, main.site .sec-h, main.site .sec-sub, main.site .coltile, main.site .pcard, main.site .bcard, main.site .trust>div, main.site footer .inner>div, main.site .story>*');
   if(!items.length) return;
   if(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches){ items.forEach(el=>el.classList.add('in')); return; }
   // stagger index resets per parent section so each block cascades on its own
@@ -428,11 +460,9 @@ function setupReveal(){
 function renderContent(){
   const ct=$('colTiles');
   if(ct){
-    ct.innerHTML=COLLECTIONS.map(c=>{
-      const img=collectionImage(c);
-      const bg=img?`style="background-image:linear-gradient(160deg,rgba(0,32,20,.12) 0%,rgba(0,32,20,.72) 100%),url('${img}')"`:'';
-      return `<a class="coltile" href="#stage" data-c="${c}" ${bg}><span>${c}</span></a>`;
-    }).join('');
+    ct.innerHTML=COLLECTIONS.map(c=>
+      `<a class="coltile coltile--fallback" href="#stage" data-c="${c}"><span>${c}</span></a>`).join('');
+    ct.querySelectorAll('.coltile').forEach(a=>{ paintTile(a, collectionCandidates(a.getAttribute('data-c'))); });
     ct.querySelectorAll('.coltile').forEach(a=>a.addEventListener('click',ev=>{
       ev.preventDefault();
       const name=a.getAttribute('data-c');
@@ -554,16 +584,43 @@ async function start3D(){
       leaf.userData = { rise: 0.15 + Math.random() * 0.35, spin: (Math.random() - 0.5) * 0.9, sway: Math.random() * 6.28, swayAmp: 0.2 + Math.random() * 0.5 };
       scene.add(leaf); leaves.push(leaf);
     }
-    // steam wisps rising near the front-centre (the "poured cup")
-    const steamGeo = new THREE.PlaneGeometry(0.55, 1.6);
-    for (let i = 0; i < 7; i++) {
+    // steam wisps rising FROM the cup rim (front-centre); intensity tracks fill
+    const steamGeo = new THREE.PlaneGeometry(0.4, 1.3);
+    for (let i = 0; i < 8; i++) {
       const mat = new THREE.MeshBasicMaterial({ color: 0xFBF5EA, transparent: true, opacity: 0.05, depthWrite: false });
       const w = new THREE.Mesh(steamGeo, mat);
-      w.position.set((Math.random() - 0.5) * 2.4, -1.6 + Math.random() * 3.5, 1.4 + Math.random());
-      w.userData = { rise: 0.28 + Math.random() * 0.4, drift: (Math.random() - 0.5) * 0.15 };
+      w.position.set((Math.random() - 0.5) * 0.7, -1.15 + Math.random() * 2.2, 2.35 + (Math.random() - 0.5) * 0.3);
+      w.userData = { rise: 0.3 + Math.random() * 0.4, drift: (Math.random() - 0.5) * 0.12 };
       scene.add(w); steam.push(w);
     }
   }
+
+  // ── Signature CUP PREPARATION centrepiece: a ceramic cup that fills with
+  // freshly-steeped tea on a loop, steam rising from the rim. Stationary front-
+  // centre (NOT on the spinning carousel). Static-full under reduced motion. ──
+  const cup = new THREE.Group();
+  cup.position.set(0, -1.82, 2.35);
+  scene.add(cup);
+  const ceramic = new THREE.MeshStandardMaterial({ color: 0xFBF5EA, roughness: 0.38, metalness: 0.05 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xAB8743, roughness: 0.3, metalness: 0.75 });
+  (function buildCup() {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.38, 0.6, 40, 1, true), ceramic); body.position.y = 0.32; cup.add(body);
+    const bottom = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.02, 40), ceramic); bottom.position.y = 0.03; cup.add(bottom);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.02, 12, 40), goldMat); rim.rotation.x = Math.PI / 2; rim.position.y = 0.62; cup.add(rim);
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.045, 12, 26), ceramic); handle.position.set(0.53, 0.34, 0); handle.rotation.y = Math.PI / 2; cup.add(handle);
+    const saucer = new THREE.Mesh(new THREE.CylinderGeometry(0.84, 0.84, 0.03, 46), ceramic); saucer.position.y = -0.01; cup.add(saucer);
+    const saucerRim = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.015, 12, 46), goldMat); saucerRim.rotation.x = Math.PI / 2; saucerRim.position.y = 0.01; cup.add(saucerRim);
+  }());
+  const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.36, 1, 40),
+    new THREE.MeshStandardMaterial({ color: 0x7a3b12, roughness: 0.18, metalness: 0.12, transparent: true, opacity: 0.96 }));
+  cup.add(liquid);
+  const pour = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.03, 0.62, 12),
+    new THREE.MeshStandardMaterial({ color: 0x8a4416, transparent: true, opacity: 0.85 }));
+  pour.position.set(0, 0.95, 0); cup.add(pour);
+  const cupState = { phase: 'pour', t: 0, level: 0 };
+  function setCupLevel(v) { const h = Math.max(0.001, v * 0.5); liquid.scale.y = h; liquid.position.y = 0.06 + h / 2; liquid.visible = v > 0.02; }
+  setCupLevel(reduceMotion ? 0.86 : 0);
+  if (reduceMotion) pour.visible = false;
 
   // drag to rotate
   let drag=false,px=0,vel=0,targetVel=0;
@@ -610,12 +667,28 @@ async function start3D(){
       l.rotation.z += l.userData.spin*dt; l.rotation.x += l.userData.spin*0.6*dt;
       if(l.position.y > 6){ l.position.y = -6; l.position.x = (Math.random()-0.5)*15; }
     }
-    // rising steam wisps (fade with height, always face camera)
+    // CUP PREPARATION loop: pour → steep → drain → repeat (skipped if reduced motion)
+    if(!reduceMotion){
+      cupState.t += dt;
+      if(cupState.phase==='pour'){
+        cupState.level = Math.min(0.86, cupState.level + dt*0.32); setCupLevel(cupState.level);
+        pour.visible = true; pour.position.x = Math.sin(t/120)*0.015; // subtle stream wobble
+        if(cupState.level>=0.86){ cupState.phase='steep'; cupState.t=0; pour.visible=false; }
+      } else if(cupState.phase==='steep'){
+        if(cupState.t>3.4){ cupState.phase='drain'; cupState.t=0; }
+      } else if(cupState.phase==='drain'){
+        cupState.level = Math.max(0, cupState.level - dt*0.85); setCupLevel(cupState.level);
+        if(cupState.level<=0){ cupState.phase='pour'; cupState.t=0; }
+      }
+      cup.rotation.y = Math.sin(t/2600)*0.12; // gentle presentation turn
+    }
+    // rising steam wisps from the cup — more steam when the cup is fuller/hotter
+    const steamGain = reduceMotion ? 0.7 : (0.28 + cupState.level*0.85);
     for(let si=0; si<steam.length; si++){ const w=steam[si];
       w.position.y += w.userData.rise*dt; w.position.x += w.userData.drift*dt;
-      w.material.opacity = Math.max(0, 0.09*(1 - (w.position.y+1.6)/5.2));
+      w.material.opacity = Math.max(0, 0.12*steamGain*(1 - (w.position.y+1.15)/4.0));
       w.lookAt(camera.position.x, w.position.y, camera.position.z);
-      if(w.position.y > 3.6){ w.position.y = -1.6; w.position.x = (Math.random()-0.5)*2.4; }
+      if(w.position.y > 2.4){ w.position.y = -1.15; w.position.x = (Math.random()-0.5)*0.7; }
     }
     // Scroll parallax: the 3D backdrop rises, dollies in slightly and tilts as
     // the page scrolls, so depth carries through the whole page (not just hero).

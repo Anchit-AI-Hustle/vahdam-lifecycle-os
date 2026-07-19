@@ -245,6 +245,17 @@ async function loadEntryById(id) {
   return row ? (row.payload || null) : null;
 }
 
+// Load a slot's ALREADY-BUILT mailer (persisted by a prior build) so View/Download
+// return instantly instead of regenerating. Returns { payload, mailer } or null.
+async function loadPersistedMailer(id) {
+  const supa = supaIfConfigured();
+  if (!supa) return null;
+  const rows = await supa.select('lifecycle_calendar_entries', { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
+  const row = rows && rows[0];
+  if (!row) return null;
+  return { payload: row.payload || null, mailer: row.mailer || null, status: row.status || null };
+}
+
 async function persistMailer(id, mailer) {
   const supa = supaIfConfigured();
   if (!supa || !id) return { persisted: false, reason: supa ? 'no_entry_id' : 'supabase_not_configured' };
@@ -261,7 +272,22 @@ async function persistMailer(id, mailer) {
 
 // ─── Main entry point ────────────────────────────────────────────────────────
 
-async function buildLifecycleMailer({ id = null, entry = null } = {}) {
+async function buildLifecycleMailer({ id = null, entry = null, force = false } = {}) {
+  // Retrieve-first: if this slot was already built and persisted, return it
+  // instantly (no LLM) so View/Download load immediately. Only a real regenerate
+  // (force:true) rebuilds. Zero fabrication: we return exactly what was saved.
+  if (id && !force) {
+    const saved = await loadPersistedMailer(id).catch(() => null);
+    const savedMailer = saved && saved.mailer;
+    const savedVariants = savedMailer && Array.isArray(savedMailer.variants) ? savedMailer.variants : null;
+    if (savedMailer && (savedVariants ? savedVariants.length : (savedMailer.html || savedMailer.subject))) {
+      return {
+        ok: true, id, entry: saved.payload || entry, mailer: savedMailer,
+        variants: savedVariants && savedVariants.length ? savedVariants : [savedMailer],
+        persisted: true, retrieved: true, persistence: { persisted: true, retrieved: true },
+      };
+    }
+  }
   let row = entry;
   if (!row && id) row = await loadEntryById(id);
   if (!row) throw new Error('entry not found - pass { entry } inline or an { id } that exists in lifecycle_calendar_entries');
@@ -401,6 +427,9 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
     })(),
   };
 
+  // Embed the variants INTO the persisted mailer so a later retrieve-first returns
+  // all 4 variants (not just a single fallback).
+  if (!Array.isArray(mailer.variants) || !mailer.variants.length) mailer.variants = variants;
   const persistence = await persistMailer(row.id, mailer);
 
   return { ok: true, id: row.id || null, entry: row, mailer, variants, persisted: persistence.persisted, persistence };
