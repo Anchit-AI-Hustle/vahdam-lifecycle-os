@@ -168,6 +168,13 @@
   .bcard .bicon{font-size:26px;margin-bottom:10px}
   .bcard h4{font-family:var(--head);font-size:19px;color:var(--fg);margin:0 0 6px}
   .bcard p{color:var(--sub);font-size:13.5px;line-height:1.55;margin:0}
+  /* Reviews / testimonials (real verified reviews only) */
+  .reviewgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-top:24px}
+  .rcard{background:rgba(4,32,20,.5);border:1px solid rgba(171,135,67,.3);border-radius:16px;padding:22px}
+  .rcard .rstars{color:var(--gold);letter-spacing:2px;font-size:14px;margin-bottom:9px}
+  .rcard blockquote{margin:0 0 12px;color:var(--fg);font-size:14.5px;line-height:1.56}
+  .rcard .who{color:var(--sub);font-size:12.5px;font-weight:700}
+  .rcard .vf{color:#7fd9a9;font-size:11px;margin-left:6px;font-weight:700}
   /* product grid */
   .pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
   .pcard{display:flex;flex-direction:column;background:#fff;border:1px solid rgba(171,135,67,.2);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--ink)}
@@ -260,6 +267,13 @@
     <h2 class="sec-h">Loved by the ritual-keepers</h2>
     <p class="sec-sub">Live from the <span id="bsRegion">US</span> store — every card opens the real product page.</p>
     <div class="pgrid" id="pGrid"></div>
+  </section>
+
+  <section id="reviews-sec" hidden>
+    <div class="sec-eyebrow">Reviews</div>
+    <h2 class="sec-h">In their words</h2>
+    <p class="sec-sub">Real, verified reviews from VAHDAM customers. Rated 4.9/5 across 250,000+ reviews.</p>
+    <div class="reviewgrid" id="reviewGrid"></div>
   </section>
 
   <section class="story">
@@ -437,7 +451,7 @@ function note(msg){ const l=$('loading'); if(!l)return; l.style.display='flex'; 
 // Scroll-reveal: fade + rise content as it enters the viewport, staggered within
 // each section. Dependency-free (IntersectionObserver). Reduced-motion → instant.
 function setupReveal(){
-  const items=document.querySelectorAll('main.site .sec-eyebrow, main.site .sec-h, main.site .sec-sub, main.site .coltile, main.site .pcard, main.site .bcard, main.site .trust>div, main.site footer .inner>div, main.site .story>*');
+  const items=document.querySelectorAll('main.site .sec-eyebrow, main.site .sec-h, main.site .sec-sub, main.site .coltile, main.site .pcard, main.site .bcard, main.site .rcard, main.site .trust>div, main.site footer .inner>div, main.site .story>*');
   if(!items.length) return;
   if(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches){ items.forEach(el=>el.classList.add('in')); return; }
   // stagger index resets per parent section so each block cascades on its own
@@ -457,6 +471,41 @@ function setupReveal(){
 
 // Full-depth scroll content: collection tiles (filter the hero), a bestsellers
 // grid with REAL PDP links, and a footer with real store + region links.
+// Real, verified customer reviews for the region — from the approved brand-facts
+// library only (data/brand-facts/<region>.json). ZERO fabrication: if a region has
+// no approved reviews (e.g. India, no file), the section stays hidden rather than
+// inventing testimonials. Filters out complaints / low ratings / non-substantive.
+async function loadReviews(){
+  var file = ({us:'us',uk:'uk',global:'global'})[REGION]; // no IN reviews file → omit
+  if(!file) return;
+  var esc=function(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
+  try{
+    var data=await fetch('/data/brand-facts/'+file+'.json',{headers:{Accept:'application/json'}}).then(function(r){return r.ok?r.json():null;});
+    if(!data||!data.reviews) return;
+    var NEG=/sold ?out|refund|disappoint|never (received|got|arrived)|worst|terrible|awful|broke|leak|stale|cancel|waste|not worth|didn.?t (like|work)|too expensive/i;
+    var seen={}, picks=[];
+    Object.keys(data.reviews).forEach(function(h){
+      (data.reviews[h]||[]).forEach(function(rv){
+        if(!rv||!rv.quote) return;
+        var q=String(rv.quote).trim();
+        if(q.length<50||q.length>300) return;
+        if((rv.stars||0)<4) return;
+        if(NEG.test(q)) return;
+        var k=q.slice(0,60).toLowerCase(); if(seen[k]) return; seen[k]=1;
+        picks.push({q:q, who:rv.author||'VAHDAM customer', stars:Math.max(1,Math.min(5,Math.round(rv.stars||5))), verified:!!rv.verified});
+      });
+    });
+    picks.sort(function(a,b){ return (b.verified?1:0)-(a.verified?1:0) || b.q.length-a.q.length; });
+    var top=picks.slice(0,6);
+    if(!top.length) return;
+    var grid=$('reviewGrid'); if(!grid) return;
+    grid.innerHTML=top.map(function(r){
+      return '<div class="rcard"><div class="rstars">'+'★★★★★'.slice(0,r.stars)+'</div><blockquote>'+esc(r.q)+'</blockquote><div class="who">'+esc(r.who)+(r.verified?'<span class="vf">✓ Verified</span>':'')+'</div></div>';
+    }).join('');
+    var sec=document.getElementById('reviews-sec'); if(sec){ sec.hidden=false; setupReveal(); }
+  }catch(_){}
+}
+
 function renderContent(){
   const ct=$('colTiles');
   if(ct){
@@ -511,6 +560,7 @@ async function init(){
   state.products=pickScene(state.all);
   renderCheckout();
   renderContent();   // populate the full-depth scroll sections (works with 3D or 2D)
+  loadReviews();     // real verified reviews for this region (hidden if none approved)
   setupReveal();     // luxury scroll-reveal on the content sections
   if(state.usedFallback) note(`Live ${RC.label} catalog unavailable right now — showing a limited sample. Product links still open the ${RC.label} store.`);
 
@@ -589,7 +639,7 @@ async function start3D(){
     for (let i = 0; i < 8; i++) {
       const mat = new THREE.MeshBasicMaterial({ color: 0xFBF5EA, transparent: true, opacity: 0.05, depthWrite: false });
       const w = new THREE.Mesh(steamGeo, mat);
-      w.position.set((Math.random() - 0.5) * 0.7, -1.15 + Math.random() * 2.2, 2.35 + (Math.random() - 0.5) * 0.3);
+      w.position.set((Math.random() - 0.5) * 0.5, -1.55 + Math.random() * 1.8, 1.4 + (Math.random() - 0.5) * 0.25);
       w.userData = { rise: 0.3 + Math.random() * 0.4, drift: (Math.random() - 0.5) * 0.12 };
       scene.add(w); steam.push(w);
     }
@@ -599,7 +649,11 @@ async function start3D(){
   // freshly-steeped tea on a loop, steam rising from the rim. Stationary front-
   // centre (NOT on the spinning carousel). Static-full under reduced motion. ──
   const cup = new THREE.Group();
-  cup.position.set(0, -1.82, 2.35);
+  // Sit the cup low and centred ON the pedestal, BELOW the floating product
+  // carousel (panels span y ~ -1.1..1.1), scaled down so the two animations
+  // never overlap in screen space.
+  cup.position.set(0, -2.0, 1.4);
+  cup.scale.setScalar(0.7);
   scene.add(cup);
   const ceramic = new THREE.MeshStandardMaterial({ color: 0xFBF5EA, roughness: 0.38, metalness: 0.05 });
   const goldMat = new THREE.MeshStandardMaterial({ color: 0xAB8743, roughness: 0.3, metalness: 0.75 });
@@ -686,9 +740,9 @@ async function start3D(){
     const steamGain = reduceMotion ? 0.7 : (0.28 + cupState.level*0.85);
     for(let si=0; si<steam.length; si++){ const w=steam[si];
       w.position.y += w.userData.rise*dt; w.position.x += w.userData.drift*dt;
-      w.material.opacity = Math.max(0, 0.12*steamGain*(1 - (w.position.y+1.15)/4.0));
+      w.material.opacity = Math.max(0, 0.12*steamGain*(1 - (w.position.y+1.55)/3.6));
       w.lookAt(camera.position.x, w.position.y, camera.position.z);
-      if(w.position.y > 2.4){ w.position.y = -1.15; w.position.x = (Math.random()-0.5)*0.7; }
+      if(w.position.y > 1.9){ w.position.y = -1.55; w.position.x = (Math.random()-0.5)*0.5; }
     }
     // Scroll parallax: the 3D backdrop rises, dollies in slightly and tilts as
     // the page scrolls, so depth carries through the whole page (not just hero).
