@@ -70,6 +70,58 @@ module.exports = async function handler(req, res) {
     });
   }
 
+  // Live provider probe — /api/health?probe=1 (also /api/public-config?probe=1).
+  // For every provider that HAS a key, fires ONE tiny real request (pinned to that
+  // provider via preferProvider so providers are tested in isolation) and reports
+  // whether it actually answered — turning "key is present" into "key works right
+  // now". This is the definitive answer to "why did copy fall back to template":
+  // you see per provider whether it's ok / rate-limited (429) / bad key (401) /
+  // wrong model (404) / not configured. No secrets leak (booleans + status only).
+  if (req.query && (req.query.probe !== undefined)) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-store');
+    const callLLM = require('./_shared/llm.js');
+    const PROVIDERS = [
+      { id: 'anthropic', label: 'Anthropic / Claude', env: 'ANTHROPIC_API_KEY', gen: 'https://console.anthropic.com/settings/keys' },
+      { id: 'openai',    label: 'OpenAI',              env: 'OPENAI_API_KEY',    gen: 'https://platform.openai.com/api-keys' },
+      { id: 'gemini',    label: 'Google Gemini',       env: 'GEMINI_API_KEY',    gen: 'https://aistudio.google.com/apikey' },
+      { id: 'grok',      label: 'xAI / Grok',          env: 'XAI_API_KEY',       gen: 'https://console.x.ai' },
+      { id: 'groq',      label: 'Groq (free)',         env: 'GROQ_API_KEY',      gen: 'https://console.groq.com/keys' },
+      { id: 'cerebras',  label: 'Cerebras (free)',     env: 'CEREBRAS_API_KEY',  gen: 'https://cloud.cerebras.ai' },
+    ];
+    const keyPresent = (id) => id === 'openai'
+      ? !!(process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_2 || process.env.OPENAI_API_KEY_3)
+      : !!process.env[PROVIDERS.find((p) => p.id === id).env];
+    const results = await Promise.all(PROVIDERS.map(async (p) => {
+      if (!keyPresent(p.id)) return { provider: p.id, label: p.label, configured: false, ok: false, verdict: 'not configured', generate_key_at: p.gen };
+      try {
+        const r = await callLLM({ systemPrompt: 'Reply with the single word: ok', userMessage: 'ping', maxTokens: 8, temperature: 0, timeoutMs: 8000, stage: 'probe', preferProvider: p.id });
+        return { provider: p.id, label: p.label, configured: true, ok: true, model: r.model, verdict: 'ok — answered' };
+      } catch (e) {
+        const det = (e && e._providerErrors && e._providerErrors[0]) || {};
+        const status = det.status;
+        const verdict = status === 429 || status === 402 ? 'rate-limited / quota exhausted (429)'
+          : status === 401 || status === 403 ? 'bad or unauthorized key (401/403)'
+          : status === 404 ? 'model not found for this account (404)'
+          : status === 0 ? 'timeout / network'
+          : 'failed (' + (status || '?') + ')';
+        return { provider: p.id, label: p.label, configured: true, ok: false, status, verdict, detail: String(det.err || (e && e.message) || '').substring(0, 160) };
+      }
+    }));
+    const working = results.filter((r) => r.ok);
+    return res.status(200).json({
+      ok: working.length > 0,
+      probe: 'live',
+      ts: new Date().toISOString(),
+      env: process.env.VERCEL_ENV || 'unknown',
+      working_providers: working.map((r) => r.provider),
+      summary: working.length
+        ? working.length + ' provider(s) answering: ' + working.map((r) => r.provider).join(', ')
+        : 'NO provider answered — this is why copy fell back to the template. Fix the providers below (add a key or clear quota).',
+      providers: results,
+    });
+  }
+
   // Health mode — /api/health rewrites here as ?health=1. Returns provider
   // status (no secrets) for uptime monitors + deploy verification. Always 200.
   if (req.query && (req.query.health !== undefined)) {
