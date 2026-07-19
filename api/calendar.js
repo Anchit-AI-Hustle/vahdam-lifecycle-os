@@ -305,7 +305,7 @@ async function lifecycle(req, res, action) {
     if (action === 'lifecycle-build-mailer') {
       if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
       if (!body.id && !body.entry) return res.status(400).json({ ok: false, error: 'id (lifecycle entry) or entry is required' });
-      const result = await lifecycleBuild.buildLifecycleMailer({ id: body.id || null, entry: body.entry || null });
+      const result = await lifecycleBuild.buildLifecycleMailer({ id: body.id || null, entry: body.entry || null, force: !!(body.force || (q && q.force)) });
       return res.status(200).json(result);
     }
 

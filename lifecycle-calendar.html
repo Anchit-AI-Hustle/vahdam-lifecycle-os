@@ -184,6 +184,7 @@
       <div class="flex gap-2">
         <button id="btnCopyHtml" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink" style="display:none">Copy HTML</button>
         <button id="btnDownload" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink" style="display:none">↓ Download</button>
+        <button id="btnRegen" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink" style="display:none" title="Force a fresh rebuild (otherwise the saved mailer loads instantly)">↻ Regenerate</button>
         <button id="btnDone" class="text-[11px] uppercase tracking-wider px-3 py-2 rounded bg-gold text-bg font-semibold">Done</button>
       </div>
     </div>
@@ -349,36 +350,57 @@ function renderTable(filter) {
   }));
 }
 
-async function buildMailer(entry) {
+// Per-slot cache of the built mailer so re-opening a day loads INSTANTLY (no
+// rebuild) within the session; the server also retrieve-firsts a persisted build
+// across sessions. Only "↻ Regenerate" (force) triggers a true rebuild.
+STATE.built = STATE.built || {};
+
+function renderMailerData(data) {
+  STATE.currentMailer = data.mailer;
+  const variants = (data.variants && data.variants.length) ? data.variants
+    : (data.mailer.variants && data.mailer.variants.length) ? data.mailer.variants
+    : [data.mailer];
+  STATE.variants = variants;
+  const src = data.retrieved ? 'Loaded saved build (instant).' : (data.persisted ? 'Saved - slot marked built.' : 'Not persisted (' + ((data.persistence && data.persistence.reason) || 'no Supabase') + ') - copy or download it now.');
+  STATE.persistNote = src + (data.mailer.generated_by ? ' · written by ' + data.mailer.generated_by : '');
+  renderVariantTabs();
+  selectVariant(0);
+  $('btnCopyHtml').style.display = '';
+  $('btnDownload').style.display = '';
+  $('btnRegen').style.display = '';
+}
+
+async function buildMailer(entry, opts) {
+  opts = opts || {};
   STATE.currentEntry = entry;
   STATE.currentMailer = null;
   $('mailerTitle').textContent = entry.date + ' · ' + entry.cohort_label;
   $('mailerSubtitle').textContent = entry.play_key.replace(/_/g, ' ') + ' · ' + entry.product_type + ' · ' + (entry.purchase_mode === 'one_time_only' ? 'one-time only' : 'subscription-first');
-  $('mailerBody').innerHTML = '<div class="text-ink-mute text-center py-8">Writing two premium copy directions and rendering four variants (2 Text, 2 Text + Visual)…</div>';
+  $('copyStatus').textContent = '';
   $('btnCopyHtml').style.display = 'none';
   $('btnDownload').style.display = 'none';
-  $('copyStatus').textContent = '';
+  $('btnRegen').style.display = 'none';
   $('mailerModal').classList.add('open');
+
+  // Instant load from the in-session cache unless forcing a regenerate.
+  if (!opts.force && entry.id && STATE.built[entry.id]) {
+    $('mailerBody').innerHTML = '';
+    renderMailerData(STATE.built[entry.id]);
+    return;
+  }
+  $('mailerBody').innerHTML = '<div class="text-ink-mute text-center py-8">' + (opts.force ? 'Regenerating' : 'Loading') + ' four variants (2 Text, 2 Text + Visual)…</div>';
   try {
     const res = await fetch('/api/calendar?action=lifecycle-build-mailer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: entry.id, entry }),
+      body: JSON.stringify({ id: entry.id, entry, force: !!opts.force }),
     });
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     if (!data.ok || !data.mailer) throw new Error(data.error || 'build failed');
-    STATE.currentMailer = data.mailer;
-    const variants = (data.variants && data.variants.length) ? data.variants
-      : (data.mailer.variants && data.mailer.variants.length) ? data.mailer.variants
-      : [data.mailer];
-    STATE.variants = variants;
-    STATE.persistNote = (data.persisted ? 'Saved - slot marked built.' : 'Not persisted (' + ((data.persistence && data.persistence.reason) || 'no Supabase') + ') - copy or download it now.')
-      + (data.mailer.generated_by ? ' · written by ' + data.mailer.generated_by : '');
-    renderVariantTabs();
-    selectVariant(0);
-    $('btnCopyHtml').style.display = '';
-    $('btnDownload').style.display = '';
+    if (entry.id) STATE.built[entry.id] = data; // cache for instant re-open
+    $('mailerBody').innerHTML = '';
+    renderMailerData(data);
   } catch (e) {
     $('mailerBody').innerHTML = '<div class="text-red-400 text-center py-8">Build failed: ' + escAttr(e.message || e) + '</div>';
   }
@@ -443,6 +465,13 @@ function activeMailerHtml() {
 $('btnCopyHtml').addEventListener('click', () => {
   const html = activeMailerHtml();
   if (html) copyText(html, $('copyStatus'));
+});
+
+$('btnRegen').addEventListener('click', () => {
+  const e = STATE.currentEntry;
+  if (!e) return;
+  if (e.id) delete STATE.built[e.id];   // drop the cached build so we truly rebuild
+  buildMailer(e, { force: true });
 });
 
 $('btnDownload').addEventListener('click', () => {
