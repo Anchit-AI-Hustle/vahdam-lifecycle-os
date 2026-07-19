@@ -89,12 +89,18 @@ module.exports = async function handler(req, res) {
       { id: 'groq',      label: 'Groq (free)',         env: 'GROQ_API_KEY',      gen: 'https://console.groq.com/keys' },
       { id: 'cerebras',  label: 'Cerebras (free)',     env: 'CEREBRAS_API_KEY',  gen: 'https://cloud.cerebras.ai' },
       { id: 'openrouter', label: 'OpenRouter (gateway → Claude/GPT/…)', env: 'OPENROUTER_API_KEY', gen: 'https://openrouter.ai/credits' },
+      { id: 'github',    label: 'GitHub Models (free GPT-4o/Llama)', env: 'GITHUB_MODELS_TOKEN', gen: 'https://github.com/settings/tokens' },
+      { id: 'cloudflare', label: 'Cloudflare Workers AI (free daily)', env: 'CLOUDFLARE_API_TOKEN', gen: 'https://dash.cloudflare.com/profile/api-tokens' },
     ];
     const keyPresent = (id) => id === 'openai'
       ? !!(process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_2 || process.env.OPENAI_API_KEY_3)
       : id === 'openrouter'
         ? !!(process.env.OPENROUTER_API_KEY || process.env.OpenRouter_API_KEY)
-        : !!process.env[PROVIDERS.find((p) => p.id === id).env];
+        : id === 'github'
+          ? !!(process.env.GITHUB_MODELS_TOKEN || process.env.GITHUB_TOKEN)
+          : id === 'cloudflare'
+            ? !!(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID)
+            : !!process.env[PROVIDERS.find((p) => p.id === id).env];
     const results = await Promise.all(PROVIDERS.map(async (p) => {
       if (!keyPresent(p.id)) return { provider: p.id, label: p.label, configured: false, ok: false, verdict: 'not configured', generate_key_at: p.gen };
       try {

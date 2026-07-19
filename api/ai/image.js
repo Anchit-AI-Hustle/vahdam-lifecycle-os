@@ -330,16 +330,51 @@ module.exports = async function handler(req, res) {
     return null;
   }
 
+  // ── Rung: Cloudflare Workers AI (free daily allowance — Flux-schnell) ────────
+  // Independent free bucket; only active when CLOUDFLARE_ACCOUNT_ID + _API_TOKEN
+  // are both set. Returns base64 JPEG in result.image (no data: prefix).
+  const CF_ACCOUNT = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
+  const CF_TOKEN   = (process.env.CLOUDFLARE_API_TOKEN || '').trim();
+  async function tryCloudflare() {
+    if (!CF_ACCOUNT || !CF_TOKEN) return null;
+    const model = process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell';
+    const url = 'https://api.cloudflare.com/client/v4/accounts/' + CF_ACCOUNT + '/ai/run/' + model;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    console.log('[image] Trying Cloudflare model=' + model);
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + CF_TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: finalPrompt.substring(0, 2000), steps: 6 }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (!r.ok) { console.warn('[image] Cloudflare → HTTP ' + r.status); return null; }
+      const data = await r.json().catch(() => null);
+      const b64 = data && data.result && data.result.image;
+      if (!b64 || b64.length < 5000) { console.warn('[image] Cloudflare — no image in response'); return null; }
+      console.log('[image] Success · Cloudflare ' + model);
+      return { provider: 'cloudflare', model, image_data_url: 'data:image/jpeg;base64,' + b64 };
+    } catch (e) {
+      clearTimeout(timeout);
+      console.error('[image] Cloudflare exception:', String(e.message || e).substring(0, 200));
+      return null;
+    }
+  }
+
   // ── Tier-ordered cascade ────────────────────────────────────────────────────
   const rungs = isPremium
     ? [
         tryOpenai,                                                             // gpt-image-2 → gpt-image-1
         () => tryGeminiNative(['gemini-3-pro-image-preview', 'gemini-2.5-flash-image']),
         () => tryImagen(['imagen-4.0-fast-generate-001']),
+        tryCloudflare,                                                         // free Flux bucket
         tryPollinations
       ]
     : [
         () => tryGeminiNative(['gemini-2.5-flash-image']),                     // free ~500/day
+        tryCloudflare,                                                         // free Flux bucket
         tryPollinations,                                                       // free floor
         tryOpenai                                                              // last paid resort
       ];
