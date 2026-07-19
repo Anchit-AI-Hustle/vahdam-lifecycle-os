@@ -45,6 +45,17 @@ const CEREBRAS_BASE  = 'https://api.cerebras.ai/v1';
 // tiers) so a funded OpenRouter key catches burst-overflow instead of dropping to
 // the template. Unfunded (free-tier) it simply 402/404s and the cascade continues.
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
+// GitHub Models — FREE OpenAI-compatible access to GPT-4o / o-series / Llama /
+// Mistral via a GitHub PAT (GITHUB_MODELS_TOKEN, or a plain GITHUB_TOKEN). Generous
+// per-model daily limits, an independent rate-limit bucket. Added as a free rung.
+const GITHUB_MODELS_BASE = 'https://models.inference.ai.azure.com';
+// Cloudflare Workers AI — FREE daily neuron allowance, OpenAI-compatible endpoint at
+// /accounts/{id}/ai/v1. Needs CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN; skipped
+// cleanly when either is absent. Same account also serves free Flux images.
+const CF_ACCOUNT_ID  = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
+const CLOUDFLARE_BASE = CF_ACCOUNT_ID
+  ? 'https://api.cloudflare.com/client/v4/accounts/' + CF_ACCOUNT_ID + '/ai/v1'
+  : '';
 // Optional tail rungs — only active when their env config is present.
 // Ollama exposes an OpenAI-compatible API at ${OLLAMA_BASE_URL}/v1.
 const OLLAMA_BASE    = (process.env.OLLAMA_BASE_URL || '').replace(/\/+$/, '') + (process.env.OLLAMA_BASE_URL ? '/v1' : '');
@@ -98,6 +109,16 @@ function modelsFor(provider, tier) {
       if (tier === 'premium') return _dedupe([env.OPENROUTER_TEXT_MODEL_MAX || 'openai/gpt-4o', 'google/gemini-2.5-flash', 'meta-llama/llama-3.3-70b-instruct']);
       if (tier === 'fast')    return _dedupe([env.OPENROUTER_TEXT_MODEL_FAST || 'openai/gpt-4o-mini', 'google/gemini-2.5-flash']);
       return _dedupe([env.OPENROUTER_TEXT_MODEL || 'openai/gpt-4o-mini', 'google/gemini-2.5-flash', 'meta-llama/llama-3.3-70b-instruct']);
+    case 'github':
+      // GitHub Models slugs. Env-overridable. Free GPT-4o family + open models.
+      if (tier === 'premium') return _dedupe([env.GITHUB_TEXT_MODEL_MAX || 'gpt-4o', 'Meta-Llama-3.1-70B-Instruct']);
+      if (tier === 'fast')    return _dedupe([env.GITHUB_TEXT_MODEL_FAST || 'gpt-4o-mini']);
+      return _dedupe([env.GITHUB_TEXT_MODEL || 'gpt-4o-mini', 'Meta-Llama-3.1-8B-Instruct']);
+    case 'cloudflare':
+      // Cloudflare Workers AI model ids (the @cf/... slugs). Env-overridable.
+      if (tier === 'premium') return _dedupe([env.CLOUDFLARE_TEXT_MODEL_MAX || '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct']);
+      if (tier === 'fast')    return _dedupe([env.CLOUDFLARE_TEXT_MODEL_FAST || '@cf/meta/llama-3.1-8b-instruct']);
+      return _dedupe([env.CLOUDFLARE_TEXT_MODEL || '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct']);
     case 'ollama':
       if (tier === 'premium') return _dedupe([env.OLLAMA_TEXT_MODEL_MAX || env.OLLAMA_TEXT_MODEL || 'llama3.3']);
       if (tier === 'fast')    return _dedupe([env.OLLAMA_TEXT_MODEL_FAST || env.OLLAMA_TEXT_MODEL || 'llama3.2']);
@@ -112,8 +133,8 @@ function modelsFor(provider, tier) {
 // Provider ORDER per tier (blueprint). Fast skips Grok (no cheap rung there).
 function providerOrder(tier) {
   return tier === 'fast'
-    ? ['anthropic', 'openai', 'gemini', 'groq', 'cerebras', 'openrouter', 'ollama', 'sakana']
-    : ['anthropic', 'openai', 'gemini', 'grok', 'groq', 'cerebras', 'openrouter', 'ollama', 'sakana'];
+    ? ['anthropic', 'openai', 'gemini', 'groq', 'cerebras', 'github', 'cloudflare', 'openrouter', 'ollama', 'sakana']
+    : ['anthropic', 'openai', 'gemini', 'grok', 'groq', 'cerebras', 'github', 'cloudflare', 'openrouter', 'ollama', 'sakana'];
 }
 
 // ── Failure classification (drives demotion) ─────────────────────────────────
@@ -179,6 +200,11 @@ module.exports = async function callLLM(opts) {
   // (`OpenRouter_API_KEY`) already provisioned in this project. Node env names are
   // case-sensitive, so both spellings are read explicitly.
   const openrouterKey = _clean(process.env.OPENROUTER_API_KEY) || _clean(process.env.OpenRouter_API_KEY);
+  // GitHub Models — dedicated token or a plain GitHub PAT.
+  const githubKey    = _clean(process.env.GITHUB_MODELS_TOKEN) || _clean(process.env.GITHUB_TOKEN);
+  // Cloudflare Workers AI — needs BOTH account id (folded into CLOUDFLARE_BASE) and token.
+  const cloudflareKey = _clean(process.env.CLOUDFLARE_API_TOKEN);
+  const cloudflareOn  = !!CLOUDFLARE_BASE && !!cloudflareKey;
   // Optional tail rungs (skipped cleanly unless configured):
   //   Ollama gate = OLLAMA_BASE_URL present (auth optional).
   //   Sakana gate = both SAKANA_BASE_URL and SAKANA_API_KEY present. Forward-looking:
@@ -191,8 +217,8 @@ module.exports = async function callLLM(opts) {
   // Debug: log key presence (not values) for cascade diagnostics
   console.log('[llm] Keys present: groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' gemini=' + !!geminiKey + ' tier=' + tierNorm);
 
-  if (!openaiKeys.length && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey && !openrouterKey) {
-    throw new Error('No AI provider configured. Set at least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY');
+  if (!openaiKeys.length && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey && !openrouterKey && !githubKey && !cloudflareOn) {
+    throw new Error('No AI provider configured. Set at least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, GITHUB_MODELS_TOKEN, CLOUDFLARE_API_TOKEN(+CLOUDFLARE_ACCOUNT_ID)');
   }
 
   // When a preferred provider is set, skip others to avoid wasting time on failed providers
@@ -206,6 +232,8 @@ module.exports = async function callLLM(opts) {
     groq:      isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'groq'),
     cerebras:  isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'cerebras'),
     openrouter: isGeminiPlus ? true : !!(preferredProvider && preferredProvider !== 'openrouter'),
+    github:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'github'),
+    cloudflare: isGeminiPlus ? true : !!(preferredProvider && preferredProvider !== 'cloudflare'),
     ollama:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'ollama'),
     sakana:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'sakana')
   };
@@ -218,6 +246,8 @@ module.exports = async function callLLM(opts) {
     groq:      !!groqKey,
     cerebras:  !!cerebrasKey,
     openrouter: !!openrouterKey,
+    github:    !!githubKey,
+    cloudflare: cloudflareOn,  // gated on CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN
     ollama:    ollamaOn,   // gated on OLLAMA_BASE_URL (auth optional)
     sakana:    sakanaOn    // gated on SAKANA_BASE_URL + SAKANA_API_KEY
   };
@@ -397,6 +427,16 @@ module.exports = async function callLLM(opts) {
     max_tokens: maxTokens,
     ...(responseFormat ? { response_format: responseFormat } : {})
   }));
+  // GitHub Models (OpenAI-compatible). Free GPT-4o family via a GitHub PAT.
+  const _github = _openaiCompatible('github', GITHUB_MODELS_BASE, githubKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
+  }));
+  // Cloudflare Workers AI (OpenAI-compatible at /ai/v1). Free daily allowance.
+  const _cloudflare = _openaiCompatible('cloudflare', CLOUDFLARE_BASE, cloudflareKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
+  }));
   // Optional tail rungs (OpenAI-compatible). Only ever reached if configured
   // (hasKey.ollama / hasKey.sakana gate them in the cascade loop).
   const _ollama = _openaiCompatible('ollama', OLLAMA_BASE, ollamaKey, () => ({
@@ -510,6 +550,8 @@ module.exports = async function callLLM(opts) {
         : providerName === 'groq' ? _groq
         : providerName === 'cerebras' ? _cerebras
         : providerName === 'openrouter' ? _openrouter
+        : providerName === 'github' ? _github
+        : providerName === 'cloudflare' ? _cloudflare
         : providerName === 'ollama' ? _ollama
         : _sakana;
       result = await runChain(providerName, fn, models);
