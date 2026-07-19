@@ -270,12 +270,51 @@
     <p class="lede">
       See your data. Watch competitors. Plan the month. Write the emails. Run the ads.
     </p>
+    <p class="purpose" style="max-width:64ch;margin:14px 0 0;color:var(--muted,#6b7568);font-size:15px;line-height:1.6">
+      VAHDAM Lifecycle OS is the internal retention and lifecycle-marketing workspace for the
+      VAHDAM Teas growth team. It brings customer-data analysis, campaign planning, email and
+      mailer generation, ad and landing-page creation, competitor intelligence, and a brand AI
+      assistant together in one place. Sign in with your Google account to access the tools;
+      your Google profile is used only to authenticate team members.
+    </p>
     <div class="hero-actions">
+      <button class="kbd-hint" id="home-signin" type="button" hidden
+        style="background:var(--gold,#AB8743);color:#0a1410;font-weight:800;border:none;padding:11px 20px;border-radius:10px;cursor:pointer">
+        Sign in with Google
+      </button>
       <button class="kbd-hint" id="cmdk-open" type="button">
         Jump to any tool… <kbd id="cmdk-key">⌘K</kbd>
       </button>
     </div>
+    <p class="legal-links" style="margin:16px 0 0;font-size:13px;color:var(--muted,#6b7568)">
+      <a href="/privacy" style="color:var(--gold,#AB8743)">Privacy Policy</a>
+      &nbsp;·&nbsp;
+      <a href="/terms" style="color:var(--gold,#AB8743)">Terms</a>
+    </p>
   </section>
+  <script>
+    // Homepage sign-in CTA (Google OAuth). The homepage is public; this button
+    // offers sign-in and hides itself once a session exists. Auth is wired by
+    // auth.js (window.LifecycleAuth); we poll briefly for it to become ready.
+    (function () {
+      var btn = document.getElementById('home-signin');
+      if (!btn) return;
+      function sync() {
+        var signedIn = !!(window.LifecycleAuth && window.LifecycleAuth.user);
+        btn.hidden = signedIn;
+      }
+      btn.addEventListener('click', async function () {
+        var c = window.LifecycleAuth && window.LifecycleAuth.client;
+        if (!c) { return; }
+        try {
+          btn.disabled = true; btn.textContent = 'Redirecting to Google…';
+          await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + '/dashboard' } });
+        } catch (e) { btn.disabled = false; btn.textContent = 'Sign in with Google'; }
+      });
+      var n = 0, iv = setInterval(function () { sync(); if (++n > 25) clearInterval(iv); }, 400);
+      sync();
+    })();
+  </script>
 
   <section class="v3d-showcase" aria-label="Official Website Designs — 3D store preview" style="margin:8px 0 26px;border:1px solid var(--line,rgba(171,135,67,.2));border-radius:18px;overflow:hidden;background:#07100d;position:relative">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;flex-wrap:wrap">

@@ -731,6 +731,10 @@
     // Legal/consent pages are always open (Google OAuth review + never lock a
     // user out of the privacy/terms pages).
     if (/(^|\/)(privacy|terms)(\.html)?$/.test(p)) return true;
+    // The HOMEPAGE must be publicly viewable (Google OAuth "app homepage"
+    // requirement: not behind a login page, and it explains the app's purpose).
+    // It renders a guest nav + a Sign in button, but is never walled.
+    if (p === '/' || p === '' || /(^|\/)index(\.html)?$/.test(p)) return true;
     // Otherwise a page is open ONLY if its nav leaf is explicitly flagged
     // open (Mailer Studio). Everything else requires Google sign-in.
     const id = currentStepId();
