@@ -26,6 +26,8 @@
     { "path": "/api/cron/social", "schedule": "0 19 * * *" }
   ],
   "rewrites": [
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
     { "source": "/api/ai/pipeline/health", "destination": "/api/public-config?pipeline=1" },
     { "source": "/api/ai/landing-page", "destination": "/api/ai/generate?action=landing-page" },
     { "source": "/api/voice", "destination": "/api/brain?action=tts" },
