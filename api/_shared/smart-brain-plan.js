@@ -1192,12 +1192,18 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   const { entry, row } = await resolveEntry({ id, inlineEntry, config, db });
   if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
 
-  // Approved/final slots always return the FINAL saved campaign — the reviewer
-  // sees exactly what ships, never a fresh regeneration.
+  // Approved/final slots return the FINAL saved campaign — the reviewer sees
+  // exactly what ships, never a fresh regeneration — EXCEPT when that saved
+  // campaign is a stale template fallback (copywriter.provider ===
+  // 'template-fallback'), i.e. it was built during an LLM outage. Returning it
+  // would replay the "template fallback" warning forever, so we skip it and fall
+  // through to republishOrphan below, which rebuilds real copy now that providers
+  // are healthy and re-persists under the same id (so /lp links still resolve).
   if (db.connected && row && (row.status === 'approved' || row.status === 'final') && row.generated_campaign_id) {
     const fin = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${row.generated_campaign_id}` }, limit: 1 }).catch(() => []);
     const c = fin && fin[0] && fin[0].payload;
-    if (c) {
+    const cIsFallback = !!(c && c.copywriter && c.copywriter.provider === 'template-fallback');
+    if (c && !cIsFallback) {
       return {
         ok: true, preview: false, persisted: true, campaign: c,
         copywriter: c.copywriter,
