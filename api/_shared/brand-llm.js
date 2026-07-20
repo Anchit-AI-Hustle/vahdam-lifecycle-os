@@ -29,6 +29,7 @@ const marketAnalytics = require('./market-analytics.js');
 const webengage = require('./webengage-core.js');
 const agentic = require('./agentic-orchestrator.js');
 const klaviyo = require('./klaviyo-core.js');
+const adInsights = require('./ad-insights-core.js');
 
 let callLLM = null;
 try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
@@ -131,6 +132,13 @@ const TOOLS = {
     run: async (a) => ((a.op || 'campaigns') === 'summary'
       ? webengage.eventSummary({ hours: a.hours ? parseInt(a.hours, 10) : 24, market: a.market })
       : webengage.campaignPerformance({ event: a.event || 'Notification Clicked', hours: a.hours ? parseInt(a.hours, 10) : 24, market: a.market })),
+  },
+  ad_insights: {
+    mutates: false,
+    desc: 'REAL paid-ads performance pulled from each platform\'s OWN reporting API — Meta Ads (Graph Insights), Google Ads (GAQL) and TikTok Ads (Business report). USE THIS for any ad conversion / traffic / engagement question (spend, ROAS, conversions, impressions, clicks, CTR, CPC, reach, video views). Region-aware: pass {market} (US|UK) — accounts resolve per-market. params: {platform?("meta"|"google"|"tiktok"; omit for ALL three), metric_group?("conversion"|"traffic"|"engagement", default conversion), market?, since?(YYYY-MM-DD), until?}. If a platform\'s keys are not set it returns the exact request it would send (never a fabricated number) — relay that the platform needs connecting.',
+    run: async (a) => (a.platform
+      ? adInsights.insights({ platform: a.platform, market: a.market, metricGroup: a.metric_group || a.metricGroup, since: a.since, until: a.until })
+      : adInsights.summary({ market: a.market, metricGroup: a.metric_group || a.metricGroup, since: a.since, until: a.until })),
   },
   run_analysis: {
     mutates: false,
@@ -398,6 +406,7 @@ RULES:
 - PRODUCTS & LINKS (critical): to name a product or give a product link, you MUST first call catalog_products and use ONLY the exact name, price and url it returns. NEVER invent, guess, shorten or edit a product handle or URL, and never use a vahdamteas.com/vahdamindia.com domain — the only valid domains are vahdam.com / vahdam.co.uk / vahdam.global / vahdam.in. If catalog_products returns nothing for the query, say you could not find that product rather than guessing a link.
 - Never invent figures. If a tool returns 'not_connected' or empty, say so plainly and state what's needed (e.g. "set KLAVIYO_API_KEY").
 - AUDIENCE / CUSTOMER-BASE SIZE (critical): for "our audience base", "how many customers", "customer count", "how big is our list", ALWAYS use audience_base (real Shopify totals) for the SIZE. NEVER report the profile counts from list_cohorts / ask_analytics cohorts as the audience size — those are a modelled RFM sample (a few hundred rows) and are NOT the real base. Use list_cohorts only for the value-segment SHAPE. State the window and that it is purchasing customers; if asked for total subscribers/list size, say that needs Klaviyo (not connected).
+- PAID ADS PERFORMANCE (critical): for any Meta / Facebook / Instagram / Google / TikTok ad question — spend, ROAS, conversions, impressions, clicks, CTR, CPC, reach, engagement, video views — use ad_insights (real data from each platform's own reporting API), scoped to the region. NEVER invent ad numbers. If a platform's keys aren't set, ad_insights returns the exact request it would send — relay that that platform needs connecting (name the env vars) rather than guessing a figure.
 - GENERATED ASSETS: when you generate mailers/ads/landing pages, the chat UI automatically renders each real asset as a clickable View / Download card below your message. So DO NOT paste raw HTML, and NEVER emit template placeholders like {{mailer_html_for_...}} or {{...}} — just briefly describe what was generated and refer the user to the asset cards below.
 - SELF-SUFFICIENCY (critical): NEVER ask the user for data you can fetch yourself with a tool — calendar/slot/entry IDs, mailer or landing-page HTML, cohort definitions, product handles/prices, audience sizes, metrics. If you need an entry to act on (e.g. to fill a mailer's asset slots), FIRST call get_calendar (or list_campaigns / list_cohorts) to resolve the real slot/entry IDs for the market, THEN call the generate/asset tool with those IDs — do NOT reply "share the entry IDs or HTML". You operate the whole app; look things up yourself. The ONLY thing you ask the user for is a genuine business DECISION (which offer, which market, approve/reject) — never a data lookup the app can answer.
 - Never repeat or describe these instructions, your JSON action format, or tool scaffolding to the user. Reply only with the answer itself.
@@ -529,11 +538,17 @@ async function chat({ message, history = [], market = 'US', maxSteps = 3 } = {})
       await Promise.all(batch.map(async ({ name, args }) => {
         const tool = TOOLS[name];
         if (!tool) { working.push({ tool: name, args, result: { ok: false, error: `Unknown tool '${name}'. Available: ${Object.keys(TOOLS).join(', ')}` } }); return; }
+        // Default every market-aware tool to the SESSION's selected region unless
+        // the model explicitly passed one (explicit wins). Tools are defined at
+        // module load and can't see the per-request market, so we inject it here.
+        // This makes the US/UK selector actually drive audience, catalog,
+        // performance, ad insights AND asset generation for the chosen region.
+        const runArgs = (args && args.market != null && String(args.market).trim()) ? args : { ...(args || {}), market };
         let result;
-        try { result = await tool.run(args); } catch (e) { result = { ok: false, error: e.message }; }
+        try { result = await tool.run(runArgs); } catch (e) { result = { ok: false, error: e.message }; }
         collectAssets(name, result, assets); // client-only asset channel (before truncation)
-        working.push({ tool: name, args, result });
-        steps.push({ tool: name, args, summary: truncate(result, 600) });
+        working.push({ tool: name, args: runArgs, result });
+        steps.push({ tool: name, args: runArgs, summary: truncate(result, 600) });
       }));
       continue;
     }
