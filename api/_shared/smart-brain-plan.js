@@ -1208,7 +1208,7 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     // effort with creatives; buildCampaign falls back to template assets if the
     // LLM/image providers are unavailable, so it never blocks the reviewer.
     try {
-      const healedC = await republishOrphan(db, config, entry, row, { reviewer, withCreatives: 'hero', noLLM: false });
+      const healedC = await republishOrphan(db, config, entry, row, { reviewer, withCreatives: false, noLLM: false });
       return {
         ok: true, preview: false, persisted: true, healed: true, campaign: healedC,
         copywriter: healedC.copywriter,
@@ -1239,14 +1239,17 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   if (campaign && campaign.copywriter && campaign.copywriter.provider === 'template-fallback') {
     campaign = null;
   }
-  // Fallback (slot never built yet): build copy + layout + the EMAIL HERO image
-  // only ('hero'). Generating all 5 images inline overran the function limit and
-  // returned a non-JSON timeout page; a single hero stays within budget so View
-  // shows a complete mailer (hero included) instead of an image-less shell. The
-  // full ad/LP image set still comes from the prebuild queue or Download.
+  // Fallback (slot never built yet): build copy + layout with REAL CATALOG PHOTOS
+  // as the hero/product imagery — NO inline image GENERATION. Generating even one
+  // hero image invokes the image cascade (up to a 60s per-image budget); combined
+  // with the multi-call LLM copy that overran api/calendar's function limit and
+  // returned a 504 (so nothing built/persisted). Catalog photos are a fast URL
+  // lookup, so View returns a complete, real-photo mailer well within budget. The
+  // GENERATED lifestyle/ad image set still comes from the background prebuild queue
+  // (its own per-batch budget) or Download.
   let builtFresh = false;
   if (!campaign) {
-    campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: 'hero' });
+    campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: false });
     campaign.status = 'preview';
     campaign.calendar_entry_id = entry.id || id || null;
     builtFresh = true;
