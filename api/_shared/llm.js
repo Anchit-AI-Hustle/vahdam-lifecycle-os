@@ -91,7 +91,7 @@ function modelsFor(provider, tier) {
       if (tier === 'fast')    return _dedupe([env.ANTHROPIC_TEXT_MODEL_FAST || 'claude-haiku-4-5']);
       return _dedupe([env.ANTHROPIC_TEXT_MODEL || 'claude-sonnet-5', 'claude-haiku-4-5']);
     case 'gemini':
-      if (tier === 'premium') return _dedupe([env.GEMINI_TEXT_MODEL_MAX || 'gemini-3.1-pro', 'gemini-3.5-flash', 'gemini-2.5-flash']);
+      if (tier === 'premium') return _dedupe([env.GEMINI_TEXT_MODEL_MAX || 'gemini-2.5-flash', 'gemini-3.5-flash']);
       if (tier === 'fast')    return _dedupe([env.GEMINI_TEXT_MODEL_FAST || 'gemini-2.5-flash']);
       return _dedupe([env.GEMINI_TEXT_MODEL || 'gemini-3.5-flash', 'gemini-2.5-flash']);
     case 'grok':
@@ -111,9 +111,9 @@ function modelsFor(provider, tier) {
       return _dedupe([env.OPENROUTER_TEXT_MODEL || 'openai/gpt-4o-mini', 'google/gemini-2.5-flash', 'meta-llama/llama-3.3-70b-instruct']);
     case 'github':
       // GitHub Models slugs. Env-overridable. Free GPT-4o family + open models.
-      if (tier === 'premium') return _dedupe([env.GITHUB_TEXT_MODEL_MAX || 'gpt-4o', 'Meta-Llama-3.1-70B-Instruct']);
+      if (tier === 'premium') return _dedupe([env.GITHUB_TEXT_MODEL_MAX || 'gpt-4o', 'gpt-4o-mini']);
       if (tier === 'fast')    return _dedupe([env.GITHUB_TEXT_MODEL_FAST || 'gpt-4o-mini']);
-      return _dedupe([env.GITHUB_TEXT_MODEL || 'gpt-4o-mini', 'Meta-Llama-3.1-8B-Instruct']);
+      return _dedupe([env.GITHUB_TEXT_MODEL || 'gpt-4o-mini']);
     case 'cloudflare':
       // Cloudflare Workers AI model ids (the @cf/... slugs). Env-overridable.
       if (tier === 'premium') return _dedupe([env.CLOUDFLARE_TEXT_MODEL_MAX || '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct']);
@@ -487,13 +487,11 @@ module.exports = async function callLLM(opts) {
         console.warn('[llm][' + stage + '] ' + providerName + ' model-not-found on ' + model + ' — demoting within provider');
         continue;
       }
-      // Gemini rate-limit retry: wait 4s and retry the same model once before moving on
-      if (kind === 'quota' && providerName === 'gemini' && result.status === 429) {
-        console.warn('[llm][' + stage + '] Gemini 429 on ' + model + ' — waiting 4s and retrying');
-        await new Promise(r => setTimeout(r, 4000));
-        result = await _gemini(model);
-        if (result.ok) return result;
-      }
+      // NOTE: no wait-and-retry on Gemini 429. In practice the free-tier 429 is a
+      // DAILY-quota exhaustion (not a per-minute blip), so a 4s wait+retry never
+      // recovered and just burned ~8-10s per call across the two Gemini models —
+      // stacking into function timeouts when several LLM calls run in one request.
+      // Demote immediately to the next model/provider instead.
       if (kind === 'quota' || kind === 'transient') {
         console.warn('[llm][' + stage + '] ' + providerName + ' ' + result.status + ' (' + kind + ') on ' + model + ' — trying next model');
         continue;
