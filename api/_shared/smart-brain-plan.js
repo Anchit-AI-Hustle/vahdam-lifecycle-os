@@ -515,7 +515,9 @@ async function strategyBrief(entry) {
       responseFormat: { type: 'json_object' },
       maxTokens: 900,
       temperature: 0.7,
-      timeoutMs: 30000,
+      // Optional enrichment on the on-demand path — keep it tightly bounded so it
+      // can never dominate the function budget (copy runs fine without it).
+      timeoutMs: 12000,
       stage: 'smart-brain-strategy',
       tier: 'premium',
     });
@@ -834,10 +836,12 @@ async function writeCopyWithLLM(entry, fw = null, brief = null) {
   // back off (so per-minute limits reset) and widen maxTokens (so the object has
   // more room to close). Only after every round fails do we surface the error that
   // drops the slot to template copy.
+  // Bounded so the whole copy pipeline (this ×2 directions + optional brief) stays
+  // well under the serverless function budget. 2 rounds with a short backoff; the
+  // wider token budget on the retry lets a reasoning model close the JSON.
   const ROUNDS = [
-    { maxTokens: 3200, waitBefore: 0 },
-    { maxTokens: 4096, waitBefore: 2500 },
-    { maxTokens: 4096, waitBefore: 5000 },
+    { maxTokens: 3600, waitBefore: 0 },
+    { maxTokens: 4096, waitBefore: 1500 },
   ];
   let lastErr;
   for (let i = 0; i < ROUNDS.length; i++) {
@@ -851,7 +855,7 @@ async function writeCopyWithLLM(entry, fw = null, brief = null) {
         responseFormat: { type: 'json_object' },
         maxTokens: r.maxTokens,
         temperature: 0.75,
-        timeoutMs: 40000,
+        timeoutMs: 20000,
         stage: 'smart-brain-copy',
         tier: 'premium',
       });
