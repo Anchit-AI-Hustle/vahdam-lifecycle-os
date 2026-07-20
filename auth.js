@@ -239,6 +239,7 @@
     ]},
     { id: 'designintel', label: 'Design Intelligence', href: '/design-intel', icon: 'insights', ver: 'v2', match: ['/design-intel', '/design-intelligence', '/design-intelligence.html'] },
     { id: 'analysis', label: 'Data Analysis',      href: '/data-analysis',           icon: 'analysis', ver: 'v2', match: ['/data-analysis', '/data-analysis.html', '/analytics', '/dashboard.html', '/rfm'] },
+    { id: 'd2c-review', label: 'D2C Business Review', href: '/d2c-review', icon: 'analysis', ver: 'v2', match: ['/d2c-review', '/business-review', '/usa-d2c-report', '/usa-d2c-dashboard', '/vahdam-usa-d2c-dashboard.html'] },
     { group: 'Cohorts', icon: 'cohort', gid: 'cohorts', ver: 'v1', children: [
       { id: 'coh-overview',   label: 'Overview',            href: '/cohorts?tab=overview',   icon: 'cohort' },
       { id: 'coh-engagement', label: 'Engagement Cohorts',  href: '/cohorts?tab=engagement', icon: 'insights' },
