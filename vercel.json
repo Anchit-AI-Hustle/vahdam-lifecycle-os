@@ -102,6 +102,8 @@
     { "source": "/data-analysis", "destination": "/data-analysis-contrast.html" },
     { "source": "/usa-d2c-report", "destination": "/vahdam-usa-d2c-dashboard.html" },
     { "source": "/usa-d2c-dashboard", "destination": "/vahdam-usa-d2c-dashboard.html" },
+    { "source": "/d2c-review", "destination": "/vahdam-usa-d2c-dashboard.html" },
+    { "source": "/business-review", "destination": "/vahdam-usa-d2c-dashboard.html" },
     { "source": "/rfm", "destination": "/dashboard.html" },
     { "source": "/plan", "destination": "/calendar.html" },
     { "source": "/mailer-calendar", "destination": "/lifecycle-calendar.html" },
