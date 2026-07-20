@@ -1230,6 +1230,15 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${reuseId}` }, limit: 1 }).catch(() => []);
     if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
   }
+  // AUTO-HEAL stale template fallbacks. A slot built during an earlier LLM outage
+  // persisted template-fallback copy (copywriter.provider === 'template-fallback')
+  // and would otherwise be REPLAYED forever — showing the "template fallback"
+  // warning even though providers now work. Treat such a bundle as not-built so the
+  // block below regenerates it through the (now healthy) cascade and re-persists a
+  // real campaign. Self-limiting: only fires for fallback bundles, once each.
+  if (campaign && campaign.copywriter && campaign.copywriter.provider === 'template-fallback') {
+    campaign = null;
+  }
   // Fallback (slot never built yet): build copy + layout + the EMAIL HERO image
   // only ('hero'). Generating all 5 images inline overran the function limit and
   // returned a non-JSON timeout page; a single hero stays within budget so View
