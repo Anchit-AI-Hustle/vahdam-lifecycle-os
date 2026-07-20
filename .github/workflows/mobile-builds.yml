@@ -111,20 +111,21 @@ jobs:
         run: npx cap add ios || true
 
       - name: cap sync ios
-        # ios/App/Podfile does `require_relative '../../node_modules/@capacitor/ios/...'`
-        # — needs node_modules present, plus keeps the plugin list in sync.
+        # Resolves Swift Package Manager dependencies (Capacitor 8 iOS uses SPM,
+        # not CocoaPods) and keeps the plugin list in sync.
         run: npx cap sync ios
 
-      - name: Install CocoaPods dependencies
-        working-directory: ios/App
-        run: pod install
-
+      # NOTE: no `pod install` — Capacitor 8 iOS is Swift Package Manager. A fresh
+      # `cap add ios` produces App.xcodeproj + CapApp-SPM/Package.swift and NO
+      # Podfile / .xcworkspace, so we build the .xcodeproj directly and let
+      # xcodebuild resolve the SPM packages.
       - name: Build (no code signing)
         working-directory: ios/App
         run: |
-          xcodebuild -workspace App.xcworkspace -scheme App \
+          xcodebuild -project App.xcodeproj -scheme App \
             -configuration Release -sdk iphoneos \
             -derivedDataPath build \
+            -clonedSourcePackagesDirPath build/SourcePackages \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             build
 
