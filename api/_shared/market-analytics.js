@@ -96,6 +96,42 @@ function projectCurrentMonth(monthly) {
   };
 }
 
+/**
+ * REAL customer / audience base for a market, straight from the Shopify export
+ * (live Admin snapshot when present, else the CSV export) — NEVER the seeded
+ * smart_cohorts sample. "Purchasing customers" = unique buyers on the store over
+ * the export window (new + returning). Total email/SMS list size is a Klaviyo
+ * figure and is NOT reported here (Klaviyo not connected) — so we never conflate
+ * a 600-row modelled RFM sample with the real customer base.
+ */
+function audience(market) {
+  const mk = normMarket(market);
+  const m = (data().markets || {})[mk];
+  const s = m && m.summary;
+  if (!m || !s) {
+    const have = Object.keys((data().markets) || {}).join(', ') || 'none';
+    return { ok: false, market: mk, error: `No customer data loaded for ${mk} yet. Available now: ${have}. To add ${mk}, authorize the ${mk} Shopify store via the connected Shopify MCP (or drop its CSV export) — audience numbers are never fabricated for a market we have no data for.` };
+  }
+  const monthly = m.monthly || [];
+  const newC = Number(s.new_customers || 0);
+  const retC = Number(s.returning_customers || 0);
+  const total = newC + retC;
+  const src = m.live ? `Live Shopify Admin snapshot (${m.live.store_url || m.live.shop || 'connected store'}, pulled ${m.live.pulled_at || 'recently'})` : 'Real Shopify CSV export';
+  const win = monthly.length ? `${monthLabel(monthly[0].month)} → ${monthLabel(monthly[monthly.length - 1].month)}` : 'the export window';
+  return {
+    ok: true, market: mk, currency: cur(mk),
+    data_source: m.live ? 'shopify_admin_live' : 'shopify_csv_export',
+    source: src,
+    window: win,
+    purchasing_customers: total,
+    new_customers: newC,
+    returning_customers: retC,
+    returning_rate_pct: round2((s.returning_rate || 0) * 100),
+    orders: Number(s.orders || 0),
+    note: `Purchasing customers = unique buyers on the ${mk} store over ${win} (Shopify). Total email/SMS list size (all subscribers, including non-buyers) is a Klaviyo figure and is not counted here.`,
+  };
+}
+
 /** Rich real performance snapshot for a market — the payload ChaiGPT reasons over. */
 function performance(market) {
   const mk = normMarket(market);
@@ -143,4 +179,4 @@ function marketDips(market, dropPct = 0.15) {
   return [];
 }
 
-module.exports = { performance, marketDips, data, normMarket, cur };
+module.exports = { performance, audience, marketDips, data, normMarket, cur };
