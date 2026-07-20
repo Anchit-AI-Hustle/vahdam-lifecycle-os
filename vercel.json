@@ -104,6 +104,8 @@
     { "source": "/usa-d2c-dashboard", "destination": "/vahdam-usa-d2c-dashboard.html" },
     { "source": "/d2c-review", "destination": "/vahdam-usa-d2c-dashboard.html" },
     { "source": "/business-review", "destination": "/vahdam-usa-d2c-dashboard.html" },
+    { "source": "/d2c-lifecycle-os", "destination": "/index.html" },
+    { "source": "/lifecycle-os", "destination": "/index.html" },
     { "source": "/rfm", "destination": "/dashboard.html" },
     { "source": "/plan", "destination": "/calendar.html" },
     { "source": "/mailer-calendar", "destination": "/lifecycle-calendar.html" },
