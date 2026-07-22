@@ -18,9 +18,15 @@
     "api/calendar.js":             { "maxDuration": 120 },
     "api/competitor.js":           { "maxDuration": 60 },
     "api/kb.js":                   { "maxDuration": 60 },
-    "api/public-config.js":        { "maxDuration": 25 }
+    "api/public-config.js":        { "maxDuration": 120 }
   },
-  "redirects": [{ "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false }],
+  "redirects": [
+    { "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false },
+    { "source": "/usa-d2c-report", "destination": "/data-analysis?tab=review-overview", "permanent": false },
+    { "source": "/usa-d2c-dashboard", "destination": "/data-analysis?tab=review-overview", "permanent": false },
+    { "source": "/d2c-review", "destination": "/data-analysis?tab=review-overview", "permanent": false },
+    { "source": "/business-review", "destination": "/data-analysis?tab=review-overview", "permanent": false }
+  ],
   "crons": [
     { "path": "/api/brain?action=cron", "schedule": "30 18 * * *" },
     { "path": "/api/cron/social", "schedule": "0 19 * * *" }
@@ -100,10 +106,6 @@
     { "source": "/premium", "destination": "/premium-experience.html" },
     { "source": "/analytics", "destination": "/data-analysis-contrast.html" },
     { "source": "/data-analysis", "destination": "/data-analysis-contrast.html" },
-    { "source": "/usa-d2c-report", "destination": "/vahdam-usa-d2c-dashboard.html" },
-    { "source": "/usa-d2c-dashboard", "destination": "/vahdam-usa-d2c-dashboard.html" },
-    { "source": "/d2c-review", "destination": "/vahdam-usa-d2c-dashboard.html" },
-    { "source": "/business-review", "destination": "/vahdam-usa-d2c-dashboard.html" },
     { "source": "/d2c-lifecycle-os", "destination": "/index.html" },
     { "source": "/lifecycle-os", "destination": "/index.html" },
     { "source": "/rfm", "destination": "/dashboard.html" },
