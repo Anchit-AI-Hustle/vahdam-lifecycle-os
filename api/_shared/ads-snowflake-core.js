@@ -241,7 +241,37 @@ function status() {
   };
 }
 
+// Live connection test — runs a trivial read (SELECT 1) so the UI can verify the
+// warehouse is actually REACHABLE with the configured credentials, not merely
+// that env vars are present. Reports which env vars are missing when unconfigured,
+// and the exact upstream error (e.g. 401 = bad/expired PAT) when a request fails,
+// so the connection can be diagnosed without guesswork. Read-only.
+async function ping() {
+  const c = cfg();
+  const present = { account: !!c.account, user: !!c.user, pat: !!c.pat, warehouse: !!c.warehouse, database: !!c.database, role: !!c.role };
+  const missing = ['account', 'user', 'pat', 'warehouse'].filter((k) => !present[k]).map((k) => `SNOWFLAKE_${k.toUpperCase()}`);
+  if (!isConfigured()) {
+    return { ok: false, connected: false, configured: false, reachable: false, present, missing,
+      hint: `Set ${missing.join(', ')} in Vercel (a read-only PAT for SNOWFLAKE_PAT). The account is the org-account identifier, e.g. UXDEIHW-MO06981.` };
+  }
+  const started = Date.now();
+  try {
+    const r = await runStatement('select 1 as ok', 20000);
+    const ok = Array.isArray(r.rows) && r.rows.length > 0;
+    return { ok, connected: true, configured: true, reachable: ok, present,
+      latency_ms: Date.now() - started, account_host: sqlApiUrl(c).replace(/^https:\/\//, '').replace(/\/api.*/, ''),
+      warehouse: c.warehouse, database: c.database || null, role: c.role || null,
+      note: 'Live SELECT 1 succeeded — the warehouse is reachable read-only with the configured credentials.' };
+  } catch (e) {
+    return { ok: false, connected: true, configured: true, reachable: false, present,
+      latency_ms: Date.now() - started, status: e.status || null, error: e.message || String(e),
+      hint: e.status === 401 || e.status === 403
+        ? 'Credentials rejected: check SNOWFLAKE_PAT (a valid, non-expired Programmatic Access Token) and SNOWFLAKE_USER, and that the PAT/role can use the warehouse.'
+        : 'Configured but the request failed. Verify SNOWFLAKE_ACCOUNT (org-account id, e.g. UXDEIHW-MO06981), SNOWFLAKE_WAREHOUSE and network access.' };
+  }
+}
+
 module.exports = {
-  status, describe, metrics, cohort, budgets, runStatement,
+  status, ping, describe, metrics, cohort, budgets, runStatement,
   isConfigured, PLATFORMS, ACCOUNTS, DIMENSION_CANDIDATES, sources,
 };
