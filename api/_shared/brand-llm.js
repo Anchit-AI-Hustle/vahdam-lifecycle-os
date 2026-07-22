@@ -135,10 +135,10 @@ const TOOLS = {
   },
   ad_insights: {
     mutates: false,
-    desc: 'REAL paid-ads performance pulled from each platform\'s OWN reporting API — Meta Ads (Graph Insights), Google Ads (GAQL) and TikTok Ads (Business report). USE THIS for any ad conversion / traffic / engagement question (spend, ROAS, conversions, impressions, clicks, CTR, CPC, reach, video views). Region-aware: pass {market} (US|UK) — accounts resolve per-market. params: {platform?("meta"|"google"|"tiktok"; omit for ALL three), metric_group?("conversion"|"traffic"|"engagement", default conversion), market?, since?(YYYY-MM-DD), until?}. If a platform\'s keys are not set it returns the exact request it would send (never a fabricated number) — relay that the platform needs connecting.',
+    desc: 'REAL paid-ads performance pulled from each platform\'s OWN reporting API — Meta Ads (Graph Insights), Google Ads (GAQL) and TikTok Ads (Business report) — PER CAMPAIGN or PER AD. Every result leads with the client priority metrics IN ORDER: Amount spent, Frequency, Hook Rate, Through Rate, Reach, Cost Per Reach, Impressions, Link clicks, CTR, CPC, CPM, 3-sec video plays, video plays 25/50/75%, Cost per 3-sec play (in result.priority_metrics + result.rows). Report those first, before any other metric. Region-aware: pass {market} (US|UK). params: {platform?("meta"|"google"|"tiktok"; omit for ALL three), level?("campaign"|"ad"|"account", default campaign), market?, since?(YYYY-MM-DD), until?}. If a platform\'s keys are not set it returns the exact request it would send (never a fabricated number) — relay that the platform needs connecting.',
     run: async (a) => (a.platform
-      ? adInsights.insights({ platform: a.platform, market: a.market, metricGroup: a.metric_group || a.metricGroup, since: a.since, until: a.until })
-      : adInsights.summary({ market: a.market, metricGroup: a.metric_group || a.metricGroup, since: a.since, until: a.until })),
+      ? adInsights.insights({ platform: a.platform, market: a.market, level: a.level, since: a.since, until: a.until })
+      : adInsights.summary({ market: a.market, level: a.level, since: a.since, until: a.until })),
   },
   run_analysis: {
     mutates: false,
