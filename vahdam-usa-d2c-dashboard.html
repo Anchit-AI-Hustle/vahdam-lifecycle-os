@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VAHDAM India - US D2C Website Review</title>
+<title>Sales &amp; Business Review — VAHDAM Lifecycle OS</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
@@ -159,11 +159,17 @@ footer{text-align:center;font-size:11px;color:#999;padding:20px}
 .t8h{color:var(--green);font-weight:600;font-size:13px;margin:12px 0 4px}
 .chip{background:#f1ece0;border:1px solid var(--gold);color:var(--green);border-radius:14px;padding:3px 12px;font-size:12px;font-weight:600}
 
+
+/* Contrast/readability hardening (WCAG-AA): never light-on-light or dark-on-dark.
+   Gold (#AB8743) as TEXT on cream/white fails AA (~3.2:1) and white on gold fails
+   (~3.4:1); darken gold text on light, and use ink on gold fills. */
+.srcline b,.insight .lbl,.clickhint,.info,.carhead,.granseg .granlbl,.granseg button[data-g="custom"],.caryr .info{color:#7a5a1e !important}
+.gtbar .gtapply,.pgctl button.pgnum.on{color:#171717 !important}
 </style></head><body>
 <div class="topbar">
 <header>
 <img src="https://www.vahdam.co.uk/cdn/shop/files/logo-website_3.png?v=1756808809&width=310" alt="VAHDAM India">
-<div class="t"><h1>US D2C Website - Business Review</h1><p>Interactive analysis, verified against source data (Shopify, Amazon, CX and subscriptions) - data as of 16 Jul 2026</p></div>
+<div class="t"><h1>Sales &amp; Business Review</h1><p>Interactive analysis, verified against source data (Shopify, Amazon, CX and subscriptions) - data as of 16 Jul 2026</p></div>
 <button class="ghost" onclick="dlPdf()">Download PDF</button>
 <button onclick="dlXlsx()">Download Excel</button>
 </header>
