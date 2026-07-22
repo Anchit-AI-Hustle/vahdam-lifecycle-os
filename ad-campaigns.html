@@ -632,30 +632,53 @@
   // be REAL, so a genuine PDP product photo is the default base visual — never an
   // AI-invented tin. Catalog JSON is served with CORS from /data/catalog.
   const _catalogCache = {};
-  async function catalogImages(market) {
+  // Return catalog PRODUCTS (with name/handle + real primary image), not a flat
+  // image list — so a creative can be matched to the RIGHT SKU, never a random
+  // real-but-wrong product.
+  async function catalogProducts(market) {
     const region = /uk/i.test(market) ? 'uk' : /us/i.test(market) ? 'us' : 'global';
     if (_catalogCache[region]) return _catalogCache[region];
     try {
       const r = await fetch('/data/catalog/products_' + region + '.json', { cache: 'force-cache' });
       const rows = r.ok ? await r.json() : [];
-      const imgs = [];
-      (Array.isArray(rows) ? rows : []).forEach((p) => {
-        if (p && typeof p.i === 'string' && /^https?:\/\//.test(p.i)) imgs.push(p.i);
-        if (Array.isArray(p && p.imgs)) p.imgs.forEach((u) => { if (typeof u === 'string' && /^https?:\/\//.test(u)) imgs.push(u); });
-      });
-      _catalogCache[region] = imgs;
-      return imgs;
+      const prods = (Array.isArray(rows) ? rows : []).map((p) => ({
+        name: String((p && p.n) || ''), handle: String((p && p.h) || ''),
+        img: (p && typeof p.i === 'string' && /^https?:\/\//.test(p.i)) ? p.i
+          : (Array.isArray(p && p.imgs) && p.imgs[0] && /^https?:\/\//.test(p.imgs[0]) ? p.imgs[0] : ''),
+      })).filter((p) => p.img);
+      _catalogCache[region] = prods;
+      return prods;
     } catch (_) { _catalogCache[region] = []; return []; }
   }
-  // Pick a real catalog image for a channel — prefer one whose product name matches
-  // the configured product; else rotate through the gallery deterministically.
+  // Pick a REAL catalog image for a channel — prefer the product whose name/handle
+  // matches the configured product (so branding matches the SKU the ad is about);
+  // only if there is no product reference at all do we deterministically rotate.
   async function realCatalogImage(ch) {
     const cfg = CRE_CFG[ch];
-    const imgs = await catalogImages(v(cfg.market) || 'US');
-    if (!imgs.length) return '';
+    const prods = await catalogProducts(v(cfg.market) || 'US');
+    if (!prods.length) return '';
+    const want = String(v(cfg.name) || '').trim().toLowerCase();
+    if (want) {
+      const wantH = want.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      // exact-ish: handle match, then full-name contains, then strongest token overlap.
+      let hit = prods.find((p) => p.handle && (p.handle.toLowerCase() === wantH || p.handle.toLowerCase().includes(wantH)));
+      if (!hit) hit = prods.find((p) => p.name.toLowerCase().includes(want) || want.includes(p.name.toLowerCase()));
+      if (!hit) {
+        const toks = want.split(/[^a-z0-9]+/).filter((t) => t.length > 2);
+        let best = null, bestScore = 0;
+        prods.forEach((p) => {
+          const nl = p.name.toLowerCase();
+          const score = toks.reduce((s, t) => s + (nl.includes(t) ? 1 : 0), 0);
+          if (score > bestScore) { bestScore = score; best = p; }
+        });
+        if (bestScore >= 2) hit = best; // require a real overlap, not one stopword
+      }
+      if (hit) return hit.img;
+    }
+    // No product named on this channel → deterministic rotation over real photos.
     const seed = String(v(cfg.name) || ch);
     let h = 0; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-    return imgs[h % imgs.length];
+    return prods[h % prods.length].img;
   }
   // Fetch ONE AI base visual at the given size (text-free). Returns dataURL or ''.
   async function fetchAiVisual(prompt, size) {
