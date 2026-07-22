@@ -180,10 +180,28 @@
   }
   function renderSource(st){
     var tbl=st.tables||{};
-    $('#source-body').innerHTML='<div class="frame"><h2 style="margin-top:0">Snowflake <span class="chip '+(st.configured?'good':'warn')+'">'+(st.configured?'connected':'not configured')+'</span></h2>'+
-      (st.configured?'<p class="note">Live, read-only. Same source as the Streamlit-in-Snowflake app.</p>':'<p class="note">Set <code>SNOWFLAKE_ACCOUNT / USER / PAT / WAREHOUSE / DATABASE</code> in Vercel (read-only PAT). Until then panels show the exact SQL they will run.</p>')+
+    $('#source-body').innerHTML='<div class="frame"><h2 style="margin-top:0">Snowflake <span class="chip '+(st.configured?'good':'warn')+'">'+(st.configured?'configured':'not configured')+'</span></h2>'+
+      '<div id="ping-line"><p class="note">Testing connection…</p></div>'+
+      (st.configured?'<p class="note">Read-only. Same source as the Streamlit-in-Snowflake app.</p>':'<p class="note">Set <code>SNOWFLAKE_ACCOUNT / USER / PAT / WAREHOUSE / DATABASE</code> in Vercel (read-only PAT). Until then panels show the exact SQL they will run.</p>')+
       '<p class="note">Meta: <code>'+((tbl.meta&&tbl.meta.ads)||'')+'</code><br>TikTok: <code>'+((tbl.tiktok&&tbl.tiktok.campaign)||'')+'</code><br>Google: <code>'+((tbl.google&&tbl.google.ads)||'')+'</code></p>'+
       '<p class="note">'+(st.note||'')+'</p></div>';
+    loadPing();
+  }
+  // Live connection test — SELECT 1 against the warehouse. Distinguishes
+  // "configured but unreachable" (bad/expired PAT etc.) from a real connection.
+  function renderPing(p){
+    var el=$('#ping-line'); if(!el)return;
+    if(p.reachable){
+      el.innerHTML='<p class="note"><span class="chip good">reachable</span> Live SELECT 1 OK · '+(p.latency_ms!=null?p.latency_ms+'ms':'')+' · <code>'+(p.account_host||'')+'</code> · warehouse <code>'+(p.warehouse||'')+'</code></p>';
+    } else if(!p.configured){
+      el.innerHTML='<p class="note"><span class="chip warn">not connected</span> Missing in Vercel: <code>'+((p.missing||[]).join(', ')||'SNOWFLAKE_*')+'</code>. '+(p.hint||'')+'</p>';
+    } else {
+      el.innerHTML='<p class="note"><span class="chip warn">unreachable</span> Configured but the test failed'+(p.status?(' (HTTP '+p.status+')'):'')+': '+String(p.error||'').replace(/</g,'&lt;')+'<br>'+(p.hint||'')+'</p>';
+    }
+  }
+  function loadPing(){
+    fetch('/api/brain?action=ads-snowflake&op=ping',{cache:'no-store'}).then(function(r){return r.json();}).then(renderPing)
+      .catch(function(e){var el=$('#ping-line');if(el)el.innerHTML='<p class="note"><span class="chip warn">error</span> '+e.message+'</p>';});
   }
   function loadCohort(){get('cohort','&dimension='+$('#c-dim').value+'&measure='+$('#c-measure').value).then(renderCohort).catch(function(e){$('#cohort-body').innerHTML='<div class="empty">'+e.message+'</div>';});}
 

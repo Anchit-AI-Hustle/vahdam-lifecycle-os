@@ -401,6 +401,7 @@ module.exports = async function handler(req, res) {
         const p = req.method === 'POST' ? b : Object.assign({}, req.query);
         const op = p.op || 'status';
         if (op === 'status') return res.json(adsSnowflake.status());
+        if (op === 'ping') return res.json(await adsSnowflake.ping());
         if (op === 'budgets') return res.json(adsSnowflake.budgets());
         if (op === 'describe') return res.json(await adsSnowflake.describe({ platform: p.platform, level: p.level }));
         if (op === 'cohort') return res.json(await adsSnowflake.cohort({ platform: p.platform, dimension: p.dimension, measure: p.measure, account: p.account, since: p.since, until: p.until, level: p.level }));
