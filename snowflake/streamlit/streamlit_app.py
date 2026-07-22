@@ -126,10 +126,9 @@ def meta_rows():
 
 
 def generic_rows(table):
-    """Google / TikTok: return recent aggregate rows with whatever columns exist."""
-    where = "where 1=1" + date_clause("date_start", since, until)
-    # Defensive: many Daton/Maplemonk tables differ; pull recent rows and let the
-    # table view show available columns rather than assume a schema.
+    """Google / TikTok: return recent rows with whatever columns exist.
+    Defensive: Daton/Maplemonk schemas vary, so pull recent rows and let the
+    table view show available columns rather than assume a date/account column."""
     sql = f"select * from {table} limit 500"
     try:
         return q(sql)
