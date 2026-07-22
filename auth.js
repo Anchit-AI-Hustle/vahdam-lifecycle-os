@@ -728,6 +728,16 @@
     for (const it of leaves) {
       if ((it.match || []).some((m) => m !== '/' && p.startsWith(String(m).toLowerCase() + '/'))) return it.id;
     }
+    // 5. pathname-exact fallback IGNORING query/hash — when the URL carries a
+    //    ?tab=/#hash that matched no specific sub-tab leaf (steps 1-2), keep the
+    //    page's OWN group/leaf lit instead of falling through to Home. (Step 3
+    //    only fires when there is no query/hash; this covers the query/hash case.)
+    for (const it of leaves) {
+      if (it.href) {
+        const hp = it.href.split('#')[0].split('?')[0].toLowerCase();
+        if (hp !== '/' && hp === p) return it.id;
+      }
+    }
     return 'home';
   }
   // Pages that must never gate behind the login wall.
