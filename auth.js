@@ -1378,7 +1378,7 @@
           max-width: 460px; width: 100%;
           background: #ffffff; border: 1px solid rgba(171,135,67,0.25);
           border-radius: 16px; padding: 40px 36px;
-          text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+          text-align: center; box-shadow: 0 20px 60px rgba(0,74,43,0.16);
         }
         #lifecycle-loginwall .llw-dot {
           width: 44px; height: 44px; border-radius: 50%;
@@ -1392,7 +1392,7 @@
         }
         #lifecycle-loginwall h1 {
           font-family: 'Lora','Inter',serif; font-size: 26px;
-          color: #FBF5EA; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em;
+          color: #171717; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em;
         }
         #lifecycle-loginwall h1 em { color: #AB8743; font-style: italic; }
         #lifecycle-loginwall p {
@@ -1402,7 +1402,7 @@
         #lifecycle-loginwall button {
           display: inline-flex; align-items: center; justify-content: center;
           gap: 10px; padding: 13px 22px;
-          background: #FBF5EA; color: #ffffff;
+          background: #004A2B; color: #ffffff;
           border: none; border-radius: 9px;
           font-family: inherit; font-size: 14px; font-weight: 600;
           letter-spacing: 0.02em; cursor: pointer;
@@ -1420,8 +1420,8 @@
           border-radius: 8px; margin-bottom: 18px;
         }
         #lifecycle-loginwall .llw-config {
-          color: #fbbf24; font-size: 11px; padding: 12px;
-          background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.25);
+          color: #7a5510; font-size: 11px; padding: 12px;
+          background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.4);
           border-radius: 8px; margin-top: 16px; text-align: left;
           font-family: 'JetBrains Mono', monospace; line-height: 1.6;
         }
