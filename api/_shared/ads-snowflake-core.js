@@ -60,22 +60,50 @@ function tableRef(envKey, dflt) {
   const db = (process.env.SNOWFLAKE_DATABASE || '').trim();  // schema.table -> prefix db
   return (db ? db + '.' + raw : raw).toUpperCase();
 }
+// Verified against the live warehouse (Saras/Daton + Maplemonk pipelines). Each
+// is env-overridable. TikTok reports are per level; Meta/TikTok expose dedicated
+// demographic/geo breakdown tables used for cohorts.
 function sources() {
   return {
-    tiktok: { ads: tableRef('SF_TIKTOK_ADS_TABLE', 'DATON.RAW.TIKTOK_ADS_USA') },
-    meta: {
-      ads: tableRef('SF_META_ADS_TABLE', 'MAPLEMONK.META_USA_ADS'),
-      ads_alt: tableRef('SF_META_ADS1_TABLE', 'MAPLEMONK1.META_USA_ADS'),
-      creatives: tableRef('SF_META_CREATIVES_TABLE', 'MAPLEMONK1.META_USA_AD_CREATIVES'),
+    tiktok: {
+      account: tableRef('SF_TIKTOK_ADS_TABLE', 'DATON.RAW.TIKTOK_ADS_USA_CAMPAIGN_REPORT_DAILY'),
+      campaign: tableRef('SF_TIKTOK_CAMPAIGN_TABLE', 'DATON.RAW.TIKTOK_ADS_USA_CAMPAIGN_REPORT_DAILY'),
+      adgroup: tableRef('SF_TIKTOK_ADGROUP_TABLE', 'DATON.RAW.TIKTOK_ADS_USA_ADGROUP_REPORT_DAILY'),
+      ad: tableRef('SF_TIKTOK_AD_TABLE', 'DATON.RAW.TIKTOK_ADS_USA_AD_REPORT_DAILY'),
+      age_gender: tableRef('SF_TIKTOK_AGE_GENDER_TABLE', 'DATON.RAW.TIKTOK_ADS_USA_CAMPAIGN_REPORT_DAILY_AGE_GENDER'),
+      country: tableRef('SF_TIKTOK_COUNTRY_TABLE', 'DATON.RAW.TIKTOK_ADS_USA_CAMPAIGN_REPORT_DAILY_COUNTRY'),
     },
-    google: { ads: tableRef('SF_GOOGLE_ADS_TABLE', 'MAPLEMONK.GOOGLE_ADS_USA') },
+    meta: {
+      ads: tableRef('SF_META_ADS_TABLE', 'VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS'),
+      age_gender: tableRef('SF_META_AGE_GENDER_TABLE', 'VAHDAM_DB.MAPLEMONK1.META_USA_ADS_INSIGHTS_AGE_AND_GENDER'),
+      device: tableRef('SF_META_DEVICE_TABLE', 'VAHDAM_DB.MAPLEMONK1.META_USA_ADS_INSIGHTS_PLATFORM_AND_DEVICE'),
+      creatives: tableRef('SF_META_CREATIVES_TABLE', 'VAHDAM_DB.MAPLEMONK1.META_USA_AD_CREATIVES'),
+    },
+    google: { ads: tableRef('SF_GOOGLE_ADS_TABLE', 'VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_USA') },
   };
 }
-function primaryTable(platform) {
+function primaryTable(platform, level) {
   const s = sources();
   if (platform === 'meta') return s.meta.ads;
   if (platform === 'google') return s.google.ads;
-  if (platform === 'tiktok') return s.tiktok.ads;
+  if (platform === 'tiktok') return s.tiktok[String(level || 'campaign').toLowerCase()] || s.tiktok.campaign;
+  return null;
+}
+// Dedicated demographic/geo breakdown table for a (platform, dimension) — the
+// real source of cohort splits (base insight tables carry targeting settings,
+// not delivery breakdowns).
+function cohortTable(platform, dimension) {
+  const s = sources();
+  if (platform === 'meta') {
+    if (dimension === 'age' || dimension === 'gender') return s.meta.age_gender;
+    if (dimension === 'device' || dimension === 'placement') return s.meta.device;
+    return null;
+  }
+  if (platform === 'tiktok') {
+    if (dimension === 'age' || dimension === 'gender') return s.tiktok.age_gender;
+    if (dimension === 'country' || dimension === 'region') return s.tiktok.country;
+    return null;
+  }
   return null;
 }
 // Candidate column names for cohort dimensions + core measures (case-insensitive;
@@ -84,13 +112,13 @@ const DIMENSION_CANDIDATES = {
   age: ['age', 'age_range', 'age_group', 'age_bucket'],
   gender: ['gender', 'sex'],
   language: ['language', 'locale', 'lang'],
-  country: ['country', 'country_code', 'geo_country'],
+  country: ['country', 'country_code', 'geo_country', 'country_id'],
   region: ['region', 'state', 'province', 'dma', 'geo_region'],
   city: ['city', 'geo_city'],
   device: ['device', 'device_platform', 'platform_device', 'impression_device'],
   placement: ['placement', 'publisher_platform', 'network', 'ad_network_type'],
 };
-const DATE_CANDIDATES = ['date', 'day', 'stat_date', 'report_date', 'date_start', 'segments_date', 'event_date'];
+const DATE_CANDIDATES = ['date_start', 'stat_time_day', 'date', 'day', 'stat_date', 'report_date', 'date_stop', 'segments_date', 'event_date'];
 const ACCOUNT_CANDIDATES = ['account_name', 'account', 'advertiser_name', 'advertiser', 'customer_name', 'ad_account_name'];
 
 // ── Snowflake SQL REST API v2 (read-only) ─────────────────────────────────────
@@ -133,9 +161,10 @@ function splitTable(fqn) {
   return p.length >= 3 ? { db: p[0], schema: p[1], table: p.slice(2).join('_') } : { db: cfg().database, schema: p[0], table: p[1] };
 }
 
-// Discover the columns actually present in a platform's primary table.
-async function describe({ platform = 'meta' } = {}) {
-  const t = primaryTable(platform);
+// Introspect the columns of any table (defaults to the platform's primary table
+// for the given level). Auto-detects date / account / cohort-dimension columns.
+async function describe({ platform = 'meta', level, table: tblOverride } = {}) {
+  const t = tblOverride || primaryTable(platform, level);
   if (!t) return { ok: false, error: `Unknown platform '${platform}'.` };
   const { db, schema, table } = splitTable(t);
   const sql = `select column_name, data_type from ${db}.information_schema.columns where table_schema = '${schema}' and table_name = '${table}' order by ordinal_position`;
@@ -164,23 +193,24 @@ function dateFilter(col, since, until) {
 // Recent rows (all available metrics) for a platform, optionally scoped to an
 // account (target|costco) and date range. "SELECT *" so every metric the table
 // carries is returned — nothing is dropped or invented.
-async function metrics({ platform = 'meta', account, since, until, limit = 500 } = {}) {
-  const t = primaryTable(platform);
+async function metrics({ platform = 'meta', account, since, until, level, limit = 500 } = {}) {
+  const t = primaryTable(platform, level);
   if (!t) return { ok: false, error: `Unknown platform '${platform}'.` };
-  // Best-effort default column names; corrected once describe() runs live.
   const acctCol = ACCOUNT_CANDIDATES[0], dateCol = DATE_CANDIDATES[0];
   const where = `where 1=1${accountFilter(acctCol, account)}${dateFilter(dateCol, since, until)}`;
   const sql = `select * from ${t} ${where} order by ${dateCol} desc limit ${Math.min(+limit || 500, 5000)}`;
-  if (!isConfigured()) return notConnected(sql, { platform, account: account || null, table: t });
+  if (!isConfigured()) return notConnected(sql, { platform, account: account || null, level: level || null, table: t });
   const r = await runStatement(sql);
-  return { ok: true, connected: true, platform, account: account || null, table: t, source: 'snowflake', columns: r.columns, rows: r.rows };
+  return { ok: true, connected: true, platform, level: level || null, account: account || null, table: t, source: 'snowflake', columns: r.columns, rows: r.rows };
 }
 
 // Aggregate a measure by a cohort dimension (age/gender/country/…) — the raw
 // material for building demographic / geo / behavioural cohorts. Resolves the
 // real column names from describe() first so it adapts to each table.
-async function cohort({ platform = 'meta', dimension = 'country', measure = 'spend', account, since, until } = {}) {
-  const t = primaryTable(platform);
+async function cohort({ platform = 'meta', dimension = 'country', measure = 'spend', account, since, until, level } = {}) {
+  // Prefer the dedicated demographic/geo breakdown table for this dimension;
+  // fall back to the primary table (e.g. device/placement columns present there).
+  const t = cohortTable(platform, dimension) || primaryTable(platform, level);
   if (!t) return { ok: false, error: `Unknown platform '${platform}'.` };
   const buildSql = (dimCol, dateCol, acctCol, measureCol) => {
     const where = `where 1=1${accountFilter(acctCol, account)}${dateFilter(dateCol, since, until)}`;
@@ -191,7 +221,7 @@ async function cohort({ platform = 'meta', dimension = 'country', measure = 'spe
     const guessDim = (DIMENSION_CANDIDATES[dimension] || [dimension])[0];
     return notConnected(buildSql(guessDim, DATE_CANDIDATES[0], ACCOUNT_CANDIDATES[0], measure), { platform, dimension, measure, account: account || null, table: t });
   }
-  const d = await describe({ platform });
+  const d = await describe({ platform, table: t });
   const dimCol = d.detected && d.detected.dimensions && d.detected.dimensions[dimension];
   if (!dimCol) return { ok: false, connected: true, platform, dimension, table: t, error: `Dimension '${dimension}' is not a column in ${t}. Available dimensions: ${Object.entries((d.detected || {}).dimensions || {}).filter(([, v]) => v).map(([k]) => k).join(', ') || 'none detected'}.` };
   const measureCol = (d.columns || []).map((c) => c.name).includes(String(measure).toLowerCase()) ? measure : 'spend';

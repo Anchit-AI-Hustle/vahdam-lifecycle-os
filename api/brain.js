@@ -43,6 +43,7 @@ const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
 const adInsights = require('./_shared/ad-insights-core.js');
 const adsSnowflake = require('./_shared/ads-snowflake-core.js');
+const adMetrics = require('./_shared/ad-metrics-catalog.js');
 const webengage = require('./_shared/webengage-core.js');
 const video = require('./_shared/video-core.js');
 const social = require('./_shared/social-core.js');
@@ -401,9 +402,22 @@ module.exports = async function handler(req, res) {
         const op = p.op || 'status';
         if (op === 'status') return res.json(adsSnowflake.status());
         if (op === 'budgets') return res.json(adsSnowflake.budgets());
-        if (op === 'describe') return res.json(await adsSnowflake.describe({ platform: p.platform }));
-        if (op === 'cohort') return res.json(await adsSnowflake.cohort({ platform: p.platform, dimension: p.dimension, measure: p.measure, account: p.account, since: p.since, until: p.until }));
-        return res.json(await adsSnowflake.metrics({ platform: p.platform, account: p.account, since: p.since, until: p.until, limit: p.limit }));
+        if (op === 'describe') return res.json(await adsSnowflake.describe({ platform: p.platform, level: p.level }));
+        if (op === 'cohort') return res.json(await adsSnowflake.cohort({ platform: p.platform, dimension: p.dimension, measure: p.measure, account: p.account, since: p.since, until: p.until, level: p.level }));
+        return res.json(await adsSnowflake.metrics({ platform: p.platform, account: p.account, since: p.since, until: p.until, level: p.level, limit: p.limit }));
+      }
+
+      // ── AD METRICS CATALOG + ACCURACY (single source of truth for formulas) ──
+      case 'ad-metrics': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = p.op || 'catalog';
+        if (op === 'catalog') return res.json(adMetrics.catalog());
+        if (op === 'accuracy') return res.json(adMetrics.accuracy(p.rows || []));
+        if (op === 'compute') {
+          const rows = (p.rows || []).map((r) => ({ row: r, metrics: adMetrics.computeAll(r) }));
+          return res.json({ ok: true, count: rows.length, computed: rows, accuracy: adMetrics.accuracy(p.rows || []) });
+        }
+        return res.json({ ok: false, error: 'Unknown op. Use catalog|compute|accuracy.' });
       }
 
       // ── WEBENGAGE ──────────────────────────────────────────────────────────
