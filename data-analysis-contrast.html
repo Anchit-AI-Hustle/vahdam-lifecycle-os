@@ -87,9 +87,17 @@
       }
       style.textContent=css;
       doc.documentElement.setAttribute('data-vahdam-contrast','high');
+      let ext=doc.getElementById('vahdam-data-analysis-extensions');
+      if(!ext){
+        ext=doc.createElement('script');
+        ext.id='vahdam-data-analysis-extensions';
+        ext.src='/data-analysis-extensions.js?v=20260722';
+        ext.defer=true;
+        doc.body.appendChild(ext);
+      }
       loader.style.display='none';
       const observer=new MutationObserver(()=>{
-        if(!doc.getElementById('vahdam-high-contrast-override')) doc.head.appendChild(style);
+        if(!doc.getElementById('vahdam-high-contrast-override'))doc.head.appendChild(style);
       });
       observer.observe(doc.head,{childList:true});
     }catch(err){
