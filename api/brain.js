@@ -42,6 +42,7 @@ const smartbrain = require('../lib/smart-brain/services.js');
 const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
 const adInsights = require('./_shared/ad-insights-core.js');
+const adsSnowflake = require('./_shared/ads-snowflake-core.js');
 const webengage = require('./_shared/webengage-core.js');
 const video = require('./_shared/video-core.js');
 const social = require('./_shared/social-core.js');
@@ -392,6 +393,17 @@ module.exports = async function handler(req, res) {
           ? await adInsights.insights({ platform: p.platform, ...args })
           : await adInsights.summary(args);
         return res.json(out);
+      }
+
+      // ── ADS FROM SNOWFLAKE (live warehouse tables; cohort/segmentation) ──
+      case 'ads-snowflake': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = p.op || 'status';
+        if (op === 'status') return res.json(adsSnowflake.status());
+        if (op === 'budgets') return res.json(adsSnowflake.budgets());
+        if (op === 'describe') return res.json(await adsSnowflake.describe({ platform: p.platform }));
+        if (op === 'cohort') return res.json(await adsSnowflake.cohort({ platform: p.platform, dimension: p.dimension, measure: p.measure, account: p.account, since: p.since, until: p.until }));
+        return res.json(await adsSnowflake.metrics({ platform: p.platform, account: p.account, since: p.since, until: p.until, limit: p.limit }));
       }
 
       // ── WEBENGAGE ──────────────────────────────────────────────────────────
