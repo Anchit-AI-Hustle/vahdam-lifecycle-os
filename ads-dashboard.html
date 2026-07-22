@@ -80,6 +80,7 @@
     <button data-p="overview" class="on">Overview</button>
     <button data-p="rows">Campaign / ad rows</button>
     <button data-p="cohorts">Cohorts</button>
+    <button data-p="metrics">Metrics &amp; accuracy</button>
     <button data-p="source">Source &amp; connection</button>
   </div>
 
@@ -103,6 +104,15 @@
       <button class="apply" id="c-apply">Build cohort</button>
     </div>
     <div id="cohort-body"><div class="empty">Pick a dimension and build.</div></div>
+  </div>
+
+  <div class="panel" id="p-metrics">
+    <h2>Metric catalog &amp; accuracy</h2>
+    <p class="note">The same definitions the Streamlit-in-Snowflake app uses — one catalog, so every number is computed identically on both surfaces. <b>base</b> = read straight from the platform; <b>derived</b> = computed by the formula shown.</p>
+    <p class="eyebrow">Catalog</p>
+    <div id="catalog-body"><div class="empty">Loading…</div></div>
+    <p class="eyebrow">Accuracy over the current selection</p>
+    <div id="accuracy-body"><div class="empty">Refresh to score the current rows.</div></div>
   </div>
 
   <div class="panel" id="p-source">
@@ -176,16 +186,61 @@
       '<p class="note">'+(st.note||'')+'</p></div>';
   }
   function loadCohort(){get('cohort','&dimension='+$('#c-dim').value+'&measure='+$('#c-measure').value).then(renderCohort).catch(function(e){$('#cohort-body').innerHTML='<div class="empty">'+e.message+'</div>';});}
+
+  // ── Metric catalog + accuracy (shared source of truth: ?action=ad-metrics) ──
+  var catalogLoaded=false;
+  function renderCatalog(res){
+    if(!res||!res.ok||!res.categories){$('#catalog-body').innerHTML='<div class="empty">Catalog unavailable.</div>';return;}
+    var html=res.categories.map(function(c){
+      var rows=(c.metrics||[]).map(function(m){
+        return '<tr><td>'+m.label+'</td><td style="text-align:left"><span class="chip '+(m.tier==='base'?'good':'warn')+'">'+m.tier+'</span></td><td style="text-align:left;font-family:var(--mono)">'+String(m.formula).replace(/</g,'&lt;')+'</td><td style="text-align:left;white-space:normal;font-family:var(--sans)">'+m.definition+'</td></tr>';
+      }).join('');
+      return '<div class="frame"><h2 style="margin-top:0;font-size:17px">'+c.label+' <span class="note" style="font-weight:400">· '+(c.aspect||'')+'</span></h2>'+
+        '<div class="tbl-wrap"><table><thead><tr><th style="text-align:left">Metric</th><th style="text-align:left">Tier</th><th style="text-align:left">Formula</th><th style="text-align:left">Definition</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    }).join('');
+    $('#catalog-body').innerHTML=html+'<p class="note">'+(res.total_metrics||0)+' metrics · '+(res.note||'')+'</p>';
+  }
+  function loadCatalog(){
+    if(catalogLoaded)return; catalogLoaded=true;
+    fetch('/api/brain?action=ad-metrics&op=catalog',{cache:'no-store'}).then(function(r){return r.json();}).then(renderCatalog)
+      .catch(function(e){catalogLoaded=false;$('#catalog-body').innerHTML='<div class="empty">'+e.message+'</div>';});
+  }
+  function renderAccuracy(res){
+    if(!res||!res.ok){$('#accuracy-body').innerHTML='<div class="empty">Accuracy unavailable.</div>';return;}
+    var per=res.per_metric||{};
+    var confClass={high:'good',medium:'good',low:'warn',unavailable:'warn'};
+    var body=Object.keys(per).map(function(k){var m=per[k];
+      return '<tr><td>'+k+'</td><td>'+(m.coverage==null?'—':m.coverage+'%')+'</td><td style="text-align:left">'+(m.cross_checked?'yes':'no')+'</td><td>'+(m.agreement_pct==null?'—':m.agreement_pct+'%')+'</td><td style="text-align:left"><span class="chip '+(confClass[m.confidence]||'warn')+'">'+m.confidence+'</span></td></tr>';
+    }).join('');
+    $('#accuracy-body').innerHTML=
+      '<div class="scorecards" style="margin-bottom:10px">'+
+        '<div class="sc"><div class="k">Rows scored</div><div class="v">'+intf(res.rows)+'</div></div>'+
+        '<div class="sc"><div class="k">Overall coverage</div><div class="v">'+(res.overall_coverage_pct==null?'—':res.overall_coverage_pct+'%')+'</div></div>'+
+        '<div class="sc"><div class="k">High</div><div class="v">'+intf(res.high)+'</div></div>'+
+        '<div class="sc"><div class="k">Medium</div><div class="v">'+intf(res.medium)+'</div></div>'+
+        '<div class="sc"><div class="k">Low</div><div class="v">'+intf(res.low)+'</div></div>'+
+        '<div class="sc"><div class="k">Unavailable</div><div class="v">'+intf(res.unavailable)+'</div></div>'+
+      '</div>'+
+      '<div class="tbl-wrap"><table><thead><tr><th style="text-align:left">Metric</th><th>Coverage</th><th style="text-align:left">Cross-checked</th><th>Agreement</th><th style="text-align:left">Confidence</th></tr></thead><tbody>'+body+'</tbody></table></div>'+
+      '<p class="note">'+(res.note||'')+'</p>';
+  }
+  function loadAccuracy(rows){
+    if(!rows||!rows.length){$('#accuracy-body').innerHTML='<div class="empty">No rows to score — connect Snowflake or widen the window.</div>';return;}
+    fetch('/api/brain?action=ad-metrics',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'accuracy',rows:rows})})
+      .then(function(r){return r.json();}).then(renderAccuracy)
+      .catch(function(e){$('#accuracy-body').innerHTML='<div class="empty">'+e.message+'</div>';});
+  }
   function load(){
     $('#lvl-label').textContent=$('#f-level').value;
     get('budgets').then(renderBudgets).catch(function(){});
     get('status').then(renderSource).catch(function(){});
     get('metrics').then(function(res){
-      renderScorecards(res); renderRows(res);
+      renderScorecards(res); renderRows(res); loadAccuracy(res.rows||[]);
       $('#ov-note').textContent = res.not_connected
         ? 'Snowflake not connected yet — add the read-only SNOWFLAKE_* vars in Vercel to fill these with live figures. The same app runs natively in Snowflake (Streamlit) with no keys.'
         : 'Live from Snowflake · '+(res.table||'')+' · read-only.';
     }).catch(function(e){$('#scorecards').innerHTML='<div class="empty">'+e.message+'</div>';});
+    loadCatalog();
     loadCohort();
   }
   document.getElementById('tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-p]');if(!b)return;
