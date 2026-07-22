@@ -402,9 +402,9 @@ module.exports = async function handler(req, res) {
         const op = p.op || 'status';
         if (op === 'status') return res.json(adsSnowflake.status());
         if (op === 'budgets') return res.json(adsSnowflake.budgets());
-        if (op === 'describe') return res.json(await adsSnowflake.describe({ platform: p.platform }));
-        if (op === 'cohort') return res.json(await adsSnowflake.cohort({ platform: p.platform, dimension: p.dimension, measure: p.measure, account: p.account, since: p.since, until: p.until }));
-        return res.json(await adsSnowflake.metrics({ platform: p.platform, account: p.account, since: p.since, until: p.until, limit: p.limit }));
+        if (op === 'describe') return res.json(await adsSnowflake.describe({ platform: p.platform, level: p.level }));
+        if (op === 'cohort') return res.json(await adsSnowflake.cohort({ platform: p.platform, dimension: p.dimension, measure: p.measure, account: p.account, since: p.since, until: p.until, level: p.level }));
+        return res.json(await adsSnowflake.metrics({ platform: p.platform, account: p.account, since: p.since, until: p.until, level: p.level, limit: p.limit }));
       }
 
       // ── AD METRICS CATALOG + ACCURACY (single source of truth for formulas) ──
