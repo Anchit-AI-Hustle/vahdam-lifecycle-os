@@ -503,19 +503,21 @@
     const offer = spec.offer || '';
     return { market, headline, sub, offer, cur: CUR[market] || '$' };
   }
-  // Text-free visual prompt for the AI image cascade (text is overlaid on canvas).
+  // Ambient BACKDROP prompt (no product, no packaging) for the AI image cascade.
+  // Branding + packaging in ads must be REAL, so the AI never renders a tin/label
+  // (image models fabricate garbled fake packaging). The real product photo is a
+  // pasted media URL or a real Shopify catalog image; the AI only fills an empty
+  // tea scene as a last-resort backdrop. Sent with mode:'ambient' server-side.
   function buildCreativePrompt(ch) {
     const cfg = CRE_CFG[ch];
     const market = v(cfg.market) || 'US';
-    const subject = [v(cfg.name), getCopy(ch).headline].filter(Boolean).join(' — ').slice(0, 320) || 'VAHDAM premium single-estate tea';
     const orient = ch === 't' ? 'vertical 9:16 mobile-first social composition' : 'clean centered composition';
     return [
-      'Premium advertising creative for VAHDAM India — single-estate, garden-fresh Indian tea.',
-      'Subject: ' + subject + '.',
+      'Ambient lifestyle backdrop for VAHDAM India premium tea — an atmospheric tea scene with NO product and NO packaging in frame.',
       'Market: ' + market + '.',
-      'Style: warm natural light, marble or wood surface, steam from a freshly brewed cup, fresh tea leaves and a branded tin, editorial product photography, shallow depth of field.',
-      'Brand palette: deep forest green #004A2B, amber gold #AB8743, cream #FBF5EA.',
-      orient + '. Photorealistic, premium, uncluttered. Absolutely NO text, NO words, NO logos, NO watermark in the image.'
+      'Show only: a freshly brewed cup with rising steam, loose tea leaves, a marble or wood surface, warm natural light, shallow depth of field.',
+      'Brand palette accents: deep forest green #004A2B, amber gold #AB8743, cream #FBF5EA.',
+      orient + '. Photorealistic, premium, uncluttered. Absolutely NO product packaging, NO tin, NO box, NO pouch, NO label, NO brand mark, NO text, NO words, NO logos, NO watermark.'
     ].join(' ');
   }
   // Wrap text to a max width on a canvas context, return array of lines.
@@ -626,6 +628,35 @@
     x.fillText(copy.market + ' · ' + copy.cur, W / 2, safeBottom + (tall ? H * 0.05 : 0) + base * 0.02);
     return c.toDataURL('image/png');
   }
+  // Real Shopify catalog images per region (cached). Ad branding + packaging must
+  // be REAL, so a genuine PDP product photo is the default base visual — never an
+  // AI-invented tin. Catalog JSON is served with CORS from /data/catalog.
+  const _catalogCache = {};
+  async function catalogImages(market) {
+    const region = /uk/i.test(market) ? 'uk' : /us/i.test(market) ? 'us' : 'global';
+    if (_catalogCache[region]) return _catalogCache[region];
+    try {
+      const r = await fetch('/data/catalog/products_' + region + '.json', { cache: 'force-cache' });
+      const rows = r.ok ? await r.json() : [];
+      const imgs = [];
+      (Array.isArray(rows) ? rows : []).forEach((p) => {
+        if (p && typeof p.i === 'string' && /^https?:\/\//.test(p.i)) imgs.push(p.i);
+        if (Array.isArray(p && p.imgs)) p.imgs.forEach((u) => { if (typeof u === 'string' && /^https?:\/\//.test(u)) imgs.push(u); });
+      });
+      _catalogCache[region] = imgs;
+      return imgs;
+    } catch (_) { _catalogCache[region] = []; return []; }
+  }
+  // Pick a real catalog image for a channel — prefer one whose product name matches
+  // the configured product; else rotate through the gallery deterministically.
+  async function realCatalogImage(ch) {
+    const cfg = CRE_CFG[ch];
+    const imgs = await catalogImages(v(cfg.market) || 'US');
+    if (!imgs.length) return '';
+    const seed = String(v(cfg.name) || ch);
+    let h = 0; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+    return imgs[h % imgs.length];
+  }
   // Fetch ONE AI base visual at the given size (text-free). Returns dataURL or ''.
   async function fetchAiVisual(prompt, size) {
     try {
@@ -633,7 +664,9 @@
       const r = await fetch('/api/ai/image', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, geminiKey ? { 'x-user-gemini-key': geminiKey } : {}),
-        body: JSON.stringify({ prompt, size, quality: 'high' }),
+        // mode:'ambient' → server renders a product-free tea backdrop ONLY, never
+        // fabricated packaging (ad branding + packaging must be real).
+        body: JSON.stringify({ prompt, size, quality: 'high', mode: 'ambient' }),
       });
       const d = await r.json().catch(() => ({}));
       if (r.ok && d.image_data_url) return { url: d.image_data_url, provider: d.provider || 'ai' };
@@ -676,15 +709,24 @@
     try {
       let baseImg = null, provider = 'designed', animFrames = [];
       // ── Visual source cascade ──
-      // Tier 1: a provided hosted media URL (image / GIF / MP4 still).
+      // Tier 1: a provided hosted media URL (image / GIF / MP4 still) — real.
       if (mediaUrl) {
         baseImg = await loadImage(mediaUrl);
         if (baseImg) provider = 'media-url';
         if (note) note.innerHTML = '<span class="cre-spin">Composing creatives from your media…</span>';
       }
-      // Tier 2/3: no usable media → AI-generate a base visual (cascade inside
-      // /api/ai/image), and assemble an animated multi-frame preview from
-      // generated/gradient frames. Fully degrades to a brand-gradient canvas.
+      // Tier 2 (real, default): a genuine Shopify catalog product photo — REAL
+      // packaging, never AI-invented. This is the default so ad branding is real.
+      if (!baseImg) {
+        const catUrl = await realCatalogImage(ch);
+        if (catUrl) {
+          baseImg = await loadImage(catUrl);
+          if (baseImg) provider = 'catalog';
+        }
+        if (note) note.innerHTML = '<span class="cre-spin">Composing creatives from real catalog photos…</span>';
+      }
+      // Tier 3: no real photo available → AI fills a PRODUCT-FREE ambient backdrop
+      // (mode:'ambient'); it never renders packaging. Assemble an animated preview.
       if (!baseImg) {
         const primarySize = cfg.formats[0].size;
         const a1 = await fetchAiVisual(prompt, primarySize);
@@ -705,9 +747,11 @@
       }));
       const msg = provider === 'media-url'
         ? assets.length + ' creatives composed from your media — attaches when you save.'
-        : provider === 'designed'
-          ? assets.length + ' designed creatives ready (AI visual unavailable) — animated preview included. Attaches when you save.'
-          : assets.length + ' AI creatives ready · ' + provider + ' — attaches when you save.';
+        : provider === 'catalog'
+          ? assets.length + ' creatives composed from real Shopify catalog photos — real packaging, no AI-invented product. Attaches when you save.'
+          : provider === 'designed'
+            ? assets.length + ' designed creatives ready (product-free brand backdrop) — animated preview included. Attaches when you save.'
+            : assets.length + ' creatives ready · product-free ambient backdrop (' + provider + ') — attaches when you save.';
       showCreatives(ch, assets, animFrames, provider, msg);
     } catch (e) {
       if (note) note.textContent = 'Error: ' + ((e && e.message) || e);

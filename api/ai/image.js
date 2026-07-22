@@ -46,6 +46,16 @@ const AD_PROMPT_PREAMBLE = `Scroll-stopping paid social ad creative for VAHDAM I
 Ad creative:
 `;
 
+// Ambient / lifestyle backdrop ONLY — used for ads where the real product photo
+// is composited separately. The model must NEVER render product packaging: image
+// models fabricate garbled fake tins/labels, and ad branding + packaging must be
+// REAL. So this depicts only an empty tea scene (brewed cup, leaves, surface,
+// light) with no product, no tin, no box, no label, no text.
+const AMBIENT_PROMPT_PREAMBLE = `Photoreal ambient lifestyle backdrop for VAHDAM India premium tea brand — an atmospheric tea scene with NO product and NO packaging in frame. Show only: a freshly brewed cup of tea with rising steam, loose tea leaves, a marble or wood surface, warm natural light, soft shallow depth of field. ABSOLUTELY NO product packaging, NO tin, NO box, NO pouch, NO label, NO brand mark, NO logo, NO text, NO words, NO watermark, NO UI. The real product photo is added separately, so this frame must stay a clean product-free backdrop. Brand palette accents allowed: deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. Gallery-print resolution, zero AI smear artifacts.
+
+Scene:
+`;
+
 // Universal quality bar appended to every image prompt (all modes). Excludes
 // any "no text" directive on purpose — the per-mode preambles above own the
 // text policy (ads bake in an overlay; photos/designs handle it themselves).
@@ -117,6 +127,7 @@ module.exports = async function handler(req, res) {
   const isPremium = _tier === 'premium' || _tier === 'maxpower' || _tier === 'max-power' || _tier === 'max' || _tier === 'output' || _tier === 'quality';
   const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE
     : (mode === 'ad') ? AD_PROMPT_PREAMBLE
+    : (mode === 'ambient') ? AMBIENT_PROMPT_PREAMBLE
     : IMAGE_PROMPT_PREAMBLE;
   // Reserve room so the quality bar always survives the 4000-char cap.
   const finalPrompt = (preamble + userPrompt).substring(0, 4000 - QUALITY_SUFFIX.length) + QUALITY_SUFFIX;

@@ -298,10 +298,14 @@
       try {
         var d = await getJson('mailer', { market: currentMarket(), hours: document.getElementById('xMailerHours').value });
         state.lastPayload.mailer = d; var k = d.kpis || {}, s = d.sources || {};
+        var klOn = !!(s.klaviyo && s.klaviyo.connected), weOn = !!(s.webengage && s.webengage.connected);
+        var connectBanner = (!klOn && !weOn)
+          ? '<div class="xcard span12" style="border-left:4px solid var(--gold,#AB8743)"><h3>No mailer source connected</h3><p>Klaviyo and WebEngage are not connected, so every figure below is zero (nothing is estimated). To populate this tab with real data, set <code>KLAVIYO_API_KEY</code> (and the WebEngage export vars) in Vercel, then refresh. Read only, never written back.</p></div>'
+          : '';
         var campaigns = (d.campaigns || []).map(function (c) { return [c.source, c.campaign, c.status || '—', dateTime(c.sent_at), c.events == null ? '—' : fmt(c.events), c.opens == null ? '—' : fmt(c.opens), c.clicks == null ? '—' : fmt(c.clicks), c.conversions == null ? '—' : fmt(c.conversions), c.revenue == null ? '—' : money(c.revenue)]; });
         var segments = (d.segments || []).map(function (x) { return [x.name || x.id, fmt(x.profile_count), dateTime(x.synced_at || x.klaviyo_updated)]; });
         var mix = (d.event_mix || []).map(function (x) { return [x.event, fmt(x.count)]; });
-        body.innerHTML = kpis([
+        body.innerHTML = connectBanner + kpis([
           { label: 'Delivered', value: fmt(k.delivered) }, { label: 'Open rate', value: percent(k.open_rate, 2) }, { label: 'Click rate', value: percent(k.click_rate, 2) },
           { label: 'Click-to-open', value: percent(k.ctor, 2) }, { label: 'Conversions', value: fmt(k.conversions) }, { label: 'Mailer revenue', value: money(k.revenue) },
           { label: 'Revenue / recipient', value: money(k.revenue_per_recipient) }, { label: 'Unsubscribe rate', value: percent(k.unsubscribe_rate, 3) }, { label: 'Bounce rate', value: percent(k.bounce_rate, 3) },
