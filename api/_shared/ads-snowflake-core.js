@@ -31,7 +31,7 @@ function cfg() {
   return {
     account: (process.env.SNOWFLAKE_ACCOUNT || '').trim(),
     user: (process.env.SNOWFLAKE_USER || '').trim(),
-    pat: (process.env.SNOWFLAKE_PAT || '').trim(),
+    pat: (process.env.SNOWFLAKE_PAT || process.env.SNOWFLAKE_PAT_TOKEN || '').trim(),
     warehouse: (process.env.SNOWFLAKE_WAREHOUSE || '').trim(),
     database: (process.env.SNOWFLAKE_DATABASE || '').trim(),
     role: (process.env.SNOWFLAKE_ROLE || '').trim(),
