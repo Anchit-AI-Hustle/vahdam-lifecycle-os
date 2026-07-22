@@ -115,6 +115,8 @@
     { "source": "/design-intel", "destination": "/design-intelligence.html" },
     { "source": "/design-intelligence", "destination": "/design-intelligence.html" },
     { "source": "/ads", "destination": "/ad-campaigns.html" },
+    { "source": "/ads-dashboard", "destination": "/ads-dashboard.html" },
+    { "source": "/ad-performance", "destination": "/ads-dashboard.html" },
     { "source": "/website-designs", "destination": "/website-designs.html" },
     { "source": "/landing", "destination": "/landing-pages.html" },
     { "source": "/landing-pages", "destination": "/landing-pages.html" },
