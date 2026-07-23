@@ -767,6 +767,53 @@ def _inlist_clause(col, vals):
     return f' and "{col.upper()}" in ({inlist})'
 
 
+def ident_cols(level):
+    """Identifier columns that must ALWAYS lead a row table so every row is
+    attributable: campaign name+id at every grain, plus adset/ad name+id at
+    those grains (only columns the table really has)."""
+    cols = [c for c in ("campaign_name", "campaign_id") if has_column(META_ADS, c)]
+    if level == "adset":
+        cols += [c for c in ("adset_name", "adset_id") if has_column(META_ADS, c)]
+    if level == "ad":
+        cols += [c for c in ("ad_name", "ad_id") if has_column(META_ADS, c)]
+    return cols or [LEVEL_COL.get(level, "campaign_name")]
+
+
+def count_distinct(table, where, cols):
+    sel = ", ".join(f'"{c.upper()}"' for c in cols)
+    try:
+        return int(q(f"select count(*) as n from (select distinct {sel} from {table} {where})").iloc[0]["n"])
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+IDENT_LEAD = ("campaign_name", "campaign_id", "adset_name", "adset_id",
+              "ad_name", "ad_id", "creator", "cohort")
+
+
+def order_table(df, lead=IDENT_LEAD):
+    """Presentation order for EVERY table: identifier columns first, populated
+    columns next, columns whose values are ALL empty pushed to the end (kept
+    visible so the schema is honest, but never in the way of real data)."""
+    if df is None or getattr(df, "empty", True):
+        return df
+    cols = list(df.columns)
+
+    def _all_empty(c):
+        s = df[c]
+        try:
+            if s.notna().sum() == 0:
+                return True
+            return bool(s.astype(str).str.strip().isin(["", "None", "nan", "NaN", "--", "-"]).all())
+        except Exception:  # noqa: BLE001
+            return False
+
+    lead_cols = [c for c in lead if c in cols]
+    empty_cols = [c for c in cols if c not in lead_cols and _all_empty(c)]
+    mid = [c for c in cols if c not in lead_cols and c not in empty_cols]
+    return df[lead_cols + mid + empty_cols]
+
+
 def meta_where(campaigns=None):
     w = ("where 1=1" + acct_clause("account_name", account)
          + mkt_clause(marketplace) + date_clause("date_start", since, until)
@@ -983,14 +1030,14 @@ def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
 
         st.subheader("Per-ad breakdown (all metric fields + derived)")
         if "ad_name" in df.columns:
-            per_ad = sql_group_sums(META_ADS, ew, ["ad_name"])
+            per_ad = sql_group_sums(META_ADS, ew, ident_cols("ad"))
             for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
                 fn = CATALOG_FN.get(k)
                 if fn:
                     per_ad[k] = per_ad.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
             if "spend" in per_ad.columns:
                 per_ad = per_ad.sort_values("spend", ascending=False)
-            st.dataframe(per_ad, use_container_width=True, height=420)
+            st.dataframe(order_table(per_ad), use_container_width=True, height=420)
         else:
             st.info("No ad_name column at this grain.")
 
@@ -1056,20 +1103,18 @@ def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
 def all_campaigns_block(key):
     st.subheader("All campaigns — one row per campaign")
     w = meta_where()
-    try:
-        total = int(q(f'select count(distinct "CAMPAIGN_NAME") as n from {META_ADS} {w}').iloc[0]["n"])
-    except Exception:  # noqa: BLE001
-        total = 0
+    gcols = ident_cols("campaign")
+    total = count_distinct(META_ADS, w, gcols)
     if not total:
         st.info("No campaigns in scope.")
         return
     size, off = pager(total, key + "_cr")
-    df = sql_group_sums(META_ADS, w, ["campaign_name"], limit=size, offset=off)
+    df = sql_group_sums(META_ADS, w, gcols, limit=size, offset=off)
     for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
         fn = CATALOG_FN.get(k)
         if fn:
             df[k] = df.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
-    st.dataframe(df, use_container_width=True, height=420)
+    st.dataframe(order_table(df), use_container_width=True, height=420)
     opts = campaign_options(account, marketplace, since, until)
     pick = st.selectbox("Open a campaign detail page", ["—"] + opts, key=key + "_open")
     if pick != "—":
@@ -1186,23 +1231,19 @@ def render_ads_analytics():
     with tab_rows:
         st.subheader(f"{platform} — per {level}")
         if platform == "Meta":
-            name_col = LEVEL_COL.get(level, "campaign_name")
+            gcols = ident_cols(level)
             w = meta_where()
-            total = 0
-            try:
-                total = int(q(f'select count(distinct "{name_col.upper()}") as n from {META_ADS} {w}').iloc[0]["n"])
-            except Exception:  # noqa: BLE001
-                pass
+            total = count_distinct(META_ADS, w, gcols)
             if not total:
                 st.warning("No rows for this selection.")
             else:
                 size, off = pager(total, "rows")
-                df = sql_group_sums(META_ADS, w, [name_col], limit=size, offset=off)
+                df = sql_group_sums(META_ADS, w, gcols, limit=size, offset=off)
                 for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
                     fn = CATALOG_FN.get(k)
                     if fn:
                         df[k] = df.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
-                st.dataframe(df, use_container_width=True, height=520)
+                st.dataframe(order_table(df), use_container_width=True, height=520)
                 opts_r = campaign_options(account, marketplace, since, until)
                 pick_r = st.selectbox("Open a campaign detail page", ["—"] + opts_r, key="rows_open")
                 if pick_r != "—":
@@ -1221,7 +1262,7 @@ def render_ads_analytics():
             else:
                 size, off = pager(total, "rows_g")
                 try:
-                    st.dataframe(q(f"select * from {table}{wg} limit {size} offset {off}"),
+                    st.dataframe(order_table(q(f"select * from {table}{wg} limit {size} offset {off}")),
                                  use_container_width=True, height=520)
                 except Exception as e:  # noqa: BLE001
                     st.info(f"Could not read {table}: {e}")
@@ -1287,7 +1328,7 @@ def render_ads_analytics():
                     if "spend" in g.columns:
                         g = g.sort_values("spend", ascending=False)
                     st.subheader(f"All cohorts by {label} — {len(g):,} cohorts, no cap")
-                    st.dataframe(g, use_container_width=True, height=420)
+                    st.dataframe(order_table(g, lead=tuple(key_cols) + IDENT_LEAD), use_container_width=True, height=420)
                     st.download_button("Download cohorts CSV", g.to_csv(index=False).encode(),
                                        "cohorts.csv", "text/csv", key="coh_dl")
 
@@ -1469,7 +1510,7 @@ def render_ads_analytics():
             if total_g:
                 size_g, off_g = pager(total_g, "expl_g")
                 try:
-                    st.dataframe(q(f"select * from {table}{wg} limit {size_g} offset {off_g}"),
+                    st.dataframe(order_table(q(f"select * from {table}{wg} limit {size_g} offset {off_g}")),
                                  use_container_width=True, height=520)
                 except Exception as e:  # noqa: BLE001
                     st.info(f"Could not read {table}: {e}")
@@ -1493,7 +1534,7 @@ def render_ads_analytics():
             else:
                 size, off = pager(total, "expl", default_size=1000)
                 df = meta_raw(account, marketplace, since, until, None, size, off)
-                st.dataframe(df, use_container_width=True, height=520)
+                st.dataframe(order_table(df), use_container_width=True, height=520)
                 st.download_button("Download this page as CSV (all fields)",
                                    df.to_csv(index=False).encode(), "meta_ads_all_fields.csv", "text/csv")
 
@@ -1566,7 +1607,7 @@ def render_ads_analytics():
             "impressions, clicks, CTR and CPC — straight from the warehouse."
         )
         wu = meta_where() + " and ad_name ilike '%ugc%'"
-        du = sql_group_sums(META_ADS, wu, ["ad_name"])
+        du = sql_group_sums(META_ADS, wu, ident_cols("ad"))
         if du.empty:
             st.info("No ads carrying 'UGC' in the name for this scope — widen the window or clear filters.")
         else:
@@ -1593,9 +1634,9 @@ def render_ads_analytics():
                     pc[k] = pc.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
             if "spend" in pc.columns:
                 pc = pc.sort_values("spend", ascending=False)
-            st.dataframe(pc, use_container_width=True, height=360)
+            st.dataframe(order_table(pc), use_container_width=True, height=360)
             st.markdown("**Per ad (every UGC ad as a row)**")
-            st.dataframe(du.sort_values("spend", ascending=False) if "spend" in du.columns else du,
+            st.dataframe(order_table(du.sort_values("spend", ascending=False) if "spend" in du.columns else du),
                          use_container_width=True, height=360)
             st.download_button("Download UGC ads CSV", du.to_csv(index=False).encode(),
                                "ugc_creator_ads.csv", "text/csv", key="ugc_dl")
@@ -1734,7 +1775,7 @@ def table_explorer(key, default_terms, gap_note):
         st.info("Table is readable but returned no rows.")
         return
     st.caption(f"{pick} · showing up to 1,000 rows · read-only")
-    st.dataframe(df.head(300), use_container_width=True, height=340)
+    st.dataframe(order_table(df).head(300), use_container_width=True, height=340)
     date_cols = [c for c in df.columns if any(k in c for k in ("date", "day", "month", "created", "time"))]
     num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
     if date_cols and num_cols:
