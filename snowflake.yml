@@ -16,10 +16,10 @@ entities:
   vahdam_analytics:
     type: "streamlit"
     identifier:
-      name: "VAHDAM_ADS_ANALYSIS"      # object name kept stable so the app URL doesn't change
+      name: "ADSDASHBOARDUSA"          # the LIVE app object (VAHDAM_DB.MAPLEMONK) — URL stays stable
     stage: "streamlit_stage"
     query_warehouse: "COMPUTE_WH"        # change to your warehouse if different
-    title: "VAHDAM Analytics"
+    title: "Ads Dashboard USA"
     main_file: "streamlit_app.py"
     artifacts:
       - "streamlit_app.py"

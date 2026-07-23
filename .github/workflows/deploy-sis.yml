@@ -1,0 +1,51 @@
+# Auto-deploy: every push to the snowflake-streamlit-app branch redeploys the
+# Streamlit app in Snowflake (CREATE OR REPLACE via `snow streamlit deploy`),
+# targeting the EXISTING object VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA so the app
+# URL never changes.
+#
+# Requires repo secrets (add via gh CLI or Settings -> Secrets and variables ->
+# Actions):
+#   SNOWFLAKE_ACCOUNT    e.g. UXDEIHW-MO06981
+#   SNOWFLAKE_USER       e.g. ANCHITTANDON
+#   SNOWFLAKE_PAT        a Programmatic Access Token (NOT the password)
+#   SNOWFLAKE_WAREHOUSE  e.g. COMPUTE_WH
+#   SNOWFLAKE_ROLE       e.g. STREAMLIT_CREATOR_ROLE
+#
+# NOTE: PAT auth requires the account/user network policy to be in place — the
+# same requirement as the web app's REST access. Until that policy is attached,
+# this job fails with 'Network policy is required' (Snowflake-side setting).
+name: Deploy Streamlit app to Snowflake
+
+on:
+  push:
+    branches: [snowflake-streamlit-app]
+
+permissions: {}
+
+concurrency:
+  group: sis-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Snowflake CLI
+        run: pip install --quiet snowflake-cli
+      - name: Deploy app (CREATE OR REPLACE STREAMLIT)
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }}
+          # If your snowflake-cli/connector version rejects this authenticator,
+          # delete the next line — a PAT is also accepted in the password slot.
+          SNOWFLAKE_AUTHENTICATOR: PROGRAMMATIC_ACCESS_TOKEN
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_DATABASE: VAHDAM_DB
+          SNOWFLAKE_SCHEMA: MAPLEMONK
+        run: snow streamlit deploy --replace --temporary-connection
