@@ -278,7 +278,7 @@ def detected_marketplaces():
         f"max(case when ad_name ilike '%{tok}%' then 1 else 0 end) as m{i}"
         for i, tok in enumerate(MARKETPLACE_SEARCH.values()))
     try:
-        r = q(f"select {sel} from {META_ADS}")
+        r = q(f"select {sel} from {META_SRC}")
         return [name for i, name in enumerate(MARKETPLACE_SEARCH)
                 if int(r.iloc[0][f"m{i}"] or 0) == 1]
     except Exception:  # noqa: BLE001
@@ -315,7 +315,7 @@ def mkt_case(col: str = "ad_name") -> str:
 def meta_accounts():
     """Real Meta ad-account names present in the warehouse (Account options)."""
     try:
-        df = q(f"select distinct account_name from {META_ADS} "
+        df = q(f"select distinct account_name from {META_SRC} "
                f"where account_name is not null order by 1")
         return [str(x) for x in df.iloc[:, 0].dropna().tolist()]
     except Exception:  # noqa: BLE001 — no grant/rows: empty list, never invented
@@ -324,7 +324,10 @@ def meta_accounts():
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def has_column(table: str, col: str) -> bool:
-    """True when the table really has the column (guards optional filters)."""
+    """True when the table really has the column (guards optional filters).
+    For the Meta union relation, true when ANY member table has it."""
+    if table.startswith("("):
+        return any(col.lower() in cols for _, cols in meta_source_tables())
     try:
         db, schema, name = table.split(".", 2)
         r = q(f"select column_name from {db}.information_schema.columns "
@@ -332,6 +335,64 @@ def has_column(table: str, col: str) -> bool:
         return col.lower() in [str(c).lower() for c in r.iloc[:, 0].tolist()]
     except Exception:  # noqa: BLE001
         return False
+
+
+# ── META SOURCE UNION — base insights table + every META*USA*TEA account
+# table found by regex in the warehouse. Discovered LIVE and validated to be
+# insights-shaped (campaign_name, spend, date_start); a table that does not
+# really exist is never referenced, and columns one member lacks are selected
+# as NULL so the union is always well-formed.
+@st.cache_data(ttl=3600, show_spinner=False)
+def meta_source_tables():
+    """[(fqn, (columns...)), ...] — the Meta insights source tables."""
+    def _cols(schema, name):
+        try:
+            c = q("select column_name from VAHDAM_DB.information_schema.columns "
+                  f"where table_schema = '{schema}' and table_name = '{name}' "
+                  "order by ordinal_position")
+            return tuple(str(x).lower() for x in c.iloc[:, 0].tolist())
+        except Exception:  # noqa: BLE001
+            return ()
+
+    _, base_schema, base_name = META_ADS.split(".", 2)
+    out = [(META_ADS, _cols(base_schema, base_name))]
+    try:
+        t = q("select table_schema, table_name "
+              "from VAHDAM_DB.information_schema.tables "
+              "where table_type = 'BASE TABLE' "
+              "and regexp_like(table_name, 'META.*USA.*TEA.*', 'i')")
+    except Exception:  # noqa: BLE001
+        return out
+    for _, r in t.iterrows():
+        schema, name = str(r["table_schema"]), str(r["table_name"])
+        fqn = f"VAHDAM_DB.{schema}.{name}"
+        if fqn.upper() == META_ADS.upper():
+            continue
+        cols = _cols(schema, name)
+        if {"campaign_name", "spend", "date_start"} <= set(cols):
+            out.append((fqn, cols))
+    return out
+
+
+def _meta_src():
+    srcs = meta_source_tables()
+    if len(srcs) == 1 or not srcs[0][1]:
+        return META_ADS
+    all_cols = []
+    for _, cols in srcs:
+        for c in cols:
+            if c not in all_cols:
+                all_cols.append(c)
+    selects = []
+    for fqn, cols in srcs:
+        have = set(cols)
+        sel = ", ".join(f'"{c.upper()}"' if c in have else f'null as "{c.upper()}"'
+                        for c in all_cols)
+        selects.append(f"select {sel} from {fqn}")
+    return "(" + " union all ".join(selects) + ")"
+
+
+META_SRC = _meta_src()
 
 
 def date_clause(col: str, since, until) -> str:
@@ -374,7 +435,7 @@ def meta_rows(account, level, since, until):
                sum(clicks) as clicks, sum(inline_link_clicks) as inline_link_clicks,
                avg(frequency) as frequency, avg(ctr) as ctr, avg(cpc) as cpc, avg(cpm) as cpm,
                avg(inline_link_click_ctr) as inline_link_click_ctr
-        from {META_ADS} {where}
+        from {META_SRC} {where}
         group by {name_col} order by spend desc nulls last limit 500
     """
     df = q(sql)
@@ -389,9 +450,12 @@ def meta_rows(account, level, since, until):
 
 def generic_rows(table):
     """Google / TikTok: recent rows with whatever columns exist. Daton/Maplemonk
-    schemas vary, so pull recent rows rather than assume a date/account column."""
+    schemas vary, so pull recent rows rather than assume a date/account column.
+    Default sort: newest first (descending) when a date column exists."""
     try:
-        return q(f"select * from {table} limit 500")
+        dc = table_date_col(table)
+        ob = f' order by "{dc.upper()}" desc' if dc else ""
+        return q(f"select * from {table}{ob} limit 500")
     except Exception as e:  # noqa: BLE001
         st.info(f"Could not read {table}: {e}")
         return pd.DataFrame()
@@ -427,7 +491,7 @@ ACCOUNT_COL_CANDIDATES = ("account_name", "customer_descriptive_name", "customer
 @st.cache_data(ttl=300, show_spinner=False)
 def channel_accounts(channel):
     """(account_column, [real account values]) from the channel's own table."""
-    table = META_ADS if channel == "Meta" else (GOOGLE_ADS if channel == "Google" else TIKTOK["campaign"])
+    table = META_SRC if channel == "Meta" else (GOOGLE_ADS if channel == "Google" else TIKTOK["campaign"])
     col = next((c for c in ACCOUNT_COL_CANDIDATES if has_column(table, c)), None)
     if not col:
         return None, []
@@ -449,7 +513,7 @@ LEVEL_LABEL = {"campaign": "Campaign", "adset": "Ad Set", "ad": "Ad"}
 def distinct_values(col):
     """Distinct values of an optional filter column (objective / status)."""
     try:
-        d = q(f'select distinct "{col.upper()}" as v from {META_ADS} '
+        d = q(f'select distinct "{col.upper()}" as v from {META_SRC} '
               f'where "{col.upper()}" is not null order by 1 limit 100')
         return [str(x) for x in d["v"].dropna().tolist()]
     except Exception:  # noqa: BLE001
@@ -476,10 +540,10 @@ else:
     level = "campaign"
 
 OBJ_COL = next((c for c in ("objective", "campaign_objective")
-                if platform == "Meta" and has_column(META_ADS, c)), None)
+                if platform == "Meta" and has_column(META_SRC, c)), None)
 STATUS_COL = next((c for c in ("ad_delivery", "effective_status", "configured_status",
                                "delivery_status", "status")
-                   if platform == "Meta" and has_column(META_ADS, c)), None)
+                   if platform == "Meta" and has_column(META_SRC, c)), None)
 _g1, _g2, _g3, _g4, _g5, _g6 = st.columns([1.3, 1.3, 1.1, 1.0, 1.0, 0.8])
 objective_sel = _g1.multiselect("Objective", distinct_values(OBJ_COL)) if OBJ_COL else []
 status_sel = _g2.multiselect("Status", distinct_values(STATUS_COL),
@@ -521,6 +585,12 @@ st.sidebar.caption(
     f"Daily budget caps (reference): Target ${BUDGETS['target']:,} · "
     f"Costco ${BUDGETS['costco']:,}. Read-only — never written back to any platform."
 )
+try:
+    _msrc = meta_source_tables()
+    st.sidebar.caption("Meta sources (" + str(len(_msrc)) + "): "
+                       + " · ".join(t.split(".")[-1] for t, _ in _msrc))
+except Exception:  # noqa: BLE001 — informational only
+    pass
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -538,7 +608,16 @@ RATIO_COLS = {"ctr", "cpc", "cpm", "cpp", "frequency", "inline_link_click_ctr",
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def table_columns(table: str):
-    """All (column, type) pairs the table really has, in ordinal order."""
+    """All (column, type) pairs the table really has, in ordinal order. For
+    the Meta union relation: the merged columns of every member table."""
+    if table.startswith("("):
+        seen, out = set(), []
+        for fqn, _ in meta_source_tables():
+            for c, t in table_columns(fqn):
+                if c not in seen:
+                    seen.add(c)
+                    out.append((c, t))
+        return out
     try:
         db, schema, name = table.split(".", 2)
         df = q(f"select column_name, data_type from {db}.information_schema.columns "
@@ -584,7 +663,7 @@ def meta_raw(account, marketplace, since, until, campaigns=None, limit=20000, of
     if campaigns:
         inlist = ",".join("'" + str(c).replace("'", "''") + "'" for c in campaigns)
         where += f" and campaign_name in ({inlist})"
-    return q(f"select * from {META_ADS} {where} order by date_start desc "
+    return q(f"select * from {META_SRC} {where} order by date_start desc "
              f"limit {int(limit)} offset {int(offset)}")
 
 
@@ -593,7 +672,7 @@ def campaign_options(account, marketplace, since, until, col="campaign_name"):
     where = ("where 1=1" + acct_clause("account_name", account)
              + mkt_clause(marketplace) + date_clause("date_start", since, until))
     try:
-        df = q(f"select {col}, sum(spend) as spend from {META_ADS} {where} "
+        df = q(f"select {col}, sum(spend) as spend from {META_SRC} {where} "
                f"group by 1 order by spend desc nulls last limit 500")
         return [str(x) for x in df[col].dropna().tolist()]
     except Exception:  # noqa: BLE001
@@ -666,11 +745,11 @@ def ident_cols(level):
     """Identifier columns that must ALWAYS lead a row table so every row is
     attributable: campaign name+id at every grain, plus adset/ad name+id at
     those grains (only columns the table really has)."""
-    cols = [c for c in ("campaign_name", "campaign_id") if has_column(META_ADS, c)]
+    cols = [c for c in ("campaign_name", "campaign_id") if has_column(META_SRC, c)]
     if level in ("adset", "ad"):
-        cols += [c for c in ("adset_name", "adset_id") if has_column(META_ADS, c)]
+        cols += [c for c in ("adset_name", "adset_id") if has_column(META_SRC, c)]
     if level == "ad":
-        cols += [c for c in ("ad_name", "ad_id") if has_column(META_ADS, c)]
+        cols += [c for c in ("ad_name", "ad_id") if has_column(META_SRC, c)]
     return cols or [LEVEL_COL.get(level, "campaign_name")]
 
 
@@ -848,7 +927,13 @@ def sql_group_sums(table, where, group_cols, limit=None, offset=0):
             extras.append(f'max("{c.upper()}") as {c}')
             break
     parts = ([sel] if sel else []) + extras
-    ob = " order by spend desc nulls last" if "spend" in nums else ""
+    # Default sort: ALWAYS descending — spend first, else the first metric.
+    if "spend" in nums:
+        ob = " order by spend desc nulls last"
+    elif nums:
+        ob = f" order by {nums[0]} desc nulls last"
+    else:
+        ob = ""
     lim = f" limit {int(limit)} offset {int(offset)}" if limit else ""
     tail = (", " + ", ".join(parts)) if parts else ""
     return q(f"select {gsel}{tail} from {table} {where} group by {gpos}{ob}{lim}")
@@ -1023,12 +1108,12 @@ def meta_targeting_conditions(selection):
 def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
     _ev = str(camp).replace("'", "''")
     ew = meta_where() + f" and \"{entity_col.upper()}\" = '{_ev}'"
-    df = q(f"select * from {META_ADS} {ew} order by date_start desc limit 2000")
+    df = q(f"select * from {META_SRC} {ew} order by date_start desc limit 2000")
     if df.empty:
         st.warning("No rows for this campaign in the window.")
     else:
-        groups = classify_columns(table_columns(META_ADS))
-        sums = sql_sums(META_ADS, ew)
+        groups = classify_columns(table_columns(META_SRC))
+        sums = sql_sums(META_SRC, ew)
         derived = compute_all(sums)
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Spend", money(sums.get("spend")))
@@ -1063,7 +1148,7 @@ def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
         else:
             mm = st.selectbox("Measure", mcols, index=mcols.index("spend") if "spend" in mcols else 0,
                               key=key_prefix + "_measure")
-            g = daily_series(META_ADS, ew, mm)
+            g = daily_series(META_SRC, ew, mm)
             if g.empty:
                 st.info("No daily rows in the window for this measure.")
             else:
@@ -1075,7 +1160,7 @@ def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
 
         st.subheader("Per-ad breakdown (all metric fields + derived)")
         if "ad_name" in df.columns:
-            per_ad = sql_group_sums(META_ADS, ew, ident_cols("ad"))
+            per_ad = sql_group_sums(META_SRC, ew, ident_cols("ad"))
             if per_ad.empty:
                 st.info("No per-ad rows in the window.")
             else:
@@ -1111,7 +1196,8 @@ def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
                 dvw = ("where campaign_name = '" + camp.replace("'", "''") + "'"
                        + date_clause("date_start", since, until))
                 try:
-                    dv = q(f"select * from {META_DEVICE} {dvw} limit 2000")
+                    _dvo = ' order by "SPEND" desc nulls last' if has_column(META_DEVICE, "spend") else ""
+                    dv = q(f"select * from {META_DEVICE} {dvw}{_dvo} limit 2000")
                     st.dataframe(dv, use_container_width=True, height=260)
                 except Exception as e:  # noqa: BLE001
                     st.info(f"Device breakdown unavailable: {e}")
@@ -1157,12 +1243,12 @@ def all_campaigns_block(key):
                "then created/edited fields, then metrics in priority order.")
     w = meta_where()
     gcols = ident_cols(level)
-    total = count_distinct(META_ADS, w, gcols)
+    total = count_distinct(META_SRC, w, gcols)
     if not total:
         st.info("No campaigns in scope.")
         return
     size, off = pager(total, key + "_cr")
-    df = sql_group_sums(META_ADS, w, gcols, limit=size, offset=off)
+    df = sql_group_sums(META_SRC, w, gcols, limit=size, offset=off)
     for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency", "roas", "cost_per_purchase"):
         fn = CATALOG_FN.get(k)
         if fn:
@@ -1194,7 +1280,7 @@ def render_ads_analytics():
     if view == "Overview & priority metrics":
         if platform == "Meta":
             # EXACT portfolio totals in SQL over all rows in scope — no fetch cap.
-            sums = sql_sums(META_ADS, meta_where())
+            sums = sql_sums(META_SRC, meta_where())
             derived = compute_all(sums)
             if not sums:
                 st.warning("No Meta rows for this account / window.")
@@ -1284,7 +1370,7 @@ def render_ads_analytics():
         st.subheader(f"{platform_label.replace(' Ads', '')} {LEVEL_LABEL.get(level, 'Campaign')} "
                      f"Performance Metrics: {since} – {until}")
         if platform == "Meta":
-            _ks = sql_sums(META_ADS, meta_where())
+            _ks = sql_sums(META_SRC, meta_where())
             _kd = compute_all(_ks)
             # Two rows of 4 — seven metrics in one row overlap on normal widths.
             k1, k2, k3, k4 = st.columns(4)
@@ -1300,12 +1386,12 @@ def render_ads_analytics():
         if platform == "Meta":
             gcols = ident_cols(level)
             w = meta_where()
-            total = count_distinct(META_ADS, w, gcols)
+            total = count_distinct(META_SRC, w, gcols)
             if not total:
                 st.warning("No rows for this selection.")
             else:
                 size, off = pager(total, "rows")
-                df = sql_group_sums(META_ADS, w, gcols, limit=size, offset=off)
+                df = sql_group_sums(META_SRC, w, gcols, limit=size, offset=off)
                 for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency", "roas", "cost_per_purchase"):
                     fn = CATALOG_FN.get(k)
                     if fn:
@@ -1523,7 +1609,7 @@ def render_ads_analytics():
                         d = df[df["campaign_name"] == c_name] if "campaign_name" in df.columns else pd.DataFrame()
                         if d.empty:
                             continue
-                        s = sql_sums(META_ADS, meta_where((c_name,)))
+                        s = sql_sums(META_SRC, meta_where((c_name,)))
                         drv = compute_all(s)
                         sheets[c_name] = {**s, **{k: v for k, v in drv.items() if v is not None}}
                     if not sheets:
@@ -1568,7 +1654,7 @@ def render_ads_analytics():
                         num_daily = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c not in RATIO_COLS]
                         sel2 = st.selectbox("Daily overlay metric", num_daily,
                                             index=num_daily.index("spend") if "spend" in num_daily else 0)
-                        g = daily_series(META_ADS, meta_where(tuple(picks)), sel2, by="campaign_name")
+                        g = daily_series(META_SRC, meta_where(tuple(picks)), sel2, by="campaign_name")
                         st.altair_chart(
                             alt.Chart(g).mark_line(point=True).encode(
                                 x=alt.X("date_start:T", title=None), y=alt.Y(f"{sel2}:Q", title=sel2),
@@ -1587,17 +1673,20 @@ def render_ads_analytics():
             total_g = count_rows(table, wg)
             if total_g:
                 size_g, off_g = pager(total_g, "expl_g")
+                _dcg = table_date_col(table)
+                _obg = f' order by "{_dcg.upper()}" desc' if _dcg else ""
                 try:
-                    st.dataframe(order_table(q(f"select * from {table} {wg} limit {size_g} offset {off_g}")),
+                    st.dataframe(order_table(q(f"select * from {table} {wg}{_obg} limit {size_g} offset {off_g}")),
                                  use_container_width=True, height=520)
                 except Exception as e:  # noqa: BLE001
                     st.info(f"Could not read {table}: {e}")
             else:
                 st.info("No readable rows for this account / date scope.")
         else:
-            cols = table_columns(META_ADS)
+            cols = table_columns(META_SRC)
             groups = classify_columns(cols)
-            st.caption(f"`{META_ADS}` — {len(cols)} columns available, all shown. "
+            _srcs = " + ".join(f"`{t}`" for t, _ in meta_source_tables())
+            st.caption(f"Sources: {_srcs} — {len(cols)} columns available, all shown. "
                        "Field map derived live from the table schema; nothing hidden, nothing invented.")
             with st.expander("Field map — every column by analysis role", expanded=True):
                 for gname, glist in [("Identity & configuration", groups["identity_config"]),
@@ -1606,7 +1695,7 @@ def render_ads_analytics():
                                      ("Metrics", groups["metrics"]),
                                      ("Other", groups["other"])]:
                     st.markdown(f"**{gname} ({len(glist)})**: " + (", ".join(f"`{c}`" for c in glist) or "—"))
-            total = count_rows(META_ADS, meta_where())
+            total = count_rows(META_SRC, meta_where())
             if not total:
                 st.warning("No rows in scope.")
             else:
@@ -1629,13 +1718,16 @@ def render_ads_analytics():
         )
         try:
             g = q(f"select to_char(date_start, 'YYYY-MM') as month, {mkt_case()} as marketplace, "
-                  f"sum(spend) as spend from {META_ADS} {meta_where()} group by 1, 2 order by 1")
+                  f"sum(spend) as spend from {META_SRC} {meta_where()} group by 1, 2 order by 1")
         except Exception as e:  # noqa: BLE001
             g = pd.DataFrame()
             st.warning(f"Spend matrix unavailable: {e}")
         if not g.empty:
             piv = g.pivot_table(index="marketplace", columns="month", values="spend", aggfunc="sum")
             piv["TOTAL"] = piv.sum(axis=1)
+            # Default sort: descending — biggest marketplace first, latest month first.
+            piv = piv.sort_values("TOTAL", ascending=False)
+            piv = piv[["TOTAL"] + sorted([c for c in piv.columns if c != "TOTAL"], reverse=True)]
             st.markdown("**Meta Ads (USD)**")
             st.dataframe(piv.round(2), use_container_width=True)
             st.altair_chart(
@@ -1653,7 +1745,7 @@ def render_ads_analytics():
         if tt_date and tt_spend:
             try:
                 tg = q(f'select to_char("{tt_date.upper()}", \'YYYY-MM\') as month, '
-                       f'sum("{tt_spend.upper()}") as spend from {tt} group by 1 order by 1')
+                       f'sum("{tt_spend.upper()}") as spend from {tt} group by 1 order by 1 desc')
                 st.dataframe(tg, use_container_width=True, hide_index=True)
             except Exception as e:  # noqa: BLE001
                 st.info(f"TikTok monthly spend unavailable: {e}")
@@ -1667,10 +1759,13 @@ def render_ads_analytics():
         metric_s = st.selectbox("Metric", ["spend", "impressions", "reach", "clicks", "inline_link_clicks"], key="spend_metric")
         if picks_s:
             try:
-                dm = daily_series(META_ADS, meta_where(tuple(picks_s)), metric_s, by="campaign_name")
+                dm = daily_series(META_SRC, meta_where(tuple(picks_s)), metric_s, by="campaign_name")
                 if not dm.empty:
                     dm["date_start"] = dm["date_start"].astype(str)
                     mpiv = dm.pivot_table(index="campaign_name", columns="date_start", values=metric_s, aggfunc="sum")
+                    # Default sort: descending — biggest campaign first, latest day first.
+                    mpiv = mpiv.loc[mpiv.sum(axis=1).sort_values(ascending=False).index]
+                    mpiv = mpiv[sorted(mpiv.columns, reverse=True)]
                     st.dataframe(mpiv.round(2), use_container_width=True, height=300)
                 else:
                     st.info("No rows for those campaigns in the window.")
@@ -1686,7 +1781,7 @@ def render_ads_analytics():
             "impressions, clicks, CTR and CPC — straight from the warehouse."
         )
         wu = meta_where() + " and ad_name ilike '%ugc%'"
-        du = sql_group_sums(META_ADS, wu, ident_cols("ad"))
+        du = sql_group_sums(META_SRC, wu, ident_cols("ad"))
         if du.empty:
             st.info("No ads carrying 'UGC' in the name for this scope — widen the window or clear filters.")
         else:
@@ -1843,7 +1938,9 @@ def table_explorer(key, default_terms, gap_note):
     if pick == "—":
         return
     try:
-        df = q(f"select * from {pick} limit 1000")
+        _dc = table_date_col(pick)
+        _ob = f' order by "{_dc.upper()}" desc' if _dc else ""
+        df = q(f"select * from {pick}{_ob} limit 1000")
     except Exception as e:  # noqa: BLE001
         st.warning(f"Could not read {pick}: {e}")
         return
@@ -1880,12 +1977,12 @@ def table_explorer(key, default_terms, gap_note):
 # was computed from). Honors the current top-bar filter scope.
 def generated_insights():
     w = meta_where()
-    tot = sql_sums(META_ADS, w)
+    tot = sql_sums(META_SRC, w)
     drv = compute_all(tot)
     out = []
     if not tot.get("spend"):
         return out
-    camps = sql_group_sums(META_ADS, w, ["campaign_name"])
+    camps = sql_group_sums(META_SRC, w, ["campaign_name"])
     for k in ("link_ctr", "cpc", "cpm", "frequency"):
         fn = CATALOG_FN.get(k)
         if fn and not camps.empty:
@@ -1951,7 +2048,7 @@ def generated_insights():
     try:
         wow = q(f"select case when \"DATE_START\" > dateadd(day, -7, '{until}') then 'recent' "
                 f"else 'prior' end as half, sum(spend) as spend, sum(impressions) as impressions, "
-                f"sum(inline_link_clicks) as clicks from {META_ADS} {w} "
+                f"sum(inline_link_clicks) as clicks from {META_SRC} {w} "
                 f"and \"DATE_START\" > dateadd(day, -14, '{until}') group by 1")
         if len(wow) == 2:
             r_ = wow.set_index("half")
@@ -1972,7 +2069,7 @@ def generated_insights():
     try:
         ug = q(f"select case when ad_name ilike '%ugc%' then 'UGC' else 'Non-UGC' end as bucket, "
                f"sum(spend) as spend, sum(impressions) as impressions, "
-               f"sum(inline_link_clicks) as clicks from {META_ADS} {w} group by 1")
+               f"sum(inline_link_clicks) as clicks from {META_SRC} {w} group by 1")
         if len(ug) == 2:
             u = ug.set_index("bucket")
             cu = float(u.loc["UGC", "clicks"] or 0) / float(u.loc["UGC", "impressions"] or 1) * 100
