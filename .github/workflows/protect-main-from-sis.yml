@@ -10,6 +10,10 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege (CodeQL): this job only inspects github.head_ref and echoes —
+# it needs no access to the GITHUB_TOKEN at all.
+permissions: {}
+
 jobs:
   block-sis-branch:
     runs-on: ubuntu-latest
