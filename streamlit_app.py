@@ -1,22 +1,21 @@
 """
-VAHDAM Lifecycle OS — Data Analysis + Ads Analytics (Streamlit in Snowflake).
+VAHDAM Lifecycle OS — Ads Analysis + Ads Intelligence (Streamlit in Snowflake).
 
 Runs NATIVELY inside Snowflake. Authentication and warehouse come from the
 logged-in Snowflake session via get_active_session() — no external keys, no PAT,
 no Supabase. Every figure is read directly (read-only) from the warehouse tables
 the Daton / Maplemonk pipelines already load. Charts use Altair (not Plotly).
 
-Two sections, matching the web app's two dashboards so the SAME analysis renders
-on both surfaces (parity comes from ONE source of truth — these Snowflake tables +
+Two sections (parity comes from ONE source of truth — these Snowflake tables +
 the ONE metric catalog below, mirrored field-for-field from the web app's
 api/_shared/ad-metrics-catalog.js so a metric is defined once and computed
 identically everywhere):
 
-  • Data Analysis  — source/connector status, portfolio KPIs, budget pacing vs
-    the Target $1,000/day & Costco $300/day caps, the full metric catalog
-    (definition + formula per metric) and a live accuracy calculator.
-  • Ads Analytics  — Meta / Google / TikTok, per campaign and per ad, plus
-    demographic / geo / device cohorts for the Costco + Target US accounts.
+  • Ads Analysis      — Meta / Google / TikTok, per campaign / ad set / ad, plus
+    demographic / geo / device cohorts, comparison engine, spend + UGC trackers.
+  • Ads Intelligence  — discovery over the ads warehouse (every ad/creative/
+    tracker table that really exists), the full metric catalog (definition +
+    formula per metric) and the live accuracy calculator.
 
 Deploy: snowflake/streamlit/deploy.sql (CREATE STREAMLIT ...). Snowflake mints
 the app URL when the Streamlit object is created in the account.
@@ -25,6 +24,7 @@ the app URL when the Streamlit object is created in the account.
 import json
 import math
 import re
+import traceback
 
 import altair as alt
 import pandas as pd
@@ -214,7 +214,9 @@ def accuracy(records):
 
 
 # ── Query helpers ─────────────────────────────────────────────────────────────
-@st.cache_data(ttl=600, show_spinner=False)
+# show_spinner is a visible label ON PURPOSE: warehouse scans can take a while,
+# and a silent spinner makes a tab look like it is not loading at all.
+@st.cache_data(ttl=600, show_spinner="Querying Snowflake…")
 def q(sql: str) -> pd.DataFrame:
     """Run a read-only query and return a DataFrame (lower-cased columns)."""
     df = session.sql(sql).to_pandas()
@@ -376,7 +378,7 @@ def generic_rows(table):
 st.sidebar.title("VAHDAM · Lifecycle OS on Snowflake")
 section = st.sidebar.radio(
     "Section",
-    ["Data Analysis", "Ads Analytics", "Mailer Intelligence"],
+    ["Ads Analysis", "Ads Intelligence"],
 )
 
 # The LHS menu carries the ANALYSIS VIEWS (use cases); the data filters live in
@@ -384,12 +386,8 @@ section = st.sidebar.radio(
 ADS_VIEWS = ["Omnichannel Master View", "Comparison Engine", "Cohort Exploration",
              "Overview & priority metrics", "Single entity deep-dive",
              "Ad explorer (all fields)", "Spend tracker", "UGC creator ads"]
-DA_VIEWS = ["Sources & budget", "Portfolio KPIs", "Metric catalog", "Accuracy calculator",
-            "Retail sales tracker"]
-if section == "Ads Analytics":
+if section == "Ads Analysis":
     view = st.sidebar.radio("Analysis view", ADS_VIEWS)
-elif section == "Data Analysis":
-    view = st.sidebar.radio("Analysis view", DA_VIEWS)
 else:
     view = None
 st.sidebar.markdown("---")
@@ -444,7 +442,7 @@ acct_col, _acct_opts = channel_accounts(platform)
 account = _f2.multiselect(f"Accounts ({platform_label})", _acct_opts)
 marketplace = _f3.multiselect("Marketplaces (from ad names)",
                               detected_marketplaces() + ["D2C / Other"])
-if section == "Ads Analytics":
+if section == "Ads Analysis":
     _level_label = _f4.selectbox("Level", ["Campaign", "Ad Set", "Ad Level"])
     level = {"Campaign": "campaign", "Ad Set": "adset", "Ad Level": "ad"}[_level_label]
 else:
@@ -495,153 +493,6 @@ st.sidebar.caption(
     f"Daily budget caps (reference): Target ${BUDGETS['target']:,} · "
     f"Costco ${BUDGETS['costco']:,}. Read-only — never written back to any platform."
 )
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# DATA ANALYSIS
-# ═════════════════════════════════════════════════════════════════════════════
-def render_data_analysis():
-    st.title("Data Analysis")
-    st.caption(
-        "Portfolio view across the Costco + Target US ad accounts, sourced live "
-        "from Snowflake via the active session. The metric catalog and accuracy "
-        "calculator are the SAME definitions the web app uses. Read-only; nothing "
-        "is fabricated — a metric with no inputs reads 'unavailable', not zero."
-    )
-
-    # Analysis views are selected in the LHS menu (see DA_VIEWS).
-
-    # Sources / connector status + budget pacing
-    if view == "Sources & budget":
-        st.subheader("Sources (read-only)")
-        src = pd.DataFrame([
-            {"Platform": "Meta", "Table": META_ADS, "Cohorts": "age/gender, platform/device"},
-            {"Platform": "Meta (age x gender)", "Table": META_AGE_GENDER, "Cohorts": "age, gender"},
-            {"Platform": "Meta (device)", "Table": META_DEVICE, "Cohorts": "device, placement"},
-            {"Platform": "TikTok (campaign)", "Table": TIKTOK["campaign"], "Cohorts": "age/gender, country"},
-            {"Platform": "TikTok (ad)", "Table": TIKTOK["ad"], "Cohorts": "—"},
-            {"Platform": "Google", "Table": GOOGLE_ADS, "Cohorts": "segment tables"},
-        ])
-        st.dataframe(src, use_container_width=True, hide_index=True)
-        st.caption("Authentication via get_active_session() — no PAT, no keys stored. The session role governs table access.")
-
-        st.subheader("Budget pacing vs daily caps")
-        try:
-            # Caps belong to the MARKETPLACE (Target $1,000/day · Costco $300/day),
-            # which lives in the ad names — group by the derived marketplace, with
-            # the real account filter applied on top when one is selected.
-            pace = q(f"""
-                select {mkt_case()} as marketplace, sum(spend) as spend, count(distinct date_start) as days
-                from {META_ADS}
-                where 1=1{acct_clause('account_name', account)}{date_clause('date_start', since, until)}
-                group by 1 order by spend desc nulls last
-            """)
-        except Exception as e:  # noqa: BLE001
-            pace = pd.DataFrame()
-            st.info(f"Budget pacing unavailable: {e}")
-        if not pace.empty:
-            rows = []
-            for _, r in pace.iterrows():
-                mkt = str(r["marketplace"] or "")
-                cap = BUDGETS.get(mkt.lower())
-                days = r["days"] or window_days
-                avg_daily = (r["spend"] / days) if days else None
-                rows.append({
-                    "Marketplace (from ad names)": mkt or "(unnamed)",
-                    "Spend (window)": money(r["spend"]),
-                    "Avg daily spend": money(avg_daily),
-                    "Daily cap": money(cap) if cap else "— (no cap set)",
-                    "Pacing": (pctf(avg_daily / cap * 100) if (cap and avg_daily is not None) else "—"),
-                })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            st.caption("Pacing = avg daily spend as a % of the marketplace's daily cap. Caps are for reference/alerting only.")
-        else:
-            st.warning("No Meta spend rows in this window to pace against.")
-
-    # Portfolio KPIs (Meta, whole window)
-    if view == "Portfolio KPIs":
-        df = meta_rows(account, level, since, until)
-        if df.empty:
-            st.warning("No Meta rows for this account / window.")
-        else:
-            spend, impr, reach = df["spend"].sum(), df["impressions"].sum(), df["reach"].sum()
-            link_clicks = df["inline_link_clicks"].sum()
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Amount spent", money(spend))
-            c2.metric("Impressions", f"{impr:,.0f}")
-            c3.metric("Reach", f"{reach:,.0f}")
-            c4.metric("Frequency", f"{(impr/reach):.2f}" if reach else "—")
-            c5, c6, c7, c8 = st.columns(4)
-            c5.metric("Link clicks", f"{link_clicks:,.0f}")
-            c6.metric("Link CTR", pctf(link_clicks / impr * 100 if impr else None))
-            c7.metric("CPC", money(spend / link_clicks if link_clicks else None))
-            c8.metric("CPM", money(spend / impr * 1000 if impr else None))
-            st.subheader("Spend share by " + ("ad" if level == "ad" else "campaign"))
-            top = df.head(15)
-            chart = (
-                alt.Chart(top).mark_bar(color=GREEN).encode(
-                    x=alt.X("spend:Q", title="Spend (USD)"),
-                    y=alt.Y("name:N", sort="-x", title=None),
-                    tooltip=["name", alt.Tooltip("spend:Q", format="$,.0f"),
-                             alt.Tooltip("link_ctr:Q", format=".2f", title="Link CTR %")],
-                ).properties(height=28 * len(top))
-            )
-            st.altair_chart(chart, use_container_width=True)
-
-    # Metric catalog (definitions + formulas) — the single source of truth
-    if view == "Metric catalog":
-        st.subheader(f"Metric catalog — {len(METRICS)} metrics across {len(CATEGORIES)} categories")
-        st.caption(
-            "Defined once, computed identically on this app and the web app "
-            "(mirror of api/_shared/ad-metrics-catalog.js). base = read straight "
-            "from the platform; derived = computed by the formula shown."
-        )
-        cat = catalog_df()
-        pick = st.multiselect("Filter by category", [c[1] for c in CATEGORIES], default=[c[1] for c in CATEGORIES])
-        st.dataframe(cat[cat["Category"].isin(pick)], use_container_width=True, hide_index=True, height=560)
-
-    # Accuracy calculator — coverage + agreement over the live Meta rows
-    if view == "Accuracy calculator":
-        st.subheader("Accuracy calculator")
-        st.caption(
-            "Coverage = share of rows where every input for a metric is present. "
-            "Agreement = how closely our derived value matches the platform's own "
-            "reported value where one exists (drift check). Computed live over the "
-            "Meta rows in the current filter."
-        )
-        df = meta_rows(account, level, since, until)
-        if df.empty:
-            st.warning("No rows to score. Widen the date range or clear the account filter.")
-        else:
-            acc = accuracy(df.to_dict("records"))
-            counts = acc["Confidence"].value_counts()
-            c1, c2, c3, c4, c5 = st.columns(5)
-            c1.metric("Rows scored", f"{len(df):,}")
-            c2.metric("High", int(counts.get("high", 0)))
-            c3.metric("Medium", int(counts.get("medium", 0)))
-            c4.metric("Low", int(counts.get("low", 0)))
-            c5.metric("Unavailable", int(counts.get("unavailable", 0)))
-            st.dataframe(acc, use_container_width=True, hide_index=True, height=520)
-            st.caption(
-                "Video metrics (hook/hold/through) read 'unavailable' until the Meta "
-                "video-quartile child tables are flattened into the row — honest by design."
-            )
-
-    # Retail sales tracker (Target) — week/day-wise DPCI sales & velocity, P&L,
-    # CAC by channel. That data lives in the Target_Sales_Tracker workbook, not
-    # (yet) in the warehouse — discover the loaded tables; declared gap otherwise.
-    if view == "Retail sales tracker":
-        st.subheader("Retail sales tracker (Target)")
-        st.caption(
-            "The analyses from the Target sales tracker: week-wise and day-wise "
-            "sales per DPCI/SKU (units, dollars, velocity, store count), MTD/FY "
-            "P&L (online vs offline, Roundel/Instacart/Ibotta spends) and CAC per "
-            "channel. Load the tracker sheets into the warehouse as tables and "
-            "they render here; until then this is a declared gap - nothing is "
-            "estimated. Read-only."
-        )
-        table_explorer("retail", ["dpci", "target_sales", "velocity", "retail", "roundel", "instacart", "ibotta"],
-                       "Load Target_Sales_Tracker sheets (Week-wise, Day-wise, P&L, CAC) into the warehouse to light this up.")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -866,7 +717,10 @@ def spec_frame(df):
 
 def spec_colcfg():
     """st.column_config formatting: currency for Spend/CPA/CPM/CPC/Cost-per-
-    Reach, percentages for CTRs, x-multiple for ROAS."""
+    Reach, percentages for CTRs, x-multiple for ROAS. Returns None (no config,
+    plain table — never a crash) on Streamlit builds without column_config."""
+    if not hasattr(st, "column_config"):
+        return None
     money_fmt = {"format": "$%.2f"}
     return {
         "Spend": st.column_config.NumberColumn("Spend", **money_fmt),
@@ -970,11 +824,11 @@ def sql_group_sums(table, where, group_cols, limit=None, offset=0):
     if "date_start" in tcols:
         extras.append('min("DATE_START") as first_seen')
         extras.append('max("DATE_START") as last_seen')
-    if extras:
-        sel = sel + ", " + ", ".join(extras)
+    parts = ([sel] if sel else []) + extras
     ob = " order by spend desc nulls last" if "spend" in nums else ""
     lim = f" limit {int(limit)} offset {int(offset)}" if limit else ""
-    return q(f"select {gsel}, {sel} from {table} {where} group by {gpos}{ob}{lim}")
+    tail = (", " + ", ".join(parts)) if parts else ""
+    return q(f"select {gsel}{tail} from {table} {where} group by {gpos}{ob}{lim}")
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -983,6 +837,54 @@ def daily_series(table, where, metric, by=None):
     byg = ", 2" if by else ""
     return q(f'select "DATE_START" as date_start{byc}, sum("{metric.upper()}") as {metric} '
              f"from {table} {where} group by 1{byg} order by 1")
+
+
+# Date columns the Google / TikTok (Daton) tables actually use vary by feed.
+DATE_COL_CANDIDATES = ("date_start", "segments_date", "date", "stat_time_day",
+                       "stat_date", "day", "date_stop")
+
+
+def table_date_col(table):
+    cols = {c for c, _ in table_columns(table)}
+    return next((c for c in DATE_COL_CANDIDATES if c in cols), None)
+
+
+def generic_where(table):
+    """Account + date scoping for Google/TikTok tables using whatever columns
+    they REALLY have. account is the top-bar multiselect (a LIST — never call
+    .replace on it); acct_clause handles one value or many."""
+    w = "where 1=1"
+    if account and acct_col and has_column(table, acct_col):
+        w += acct_clause(f'"{acct_col.upper()}"', account)
+    dc = table_date_col(table)
+    if dc:
+        w += date_clause(f'"{dc.upper()}"', since, until)
+    return w
+
+
+def tiktok_table(lvl):
+    """TikTok's grain naming differs: our 'adset' level is TikTok's 'adgroup'."""
+    return TIKTOK.get({"adset": "adgroup"}.get(lvl, lvl), TIKTOK["campaign"])
+
+
+def cohort_chart(df, dim, title):
+    """Cohort bar chart (spend by dimension) + the aggregated rows. Used by the
+    TikTok cohort panels; falls back to a plain table when spend is absent."""
+    numc = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c not in RATIO_COLS]
+    if "spend" not in df.columns or dim not in df.columns or not numc:
+        st.dataframe(df, use_container_width=True, height=360)
+        return
+    g = df.groupby(dim, as_index=False)[numc].sum().sort_values("spend", ascending=False)
+    top = g.head(30)
+    st.altair_chart(
+        alt.Chart(top).mark_bar(color=GREEN).encode(
+            x=alt.X("spend:Q", title="Spend"),
+            y=alt.Y(f"{dim}:N", sort="-x", title=None),
+            tooltip=[dim, alt.Tooltip("spend:Q", format="$,.2f")],
+        ).properties(height=max(140, 24 * len(top)), title=title),
+        use_container_width=True)
+    st.dataframe(order_table(g, lead=(dim,) + IDENT_LEAD),
+                 use_container_width=True, height=280)
 
 
 # ── COHORT FRAMEWORK — dimensions discovered live; census rollup; targeting ──
@@ -1133,26 +1035,35 @@ def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
 
         st.subheader("Daily trend")
         mcols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c not in RATIO_COLS]
-        mm = st.selectbox("Measure", mcols, index=mcols.index("spend") if "spend" in mcols else 0,
-                      key=key_prefix + "_measure")
-        g = daily_series(META_ADS, ew, mm)
-        st.altair_chart(
-            alt.Chart(g).mark_line(color=GREEN, point=True).encode(
-                x=alt.X("date_start:T", title=None), y=alt.Y(f"{mm}:Q", title=mm),
-                tooltip=["date_start", mm]).properties(height=260),
-            use_container_width=True)
+        if not mcols:
+            st.info("No additive numeric columns to trend at this grain.")
+        else:
+            mm = st.selectbox("Measure", mcols, index=mcols.index("spend") if "spend" in mcols else 0,
+                              key=key_prefix + "_measure")
+            g = daily_series(META_ADS, ew, mm)
+            if g.empty:
+                st.info("No daily rows in the window for this measure.")
+            else:
+                st.altair_chart(
+                    alt.Chart(g).mark_line(color=GREEN, point=True).encode(
+                        x=alt.X("date_start:T", title=None), y=alt.Y(f"{mm}:Q", title=mm),
+                        tooltip=["date_start", mm]).properties(height=260),
+                    use_container_width=True)
 
         st.subheader("Per-ad breakdown (all metric fields + derived)")
         if "ad_name" in df.columns:
             per_ad = sql_group_sums(META_ADS, ew, ident_cols("ad"))
-            for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency", "roas", "cost_per_purchase"):
-                fn = CATALOG_FN.get(k)
-                if fn:
-                    per_ad[k] = per_ad.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
-            if "spend" in per_ad.columns:
-                per_ad = per_ad.sort_values("spend", ascending=False)
-            st.dataframe(spec_frame(per_ad), use_container_width=True, height=420,
-                         hide_index=True, column_config=spec_colcfg())
+            if per_ad.empty:
+                st.info("No per-ad rows in the window.")
+            else:
+                for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency", "roas", "cost_per_purchase"):
+                    fn = CATALOG_FN.get(k)
+                    if fn:
+                        per_ad[k] = per_ad.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
+                if "spend" in per_ad.columns:
+                    per_ad = per_ad.sort_values("spend", ascending=False)
+                st.dataframe(spec_frame(per_ad), use_container_width=True, height=420,
+                             hide_index=True, column_config=spec_colcfg())
         else:
             st.info("No ad_name column at this grain.")
 
@@ -1248,7 +1159,7 @@ def all_campaigns_block(key):
 # ADS ANALYTICS
 # ═════════════════════════════════════════════════════════════════════════════
 def render_ads_analytics():
-    st.title("Ads Analytics")
+    st.title("Ads Analysis")
     st.caption(
         "Live from Snowflake via the active session — Meta / Google / TikTok, per "
         "campaign and per ad, for the Costco + Target US accounts. Priority metrics "
@@ -1392,18 +1303,17 @@ def render_ads_analytics():
                     st.markdown(f"### {LEVEL_LABEL.get(level, 'Campaign')} detail — {pick_r}")
                     render_campaign_detail(pick_r, "rows", LEVEL_COL.get(level, "campaign_name"))
         else:
-            table = GOOGLE_ADS if platform == "Google" else TIKTOK[level if level in TIKTOK else "campaign"]
-            wg = ""
-            if account and acct_col and has_column(table, acct_col):
-                qv = account.replace("'", "''")
-                wg = f" where \"{acct_col.upper()}\" = '{qv}'"
+            table = GOOGLE_ADS if platform == "Google" else tiktok_table(level)
+            wg = generic_where(table)
             total = count_rows(table, wg)
             if not total:
-                st.info(f"No readable rows in `{table}` for this account scope.")
+                st.info(f"No readable rows in `{table}` for this account / date scope.")
             else:
                 size, off = pager(total, "rows_g")
+                _dc = table_date_col(table)
+                _ob = f' order by "{_dc.upper()}" desc' if _dc else ""
                 try:
-                    st.dataframe(order_table(q(f"select * from {table}{wg} limit {size} offset {off}")),
+                    st.dataframe(order_table(q(f"select * from {table} {wg}{_ob} limit {size} offset {off}")),
                                  use_container_width=True, height=520)
                 except Exception as e:  # noqa: BLE001
                     st.info(f"Could not read {table}: {e}")
@@ -1476,57 +1386,61 @@ def render_ads_analytics():
                     # ── COHORT DETAIL PAGE ────────────────────────────────────
                     st.markdown("---")
                     st.subheader("Cohort detail — deep exploration")
-                    g["_label"] = g[key_cols].astype(str).agg(" · ".join, axis=1)
-                    csel = st.selectbox("Open a cohort", g["_label"].tolist())
-                    row = g[g["_label"] == csel].iloc[0]
-                    selection = {key_cols[i]: row[key_cols[i]] for i in range(len(key_cols))}
-                    cw = w
-                    if census:
-                        states = sorted([s for s, r_ in US_CENSUS_REGION.items() if r_ == row["census_region"]])
-                        inlist = ",".join("'" + s.replace("'", "''") + "'" for s in states)
-                        cw += f' and "{gcol.upper()}" in ({inlist})'
-                        st.caption("Member states: " + ", ".join(states))
+                    if g.empty:
+                        st.info("No cohort rows for this dimension in the current filter scope — "
+                                "widen the window or clear the account/marketplace filters.")
                     else:
-                        for d in key_cols:
-                            qval = str(row[d]).replace("'", "''")
-                            cw += f" and \"{d.upper()}\" = '{qval}'"
-                    sums = sql_sums(btable, cw)
-                    derived = compute_all(sums)
-                    k1, k2, k3, k4, k5 = st.columns(5)
-                    k1.metric("Spend", money(sums.get("spend")))
-                    k2.metric("Impressions", f"{sums.get('impressions', 0):,.0f}")
-                    k3.metric("Clicks", f"{sums.get('clicks', 0):,.0f}")
-                    k4.metric("Link CTR", pctf(derived.get("link_ctr")))
-                    k5.metric("CPM", money(derived.get("cpm")))
-                    st.markdown("**Every metric for this cohort (exact SQL totals + derived catalog)**")
-                    st.dataframe(metric_sheet(sums, derived), use_container_width=True,
-                                 hide_index=True, height=360)
-                    if has_column(btable, "date_start") and "spend" in sums:
-                        ts = daily_series(btable, cw, "spend")
-                        if not ts.empty:
-                            st.markdown("**Daily spend trend**")
-                            st.altair_chart(
-                                alt.Chart(ts).mark_line(color=GREEN, point=True).encode(
-                                    x=alt.X("date_start:T", title=None), y=alt.Y("spend:Q"),
-                                    tooltip=["date_start", "spend"]).properties(height=220),
-                                use_container_width=True)
-                    if has_column(btable, "campaign_name"):
-                        st.markdown("**Campaigns inside this cohort**")
-                        st.dataframe(sql_group_sums(btable, cw, "campaign_name"),
-                                     use_container_width=True, height=280)
-                        c_opts = campaign_options(account, marketplace, since, until)
-                        c_pick = st.selectbox("Open a campaign detail page", ["—"] + c_opts, key="coh_open")
-                        if c_pick != "—":
-                            st.markdown(f"### Campaign detail — {c_pick}")
-                            render_campaign_detail(c_pick, "coh")
-                    st.subheader("Meta platform conditions for this cohort")
-                    ui, spec, tnotes = meta_targeting_conditions(selection)
-                    st.markdown("\n".join(f"- {u}" for u in ui) or "—")
-                    st.code(json.dumps({"targeting": spec}, indent=2), language="json")
-                    for n_ in tnotes:
-                        st.caption("⚠ " + n_)
-                    st.caption("Numeric geo keys are never invented — resolve any '<lookup …>' "
-                               "via Meta's Targeting Search API before creating the ad set.")
+                        g["_label"] = g[key_cols].astype(str).agg(" · ".join, axis=1)
+                        csel = st.selectbox("Open a cohort", g["_label"].tolist())
+                        row = g[g["_label"] == csel].iloc[0]
+                        selection = {key_cols[i]: row[key_cols[i]] for i in range(len(key_cols))}
+                        cw = w
+                        if census:
+                            states = sorted([s for s, r_ in US_CENSUS_REGION.items() if r_ == row["census_region"]])
+                            inlist = ",".join("'" + s.replace("'", "''") + "'" for s in states)
+                            cw += f' and "{gcol.upper()}" in ({inlist})'
+                            st.caption("Member states: " + ", ".join(states))
+                        else:
+                            for d in key_cols:
+                                qval = str(row[d]).replace("'", "''")
+                                cw += f" and \"{d.upper()}\" = '{qval}'"
+                        sums = sql_sums(btable, cw)
+                        derived = compute_all(sums)
+                        k1, k2, k3, k4, k5 = st.columns(5)
+                        k1.metric("Spend", money(sums.get("spend")))
+                        k2.metric("Impressions", f"{sums.get('impressions', 0):,.0f}")
+                        k3.metric("Clicks", f"{sums.get('clicks', 0):,.0f}")
+                        k4.metric("Link CTR", pctf(derived.get("link_ctr")))
+                        k5.metric("CPM", money(derived.get("cpm")))
+                        st.markdown("**Every metric for this cohort (exact SQL totals + derived catalog)**")
+                        st.dataframe(metric_sheet(sums, derived), use_container_width=True,
+                                     hide_index=True, height=360)
+                        if has_column(btable, "date_start") and "spend" in sums:
+                            ts = daily_series(btable, cw, "spend")
+                            if not ts.empty:
+                                st.markdown("**Daily spend trend**")
+                                st.altair_chart(
+                                    alt.Chart(ts).mark_line(color=GREEN, point=True).encode(
+                                        x=alt.X("date_start:T", title=None), y=alt.Y("spend:Q"),
+                                        tooltip=["date_start", "spend"]).properties(height=220),
+                                    use_container_width=True)
+                        if has_column(btable, "campaign_name"):
+                            st.markdown("**Campaigns inside this cohort**")
+                            st.dataframe(sql_group_sums(btable, cw, "campaign_name"),
+                                         use_container_width=True, height=280)
+                            c_opts = campaign_options(account, marketplace, since, until)
+                            c_pick = st.selectbox("Open a campaign detail page", ["—"] + c_opts, key="coh_open")
+                            if c_pick != "—":
+                                st.markdown(f"### Campaign detail — {c_pick}")
+                                render_campaign_detail(c_pick, "coh")
+                        st.subheader("Meta platform conditions for this cohort")
+                        ui, spec, tnotes = meta_targeting_conditions(selection)
+                        st.markdown("\n".join(f"- {u}" for u in ui) or "—")
+                        st.code(json.dumps({"targeting": spec}, indent=2), language="json")
+                        for n_ in tnotes:
+                            st.caption("⚠ " + n_)
+                        st.caption("Numeric geo keys are never invented — resolve any '<lookup …>' "
+                                   "via Meta's Targeting Search API before creating the ad set.")
                 except Exception as e:  # noqa: BLE001
                     st.warning(f"Cohort build failed on {btable}: {e}")
         elif platform == "TikTok":
@@ -1642,22 +1556,19 @@ def render_ads_analytics():
     # ── AD EXPLORER — every field the table carries, upfront ─────────────────
     if view == "Ad explorer (all fields)":
         if platform != "Meta":
-            table = GOOGLE_ADS if platform == "Google" else TIKTOK[level if level in TIKTOK else "campaign"]
+            table = GOOGLE_ADS if platform == "Google" else tiktok_table(level)
             st.info(f"{platform}: raw rows with whatever columns exist in `{table}`.")
-            wg = ""
-            if account and acct_col and has_column(table, acct_col):
-                qv = account.replace("'", "''")
-                wg = f" where \"{acct_col.upper()}\" = '{qv}'"
+            wg = generic_where(table)
             total_g = count_rows(table, wg)
             if total_g:
                 size_g, off_g = pager(total_g, "expl_g")
                 try:
-                    st.dataframe(order_table(q(f"select * from {table}{wg} limit {size_g} offset {off_g}")),
+                    st.dataframe(order_table(q(f"select * from {table} {wg} limit {size_g} offset {off_g}")),
                                  use_container_width=True, height=520)
                 except Exception as e:  # noqa: BLE001
                     st.info(f"Could not read {table}: {e}")
             else:
-                st.info("No readable rows for this account scope.")
+                st.info("No readable rows for this account / date scope.")
         else:
             cols = table_columns(META_ADS)
             groups = classify_columns(cols)
@@ -1862,13 +1773,10 @@ def render_ads_analytics():
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# BUSINESS REVIEW (T1–T7) + ROLES & PERMISSIONS (T8) — Snowflake-table driven.
-# Zero fabrication: panels are built ONLY from tables that actually exist in the
-# warehouse. discover_tables() searches INFORMATION_SCHEMA by keyword; a task
-# whose source data is not loaded into Snowflake shows a declared gap, never an
-# estimated number. (The web app's review package sourced T1–T7 largely from
-# live Shopify exports — those series only appear here once loaded into the
-# warehouse.)
+# WAREHOUSE DISCOVERY — keyword search over INFORMATION_SCHEMA. Zero
+# fabrication: panels are built ONLY from tables that actually exist in the
+# warehouse; a source whose data is not loaded into Snowflake shows a declared
+# gap, never an estimated number.
 # ═════════════════════════════════════════════════════════════════════════════
 SEARCH_DBS = ["VAHDAM_DB", "DATON"]
 
@@ -1942,35 +1850,91 @@ def table_explorer(key, default_terms, gap_note):
             pass
 
 
-def render_mailer_intelligence():
-    st.title("Mailer Intelligence")
+def render_ads_intelligence():
+    st.title("Ads Intelligence")
     st.caption(
-        "Email/SMS lifecycle reporting (Klaviyo / WebEngage) straight from the "
-        "warehouse. Discovers the real mailer tables (campaigns, flows, events, "
-        "engagement) and renders whatever is actually loaded - a source that is "
-        "not synced into Snowflake shows a declared gap, never an estimate. "
-        "Read-only."
+        "Intelligence layer over the ads warehouse: discover every ad, creative "
+        "and tracker table that REALLY exists (nothing assumed), plus the ONE "
+        "metric catalog (definition + formula per metric, shared with the web "
+        "app) and the live accuracy calculator. A source that is not synced "
+        "into Snowflake shows a declared gap, never an estimate. Read-only."
     )
-    tab_campaigns, tab_events = st.tabs(["Campaigns & flows", "Events & engagement"])
-    with tab_campaigns:
+    tab_tables, tab_creatives, tab_trackers, tab_catalog, tab_accuracy = st.tabs(
+        ["Ad platform tables", "Creatives & assets", "Trackers (UGC / retail / sales)",
+         "Metric catalog", "Accuracy calculator"])
+    with tab_tables:
         table_explorer(
-            "ml_campaigns", ["klaviyo", "campaign", "flow", "mailer", "email"],
-            "Load the Klaviyo campaign/flow exports into the warehouse to light this up.",
+            "ai_tables", ["meta", "google", "tiktok", "ads", "insights"],
+            "No ad platform tables found — check the Daton/Maplemonk syncs and this role's grants.",
         )
-    with tab_events:
+    with tab_creatives:
         table_explorer(
-            "ml_events", ["event", "webengage", "open", "click", "engagement"],
-            "Load the Klaviyo/WebEngage event exports (opens, clicks, conversions) to light this up.",
+            "ai_creatives", ["creative", "asset", "image", "thumbnail", "video"],
+            "Load the creative registers (e.g. Meta ad creatives) into the warehouse to light this up.",
         )
+    with tab_trackers:
+        table_explorer(
+            "ai_trackers", ["ugc", "tracker", "target_sales", "retail", "spend", "dpci"],
+            "Load the tracker workbooks (UGC Master, Target Sales, Retail Ads, Ad Spends) "
+            "via trackers/load_trackers.sql to light this up.",
+        )
+    with tab_catalog:
+        st.subheader(f"Metric catalog — {len(METRICS)} metrics across {len(CATEGORIES)} categories")
+        st.caption(
+            "Defined once, computed identically on this app and the web app "
+            "(mirror of api/_shared/ad-metrics-catalog.js). base = read straight "
+            "from the platform; derived = computed by the formula shown."
+        )
+        cat = catalog_df()
+        pick = st.multiselect("Filter by category", [c[1] for c in CATEGORIES],
+                              default=[c[1] for c in CATEGORIES], key="ai_cat")
+        st.dataframe(cat[cat["Category"].isin(pick)], use_container_width=True,
+                     hide_index=True, height=560)
+    with tab_accuracy:
+        st.subheader("Accuracy calculator")
+        st.caption(
+            "Coverage = share of rows where every input for a metric is present. "
+            "Agreement = how closely our derived value matches the platform's own "
+            "reported value where one exists (drift check). Computed live over the "
+            "Meta rows in the current top-bar filter scope."
+        )
+        df = meta_rows(account, level, since, until)
+        if df.empty:
+            st.warning("No rows to score. Widen the date range or clear the account filter.")
+        else:
+            acc = accuracy(df.to_dict("records"))
+            counts = acc["Confidence"].value_counts()
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric("Rows scored", f"{len(df):,}")
+            c2.metric("High", int(counts.get("high", 0)))
+            c3.metric("Medium", int(counts.get("medium", 0)))
+            c4.metric("Low", int(counts.get("low", 0)))
+            c5.metric("Unavailable", int(counts.get("unavailable", 0)))
+            st.dataframe(acc, use_container_width=True, hide_index=True, height=520)
+            st.caption(
+                "Video metrics (hook/hold/through) read 'unavailable' until the Meta "
+                "video-quartile child tables are flattened into the row — honest by design."
+            )
 
 
 # ── Route ────────────────────────────────────────────────────────────────────
-if section == "Data Analysis":
-    render_data_analysis()
-elif section == "Ads Analytics":
-    render_ads_analytics()
+# Every section renders inside an error boundary: a failure surfaces as the
+# real exception on the page, never as a tab that silently refuses to load.
+def _run_section(fn):
+    try:
+        fn()
+    except Exception as e:  # noqa: BLE001
+        st.error(f"This view hit an error: {e}")
+        st.code(traceback.format_exc())
+        st.caption("The error above is the live traceback — nothing is hidden. "
+                    "Try 🔄 Refresh (clears caches) or narrow the filters; if it "
+                    "persists, this is the exact message to report.")
+
+
+if section == "Ads Analysis":
+    _run_section(render_ads_analytics)
 else:
-    render_mailer_intelligence()
+    _run_section(render_ads_intelligence)
 
 st.markdown("---")
 st.caption("Source: Snowflake (Daton / Maplemonk) via get_active_session · read-only · Altair charts · one metric catalog shared with the web app.")
