@@ -686,8 +686,7 @@ IDENT_LEAD = ("campaign_name", "campaign_id", "adset_name", "adset_id",
 
 # Created / Edited fields sit right after the identifiers in every table.
 TIMESTAMP_LEAD = ("date_created", "created_time", "created_at", "ad_created_time",
-                  "updated_time", "last_updated", "modified_time", "edited_on",
-                  "first_seen", "last_seen")
+                  "updated_time", "last_updated", "modified_time", "edited_on")
 
 # Metric display priority (the workbook's priority set first, then the funnel).
 METRIC_PRIORITY = ["spend", "impressions", "reach", "frequency", "clicks",
@@ -702,14 +701,12 @@ METRIC_PRIORITY = ["spend", "impressions", "reach", "frequency", "clicks",
 
 CREATED_CANDS = ("date_created", "created_time", "created_at", "ad_created_time")
 EDITED_CANDS = ("updated_time", "last_updated", "modified_time", "edited_on")
-SEEN_COLS = ("first_seen", "last_seen")
 DISPLAY_NAME = {"campaign_name": "Campaign", "adset_name": "Ad Set", "ad_name": "Ad",
                 "campaign_id": "Campaign ID", "adset_id": "Ad Set ID", "ad_id": "Ad ID",
                 "spend": "Spend", "impressions": "Impressions", "reach": "Reach",
                 "cpm": "CPM", "clicks": "Clicks", "ctr": "CTR", "link_ctr": "Link CTR",
                 "cpc": "CPC", "inline_link_clicks": "Link Clicks", "frequency": "Frequency",
                 "cost_per_reach": "Cost per Reach", "add_to_cart": "Add to Cart",
-                "first_seen": "First Seen", "last_seen": "Last Seen",
                 "purchases": "Purchases", "cost_per_purchase": "CPA", "roas": "ROAS"}
 SPEC_METRIC_ORDER = ["Spend", "Impressions", "Reach", "CPM",          # 1. Delivery
                      "Clicks", "CTR", "Link CTR", "CPC",              # 2. Engagement
@@ -735,7 +732,7 @@ def spec_frame(df):
     df = df.rename(columns=ren)
     df = df.loc[:, ~df.columns.duplicated()]
     hier = [h for h in ("Campaign", "Ad Set", "Ad") if h in df.columns]
-    meta = [m for m in ("Created At", "Edited On", "First Seen", "Last Seen") if m in df.columns]
+    meta = [m for m in ("Created At", "Edited On") if m in df.columns]
     prio = [p for p in SPEC_METRIC_ORDER if p in df.columns and df[p].notna().any()]
     ids = [i for i in ("Campaign ID", "Ad Set ID", "Ad ID") if i in df.columns]
     rest = [c for c in df.columns if c not in hier + meta + prio + ids]
@@ -835,9 +832,10 @@ def sql_group_sums(table, where, group_cols, limit=None, offset=0):
     gsel = ", ".join(f'"{c.upper()}" as {c}' for c in gcols)
     gpos = ", ".join(str(i + 1) for i in range(len(gcols)))
     sel = ", ".join(f'sum("{c.upper()}") as {c}' for c in nums)
-    # Created/edited per entity (true columns when the table has them) plus
-    # first/last delivery date - timestamps are not additive, so they must be
-    # aggregated explicitly or they silently vanish from grouped tables.
+    # Created/edited per entity (true columns ONLY, when the table has them) -
+    # timestamps are not additive, so they must be aggregated explicitly or
+    # they silently vanish from grouped tables. Nothing is derived or invented
+    # when the source table carries no created/edited columns.
     tcols = {c for c, _ in table_columns(table)}
     extras = []
     for c in CREATED_CANDS:
@@ -848,9 +846,6 @@ def sql_group_sums(table, where, group_cols, limit=None, offset=0):
         if c in tcols:
             extras.append(f'max("{c.upper()}") as {c}')
             break
-    if "date_start" in tcols:
-        extras.append('min("DATE_START") as first_seen')
-        extras.append('max("DATE_START") as last_seen')
     parts = ([sel] if sel else []) + extras
     ob = " order by spend desc nulls last" if "spend" in nums else ""
     lim = f" limit {int(limit)} offset {int(offset)}" if limit else ""
@@ -1320,9 +1315,9 @@ def render_ads_analytics():
                 if not _has_true_dates:
                     st.caption(
                         "Created At / Edited On appear when the source table carries those "
-                        "columns. Meta's insights table does not, so First Seen / Last Seen "
-                        "(first and last delivery date recorded in the warehouse) are shown "
-                        "instead - true dates, honestly labelled, never invented."
+                        "columns. Meta's insights table does not sync them, so they are "
+                        "omitted here rather than invented - they light up the moment the "
+                        "warehouse feed adds the campaign/ad metadata columns."
                     )
                 opts_r = campaign_options(account, marketplace, since, until, LEVEL_COL.get(level, "campaign_name"))
                 pick_r = st.selectbox(f"Open a {LEVEL_LABEL.get(level, 'Campaign').lower()} detail page",
