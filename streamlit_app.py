@@ -436,7 +436,8 @@ status_sel = st.sidebar.multiselect("Campaign status", distinct_values(STATUS_CO
 # Controls vary by analysis type: granularity applies to Ads Analytics
 # (campaign / ad set / ad analysis); the portfolio-style sections are not ad-level.
 if section == "Ads Analytics":
-    level = st.sidebar.selectbox("Granularity", ["campaign", "adset", "ad"])
+    _level_label = st.sidebar.selectbox("Level", ["Campaign", "Ad Set", "Ad Level"])
+    level = {"Campaign": "campaign", "Ad Set": "adset", "Ad Level": "ad"}[_level_label]
 else:
     level = "campaign"
 LEVEL_COL = {"campaign": "campaign_name", "adset": "adset_name", "ad": "ad_name"}
@@ -1414,8 +1415,8 @@ def render_ads_analytics():
         if platform != "Meta":
             st.info("Single-campaign deep-dive runs on the Meta table; Google/TikTok show raw rows in 'Campaign / ad rows'.")
         else:
-            etype = st.radio("Entity type", ["Campaign", "Ad set", "Ad"], horizontal=True, key="single_etype")
-            ecol = {"Campaign": "campaign_name", "Ad set": "adset_name", "Ad": "ad_name"}[etype]
+            etype = st.radio("Entity type", ["Campaign", "Ad Set", "Ad Level"], horizontal=True, key="single_etype")
+            ecol = {"Campaign": "campaign_name", "Ad Set": "adset_name", "Ad Level": "ad_name"}[etype]
             opts = campaign_options(account, marketplace, since, until, ecol)
             if not opts:
                 st.warning("No entities in scope — widen the window or clear filters.")
