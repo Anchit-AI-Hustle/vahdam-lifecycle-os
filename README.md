@@ -1,0 +1,41 @@
+# VAHDAM Lifecycle OS — Streamlit-in-Snowflake distribution
+
+**Branch: `snowflake-streamlit-app` — permanently separate. NEVER merge into `main`.**
+(Enforced by `main`'s required check `.github/workflows/protect-main-from-sis.yml`,
+which fails any PR from this branch. Port changes by hand in either direction.)
+
+This branch is a self-contained version of the Lifecycle OS analytics stack that
+runs **natively inside Snowflake**: authentication and warehouse come from the
+logged-in session (`get_active_session()`) — no Vercel, no Supabase, no PAT, no
+HTML pages. Charts are Altair. Everything is **read-only** and zero-fabrication:
+a metric or task whose source table is not in the warehouse shows a declared
+gap, never an estimated number.
+
+## Sections (sidebar)
+| Section | What it renders | Tables |
+|---|---|---|
+| **Data Analysis** | sources & budget pacing (Target $1,000/day · Costco $300/day), portfolio KPIs, the 42-metric catalog + live accuracy calculator | Meta/TikTok/Google ads tables |
+| **Ads Analytics** | Meta / Google / TikTok per campaign + per ad, age×gender / device / country cohorts (Costco + Target US) | `VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS`, `MAPLEMONK1` breakdowns, `DATON.RAW.TIKTOK_ADS_USA_*`, `MAPLEMONK.GOOGLE_ADS_USA` |
+| **Business Review (T1–T7)** | the 8-task D2C review as live warehouse views — Sales, Customers, Catalog & Parity, Fulfilment, CX, Category, Coffee & Subscriptions — each task discovers its REAL source tables via INFORMATION_SCHEMA keyword search | whatever is actually loaded; declared gaps otherwise |
+| **Roles & Permissions (T8)** | access-audit registers (user access map / app inventory) + this session's live role, warehouse and grants | loaded registers + `SHOW GRANTS` |
+
+## Deploy (mints the URL)
+Fastest — **Snowsight → Projects → Streamlit → + Streamlit App**: pick a
+database/schema + warehouse, paste `streamlit_app.py` (single file), add
+`altair` in Packages, Run.
+
+Git-native — link this repo/branch in a Snowsight Workspace and deploy with
+`snowflake.yml` (main_file `streamlit_app.py`, artifacts only that file +
+`environment.yml`), or run `deploy.sql`.
+
+Dependencies (all Snowflake Anaconda channel — **no** PyPI integration needed):
+`streamlit · pandas · altair · snowflake-snowpark-python`.
+
+Known URL pattern once created:
+`https://app.snowflake.com/uxdeihw/mo06981/#/streamlit-apps/<DB>.<SCHEMA>.<APP_NAME>`
+
+## What this branch deliberately does NOT contain
+The web app (mailers, calendars, ChaiGPT, generation pipelines, serverless
+`api/`, Supabase) lives on `main` and deploys to Vercel. This branch carries
+only what runs inside Snowflake. That divergence is the point — hence the
+never-merge rule.
