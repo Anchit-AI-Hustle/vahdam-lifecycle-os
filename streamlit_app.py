@@ -37,6 +37,11 @@ session = get_active_session()
 
 st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 
+# Bumped on every code change — the sidebar shows it, so a stale deployment is
+# instantly recognisable (if the running app shows an older build id, the
+# workspace was not redeployed after the last pull).
+APP_BUILD = "2026-07-24.1"
+
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
 # neighbours. Force everything to wrap INSIDE its own column.
@@ -403,8 +408,45 @@ def meta_source_report():
     cands = [(base_db, base_schema, base_name)] + \
             sorted({c for c in cands if f"{c[0]}.{c[1]}.{c[2]}".upper() != META_ADS.upper()})
 
+    def _accounts(fqn, cset, label):
+        """The distinct Account values this source contributes (nulls and a
+        missing column both fall back to the source-table label)."""
+        try:
+            if "account_name" in cset:
+                d = q(f'select distinct coalesce("ACCOUNT_NAME", \'{label}\') as v '
+                      f"from {fqn} limit 20")
+                vals = sorted(str(x) for x in d["v"].dropna().tolist())
+                return vals or [label]
+            return [label]
+        except Exception:  # noqa: BLE001
+            return []
+
+    def _same_feed(fa, ca, fb, cb):
+        """True when two tables are the SAME feed: per (campaign, day), spend
+        matches across their overlapping dates (>=10 shared rows, >=95% equal).
+        Catches longer-history copies that exact signatures miss."""
+        key = "CAMPAIGN_ID" if ("campaign_id" in ca and "campaign_id" in cb) else "CAMPAIGN_NAME"
+        try:
+            r = q(f'with a as (select "{key}" as cid, "DATE_START" as d, '
+                  f'round(sum("SPEND"), 2) as s from {fa} group by 1, 2), '
+                  f'b as (select "{key}" as cid, "DATE_START" as d, '
+                  f'round(sum("SPEND"), 2) as s from {fb} group by 1, 2), '
+                  "j as (select a.s as sa, b.s as sb from a join b on a.cid = b.cid and a.d = b.d) "
+                  "select count(*) as n, sum(iff(sa = sb, 1, 0)) as m from j")
+            n = int(r.iloc[0]["n"] or 0)
+            m = int(r.iloc[0]["m"] or 0)
+            return n >= 10 and m >= 0.95 * n
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _span_days(sig):
+        try:
+            return (pd.Timestamp(sig[3]) - pd.Timestamp(sig[2])).days
+        except Exception:  # noqa: BLE001
+            return -1
+
     # 2) Gate each candidate; record every exclusion with its reason.
-    included, excluded, seen_sigs = [], [], {}
+    detail, excluded, seen_sigs = [], [], {}
     for db, schema, name in cands:
         fqn = f"{db}.{schema}.{name}"
         cols = _cols(db, schema, name)
@@ -425,12 +467,30 @@ def meta_source_report():
             excluded.append((fqn, f"exact duplicate of {seen_sigs[sig]} "
                                   f"(rows={sig[0]:,}, spend={sig[1]:,.2f}, {sig[2]}..{sig[3]})"))
             continue
+        # Same-feed check vs everything already included: a longer-history COPY
+        # of an included feed is NOT new data — keep whichever covers more days.
+        dup_of = next((e for e in detail
+                       if _same_feed(fqn, cset, e["fqn"], set(e["cols"]))), None)
+        if dup_of is not None:
+            if sig is not None and _span_days(sig) > _span_days(dup_of["sig"]):
+                excluded.append((dup_of["fqn"],
+                                 f"same feed as {fqn} (spend matches per campaign+day over the "
+                                 "overlap) - kept the longer-history table instead"))
+                detail.remove(dup_of)
+            else:
+                excluded.append((fqn, f"same feed as {dup_of['fqn']} (spend matches per "
+                                      "campaign+day over the overlap) - excluded to avoid double counting"))
+                continue
         if sig is not None:
             seen_sigs[sig] = fqn
-        included.append((fqn, cols))
-    if not included:  # never let discovery failures blank the app
-        included = [(META_ADS, _cols(base_db, base_schema, base_name))]
-    return {"included": included, "excluded": excluded}
+        label = name.lower()
+        detail.append({"fqn": fqn, "cols": cols, "sig": sig,
+                       "accounts": _accounts(fqn, cset, label)})
+    if not detail:  # never let discovery failures blank the app
+        detail = [{"fqn": META_ADS, "cols": _cols(base_db, base_schema, base_name),
+                   "sig": None, "accounts": []}]
+    return {"included": [(e["fqn"], e["cols"]) for e in detail],
+            "excluded": excluded, "detail": detail}
 
 
 def meta_source_tables():
@@ -439,8 +499,10 @@ def meta_source_tables():
 
 def _meta_src():
     srcs = meta_source_tables()
-    if len(srcs) == 1 or not srcs[0][1]:
+    if not srcs or not srcs[0][1]:
         return META_ADS
+    if len(srcs) == 1:
+        return srcs[0][0]
     all_cols = []
     for _, cols in srcs:
         for c in cols:
@@ -678,10 +740,18 @@ st.sidebar.caption(
     f"Daily budget caps (reference): Target ${BUDGETS['target']:,} · "
     f"Costco ${BUDGETS['costco']:,}. Read-only — never written back to any platform."
 )
+st.sidebar.caption(f"Build {APP_BUILD}")
 try:
     _mrep = meta_source_report()
     st.sidebar.caption("Meta sources (" + str(len(_mrep["included"])) + "): "
                        + " · ".join(t.split(".")[-1] for t, _ in _mrep["included"]))
+    with st.sidebar.expander("Meta source detail (live diagnostics)"):
+        for _e in _mrep.get("detail", []):
+            _s = _e.get("sig")
+            _stats = (f"{_s[0]:,} rows · ${_s[1]:,.0f} · {_s[2]} → {_s[3]}"
+                      if _s else "stats unavailable")
+            st.caption(f"`{_e['fqn'].split('.', 1)[1]}` — {_stats}")
+            st.caption("↳ accounts: " + (", ".join(_e.get("accounts") or []) or "(none readable)"))
     if _mrep["excluded"]:
         with st.sidebar.expander(f"Excluded Meta tables ({len(_mrep['excluded'])}) — no double counting"):
             for _xf, _xr in _mrep["excluded"]:
