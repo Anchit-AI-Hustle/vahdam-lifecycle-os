@@ -232,7 +232,7 @@ MARKETPLACE_SEARCH = {"Target": "target", "Costco": "costco", "Amazon": "amazon"
                       "UGC Creator Ads": "ugc"}
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def detected_marketplaces():
     """Which marketplace names REALLY appear in the ad names — checked live,
     so the filter never offers a marketplace with zero data."""
@@ -267,7 +267,7 @@ def mkt_case(col: str = "ad_name") -> str:
     return f"(case {whens} else 'D2C / Other' end)" if whens else "'D2C / Other'"
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def meta_accounts():
     """Real Meta ad-account names present in the warehouse (Account options)."""
     try:
@@ -358,7 +358,7 @@ ACCOUNT_COL_CANDIDATES = ("account_name", "customer_descriptive_name", "customer
                           "customer_id")
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def channel_accounts(channel):
     """(account_column, [real account values]) from the channel's own table."""
     table = META_ADS if channel == "Meta" else (GOOGLE_ADS if channel == "Google" else TIKTOK["campaign"])
@@ -392,6 +392,17 @@ since = st.sidebar.date_input("Since", (today - pd.Timedelta(days=30)).date())
 until = st.sidebar.date_input("Until", today.date())
 window_days = max(1, (pd.Timestamp(until) - pd.Timestamp(since)).days + 1)
 st.sidebar.markdown("---")
+# Every view queries the warehouse LIVE at render time — new campaigns/ads
+# appear automatically. Option lists cache for 5 minutes; this clears them now.
+if st.sidebar.button("🔄 Refresh live data now"):
+    st.cache_data.clear()
+    st.rerun()
+st.sidebar.caption(
+    "All figures are queried live from Snowflake on every view. New campaigns, "
+    "ads, accounts and marketplaces appear automatically (option lists refresh "
+    "within 5 minutes, or instantly with the button). Freshness of the source "
+    "tables themselves follows the Daton/Maplemonk sync schedule."
+)
 st.sidebar.caption(
     f"Daily budget caps (reference): Target ${BUDGETS['target']:,} · "
     f"Costco ${BUDGETS['costco']:,}. Read-only — never written back to any platform."
