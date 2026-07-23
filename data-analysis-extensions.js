@@ -248,7 +248,11 @@
   }
 
   function adsControls() {
-    var until = isoDate(new Date()), since = isoDate(addDays(new Date(), -30));
+    // Default to ALL available history so no year is hidden. The floor predates
+    // all ad data (earliest live rows are 2024), Until is today. The previous
+    // 30-day default hid everything older than the last month. Narrow via the
+    // date pickers as needed.
+    var until = isoDate(new Date()), since = '2020-01-01';
     return '<div class="xcontrols">' +
       '<label class="xfield">Level<select id="xAdsLevel"><option value="account">Account</option><option value="campaign">Campaign</option><option value="adgroup">Ad group / ad set</option><option value="ad" selected>Ad</option></select></label>' +
       '<label class="xfield">Since<input id="xAdsSince" type="date" value="' + since + '"></label>' +
