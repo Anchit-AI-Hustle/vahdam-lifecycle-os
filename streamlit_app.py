@@ -825,6 +825,141 @@ def meta_targeting_conditions(selection):
     return ui, spec, notes
 
 
+# ── CAMPAIGN DETAIL PAGE — reused by EVERY tab so any campaign row can be
+# opened for full analysis (config, all metrics, trend, per-ad, audience,
+# creatives). key_prefix keeps widget ids unique per tab.
+def render_campaign_detail(camp, key_prefix="cd"):
+    df = meta_raw(account, marketplace, since, until, (camp,))
+    if df.empty:
+        st.warning("No rows for this campaign in the window.")
+    else:
+        groups = classify_columns(table_columns(META_ADS))
+        sums = sql_sums(META_ADS, meta_where((camp,)))
+        derived = compute_all(sums)
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Spend", money(sums.get("spend")))
+        c2.metric("Impressions", f"{sums.get('impressions', 0):,.0f}")
+        c3.metric("Link clicks", f"{sums.get('inline_link_clicks', 0):,.0f}")
+        c4.metric("Link CTR", pctf(derived.get("link_ctr")))
+        c5.metric("CPC", money(derived.get("cpc")))
+        n_ads = df["ad_name"].nunique() if "ad_name" in df.columns else 0
+        n_sets = df["adset_name"].nunique() if "adset_name" in df.columns else 0
+        st.caption(f"{n_ads} ads · {n_sets} ad sets · {len(df):,} sampled rows (aggregates are exact via SQL). "
+                   "Reach here is a sum of daily reach — uniques may overlap across days.")
+
+        st.subheader("Campaign configuration & audience fields (everything the table carries)")
+        conf_rows = []
+        for c in groups["identity_config"] + groups["audience_targeting"]:
+            if c in df.columns:
+                vals = df[c].dropna().astype(str).unique()[:6]
+                if len(vals):
+                    conf_rows.append({"Field": c,
+                                      "Group": "audience/targeting" if c in groups["audience_targeting"] else "identity/config",
+                                      "Distinct values (up to 6)": " · ".join(vals),
+                                      "Distinct count": int(df[c].nunique())})
+        st.dataframe(pd.DataFrame(conf_rows), use_container_width=True, hide_index=True, height=280)
+
+        st.subheader("Every metric — base table sums + full derived catalog")
+        st.dataframe(metric_sheet(sums, derived), use_container_width=True, hide_index=True, height=420)
+
+        st.subheader("Daily trend")
+        mcols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c not in RATIO_COLS]
+        mm = st.selectbox("Measure", mcols, index=mcols.index("spend") if "spend" in mcols else 0,
+                      key=key_prefix + "_measure")
+        g = daily_series(META_ADS, meta_where((camp,)), mm)
+        st.altair_chart(
+            alt.Chart(g).mark_line(color=GREEN, point=True).encode(
+                x=alt.X("date_start:T", title=None), y=alt.Y(f"{mm}:Q", title=mm),
+                tooltip=["date_start", mm]).properties(height=260),
+            use_container_width=True)
+
+        st.subheader("Per-ad breakdown (all metric fields + derived)")
+        if "ad_name" in df.columns:
+            per_ad = sql_group_sums(META_ADS, meta_where((camp,)), ["ad_name"])
+            for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
+                fn = CATALOG_FN.get(k)
+                if fn:
+                    per_ad[k] = per_ad.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
+            if "spend" in per_ad.columns:
+                per_ad = per_ad.sort_values("spend", ascending=False)
+            st.dataframe(per_ad, use_container_width=True, height=420)
+        else:
+            st.info("No ad_name column at this grain.")
+
+        st.subheader("Audience delivery (platform breakdown tables)")
+        ac1, ac2 = st.columns(2)
+        with ac1:
+            st.markdown("**Age × gender**")
+            if has_column(META_AGE_GENDER, "campaign_name"):
+                agw = ("where campaign_name = '" + camp.replace("'", "''") + "'"
+                       + date_clause("date_start", since, until))
+                try:
+                    ag = q(f"select age, gender, sum(spend) as spend, sum(impressions) as impressions "
+                           f"from {META_AGE_GENDER} {agw} group by age, gender order by spend desc nulls last")
+                    st.dataframe(ag, use_container_width=True, height=260)
+                except Exception as e:  # noqa: BLE001
+                    st.info(f"Age/gender unavailable: {e}")
+            else:
+                st.info("Age/gender table carries no campaign_name — see Cohorts for account-level splits.")
+        with ac2:
+            st.markdown("**Device / placement**")
+            if has_column(META_DEVICE, "campaign_name"):
+                dvw = ("where campaign_name = '" + camp.replace("'", "''") + "'"
+                       + date_clause("date_start", since, until))
+                try:
+                    dv = q(f"select * from {META_DEVICE} {dvw} limit 2000")
+                    st.dataframe(dv, use_container_width=True, height=260)
+                except Exception as e:  # noqa: BLE001
+                    st.info(f"Device breakdown unavailable: {e}")
+            else:
+                st.info("Device table carries no campaign_name — see Cohorts for account-level splits.")
+
+        st.subheader("Ad creatives / configuration register")
+        ccols = [c for c, _ in table_columns(META_CREATIVES)]
+        if not ccols:
+            st.info("Creatives table not readable for this role.")
+        elif "ad_name" in ccols and "ad_name" in df.columns:
+            names = df["ad_name"].dropna().astype(str).unique()[:200]
+            inlist = ",".join("'" + n.replace("'", "''") + "'" for n in names)
+            try:
+                cr = q(f"select * from {META_CREATIVES} where ad_name in ({inlist}) limit 500")
+                if cr.empty:
+                    st.info("No creative rows match this campaign's ads.")
+                else:
+                    st.dataframe(cr, use_container_width=True, height=300)
+            except Exception as e:  # noqa: BLE001
+                st.info(f"Creatives unavailable: {e}")
+        else:
+            st.info("No shared ad_name key between insights and creatives — browse creatives via Ad explorer.")
+
+
+# ── ALL-CAMPAIGNS BLOCK — every campaign as a row (paginated, no cap) plus
+# a detail-page opener. Mounted on every Ads Analytics tab.
+def all_campaigns_block(key):
+    st.subheader("All campaigns — one row per campaign")
+    w = meta_where()
+    try:
+        total = int(q(f'select count(distinct "CAMPAIGN_NAME") as n from {META_ADS} {w}').iloc[0]["n"])
+    except Exception:  # noqa: BLE001
+        total = 0
+    if not total:
+        st.info("No campaigns in scope.")
+        return
+    size, off = pager(total, key + "_cr")
+    df = sql_group_sums(META_ADS, w, ["campaign_name"], limit=size, offset=off)
+    for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
+        fn = CATALOG_FN.get(k)
+        if fn:
+            df[k] = df.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
+    st.dataframe(df, use_container_width=True, height=420)
+    opts = campaign_options(account, marketplace, since, until)
+    pick = st.selectbox("Open a campaign detail page", ["—"] + opts, key=key + "_open")
+    if pick != "—":
+        st.markdown("---")
+        st.markdown(f"### Campaign detail — {pick}")
+        render_campaign_detail(pick, key)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # ADS ANALYTICS
 # ═════════════════════════════════════════════════════════════════════════════
@@ -891,6 +1026,8 @@ def render_ads_analytics():
                         st.dataframe(pd.DataFrame(rows_), use_container_width=True,
                                      hide_index=True, height=min(420, 44 + 36 * len(rows_)))
 
+                all_campaigns_block("ov")
+
                 st.subheader("Spend by " + ("ad" if level == "ad" else "campaign"))
                 df = meta_rows(account, level, since, until)
                 if not df.empty:
@@ -933,6 +1070,12 @@ def render_ads_analytics():
                     if fn:
                         df[k] = df.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
                 st.dataframe(df, use_container_width=True, height=520)
+                opts_r = campaign_options(account, marketplace, since, until)
+                pick_r = st.selectbox("Open a campaign detail page", ["—"] + opts_r, key="rows_open")
+                if pick_r != "—":
+                    st.markdown("---")
+                    st.markdown(f"### Campaign detail — {pick_r}")
+                    render_campaign_detail(pick_r, "rows")
         else:
             table = GOOGLE_ADS if platform == "Google" else TIKTOK[level if level in TIKTOK else "campaign"]
             wg = ""
@@ -1056,6 +1199,11 @@ def render_ads_analytics():
                         st.markdown("**Campaigns inside this cohort**")
                         st.dataframe(sql_group_sums(btable, cw, "campaign_name"),
                                      use_container_width=True, height=280)
+                        c_opts = campaign_options(account, marketplace, since, until)
+                        c_pick = st.selectbox("Open a campaign detail page", ["—"] + c_opts, key="coh_open")
+                        if c_pick != "—":
+                            st.markdown(f"### Campaign detail — {c_pick}")
+                            render_campaign_detail(c_pick, "coh")
                     st.subheader("Meta platform conditions for this cohort")
                     ui, spec, tnotes = meta_targeting_conditions(selection)
                     st.markdown("\n".join(f"- {u}" for u in ui) or "—")
@@ -1096,109 +1244,8 @@ def render_ads_analytics():
             if not opts:
                 st.warning("No campaigns in scope — widen the window or clear filters.")
             else:
-                camp = st.selectbox("Campaign (ordered by spend)", opts)
-                df = meta_raw(account, marketplace, since, until, (camp,))
-                if df.empty:
-                    st.warning("No rows for this campaign in the window.")
-                else:
-                    groups = classify_columns(table_columns(META_ADS))
-                    sums = sql_sums(META_ADS, meta_where((camp,)))
-                    derived = compute_all(sums)
-                    c1, c2, c3, c4, c5 = st.columns(5)
-                    c1.metric("Spend", money(sums.get("spend")))
-                    c2.metric("Impressions", f"{sums.get('impressions', 0):,.0f}")
-                    c3.metric("Link clicks", f"{sums.get('inline_link_clicks', 0):,.0f}")
-                    c4.metric("Link CTR", pctf(derived.get("link_ctr")))
-                    c5.metric("CPC", money(derived.get("cpc")))
-                    n_ads = df["ad_name"].nunique() if "ad_name" in df.columns else 0
-                    n_sets = df["adset_name"].nunique() if "adset_name" in df.columns else 0
-                    st.caption(f"{n_ads} ads · {n_sets} ad sets · {len(df):,} sampled rows (aggregates are exact via SQL). "
-                               "Reach here is a sum of daily reach — uniques may overlap across days.")
-
-                    st.subheader("Campaign configuration & audience fields (everything the table carries)")
-                    conf_rows = []
-                    for c in groups["identity_config"] + groups["audience_targeting"]:
-                        if c in df.columns:
-                            vals = df[c].dropna().astype(str).unique()[:6]
-                            if len(vals):
-                                conf_rows.append({"Field": c,
-                                                  "Group": "audience/targeting" if c in groups["audience_targeting"] else "identity/config",
-                                                  "Distinct values (up to 6)": " · ".join(vals),
-                                                  "Distinct count": int(df[c].nunique())})
-                    st.dataframe(pd.DataFrame(conf_rows), use_container_width=True, hide_index=True, height=280)
-
-                    st.subheader("Every metric — base table sums + full derived catalog")
-                    st.dataframe(metric_sheet(sums, derived), use_container_width=True, hide_index=True, height=420)
-
-                    st.subheader("Daily trend")
-                    mcols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c not in RATIO_COLS]
-                    mm = st.selectbox("Measure", mcols, index=mcols.index("spend") if "spend" in mcols else 0)
-                    g = daily_series(META_ADS, meta_where((camp,)), mm)
-                    st.altair_chart(
-                        alt.Chart(g).mark_line(color=GREEN, point=True).encode(
-                            x=alt.X("date_start:T", title=None), y=alt.Y(f"{mm}:Q", title=mm),
-                            tooltip=["date_start", mm]).properties(height=260),
-                        use_container_width=True)
-
-                    st.subheader("Per-ad breakdown (all metric fields + derived)")
-                    if "ad_name" in df.columns:
-                        per_ad = sql_group_sums(META_ADS, meta_where((camp,)), ["ad_name"])
-                        for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
-                            fn = CATALOG_FN.get(k)
-                            if fn:
-                                per_ad[k] = per_ad.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
-                        if "spend" in per_ad.columns:
-                            per_ad = per_ad.sort_values("spend", ascending=False)
-                        st.dataframe(per_ad, use_container_width=True, height=420)
-                    else:
-                        st.info("No ad_name column at this grain.")
-
-                    st.subheader("Audience delivery (platform breakdown tables)")
-                    ac1, ac2 = st.columns(2)
-                    with ac1:
-                        st.markdown("**Age × gender**")
-                        if has_column(META_AGE_GENDER, "campaign_name"):
-                            agw = ("where campaign_name = '" + camp.replace("'", "''") + "'"
-                                   + date_clause("date_start", since, until))
-                            try:
-                                ag = q(f"select age, gender, sum(spend) as spend, sum(impressions) as impressions "
-                                       f"from {META_AGE_GENDER} {agw} group by age, gender order by spend desc nulls last")
-                                st.dataframe(ag, use_container_width=True, height=260)
-                            except Exception as e:  # noqa: BLE001
-                                st.info(f"Age/gender unavailable: {e}")
-                        else:
-                            st.info("Age/gender table carries no campaign_name — see Cohorts for account-level splits.")
-                    with ac2:
-                        st.markdown("**Device / placement**")
-                        if has_column(META_DEVICE, "campaign_name"):
-                            dvw = ("where campaign_name = '" + camp.replace("'", "''") + "'"
-                                   + date_clause("date_start", since, until))
-                            try:
-                                dv = q(f"select * from {META_DEVICE} {dvw} limit 2000")
-                                st.dataframe(dv, use_container_width=True, height=260)
-                            except Exception as e:  # noqa: BLE001
-                                st.info(f"Device breakdown unavailable: {e}")
-                        else:
-                            st.info("Device table carries no campaign_name — see Cohorts for account-level splits.")
-
-                    st.subheader("Ad creatives / configuration register")
-                    ccols = [c for c, _ in table_columns(META_CREATIVES)]
-                    if not ccols:
-                        st.info("Creatives table not readable for this role.")
-                    elif "ad_name" in ccols and "ad_name" in df.columns:
-                        names = df["ad_name"].dropna().astype(str).unique()[:200]
-                        inlist = ",".join("'" + n.replace("'", "''") + "'" for n in names)
-                        try:
-                            cr = q(f"select * from {META_CREATIVES} where ad_name in ({inlist}) limit 500")
-                            if cr.empty:
-                                st.info("No creative rows match this campaign's ads.")
-                            else:
-                                st.dataframe(cr, use_container_width=True, height=300)
-                        except Exception as e:  # noqa: BLE001
-                            st.info(f"Creatives unavailable: {e}")
-                    else:
-                        st.info("No shared ad_name key between insights and creatives — browse creatives via Ad explorer.")
-
+                camp = st.selectbox("Campaign (ordered by spend)", opts, key="single_pick")
+                render_campaign_detail(camp, "single")
     # ── MULTI-CAMPAIGN COMPARE — every metric, side by side ──────────────────
     with tab_multi:
         if platform != "Meta":
@@ -1252,6 +1299,8 @@ def render_ads_analytics():
                                 tooltip=["date_start", "campaign_name", sel2]).properties(height=300),
                             use_container_width=True)
 
+                        all_campaigns_block("mc")
+
     # ── AD EXPLORER — every field the table carries, upfront ─────────────────
     with tab_explorer:
         if platform != "Meta":
@@ -1292,6 +1341,8 @@ def render_ads_analytics():
                 st.dataframe(df, use_container_width=True, height=520)
                 st.download_button("Download this page as CSV (all fields)",
                                    df.to_csv(index=False).encode(), "meta_ads_all_fields.csv", "text/csv")
+
+                all_campaigns_block("ex")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
