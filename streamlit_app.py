@@ -441,6 +441,7 @@ if section == "Ads Analytics":
 else:
     level = "campaign"
 LEVEL_COL = {"campaign": "campaign_name", "adset": "adset_name", "ad": "ad_name"}
+LEVEL_LABEL = {"campaign": "Campaign", "adset": "Ad Set", "ad": "Ad"}
 
 # Date range: presets + custom.
 today = pd.Timestamp.utcnow().normalize()
@@ -773,7 +774,7 @@ def ident_cols(level):
     attributable: campaign name+id at every grain, plus adset/ad name+id at
     those grains (only columns the table really has)."""
     cols = [c for c in ("campaign_name", "campaign_id") if has_column(META_ADS, c)]
-    if level == "adset":
+    if level in ("adset", "ad"):
         cols += [c for c in ("adset_name", "adset_id") if has_column(META_ADS, c)]
     if level == "ad":
         cols += [c for c in ("ad_name", "ad_id") if has_column(META_ADS, c)]
@@ -790,6 +791,20 @@ def count_distinct(table, where, cols):
 
 IDENT_LEAD = ("campaign_name", "campaign_id", "adset_name", "adset_id",
               "ad_name", "ad_id", "creator", "cohort")
+
+# Created / Edited fields sit right after the identifiers in every table.
+TIMESTAMP_LEAD = ("date_created", "created_time", "created_at", "ad_created_time",
+                  "updated_time", "last_updated", "modified_time", "edited_on")
+
+# Metric display priority (the workbook's priority set first, then the funnel).
+METRIC_PRIORITY = ["spend", "impressions", "reach", "frequency", "clicks",
+                   "inline_link_clicks", "link_ctr", "ctr", "outbound_clicks",
+                   "unique_outbound_clicks", "cpc", "cpm", "cpp", "cost_per_reach",
+                   "results", "cost_per_result", "video_3s", "thruplays",
+                   "video_p25", "video_p50", "video_p75", "video_p100",
+                   "hook_rate", "hold_rate", "thruplay_rate", "through_rate",
+                   "purchases", "purchase_value", "roas", "cvr", "aov",
+                   "landing_page_views", "add_to_cart", "date_start"]
 
 
 def order_table(df, lead=IDENT_LEAD):
@@ -810,9 +825,13 @@ def order_table(df, lead=IDENT_LEAD):
             return False
 
     lead_cols = [c for c in lead if c in cols]
-    empty_cols = [c for c in cols if c not in lead_cols and _all_empty(c)]
-    mid = [c for c in cols if c not in lead_cols and c not in empty_cols]
-    return df[lead_cols + mid + empty_cols]
+    ts_cols = [c for c in TIMESTAMP_LEAD if c in cols and c not in lead_cols]
+    taken = set(lead_cols) | set(ts_cols)
+    empty_cols = [c for c in cols if c not in taken and _all_empty(c)]
+    rest = [c for c in cols if c not in taken and c not in empty_cols]
+    prio = [c for c in METRIC_PRIORITY if c in rest]
+    tail = [c for c in rest if c not in prio]
+    return df[lead_cols + ts_cols + prio + tail + empty_cols]
 
 
 def meta_where(campaigns=None):
@@ -1102,9 +1121,13 @@ def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
 # ── ALL-CAMPAIGNS BLOCK — every campaign as a row (paginated, no cap) plus
 # a detail-page opener. Mounted on every Ads Analytics tab.
 def all_campaigns_block(key):
-    st.subheader("All campaigns — one row per campaign")
+    lbl = LEVEL_LABEL.get(level, "Campaign")
+    st.subheader(f"All {lbl}s — one row per {lbl.lower()}")
+    st.caption(f"Grain follows the Level filter ({lbl}): the identifier chain leads every row "
+               f"(Campaign{' > Ad Set' if level in ('adset', 'ad') else ''}{' > Ad' if level == 'ad' else ''}), "
+               "then created/edited fields, then metrics in priority order.")
     w = meta_where()
-    gcols = ident_cols("campaign")
+    gcols = ident_cols(level)
     total = count_distinct(META_ADS, w, gcols)
     if not total:
         st.info("No campaigns in scope.")
@@ -1116,12 +1139,13 @@ def all_campaigns_block(key):
         if fn:
             df[k] = df.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
     st.dataframe(order_table(df), use_container_width=True, height=420)
-    opts = campaign_options(account, marketplace, since, until)
-    pick = st.selectbox("Open a campaign detail page", ["—"] + opts, key=key + "_open")
+    opts = campaign_options(account, marketplace, since, until, LEVEL_COL.get(level, "campaign_name"))
+    pick = st.selectbox(f"Open a {LEVEL_LABEL.get(level, 'Campaign').lower()} detail page",
+                        ["—"] + opts, key=key + "_open")
     if pick != "—":
         st.markdown("---")
-        st.markdown(f"### Campaign detail — {pick}")
-        render_campaign_detail(pick, key)
+        st.markdown(f"### {LEVEL_LABEL.get(level, 'Campaign')} detail — {pick}")
+        render_campaign_detail(pick, key, LEVEL_COL.get(level, "campaign_name"))
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1207,7 +1231,7 @@ def render_ads_analytics():
 
                 all_campaigns_block("ov")
 
-                st.subheader("Spend by " + ("ad" if level == "ad" else "campaign"))
+                st.subheader(f"Spend by {LEVEL_LABEL.get(level, 'Campaign').lower()}")
                 df = meta_rows(account, level, since, until)
                 if not df.empty:
                     top = df.head(15)
@@ -1230,7 +1254,7 @@ def render_ads_analytics():
             st.dataframe(generic_rows(table), use_container_width=True, height=460)
 
     with tab_rows:
-        st.subheader(f"{platform} — per {level}")
+        st.subheader(f"{platform_label} — {LEVEL_LABEL.get(level, 'Campaign')} level")
         if platform == "Meta":
             gcols = ident_cols(level)
             w = meta_where()
@@ -1245,12 +1269,13 @@ def render_ads_analytics():
                     if fn:
                         df[k] = df.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
                 st.dataframe(order_table(df), use_container_width=True, height=520)
-                opts_r = campaign_options(account, marketplace, since, until)
-                pick_r = st.selectbox("Open a campaign detail page", ["—"] + opts_r, key="rows_open")
+                opts_r = campaign_options(account, marketplace, since, until, LEVEL_COL.get(level, "campaign_name"))
+                pick_r = st.selectbox(f"Open a {LEVEL_LABEL.get(level, 'Campaign').lower()} detail page",
+                                      ["—"] + opts_r, key="rows_open")
                 if pick_r != "—":
                     st.markdown("---")
-                    st.markdown(f"### Campaign detail — {pick_r}")
-                    render_campaign_detail(pick_r, "rows")
+                    st.markdown(f"### {LEVEL_LABEL.get(level, 'Campaign')} detail — {pick_r}")
+                    render_campaign_detail(pick_r, "rows", LEVEL_COL.get(level, "campaign_name"))
         else:
             table = GOOGLE_ADS if platform == "Google" else TIKTOK[level if level in TIKTOK else "campaign"]
             wg = ""
