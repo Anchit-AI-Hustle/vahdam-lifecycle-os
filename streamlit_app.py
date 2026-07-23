@@ -122,9 +122,9 @@ METRICS = [
     ("video_p75", "Video plays 75%", "video", "int", "base", ["video_p75"], "p75 watched", "Reached 75%.", lambda r: _n(r.get("video_p75"))),
     ("video_p100", "Video plays 100%", "video", "int", "base", ["video_p100"], "p100 watched", "Watched to the end.", lambda r: _n(r.get("video_p100"))),
     ("hook_rate", "Hook Rate", "video", "pct", "derived", ["video_3s", "impressions"], "3-sec plays / impressions x 100", "Share of impressions that stopped to watch 3s. Creative-hook strength.", lambda r: _pct(r.get("video_3s"), r.get("impressions"))),
-    ("hold_rate", "Hold Rate", "video", "pct", "derived", ["thruplays", "impressions"], "thruplays / impressions x 100", "Share of impressions held to ThruPlay (15s/complete). Retention strength.", lambda r: _pct(r.get("thruplays"), r.get("impressions"))),
-    ("through_rate", "Through Rate (completion)", "video", "pct", "derived", ["video_p100", "impressions"], "100% plays / impressions x 100", "Share of impressions that watched to the end.", lambda r: _pct(r.get("video_p100"), r.get("impressions"))),
-    ("hook_to_hold", "Hook -> Hold retention", "video", "pct", "derived", ["thruplays", "video_3s"], "thruplays / 3-sec plays x 100", "Of those hooked, how many held. Isolates mid-video drop-off.", lambda r: _pct(r.get("thruplays"), r.get("video_3s"))),
+    ("hold_rate", "Hold Rate", "video", "pct", "derived", ["thruplays", "video_3s"], "thruplays / 3-sec plays x 100", "Of those hooked (3-sec), how many held to ThruPlay. Mid-video retention.", lambda r: _pct(r.get("thruplays"), r.get("video_3s"))),
+    ("thruplay_rate", "ThruPlay Rate", "video", "pct", "derived", ["thruplays", "impressions"], "thruplays / impressions x 100", "Share of impressions that reached ThruPlay (15s/complete).", lambda r: _pct(r.get("thruplays"), r.get("impressions"))),
+    ("through_rate", "Completion Rate", "video", "pct", "derived", ["video_p100", "impressions"], "100% plays / impressions x 100", "Share of impressions that watched to the end.", lambda r: _pct(r.get("video_p100"), r.get("impressions"))),
     ("completion_of_starts", "Completion of starts", "video", "pct", "derived", ["video_p100", "video_3s"], "100% plays / 3-sec plays x 100", "Of viewers who started, how many finished.", lambda r: _pct(r.get("video_p100"), r.get("video_3s"))),
     # Conversion & Value
     ("purchases", "Purchases", "conversion", "int", "base", ["purchases"], "purchases", "Attributed purchases.", lambda r: _n(r.get("purchases"))),
@@ -132,6 +132,16 @@ METRICS = [
     ("roas", "ROAS", "conversion", "ratio", "derived", ["purchase_value", "spend"], "purchase value / spend", "Return on ad spend.", lambda r: _div(r.get("purchase_value"), r.get("spend"))),
     ("cvr", "Conversion rate (CVR)", "conversion", "pct", "derived", ["purchases", "inline_link_clicks"], "purchases / link clicks x 100", "Purchases per link click.", lambda r: _pct(r.get("purchases"), r.get("inline_link_clicks"))),
     ("aov", "AOV (attributed)", "conversion", "usd", "derived", ["purchase_value", "purchases"], "purchase value / purchases", "Average order value of attributed purchases.", lambda r: _div(r.get("purchase_value"), r.get("purchases"))),
+    ("results", "Results", "conversion", "int", "base", ["results"], "results (per objective)", "Result events as configured by the campaign objective.", lambda r: _n(r.get("results"))),
+    ("cost_per_result", "Cost per Result", "cost", "usd", "derived", ["spend", "results"], "spend / results", "Cost per objective result.", lambda r: _div(r.get("spend"), r.get("results"))),
+    ("unique_outbound_clicks", "Unique outbound clicks", "click", "int", "base", ["unique_outbound_clicks"], "unique_outbound_clicks", "Unique people who clicked out.", lambda r: _n(r.get("unique_outbound_clicks"))),
+    ("cost_per_unique_outbound_click", "Cost per unique outbound click", "cost", "usd", "derived", ["spend", "unique_outbound_clicks"], "spend / unique outbound clicks", "Cost per unique outbound clicker.", lambda r: _div(r.get("spend"), r.get("unique_outbound_clicks"))),
+    ("add_to_cart", "Adds to Cart", "conversion", "int", "base", ["add_to_cart"], "add_to_cart", "Attributed add-to-cart events.", lambda r: _n(r.get("add_to_cart"))),
+    ("cart_abandonment", "Cart Abandonment Rate", "conversion", "pct", "derived", ["purchases", "add_to_cart"], "(1 - purchases / adds to cart) x 100", "Share of carts that never purchased.", lambda r: (lambda p: None if p is None else 100 - p)(_pct(r.get("purchases"), r.get("add_to_cart")))),
+    ("mer", "MER (Marketing Efficiency Ratio)", "conversion", "ratio", "derived", ["total_revenue", "spend"], "total revenue / total ad spend", "Blended, attribution-proof media efficiency. Needs realized revenue joined in.", lambda r: _div(r.get("total_revenue"), r.get("spend"))),
+    ("ncac", "nCAC (New-Customer CAC)", "conversion", "usd", "derived", ["spend", "net_new_customers"], "spend / net new customers", "Acquisition cost counting NEW customers only. Needs a new-customer feed.", lambda r: _div(r.get("spend"), r.get("net_new_customers"))),
+    ("ga4_sessions", "GA4 Sessions", "landing", "int", "base", ["ga4_sessions"], "ga4 sessions", "Sessions landed (GA4).", lambda r: _n(r.get("ga4_sessions"))),
+    ("click_to_session_yield", "Click-to-Session Yield", "landing", "pct", "derived", ["ga4_sessions", "outbound_clicks"], "GA4 sessions / outbound clicks x 100", "Share of outbound clicks that became real sessions.", lambda r: _pct(r.get("ga4_sessions"), r.get("outbound_clicks"))),
     # Landing Page
     ("landing_page_views", "Landing-page views", "landing", "int", "base", ["landing_page_views"], "landing_page_view actions", "Fully-loaded landing-page views after the click.", lambda r: _n(r.get("landing_page_views"))),
     ("lpv_rate", "LP-view rate (load quality)", "landing", "pct", "derived", ["landing_page_views", "inline_link_clicks"], "landing-page views / link clicks x 100", "Share of clicks that actually loaded the page. Low = slow page / drop-off.", lambda r: _pct(r.get("landing_page_views"), r.get("inline_link_clicks"))),
@@ -212,13 +222,16 @@ def q(sql: str) -> pd.DataFrame:
     return df
 
 
-def acct_clause(col: str, account: str) -> str:
-    """Filter by the REAL Meta ad-account name (exact, case-insensitive).
-    Target/Costco are NOT accounts — they live in the ad names (see Marketplace)."""
-    if not account:
+def acct_clause(col: str, account) -> str:
+    """Filter by the REAL platform ad-account name(s) (exact, case-insensitive).
+    Accepts one value or a multi-select list. Target/Costco are NOT accounts —
+    they live in the ad names (see Marketplace)."""
+    vals = [account] if isinstance(account, str) else list(account or [])
+    vals = [v for v in vals if v]
+    if not vals or not col:
         return ""
-    a = account.lower().replace("'", "''")
-    return f" and lower({col}) = '{a}'"
+    inlist = ",".join("'" + str(v).lower().replace("'", "''") + "'" for v in vals)
+    return f" and lower({col}) in ({inlist})"
 
 
 # Marketplace (Target / Costco / Amazon / Walmart / …) is carried in the AD
@@ -247,17 +260,23 @@ def detected_marketplaces():
         return ["Target", "Costco"]
 
 
-def mkt_clause(marketplace: str, col: str = "ad_name") -> str:
-    if not marketplace:
+def mkt_clause(marketplace, col: str = "ad_name") -> str:
+    """Marketplace filter — one value or a multi-select list; D2C / Other means
+    'none of the detected marketplace tokens appear in the ad name'."""
+    vals = [marketplace] if isinstance(marketplace, str) else list(marketplace or [])
+    vals = [v for v in vals if v]
+    if not vals:
         return ""
-    if marketplace == "D2C / Other":
-        toks = [MARKETPLACE_SEARCH[t] for t in detected_marketplaces()]
-        if not toks:
-            return ""
-        cond = " or ".join(f"{col} ilike '%{t}%'" for t in toks)
-        return f" and not ({cond})"
-    tok = MARKETPLACE_SEARCH.get(marketplace, marketplace.lower()).replace("'", "''")
-    return f" and {col} ilike '%{tok}%'"
+    parts = []
+    for v in vals:
+        if v == "D2C / Other":
+            toks = [MARKETPLACE_SEARCH[t] for t in detected_marketplaces()]
+            if toks:
+                parts.append("not (" + " or ".join(f"{col} ilike '%{t}%'" for t in toks) + ")")
+        else:
+            tok = MARKETPLACE_SEARCH.get(v, str(v).lower()).replace("'", "''")
+            parts.append(f"{col} ilike '%{tok}%'")
+    return f" and ({' or '.join(parts)})" if parts else ""
 
 
 def mkt_case(col: str = "ad_name") -> str:
@@ -309,7 +328,7 @@ def pctf(v):
 # campaign_name, ad_name, adset_name, date_start. Video quartiles live in separate
 # child tables (not flattened yet) so hook/hold/through show 'unavailable' until wired.
 def meta_rows(account, level, since, until):
-    name_col = "ad_name" if level == "ad" else "campaign_name"
+    name_col = LEVEL_COL.get(level, "campaign_name")
     where = ("where 1=1" + acct_clause("account_name", account)
              + mkt_clause(marketplace) + date_clause("date_start", since, until))
     sql = f"""
@@ -376,20 +395,58 @@ def channel_accounts(channel):
 platform_label = st.sidebar.selectbox("Channel", ["Meta Ads", "Google Ads", "TikTok Ads"])
 platform = platform_label.replace(" Ads", "")
 acct_col, _acct_opts = channel_accounts(platform)
-account = st.sidebar.selectbox(f"Account ({platform_label} ad account)", ["All"] + _acct_opts)
-account = "" if account == "All" else account
-marketplace = st.sidebar.selectbox("Marketplace (from ad names)",
-                                   ["All"] + detected_marketplaces() + ["D2C / Other"])
-marketplace = "" if marketplace == "All" else marketplace
-# Controls vary by analysis type: campaign/ad Level applies to Ads Analytics
-# (campaign & ad analysis); the portfolio-style sections are not ad-level.
+# Multi-select: empty selection = All. Cascade: options come from THIS channel's
+# own table, so picking Meta Ads only ever offers Meta ad accounts.
+account = st.sidebar.multiselect(f"Accounts ({platform_label} ad accounts)", _acct_opts)
+marketplace = st.sidebar.multiselect("Marketplaces (from ad names)",
+                                     detected_marketplaces() + ["D2C / Other"])
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def distinct_values(col):
+    """Distinct values of an optional filter column (objective / status)."""
+    try:
+        d = q(f'select distinct "{col.upper()}" as v from {META_ADS} '
+              f'where "{col.upper()}" is not null order by 1 limit 100')
+        return [str(x) for x in d["v"].dropna().tolist()]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+OBJ_COL = next((c for c in ("objective", "campaign_objective")
+                if platform == "Meta" and has_column(META_ADS, c)), None)
+STATUS_COL = next((c for c in ("ad_delivery", "effective_status", "configured_status",
+                               "delivery_status", "status")
+                   if platform == "Meta" and has_column(META_ADS, c)), None)
+objective_sel = st.sidebar.multiselect("Objective", distinct_values(OBJ_COL)) if OBJ_COL else []
+status_sel = st.sidebar.multiselect("Campaign status", distinct_values(STATUS_COL)) if STATUS_COL else []
+
+# Controls vary by analysis type: granularity applies to Ads Analytics
+# (campaign / ad set / ad analysis); the portfolio-style sections are not ad-level.
 if section == "Ads Analytics":
-    level = st.sidebar.selectbox("Level (campaign / ad analysis)", ["campaign", "ad"])
+    level = st.sidebar.selectbox("Granularity", ["campaign", "adset", "ad"])
 else:
     level = "campaign"
+LEVEL_COL = {"campaign": "campaign_name", "adset": "adset_name", "ad": "ad_name"}
+
+# Date range: presets + custom.
 today = pd.Timestamp.utcnow().normalize()
-since = st.sidebar.date_input("Since", (today - pd.Timedelta(days=30)).date())
-until = st.sidebar.date_input("Until", today.date())
+_preset = st.sidebar.selectbox("Date range",
+                               ["Last 30 days", "Last 7 days", "MTD", "Last quarter", "Custom"])
+if _preset == "Last 7 days":
+    since, until = (today - pd.Timedelta(days=7)).date(), today.date()
+elif _preset == "MTD":
+    since, until = today.replace(day=1).date(), today.date()
+elif _preset == "Last quarter":
+    _qs = pd.Timestamp(today.year, 3 * ((today.month - 1) // 3) + 1, 1)
+    _pq_end = _qs - pd.Timedelta(days=1)
+    _pq_start = pd.Timestamp(_pq_end.year, 3 * ((_pq_end.month - 1) // 3) + 1, 1)
+    since, until = _pq_start.date(), _pq_end.date()
+elif _preset == "Custom":
+    since = st.sidebar.date_input("Since", (today - pd.Timedelta(days=30)).date())
+    until = st.sidebar.date_input("Until", today.date())
+else:
+    since, until = (today - pd.Timedelta(days=30)).date(), today.date()
 window_days = max(1, (pd.Timestamp(until) - pd.Timestamp(since)).days + 1)
 st.sidebar.markdown("---")
 # Every view queries the warehouse LIVE at render time — new campaigns/ads
@@ -625,13 +682,13 @@ def meta_raw(account, marketplace, since, until, campaigns=None, limit=20000, of
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def campaign_options(account, marketplace, since, until):
+def campaign_options(account, marketplace, since, until, col="campaign_name"):
     where = ("where 1=1" + acct_clause("account_name", account)
              + mkt_clause(marketplace) + date_clause("date_start", since, until))
     try:
-        df = q(f"select campaign_name, sum(spend) as spend from {META_ADS} {where} "
+        df = q(f"select {col}, sum(spend) as spend from {META_ADS} {where} "
                f"group by 1 order by spend desc nulls last limit 500")
-        return [str(x) for x in df["campaign_name"].dropna().tolist()]
+        return [str(x) for x in df[col].dropna().tolist()]
     except Exception:  # noqa: BLE001
         return []
 
@@ -690,9 +747,18 @@ def count_rows(table, where=""):
         return 0
 
 
+def _inlist_clause(col, vals):
+    vv = [v for v in (vals or []) if v]
+    if not col or not vv:
+        return ""
+    inlist = ",".join("'" + str(v).replace("'", "''") + "'" for v in vv)
+    return f' and "{col.upper()}" in ({inlist})'
+
+
 def meta_where(campaigns=None):
     w = ("where 1=1" + acct_clause("account_name", account)
-         + mkt_clause(marketplace) + date_clause("date_start", since, until))
+         + mkt_clause(marketplace) + date_clause("date_start", since, until)
+         + _inlist_clause(OBJ_COL, objective_sel) + _inlist_clause(STATUS_COL, status_sel))
     if campaigns:
         inlist = ",".join("'" + str(c).replace("'", "''") + "'" for c in campaigns)
         w += f" and campaign_name in ({inlist})"
@@ -856,13 +922,15 @@ def meta_targeting_conditions(selection):
 # ── CAMPAIGN DETAIL PAGE — reused by EVERY tab so any campaign row can be
 # opened for full analysis (config, all metrics, trend, per-ad, audience,
 # creatives). key_prefix keeps widget ids unique per tab.
-def render_campaign_detail(camp, key_prefix="cd"):
-    df = meta_raw(account, marketplace, since, until, (camp,))
+def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
+    _ev = str(camp).replace("'", "''")
+    ew = meta_where() + f" and \"{entity_col.upper()}\" = '{_ev}'"
+    df = q(f"select * from {META_ADS} {ew} order by date_start desc limit 2000")
     if df.empty:
         st.warning("No rows for this campaign in the window.")
     else:
         groups = classify_columns(table_columns(META_ADS))
-        sums = sql_sums(META_ADS, meta_where((camp,)))
+        sums = sql_sums(META_ADS, ew)
         derived = compute_all(sums)
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Spend", money(sums.get("spend")))
@@ -894,7 +962,7 @@ def render_campaign_detail(camp, key_prefix="cd"):
         mcols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c not in RATIO_COLS]
         mm = st.selectbox("Measure", mcols, index=mcols.index("spend") if "spend" in mcols else 0,
                       key=key_prefix + "_measure")
-        g = daily_series(META_ADS, meta_where((camp,)), mm)
+        g = daily_series(META_ADS, ew, mm)
         st.altair_chart(
             alt.Chart(g).mark_line(color=GREEN, point=True).encode(
                 x=alt.X("date_start:T", title=None), y=alt.Y(f"{mm}:Q", title=mm),
@@ -903,7 +971,7 @@ def render_campaign_detail(camp, key_prefix="cd"):
 
         st.subheader("Per-ad breakdown (all metric fields + derived)")
         if "ad_name" in df.columns:
-            per_ad = sql_group_sums(META_ADS, meta_where((camp,)), ["ad_name"])
+            per_ad = sql_group_sums(META_ADS, ew, ["ad_name"])
             for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
                 fn = CATALOG_FN.get(k)
                 if fn:
@@ -918,7 +986,7 @@ def render_campaign_detail(camp, key_prefix="cd"):
         ac1, ac2 = st.columns(2)
         with ac1:
             st.markdown("**Age × gender**")
-            if has_column(META_AGE_GENDER, "campaign_name"):
+            if entity_col == "campaign_name" and has_column(META_AGE_GENDER, "campaign_name"):
                 agw = ("where campaign_name = '" + camp.replace("'", "''") + "'"
                        + date_clause("date_start", since, until))
                 try:
@@ -931,7 +999,7 @@ def render_campaign_detail(camp, key_prefix="cd"):
                 st.info("Age/gender table carries no campaign_name — see Cohorts for account-level splits.")
         with ac2:
             st.markdown("**Device / placement**")
-            if has_column(META_DEVICE, "campaign_name"):
+            if entity_col == "campaign_name" and has_column(META_DEVICE, "campaign_name"):
                 dvw = ("where campaign_name = '" + camp.replace("'", "''") + "'"
                        + date_clause("date_start", since, until))
                 try:
@@ -955,6 +1023,16 @@ def render_campaign_detail(camp, key_prefix="cd"):
                     st.info("No creative rows match this campaign's ads.")
                 else:
                     st.dataframe(cr, use_container_width=True, height=300)
+                    _imgc = next((c for c in cr.columns if any(k in c for k in
+                                  ("image_url", "thumbnail", "image_link", "creative_url", "picture"))), None)
+                    if _imgc:
+                        _urls = [u for u in cr[_imgc].dropna().astype(str).tolist() if u.startswith("http")][:6]
+                        if _urls:
+                            st.markdown("**Creative previews**")
+                            try:
+                                st.image(_urls, width=160)
+                            except Exception:  # noqa: BLE001
+                                pass
             except Exception as e:  # noqa: BLE001
                 st.info(f"Creatives unavailable: {e}")
         else:
@@ -1083,7 +1161,7 @@ def render_ads_analytics():
     with tab_rows:
         st.subheader(f"{platform} — per {level}")
         if platform == "Meta":
-            name_col = "ad_name" if level == "ad" else "campaign_name"
+            name_col = LEVEL_COL.get(level, "campaign_name")
             w = meta_where()
             total = 0
             try:
@@ -1270,12 +1348,14 @@ def render_ads_analytics():
         if platform != "Meta":
             st.info("Single-campaign deep-dive runs on the Meta table; Google/TikTok show raw rows in 'Campaign / ad rows'.")
         else:
-            opts = campaign_options(account, marketplace, since, until)
+            etype = st.radio("Entity type", ["Campaign", "Ad set", "Ad"], horizontal=True, key="single_etype")
+            ecol = {"Campaign": "campaign_name", "Ad set": "adset_name", "Ad": "ad_name"}[etype]
+            opts = campaign_options(account, marketplace, since, until, ecol)
             if not opts:
-                st.warning("No campaigns in scope — widen the window or clear filters.")
+                st.warning("No entities in scope — widen the window or clear filters.")
             else:
-                camp = st.selectbox("Campaign (ordered by spend)", opts, key="single_pick")
-                render_campaign_detail(camp, "single")
+                camp = st.selectbox(f"{etype} (ordered by spend)", opts, key="single_pick")
+                render_campaign_detail(camp, "single", ecol)
     # ── MULTI-CAMPAIGN COMPARE — every metric, side by side ──────────────────
     with tab_multi:
         if platform != "Meta":
@@ -1306,7 +1386,27 @@ def render_ads_analytics():
                         comp.index.name = "metric"
                         st.subheader("Side-by-side — every metric × campaign")
                         st.caption("Base sums + the full derived catalog per campaign. Ratio columns are recomputed on sums, never averaged.")
-                        st.dataframe(comp.round(4), use_container_width=True, height=520)
+                        _avg = comp.mean(axis=1)
+                        _delta = comp.sub(_avg, axis=0).div(_avg.replace(0, pd.NA), axis=0) * 100
+                        def _shade(col):
+                            out = []
+                            for m in comp.index:
+                                d = _delta.loc[m, col.name]
+                                if pd.isna(d):
+                                    out.append("")
+                                elif d > 10:
+                                    out.append("background-color: rgba(0,116,66,0.30)")
+                                elif d < -10:
+                                    out.append("background-color: rgba(171,20,20,0.28)")
+                                else:
+                                    out.append("")
+                            return out
+                        st.caption("Colour = % delta vs the row average across the selected campaigns: "
+                                   "green > +10%, red < -10%. Interpret by metric direction (high CPC red-worthy is green here — the shading is neutral).")
+                        try:
+                            st.dataframe(comp.round(4).style.apply(_shade, axis=0), use_container_width=True, height=520)
+                        except Exception:  # noqa: BLE001 — styler unsupported: plain table, never blank
+                            st.dataframe(comp.round(4), use_container_width=True, height=520)
                         mkeys = [k for k in comp.index if comp.loc[k].notna().any()]
                         sel = st.selectbox("Chart metric", mkeys,
                                            index=mkeys.index("spend") if "spend" in mkeys else 0)
@@ -1483,6 +1583,73 @@ def render_ads_analytics():
         )
         table_explorer("ugc_org", ["ugc", "creator", "organic", "instagram", "tiktok_organic"],
                        "Load the UGC Master tracker (Master UGC Tracker / Metric Summary sheets) into the warehouse to light this up.")
+
+        st.markdown("---")
+        st.subheader("UGC scoring engine")
+        st.caption(
+            "TikTok Score = 6-sec%×40% + Shares×25% + (Likes+Comments)×20% + Views×15% · "
+            "Instagram Score = Likes×35% + Views×40% + Comments×15% + ER×10%. Components are "
+            "min-max normalised to 0-100 per platform before weighting — computed live over "
+            "the loaded tracker table."
+        )
+        UGC_T = "VAHDAM_DB.TRACKERS.UGC_MASTER_TRACKER"
+        if not table_columns(UGC_T):
+            st.info("Scoring activates once the UGC Master tracker is loaded "
+                    "(run trackers/load_trackers.sql, upload the CSVs to the stage).")
+        else:
+            try:
+                ud = q(f"select * from {UGC_T}")
+            except Exception as e:  # noqa: BLE001
+                ud = pd.DataFrame()
+                st.info(f"Tracker unreadable for this role: {e}")
+            if not ud.empty:
+                def _pick(*hints):
+                    return next((c for c in ud.columns if any(h in c for h in hints)), None)
+                plat_c = _pick("platform")
+                comp_c = {"views": _pick("current_views", "views"), "likes": _pick("likes"),
+                          "shares": _pick("shares"), "comments": _pick("comments"),
+                          "six": _pick("6_sec", "six_sec", "sec_view", "hook"),
+                          "er": _pick("er_", "engagement", "er")}
+                stored_c = _pick("organic_score")
+                for c in {v for v in comp_c.values() if v} | ({stored_c} if stored_c else set()):
+                    ud[c] = pd.to_numeric(ud[c], errors="coerce")
+
+                def _norm(s):
+                    s = s.fillna(0.0)
+                    rng = s.max() - s.min()
+                    return (s - s.min()) / rng * 100 if rng else s * 0
+
+                have = {k: v for k, v in comp_c.items() if v}
+                rank_col = None
+                if plat_c and {"views", "likes"}.issubset(have):
+                    parts = []
+                    for p, gdf in ud.groupby(ud[plat_c].astype(str).str.lower()):
+                        g2 = gdf.copy()
+                        nn = {k: _norm(g2[c]) for k, c in have.items()}
+                        zero = pd.Series(0.0, index=g2.index)
+                        if str(p).startswith("tiktok"):
+                            score = (nn.get("six", zero) * .40 + nn.get("shares", zero) * .25
+                                     + (nn.get("likes", zero) + nn.get("comments", zero)) / 2 * .20
+                                     + nn.get("views", zero) * .15)
+                        else:
+                            score = (nn.get("likes", zero) * .35 + nn.get("views", zero) * .40
+                                     + nn.get("comments", zero) * .15 + nn.get("er", zero) * .10)
+                        g2["computed_score"] = score.round(1)
+                        parts.append(g2)
+                    ud = pd.concat(parts)
+                    rank_col = "computed_score"
+                    st.caption("Scores computed live from the tracker's component columns.")
+                elif stored_c:
+                    rank_col = stored_c
+                    st.caption("Component columns incomplete — ranking by the tracker's STORED "
+                               "organic score (no recomputation, nothing invented).")
+                else:
+                    st.info("Neither score components nor a stored organic-score column found in the tracker.")
+                if rank_col:
+                    show = ud.sort_values(rank_col, ascending=False)
+                    st.dataframe(show.head(200), use_container_width=True, height=420)
+                    st.download_button("Download scored UGC CSV", show.to_csv(index=False).encode(),
+                                       "ugc_scored.csv", "text/csv", key="ugc_score_dl")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
