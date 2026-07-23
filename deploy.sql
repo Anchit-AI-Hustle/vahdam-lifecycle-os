@@ -1,37 +1,46 @@
--- Deploy the VAHDAM Analytics app (Data Analysis + Ads) as Streamlit-in-Snowflake.
--- Run in a Snowflake worksheet (Snowsight) with a role that can read
--- VAHDAM_DB.MAPLEMONK/MAPLEMONK1 and DATON.RAW, and create objects in the target
--- schema. Replace <WAREHOUSE> with your warehouse (e.g. COMPUTE_WH).
+-- ═══════════════════════════════════════════════════════════════════════════
+-- THE app this branch deploys to — there is exactly ONE:
 --
--- The app authenticates via get_active_session() at runtime — no keys stored.
+--   VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA        (title: "Ads Dashboard USA")
+--   https://app.snowflake.com/streamlit/uxdeihw/mo06981/#/apps/VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA
+--
+-- Do NOT create or use any other Streamlit object for this branch. The old
+-- VAHDAM_DB.APPS.VAHDAM_ADS_ANALYSIS ("VAHDAM Analytics") object is retired —
+-- section 3 below drops it so a stale copy can never be opened by mistake.
+--
+-- Preferred deploy paths (in order):
+--   1. CI — push to this branch; .github/workflows/deploy-sis.yml runs
+--      `snow streamlit deploy --replace` against ADSDASHBOARDUSA.
+--      Needs repo secrets: SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PAT,
+--      SNOWFLAKE_WAREHOUSE, SNOWFLAKE_ROLE.
+--   2. Snowsight Git workspace — Pull this branch, then Deploy to the
+--      EXISTING app VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA (replace).
+--   3. This worksheet script — manual stage upload, sections 1-2 below.
+-- ═══════════════════════════════════════════════════════════════════════════
 
--- 1) A home for the app + a stage to hold its files.
-CREATE SCHEMA IF NOT EXISTS VAHDAM_DB.APPS;
-CREATE STAGE IF NOT EXISTS VAHDAM_DB.APPS.STREAMLIT_STAGE
+-- 1) Stage for the app files (idempotent).
+CREATE STAGE IF NOT EXISTS VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE
   DIRECTORY = (ENABLE = TRUE);
 
--- 2) Upload the two files to the stage. Easiest path: Snowsight -> Data ->
---    VAHDAM_DB -> APPS -> STREAMLIT_STAGE -> + Files, and drop:
---       streamlit_app.py
---       environment.yml
+--    Upload streamlit_app.py + environment.yml to the stage:
+--    Snowsight -> Data -> VAHDAM_DB -> MAPLEMONK -> STREAMLIT_STAGE -> + Files
 --    (Or via SnowSQL:
---       PUT file://streamlit_app.py  @VAHDAM_DB.APPS.STREAMLIT_STAGE/vahdam_ads AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
---       PUT file://environment.yml   @VAHDAM_DB.APPS.STREAMLIT_STAGE/vahdam_ads AUTO_COMPRESS=FALSE OVERWRITE=TRUE; )
+--       PUT file://streamlit_app.py @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+--       PUT file://environment.yml  @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa AUTO_COMPRESS=FALSE OVERWRITE=TRUE; )
 
--- 3) Create the Streamlit app object. Object name kept as VAHDAM_ADS_ANALYSIS so
---    the app URL stays stable even though it now covers Data Analysis + Ads.
-CREATE OR REPLACE STREAMLIT VAHDAM_DB.APPS.VAHDAM_ADS_ANALYSIS
-  ROOT_LOCATION = '@VAHDAM_DB.APPS.STREAMLIT_STAGE/vahdam_ads'
+-- 2) Create/refresh THE app object (same name = same URL, always).
+CREATE OR REPLACE STREAMLIT VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA
+  ROOT_LOCATION = '@VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa'
   MAIN_FILE = 'streamlit_app.py'
-  QUERY_WAREHOUSE = '<WAREHOUSE>'
-  TITLE = 'VAHDAM Analytics';
+  QUERY_WAREHOUSE = 'COMPUTE_WH'
+  TITLE = 'Ads Dashboard USA';
 
--- 4) Grant usage to the analyst role(s) that should open it.
--- GRANT USAGE ON STREAMLIT VAHDAM_DB.APPS.VAHDAM_ADS_ANALYSIS TO ROLE <ANALYST_ROLE>;
+-- GRANT USAGE ON STREAMLIT VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA TO ROLE <ANALYST_ROLE>;
 
--- The app URL (opens in Snowsight):
---   https://app.snowflake.com/uxdeihw/mo06981/#/streamlit-apps/VAHDAM_DB.APPS.VAHDAM_ADS_ANALYSIS
---
--- FASTER ALTERNATIVE (no staging): Snowsight -> Projects -> Streamlit ->
---   + Streamlit App -> pick VAHDAM_DB.APPS + a warehouse -> paste streamlit_app.py
---   -> add altair to the Packages picker -> Run. Snowflake mints the URL on save.
+-- 3) Retire the old duplicate app so nobody opens a stale build again.
+--    (Run once; harmless if it is already gone.)
+DROP STREAMLIT IF EXISTS VAHDAM_DB.APPS.VAHDAM_ADS_ANALYSIS;
+
+-- Sanity check — expect exactly one row for this app:
+--   SHOW STREAMLITS IN DATABASE VAHDAM_DB;
+--   DESCRIBE STREAMLIT VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA;  -- MAIN_FILE = streamlit_app.py

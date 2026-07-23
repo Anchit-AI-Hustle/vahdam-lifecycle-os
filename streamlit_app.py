@@ -345,32 +345,33 @@ def has_column(table: str, col: str) -> bool:
 @st.cache_data(ttl=3600, show_spinner=False)
 def meta_source_tables():
     """[(fqn, (columns...)), ...] — the Meta insights source tables."""
-    def _cols(schema, name):
+    def _cols(db, schema, name):
         try:
-            c = q("select column_name from VAHDAM_DB.information_schema.columns "
+            c = q(f"select column_name from {db}.information_schema.columns "
                   f"where table_schema = '{schema}' and table_name = '{name}' "
                   "order by ordinal_position")
             return tuple(str(x).lower() for x in c.iloc[:, 0].tolist())
         except Exception:  # noqa: BLE001
             return ()
 
-    _, base_schema, base_name = META_ADS.split(".", 2)
-    out = [(META_ADS, _cols(base_schema, base_name))]
-    try:
-        t = q("select table_schema, table_name "
-              "from VAHDAM_DB.information_schema.tables "
-              "where table_type = 'BASE TABLE' "
-              "and regexp_like(table_name, 'META.*USA.*TEA.*', 'i')")
-    except Exception:  # noqa: BLE001
-        return out
-    for _, r in t.iterrows():
-        schema, name = str(r["table_schema"]), str(r["table_name"])
-        fqn = f"VAHDAM_DB.{schema}.{name}"
-        if fqn.upper() == META_ADS.upper():
+    base_db, base_schema, base_name = META_ADS.split(".", 2)
+    out = [(META_ADS, _cols(base_db, base_schema, base_name))]
+    for db in ("VAHDAM_DB", "DATON"):
+        try:
+            t = q(f"select table_schema, table_name "
+                  f"from {db}.information_schema.tables "
+                  "where table_type = 'BASE TABLE' "
+                  "and regexp_like(table_name, '.*META.*TEA.*|.*TEA.*META.*', 'i')")
+        except Exception:  # noqa: BLE001 — db absent / no grant: skip
             continue
-        cols = _cols(schema, name)
-        if {"campaign_name", "spend", "date_start"} <= set(cols):
-            out.append((fqn, cols))
+        for _, r in t.iterrows():
+            schema, name = str(r["table_schema"]), str(r["table_name"])
+            fqn = f"{db}.{schema}.{name}"
+            if fqn.upper() == META_ADS.upper():
+                continue
+            cols = _cols(db, schema, name)
+            if {"campaign_name", "spend", "date_start"} <= set(cols):
+                out.append((fqn, cols))
     return out
 
 
@@ -386,9 +387,19 @@ def _meta_src():
     selects = []
     for fqn, cols in srcs:
         have = set(cols)
-        sel = ", ".join(f'"{c.upper()}"' if c in have else f'null as "{c.upper()}"'
-                        for c in all_cols)
-        selects.append(f"select {sel} from {fqn}")
+        parts = []
+        for c in all_cols:
+            if c in have:
+                parts.append(f'"{c.upper()}"')
+            elif c == "account_name":
+                # A member with no account_name column still needs to be
+                # selectable in the Account filter — label its rows with the
+                # SOURCE TABLE name (honest provenance, not an invented
+                # Meta account name).
+                parts.append(f"'{fqn.split('.')[-1].lower()}' as \"ACCOUNT_NAME\"")
+            else:
+                parts.append(f'null as "{c.upper()}"')
+        selects.append(f"select {', '.join(parts)} from {fqn}")
     return "(" + " union all ".join(selects) + ")"
 
 
@@ -1271,8 +1282,9 @@ def render_ads_analytics():
     st.title("Ads Analysis")
     st.caption(
         "Live from Snowflake via the active session — Meta / Google / TikTok, per "
-        "campaign and per ad, for the Costco + Target US accounts. Priority metrics "
-        "lead. Read-only; nothing is fabricated."
+        "campaign / ad set / ad, across ALL connected ad accounts (discovered live; "
+        "Target / Costco are marketplaces, not accounts). Priority metrics lead. "
+        "Read-only; nothing is fabricated."
     )
     # Analysis views are selected in the LHS menu (see ADS_VIEWS); each block
     # below renders when its view is active.

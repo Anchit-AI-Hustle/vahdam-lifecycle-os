@@ -30,13 +30,30 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Check secrets are configured
+        id: gate
+        env:
+          HAS_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT != '' }}
+          HAS_USER: ${{ secrets.SNOWFLAKE_USER != '' }}
+          HAS_PAT: ${{ secrets.SNOWFLAKE_PAT != '' }}
+        run: |
+          if [ "$HAS_ACCOUNT" = "true" ] && [ "$HAS_USER" = "true" ] && [ "$HAS_PAT" = "true" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Snowflake deploy skipped::Repo secrets SNOWFLAKE_ACCOUNT / SNOWFLAKE_USER / SNOWFLAKE_PAT (+ WAREHOUSE, ROLE) are not set. Add them in Settings -> Secrets and variables -> Actions, then re-run. Until then, deploy manually from the Snowsight workspace (Pull -> Deploy to VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA)."
+          fi
       - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
       - uses: actions/setup-python@v5
+        if: steps.gate.outputs.ready == 'true'
         with:
           python-version: "3.11"
       - name: Install Snowflake CLI
+        if: steps.gate.outputs.ready == 'true'
         run: pip install --quiet snowflake-cli
       - name: Deploy app (CREATE OR REPLACE STREAMLIT)
+        if: steps.gate.outputs.ready == 'true'
         env:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}

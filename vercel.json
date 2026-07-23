@@ -1,0 +1,8 @@
+{
+  "$comment": "This branch is the Streamlit-in-Snowflake distribution — it must NEVER deploy on Vercel. It deploys to VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA via .github/workflows/deploy-sis.yml instead.",
+  "git": {
+    "deploymentEnabled": {
+      "snowflake-streamlit-app": false
+    }
+  }
+}
