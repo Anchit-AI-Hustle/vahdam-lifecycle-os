@@ -410,8 +410,9 @@ def render_data_analysis():
         "is fabricated — a metric with no inputs reads 'unavailable', not zero."
     )
 
-    tab_status, tab_kpis, tab_catalog, tab_accuracy = st.tabs(
-        ["Sources & budget", "Portfolio KPIs", "Metric catalog", "Accuracy calculator"]
+    tab_status, tab_kpis, tab_catalog, tab_accuracy, tab_retail = st.tabs(
+        ["Sources & budget", "Portfolio KPIs", "Metric catalog", "Accuracy calculator",
+         "Retail sales tracker"]
     )
 
     # Sources / connector status + budget pacing
@@ -529,6 +530,22 @@ def render_data_analysis():
                 "Video metrics (hook/hold/through) read 'unavailable' until the Meta "
                 "video-quartile child tables are flattened into the row — honest by design."
             )
+
+    # Retail sales tracker (Target) — week/day-wise DPCI sales & velocity, P&L,
+    # CAC by channel. That data lives in the Target_Sales_Tracker workbook, not
+    # (yet) in the warehouse — discover the loaded tables; declared gap otherwise.
+    with tab_retail:
+        st.subheader("Retail sales tracker (Target)")
+        st.caption(
+            "The analyses from the Target sales tracker: week-wise and day-wise "
+            "sales per DPCI/SKU (units, dollars, velocity, store count), MTD/FY "
+            "P&L (online vs offline, Roundel/Instacart/Ibotta spends) and CAC per "
+            "channel. Load the tracker sheets into the warehouse as tables and "
+            "they render here; until then this is a declared gap - nothing is "
+            "estimated. Read-only."
+        )
+        table_explorer("retail", ["dpci", "target_sales", "velocity", "retail", "roundel", "instacart", "ibotta"],
+                       "Load Target_Sales_Tracker sheets (Week-wise, Day-wise, P&L, CAC) into the warehouse to light this up.")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -970,9 +987,11 @@ def render_ads_analytics():
         "campaign and per ad, for the Costco + Target US accounts. Priority metrics "
         "lead. Read-only; nothing is fabricated."
     )
-    (tab_overview, tab_single, tab_multi, tab_explorer, tab_rows, tab_cohorts) = st.tabs(
+    (tab_overview, tab_single, tab_multi, tab_explorer, tab_rows,
+     tab_cohorts, tab_spend, tab_ugc) = st.tabs(
         ["Overview & priority metrics", "Single campaign", "Multi-campaign compare",
-         "Ad explorer (all fields)", "Campaign / ad rows", "Cohorts & segmentation"]
+         "Ad explorer (all fields)", "Campaign / ad rows", "Cohorts & segmentation",
+         "Spend tracker", "UGC creator ads"]
     )
 
     with tab_overview:
@@ -1343,6 +1362,116 @@ def render_ads_analytics():
                                    df.to_csv(index=False).encode(), "meta_ads_all_fields.csv", "text/csv")
 
                 all_campaigns_block("ex")
+
+    # ── SPEND TRACKER — the Ad_Spends workbook (May-Jul, Meta/TikTok), live ───
+    with tab_spend:
+        st.subheader("Monthly spend — channel × marketplace (live)")
+        st.caption(
+            "Replicates the Ad-Spends tracker: total spend per month split by "
+            "marketplace (derived from ad names), computed in SQL over ALL rows "
+            "in scope — always current, never keyed by hand."
+        )
+        try:
+            g = q(f"select to_char(date_start, 'YYYY-MM') as month, {mkt_case()} as marketplace, "
+                  f"sum(spend) as spend from {META_ADS} {meta_where()} group by 1, 2 order by 1")
+        except Exception as e:  # noqa: BLE001
+            g = pd.DataFrame()
+            st.warning(f"Spend matrix unavailable: {e}")
+        if not g.empty:
+            piv = g.pivot_table(index="marketplace", columns="month", values="spend", aggfunc="sum")
+            piv["TOTAL"] = piv.sum(axis=1)
+            st.markdown("**Meta Ads (USD)**")
+            st.dataframe(piv.round(2), use_container_width=True)
+            st.altair_chart(
+                alt.Chart(g).mark_bar().encode(
+                    x=alt.X("month:N", title=None),
+                    y=alt.Y("spend:Q", title="Spend (USD)"),
+                    color=alt.Color("marketplace:N", title=None),
+                    tooltip=["month", "marketplace", alt.Tooltip("spend:Q", format="$,.0f")],
+                ).properties(height=280), use_container_width=True)
+        st.markdown("**TikTok Ads**")
+        tt = TIKTOK["ad"]
+        tt_cols = [c for c, _ in table_columns(tt)]
+        tt_date = next((c for c in ("stat_time_day", "date", "stat_date", "date_start") if c in tt_cols), None)
+        tt_spend = next((c for c in ("spend", "cost", "total_cost") if c in tt_cols), None)
+        if tt_date and tt_spend:
+            try:
+                tg = q(f'select to_char("{tt_date.upper()}", \'YYYY-MM\') as month, '
+                       f'sum("{tt_spend.upper()}") as spend from {tt} group by 1 order by 1')
+                st.dataframe(tg, use_container_width=True, hide_index=True)
+            except Exception as e:  # noqa: BLE001
+                st.info(f"TikTok monthly spend unavailable: {e}")
+        else:
+            st.info(f"`{tt}` carries no recognised date/spend columns for a monthly roll-up — see Ad explorer for its raw fields.")
+
+        st.subheader("Day-wise campaign matrix (Retail Ads Update, live)")
+        st.caption("Dates as columns per campaign — the day-wise tracker, from the warehouse.")
+        opts_s = campaign_options(account, marketplace, since, until)
+        picks_s = st.multiselect("Campaigns", opts_s, default=opts_s[: min(3, len(opts_s))], key="spend_camps")
+        metric_s = st.selectbox("Metric", ["spend", "impressions", "reach", "clicks", "inline_link_clicks"], key="spend_metric")
+        if picks_s:
+            try:
+                dm = daily_series(META_ADS, meta_where(tuple(picks_s)), metric_s, by="campaign_name")
+                if not dm.empty:
+                    dm["date_start"] = dm["date_start"].astype(str)
+                    mpiv = dm.pivot_table(index="campaign_name", columns="date_start", values=metric_s, aggfunc="sum")
+                    st.dataframe(mpiv.round(2), use_container_width=True, height=300)
+                else:
+                    st.info("No rows for those campaigns in the window.")
+            except Exception as e:  # noqa: BLE001
+                st.warning(f"Day-wise matrix unavailable: {e}")
+
+    # ── UGC CREATOR ADS — the UGC Master workbook's PAID side, live ──────────
+    with tab_ugc:
+        st.subheader("UGC creator ads — paid performance per creator (live)")
+        st.caption(
+            "Replicates the UGC Master ad-performance sheets: every ad whose name "
+            "carries 'UGC', with the creator parsed from the ad name, spend, "
+            "impressions, clicks, CTR and CPC — straight from the warehouse."
+        )
+        wu = meta_where() + " and ad_name ilike '%ugc%'"
+        du = sql_group_sums(META_ADS, wu, ["ad_name"])
+        if du.empty:
+            st.info("No ads carrying 'UGC' in the name for this scope — widen the window or clear filters.")
+        else:
+            du["creator"] = du["ad_name"].astype(str).str.split("-").str[-1].str.strip()
+            for k in ("link_ctr", "ctr", "cpc", "cpm"):
+                fn = CATALOG_FN.get(k)
+                if fn:
+                    du[k] = du.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
+            tot_spend = du["spend"].sum() if "spend" in du.columns else None
+            tot_impr = du["impressions"].sum() if "impressions" in du.columns else 0
+            tot_clicks = du["inline_link_clicks"].sum() if "inline_link_clicks" in du.columns else 0
+            k1, k2, k3, k4, k5 = st.columns(5)
+            k1.metric("UGC ads", f"{len(du):,}")
+            k2.metric("Creators", f"{du['creator'].nunique():,}")
+            k3.metric("Spend", money(tot_spend))
+            k4.metric("Link clicks", f"{tot_clicks:,.0f}")
+            k5.metric("Link CTR", pctf(tot_clicks / tot_impr * 100 if tot_impr else None))
+            st.markdown("**Per creator (aggregated across their ads)**")
+            numu = [c for c in du.columns if pd.api.types.is_numeric_dtype(du[c]) and c not in RATIO_COLS]
+            pc = du.groupby("creator", as_index=False)[numu].sum()
+            for k in ("link_ctr", "ctr", "cpc", "cpm"):
+                fn = CATALOG_FN.get(k)
+                if fn:
+                    pc[k] = pc.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
+            if "spend" in pc.columns:
+                pc = pc.sort_values("spend", ascending=False)
+            st.dataframe(pc, use_container_width=True, height=360)
+            st.markdown("**Per ad (every UGC ad as a row)**")
+            st.dataframe(du.sort_values("spend", ascending=False) if "spend" in du.columns else du,
+                         use_container_width=True, height=360)
+            st.download_button("Download UGC ads CSV", du.to_csv(index=False).encode(),
+                               "ugc_creator_ads.csv", "text/csv", key="ugc_dl")
+        st.markdown("---")
+        st.subheader("Organic side (views, likes, 6-sec %, content buckets, organic score)")
+        st.caption(
+            "Organic TikTok/Instagram metrics live in the UGC Master tracker, not in "
+            "the ads warehouse. Load the tracker sheets as tables to analyse the full "
+            "organic-to-paid loop here; until then this is a declared gap, not a zero."
+        )
+        table_explorer("ugc_org", ["ugc", "creator", "organic", "instagram", "tiktok_organic"],
+                       "Load the UGC Master tracker (Master UGC Tracker / Metric Summary sheets) into the warehouse to light this up.")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
