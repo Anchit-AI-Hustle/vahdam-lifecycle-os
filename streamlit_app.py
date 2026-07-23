@@ -228,7 +228,8 @@ def acct_clause(col: str, account: str) -> str:
 MARKETPLACE_SEARCH = {"Target": "target", "Costco": "costco", "Amazon": "amazon",
                       "Walmart": "walmart", "Sams Club": "sams", "Kroger": "kroger",
                       "Instacart": "instacart", "eBay": "ebay", "Etsy": "etsy",
-                      "Walgreens": "walgreens", "CVS": "cvs"}
+                      "Walgreens": "walgreens", "CVS": "cvs",
+                      "UGC Creator Ads": "ugc"}
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
