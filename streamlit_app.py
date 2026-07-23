@@ -316,7 +316,19 @@ def date_clause(col: str, since, until) -> str:
 
 
 def money(v):
-    return "—" if v is None or (isinstance(v, float) and pd.isna(v)) else f"${v:,.0f}"
+    """Adaptive precision: totals as whole dollars, unit costs with cents, and
+    sub-dollar unit costs (CPC, cost/reach) with 4 decimals - $0.0442 must
+    never render as the false '$0'."""
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return "—"
+    a = abs(v)
+    if a >= 100:
+        return f"${v:,.0f}"
+    if a >= 1:
+        return f"${v:,.2f}"
+    if a == 0:
+        return "$0"
+    return f"${v:,.4f}"
 
 
 def pctf(v):
@@ -1106,6 +1118,13 @@ def render_ads_analytics():
                 # category tabs as the web dashboard. A metric whose inputs are
                 # not in the table reads 'unavailable', never a fabricated 0.
                 st.subheader("Priority metrics — full catalog by category")
+                st.caption(
+                    "Live totals for the CURRENT filter scope, one tab per metric "
+                    "category. 'unavailable — needs: X' means the source table does "
+                    "not carry that input column yet (e.g. video quartiles, "
+                    "purchases) — the metric activates the moment that feed lands; "
+                    "nothing is estimated in the meantime."
+                )
 
                 def fmt_val(unit, v):
                     if v is None:
@@ -1128,8 +1147,14 @@ def render_ads_analytics():
                         for m in METRICS:
                             if m[2] != ckey:
                                 continue
+                            val = derived.get(m[0])
+                            if val is None:
+                                missing = [f for f in m[5] if sums.get(f) is None]
+                                shown = ("unavailable — needs: " + ", ".join(missing)) if missing else "unavailable"
+                            else:
+                                shown = fmt_val(m[3], val)
                             rows_.append({"Metric": m[1], "Tier": m[4],
-                                          "Value": fmt_val(m[3], derived.get(m[0])),
+                                          "Value": shown,
                                           "Formula": m[6], "Definition": m[7]})
                         st.dataframe(pd.DataFrame(rows_), use_container_width=True,
                                      hide_index=True, height=min(420, 44 + 36 * len(rows_)))
