@@ -47,6 +47,15 @@ Mailers come in exactly two named types:
 1. **Text** — pure typographic (the `pure` render style).
 2. **Text + Graphics** — text plus BUILT graphic elements only: brand-palette colors, buttons, labels, badges, dividers, price/receipt tables (CSS/table constructs — never photos; photos are optional slots the user fills). Any combination of such elements qualifies. Maps to the `visual`/`editorial` render styles.
 
+## SiS distribution branch — NEVER merge into main
+The branch **`snowflake-streamlit-app`** is a permanently separate distribution of this repo:
+the Streamlit-in-Snowflake version (runs natively in Snowflake via `get_active_session()`,
+reads warehouse tables directly — no Vercel, no Supabase, no HTML pages). It intentionally
+diverges from main and **must NEVER be merged into main** (nor main into it wholesale; port
+changes by hand when needed). Enforced by the required check
+`.github/workflows/protect-main-from-sis.yml`, which fails any PR from that branch into main.
+Deploy that branch from Snowsight (Git-linked workspace or paste `streamlit_app.py`).
+
 ## Commands
 ```bash
 npm run build          # scripts/build-catalog.js → data/catalog/products_{us,uk,global}.json (runs at deploy via vercel.json buildCommand)
