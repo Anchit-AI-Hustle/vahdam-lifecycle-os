@@ -209,10 +209,49 @@ def q(sql: str) -> pd.DataFrame:
 
 
 def acct_clause(col: str, account: str) -> str:
+    """Filter by the REAL Meta ad-account name (exact, case-insensitive).
+    Target/Costco are NOT accounts — they live in the ad names (see Marketplace)."""
     if not account:
         return ""
-    a = account.lower().replace("'", "")
-    return f" and lower({col}) like '%{a}%'"
+    a = account.lower().replace("'", "''")
+    return f" and lower({col}) = '{a}'"
+
+
+# Marketplace (Target / Costco) is carried in the AD NAMES, not the account
+# field — derive/filter it from ad_name so it acts as its own dimension.
+def mkt_clause(marketplace: str, col: str = "ad_name") -> str:
+    if not marketplace:
+        return ""
+    m = marketplace.lower().replace("'", "''")
+    return f" and {col} ilike '%{m}%'"
+
+
+MKT_CASE = ("case when ad_name ilike '%target%' then 'Target' "
+            "when ad_name ilike '%costco%' then 'Costco' "
+            "else 'Other / D2C' end")
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def meta_accounts():
+    """Real Meta ad-account names present in the warehouse (Account options)."""
+    try:
+        df = q(f"select distinct account_name from {META_ADS} "
+               f"where account_name is not null order by 1")
+        return [str(x) for x in df.iloc[:, 0].dropna().tolist()]
+    except Exception:  # noqa: BLE001 — no grant/rows: empty list, never invented
+        return []
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def has_column(table: str, col: str) -> bool:
+    """True when the table really has the column (guards optional filters)."""
+    try:
+        db, schema, name = table.split(".", 2)
+        r = q(f"select column_name from {db}.information_schema.columns "
+              f"where table_schema = '{schema}' and table_name = '{name}'")
+        return col.lower() in [str(c).lower() for c in r.iloc[:, 0].tolist()]
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def date_clause(col: str, since, until) -> str:
@@ -235,7 +274,8 @@ def pctf(v):
 # child tables (not flattened yet) so hook/hold/through show 'unavailable' until wired.
 def meta_rows(account, level, since, until):
     name_col = "ad_name" if level == "ad" else "campaign_name"
-    where = "where 1=1" + acct_clause("account_name", account) + date_clause("date_start", since, until)
+    where = ("where 1=1" + acct_clause("account_name", account)
+             + mkt_clause(marketplace) + date_clause("date_start", since, until))
     sql = f"""
         select {name_col} as name,
                sum(spend) as spend, sum(impressions) as impressions, sum(reach) as reach,
@@ -269,12 +309,17 @@ def generic_rows(table):
 st.sidebar.title("VAHDAM · Lifecycle OS on Snowflake")
 section = st.sidebar.radio(
     "Section",
-    ["Data Analysis", "Ads Analytics", "Business Review (T1-T7)", "Roles & Permissions (T8)"],
+    ["Data Analysis", "Ads Analytics", "Mailer Intelligence",
+     "Business Review (T1-T7)", "Roles & Permissions (T8)"],
 )
 st.sidebar.markdown("---")
 platform = st.sidebar.selectbox("Platform", ["Meta", "Google", "TikTok"])
-account = st.sidebar.selectbox("Account", ["All", "target", "costco"])
+# Account = the REAL Meta ad accounts read live from account_name. Target/Costco
+# are NOT accounts — they are part of the ad names, exposed as Marketplace below.
+account = st.sidebar.selectbox("Account (Meta ad account)", ["All"] + meta_accounts())
 account = "" if account == "All" else account
+marketplace = st.sidebar.selectbox("Marketplace (from ad names)", ["All", "Target", "Costco"])
+marketplace = "" if marketplace == "All" else marketplace
 level = st.sidebar.selectbox("Level", ["campaign", "ad"])
 today = pd.Timestamp.utcnow().normalize()
 since = st.sidebar.date_input("Since", (today - pd.Timedelta(days=30)).date())
@@ -319,11 +364,14 @@ def render_data_analysis():
 
         st.subheader("Budget pacing vs daily caps")
         try:
+            # Caps belong to the MARKETPLACE (Target $1,000/day · Costco $300/day),
+            # which lives in the ad names — group by the derived marketplace, with
+            # the real account filter applied on top when one is selected.
             pace = q(f"""
-                select lower(account_name) as account, sum(spend) as spend, count(distinct date_start) as days
+                select {MKT_CASE} as marketplace, sum(spend) as spend, count(distinct date_start) as days
                 from {META_ADS}
-                where 1=1{date_clause('date_start', since, until)}
-                group by lower(account_name) order by spend desc nulls last
+                where 1=1{acct_clause('account_name', account)}{date_clause('date_start', since, until)}
+                group by 1 order by spend desc nulls last
             """)
         except Exception as e:  # noqa: BLE001
             pace = pd.DataFrame()
@@ -331,19 +379,19 @@ def render_data_analysis():
         if not pace.empty:
             rows = []
             for _, r in pace.iterrows():
-                acct = str(r["account"] or "")
-                cap = next((v for k, v in BUDGETS.items() if k in acct), None)
+                mkt = str(r["marketplace"] or "")
+                cap = BUDGETS.get(mkt.lower())
                 days = r["days"] or window_days
                 avg_daily = (r["spend"] / days) if days else None
                 rows.append({
-                    "Account": acct or "(unnamed)",
+                    "Marketplace (from ad names)": mkt or "(unnamed)",
                     "Spend (window)": money(r["spend"]),
                     "Avg daily spend": money(avg_daily),
-                    "Daily cap": money(cap) if cap else "— (no mapped cap)",
+                    "Daily cap": money(cap) if cap else "— (no cap set)",
                     "Pacing": (pctf(avg_daily / cap * 100) if (cap and avg_daily is not None) else "—"),
                 })
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            st.caption("Pacing = avg daily spend as a % of the daily cap. Caps are for reference/alerting only.")
+            st.caption("Pacing = avg daily spend as a % of the marketplace's daily cap. Caps are for reference/alerting only.")
         else:
             st.warning("No Meta spend rows in this window to pace against.")
 
@@ -506,17 +554,25 @@ def render_ads_analytics():
             st.altair_chart(ch, use_container_width=True)
 
         if platform == "Meta":
-            where = "where 1=1" + acct_clause("account_name", account) + date_clause("date_start", since, until)
+            # Per-table WHERE: apply account/marketplace only when the breakdown
+            # table actually carries the column (age/gender & device tables vary).
+            def bwhere(table):
+                w = "where 1=1" + date_clause("date_start", since, until)
+                if account and has_column(table, "account_name"):
+                    w += acct_clause("account_name", account)
+                if marketplace and has_column(table, "ad_name"):
+                    w += mkt_clause(marketplace)
+                return w
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("**Age x gender**")
-                ag = q(f"select age, gender, sum(spend) as spend from {META_AGE_GENDER} {where} group by age, gender")
+                ag = q(f"select age, gender, sum(spend) as spend from {META_AGE_GENDER} {bwhere(META_AGE_GENDER)} group by age, gender")
                 if not ag.empty:
                     ag["cohort"] = ag["age"].astype(str) + " · " + ag["gender"].astype(str)
                     cohort_chart(ag, "cohort", "Age x gender")
             with col2:
                 st.markdown("**Platform / device**")
-                dv = q(f"select * from {META_DEVICE} {where} limit 5000")
+                dv = q(f"select * from {META_DEVICE} {bwhere(META_DEVICE)} limit 5000")
                 dim = next((c for c in ["impression_device", "device_platform", "platform_position", "publisher_platform"] if c in dv.columns), None)
                 if dim:
                     cohort_chart(dv, dim, "Device / placement")
@@ -659,6 +715,28 @@ def render_business_review():
             table_explorer(label.split(" ")[0].lower(), terms, gap)
 
 
+def render_mailer_intelligence():
+    st.title("Mailer Intelligence")
+    st.caption(
+        "Email/SMS lifecycle reporting (Klaviyo / WebEngage) straight from the "
+        "warehouse. Discovers the real mailer tables (campaigns, flows, events, "
+        "engagement) and renders whatever is actually loaded - a source that is "
+        "not synced into Snowflake shows a declared gap, never an estimate. "
+        "Read-only."
+    )
+    tab_campaigns, tab_events = st.tabs(["Campaigns & flows", "Events & engagement"])
+    with tab_campaigns:
+        table_explorer(
+            "ml_campaigns", ["klaviyo", "campaign", "flow", "mailer", "email"],
+            "Load the Klaviyo campaign/flow exports into the warehouse to light this up.",
+        )
+    with tab_events:
+        table_explorer(
+            "ml_events", ["event", "webengage", "open", "click", "engagement"],
+            "Load the Klaviyo/WebEngage event exports (opens, clicks, conversions) to light this up.",
+        )
+
+
 def render_roles_permissions():
     st.title("Roles & Permissions (T8)")
     st.caption(
@@ -693,6 +771,8 @@ if section == "Data Analysis":
     render_data_analysis()
 elif section == "Ads Analytics":
     render_ads_analytics()
+elif section == "Mailer Intelligence":
+    render_mailer_intelligence()
 elif section.startswith("Business Review"):
     render_business_review()
 else:

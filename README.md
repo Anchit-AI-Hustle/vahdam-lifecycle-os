@@ -15,7 +15,8 @@ gap, never an estimated number.
 | Section | What it renders | Tables |
 |---|---|---|
 | **Data Analysis** | sources & budget pacing (Target $1,000/day · Costco $300/day), portfolio KPIs, the 42-metric catalog + live accuracy calculator | Meta/TikTok/Google ads tables |
-| **Ads Analytics** | Meta / Google / TikTok per campaign + per ad, age×gender / device / country cohorts (Costco + Target US) | `VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS`, `MAPLEMONK1` breakdowns, `DATON.RAW.TIKTOK_ADS_USA_*`, `MAPLEMONK.GOOGLE_ADS_USA` |
+| **Ads Analytics** | Meta / Google / TikTok per campaign + per ad, age×gender / device / country cohorts. **Account** = the real Meta ad accounts (live from `account_name`); **Marketplace (Target/Costco)** is derived from the ad names as its own filter/dimension | `VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS`, `MAPLEMONK1` breakdowns, `DATON.RAW.TIKTOK_ADS_USA_*`, `MAPLEMONK.GOOGLE_ADS_USA` |
+| **Mailer Intelligence** | Klaviyo / WebEngage campaigns, flows and events — discovers the real mailer tables loaded in the warehouse; declared gaps otherwise | whatever mailer exports are synced |
 | **Business Review (T1–T7)** | the 8-task D2C review as live warehouse views — Sales, Customers, Catalog & Parity, Fulfilment, CX, Category, Coffee & Subscriptions — each task discovers its REAL source tables via INFORMATION_SCHEMA keyword search | whatever is actually loaded; declared gaps otherwise |
 | **Roles & Permissions (T8)** | access-audit registers (user access map / app inventory) + this session's live role, warehouse and grants | loaded registers + `SHOW GRANTS` |
 
