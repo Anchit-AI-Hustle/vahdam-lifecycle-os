@@ -36,6 +36,28 @@ session = get_active_session()
 
 st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 
+# Layout hygiene: Streamlit columns overflow instead of shrinking by default,
+# so long metric values / widget labels / headings visually overlap their
+# neighbours. Force everything to wrap INSIDE its own column.
+st.markdown("""
+<style>
+  div[data-testid="column"] { min-width: 0; }
+  div[data-testid="stMetric"] { padding: 0.15rem 0.4rem 0.15rem 0; overflow: hidden; }
+  div[data-testid="stMetricValue"] {
+    font-size: clamp(0.95rem, 1.4vw, 1.45rem);
+    white-space: normal; overflow-wrap: anywhere; line-height: 1.15;
+  }
+  div[data-testid="stMetricLabel"], div[data-testid="stMetricLabel"] p {
+    white-space: normal; overflow-wrap: anywhere; font-size: 0.78rem;
+  }
+  div[data-testid="stWidgetLabel"] p {
+    white-space: normal; overflow-wrap: anywhere; font-size: 0.82rem;
+  }
+  h1, h2, h3, h4 { overflow-wrap: anywhere; }
+  div[data-testid="stCaptionContainer"] p { overflow-wrap: anywhere; }
+</style>
+""", unsafe_allow_html=True)
+
 # Brand palette (docs/CLAUDE.md — the only four colours)
 GREEN, GOLD, INK, CREAM = "#004A2B", "#AB8743", "#171717", "#FBF5EA"
 
@@ -433,15 +455,19 @@ def distinct_values(col):
         return []
 
 
-_f1, _f2, _f3, _f4 = st.columns([1.0, 1.5, 1.4, 0.9])
+_f1, _f2, _f3, _f4 = st.columns([1.0, 1.6, 1.5, 0.9])
 platform_label = _f1.selectbox("Channel", ["Meta Ads", "Google Ads", "TikTok Ads"])
 platform = platform_label.replace(" Ads", "")
 acct_col, _acct_opts = channel_accounts(platform)
 # Multi-select: empty selection = All. Cascade: options come from THIS channel's
-# own table, so picking Meta Ads only ever offers Meta ad accounts.
-account = _f2.multiselect(f"Accounts ({platform_label})", _acct_opts)
-marketplace = _f3.multiselect("Marketplaces (from ad names)",
-                              detected_marketplaces() + ["D2C / Other"])
+# own table, so picking Meta Ads only ever offers Meta ad accounts. Labels stay
+# SHORT so they never collide with neighbouring columns; detail lives in help.
+account = _f2.multiselect("Account", _acct_opts,
+                          help=f"Real {platform_label} ad accounts read live from the "
+                               "warehouse. Empty selection = all accounts.")
+marketplace = _f3.multiselect("Marketplace", detected_marketplaces() + ["D2C / Other"],
+                              help="Derived from the ad names (Target, Costco, Amazon, "
+                                   "UGC Creator Ads, …). Empty selection = all.")
 if section == "Ads Analysis":
     _level_label = _f4.selectbox("Level", ["Campaign", "Ad Set", "Ad Level"])
     level = {"Campaign": "campaign", "Ad Set": "adset", "Ad Level": "ad"}[_level_label]
@@ -455,7 +481,8 @@ STATUS_COL = next((c for c in ("ad_delivery", "effective_status", "configured_st
                    if platform == "Meta" and has_column(META_ADS, c)), None)
 _g1, _g2, _g3, _g4, _g5, _g6 = st.columns([1.3, 1.3, 1.1, 1.0, 1.0, 0.8])
 objective_sel = _g1.multiselect("Objective", distinct_values(OBJ_COL)) if OBJ_COL else []
-status_sel = _g2.multiselect("Campaign status", distinct_values(STATUS_COL)) if STATUS_COL else []
+status_sel = _g2.multiselect("Status", distinct_values(STATUS_COL),
+                             help="Campaign delivery status.") if STATUS_COL else []
 
 today = pd.Timestamp.utcnow().normalize()
 _preset = _g3.selectbox("Date range",
@@ -1263,11 +1290,13 @@ def render_ads_analytics():
         if platform == "Meta":
             _ks = sql_sums(META_ADS, meta_where())
             _kd = compute_all(_ks)
-            k1, k2, k3, k4, k5, k6, k7 = st.columns(7)
+            # Two rows of 4 — seven metrics in one row overlap on normal widths.
+            k1, k2, k3, k4 = st.columns(4)
             k1.metric("Spend", money(_ks.get("spend")))
             k2.metric("Impressions", f"{_ks.get('impressions', 0):,.0f}")
             k3.metric("Reach", f"{_ks.get('reach', 0):,.0f}")
             k4.metric("CPM", money(_kd.get("cpm")))
+            k5, k6, k7, _k8 = st.columns(4)
             k5.metric("Clicks", f"{_ks.get('clicks', 0):,.0f}")
             k6.metric("Link CTR", pctf(_kd.get("link_ctr")))
             k7.metric("CPC", money(_kd.get("cpc")))
