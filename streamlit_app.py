@@ -449,16 +449,21 @@ def _meta_src():
     selects = []
     for fqn, cols in srcs:
         have = set(cols)
+        label = fqn.split(".")[-1].lower().replace("'", "''")
         parts = []
         for c in all_cols:
-            if c in have:
+            if c == "account_name":
+                # Every member MUST yield a selectable Account: a missing
+                # account_name column OR null values in it get the SOURCE
+                # TABLE name as the label (honest provenance, not an
+                # invented Meta account name) — otherwise that account's
+                # rows are invisible in the Account filter.
+                if c in have:
+                    parts.append(f'coalesce("ACCOUNT_NAME", \'{label}\') as "ACCOUNT_NAME"')
+                else:
+                    parts.append(f"'{label}' as \"ACCOUNT_NAME\"")
+            elif c in have:
                 parts.append(f'"{c.upper()}"')
-            elif c == "account_name":
-                # A member with no account_name column still needs to be
-                # selectable in the Account filter — label its rows with the
-                # SOURCE TABLE name (honest provenance, not an invented
-                # Meta account name).
-                parts.append(f"'{fqn.split('.')[-1].lower()}' as \"ACCOUNT_NAME\"")
             else:
                 parts.append(f'null as "{c.upper()}"')
         selects.append(f"select {', '.join(parts)} from {fqn}")
@@ -593,19 +598,32 @@ def distinct_values(col):
         return []
 
 
+# Every multi-value filter carries an explicit "All" option (the default) and
+# stays a MULTISELECT, so several specific options are selectable together.
+# Picking "All" (or clearing the box) means no filter on that dimension.
+ALL_OPT = "All"
+
+
+def _resolve_all(selection):
+    vals = [v for v in (selection or []) if v != ALL_OPT]
+    return [] if (not selection or ALL_OPT in selection) else vals
+
+
 _f1, _f2, _f3, _f4 = st.columns([1.0, 1.6, 1.5, 0.9])
 platform_label = _f1.selectbox("Channel", ["Meta Ads", "Google Ads", "TikTok Ads"])
 platform = platform_label.replace(" Ads", "")
 acct_col, _acct_opts = channel_accounts(platform)
-# Multi-select: empty selection = All. Cascade: options come from THIS channel's
-# own table, so picking Meta Ads only ever offers Meta ad accounts. Labels stay
-# SHORT so they never collide with neighbouring columns; detail lives in help.
-account = _f2.multiselect("Account", _acct_opts,
-                          help=f"Real {platform_label} ad accounts read live from the "
-                               "warehouse. Empty selection = all accounts.")
-marketplace = _f3.multiselect("Marketplace", detected_marketplaces() + ["D2C / Other"],
-                              help="Derived from the ad names (Target, Costco, Amazon, "
-                                   "UGC Creator Ads, …). Empty selection = all.")
+# Cascade: options come from THIS channel's own table, so picking Meta Ads only
+# ever offers Meta ad accounts. Labels stay SHORT so they never collide with
+# neighbouring columns; detail lives in help.
+account = _resolve_all(_f2.multiselect(
+    "Account", [ALL_OPT] + _acct_opts, default=[ALL_OPT],
+    help=f"Real {platform_label} ad accounts read live from the warehouse. "
+         "All = every account; deselect All to pick one or several together."))
+marketplace = _resolve_all(_f3.multiselect(
+    "Marketplace", [ALL_OPT] + detected_marketplaces() + ["D2C / Other"], default=[ALL_OPT],
+    help="Derived from the ad names (Target, Costco, Amazon, UGC Creator Ads, …). "
+         "All = every marketplace; deselect All to pick one or several together."))
 if section == "Ads Analysis":
     _level_label = _f4.selectbox("Level", ["Campaign", "Ad Set", "Ad Level"])
     level = {"Campaign": "campaign", "Ad Set": "adset", "Ad Level": "ad"}[_level_label]
@@ -618,9 +636,11 @@ STATUS_COL = next((c for c in ("ad_delivery", "effective_status", "configured_st
                                "delivery_status", "status")
                    if platform == "Meta" and has_column(META_SRC, c)), None)
 _g1, _g2, _g3, _g4, _g5, _g6 = st.columns([1.3, 1.3, 1.1, 1.0, 1.0, 0.8])
-objective_sel = _g1.multiselect("Objective", distinct_values(OBJ_COL)) if OBJ_COL else []
-status_sel = _g2.multiselect("Status", distinct_values(STATUS_COL),
-                             help="Campaign delivery status.") if STATUS_COL else []
+objective_sel = _resolve_all(_g1.multiselect(
+    "Objective", [ALL_OPT] + distinct_values(OBJ_COL), default=[ALL_OPT])) if OBJ_COL else []
+status_sel = _resolve_all(_g2.multiselect(
+    "Status", [ALL_OPT] + distinct_values(STATUS_COL), default=[ALL_OPT],
+    help="Campaign delivery status. All = any status.")) if STATUS_COL else []
 
 today = pd.Timestamp.utcnow().normalize()
 _preset = _g3.selectbox("Date range",
