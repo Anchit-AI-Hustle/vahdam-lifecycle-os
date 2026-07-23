@@ -378,6 +378,20 @@ section = st.sidebar.radio(
     "Section",
     ["Data Analysis", "Ads Analytics", "Mailer Intelligence"],
 )
+
+# The LHS menu carries the ANALYSIS VIEWS (use cases); the data filters live in
+# the top bar of the page, never in this menu.
+ADS_VIEWS = ["Overview & priority metrics", "Single campaign", "Multi-campaign compare",
+             "Ad explorer (all fields)", "Campaign / ad rows", "Cohorts & segmentation",
+             "Spend tracker", "UGC creator ads"]
+DA_VIEWS = ["Sources & budget", "Portfolio KPIs", "Metric catalog", "Accuracy calculator",
+            "Retail sales tracker"]
+if section == "Ads Analytics":
+    view = st.sidebar.radio("Analysis view", ADS_VIEWS)
+elif section == "Data Analysis":
+    view = st.sidebar.radio("Analysis view", DA_VIEWS)
+else:
+    view = None
 st.sidebar.markdown("---")
 # ── Channel → Account → Marketplace model ────────────────────────────────────
 # Channels are the ad platforms (Meta Ads / Google Ads / TikTok Ads). Accounts
@@ -404,14 +418,10 @@ def channel_accounts(channel):
         return col, []
 
 
-platform_label = st.sidebar.selectbox("Channel", ["Meta Ads", "Google Ads", "TikTok Ads"])
-platform = platform_label.replace(" Ads", "")
-acct_col, _acct_opts = channel_accounts(platform)
-# Multi-select: empty selection = All. Cascade: options come from THIS channel's
-# own table, so picking Meta Ads only ever offers Meta ad accounts.
-account = st.sidebar.multiselect(f"Accounts ({platform_label} ad accounts)", _acct_opts)
-marketplace = st.sidebar.multiselect("Marketplaces (from ad names)",
-                                     detected_marketplaces() + ["D2C / Other"])
+# ── TOP FILTER BAR ── the dashboard filters ALWAYS sit at the top of the page
+# (the LHS menu only carries the section + analysis views).
+LEVEL_COL = {"campaign": "campaign_name", "adset": "adset_name", "ad": "ad_name"}
+LEVEL_LABEL = {"campaign": "Campaign", "adset": "Ad Set", "ad": "Ad"}
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -425,28 +435,33 @@ def distinct_values(col):
         return []
 
 
+_f1, _f2, _f3, _f4 = st.columns([1.0, 1.5, 1.4, 0.9])
+platform_label = _f1.selectbox("Channel", ["Meta Ads", "Google Ads", "TikTok Ads"])
+platform = platform_label.replace(" Ads", "")
+acct_col, _acct_opts = channel_accounts(platform)
+# Multi-select: empty selection = All. Cascade: options come from THIS channel's
+# own table, so picking Meta Ads only ever offers Meta ad accounts.
+account = _f2.multiselect(f"Accounts ({platform_label})", _acct_opts)
+marketplace = _f3.multiselect("Marketplaces (from ad names)",
+                              detected_marketplaces() + ["D2C / Other"])
+if section == "Ads Analytics":
+    _level_label = _f4.selectbox("Level", ["Campaign", "Ad Set", "Ad Level"])
+    level = {"Campaign": "campaign", "Ad Set": "adset", "Ad Level": "ad"}[_level_label]
+else:
+    level = "campaign"
+
 OBJ_COL = next((c for c in ("objective", "campaign_objective")
                 if platform == "Meta" and has_column(META_ADS, c)), None)
 STATUS_COL = next((c for c in ("ad_delivery", "effective_status", "configured_status",
                                "delivery_status", "status")
                    if platform == "Meta" and has_column(META_ADS, c)), None)
-objective_sel = st.sidebar.multiselect("Objective", distinct_values(OBJ_COL)) if OBJ_COL else []
-status_sel = st.sidebar.multiselect("Campaign status", distinct_values(STATUS_COL)) if STATUS_COL else []
+_g1, _g2, _g3, _g4, _g5, _g6 = st.columns([1.3, 1.3, 1.1, 1.0, 1.0, 0.8])
+objective_sel = _g1.multiselect("Objective", distinct_values(OBJ_COL)) if OBJ_COL else []
+status_sel = _g2.multiselect("Campaign status", distinct_values(STATUS_COL)) if STATUS_COL else []
 
-# Controls vary by analysis type: granularity applies to Ads Analytics
-# (campaign / ad set / ad analysis); the portfolio-style sections are not ad-level.
-if section == "Ads Analytics":
-    _level_label = st.sidebar.selectbox("Level", ["Campaign", "Ad Set", "Ad Level"])
-    level = {"Campaign": "campaign", "Ad Set": "adset", "Ad Level": "ad"}[_level_label]
-else:
-    level = "campaign"
-LEVEL_COL = {"campaign": "campaign_name", "adset": "adset_name", "ad": "ad_name"}
-LEVEL_LABEL = {"campaign": "Campaign", "adset": "Ad Set", "ad": "Ad"}
-
-# Date range: presets + custom.
 today = pd.Timestamp.utcnow().normalize()
-_preset = st.sidebar.selectbox("Date range",
-                               ["Last 30 days", "Last 7 days", "MTD", "Last quarter", "Custom"])
+_preset = _g3.selectbox("Date range",
+                        ["Last 30 days", "Last 7 days", "MTD", "Last quarter", "Custom"])
 if _preset == "Last 7 days":
     since, until = (today - pd.Timedelta(days=7)).date(), today.date()
 elif _preset == "MTD":
@@ -457,17 +472,19 @@ elif _preset == "Last quarter":
     _pq_start = pd.Timestamp(_pq_end.year, 3 * ((_pq_end.month - 1) // 3) + 1, 1)
     since, until = _pq_start.date(), _pq_end.date()
 elif _preset == "Custom":
-    since = st.sidebar.date_input("Since", (today - pd.Timedelta(days=30)).date())
-    until = st.sidebar.date_input("Until", today.date())
+    since = _g4.date_input("Since", (today - pd.Timedelta(days=30)).date())
+    until = _g5.date_input("Until", today.date())
 else:
     since, until = (today - pd.Timedelta(days=30)).date(), today.date()
 window_days = max(1, (pd.Timestamp(until) - pd.Timestamp(since)).days + 1)
-st.sidebar.markdown("---")
+_g6.markdown("")
 # Every view queries the warehouse LIVE at render time — new campaigns/ads
 # appear automatically. Option lists cache for 5 minutes; this clears them now.
-if st.sidebar.button("🔄 Refresh live data now"):
+if _g6.button("🔄 Refresh"):
     st.cache_data.clear()
     st.rerun()
+st.markdown("---")
+st.sidebar.markdown("---")
 st.sidebar.caption(
     "All figures are queried live from Snowflake on every view. New campaigns, "
     "ads, accounts and marketplaces appear automatically (option lists refresh "
@@ -492,13 +509,10 @@ def render_data_analysis():
         "is fabricated — a metric with no inputs reads 'unavailable', not zero."
     )
 
-    tab_status, tab_kpis, tab_catalog, tab_accuracy, tab_retail = st.tabs(
-        ["Sources & budget", "Portfolio KPIs", "Metric catalog", "Accuracy calculator",
-         "Retail sales tracker"]
-    )
+    # Analysis views are selected in the LHS menu (see DA_VIEWS).
 
     # Sources / connector status + budget pacing
-    with tab_status:
+    if view == "Sources & budget":
         st.subheader("Sources (read-only)")
         src = pd.DataFrame([
             {"Platform": "Meta", "Table": META_ADS, "Cohorts": "age/gender, platform/device"},
@@ -545,7 +559,7 @@ def render_data_analysis():
             st.warning("No Meta spend rows in this window to pace against.")
 
     # Portfolio KPIs (Meta, whole window)
-    with tab_kpis:
+    if view == "Portfolio KPIs":
         df = meta_rows(account, level, since, until)
         if df.empty:
             st.warning("No Meta rows for this account / window.")
@@ -575,7 +589,7 @@ def render_data_analysis():
             st.altair_chart(chart, use_container_width=True)
 
     # Metric catalog (definitions + formulas) — the single source of truth
-    with tab_catalog:
+    if view == "Metric catalog":
         st.subheader(f"Metric catalog — {len(METRICS)} metrics across {len(CATEGORIES)} categories")
         st.caption(
             "Defined once, computed identically on this app and the web app "
@@ -587,7 +601,7 @@ def render_data_analysis():
         st.dataframe(cat[cat["Category"].isin(pick)], use_container_width=True, hide_index=True, height=560)
 
     # Accuracy calculator — coverage + agreement over the live Meta rows
-    with tab_accuracy:
+    if view == "Accuracy calculator":
         st.subheader("Accuracy calculator")
         st.caption(
             "Coverage = share of rows where every input for a metric is present. "
@@ -616,7 +630,7 @@ def render_data_analysis():
     # Retail sales tracker (Target) — week/day-wise DPCI sales & velocity, P&L,
     # CAC by channel. That data lives in the Target_Sales_Tracker workbook, not
     # (yet) in the warehouse — discover the loaded tables; declared gap otherwise.
-    with tab_retail:
+    if view == "Retail sales tracker":
         st.subheader("Retail sales tracker (Target)")
         st.caption(
             "The analyses from the Target sales tracker: week-wise and day-wise "
@@ -1158,14 +1172,10 @@ def render_ads_analytics():
         "campaign and per ad, for the Costco + Target US accounts. Priority metrics "
         "lead. Read-only; nothing is fabricated."
     )
-    (tab_overview, tab_single, tab_multi, tab_explorer, tab_rows,
-     tab_cohorts, tab_spend, tab_ugc) = st.tabs(
-        ["Overview & priority metrics", "Single campaign", "Multi-campaign compare",
-         "Ad explorer (all fields)", "Campaign / ad rows", "Cohorts & segmentation",
-         "Spend tracker", "UGC creator ads"]
-    )
+    # Analysis views are selected in the LHS menu (see ADS_VIEWS); each block
+    # below renders when its view is active.
 
-    with tab_overview:
+    if view == "Overview & priority metrics":
         if platform == "Meta":
             # EXACT portfolio totals in SQL over all rows in scope — no fetch cap.
             sums = sql_sums(META_ADS, meta_where())
@@ -1253,7 +1263,7 @@ def render_ads_analytics():
             )
             st.dataframe(generic_rows(table), use_container_width=True, height=460)
 
-    with tab_rows:
+    if view == "Campaign / ad rows":
         st.subheader(f"{platform_label} — {LEVEL_LABEL.get(level, 'Campaign')} level")
         if platform == "Meta":
             gcols = ident_cols(level)
@@ -1293,7 +1303,7 @@ def render_ads_analytics():
                 except Exception as e:  # noqa: BLE001
                     st.info(f"Could not read {table}: {e}")
 
-    with tab_cohorts:
+    if view == "Cohorts & segmentation":
         st.subheader("Cohorts — every factor the warehouse carries")
         st.caption(
             "Cohorts by age, gender, region/state (plus a US census-region rollup of "
@@ -1436,7 +1446,7 @@ def render_ads_analytics():
             st.info("Google cohort breakdowns depend on the segment tables available; Meta/TikTok carry the richest demographic/geo splits.")
 
     # ── SINGLE CAMPAIGN — full deep-dive on one campaign ─────────────────────
-    with tab_single:
+    if view == "Single campaign":
         if platform != "Meta":
             st.info("Single-campaign deep-dive runs on the Meta table; Google/TikTok show raw rows in 'Campaign / ad rows'.")
         else:
@@ -1449,7 +1459,7 @@ def render_ads_analytics():
                 camp = st.selectbox(f"{etype} (ordered by spend)", opts, key="single_pick")
                 render_campaign_detail(camp, "single", ecol)
     # ── MULTI-CAMPAIGN COMPARE — every metric, side by side ──────────────────
-    with tab_multi:
+    if view == "Multi-campaign compare":
         if platform != "Meta":
             st.info("Multi-campaign comparison runs on the Meta table.")
         else:
@@ -1524,7 +1534,7 @@ def render_ads_analytics():
                         all_campaigns_block("mc")
 
     # ── AD EXPLORER — every field the table carries, upfront ─────────────────
-    with tab_explorer:
+    if view == "Ad explorer (all fields)":
         if platform != "Meta":
             table = GOOGLE_ADS if platform == "Google" else TIKTOK[level if level in TIKTOK else "campaign"]
             st.info(f"{platform}: raw rows with whatever columns exist in `{table}`.")
@@ -1567,7 +1577,7 @@ def render_ads_analytics():
                 all_campaigns_block("ex")
 
     # ── SPEND TRACKER — the Ad_Spends workbook (May-Jul, Meta/TikTok), live ───
-    with tab_spend:
+    if view == "Spend tracker":
         st.subheader("Monthly spend — channel × marketplace (live)")
         st.caption(
             "Replicates the Ad-Spends tracker: total spend per month split by "
@@ -1625,7 +1635,7 @@ def render_ads_analytics():
                 st.warning(f"Day-wise matrix unavailable: {e}")
 
     # ── UGC CREATOR ADS — the UGC Master workbook's PAID side, live ──────────
-    with tab_ugc:
+    if view == "UGC creator ads":
         st.subheader("UGC creator ads — paid performance per creator (live)")
         st.caption(
             "Replicates the UGC Master ad-performance sheets: every ad whose name "
