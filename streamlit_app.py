@@ -345,8 +345,7 @@ def generic_rows(table):
 st.sidebar.title("VAHDAM · Lifecycle OS on Snowflake")
 section = st.sidebar.radio(
     "Section",
-    ["Data Analysis", "Ads Analytics", "Mailer Intelligence",
-     "Business Review", "Roles & Permissions"],
+    ["Data Analysis", "Ads Analytics", "Mailer Intelligence"],
 )
 st.sidebar.markdown("---")
 # ── Channel → Account → Marketplace model ────────────────────────────────────
@@ -1376,40 +1375,6 @@ def table_explorer(key, default_terms, gap_note):
             pass
 
 
-REVIEW_TASKS = [
-    ("T1 · Sales & Business Performance", ["order", "sales", "shopify"],
-     "Shopify sales series (annual/monthly/weekly/daily) load from the warehouse when synced."),
-    ("T2 · Customers & Cohorts", ["customer", "buyer"],
-     "Customer/RFM cohort exports appear once the customer tables are loaded."),
-    ("T3 · Catalog & Price Parity", ["item", "product", "catalog", "amazon"],
-     "Amazon fact/catalog tables live in VAHDAM_DB.MAPLEMONK; D2C catalog needs a Shopify sync."),
-    ("T4 · Fulfilment & Delivery", ["fulfil", "shipment", "delivery", "dispatch"],
-     "Order-to-delivery covers only carriers that report a delivered timestamp."),
-    ("T5 · Support & CX", ["ticket", "support", "helpdesk"],
-     "Helpdesk exports (tickets, first-response) must be loaded to appear."),
-    ("T6 · Category & Product Revenue", ["category", "revenue", "product"],
-     "Category revenue follows the same net-sales basis as T1."),
-    ("T7 · Coffee & Subscriptions", ["subscription", "coffee", "loop"],
-     "Subscription programme data comes from the Loop/Shopify Subscriptions export."),
-]
-
-
-def render_business_review():
-    st.title("Business Review")
-    st.caption(
-        "The 8-task D2C review, rebuilt as live views over warehouse tables via the "
-        "active session. Each task searches the warehouse for its real source tables; "
-        "a task whose data is not in Snowflake shows a declared gap - nothing is "
-        "estimated or invented. Read-only."
-    )
-    tabs = st.tabs([t[0] for t in REVIEW_TASKS])
-    for tab, (label, terms, gap) in zip(tabs, REVIEW_TASKS):
-        with tab:
-            st.subheader(label)
-            st.caption(gap)
-            table_explorer(label.split(" ")[0].lower(), terms, gap)
-
-
 def render_mailer_intelligence():
     st.title("Mailer Intelligence")
     st.caption(
@@ -1432,46 +1397,13 @@ def render_mailer_intelligence():
         )
 
 
-def render_roles_permissions():
-    st.title("Roles & Permissions")
-    st.caption(
-        "Platform access audit: staff/collaborator access map, app inventory and "
-        "connector scopes (the review's Task 8), plus THIS account's live grants. "
-        "Read-only."
-    )
-    tab_data, tab_session = st.tabs(["Access & app registers", "This session's grants"])
-    with tab_data:
-        st.caption(
-            "Searches the warehouse for the loaded access-audit tables "
-            "(user access map, app inventory). Load the registers to light this up."
-        )
-        table_explorer("t8", ["user", "access", "app", "permission", "audit"],
-                       "Load 30_app_inventory / 31_user_access_map into the warehouse to power this tab.")
-    with tab_session:
-        st.caption("Live from Snowflake for the CURRENT session role - proof of what this app can touch.")
-        for label, sql in [
-            ("Current context", "select current_user() as user, current_role() as role, "
-                                "current_warehouse() as warehouse, current_database() as database"),
-            ("Grants to current role", "show grants to role identifier(current_role())"),
-        ]:
-            st.markdown(f"**{label}**")
-            try:
-                st.dataframe(q(sql), use_container_width=True, height=240)
-            except Exception as e:  # noqa: BLE001
-                st.info(f"Not available for this role: {e}")
-
-
 # ── Route ────────────────────────────────────────────────────────────────────
 if section == "Data Analysis":
     render_data_analysis()
 elif section == "Ads Analytics":
     render_ads_analytics()
-elif section == "Mailer Intelligence":
-    render_mailer_intelligence()
-elif section.startswith("Business Review"):
-    render_business_review()
 else:
-    render_roles_permissions()
+    render_mailer_intelligence()
 
 st.markdown("---")
 st.caption("Source: Snowflake (Daton / Maplemonk) via get_active_session · read-only · Altair charts · one metric catalog shared with the web app.")
