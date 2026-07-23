@@ -342,9 +342,25 @@ def has_column(table: str, col: str) -> bool:
 # insights-shaped (campaign_name, spend, date_start); a table that does not
 # really exist is never referenced, and columns one member lacks are selected
 # as NULL so the union is always well-formed.
+# Columns that mark a table as a BREAKDOWN of the base insights (the same
+# spend split by a dimension). Unioning one into the base would COUNT THE SAME
+# SPEND TWICE, so any table carrying these is excluded from the source union
+# (they still power Cohort Exploration separately).
+BREAKDOWN_MARKERS = {"age", "gender", "country", "region", "state", "dma", "city",
+                     "impression_device", "device_platform", "publisher_platform",
+                     "platform_position", "placement"}
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
-def meta_source_tables():
-    """[(fqn, (columns...)), ...] — the Meta insights source tables."""
+def meta_source_report():
+    """Discover the Meta insights source tables with a NO-DOUBLE-COUNTING
+    guarantee. Candidates: every table named META_USA_ADS* in the MAPLEMONK and
+    MAPLEMONK1 schemas, plus any META*TEA* table anywhere in VAHDAM_DB/DATON.
+    A candidate is EXCLUDED (with the reason recorded) when it is:
+      - not insights-shaped (missing campaign_name / spend / date_start),
+      - a breakdown table (age/gender/device/geo columns - same spend, split),
+      - an exact duplicate feed (identical row count + total spend + date range
+        as an already-included table, checked against the LIVE data)."""
     def _cols(db, schema, name):
         try:
             c = q(f"select column_name from {db}.information_schema.columns "
@@ -354,25 +370,71 @@ def meta_source_tables():
         except Exception:  # noqa: BLE001
             return ()
 
-    base_db, base_schema, base_name = META_ADS.split(".", 2)
-    out = [(META_ADS, _cols(base_db, base_schema, base_name))]
-    for db in ("VAHDAM_DB", "DATON"):
+    def _sig(fqn):
+        """Live data signature: exact duplicates of a feed share all four."""
         try:
-            t = q(f"select table_schema, table_name "
-                  f"from {db}.information_schema.tables "
-                  "where table_type = 'BASE TABLE' "
-                  "and regexp_like(table_name, '.*META.*TEA.*|.*TEA.*META.*', 'i')")
-        except Exception:  # noqa: BLE001 — db absent / no grant: skip
+            r = q(f'select count(*) as n, round(coalesce(sum("SPEND"), 0), 2) as s, '
+                  f'min("DATE_START") as d0, max("DATE_START") as d1 from {fqn}')
+            row = r.iloc[0]
+            return (int(row["n"]), float(row["s"]), str(row["d0"]), str(row["d1"]))
+        except Exception:  # noqa: BLE001
+            return None
+
+    # 1) Collect candidates (base table first so it always wins ties).
+    cands = []
+    try:
+        t = q("select table_schema, table_name from VAHDAM_DB.information_schema.tables "
+              "where table_type = 'BASE TABLE' and ("
+              "  (table_schema in ('MAPLEMONK', 'MAPLEMONK1') and table_name ilike 'META_USA_ADS%')"
+              "  or regexp_like(table_name, '.*META.*TEA.*|.*TEA.*META.*', 'i'))")
+        cands += [("VAHDAM_DB", str(r["table_schema"]), str(r["table_name"]))
+                  for _, r in t.iterrows()]
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        t = q("select table_schema, table_name from DATON.information_schema.tables "
+              "where table_type = 'BASE TABLE' "
+              "and regexp_like(table_name, '.*META.*TEA.*|.*TEA.*META.*', 'i')")
+        cands += [("DATON", str(r["table_schema"]), str(r["table_name"]))
+                  for _, r in t.iterrows()]
+    except Exception:  # noqa: BLE001
+        pass
+    base_db, base_schema, base_name = META_ADS.split(".", 2)
+    cands = [(base_db, base_schema, base_name)] + \
+            sorted({c for c in cands if f"{c[0]}.{c[1]}.{c[2]}".upper() != META_ADS.upper()})
+
+    # 2) Gate each candidate; record every exclusion with its reason.
+    included, excluded, seen_sigs = [], [], {}
+    for db, schema, name in cands:
+        fqn = f"{db}.{schema}.{name}"
+        cols = _cols(db, schema, name)
+        if not cols:
+            excluded.append((fqn, "columns unreadable for this role"))
             continue
-        for _, r in t.iterrows():
-            schema, name = str(r["table_schema"]), str(r["table_name"])
-            fqn = f"{db}.{schema}.{name}"
-            if fqn.upper() == META_ADS.upper():
-                continue
-            cols = _cols(db, schema, name)
-            if {"campaign_name", "spend", "date_start"} <= set(cols):
-                out.append((fqn, cols))
-    return out
+        cset = set(cols)
+        if not {"campaign_name", "spend", "date_start"} <= cset:
+            excluded.append((fqn, "not insights-shaped (needs campaign_name, spend, date_start)"))
+            continue
+        marks = sorted(cset & BREAKDOWN_MARKERS)
+        if marks:
+            excluded.append((fqn, "breakdown table (" + ", ".join(marks)
+                             + ") - same spend split by dimension; unioning would double-count"))
+            continue
+        sig = _sig(fqn)
+        if sig is not None and sig in seen_sigs:
+            excluded.append((fqn, f"exact duplicate of {seen_sigs[sig]} "
+                                  f"(rows={sig[0]:,}, spend={sig[1]:,.2f}, {sig[2]}..{sig[3]})"))
+            continue
+        if sig is not None:
+            seen_sigs[sig] = fqn
+        included.append((fqn, cols))
+    if not included:  # never let discovery failures blank the app
+        included = [(META_ADS, _cols(base_db, base_schema, base_name))]
+    return {"included": included, "excluded": excluded}
+
+
+def meta_source_tables():
+    return meta_source_report()["included"]
 
 
 def _meta_src():
@@ -597,9 +659,13 @@ st.sidebar.caption(
     f"Costco ${BUDGETS['costco']:,}. Read-only — never written back to any platform."
 )
 try:
-    _msrc = meta_source_tables()
-    st.sidebar.caption("Meta sources (" + str(len(_msrc)) + "): "
-                       + " · ".join(t.split(".")[-1] for t, _ in _msrc))
+    _mrep = meta_source_report()
+    st.sidebar.caption("Meta sources (" + str(len(_mrep["included"])) + "): "
+                       + " · ".join(t.split(".")[-1] for t, _ in _mrep["included"]))
+    if _mrep["excluded"]:
+        with st.sidebar.expander(f"Excluded Meta tables ({len(_mrep['excluded'])}) — no double counting"):
+            for _xf, _xr in _mrep["excluded"]:
+                st.caption(f"`{_xf.split('.', 1)[1]}` — {_xr}")
 except Exception:  # noqa: BLE001 — informational only
     pass
 
