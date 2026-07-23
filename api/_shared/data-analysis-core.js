@@ -113,6 +113,23 @@ async function ads({ market = 'US', level = 'ad', since, until } = {}) {
   const raw = await adsCore.summary({ market, level, metricGroup: 'all', since, until });
   const platforms = (raw.platforms || []).map((p) => { let rows = []; if (p.ok && p.platform === 'meta') rows = metaRows(p); if (p.ok && p.platform === 'google') rows = googleRows(p); if (p.ok && p.platform === 'tiktok') rows = tiktokRows(p); return { platform: p.platform, connected: Boolean(p.connected), ok: Boolean(p.ok), source: p.source || null, fetched_at: p.fetched_at || null, status: p.status || null, error: p.error || null, need_env: p.need_env || [], rows, kpis: adKpis(rows), raw_note: p.hint || null }; });
   const rows = platforms.flatMap((p) => p.rows).sort((a,b) => b.spend - a.spend);
+  // Fallback: when the live Snowflake read yields no rows (PAT / network-policy
+  // blocked, or unconfigured on this deploy), serve a cached real-data snapshot
+  // so ad-level history stays viewable. Flips back to live automatically the
+  // moment live rows return.
+  if (!rows.length) {
+    try {
+      const snap = require('./ads-snapshot.json');
+      if (snap && Array.isArray(snap.rows) && snap.rows.length) {
+        const srows = snap.rows;
+        const sp = ['meta', 'google', 'tiktok'].map((name) => {
+          const pr = srows.filter((r) => String(r.platform || '').toLowerCase() === name);
+          return { platform: name, connected: false, ok: pr.length > 0, source: 'snapshot', fetched_at: snap.generated_at, status: null, error: null, need_env: [], rows: pr, kpis: adKpis(pr), raw_note: null };
+        });
+        return { ok: true, generated_at: iso(), cached: true, cached_at: snap.generated_at, market, level: 'ad', window: snap.window || raw.window, freshness: 'Cached snapshot of real Snowflake ad data — the live read is unavailable on this deployment (network policy pending); it resumes automatically once set.', connected_platforms: snap.connected_platforms || [], pending_platforms: snap.pending_platforms || [], kpis: adKpis(srows), platforms: sp, rows: srows, note: snap.note };
+      }
+    } catch (e) { /* no snapshot bundled — fall through to the live (empty) shape */ }
+  }
   return { ok: true, generated_at: iso(), market: raw.market, level: raw.level, window: raw.window, freshness: 'Fetched on request with cache disabled; source-platform processing and attribution latency still applies.', connected_platforms: raw.connected_platforms || [], pending_platforms: raw.pending_platforms || [], kpis: adKpis(rows), platforms, rows, note: raw.note };
 }
 
