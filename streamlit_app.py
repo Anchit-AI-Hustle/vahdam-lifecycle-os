@@ -15,7 +15,8 @@ identically everywhere):
     demographic / geo / device cohorts, comparison engine, spend + UGC trackers.
   • Ads Intelligence  — discovery over the ads warehouse (every ad/creative/
     tracker table that really exists), the full metric catalog (definition +
-    formula per metric) and the live accuracy calculator.
+    formula per metric), the live accuracy calculator, generated insights
+    (evidence-quoting, computed live) and the feedback log.
 
 Deploy: snowflake/streamlit/deploy.sql (CREATE STREAMLIT ...). Snowflake mints
 the app URL when the Streamlit object is created in the account.
@@ -1874,18 +1875,148 @@ def table_explorer(key, default_terms, gap_note):
             pass
 
 
+# ── INSIGHTS ENGINE — deterministic, evidence-quoting insights computed live
+# from the warehouse (never invented; every claim quotes the exact figures it
+# was computed from). Honors the current top-bar filter scope.
+def generated_insights():
+    w = meta_where()
+    tot = sql_sums(META_ADS, w)
+    drv = compute_all(tot)
+    out = []
+    if not tot.get("spend"):
+        return out
+    camps = sql_group_sums(META_ADS, w, ["campaign_name"])
+    for k in ("link_ctr", "cpc", "cpm", "frequency"):
+        fn = CATALOG_FN.get(k)
+        if fn and not camps.empty:
+            camps[k] = camps.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
+
+    # 1) Spend concentration
+    if not camps.empty and "spend" in camps.columns:
+        top3 = camps.nlargest(3, "spend")
+        share = top3["spend"].sum() / tot["spend"] * 100
+        out.append({
+            "Type": "Spend concentration",
+            "Insight": f"Top 3 campaigns hold {share:.1f}% of the {money(tot['spend'])} "
+                       f"spent in this window ({len(camps):,} campaigns in scope).",
+            "Evidence": " · ".join(f"{r['campaign_name']}: {money(r['spend'])}"
+                                   for _, r in top3.iterrows()),
+        })
+
+    # 2) Link-CTR outliers (only campaigns with spend >= $50, threshold stated)
+    if not camps.empty and {"link_ctr", "spend"}.issubset(camps.columns):
+        scored = camps[(camps["spend"] >= 50) & camps["link_ctr"].notna()]
+        avg_ctr = drv.get("link_ctr")
+        if len(scored) >= 2 and avg_ctr:
+            best, worst = scored.loc[scored["link_ctr"].idxmax()], scored.loc[scored["link_ctr"].idxmin()]
+            out.append({
+                "Type": "Creative winner",
+                "Insight": f"'{best['campaign_name']}' leads on link CTR at {best['link_ctr']:.2f}% "
+                           f"vs the portfolio's {avg_ctr:.2f}% "
+                           f"({(best['link_ctr'] / avg_ctr - 1) * 100:+.0f}% vs average).",
+                "Evidence": f"Spend {money(best['spend'])} · {best.get('inline_link_clicks', 0):,.0f} link clicks "
+                            f"on {best.get('impressions', 0):,.0f} impressions (min-spend gate $50).",
+            })
+            out.append({
+                "Type": "Creative laggard",
+                "Insight": f"'{worst['campaign_name']}' trails on link CTR at {worst['link_ctr']:.2f}% "
+                           f"vs the portfolio's {avg_ctr:.2f}%.",
+                "Evidence": f"Spend {money(worst['spend'])} · {worst.get('inline_link_clicks', 0):,.0f} link clicks "
+                            f"on {worst.get('impressions', 0):,.0f} impressions (min-spend gate $50).",
+            })
+
+    # 3) CPC efficiency spread
+    if not camps.empty and {"cpc", "spend"}.issubset(camps.columns):
+        sc = camps[(camps["spend"] >= 50) & camps["cpc"].notna()]
+        if len(sc) >= 2 and drv.get("cpc"):
+            hi = sc.loc[sc["cpc"].idxmax()]
+            if hi["cpc"] > drv["cpc"] * 1.25:
+                out.append({
+                    "Type": "Cost outlier",
+                    "Insight": f"'{hi['campaign_name']}' pays {money(hi['cpc'])} per link click, "
+                               f"{(hi['cpc'] / drv['cpc'] - 1) * 100:+.0f}% above the portfolio's {money(drv['cpc'])}.",
+                    "Evidence": f"Spend {money(hi['spend'])} · {hi.get('inline_link_clicks', 0):,.0f} link clicks.",
+                })
+
+    # 4) Frequency fatigue
+    if drv.get("frequency") and drv["frequency"] > 3:
+        out.append({
+            "Type": "Fatigue risk",
+            "Insight": f"Portfolio frequency is {drv['frequency']:.2f} - each person saw the ads "
+                       f"more than 3x in this window; watch for creative fatigue.",
+            "Evidence": f"{tot.get('impressions', 0):,.0f} impressions over {tot.get('reach', 0):,.0f} reached.",
+        })
+
+    # 5) Week-over-week momentum (last 7 days vs the 7 before, inside the scope)
+    try:
+        wow = q(f"select case when \"DATE_START\" > dateadd(day, -7, '{until}') then 'recent' "
+                f"else 'prior' end as half, sum(spend) as spend, sum(impressions) as impressions, "
+                f"sum(inline_link_clicks) as clicks from {META_ADS} {w} "
+                f"and \"DATE_START\" > dateadd(day, -14, '{until}') group by 1")
+        if len(wow) == 2:
+            r_ = wow.set_index("half")
+            sp_r, sp_p = float(r_.loc["recent", "spend"] or 0), float(r_.loc["prior", "spend"] or 0)
+            if sp_p > 0:
+                ctr_r = (float(r_.loc['recent', 'clicks'] or 0) / float(r_.loc['recent', 'impressions'] or 1)) * 100
+                ctr_p = (float(r_.loc['prior', 'clicks'] or 0) / float(r_.loc['prior', 'impressions'] or 1)) * 100
+                out.append({
+                    "Type": "Momentum (WoW)",
+                    "Insight": f"Spend moved {(sp_r / sp_p - 1) * 100:+.1f}% week over week "
+                               f"({money(sp_p)} -> {money(sp_r)}); link CTR {ctr_p:.2f}% -> {ctr_r:.2f}%.",
+                    "Evidence": f"Last 7 days ending {until} vs the 7 days before, same filters.",
+                })
+    except Exception:  # noqa: BLE001 — momentum is optional, never blocks the tab
+        pass
+
+    # 6) UGC vs non-UGC
+    try:
+        ug = q(f"select case when ad_name ilike '%ugc%' then 'UGC' else 'Non-UGC' end as bucket, "
+               f"sum(spend) as spend, sum(impressions) as impressions, "
+               f"sum(inline_link_clicks) as clicks from {META_ADS} {w} group by 1")
+        if len(ug) == 2:
+            u = ug.set_index("bucket")
+            cu = float(u.loc["UGC", "clicks"] or 0) / float(u.loc["UGC", "impressions"] or 1) * 100
+            cn = float(u.loc["Non-UGC", "clicks"] or 0) / float(u.loc["Non-UGC", "impressions"] or 1) * 100
+            out.append({
+                "Type": "UGC vs non-UGC",
+                "Insight": f"UGC creator ads run a {cu:.2f}% link CTR vs {cn:.2f}% for everything else "
+                           f"({'UGC ahead' if cu > cn else 'UGC behind'}).",
+                "Evidence": f"UGC spend {money(float(u.loc['UGC', 'spend'] or 0))} · "
+                            f"non-UGC spend {money(float(u.loc['Non-UGC', 'spend'] or 0))}.",
+            })
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+# ── FEEDBACK STORE — the ONE write path in the app: a dedicated feedback
+# table in the warehouse (never touches any platform or source table).
+FEEDBACK_TABLE = "VAHDAM_DB.MAPLEMONK.DASHBOARD_FEEDBACK"
+
+
+def ensure_feedback_table():
+    session.sql(
+        f"create table if not exists {FEEDBACK_TABLE} ("
+        "created_at timestamp_ltz default current_timestamp(), "
+        "submitted_by string default current_user(), "
+        "section string, analysis_view string, category string, "
+        "rating integer, feedback string)"
+    ).collect()
+
+
 def render_ads_intelligence():
     st.title("Ads Intelligence")
     st.caption(
         "Intelligence layer over the ads warehouse: discover every ad, creative "
-        "and tracker table that REALLY exists (nothing assumed), plus the ONE "
-        "metric catalog (definition + formula per metric, shared with the web "
-        "app) and the live accuracy calculator. A source that is not synced "
-        "into Snowflake shows a declared gap, never an estimate. Read-only."
+        "and tracker table that REALLY exists (nothing assumed), the ONE metric "
+        "catalog (shared with the web app), the live accuracy calculator, "
+        "evidence-quoting generated insights, and the feedback log. Sources are "
+        "read-only; only the feedback tab writes, to its own dedicated table."
     )
-    tab_tables, tab_creatives, tab_trackers, tab_catalog, tab_accuracy = st.tabs(
+    (tab_tables, tab_creatives, tab_trackers, tab_catalog, tab_accuracy,
+     tab_insights, tab_feedback) = st.tabs(
         ["Ad platform tables", "Creatives & assets", "Trackers (UGC / retail / sales)",
-         "Metric catalog", "Accuracy calculator"])
+         "Metric catalog", "Accuracy calculator", "Insights generated", "Feedback"])
     with tab_tables:
         table_explorer(
             "ai_tables", ["meta", "google", "tiktok", "ads", "insights"],
@@ -1939,6 +2070,104 @@ def render_ads_intelligence():
                 "Video metrics (hook/hold/through) read 'unavailable' until the Meta "
                 "video-quartile child tables are flattened into the row — honest by design."
             )
+
+    with tab_insights:
+        st.subheader(f"Insights generated — {platform_label}, {since} – {until}")
+        st.caption(
+            "Computed live from the warehouse for the CURRENT top-bar filter scope. "
+            "Every insight quotes the exact figures it was derived from — nothing "
+            "is estimated or invented; an angle with insufficient data simply "
+            "does not appear."
+        )
+        if platform != "Meta":
+            st.info(f"Insights are computed on the Meta table today; {platform} joins "
+                    "when its column-level metric mapping is finalised.")
+        else:
+            ins = generated_insights()
+            if not ins:
+                st.warning("No spend rows in this scope to generate insights from — "
+                           "widen the window or clear filters.")
+            else:
+                for i in ins:
+                    st.markdown(f"**{i['Type']}** — {i['Insight']}")
+                    st.caption("Evidence: " + i["Evidence"])
+                idf = pd.DataFrame(ins)
+                st.dataframe(idf, use_container_width=True, hide_index=True, height=260)
+                st.download_button("Download insights CSV", idf.to_csv(index=False).encode(),
+                                   "insights_generated.csv", "text/csv", key="ins_dl")
+                st.markdown("---")
+                if st.button("Write a narrative summary (Snowflake Cortex AI)", key="ins_cortex"):
+                    prompt = ("You are a performance-marketing analyst. Using ONLY the facts in this "
+                              "JSON (do not add numbers that are not present), write a short, plain "
+                              "narrative summary with clear next actions:\n" + json.dumps(ins))
+                    _cx_err = None
+                    for _m in ("llama3.1-70b", "mistral-large2", "snowflake-arctic"):
+                        try:
+                            r = session.sql("select snowflake.cortex.complete(?, ?) as t",
+                                            params=[_m, prompt]).collect()
+                            st.markdown(r[0]["T"])
+                            st.caption(f"AI-written narrative (Snowflake Cortex · {_m}) over the "
+                                       "computed figures above — verify claims against the evidence table.")
+                            _cx_err = None
+                            break
+                        except Exception as e:  # noqa: BLE001 — model/priv not enabled: try next
+                            _cx_err = e
+                    if _cx_err is not None:
+                        st.info(f"Snowflake Cortex is not available for this account/role: {_cx_err}")
+
+    with tab_feedback:
+        st.subheader("Feedback")
+        st.caption(
+            f"Logged to `{FEEDBACK_TABLE}` in the warehouse — the app's ONE write "
+            "path; source and platform tables stay strictly read-only. Feedback is "
+            "stamped with your Snowflake user and timestamp."
+        )
+        try:
+            ensure_feedback_table()
+            _fb_ready = True
+        except Exception as e:  # noqa: BLE001
+            _fb_ready = False
+            st.warning(
+                f"This role cannot create/write `{FEEDBACK_TABLE}`: {e}. "
+                "Grant it once from an admin role: "
+                f"GRANT CREATE TABLE ON SCHEMA VAHDAM_DB.MAPLEMONK TO ROLE <app role>; "
+                f"then GRANT INSERT, SELECT ON TABLE {FEEDBACK_TABLE} TO ROLE <app role>;"
+            )
+        if _fb_ready:
+            with st.form("fb_form", clear_on_submit=True):
+                c1, c2 = st.columns([1.2, 0.8])
+                fb_cat = c1.selectbox("Category", ["Data issue", "Metric definition", "Design / UX",
+                                                   "Feature request", "Insight quality", "Other"])
+                fb_rating = c2.slider("Rating", 1, 5, 4, help="1 = broken · 5 = great")
+                fb_text = st.text_area("Feedback", placeholder="What is wrong, missing, or working well?")
+                submitted = st.form_submit_button("Submit feedback")
+            if submitted:
+                if not fb_text.strip():
+                    st.warning("Write a line of feedback before submitting.")
+                else:
+                    try:
+                        session.sql(
+                            f"insert into {FEEDBACK_TABLE} "
+                            "(section, analysis_view, category, rating, feedback) "
+                            "values (?, ?, ?, ?, ?)",
+                            params=[section, view or "-", fb_cat, int(fb_rating), fb_text.strip()],
+                        ).collect()
+                        st.success("Feedback recorded.")
+                    except Exception as e:  # noqa: BLE001
+                        st.error(f"Could not record feedback: {e}")
+            st.markdown("**All feedback (newest first)**")
+            try:
+                # Uncached read on purpose: a submission must show up immediately.
+                fb = session.sql(f"select * from {FEEDBACK_TABLE} order by created_at desc").to_pandas()
+                fb.columns = [c.lower() for c in fb.columns]
+                if fb.empty:
+                    st.info("No feedback logged yet — the first submission appears here.")
+                else:
+                    st.dataframe(fb, use_container_width=True, hide_index=True, height=360)
+                    st.download_button("Download feedback CSV", fb.to_csv(index=False).encode(),
+                                       "dashboard_feedback.csv", "text/csv", key="fb_dl")
+            except Exception as e:  # noqa: BLE001
+                st.info(f"Feedback log unreadable: {e}")
 
 
 # ── Route ────────────────────────────────────────────────────────────────────
