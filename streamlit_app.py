@@ -381,9 +381,9 @@ section = st.sidebar.radio(
 
 # The LHS menu carries the ANALYSIS VIEWS (use cases); the data filters live in
 # the top bar of the page, never in this menu.
-ADS_VIEWS = ["Overview & priority metrics", "Single campaign", "Multi-campaign compare",
-             "Ad explorer (all fields)", "Campaign / ad rows", "Cohorts & segmentation",
-             "Spend tracker", "UGC creator ads"]
+ADS_VIEWS = ["Omnichannel Master View", "Comparison Engine", "Cohort Exploration",
+             "Overview & priority metrics", "Single entity deep-dive",
+             "Ad explorer (all fields)", "Spend tracker", "UGC creator ads"]
 DA_VIEWS = ["Sources & budget", "Portfolio KPIs", "Metric catalog", "Accuracy calculator",
             "Retail sales tracker"]
 if section == "Ads Analytics":
@@ -821,6 +821,65 @@ METRIC_PRIORITY = ["spend", "impressions", "reach", "frequency", "clicks",
                    "landing_page_views", "add_to_cart", "date_start"]
 
 
+CREATED_CANDS = ("date_created", "created_time", "created_at", "ad_created_time")
+EDITED_CANDS = ("updated_time", "last_updated", "modified_time", "edited_on")
+DISPLAY_NAME = {"campaign_name": "Campaign", "adset_name": "Ad Set", "ad_name": "Ad",
+                "campaign_id": "Campaign ID", "adset_id": "Ad Set ID", "ad_id": "Ad ID",
+                "spend": "Spend", "impressions": "Impressions", "reach": "Reach",
+                "cpm": "CPM", "clicks": "Clicks", "ctr": "CTR", "link_ctr": "Link CTR",
+                "cpc": "CPC", "inline_link_clicks": "Link Clicks", "frequency": "Frequency",
+                "cost_per_reach": "Cost per Reach", "add_to_cart": "Add to Cart",
+                "purchases": "Purchases", "cost_per_purchase": "CPA", "roas": "ROAS"}
+SPEC_METRIC_ORDER = ["Spend", "Impressions", "Reach", "CPM",          # 1. Delivery
+                     "Clicks", "CTR", "Link CTR", "CPC",              # 2. Engagement
+                     "Add to Cart", "Purchases", "CPA", "ROAS"]       # 3. Conversion
+
+
+def spec_frame(df):
+    """THE dynamic column-array logic: hierarchy columns (per the Granularity
+    filter — Campaign / +Ad Set / +Ad) left-most, then Created At + Edited On,
+    then metrics strictly in Delivery -> Engagement -> Conversion order, then
+    ids/extras, all-empty columns last (order_table already sank them)."""
+    if df is None or getattr(df, "empty", True):
+        return df
+    df = order_table(df)
+    ren = {}
+    for c in df.columns:
+        if c in CREATED_CANDS and "Created At" not in ren.values():
+            ren[c] = "Created At"
+        elif c in EDITED_CANDS and "Edited On" not in ren.values():
+            ren[c] = "Edited On"
+        elif c in DISPLAY_NAME:
+            ren[c] = DISPLAY_NAME[c]
+    df = df.rename(columns=ren)
+    df = df.loc[:, ~df.columns.duplicated()]
+    hier = [h for h in ("Campaign", "Ad Set", "Ad") if h in df.columns]
+    meta = [m for m in ("Created At", "Edited On") if m in df.columns]
+    prio = [p for p in SPEC_METRIC_ORDER if p in df.columns and df[p].notna().any()]
+    ids = [i for i in ("Campaign ID", "Ad Set ID", "Ad ID") if i in df.columns]
+    rest = [c for c in df.columns if c not in hier + meta + prio + ids]
+    return df[hier + meta + prio + ids + rest]
+
+
+def spec_colcfg():
+    """st.column_config formatting: currency for Spend/CPA/CPM/CPC/Cost-per-
+    Reach, percentages for CTRs, x-multiple for ROAS."""
+    money_fmt = {"format": "$%.2f"}
+    return {
+        "Spend": st.column_config.NumberColumn("Spend", **money_fmt),
+        "CPM": st.column_config.NumberColumn("CPM", **money_fmt),
+        "CPC": st.column_config.NumberColumn("CPC", **money_fmt),
+        "CPA": st.column_config.NumberColumn("CPA", **money_fmt),
+        "Cost per Reach": st.column_config.NumberColumn("Cost per Reach", format="$%.4f"),
+        "CTR": st.column_config.NumberColumn("CTR", format="%.2f%%"),
+        "Link CTR": st.column_config.NumberColumn("Link CTR", format="%.2f%%"),
+        "ROAS": st.column_config.NumberColumn("ROAS", format="%.2fx"),
+        "Impressions": st.column_config.NumberColumn("Impressions", format="%d"),
+        "Reach": st.column_config.NumberColumn("Reach", format="%d"),
+        "Clicks": st.column_config.NumberColumn("Clicks", format="%d"),
+    }
+
+
 def order_table(df, lead=IDENT_LEAD):
     """Presentation order for EVERY table: identifier columns first, populated
     columns next, columns whose values are ALL empty pushed to the end (kept
@@ -1065,13 +1124,14 @@ def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
         st.subheader("Per-ad breakdown (all metric fields + derived)")
         if "ad_name" in df.columns:
             per_ad = sql_group_sums(META_ADS, ew, ident_cols("ad"))
-            for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
+            for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency", "roas", "cost_per_purchase"):
                 fn = CATALOG_FN.get(k)
                 if fn:
                     per_ad[k] = per_ad.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
             if "spend" in per_ad.columns:
                 per_ad = per_ad.sort_values("spend", ascending=False)
-            st.dataframe(order_table(per_ad), use_container_width=True, height=420)
+            st.dataframe(spec_frame(per_ad), use_container_width=True, height=420,
+                         hide_index=True, column_config=spec_colcfg())
         else:
             st.info("No ad_name column at this grain.")
 
@@ -1148,11 +1208,12 @@ def all_campaigns_block(key):
         return
     size, off = pager(total, key + "_cr")
     df = sql_group_sums(META_ADS, w, gcols, limit=size, offset=off)
-    for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
+    for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency", "roas", "cost_per_purchase"):
         fn = CATALOG_FN.get(k)
         if fn:
             df[k] = df.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
-    st.dataframe(order_table(df), use_container_width=True, height=420)
+    st.dataframe(spec_frame(df), use_container_width=True, height=420,
+                 hide_index=True, column_config=spec_colcfg())
     opts = campaign_options(account, marketplace, since, until, LEVEL_COL.get(level, "campaign_name"))
     pick = st.selectbox(f"Open a {LEVEL_LABEL.get(level, 'Campaign').lower()} detail page",
                         ["—"] + opts, key=key + "_open")
@@ -1263,8 +1324,22 @@ def render_ads_analytics():
             )
             st.dataframe(generic_rows(table), use_container_width=True, height=460)
 
-    if view == "Campaign / ad rows":
-        st.subheader(f"{platform_label} — {LEVEL_LABEL.get(level, 'Campaign')} level")
+    if view == "Omnichannel Master View":
+        # Dynamic typography: title follows Channel + Granularity + Date filters.
+        st.subheader(f"{platform_label.replace(' Ads', '')} {LEVEL_LABEL.get(level, 'Campaign')} "
+                     f"Performance Metrics: {since} – {until}")
+        if platform == "Meta":
+            _ks = sql_sums(META_ADS, meta_where())
+            _kd = compute_all(_ks)
+            k1, k2, k3, k4, k5, k6, k7 = st.columns(7)
+            k1.metric("Spend", money(_ks.get("spend")))
+            k2.metric("Impressions", f"{_ks.get('impressions', 0):,.0f}")
+            k3.metric("Reach", f"{_ks.get('reach', 0):,.0f}")
+            k4.metric("CPM", money(_kd.get("cpm")))
+            k5.metric("Clicks", f"{_ks.get('clicks', 0):,.0f}")
+            k6.metric("Link CTR", pctf(_kd.get("link_ctr")))
+            k7.metric("CPC", money(_kd.get("cpc")))
+            st.divider()
         if platform == "Meta":
             gcols = ident_cols(level)
             w = meta_where()
@@ -1274,11 +1349,12 @@ def render_ads_analytics():
             else:
                 size, off = pager(total, "rows")
                 df = sql_group_sums(META_ADS, w, gcols, limit=size, offset=off)
-                for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency"):
+                for k in ("link_ctr", "ctr", "cpc", "cpm", "cost_per_reach", "frequency", "roas", "cost_per_purchase"):
                     fn = CATALOG_FN.get(k)
                     if fn:
                         df[k] = df.apply(lambda r, f=fn: f(r.to_dict()), axis=1)
-                st.dataframe(order_table(df), use_container_width=True, height=520)
+                st.dataframe(spec_frame(df), use_container_width=True, height=520,
+                             hide_index=True, column_config=spec_colcfg())
                 opts_r = campaign_options(account, marketplace, since, until, LEVEL_COL.get(level, "campaign_name"))
                 pick_r = st.selectbox(f"Open a {LEVEL_LABEL.get(level, 'Campaign').lower()} detail page",
                                       ["—"] + opts_r, key="rows_open")
@@ -1303,8 +1379,8 @@ def render_ads_analytics():
                 except Exception as e:  # noqa: BLE001
                     st.info(f"Could not read {table}: {e}")
 
-    if view == "Cohorts & segmentation":
-        st.subheader("Cohorts — every factor the warehouse carries")
+    if view == "Cohort Exploration":
+        st.subheader(f"{platform_label.replace(' Ads', '')} Cohort Exploration: {since} – {until}")
         st.caption(
             "Cohorts by age, gender, region/state (plus a US census-region rollup of "
             "states), country, DMA, city, device and placement — whichever dimensions "
@@ -1446,7 +1522,7 @@ def render_ads_analytics():
             st.info("Google cohort breakdowns depend on the segment tables available; Meta/TikTok carry the richest demographic/geo splits.")
 
     # ── SINGLE CAMPAIGN — full deep-dive on one campaign ─────────────────────
-    if view == "Single campaign":
+    if view == "Single entity deep-dive":
         if platform != "Meta":
             st.info("Single-campaign deep-dive runs on the Meta table; Google/TikTok show raw rows in 'Campaign / ad rows'.")
         else:
@@ -1459,7 +1535,8 @@ def render_ads_analytics():
                 camp = st.selectbox(f"{etype} (ordered by spend)", opts, key="single_pick")
                 render_campaign_detail(camp, "single", ecol)
     # ── MULTI-CAMPAIGN COMPARE — every metric, side by side ──────────────────
-    if view == "Multi-campaign compare":
+    if view == "Comparison Engine":
+        st.subheader(f"{platform_label.replace(' Ads', '')} Comparison Engine: {since} – {until}")
         if platform != "Meta":
             st.info("Multi-campaign comparison runs on the Meta table.")
         else:
@@ -1570,7 +1647,8 @@ def render_ads_analytics():
             else:
                 size, off = pager(total, "expl", default_size=1000)
                 df = meta_raw(account, marketplace, since, until, None, size, off)
-                st.dataframe(order_table(df), use_container_width=True, height=520)
+                st.dataframe(spec_frame(df), use_container_width=True, height=520,
+                             hide_index=True, column_config=spec_colcfg())
                 st.download_button("Download this page as CSV (all fields)",
                                    df.to_csv(index=False).encode(), "meta_ads_all_fields.csv", "text/csv")
 
