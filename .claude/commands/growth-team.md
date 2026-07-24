@@ -24,6 +24,20 @@ You are operating the **Vahdam Lifecycle/Growth OS** for a coffee + wellness D2C
 | **Database (query + architecture)** | `/db` | Supabase skill, `supabase/migrations/` |
 | **Ship** | `/ship` | `vercel-plugin:deploy` |
 
+## Marketing skills pack (every one a complete job, mega-prompt discipline)
+| Skill | In → Out |
+|---|---|
+| `/campaign-audit` | campaign data → wasted spend + leaks, dollars ranked |
+| `/lp-audit` | URL → headline + CTA fixes, impact ranked |
+| `/ab-test` | results → significance + the next test |
+| `/competitor-teardown` | rival page → angles to beat them |
+| `/utm` | campaign description → clean tracking spec |
+| `/email-sequence` | ICP + offer → full nurture flow (→ `/email-flow`) |
+| `/content-repurposer` | one post → thread, email, hooks |
+| `/icp-builder` | product + quotes → sharp ICP |
+| `/ad-copy-matrix` | brief → 20 variations (5 angles × 4 awareness) |
+| `/creative-brief` | angle → designer-ready brief (→ `/ad-creative`, `/design`) |
+
 ## How to dispatch
 1. If the request maps cleanly to one command above, invoke that command/skill.
 2. If it spans verticals (e.g. "plan + create + schedule a winback"), run them in order: plan → create assets (mailer/ad/LP) → wire data → report. Keep the user in the loop between phases.

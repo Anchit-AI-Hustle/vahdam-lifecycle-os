@@ -56,6 +56,16 @@ const AMBIENT_PROMPT_PREAMBLE = `Photoreal ambient lifestyle backdrop for VAHDAM
 Scene:
 `;
 
+// Reels-grade cinematic frame — a still that is DESIGNED TO BE ANIMATED
+// (Higgsfield image-to-video, Ken Burns, parallax). Distinct from 'ad': no
+// baked-in text (kinetic type is layered at motion time), strong depth
+// separation for parallax, and clear negative space where type will land.
+// Used when mode === 'reels'.
+const REELS_PROMPT_PREAMBLE = `Cinematic 9:16 hero frame for a VAHDAM India premium tea Reel — the opening shot of a high-end social video, graded like a film still. Composition rules: strong foreground / midground / background depth separation (for parallax animation), a single clear subject, generous negative space in the upper third where kinetic typography will be layered later — so NO text, NO logos, NO watermarks, NO UI in the frame. Movement cues frozen mid-action welcome: steam curling, tea pouring, leaves drifting. Palette accents: deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. Packaging, if present, shows a gold botanical illustration only — NO readable lettering (label out of focus or angled away; never garbled fake text). Editorial food-film lighting, shallow depth of field, filmic colour grade.
+
+Frame:
+`;
+
 // Universal quality bar appended to every image prompt (all modes). Excludes
 // any "no text" directive on purpose — the per-mode preambles above own the
 // text policy (ads bake in an overlay; photos/designs handle it themselves).
@@ -128,6 +138,7 @@ module.exports = async function handler(req, res) {
   const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE
     : (mode === 'ad') ? AD_PROMPT_PREAMBLE
     : (mode === 'ambient') ? AMBIENT_PROMPT_PREAMBLE
+    : (mode === 'reels') ? REELS_PROMPT_PREAMBLE
     : IMAGE_PROMPT_PREAMBLE;
   // Reserve room so the quality bar always survives the 4000-char cap.
   const finalPrompt = (preamble + userPrompt).substring(0, 4000 - QUALITY_SUFFIX.length) + QUALITY_SUFFIX;
