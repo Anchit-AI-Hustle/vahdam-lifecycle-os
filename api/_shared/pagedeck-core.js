@@ -13,6 +13,8 @@
  */
 
 const supa = require('./supa.js');
+// Global live-connector kill-switch (default OFF).
+const { liveConnectorsEnabled } = require('./live-connectors.js');
 
 function clean(v) { return String(v == null ? '' : v).trim(); }
 function nowIso() { return new Date().toISOString(); }
@@ -23,6 +25,9 @@ function first(o, keys, fallback) {
 }
 
 async function fetchConfigured(url, kind) {
+  // Live connectors default OFF — never fetch a live PageDeck export URL while
+  // disabled; callers fall back to the Supabase mirror table.
+  if (!liveConnectorsEnabled()) return { ok: false, connected: false, live_connectors_disabled: true, rows: [], source: kind, note: 'Live connectors are disabled (LIVE_CONNECTORS is off) — using the Supabase mirror table instead of a live PageDeck fetch.' };
   if (!url) return { ok: false, connected: false, rows: [], source: kind, note: `Set ${kind} export URL or load the Supabase mirror table.` };
   const headers = { accept: 'application/json' };
   const key = clean(process.env.PAGEDECK_API_KEY);

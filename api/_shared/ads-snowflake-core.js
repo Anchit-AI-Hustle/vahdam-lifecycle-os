@@ -37,7 +37,11 @@ function cfg() {
     role: (process.env.SNOWFLAKE_ROLE || '').trim(),
   };
 }
-function isConfigured() { const c = cfg(); return !!(c.account && c.user && c.pat && c.warehouse); }
+const { liveConnectorsEnabled } = require('./live-connectors.js');
+// Live connectors are off by default (LIVE_CONNECTORS=on to enable). With the
+// switch off, isConfigured() is false so every op returns the read-only
+// would_query stub and no connection to Snowflake is ever opened.
+function isConfigured() { const c = cfg(); return liveConnectorsEnabled() && !!(c.account && c.user && c.pat && c.warehouse); }
 
 const PLATFORMS = ['meta', 'google', 'tiktok'];
 const ACCOUNTS = ['target', 'costco']; // budgets: Target $1000/day, Costco $300/day (editable)
@@ -152,8 +156,11 @@ async function runStatement(sql, timeoutMs = 45000) {
 }
 
 function notConnected(sql, extra) {
-  return Object.assign({ ok: false, connected: false, not_connected: true, would_query: sql,
-    hint: 'Set SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PAT, SNOWFLAKE_WAREHOUSE (+ SNOWFLAKE_DATABASE/ROLE) in Vercel env to run this read-only query for real. The SQL above is exactly what will be sent.' }, extra || {});
+  const gated = !liveConnectorsEnabled();
+  return Object.assign({ ok: false, connected: false, not_connected: true, live_connectors_disabled: gated, would_query: sql,
+    hint: gated
+      ? 'Live connectors are disabled (LIVE_CONNECTORS is off). The app is running on cached/snapshot data and will not query Snowflake. Set LIVE_CONNECTORS=on (plus the SNOWFLAKE_* env vars) to run this read-only query for real. The SQL above is exactly what would be sent.'
+      : 'Set SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PAT, SNOWFLAKE_WAREHOUSE (+ SNOWFLAKE_DATABASE/ROLE) in Vercel env to run this read-only query for real. The SQL above is exactly what will be sent.' }, extra || {});
 }
 
 function splitTable(fqn) {
@@ -235,9 +242,12 @@ function status() {
     ok: true, configured: isConfigured(), source: 'snowflake',
     platforms: PLATFORMS, accounts: ACCOUNTS, budgets: budgets(),
     tables: sources(),
+    live_connectors_disabled: !liveConnectorsEnabled(),
     note: isConfigured()
       ? 'Snowflake connected — live ad data from the configured tables (read-only).'
-      : 'Snowflake not configured. Set SNOWFLAKE_* env vars to pull live ad data; every op returns the exact read-only SQL it will run until then. No figures are fabricated.',
+      : (!liveConnectorsEnabled()
+        ? 'Live connectors are disabled (LIVE_CONNECTORS is off) — running on cached/snapshot ad data. No connection to Snowflake is made. Set LIVE_CONNECTORS=on plus SNOWFLAKE_* env vars to pull live data. No figures are fabricated.'
+        : 'Snowflake not configured. Set SNOWFLAKE_* env vars to pull live ad data; every op returns the exact read-only SQL it will run until then. No figures are fabricated.'),
   };
 }
 
@@ -250,6 +260,10 @@ async function ping() {
   const c = cfg();
   const present = { account: !!c.account, user: !!c.user, pat: !!c.pat, warehouse: !!c.warehouse, database: !!c.database, role: !!c.role };
   const missing = ['account', 'user', 'pat', 'warehouse'].filter((k) => !present[k]).map((k) => `SNOWFLAKE_${k.toUpperCase()}`);
+  if (!liveConnectorsEnabled()) {
+    return { ok: false, connected: false, configured: false, reachable: false, live_connectors_disabled: true, present,
+      hint: 'Live connectors are disabled (LIVE_CONNECTORS is off). The app runs on cached/snapshot data and will not reach Snowflake. Set LIVE_CONNECTORS=on (plus the SNOWFLAKE_* env vars) to test a live connection.' };
+  }
   if (!isConfigured()) {
     return { ok: false, connected: false, configured: false, reachable: false, present, missing,
       hint: `Set ${missing.join(', ')} in Vercel (a read-only PAT for SNOWFLAKE_PAT). The account is the org-account identifier, e.g. UXDEIHW-MO06981.` };

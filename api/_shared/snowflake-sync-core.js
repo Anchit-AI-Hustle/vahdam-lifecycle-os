@@ -38,9 +38,12 @@ function cfg() {
   };
 }
 
+const { liveConnectorsEnabled } = require('./live-connectors.js');
+// Live connectors default OFF (LIVE_CONNECTORS=on to enable). While off, this
+// reports not-configured so no live Snowflake sync is ever attempted.
 function isConfigured() {
   const c = cfg();
-  return !!(c.account && c.user && c.pat && c.warehouse && c.database);
+  return liveConnectorsEnabled() && !!(c.account && c.user && c.pat && c.warehouse && c.database);
 }
 
 // The packaged default daily query. Expected to yield columns:

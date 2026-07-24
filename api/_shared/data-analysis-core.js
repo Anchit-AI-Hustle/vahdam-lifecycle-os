@@ -7,6 +7,9 @@ const klaviyo = require('./klaviyo-core.js');
 const webengage = require('./webengage-core.js');
 const pagedeck = require('./pagedeck-core.js');
 const alerts = require('./alert-channels.js');
+// Env-driven sender identity (no hardcoded personal mailbox).
+const { senderIdentity } = require('./live-connectors.js');
+const SENDER = () => senderIdentity();
 
 const iso = () => new Date().toISOString();
 const n = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
@@ -17,9 +20,9 @@ const fingerprint = (x) => crypto.createHash('sha1').update(String(x)).digest('h
 
 const DEFAULT_SETTINGS = Object.freeze({
   id: 'default', enabled: true, cadence_hours: 1,
-  sender_email: 'anchit.tandon@vahdam.com',
+  sender_email: SENDER(),
   channels: { gmail: true, google_chat: false, sms: false },
-  recipients: { email: ['anchit.tandon@vahdam.com'], sms: [] },
+  recipients: { email: SENDER() ? [SENDER()] : [], sms: [] },
   thresholds: {
     ad_roas_min: 1.5, ad_ctr_drop_pct: 0.25, ad_spend_spike_pct: 0.5,
     ad_spend_no_conversion: 200, mailer_open_rate_min: 0.2,
@@ -32,7 +35,7 @@ const DEFAULT_SETTINGS = Object.freeze({
 });
 function mergeSettings(row) {
   const x = row || {};
-  return { ...DEFAULT_SETTINGS, ...x, sender_email: 'anchit.tandon@vahdam.com',
+  return { ...DEFAULT_SETTINGS, ...x, sender_email: SENDER(),
     channels: { ...DEFAULT_SETTINGS.channels, ...(x.channels || {}) },
     recipients: { ...DEFAULT_SETTINGS.recipients, ...(x.recipients || {}) },
     thresholds: { ...DEFAULT_SETTINGS.thresholds, ...(x.thresholds || {}) },
@@ -58,7 +61,7 @@ async function saveSettings(input, updatedBy) {
       start_hour: clamp(x.quiet_hours && x.quiet_hours.start_hour, 0, 23, old.quiet_hours.start_hour), end_hour: clamp(x.quiet_hours && x.quiet_hours.end_hour, 0, 23, old.quiet_hours.end_hour),
       critical_bypass: boolOr(x.quiet_hours, 'critical_bypass', old.quiet_hours.critical_bypass) },
   });
-  const payload = { id: 'default', enabled: row.enabled, cadence_hours: row.cadence_hours, sender_email: 'anchit.tandon@vahdam.com', channels: row.channels,
+  const payload = { id: 'default', enabled: row.enabled, cadence_hours: row.cadence_hours, sender_email: SENDER(), channels: row.channels,
     recipients: row.recipients, thresholds: row.thresholds, cooldown_minutes: row.cooldown_minutes, quiet_hours: row.quiet_hours, updated_by: updatedBy || null, updated_at: iso() };
   const saved = await safe(supa.insert('analytics_alert_settings', [payload], { upsertOn: 'id' }), null);
   return { ok: Boolean(saved), persisted: Boolean(saved), settings: row, note: saved ? 'Alert settings saved.' : 'The settings table is not available; apply the Data Analysis migration.' };
@@ -190,7 +193,7 @@ function quietNow(q){if(!q||!q.enabled)return false;try{const h=Number(new Intl.
 async function dedupe(items,settings){const rows=await safe(supa.select('analytics_anomaly_state',{order:'last_seen.desc',limit:1000}),[]),by=new Map((rows||[]).map((r)=>[r.fingerprint,r])),cut=Date.now()-settings.cooldown_minutes*60000,send=[];for(const a of items){const p=by.get(a.id),last=p&&p.last_sent_at?new Date(p.last_sent_at).getTime():0;if(!p||last<cut)send.push(a);await safe(supa.insert('analytics_anomaly_state',[{fingerprint:a.id,status:'open',first_seen_at:p&&p.first_seen_at||a.detected_at,last_seen_at:a.detected_at,last_sent_at:p&&p.last_sent_at||null,occurrence_count:n(p&&p.occurrence_count)+1,severity:a.severity,detail:a,updated_at:a.detected_at}],{upsertOn:'fingerprint'}),null);}return send;}
 async function markSent(items){const at=iso();for(const a of items||[])await safe(supa.update('analytics_anomaly_state',{last_sent_at:at,updated_at:at},{fingerprint:`eq.${a.id}`}),null);}
 const esc=(s)=>String(s==null?'':s).replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
-function alertMessage(items){const lines=items.map((a)=>`${a.severity.toUpperCase()} · ${a.market} · ${a.source} · ${a.metric}: ${a.message}`),rows=items.map((a)=>`<tr><td>${esc(a.severity)}</td><td>${esc(a.market)}</td><td>${esc(a.source)}</td><td><b>${esc(a.metric)}</b><br>${esc(a.message)}</td></tr>`).join('');return{subject:`[VAHDAM] ${items.some((a)=>a.severity==='critical')?'Critical ':''}Data Analysis anomalies: ${items.length}`,text:`VAHDAM Lifecycle OS\nSender: anchit.tandon@vahdam.com\n\n${lines.join('\n')}`,html:`<!doctype html><html><body style="font-family:Arial,sans-serif"><h2>VAHDAM Lifecycle OS anomaly review</h2><table>${rows}</table><p>From anchit.tandon@vahdam.com · automated hourly analysis</p></body></html>`};}
+function alertMessage(items){const lines=items.map((a)=>`${a.severity.toUpperCase()} · ${a.market} · ${a.source} · ${a.metric}: ${a.message}`),rows=items.map((a)=>`<tr><td>${esc(a.severity)}</td><td>${esc(a.market)}</td><td>${esc(a.source)}</td><td><b>${esc(a.metric)}</b><br>${esc(a.message)}</td></tr>`).join('');return{subject:`[VAHDAM] ${items.some((a)=>a.severity==='critical')?'Critical ':''}Data Analysis anomalies: ${items.length}`,text:`VAHDAM Lifecycle OS${SENDER()?`\nSender: ${SENDER()}`:''}\n\n${lines.join('\n')}`,html:`<!doctype html><html><body style="font-family:Arial,sans-serif"><h2>VAHDAM Lifecycle OS anomaly review</h2><table>${rows}</table><p>${SENDER()?`From ${esc(SENDER())} · `:''}automated hourly analysis</p></body></html>`};}
 async function latestRun(){const r=await safe(supa.select('analytics_hourly_runs',{order:'started_at.desc',limit:1}),[]);return r&&r[0]||null;}
 async function runHourly({force=false,trigger='schedule'}={}){
   const settings=await loadSettings(),last=await latestRun();if(!settings.enabled)return{ok:true,skipped:true,reason:'disabled_in_alert_settings',settings};if(!force&&last&&last.started_at&&Date.now()-new Date(last.started_at).getTime()<settings.cadence_hours*3600000-300000)return{ok:true,skipped:true,reason:`cadence_${settings.cadence_hours}h_not_due`,last_run_at:last.started_at,settings};

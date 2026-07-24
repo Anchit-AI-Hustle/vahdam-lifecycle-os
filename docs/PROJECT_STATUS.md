@@ -48,7 +48,7 @@ run_agentic_campaign* · generate_mailer_assets* · klaviyo` (*=writes, explicit
 - **`/analytics`** (data-analysis) — real US/UK market data, WoW/MoM/YoY selector, **hover tooltips show the exact metric at each point**, CSV export.
 - **USA D2C Dashboard (`/usa-d2c-dashboard`)** — the two-view (Executive + Task-by-Task) enterprise report.
 - **Data-accuracy validation agent** — re-derives every metric from live data vs the canonical report; flags PASS/MISMATCH/MISSING/MISLEADING so no recommendation is built on a bad figure.
-- **Red-alert / alerts-core** — revenue/orders/AOV anomaly detection, emails `anchit.tandon@vahdam.com` (via `RESEND_API_KEY`).
+- **Red-alert / alerts-core** — revenue/orders/AOV anomaly detection, emails the `ALERT_EMAIL` recipient (env-driven; no hardcoded mailbox) via `RESEND_API_KEY`. Gated by the `LIVE_CONNECTORS` kill-switch (default off — sends are stubbed until set to `on`).
 
 ## 5. Knowledge base & daily learning
 - **Ingest guardrail** (2-phase): Phase 1 deterministic (brand whitelist, US/UK/IN/Global geo + $/£/₹, relevance lexicon, junk blocklist) → Phase 2 strict LLM gatekeeper (`{is_actionable_context, rejection_reason}`); junk never enters the KB.
