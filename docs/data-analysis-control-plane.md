@@ -57,7 +57,7 @@ Apply `supabase/migrations/20260722000000_data_analysis_control_plane.sql`, then
 
 ### Alert delivery
 
-Gmail is the primary email transport and the `From` identity is hard-locked to `anchit.tandon@vahdam.com`. The OAuth grant must belong to that mailbox or an authorised send-as alias.
+Gmail is the primary email transport. The `From` identity is env-driven via `ALERT_EMAIL` (no mailbox is hardcoded) and the OAuth grant must belong to that mailbox or an authorised send-as alias. Live sending is additionally gated by the global `LIVE_CONNECTORS` kill-switch (default **off**): while off, every send returns a `would_send` stub and nothing is delivered. Set `LIVE_CONNECTORS=on` plus `ALERT_EMAIL` and the Gmail/Resend credentials to send for real.
 
 - `GMAIL_CLIENT_ID`
 - `GMAIL_CLIENT_SECRET`

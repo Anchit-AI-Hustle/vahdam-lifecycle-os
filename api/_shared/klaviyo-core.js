@@ -23,6 +23,8 @@ const API_BASE = 'https://a.klaviyo.com/api';
 const DEFAULT_REVISION = '2024-10-15';
 // Central read-only guard (project-wide rule for Shopify/Klaviyo/WebEngage).
 const { assertReadOnly } = require('./read-only-egress.js');
+// Global live-connector kill-switch (default OFF).
+const { liveConnectorsEnabled } = require('./live-connectors.js');
 
 function cfg() {
   return {
@@ -32,7 +34,9 @@ function cfg() {
   };
 }
 
-function isConnected() { return !!cfg().key; }
+// While the kill-switch is off (default), Klaviyo reports not-connected so no
+// live Klaviyo API call is made — every op returns its would_request stub.
+function isConnected() { return liveConnectorsEnabled() && !!cfg().key; }
 
 function qs(query) {
   const entries = Object.entries(query || {}).filter(([, v]) => v != null && v !== '');
