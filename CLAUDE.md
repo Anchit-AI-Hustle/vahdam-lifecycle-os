@@ -187,6 +187,20 @@ Each sibling project moves to `<slug>.anchit-tandon.com`. `migrate-domains` adds
 ## API Keys (2026-05-30) — per-project Gemini via gcloud
 Each app has its OWN restricted Gemini key minted from its own GCP project, pushed to Vercel (Production+Development): vahdam-lifecycle-os ← GCP vahdam-lifecycle-os (others: personal-ai-os, the-third-eye, music-gen-ai, hey-yaara, ai-tele-suite, th-life-engine, marketing-mailers-html-architect). Other providers left as-is.
 
+## Marketing skills pack + reels-grade creative standard (2026-07-24)
+Ten job-complete marketing skills in `.claude/commands/` (mega-prompt discipline: clear,
+highly specific, template-driven, evidence-quoting; skill = a real job run end-to-end):
+`/campaign-audit` `/lp-audit` `/ab-test` `/competitor-teardown` `/utm` `/email-sequence`
+`/content-repurposer` `/icp-builder` `/ad-copy-matrix` `/creative-brief`. All enforce the
+Brand Constants + zero fabrication.
+**Reels-grade creative standard**: stills built to animate via `api/ai/image.js`
+`mode:'reels'` (cinematic 9:16, depth layers for parallax, negative space for type, no baked
+text); real motion via Higgsfield image-to-video; instant no-API preview + generator handoff
+via `scripts/lib/motion-ad.js` (`renderMotionAd` = self-contained animated HTML creative,
+`motionBrief` = shot-by-shot brief so the shipped MP4 matches). Quality bar in
+`.claude/commands/ad-creative.md`: hook moves in 0.8s, word-staggered kinetic type, one
+filmic grade, real SKU packaging only, <15s, safe-areas.
+
 ## Growth OS — integrated team (slash commands + connectors + skills)
 This repo ships project slash commands in `.claude/commands/` that operate the brand as a full growth team for a coffee + wellness D2C brand. Start anything with **`/growth-team`** (the router) or jump to a vertical:
 
