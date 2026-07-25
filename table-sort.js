@@ -18,6 +18,12 @@
  * - Numeric / date / string / pct detection is automatic if you don't set data-sort.
  * - Works on dynamically re-rendered tables: just call window.attachTableSort()
  *   after re-rendering or rely on the MutationObserver auto-attach.
+ *
+ * Opt-in row filter: add data-filterable to a <table> and a search box is
+ * inserted above it (above its .tbl-wrap scroll container when present) that
+ * hides non-matching tbody rows as you type. Survives re-renders: when the
+ * container persists across innerHTML swaps the existing box is rebound to
+ * the new table and its current query re-applied.
  */
 (function () {
   'use strict';
@@ -87,8 +93,46 @@
       }
       table[data-sortable] th[data-sort-direction="asc"]  .ts-arrow::before { content: '▲'; }
       table[data-sortable] th[data-sort-direction="desc"] .ts-arrow::before { content: '▼'; }
+      input.ts-filter {
+        display: block; margin: 6px 0 6px; padding: 6px 10px;
+        font: inherit; font-size: 12.5px; color: inherit;
+        background: rgba(251,245,234,.55); border: 1px solid #CBB98C;
+        border-radius: 8px; min-width: 220px; max-width: 340px;
+      }
     `;
     document.head.appendChild(css);
+  }
+
+  // ── Opt-in per-table row filter (<table data-filterable>) ────────────────
+  function attachTableFilter(root) {
+    injectStylesOnce();
+    const scope = root || document;
+    const tables = scope.querySelectorAll('table[data-filterable]:not([data-filter-attached])');
+    tables.forEach((table) => {
+      table.dataset.filterAttached = '1';
+      const host = table.closest('.tbl-wrap') || table;
+      // Reuse a box left behind by a previous render of the same container
+      // (hosts like a persistent .tbl-wrap div keep their siblings across
+      // innerHTML swaps) — otherwise every re-render would stack a new input.
+      let input = host.previousElementSibling && host.previousElementSibling.classList &&
+        host.previousElementSibling.classList.contains('ts-filter') ? host.previousElementSibling : null;
+      if (!input) {
+        input = document.createElement('input');
+        input.type = 'search';
+        input.placeholder = 'Filter rows…';
+        input.className = 'ts-filter';
+        input.setAttribute('aria-label', 'Filter table rows');
+        host.parentNode.insertBefore(input, host);
+      }
+      const apply = () => {
+        const q = input.value.trim().toLowerCase();
+        Array.from((table.tBodies[0] || {}).rows || []).forEach((r) => {
+          r.style.display = !q || r.innerText.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+        });
+      };
+      input.oninput = apply; // rebind (not addEventListener) so re-renders never double-fire
+      if (input.value) apply();
+    });
   }
 
   function attachTableSort(root) {
@@ -131,21 +175,23 @@
     for (const m of mutations) {
       if (m.addedNodes.length) {
         for (const n of m.addedNodes) {
-          if (n.nodeType === 1 && (n.matches?.('table[data-sortable]') || n.querySelector?.('table[data-sortable]'))) {
+          if (n.nodeType === 1 && (n.matches?.('table[data-sortable], table[data-filterable]') || n.querySelector?.('table[data-sortable], table[data-filterable]'))) {
             needsAttach = true; break;
           }
         }
       }
     }
-    if (needsAttach) attachTableSort();
+    if (needsAttach) { attachTableSort(); attachTableFilter(); }
   });
 
   function boot() {
     attachTableSort();
+    attachTableFilter();
     observer.observe(document.body, { childList: true, subtree: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
   window.attachTableSort = attachTableSort;
+  window.attachTableFilter = attachTableFilter;
 })();

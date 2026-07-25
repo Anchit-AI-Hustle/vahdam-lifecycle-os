@@ -141,6 +141,7 @@
 </div>
 
 <script src="/auth.js"></script>
+<script src="/table-sort.js"></script>
 <script>
 (function(){
   var $=function(s){return document.querySelector(s);};
@@ -185,7 +186,7 @@
     var cols=orderCols(res.columns||Object.keys(rows[0]));
     var head='<tr>'+cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr>';
     var body=rows.slice(0,200).map(function(r){return '<tr>'+cols.map(function(c){var v=r[c];return '<td>'+(v==null?'—':(typeof v==='number'?v.toLocaleString('en-US'):String(v)))+'</td>';}).join('')+'</tr>';}).join('');
-    $('#rows-body').innerHTML='<div class="tbl-wrap"><table><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+    $('#rows-body').innerHTML='<div class="tbl-wrap"><table data-sortable data-filterable><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
   }
   function renderCohort(res){
     if(res.not_connected){$('#cohort-body').innerHTML='<div class="empty">Snowflake not connected. Query:<br><br><code>'+(res.would_query||'').replace(/</g,'&lt;')+'</code></div>';return;}
@@ -259,7 +260,7 @@
         return '<tr><td>'+m.label+'</td><td style="text-align:left"><span class="chip '+(m.tier==='base'?'good':'warn')+'">'+m.tier+'</span></td><td style="text-align:left;font-family:var(--mono)">'+String(m.formula).replace(/</g,'&lt;')+'</td><td style="text-align:left;white-space:normal;font-family:var(--sans)">'+m.definition+'</td></tr>';
       }).join('');
       return '<div class="frame"><h2 style="margin-top:0;font-size:17px">'+c.label+' <span class="note" style="font-weight:400">· '+(c.aspect||'')+'</span></h2>'+
-        '<div class="tbl-wrap"><table><thead><tr><th style="text-align:left">Metric</th><th style="text-align:left">Tier</th><th style="text-align:left">Formula</th><th style="text-align:left">Definition</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+        '<div class="tbl-wrap"><table data-sortable data-filterable><thead><tr><th style="text-align:left">Metric</th><th style="text-align:left">Tier</th><th style="text-align:left">Formula</th><th style="text-align:left">Definition</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
     }).join('');
     $('#catalog-body').innerHTML=html+'<p class="note">'+(res.total_metrics||0)+' metrics · '+(res.note||'')+'</p>';
   }
@@ -284,7 +285,7 @@
         '<div class="sc"><div class="k">Low</div><div class="v">'+intf(res.low)+'</div></div>'+
         '<div class="sc"><div class="k">Unavailable</div><div class="v">'+intf(res.unavailable)+'</div></div>'+
       '</div>'+
-      '<div class="tbl-wrap"><table><thead><tr><th style="text-align:left">Metric</th><th>Coverage</th><th style="text-align:left">Cross-checked</th><th>Agreement</th><th style="text-align:left">Confidence</th></tr></thead><tbody>'+body+'</tbody></table></div>'+
+      '<div class="tbl-wrap"><table data-sortable data-filterable><thead><tr><th style="text-align:left">Metric</th><th>Coverage</th><th style="text-align:left">Cross-checked</th><th>Agreement</th><th style="text-align:left">Confidence</th></tr></thead><tbody>'+body+'</tbody></table></div>'+
       '<p class="note">'+(res.note||'')+'</p>';
   }
   function loadAccuracy(rows){
