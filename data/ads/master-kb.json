@@ -1603,5 +1603,71 @@
    "source": "kt-datareq-mail",
    "note": "Referenced as a hyperlink in the email; request the link from the owner or the consultant drive. No URL is invented."
   }
+ ],
+ "executive_overview": "The USA paid program sells VAHDAM ashwagandha coffee through two retail funnels: Target (Meta + TikTok ads into page-deck and PDP funnels, in-house statics + scored JoinBrands UGC + whitelisted influencers) and Costco (dark posts to the Indian diaspora in the US, landing on the Instacart PDP). Paid spend May 1 to July 20 was $45,870.61 (Meta $41,515.53 across 125 ads in 13 campaigns; TikTok $4,355.08, June only). The Sales engine clears its own benchmark ($0.80 per initiate-checkout on in-house statics; $0.73 on influencer page-deck), JoinBrands UGC traffic delivers the cheapest clicks in the account ($0.07), and Awareness structures are the portfolio drag (CTR 0.03-0.10 pct at $2-9 CPC). Organic ran 3.59M views / 1.58M reach Apr to Jul 17 on $150,956 total creator cost (69 influencers, 367 UGC videos; 300+ UGC pieces produced monthly). The creator- performance dashboard is fully automated (JoinBrands + Snowflake + mapping sheet); ad-campaign information is owned by Kritagya Prakash going forward, with Samvita leading paid and Anchit executing Target Meta. A consultant repository (for Megan) collates every report; priority explorations are Spins seasonality, August demos, Ibotta redeemer targeting, and the USA DTC coffee-launch email.",
+ "narratives": [
+  {
+   "id": "nr-ugc",
+   "title": "KT thread 1 - UGC Dashboard Automation",
+   "period": "Jul 14-16, 2026",
+   "overview": "The creator-performance dashboard went from manual builds to a one-skill automation; access and ownership were being settled.",
+   "details": [
+    "Jul 14 - Aviral: the UGC creator-performance dashboard is automated end-to-end. One skill produces the full sheet (columns A to AN) as a live snapshot: posted Instagram Reels + TikTok posts pulled from JoinBrands, Meta + TikTok ad spend joined from Snowflake, organic scores and ad-recommendation logic computed, Excel built.",
+    "Three prerequisites: (1) install and run the skill; (2) fill and maintain the Video ID to Ad ID mapping sheet - Meta/TikTok ad tables do not store the source video ID, so without it spend/impressions/clicks/CTR/CPC cannot be attributed to a creator (the one ongoing manual task); (3) Snowflake connected per user before running - Meta from VAHDAM_DB.MAPLEMONK, TikTok from DATON.RAW.",
+    "One-time setup: Chrome connector signed into JoinBrands and Instagram for the organic pull.",
+    "Jul 15 - Aviral granted Samvita Snowflake access (credentials were shared in plain text in the mail - rotation recommended; see gaps). Mapping sheet to be updated with all current ad mappings before the trial run.",
+    "Jul 16 - output snapshot delivered. Vinya to validate and configure on her device; Samvita + Anchit to connect on the next step for ads (6 pm)."
+   ]
+  },
+  {
+   "id": "nr-costco",
+   "title": "KT thread 2 - Dark Stories Ads for Costco Launch",
+   "period": "Jul 11-17, 2026",
+   "overview": "Dark posts targeting the Indian diaspora in the US went live for the Costco launch; a founder-ads RCA closed the thread.",
+   "details": [
+    "Jul 11 - Sudhanshu: 6 Story + 6 Carousel dark-post creatives ready, shared via the Costco US Ads drive folder.",
+    "Jul 13 - Samvita assigned Target Meta Ads execution to Anchit; Aman to provide Meta ad account access. Config: landing page = Instacart PDP (product 80435594), goal Traffic (link clicks), daily budget $100.",
+    "Jul 14 - Sneha asked for targeting parameters and whether Conversion would beat Link Clicks; Anchit confirmed the launch configuration and took the ads live after aligning with Samvita.",
+    "Jul 15 - Sudhanshu added the Indian Diaspora Ad-1 video (plus Ad-2) and categorized statics into five buckets: Value Pack, Summer Drink, Social Proof, Indian Diaspora, Benefit-Led.",
+    "Jul 17 - Samvita's live screenshots showed no founder ads in the shared folder; Kalpesh asked to close the RCA with an email to Bala stating the date the founder ads were received."
+   ]
+  },
+  {
+   "id": "nr-datareq",
+   "title": "KT thread 3 - Data Request (consultant repository)",
+   "period": "Jul 15-24, 2026",
+   "overview": "Everything the ads/social/retail program produces was collated into one repository for the consultant (Megan); ownership of ad-campaign information moved to Kritagya.",
+   "details": [
+    "Jul 15 - Sneha shared the consultant doc: Target + Coffee USA data, yellow-marked items prioritised. Asks included: which ads work across DTC/TikTok/retail media with stats, current content links, the UGC flywheel shape, and influencer partnerships.",
+    "Jul 22-23 - Srishti chased delivery; Pratyashu shared Aisle, Ibotta (impressions/redemptions/unlocks trends) and Roundel (campaign data + search terms) exports plus the Target daily sales tracker; Ishita uploaded in-store demos data and collated everything into the shared drive.",
+    "Jul 23 - Vinya shared the social stack: Social Media Calendar, Detailed Instagram Metrics Analysis, Goal Analysis July, Creator Formats Deck, scripts (Target July, Costco July, August), UGC campaign + performance trackers, monthly influencer content, and the UGC content libraries (Target, Costco). 300+ UGC pieces produced monthly; JoinBrands approvals reviewed daily.",
+    "Jul 24 - Tushar on Spins: only one-time, 52-week combined coffee data exists (no monthly split); checking whether month-wise data is possible.",
+    "Jul 24 - Samvita delivered the Target Ad Campaign Performance & Creative Insights deck and the ad reports (Meta till-date/May/June/July-to-15th, TikTok June, day-wise update), and named Kritagya Prakash the go-forward source for all ad-campaign information."
+   ]
+  },
+  {
+   "id": "nr-workbook",
+   "title": "KT file 4 - Ad Spends workbook (May to 20 Jul)",
+   "period": "as of Jul 20, 2026",
+   "overview": "The quantitative backbone: monthly Meta/TikTok spend plus 125 Meta ad rows with full funnel metrics.",
+   "details": [
+    "Target Spends sheet: May $3,608.06 (all Meta), June $18,778.01 (Meta $14,422.93 + TikTok $4,355.08), July-to-20th $23,484.54 (Meta only reported).",
+    "Target Ads sheet: 125 ad rows, 44 columns (reach, impressions, outbound clicks/CTR, CPC, CPM, landing page views, results + indicator, cost per result, frequency, quality/engagement/conversion rankings, thumb-stop ratio, budgets, IDs).",
+    "This workbook feeds the Campaigns & Ads tab and every benchmark; the committed copy is data/ads/target-ads-meta-2026-07-20.json."
+   ]
+  },
+  {
+   "id": "nr-social",
+   "title": "KT file 5 - Social Update USA deck (17 Jul)",
+   "period": "Apr to Jul 17, 2026",
+   "overview": "Organic, influencer and UGC performance: June was the breakout month and the hook was the reason.",
+   "details": [
+    "Monthly organic: May 1.15M views / 655K reach; June 2.14M views / 775K reach; July 293K views / 154K reach by the 17th.",
+    "Creator economics: 69 influencers at $107,648 (62 live); 367 UGC videos at $43,308 (parked for 400 creators); total creator cost $150,956, utilized $69,948; organic CPR $0.04-0.10.",
+    "Retention funnel May vs June (Instagram): skip rate 57.5 to 45.3 pct; passed-hook 38 to 57 pct; 75 pct-watched views +53 pct (32K to 49K); cost per reach $0.065 to $0.057. Only ~6 pct of views reach 75 pct of the video.",
+    "Creator learnings: identity-first openers (mom / 76 / herbalist / Target shopper); specific curiosity beats withholding (Rydel July +36 pct reach); comedy retains (Maryandbri), authenticity lowers skip (Nadja), education earns saves (Jess).",
+    "June UGC buckets (136 live): Target shelf 41, Cortisol 30, Over 40 20, Gummies vs coffee 16, Taste 16, countering-mushroom 13. Next line-up: 10 influencers + 500 UGC creators; Costco Bay Area 12 influencers + 100 UGC."
+   ]
+  }
  ]
 }

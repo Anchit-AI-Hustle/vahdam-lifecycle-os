@@ -69,6 +69,12 @@
   .funnel .stage{display:grid;grid-template-columns:180px 1fr 1fr;gap:10px;padding:8px 6px;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
   .funnel .stage .lab{font-weight:700;color:var(--ink)}
   .funnel .hdr{font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--dim)}
+  details.kbd{background:var(--surface);border:1px solid var(--line);border-radius:11px;margin:8px 0;box-shadow:var(--shadow)}
+  details.kbd summary{cursor:pointer;padding:12px 16px;font-family:var(--serif);font-weight:700;font-size:16px;color:var(--head)}
+  details.kbd summary .ov{display:block;font-family:var(--sans);font-weight:400;font-size:12.5px;color:var(--dim);margin-top:2px}
+  details.kbd .kbd-b{padding:0 16px 14px;font-size:13.5px}
+  details.kbd .kbd-b ul{margin:6px 0;padding-left:20px}
+  details.kbd .kbd-b li{margin:5px 0}
 </style>
 </head>
 <body>
@@ -154,6 +160,10 @@
   </div>
 
   <div class="panel" id="p-kb">
+    <p class="eyebrow">The complete knowledge — overview first, expand any section for the details</p>
+    <div class="frame" id="kb-exec"><div class="empty">Loading…</div></div>
+    <div id="kb-full"></div>
+    <p class="eyebrow">Link registry — single-click access to every referenced sheet, deck, folder and platform</p>
     <div class="bar">
       <label>Group<select id="kb-group"><option value="">All groups</option></select></label>
       <label>Status<select id="kb-status"><option value="">All</option><option value="verified">verified (live in Drive/platform)</option><option value="from-email">from email URL</option><option value="from-deck">from deck</option><option value="pending-access">pending access</option></select></label>
@@ -179,6 +189,7 @@
 </div>
 
 <script src="/auth.js"></script>
+<script src="/table-sort.js"></script>
 <script>
 (function(){
   var $=function(s){return document.querySelector(s);};
@@ -189,8 +200,10 @@
   function money0(v){return v==null?"—":"$"+Number(v).toLocaleString("en-US",{maximumFractionDigits:0});}
   function intf(v){return v==null?"—":Math.round(Number(v)).toLocaleString("en-US");}
   function pct(v){return v==null?"—":Number(v).toLocaleString("en-US",{maximumFractionDigits:2})+"%";}
+  // Every table is sortable (clickable headers, table-sort.js) + filterable
+  // (a row-filter box injected above the scroll wrapper).
   function table(head,rows){
-    return "<table><thead><tr>"+head.map(function(h){return "<th style='text-align:"+(h.r?"right":"left")+"'>"+esc(h.t)+"</th>";}).join("")+
+    return "<table data-sortable data-filterable><thead><tr>"+head.map(function(h){return "<th style='text-align:"+(h.r?"right":"left")+"'>"+esc(h.t)+"</th>";}).join("")+
       "</tr></thead><tbody>"+rows.map(function(r){return "<tr>"+r.map(function(c,i){return "<td style='text-align:"+(head[i]&&head[i].r?"right":"left")+"'>"+c+"</td>";}).join("")+"</tr>";}).join("")+"</tbody></table>";
   }
   var KB=null, ADS=null;
@@ -292,7 +305,49 @@
     $("#org-next").innerHTML="<h3>Next line-up</h3><p style='font-size:13.5px'>"+esc(og.next_lineup)+"</p><h3>Competitor share-driving themes</h3><p style='font-size:13.5px'>"+esc(og.competitor_share_themes)+"</p>";
   }
 
+  // The KB tab carries the ENTIRE compiled knowledge: an executive overview,
+  // then every content area as an expandable overview+details section, then
+  // the link registry, people and gaps.
+  function renderKBFull(){
+    var t=KB.organic.totals;
+    $("#kb-exec").innerHTML="<h3 style='margin-top:0'>Executive overview</h3><p style='font-size:13.5px;margin:6px 0'>"+esc(KB.executive_overview||"")+"</p>"+
+      "<p class='note'>Sources: "+KB.kt_sources.map(function(s){return esc(s.label);}).join(" · ")+" · compiled "+esc(KB.version)+"</p>";
+    function sec(title, overview, bodyHtml, open){
+      return "<details class='kbd'"+(open?" open":"")+"><summary>"+esc(title)+"<span class='ov'>"+esc(overview)+"</span></summary><div class='kbd-b'>"+bodyHtml+"</div></details>";
+    }
+    var html="";
+    (KB.narratives||[]).forEach(function(n){
+      html+=sec(n.title+" ("+n.period+")", n.overview,
+        "<ul>"+n.details.map(function(d){return "<li>"+esc(d)+"</li>";}).join("")+"</ul>");
+    });
+    html+=sec("Paid spend & campaign performance","Total $"+Number(KB.spend.total).toLocaleString("en-US")+" May to 20 Jul; Sales blended $0.86 per initiate-checkout; Awareness is the drag.",
+      "<div class='tbl-wrap'>"+table([{t:"Month"},{t:"Total",r:1},{t:"Meta",r:1},{t:"TikTok",r:1}],KB.spend.months.map(function(m){return [esc(m.month),money(m.total),money(m.meta),money(m.tiktok)];}))+"</div>"+
+      "<div class='tbl-wrap'>"+table([{t:"Objective"},{t:"Spend",r:1},{t:"Ads",r:1},{t:"CTR",r:1},{t:"CPC",r:1},{t:"Cost/result",r:1}],KB.objective_rollup.map(function(x){return [esc(x.objective),money(x.spend),intf(x.ads),pct(x.ctr),money(x.cpc),money(x.cost_per_result)];}))+"</div>"+
+      "<p class='note'>Full 13-campaign rollup and all 125 ad rows: Campaigns &amp; Ads tab.</p>");
+    html+=sec("Benchmarks","The reference numbers every new ad is judged against, derived from the KT workbook.",
+      "<ul>"+KB.benchmarks.map(function(b){
+        var key=b.cost_per_initiate_checkout_usd!=null?money(b.cost_per_initiate_checkout_usd)+" per initiate-checkout":(b.cost_per_link_click_usd!=null?money(b.cost_per_link_click_usd)+" per link click":(b.cpm_usd!=null?money(b.cpm_usd)+" CPM":(b.thumb_stop_min!=null?b.thumb_stop_min+"-"+b.thumb_stop_max+" thumb-stop":(b.cpr_usd_june!=null?money(b.cpr_usd_june)+" per organic reach (Jun)":""))));
+        return "<li><b>"+esc(b.segment)+"</b>: "+esc(key)+(b.ctr_pct!=null?" · CTR "+b.ctr_pct+"% · CPC "+money(b.cpc_usd):"")+(b.warning?" — "+esc(b.warning):"")+"</li>";
+      }).join("")+"</ul>");
+    html+=sec("Creative learnings","Eight data-grounded lessons on hooks, formats and angles, each citing its source.",
+      "<ul>"+KB.creative_learnings.map(function(l){return "<li><b>"+esc(l.title)+"</b> — "+esc(l.detail)+" <span style='font-family:var(--mono);font-size:10.5px;color:var(--gold-deep)'>["+esc(l.source)+"]</span></li>";}).join("")+"</ul>");
+    html+=sec("Organic & UGC","3.59M views · 1.58M reach Apr to 17 Jul · "+t.influencer_count+" influencers · "+t.ugc_videos+" UGC videos · $"+Number(t.total_creator_cost_usd).toLocaleString("en-US")+" creator cost.",
+      "<ul>"+KB.organic.months.map(function(m){return "<li><b>"+esc(m.month)+"</b>: "+intf(m.views)+" views · "+intf(m.reach)+" reach · influencers "+esc(m.influencers)+" at "+money0(m.influencer_cost_usd)+" (CPR "+money(m.organic_cpr_usd)+")</li>";}).join("")+
+      "<li><b>Funnel</b>: "+esc(KB.organic.retention_funnel.headline)+"</li>"+
+      "<li><b>Next line-up</b>: "+esc(KB.organic.next_lineup)+"</li></ul>"+
+      "<p class='note'>Creator table, UGC buckets and the full May-vs-June funnel: Organic &amp; UGC tab.</p>");
+    html+=sec("Ops runbooks","UGC dashboard automation · Costco dark-post launch · consultant data request.",
+      "<ul><li><b>UGC dashboard automation</b> — "+esc(KB.ops.ugc_dashboard_automation.summary)+" Owners: "+esc(KB.ops.ugc_dashboard_automation.owners.automation)+" (automation), "+esc(KB.ops.ugc_dashboard_automation.owners.ads_next_step)+" (ads), "+esc(KB.ops.ugc_dashboard_automation.owners.output_validation)+" (validation).</li>"+
+      "<li><b>Costco launch</b> — "+esc(KB.ops.costco_launch.summary)+" "+esc(KB.ops.costco_launch.creatives)+" Objective "+esc(KB.ops.costco_launch.objective)+", $"+KB.ops.costco_launch.daily_budget_usd+"/day.</li>"+
+      "<li><b>Data request</b> — "+esc(KB.ops.data_request.summary)+"</li></ul>"+
+      "<p class='note'>Full prerequisites, open items and priority explorations: Ops &amp; Data Sources tab.</p>");
+    html+=sec("Platform data sources","Snowflake, Supabase, Klaviyo, Shopify, Vercel, GitHub — status and the facts that matter, live-verified 25 Jul.",
+      "<ul>"+KB.platforms.map(function(p){return "<li><b>"+esc(p.name)+"</b> ("+esc(p.status)+"): "+esc(p.details[0])+"</li>";}).join("")+"</ul>"+
+      "<p class='note'>All verified table names, row counts and links: Ops &amp; Data Sources tab.</p>");
+    $("#kb-full").innerHTML=html;
+  }
   function renderKB(){
+    renderKBFull();
     var groups=[]; KB.links.forEach(function(l){ if(groups.indexOf(l.group)<0) groups.push(l.group); });
     $("#kb-group").innerHTML="<option value=''>All groups</option>"+groups.map(function(g){return "<option>"+esc(g)+"</option>";}).join("");
     function draw(){
