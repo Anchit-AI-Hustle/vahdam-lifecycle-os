@@ -278,6 +278,10 @@
     { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
+    // Independent LHS item (product-owner request 2026-07-25): the master ads
+    // knowledge base + performance dashboard compiled from the KT handover
+    // (emails, spend workbook, social update deck) + live connector reads.
+    { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html'] },
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-perf',    label: 'Ad Performance', href: '/ads-dashboard', icon: 'analysis', ver: 'v2', match: ['/ads-dashboard', '/ad-performance', '/ads-dashboard.html'] },
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
@@ -363,6 +367,22 @@
         ['Content', 'Each feature gets a plain-English gap note: what to fix to reach 9.5.'],
         ['Design + layout + structure', 'Scores render as a ring + per-feature axis bars, colour-coded by threshold.'],
         ['Compilation + presentation', 'An overall rating, the blocker board, the scorecard and the roadmap, plus a downloadable Markdown audit.', '/audit']
+      ]
+    },
+    adsmaster: {
+      title: "Ad Campaigns Master Dashboard",
+      what: "The single source of truth for the USA paid ads program (Target + Costco): a performance dashboard over the KT spend workbook (125 Meta ads, 13 campaigns, May to 20 Jul) plus the complete ads knowledge base - every sheet, deck, drive folder and platform link from the KT emails as single-click links, the creative learnings from the Social Update deck, benchmarks, the UGC-dashboard automation runbook, the Costco dark-post launch config, owners and open gaps. Zero fabrication: every figure cites its KT source or a live connector read.",
+      who: "The paid ads team (Samvita, Kritagya, Anchit) and anyone onboarding onto the USA ads program - it IS the knowledge transfer, in product form.",
+      how: "Static and honest: the page renders two committed JSON files - data/ads/master-kb.json (the compiled knowledge base) and data/ads/target-ads-meta-2026-07-20.json (the ad-level export). Live warehouse rows stay in the Ads Analysis page (Snowflake read-only), which this page links to. Links that could not be resolved from this account are listed as pending-access with their owner, never invented.",
+      input: "Nothing to enter. Filters: objective, delivery status, free-text search, sort metric on the ads table; group, status and search on the knowledge base. New KT files extend master-kb.json.",
+      steps: [
+        ["Ideology", "One master surface for the ads program: knowledge (links, owners, runbooks) and performance (spend, benchmarks, verdicts) belong together."],
+        ["Data analysis + review + hypothesis", "KT files parsed (3 email threads, spend workbook, 28-slide social deck); rollups computed per campaign and objective; benchmarks derived from the data."],
+        ["Business & strategy decisions", "Portfolio verdicts: Sales engine clears the $0.80 bench, JoinBrands UGC traffic is the cheapest click, Awareness is the drag, July TikTok reads zero."],
+        ["Content", "Knowledge base compiled: 54 catalogued links (verified via the Google Drive connector where possible), people map, gaps register."],
+        ["Design + layout + structure", "Six tabs - Overview, Campaigns & Ads, Creative Intel, Organic & UGC, Knowledge Base, Ops & Data Sources - in the brand palette."],
+        ["Coding", "Static page + committed JSON (no new serverless function; the Hobby 12-function limit is untouched).", "/ads-master"],
+        ["Final compilation + presentation", "Live Snowflake rows via the Ads Analysis page; Google Slides KT presentation generated from the same knowledge base.", "/ads-dashboard"]
       ]
     },
     chaigpt: {

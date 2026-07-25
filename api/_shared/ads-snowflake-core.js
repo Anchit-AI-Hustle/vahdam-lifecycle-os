@@ -16,7 +16,15 @@
  *   Meta   : MAPLEMONK.META_USA_ADS          (SF_META_ADS_TABLE)
  *            MAPLEMONK1.META_USA_ADS         (SF_META_ADS1_TABLE)
  *            MAPLEMONK1.META_USA_AD_CREATIVES (SF_META_CREATIVES_TABLE)
- *   Google : MAPLEMONK.GOOGLE_ADS_USA        (SF_GOOGLE_ADS_TABLE)
+ *   Google : MAPLEMONK.GOOGLE_ADS_US_AD_GROUP_AD_REPORT (SF_GOOGLE_ADS_TABLE)
+ *
+ * Live-verified 2026-07-25 (Snowflake connector, INFORMATION_SCHEMA):
+ *   META_USA_ADS_INSIGHTS 129,741 rows spanning 2024-05-15 → 2026-07-25;
+ *   TIKTOK_ADS_USA_{CAMPAIGN 1,012 / ADGROUP 3,842 / AD 13,838}_REPORT_DAILY
+ *   (+ AGE_GENDER 7,453, COUNTRY 1,114); GOOGLE_ADS_US_AD_GROUP_AD_REPORT
+ *   91,135 rows. MAPLEMONK1 breakdown tables were NOT found in the live
+ *   warehouse — the age/gender/device/creatives defaults below stay
+ *   env-overridable and unverified.
  *
  * READ ONLY: only SELECT / SHOW / INFORMATION_SCHEMA reads are ever issued — no
  * INSERT/UPDATE/MERGE/DELETE. Until SNOWFLAKE_* env vars are set, every op returns
@@ -83,7 +91,10 @@ function sources() {
       device: tableRef('SF_META_DEVICE_TABLE', 'VAHDAM_DB.MAPLEMONK1.META_USA_ADS_INSIGHTS_PLATFORM_AND_DEVICE'),
       creatives: tableRef('SF_META_CREATIVES_TABLE', 'VAHDAM_DB.MAPLEMONK1.META_USA_AD_CREATIVES'),
     },
-    google: { ads: tableRef('SF_GOOGLE_ADS_TABLE', 'VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_USA') },
+    // GOOGLE_ADS_USA does not exist in the warehouse; the live table (verified
+    // 2026-07-25 against INFORMATION_SCHEMA: 91,135 rows) is the ad-group ad
+    // report. Campaign-level rollup also available: GOOGLE_ADS_US_CAMPAIGN_DATA.
+    google: { ads: tableRef('SF_GOOGLE_ADS_TABLE', 'VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_US_AD_GROUP_AD_REPORT') },
   };
 }
 function primaryTable(platform, level) {

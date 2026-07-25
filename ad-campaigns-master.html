@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ad Campaigns Master Dashboard — VAHDAM USA</title>
+<link rel="icon" href="/favicon.png">
+<style>
+  :root{
+    --green:#004A2B; --gold:#AB8743; --gold-deep:#7a5a1e; --ink:#171717; --cream:#FBF5EA;
+    --bg:#F3EEE2; --surface:#ffffff; --surface-2:#FBF5EA; --line:#E3D8BF; --line-strong:#CBB98C;
+    --text:#26302a; --dim:#5c6b60; --head:#004A2B;
+    --good:#137547; --good-bg:#E4F1E8; --warn:#9a6a12; --warn-bg:#F7ECD2; --bad:#8f2f1f; --bad-bg:#F7DED6;
+    --shadow:0 4px 16px rgba(0,74,43,.08);
+    --sans:'Proxima Nova','Helvetica Neue',Arial,sans-serif;
+    --serif:'Lao MN','Cormorant Garamond',Georgia,serif;
+    --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5}
+  .wrap{max-width:1320px;margin:0 auto;padding:26px 22px 90px}
+  h1{font-family:var(--serif);font-weight:700;color:var(--head);font-size:30px;margin:0}
+  h2{font-family:var(--serif);font-weight:700;color:var(--head);font-size:21px;margin:22px 0 8px}
+  h3{font-family:var(--serif);font-weight:700;color:var(--head);font-size:17px;margin:14px 0 6px}
+  .lede{color:var(--dim);margin:6px 0 0;max-width:86ch;font-size:14.5px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep);margin:16px 0 8px}
+  .tabs{display:flex;flex-wrap:wrap;gap:2px;margin:18px 0 4px;border-bottom:2px solid var(--line-strong)}
+  .tabs button{background:transparent;border:0;border-bottom:3px solid transparent;color:var(--dim);font-family:inherit;font-weight:700;font-size:13.5px;padding:10px 14px;cursor:pointer;margin-bottom:-2px}
+  .tabs button.on{color:var(--green);border-bottom-color:var(--gold)}
+  .panel{display:none}.panel.on{display:block}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:8px 0}
+  .sc{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:11px;padding:14px 16px;box-shadow:var(--shadow)}
+  .sc .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+  .sc .v{font-family:var(--serif);font-size:23px;font-weight:700;color:var(--head);font-variant-numeric:tabular-nums}
+  .sc .s{font-size:11.5px;color:var(--dim);margin-top:3px}
+  .frame{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:16px;box-shadow:var(--shadow);margin:10px 0}
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line-strong);border-radius:11px;box-shadow:var(--shadow);margin:8px 0;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:13px;background:var(--surface);white-space:nowrap}
+  th,td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12.3px}
+  th{background:var(--green);color:#fff;font-family:var(--sans);font-weight:600;font-size:11.5px;position:sticky;top:0;cursor:pointer}
+  th:first-child,td:first-child{text-align:left;font-family:var(--sans)}
+  td:first-child{color:var(--ink);font-weight:600;max-width:330px;white-space:normal}
+  tbody tr:nth-child(even) td{background:var(--surface-2)}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid transparent;vertical-align:middle}
+  .chip.good{background:var(--good-bg);color:var(--good);border-color:var(--good)}
+  .chip.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+  .chip.bad{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+  .chip.dim{background:var(--surface-2);color:var(--dim);border-color:var(--line-strong)}
+  .note{font-size:12.5px;color:var(--dim);margin:8px 0}
+  .empty{padding:22px;text-align:center;color:var(--dim);background:var(--surface);border:1px dashed var(--line-strong);border-radius:11px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:12px 0 6px;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow)}
+  .bar label{font-size:12px;color:var(--dim);font-weight:600;display:flex;flex-direction:column;gap:4px}
+  select,input[type=search]{font-family:inherit;font-size:13px;border:1px solid var(--line-strong);border-radius:8px;padding:7px 9px;background:var(--surface-2);color:var(--ink)}
+  a{color:var(--green)}
+  .linkrow{display:flex;gap:10px;align-items:flex-start;padding:9px 4px;border-bottom:1px solid var(--line)}
+  .linkrow:last-child{border-bottom:0}
+  .linkrow .t{flex:1;min-width:0}
+  .linkrow .t b{color:var(--ink);font-size:13.5px}
+  .linkrow .t .m{font-size:12px;color:var(--dim);margin-top:2px}
+  .btn{display:inline-block;background:var(--green);color:#fff;border:1px solid var(--gold);border-radius:8px;padding:7px 14px;font-weight:700;font-size:12.5px;text-decoration:none;white-space:nowrap}
+  .btn.ghost{background:transparent;color:var(--green)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:900px){.two{grid-template-columns:1fr}}
+  .learn{border-left:4px solid var(--gold);background:var(--surface);border-radius:0 11px 11px 0;padding:12px 16px;margin:10px 0;box-shadow:var(--shadow)}
+  .learn b{color:var(--head)}
+  .learn .src{font-family:var(--mono);font-size:10.5px;color:var(--gold-deep);text-transform:uppercase;letter-spacing:.06em}
+  ul.tight{margin:6px 0;padding-left:20px}
+  ul.tight li{margin:4px 0;font-size:13.5px}
+  .funnel .stage{display:grid;grid-template-columns:180px 1fr 1fr;gap:10px;padding:8px 6px;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
+  .funnel .stage .lab{font-weight:700;color:var(--ink)}
+  .funnel .hdr{font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ad Campaigns Master Dashboard</h1>
+  <p class="lede">The single knowledge base + performance dashboard for the USA paid program (Target + Costco): every KT email, spend sheet, social update, sheet/deck link, platform data source and creative learning in one place. Every figure is sourced from the KT files or a live connector read; nothing is fabricated. <a href="/ads-dashboard">Open the live Snowflake Ads Analysis</a> for warehouse-fresh rows.</p>
+
+  <div class="tabs" id="tabs">
+    <button data-p="overview" class="on">Overview</button>
+    <button data-p="campaigns">Campaigns &amp; Ads</button>
+    <button data-p="creative">Creative Intel</button>
+    <button data-p="organic">Organic &amp; UGC</button>
+    <button data-p="kb">Knowledge Base</button>
+    <button data-p="ops">Ops &amp; Data Sources</button>
+  </div>
+
+  <div class="panel on" id="p-overview">
+    <p class="eyebrow">Paid spend — May to 20 Jul 2026 (source: KT workbook)</p>
+    <div class="cards" id="ov-cards"><div class="empty">Loading…</div></div>
+    <div class="two">
+      <div>
+        <p class="eyebrow">Spend by month</p>
+        <div class="tbl-wrap" id="ov-months"></div>
+        <p class="eyebrow">Spend by objective (Meta · Target account · 125 ads)</p>
+        <div class="tbl-wrap" id="ov-objectives"></div>
+      </div>
+      <div>
+        <p class="eyebrow">Portfolio verdicts (data-grounded)</p>
+        <div id="ov-verdicts"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="p-campaigns">
+    <p class="eyebrow">Campaign rollup — 13 Meta campaigns (Target account, to 20 Jul)</p>
+    <div class="tbl-wrap" id="camp-tbl"></div>
+    <div class="bar">
+      <label>Objective<select id="f-obj"><option value="">All</option><option>Sales</option><option>Traffic</option><option>Awareness</option><option>Engagement</option></select></label>
+      <label>Delivery<select id="f-status"><option value="">All</option><option value="active">active</option><option value="inactive">inactive</option><option value="not_delivering">not_delivering</option></select></label>
+      <label>Search<input type="search" id="f-q" placeholder="ad, ad set, campaign…"></label>
+      <label>Sort<select id="f-sort"><option value="spend">Spend</option><option value="cost_per_result">Cost / result</option><option value="ctr">CTR</option><option value="cpc">CPC</option><option value="thumb_stop">Thumb stop</option></select></label>
+      <a class="btn ghost" id="dl-json" href="/data/ads/target-ads-meta-2026-07-20.json" download>Download ad rows (JSON)</a>
+    </div>
+    <div class="tbl-wrap" id="ads-tbl"><div class="empty">Loading…</div></div>
+    <p class="note" id="ads-count"></p>
+  </div>
+
+  <div class="panel" id="p-creative">
+    <p class="eyebrow">Benchmarks from the KT data (use these to judge any new ad)</p>
+    <div class="tbl-wrap" id="bm-tbl"></div>
+    <div class="two">
+      <div>
+        <p class="eyebrow">Top 10 by efficiency (spend ≥ $100)</p>
+        <div class="tbl-wrap" id="top-tbl"></div>
+      </div>
+      <div>
+        <p class="eyebrow">Worst 10 by efficiency (spend ≥ $100)</p>
+        <div class="tbl-wrap" id="worst-tbl"></div>
+      </div>
+    </div>
+    <p class="eyebrow">Creative learnings (each cites its source)</p>
+    <div id="learnings"></div>
+  </div>
+
+  <div class="panel" id="p-organic">
+    <p class="eyebrow">Organic performance — Apr to 17 Jul 2026 (source: Social Update deck)</p>
+    <div class="cards" id="org-cards"></div>
+    <div class="tbl-wrap" id="org-months"></div>
+    <div class="two">
+      <div>
+        <p class="eyebrow">Top creators (reach · skip rate · retention)</p>
+        <div class="tbl-wrap" id="org-creators"></div>
+        <p class="eyebrow">UGC live content by bucket (June · JoinBrands)</p>
+        <div class="tbl-wrap" id="org-ugc"></div>
+      </div>
+      <div>
+        <p class="eyebrow">Instagram retention funnel — May vs June</p>
+        <div class="frame funnel" id="org-funnel"></div>
+        <p class="note" id="org-funnel-note"></p>
+      </div>
+    </div>
+    <div class="frame" id="org-next"></div>
+  </div>
+
+  <div class="panel" id="p-kb">
+    <div class="bar">
+      <label>Group<select id="kb-group"><option value="">All groups</option></select></label>
+      <label>Status<select id="kb-status"><option value="">All</option><option value="verified">verified (live in Drive/platform)</option><option value="from-email">from email URL</option><option value="from-deck">from deck</option><option value="pending-access">pending access</option></select></label>
+      <label>Search<input type="search" id="kb-q" placeholder="title, owner…"></label>
+    </div>
+    <div class="frame" id="kb-links"><div class="empty">Loading…</div></div>
+    <p class="eyebrow">People — who owns what</p>
+    <div class="tbl-wrap" id="kb-people"></div>
+    <p class="eyebrow">Open gaps &amp; risks</p>
+    <div id="kb-gaps"></div>
+  </div>
+
+  <div class="panel" id="p-ops">
+    <p class="eyebrow">Platform status (live connector reads, 25 Jul 2026)</p>
+    <div id="ops-platforms"></div>
+    <p class="eyebrow">UGC dashboard automation — runbook</p>
+    <div class="frame" id="ops-ugc"></div>
+    <p class="eyebrow">Costco dark-post launch — configuration of record</p>
+    <div class="frame" id="ops-costco"></div>
+    <p class="eyebrow">Consultant data request — deliverables &amp; priority explorations</p>
+    <div class="frame" id="ops-datareq"></div>
+  </div>
+</div>
+
+<script src="/auth.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s);};
+  // Escapes single quotes too - rendered HTML uses single-quoted attributes
+  // (CodeQL: incomplete HTML attribute sanitization otherwise).
+  function esc(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+  function money(v){return v==null?"—":"$"+Number(v).toLocaleString("en-US",{maximumFractionDigits:2});}
+  function money0(v){return v==null?"—":"$"+Number(v).toLocaleString("en-US",{maximumFractionDigits:0});}
+  function intf(v){return v==null?"—":Math.round(Number(v)).toLocaleString("en-US");}
+  function pct(v){return v==null?"—":Number(v).toLocaleString("en-US",{maximumFractionDigits:2})+"%";}
+  function table(head,rows){
+    return "<table><thead><tr>"+head.map(function(h){return "<th style='text-align:"+(h.r?"right":"left")+"'>"+esc(h.t)+"</th>";}).join("")+
+      "</tr></thead><tbody>"+rows.map(function(r){return "<tr>"+r.map(function(c,i){return "<td style='text-align:"+(head[i]&&head[i].r?"right":"left")+"'>"+c+"</td>";}).join("")+"</tr>";}).join("")+"</tbody></table>";
+  }
+  var KB=null, ADS=null;
+
+  function verdictChip(cpr, objective){
+    if(cpr==null) return "<span class='chip dim'>n/a</span>";
+    if(objective==="Sales"){ if(cpr<=0.85) return "<span class='chip good'>beats $0.80-0.85 bench</span>"; if(cpr<=1.2) return "<span class='chip warn'>near bench</span>"; return "<span class='chip bad'>above bench</span>"; }
+    if(objective==="Traffic"){ if(cpr<=0.15) return "<span class='chip good'>beats $0.13 bench</span>"; if(cpr<=0.25) return "<span class='chip warn'>near bench</span>"; return "<span class='chip bad'>above bench</span>"; }
+    return "<span class='chip dim'>"+esc(objective)+"</span>";
+  }
+
+  function renderOverview(){
+    var s=KB.spend, o=KB.objective_rollup;
+    var salesObj=o.filter(function(x){return x.objective==="Sales";})[0]||{};
+    $("#ov-cards").innerHTML=
+      "<div class='sc'><div class='k'>Total paid spend (May→20 Jul)</div><div class='v'>"+money0(s.total)+"</div><div class='s'>Meta "+money0(s.meta_total)+" · TikTok "+money0(s.tiktok_total)+"</div></div>"+
+      "<div class='sc'><div class='k'>Meta ads tracked</div><div class='v'>125</div><div class='s'>13 campaigns · Target account</div></div>"+
+      "<div class='sc'><div class='k'>Sales objective spend</div><div class='v'>"+money0(salesObj.spend)+"</div><div class='s'>"+intf(salesObj.results)+" initiate-checkouts</div></div>"+
+      "<div class='sc'><div class='k'>Sales cost / result</div><div class='v'>"+money(salesObj.cost_per_result)+"</div><div class='s'>blended, all Sales ads</div></div>"+
+      "<div class='sc'><div class='k'>Organic views (Apr→17 Jul)</div><div class='v'>3.59M</div><div class='s'>reach 1.58M · creator cost $150,956</div></div>";
+    $("#ov-months").innerHTML=table(
+      [{t:"Month"},{t:"Total",r:1},{t:"Meta",r:1},{t:"TikTok",r:1}],
+      s.months.map(function(m){return [esc(m.month),money(m.total),money(m.meta),money(m.tiktok)];}));
+    $("#ov-objectives").innerHTML=table(
+      [{t:"Objective"},{t:"Spend",r:1},{t:"Ads",r:1},{t:"CTR",r:1},{t:"CPC",r:1},{t:"Cost/result",r:1}],
+      o.map(function(x){return [esc(x.objective),money(x.spend),intf(x.ads),pct(x.ctr),money(x.cpc),money(x.cost_per_result)];}));
+    var v=[
+      ["good","Sales engine clears bench","In-house statics deliver $0.80 per initiate-checkout at 4.85% CTR; influencer page-deck runs $0.73. The scaled winners (menopause, cortisol, GLP-1 angles) hold $0.62-0.86 at $2k-3k spend each."],
+      ["good","Cheapest clicks: JoinBrands UGC traffic","12.18% CTR at $0.07 CPC ($1,311 spend). JB-UGC-4-irish: 16.4% CTR, $0.05 CPC, 0.676 thumb-stop."],
+      ["bad","Awareness is the drag","All 10 worst ads (spend ≥ $100) are Awareness/unscored social: CTR 0.03-0.10%, CPC $2-9. $3,344 spent for 1,164 clicks."],
+      ["warn","July TikTok reads $0","Meta ran $23,485 in July (to 20th) while TikTok shows zero in the tracker; confirm paused vs unreported."],
+      ["warn","Organic July tracking low","293K views to 17 Jul vs 2.14M in June; hook quality (skip rate 45.3%) was the June unlock — keep identity-first hooks."]
+    ];
+    $("#ov-verdicts").innerHTML=v.map(function(x){return "<div class='learn'><span class='chip "+x[0]+"'>"+(x[0]==="good"?"working":x[0]==="bad"?"fix":"watch")+"</span> <b>"+esc(x[1])+"</b><div style='font-size:13.5px;margin-top:4px'>"+esc(x[2])+"</div></div>";}).join("");
+  }
+
+  function renderCampaigns(){
+    $("#camp-tbl").innerHTML=table(
+      [{t:"Campaign"},{t:"Objective"},{t:"Spend",r:1},{t:"Ads",r:1},{t:"Impressions",r:1},{t:"Clicks",r:1},{t:"CTR",r:1},{t:"CPC",r:1},{t:"Results",r:1},{t:"Cost/result",r:1},{t:"Verdict"}],
+      KB.campaign_rollup.map(function(c){return [esc(c.campaign),esc(c.objective),money(c.spend),intf(c.ads),intf(c.impressions),intf(c.clicks),pct(c.ctr),money(c.cpc),intf(c.results),money(c.cost_per_result),verdictChip(c.cost_per_result,c.objective)];}));
+    renderAds();
+  }
+  function renderAds(){
+    if(!ADS) return;
+    var obj=$("#f-obj").value, st=$("#f-status").value, q=($("#f-q").value||"").toLowerCase(), sort=$("#f-sort").value;
+    var rows=ADS.filter(function(r){
+      if(obj&&r.objective!==obj)return false;
+      if(st&&r.status!==st)return false;
+      if(q&&((r.ad||"")+" "+(r.adset||"")+" "+(r.campaign||"")).toLowerCase().indexOf(q)<0)return false;
+      return true;
+    });
+    var asc=(sort==="cost_per_result"||sort==="cpc");
+    rows.sort(function(a,b){var x=a[sort],y=b[sort];if(x==null)return 1;if(y==null)return -1;return asc?(x-y):(y-x);});
+    $("#ads-tbl").innerHTML=table(
+      [{t:"Ad"},{t:"Ad set"},{t:"Objective"},{t:"Delivery"},{t:"Spend",r:1},{t:"Impr.",r:1},{t:"Clicks",r:1},{t:"CTR",r:1},{t:"CPC",r:1},{t:"Results",r:1},{t:"Cost/result",r:1},{t:"Thumb stop",r:1},{t:"Verdict"}],
+      rows.slice(0,150).map(function(r){return [esc(r.ad),esc(r.adset),esc(r.objective),
+        "<span class='chip "+(r.status==="active"?"good":"dim")+"'>"+esc(r.status)+"</span>",
+        money(r.spend),intf(r.impressions),intf(r.clicks),pct(r.ctr),money(r.cpc),intf(r.results),money(r.cost_per_result),
+        (r.thumb_stop!=null&&r.thumb_stop>0?Number(r.thumb_stop).toFixed(3):"—"),verdictChip(r.cost_per_result,r.objective)];}));
+    $("#ads-count").textContent=rows.length+" of "+ADS.length+" ads shown (max 150 rendered) · reporting window ends 20 Jul 2026 · Sales results = initiate checkout, Traffic = link clicks, Awareness = reach.";
+  }
+
+  function renderCreative(){
+    $("#bm-tbl").innerHTML=table(
+      [{t:"Segment"},{t:"CTR",r:1},{t:"CPC",r:1},{t:"Cost / key result",r:1},{t:"Note"}],
+      KB.benchmarks.map(function(b){
+        var key=b.cost_per_initiate_checkout_usd!=null?money(b.cost_per_initiate_checkout_usd)+" /IC":(b.cost_per_link_click_usd!=null?money(b.cost_per_link_click_usd)+" /click":(b.cpm_usd!=null?money(b.cpm_usd)+" CPM":(b.thumb_stop_min!=null?b.thumb_stop_min+"–"+b.thumb_stop_max+" TSR":(b.cpr_usd_june!=null?money(b.cpr_usd_june)+" /reach (Jun)":"—"))));
+        return [esc(b.segment),b.ctr_pct!=null?pct(b.ctr_pct):"—",b.cpc_usd!=null?money(b.cpc_usd):"—",key,esc(b.warning||b.note||"")];}));
+    function adsMini(list){return table(
+      [{t:"Ad"},{t:"Spend",r:1},{t:"CTR",r:1},{t:"CPC",r:1},{t:"Cost/result",r:1}],
+      list.map(function(a){return [esc(a.ad)+"<div style='font-size:11px;color:var(--dim)'>"+esc(a.adset)+"</div>",money(a.spend),pct(a.ctr),money(a.cpc),money(a.cost_per_result)];}));}
+    $("#top-tbl").innerHTML=adsMini(KB.top_ads_by_efficiency);
+    $("#worst-tbl").innerHTML=adsMini(KB.worst_ads_by_efficiency);
+    $("#learnings").innerHTML=KB.creative_learnings.map(function(l){
+      return "<div class='learn'><b>"+esc(l.title)+"</b><div style='font-size:13.5px;margin:4px 0'>"+esc(l.detail)+"</div><span class='src'>source: "+esc(l.source)+"</span></div>";}).join("");
+  }
+
+  function renderOrganic(){
+    var og=KB.organic, t=og.totals;
+    $("#org-cards").innerHTML=
+      "<div class='sc'><div class='k'>Total views</div><div class='v'>"+intf(t.views)+"</div></div>"+
+      "<div class='sc'><div class='k'>Total reach</div><div class='v'>"+intf(t.reach)+"</div></div>"+
+      "<div class='sc'><div class='k'>Influencers</div><div class='v'>"+t.influencer_count+"</div><div class='s'>cost "+money0(t.influencer_cost_usd)+"</div></div>"+
+      "<div class='sc'><div class='k'>UGC videos</div><div class='v'>"+t.ugc_videos+"</div><div class='s'>cost "+money0(t.ugc_cost_usd)+" (parked for 400)</div></div>"+
+      "<div class='sc'><div class='k'>Total creator cost</div><div class='v'>"+money0(t.total_creator_cost_usd)+"</div><div class='s'>utilized so far $69,948</div></div>";
+    $("#org-months").innerHTML=table(
+      [{t:"Month"},{t:"Views",r:1},{t:"Reach",r:1},{t:"IG reach",r:1},{t:"TikTok reach",r:1},{t:"FB reach",r:1},{t:"Influencers"},{t:"Influencer cost",r:1},{t:"Organic CPR",r:1},{t:"UGC videos",r:1}],
+      og.months.map(function(m){return [esc(m.month),intf(m.views),intf(m.reach),intf(m.platform_reach.instagram),intf(m.platform_reach.tiktok),intf(m.platform_reach.facebook),esc(m.influencers),money0(m.influencer_cost_usd),money(m.organic_cpr_usd),m.ugc_videos?intf(m.ugc_videos):"—"];}));
+    $("#org-creators").innerHTML=table(
+      [{t:"Creator"},{t:"Followers",r:1},{t:"Reach",r:1},{t:"Skip rate",r:1},{t:"Product at",r:1},{t:"Post-reveal retention",r:1},{t:"AWT",r:1}],
+      og.top_creators.map(function(c){return [esc(c.name),esc(c.followers),esc(c.reach),pct(c.skip_rate_pct),pct(c.product_at_pct),pct(c.post_reveal_retention_pct),c.awt_sec+"s"];}));
+    var u=og.ugc_june_buckets;
+    $("#org-ugc").innerHTML=table(
+      [{t:"Bucket"},{t:"Live pieces",r:1}],
+      [["Target shelf showdown",intf(u.target_shelf)],["Cortisol",intf(u.cortisol)],["Over 40",intf(u.over_40)],["Gummies vs coffee",intf(u.gummies_vs_coffee)],["Taste",intf(u.taste)],["Countering mushroom-coffee trend",intf(u.countering_mushroom)],["<b>Total live (June)</b>","<b>"+intf(u.total_live)+"</b> (TikTok "+intf(u.tiktok)+" · IG "+intf(u.instagram)+" · YT "+intf(u.youtube)+")"]]);
+    $("#org-funnel").innerHTML="<div class='stage'><span class='hdr'>Stage</span><span class='hdr'>May</span><span class='hdr'>June</span></div>"+
+      og.retention_funnel.stages.map(function(s){return "<div class='stage'><span class='lab'>"+esc(s.stage)+"</span><span>"+esc(s.may)+"</span><span>"+esc(s.june)+"</span></div>";}).join("");
+    $("#org-funnel-note").textContent=og.retention_funnel.headline;
+    $("#org-next").innerHTML="<h3>Next line-up</h3><p style='font-size:13.5px'>"+esc(og.next_lineup)+"</p><h3>Competitor share-driving themes</h3><p style='font-size:13.5px'>"+esc(og.competitor_share_themes)+"</p>";
+  }
+
+  function renderKB(){
+    var groups=[]; KB.links.forEach(function(l){ if(groups.indexOf(l.group)<0) groups.push(l.group); });
+    $("#kb-group").innerHTML="<option value=''>All groups</option>"+groups.map(function(g){return "<option>"+esc(g)+"</option>";}).join("");
+    function draw(){
+      var g=$("#kb-group").value, st=$("#kb-status").value, q=($("#kb-q").value||"").toLowerCase();
+      var list=KB.links.filter(function(l){
+        if(g&&l.group!==g)return false; if(st&&l.status!==st)return false;
+        if(q&&((l.title||"")+" "+(l.owner||"")).toLowerCase().indexOf(q)<0)return false; return true;});
+      var byGroup={}; list.forEach(function(l){ (byGroup[l.group]=byGroup[l.group]||[]).push(l); });
+      $("#kb-links").innerHTML=Object.keys(byGroup).map(function(gr){
+        return "<h3>"+esc(gr)+"</h3>"+byGroup[gr].map(function(l){
+          var chip=l.status==="verified"?"<span class='chip good'>verified</span>":l.status==="pending-access"?"<span class='chip warn'>pending access</span>":"<span class='chip dim'>"+esc(l.status)+"</span>";
+          var btn=l.url?"<a class='btn' href='"+esc(l.url)+"' target='_blank' rel='noopener'>Open ↗</a>":"<span class='chip warn'>ask "+esc((l.owner||"owner").split("/")[0])+"</span>";
+          return "<div class='linkrow'><div class='t'><b>"+esc(l.title)+"</b> "+chip+"<div class='m'>Owner: "+esc(l.owner||"—")+(l.note?" · "+esc(l.note):"")+"</div></div>"+btn+"</div>";
+        }).join("");
+      }).join("")||"<div class='empty'>No links match.</div>";
+    }
+    ["kb-group","kb-status"].forEach(function(id){document.getElementById(id).addEventListener("change",draw);});
+    document.getElementById("kb-q").addEventListener("input",draw);
+    draw();
+    $("#kb-people").innerHTML=table([{t:"Person"},{t:"Owns"}],KB.people.map(function(p){return [esc(p.name),esc(p.role)];}));
+    $("#kb-gaps").innerHTML=KB.gaps.map(function(g){
+      var cls=g.severity==="high"?"bad":g.severity==="medium"?"warn":"dim";
+      return "<div class='learn'><span class='chip "+cls+"'>"+esc(g.severity)+"</span> <span style='font-size:13.5px'>"+esc(g.item)+"</span></div>";}).join("");
+  }
+
+  function renderOps(){
+    $("#ops-platforms").innerHTML=KB.platforms.map(function(p){
+      var ok=/connected|deployed|active/.test(p.status);
+      return "<div class='frame'><h3 style='margin-top:0'>"+esc(p.name)+" <span class='chip "+(ok?"good":"warn")+"'>"+esc(p.status)+"</span></h3>"+
+        "<ul class='tight'>"+p.details.map(function(d){return "<li>"+esc(d)+"</li>";}).join("")+"</ul>"+
+        (p.links?"<p>"+p.links.map(function(u){return "<a class='btn ghost' style='margin-right:8px' href='"+esc(u)+"' target='_blank' rel='noopener'>"+esc(u.replace(/^https:\/\//,"").slice(0,52))+"…↗</a>";}).join("")+"</p>":"")+"</div>";
+    }).join("");
+    var ug=KB.ops.ugc_dashboard_automation;
+    $("#ops-ugc").innerHTML="<p style='font-size:13.5px'>"+esc(ug.summary)+"</p><ul class='tight'>"+ug.prerequisites.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul>"+
+      "<p class='note'>Automation: "+esc(ug.owners.automation)+" · Ads next step: "+esc(ug.owners.ads_next_step)+" · Output validation: "+esc(ug.owners.output_validation)+"</p><p class='note'>"+esc(ug.status)+"</p>";
+    var co=KB.ops.costco_launch;
+    $("#ops-costco").innerHTML="<p style='font-size:13.5px'>"+esc(co.summary)+"</p><ul class='tight'>"+
+      "<li>Creatives: "+esc(co.creatives)+"</li><li>Landing page: <a href='"+esc(co.landing_page)+"' target='_blank' rel='noopener'>"+esc(co.landing_page)+"</a></li>"+
+      "<li>Objective: "+esc(co.objective)+" · Daily budget: $"+co.daily_budget_usd+"</li></ul>"+
+      "<p class='eyebrow'>Open items</p><ul class='tight'>"+co.open_items.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul>"+
+      "<p class='note'>Creatives: "+esc(co.owners.creatives)+" · Meta account access: "+esc(co.owners.meta_account_access)+" · Execution: "+esc(co.owners.execution)+"</p>";
+    var dr=KB.ops.data_request;
+    $("#ops-datareq").innerHTML="<p style='font-size:13.5px'>"+esc(dr.summary)+"</p>"+
+      "<p class='eyebrow'>Deliverables confirmed in-thread</p><ul class='tight'>"+dr.deliverables_confirmed.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul>"+
+      "<p class='eyebrow'>Priority explorations</p><ul class='tight'>"+dr.priority_explorations.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul>";
+  }
+
+  document.getElementById("tabs").addEventListener("click",function(e){
+    var b=e.target.closest("button[data-p]"); if(!b)return;
+    document.querySelectorAll("#tabs button").forEach(function(x){x.classList.toggle("on",x===b);});
+    document.querySelectorAll(".panel").forEach(function(x){x.classList.toggle("on",x.id==="p-"+b.dataset.p);});
+    if(history.replaceState) history.replaceState(null,"","#"+b.dataset.p);
+  });
+  ["f-obj","f-status","f-sort"].forEach(function(id){document.getElementById(id).addEventListener("change",renderAds);});
+  document.getElementById("f-q").addEventListener("input",renderAds);
+
+  Promise.all([
+    fetch("/data/ads/master-kb.json",{cache:"no-store"}).then(function(r){return r.json();}),
+    fetch("/data/ads/target-ads-meta-2026-07-20.json",{cache:"no-store"}).then(function(r){return r.json();})
+  ]).then(function(res){
+    KB=res[0]; ADS=res[1];
+    renderOverview(); renderCampaigns(); renderCreative(); renderOrganic(); renderKB(); renderOps();
+    var h=(location.hash||"").replace(/[^a-z]/gi,"");
+    if(h){var b=document.querySelector("#tabs button[data-p='"+h+"']"); if(b)b.click();}
+  }).catch(function(e){
+    $("#ov-cards").innerHTML="<div class='empty'>Could not load /data/ads/master-kb.json — "+esc(e.message)+"</div>";
+  });
+})();
+</script>
+</body>
+</html>

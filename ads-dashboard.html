@@ -65,7 +65,7 @@
 <body>
 <div class="wrap">
   <h1>Ads Analysis</h1>
-  <p class="lede">The same analysis as the native Snowflake (Streamlit) app, rendered here — read live from Snowflake (Meta / Google / TikTok), per campaign and per ad, for the Costco + Target US accounts. Read-only; nothing is fabricated. When Snowflake isn't configured, each panel shows the exact query it will run.</p>
+  <p class="lede">The same analysis as the native Snowflake (Streamlit) app, rendered here — read live from Snowflake (Meta / Google / TikTok), per campaign and per ad, for the Costco + Target US accounts. Read-only; nothing is fabricated. When Snowflake isn't configured, each panel shows the exact query it will run. Benchmarks and the full ads knowledge base live in the <a href="/ads-master">Ad Campaigns Master Dashboard</a>.</p>
 
   <div class="bar">
     <label>Platform<select id="f-platform"><option value="meta">Meta</option><option value="google">Google</option><option value="tiktok">TikTok</option></select></label>
@@ -91,6 +91,10 @@
     <p class="eyebrow">Portfolio priority metrics</p>
     <div class="scorecards" id="scorecards"><div class="empty">Loading…</div></div>
     <p class="note" id="ov-note"></p>
+    <p class="eyebrow">KT benchmarks (from the Ad Campaigns Master KB — judge live rows against these)</p>
+    <div id="kb-benchmarks"><div class="empty">Loading…</div></div>
+    <p class="eyebrow">Top learnings from the knowledge base</p>
+    <div id="kb-learnings"></div>
   </div>
 
   <div class="panel" id="p-rows">
@@ -220,6 +224,32 @@
   }
   function loadCohort(){get('cohort','&dimension='+$('#c-dim').value+'&measure='+$('#c-measure').value).then(renderCohort).catch(function(e){$('#cohort-body').innerHTML='<div class="empty">'+e.message+'</div>';});}
 
+  // ── KT benchmarks + learnings (shared KB: /data/ads/master-kb.json) ─────────
+  // The Master Dashboard KB is the judgement layer for this page: derived from
+  // the KT spend workbook (125 Meta ads to 20 Jul 2026) + Social Update deck.
+  var kbLoaded=false;
+  function loadKB(){
+    if(kbLoaded)return; kbLoaded=true;
+    fetch('/data/ads/master-kb.json',{cache:'no-store'}).then(function(r){return r.json();}).then(function(kb){
+      var cards=(kb.benchmarks||[]).map(function(b){
+        var key=b.cost_per_initiate_checkout_usd!=null?('$'+b.cost_per_initiate_checkout_usd+' / initiate checkout')
+          :(b.cost_per_link_click_usd!=null?('$'+b.cost_per_link_click_usd+' / link click')
+          :(b.cpm_usd!=null?('$'+b.cpm_usd+' CPM')
+          :(b.thumb_stop_min!=null?(b.thumb_stop_min+'–'+b.thumb_stop_max+' thumb-stop')
+          :(b.cpr_usd_june!=null?('$'+b.cpr_usd_june+' / organic reach (Jun)'):'—'))));
+        return '<div class="sc'+(b.warning?'" style="border-left-color:var(--warn)':'')+'"><div class="k">'+b.segment.replace(/</g,'&lt;')+'</div><div class="v" style="font-size:17px">'+key+'</div>'+
+          (b.ctr_pct!=null?'<div style="font-size:11.5px;color:var(--dim);margin-top:3px">CTR '+b.ctr_pct+'% · CPC $'+b.cpc_usd+'</div>':'')+
+          (b.warning?'<div style="font-size:11.5px;color:var(--warn);margin-top:3px">'+b.warning.replace(/</g,'&lt;')+'</div>':'')+'</div>';
+      }).join('');
+      $('#kb-benchmarks').innerHTML='<div class="scorecards">'+cards+'</div>';
+      $('#kb-learnings').innerHTML=(kb.creative_learnings||[]).slice(0,4).map(function(l){
+        return '<div class="frame" style="border-left:4px solid var(--gold)"><b style="color:var(--head)">'+l.title.replace(/</g,'&lt;')+'</b>'+
+          '<div style="font-size:13px;margin-top:4px">'+l.detail.replace(/</g,'&lt;')+'</div>'+
+          '<div style="font-family:var(--mono);font-size:10.5px;color:var(--gold-deep);margin-top:5px;text-transform:uppercase;letter-spacing:.06em">source: '+String(l.source).replace(/</g,'&lt;')+'</div></div>';
+      }).join('')+'<p class="note">Full knowledge base, campaign rollups, organic/UGC data and ops runbooks: <a href="/ads-master">Ad Campaigns Master Dashboard</a>.</p>';
+    }).catch(function(e){kbLoaded=false;$('#kb-benchmarks').innerHTML='<div class="empty">KB unavailable — '+e.message+'</div>';});
+  }
+
   // ── Metric catalog + accuracy (shared source of truth: ?action=ad-metrics) ──
   var catalogLoaded=false;
   function renderCatalog(res){
@@ -275,6 +305,7 @@
     }).catch(function(e){$('#scorecards').innerHTML='<div class="empty">'+e.message+'</div>';});
     loadCatalog();
     loadCohort();
+    loadKB();
   }
   document.getElementById('tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-p]');if(!b)return;
     document.querySelectorAll('#tabs button').forEach(function(x){x.classList.toggle('on',x===b);});
