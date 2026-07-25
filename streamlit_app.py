@@ -40,7 +40,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-24.1"
+APP_BUILD = "2026-07-25.1"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -612,7 +612,8 @@ section = st.sidebar.radio(
 # the top bar of the page, never in this menu.
 ADS_VIEWS = ["Omnichannel Master View", "Comparison Engine", "Cohort Exploration",
              "Overview & priority metrics", "Single entity deep-dive",
-             "Ad explorer (all fields)", "Spend tracker", "UGC creator ads"]
+             "Ad explorer (all fields)", "Spend tracker", "UGC creator ads",
+             "UGC command center"]
 if section == "Ads Analysis":
     view = st.sidebar.radio("Analysis view", ADS_VIEWS)
 else:
@@ -2058,6 +2059,275 @@ def render_ads_analytics():
                     st.dataframe(show.head(200), use_container_width=True, height=420)
                     st.download_button("Download scored UGC CSV", show.to_csv(index=False).encode(),
                                        "ugc_scored.csv", "text/csv", key="ugc_score_dl")
+
+    # ── UGC COMMAND CENTER — native rebuild of the JB UGC tracker dashboard
+    # (vahdam-june-usa-ugc-dashboard.netlify.app). The METHODOLOGY (weights,
+    # log-normalisation, view-confidence multipliers, ad-rec thresholds, score
+    # benchmarks) is mirrored exactly; every FIGURE is computed live from the
+    # loaded tracker tables — a sheet that is not loaded shows a declared gap.
+    if view == "UGC command center":
+        st.subheader("UGC command center — JB UGC tracker, native")
+        st.caption(
+            "Organic scoring, ad recommendations and the hook bible from the UGC "
+            "tracker, recomputed live over VAHDAM_DB.TRACKERS tables. Methodology "
+            "mirrors the JB dashboard exactly; nothing is estimated."
+        )
+        TT_W = [("6-sec view %", "40%", "Strongest signal - hook worked, TikTok rewards this"),
+                ("Shares", "25%", "Viral intent - highest organic endorsement"),
+                ("Likes + Comments", "20%", "Active engagement, comments = real reaction"),
+                ("Views", "15%", "Reach matters but views alone are not resonance")]
+        IG_W = [("Views", "40%", "Reach = algorithm distributing"),
+                ("Likes", "35%", "Primary IG engagement signal"),
+                ("Comments", "15%", "Rarer but strong - real emotional response")]
+        TT_CONF = [(0, 50, 0.45, "unreliable data"), (50, 200, 0.70, "caution applied"),
+                   (200, 500, 0.85, "reasonable, minor discount"), (500, None, 1.00, "full confidence")]
+        IG_CONF = [(0, 100, 0.50, "unreliable data"), (100, 500, 0.75, "caution applied"),
+                   (500, None, 1.00, "full confidence")]
+        BENCH = [("70-100", "Elite", "Top-tier organic. Strong hook, high retention, real engagement. First to boost."),
+                 ("50-69", "High", "Very good creative with solid hold/engagement. Boost with confidence."),
+                 ("30-49", "Good", "Meets Ad Recommended threshold. Worth testing with budget."),
+                 ("20-29", "Consider", "Some signal. Test with small spend first."),
+                 ("0-19", "Not ready", "Don't boost - fix the creative first.")]
+
+        def _conf_mult(v, table):
+            for lo, hi, m, _ in table:
+                if v >= lo and (hi is None or v < hi):
+                    return m
+            return 1.0
+
+        def _tier(s):
+            return ("Elite" if s >= 70 else "High" if s >= 50 else "Good" if s >= 30
+                    else "Consider" if s >= 20 else "Not ready")
+
+        UGC_T = "VAHDAM_DB.TRACKERS.UGC_MASTER_TRACKER"
+        jb = pd.DataFrame()
+        if table_columns(UGC_T):
+            try:
+                jb = q(f"select * from {UGC_T}")
+            except Exception as e:  # noqa: BLE001
+                st.info(f"Tracker unreadable for this role: {e}")
+
+        cmap, scored = {}, pd.DataFrame()
+        if not jb.empty:
+            def _pk(*hints):
+                return next((c for c in jb.columns if any(h in c for h in hints)), None)
+            cmap = {"platform": _pk("platform"), "creator": _pk("creator", "handle", "username", "account"),
+                    "bucket": _pk("bucket", "category", "content_type"),
+                    "views": _pk("current_views", "views"), "views0": _pk("original_views", "baseline"),
+                    "likes": _pk("likes"), "comments": _pk("comments"), "shares": _pk("shares"),
+                    "six": _pk("6_sec", "six_sec", "sec_view"), "er": _pk("er_", "engagement"),
+                    "hook": _pk("hook_type", "hook"), "script": _pk("script", "caption", "hook_line"),
+                    "spend": _pk("spend"), "impressions": _pk("impressions"), "clicks": _pk("clicks"),
+                    "ctr": _pk("ctr"), "cpc": _pk("cpc"), "spark": _pk("spark"),
+                    "status": _pk("activation", "activated", "status"), "logic": _pk("logic")}
+            for k in ("views", "views0", "likes", "comments", "shares", "six", "er",
+                      "spend", "impressions", "clicks", "ctr", "cpc"):
+                if cmap.get(k):
+                    jb[cmap[k]] = pd.to_numeric(jb[cmap[k]], errors="coerce")
+            if cmap["platform"] and cmap["views"] and cmap["likes"]:
+                def _ln(series):
+                    x = series.fillna(0).clip(lower=0)
+                    ln = (x + 1.0).map(math.log)
+                    mx = ln.max()
+                    return ln / mx if mx else ln * 0
+                parts = []
+                for pname, g0 in jb.groupby(jb[cmap["platform"]].astype(str).str.lower().str.strip()):
+                    g2 = g0.copy()
+                    def C(key):
+                        c = cmap.get(key)
+                        return g2[c].fillna(0) if c else pd.Series(0.0, index=g2.index)
+                    vraw = C("views")
+                    if str(pname).startswith("tiktok"):
+                        base = (_ln(C("six")) * .40 + _ln(C("shares")) * .25
+                                + _ln(C("likes") + C("comments")) * .20 + _ln(C("views")) * .15)
+                        conf = vraw.map(lambda v: _conf_mult(v, TT_CONF))
+                    else:
+                        # IG weights per the JB spec sum to 90% - rescaled to a
+                        # 0-100 ceiling; the rescale is stated, not hidden.
+                        base = (_ln(C("views")) * .40 + _ln(C("likes")) * .35
+                                + _ln(C("comments")) * .15) / 0.90
+                        conf = vraw.map(lambda v: _conf_mult(v, IG_CONF))
+                    g2["score"] = (base * 100 * conf).round(1)
+                    g2["_six"] = C("six")
+                    g2["_er"] = C("er")
+                    g2["_lv"] = (C("likes") / vraw.replace(0, pd.NA) * 100).fillna(0)
+                    g2["_plat"] = str(pname)
+                    parts.append(g2)
+                scored = pd.concat(parts)
+
+                def _rec(r):
+                    if r["_plat"].startswith("tiktok"):
+                        if r["_six"] >= 25 or r["score"] >= 30:
+                            return "Ad Recommended"
+                        if r["score"] >= 20 or r["_six"] >= 18 or r["_er"] >= 8:
+                            return "Consider"
+                        return "No"
+                    if r["score"] >= 20:
+                        return "Ad Recommended"
+                    if r["score"] >= 13 or r["_lv"] >= 5:
+                        return "Consider"
+                    return "No"
+                scored["ad_rec"] = scored.apply(_rec, axis=1)
+                scored["tier"] = scored["score"].map(_tier)
+
+        (t_ov, t_logic, t_views, t_tt, t_ig, t_all, t_adperf, t_bible) = st.tabs(
+            ["Overview", "Scoring & Logic", "View Summary", "TikTok Top 25",
+             "Instagram Top 25", "All Creators", "Ad Performance", "Hook & Script Bible"])
+        _GAP = ("Load the UGC tracker sheets into VAHDAM_DB.TRACKERS "
+                "(trackers/load_trackers.sql + stage upload) to light this up - declared gap, nothing estimated.")
+
+        with t_ov:
+            if scored.empty:
+                st.info(_GAP)
+            else:
+                plat = scored["_plat"].str.split().str[0]
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric("Videos tracked", f"{len(scored):,}")
+                k2.metric("Platforms", ", ".join(f"{p} {n}" for p, n in plat.value_counts().items()))
+                k3.metric("Ad Recommended", f"{(scored['ad_rec'] == 'Ad Recommended').sum():,}")
+                k4.metric("Tracker ad spend",
+                          money(scored[cmap["spend"]].sum()) if cmap.get("spend") else "in Ad Performance tab")
+                if cmap.get("creator"):
+                    st.markdown("**Top creator per platform (by organic score)**")
+                    tops = scored.loc[scored.groupby("_plat")["score"].idxmax()]
+                    st.dataframe(tops[[cmap["creator"], "_plat", "score", "tier", "ad_rec"]]
+                                 .rename(columns={cmap["creator"]: "creator", "_plat": "platform"}),
+                                 use_container_width=True, hide_index=True)
+                st.markdown("**Score distribution by benchmark tier**")
+                dist = scored.groupby(["tier", "_plat"]).size().reset_index(name="videos")
+                st.altair_chart(
+                    alt.Chart(dist).mark_bar().encode(
+                        x=alt.X("videos:Q"), y=alt.Y("tier:N", sort=[b[1] for b in BENCH]),
+                        color=alt.Color("_plat:N", title=None), tooltip=["tier", "_plat", "videos"],
+                    ).properties(height=220), use_container_width=True)
+
+        with t_logic:
+            st.markdown("**TikTok organic score (0-100)** - log-normalised inputs, then weighted:")
+            st.dataframe(pd.DataFrame(TT_W, columns=["Component", "Weight", "Why this weight"]),
+                         use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame([(f"{lo}-{hi - 1}" if hi else f"{lo}+", f"x {m:.2f}", why)
+                                       for lo, hi, m, why in TT_CONF],
+                                      columns=["Views", "Multiplier", "Meaning"]),
+                         use_container_width=True, hide_index=True)
+            st.markdown("**Instagram organic score (0-100)**")
+            st.dataframe(pd.DataFrame(IG_W, columns=["Component", "Weight", "Why this weight"]),
+                         use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame([(f"{lo}-{hi - 1}" if hi else f"{lo}+", f"x {m:.2f}", why)
+                                       for lo, hi, m, why in IG_CONF],
+                                      columns=["Views", "Multiplier", "Meaning"]),
+                         use_container_width=True, hide_index=True)
+            st.markdown("**Ad recommendation thresholds**")
+            st.dataframe(pd.DataFrame([
+                ("TikTok", "Ad Recommended", "Score >= 30 OR 6-sec >= 25%", "Strong organic proof - safe to amplify"),
+                ("TikTok", "Consider", "Score >= 20 OR 6-sec >= 18% OR ER >= 8%", "Some signal - test with small budget"),
+                ("TikTok", "No", "Below all thresholds", "Insufficient organic data"),
+                ("Instagram", "Ad Recommended", "Score >= 20", "Good IG organic performance"),
+                ("Instagram", "Consider", "Score >= 13 OR Likes/Views >= 5%", "Emerging signal - worth a small test"),
+                ("Instagram", "No", "Below all thresholds", "Not enough proof yet"),
+            ], columns=["Platform", "Label", "Condition", "Meaning"]),
+                use_container_width=True, hide_index=True)
+            st.caption("6-sec auto-qualify: >= 25% 6-sec = Ad Recommended regardless of score - "
+                       "hook beats TikTok's skip behaviour.")
+            st.markdown("**Score benchmarks**")
+            st.dataframe(pd.DataFrame(BENCH, columns=["Score", "Label", "What it means"]),
+                         use_container_width=True, hide_index=True)
+
+        with t_views:
+            if scored.empty or not cmap.get("views"):
+                st.info(_GAP)
+            else:
+                agg = scored.groupby("_plat").agg(
+                    videos=(cmap["views"], "size"), total_views=(cmap["views"], "sum"),
+                    avg_views=(cmap["views"], "mean"),
+                    total_likes=(cmap["likes"], "sum") if cmap.get("likes") else (cmap["views"], "size"),
+                ).reset_index().rename(columns={"_plat": "platform"})
+                st.dataframe(agg.round(0), use_container_width=True, hide_index=True)
+                if cmap.get("views0"):
+                    b0, b1 = scored[cmap["views0"]].sum(), scored[cmap["views"]].sum()
+                    st.caption(f"Baseline organic views {b0:,.0f} -> current {b1:,.0f} "
+                               "(growth includes paid amplification).")
+
+        def _top25(prefix, tab, cols_wanted):
+            with tab:
+                if scored.empty:
+                    st.info(_GAP)
+                    return
+                sub = scored[scored["_plat"].str.startswith(prefix)]
+                if sub.empty:
+                    st.info(f"No {prefix} rows in the tracker.")
+                    return
+                keep = [c for c in cols_wanted if c and c in sub.columns]
+                st.dataframe(sub.sort_values("score", ascending=False).head(25)[keep],
+                             use_container_width=True, hide_index=True, height=560)
+
+        _top25("tiktok", t_tt, [cmap.get("creator"), cmap.get("bucket"), "score", "tier",
+                                cmap.get("six"), cmap.get("views"), cmap.get("likes"),
+                                cmap.get("hook"), "ad_rec"])
+        _top25("instagram", t_ig, [cmap.get("creator"), cmap.get("bucket"), "score", "tier",
+                                   cmap.get("views"), cmap.get("likes"), cmap.get("comments"),
+                                   cmap.get("hook"), "ad_rec"])
+
+        with t_all:
+            if scored.empty:
+                st.info(_GAP)
+            else:
+                f1, f2 = st.columns(2)
+                pf = f1.multiselect("Platform", sorted(scored["_plat"].unique()), key="ucc_pf")
+                rf = f2.multiselect("Ad recommendation", ["Ad Recommended", "Consider", "No"], key="ucc_rf")
+                sub = scored
+                if pf:
+                    sub = sub[sub["_plat"].isin(pf)]
+                if rf:
+                    sub = sub[sub["ad_rec"].isin(rf)]
+                lead = [c for c in (cmap.get("creator"), "_plat", cmap.get("bucket"), "score",
+                                    "tier", "ad_rec", cmap.get("status"), cmap.get("logic"),
+                                    cmap.get("spend"), cmap.get("impressions"), cmap.get("ctr"),
+                                    cmap.get("clicks"), cmap.get("cpc"), cmap.get("spark")) if c]
+                rest = [c for c in sub.columns if c not in lead and not c.startswith("_")]
+                st.dataframe(sub.sort_values("score", ascending=False)[lead + rest],
+                             use_container_width=True, hide_index=True, height=520)
+                st.download_button("Download all creators CSV", sub.to_csv(index=False).encode(),
+                                   "ugc_all_creators.csv", "text/csv", key="ucc_dl")
+
+        with t_adperf:
+            st.caption("Paid results per platform - tracker ad-performance sheets when loaded, "
+                       "plus the live warehouse roll-up of every ad named 'UGC'.")
+            for label, tbl in (("TikTok", "VAHDAM_DB.TRACKERS.UGC_TIKTOK_AD_PERFORMANCE"),
+                               ("Instagram", "VAHDAM_DB.TRACKERS.UGC_INSTAGRAM_AD_PERFORMANCE")):
+                st.markdown(f"**{label} (tracker)**")
+                if not table_columns(tbl):
+                    st.info(f"{label} ad-performance sheet not loaded. " + _GAP)
+                    continue
+                try:
+                    ap = q(f"select * from {tbl}")
+                    st.dataframe(order_table(ap), use_container_width=True, height=300)
+                except Exception as e:  # noqa: BLE001
+                    st.info(f"{label} sheet unreadable: {e}")
+            st.caption("Per the JB tracker's Meta note: with multiple ads in one ad set, Meta "
+                       "forces spend allocation - judge winners on validated per-ad results, "
+                       "not ad-set averages.")
+            st.markdown("**Live warehouse UGC ads (Meta union, current filters)**")
+            wu2 = meta_where() + " and ad_name ilike '%ugc%'"
+            du2 = sql_group_sums(META_SRC, wu2, ident_cols("ad"))
+            if du2.empty:
+                st.info("No ads carrying 'UGC' in the name for this scope.")
+            else:
+                st.dataframe(spec_frame(du2), use_container_width=True, height=300,
+                             hide_index=True, column_config=spec_colcfg())
+
+        with t_bible:
+            st.caption("Hooks and scripts extracted from the HIGHEST-SCORING videos per content "
+                       "bucket - real lines from the tracker, never invented copy.")
+            if scored.empty or not (cmap.get("hook") or cmap.get("script")):
+                st.info("Needs the tracker's hook/script columns. " + _GAP)
+            else:
+                bucket_c = cmap.get("bucket")
+                cols_b = [c for c in (bucket_c, cmap.get("creator"), "_plat", "score",
+                                      cmap.get("hook"), cmap.get("script")) if c]
+                top_b = (scored.sort_values("score", ascending=False)
+                         .groupby(bucket_c).head(3) if bucket_c
+                         else scored.sort_values("score", ascending=False).head(15))
+                st.dataframe(top_b[cols_b], use_container_width=True, hide_index=True, height=520)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

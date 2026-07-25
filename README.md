@@ -33,7 +33,7 @@ live in the top bar of the page** (Channel · Account · Marketplace · Level ·
 Objective · Status · Date range · Refresh). All tables default to **descending**
 sort (spend, else the first metric; raw views newest-first).
 
-### Section 1 — Ads Analysis (8 analysis views in the LHS menu)
+### Section 1 — Ads Analysis (9 analysis views in the LHS menu)
 1. **Omnichannel Master View** — dynamic title per filters, KPI strip, the
    spec column array (hierarchy → Created At/Edited On → Delivery → Engagement
    → Conversion metrics), paginated (no row caps), per-row detail opener
@@ -53,6 +53,13 @@ sort (spend, else the first metric; raw views newest-first).
    matrix (live replica of the Ad-Spends tracker)
 8. **UGC creator ads** — per-creator/per-ad paid performance + the UGC scoring
    engine over the loaded tracker
+9. **UGC command center** — native rebuild of the JB UGC tracker dashboard
+   (vahdam-june-usa-ugc-dashboard.netlify.app): Overview · Scoring & Logic
+   (log-normalised weights, view-confidence multipliers, ad-rec thresholds,
+   score benchmarks — methodology mirrored exactly) · View Summary · TikTok /
+   Instagram Top 25 · All Creators (filterable, CSV) · Ad Performance (tracker
+   sheets + live warehouse UGC ads) · Hook & Script Bible. All figures computed
+   live from `VAHDAM_DB.TRACKERS.*`; unloaded sheets show declared gaps
 
 ### Section 2 — Ads Intelligence (7 tabs)
 Ad platform tables · Creatives & assets · Trackers (UGC/retail/sales) ·
