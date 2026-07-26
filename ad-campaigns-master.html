@@ -2197,7 +2197,13 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         [{t:"Metric"},{t:"Category"},{t:"Type"},{t:"Formula"},{t:"What it means"}],
         m.map(function(x){return [esc(x.label||x.key), esc(x.category||""), esc(x.type||""),
                                   "<code>"+esc(x.formula||"")+"</code>", esc(x.definition||x.desc||"")];}))+
-        "<p class='note'>"+m.length+" metrics. The same catalog the Snowflake app uses, so a metric is defined once and computed identically on both surfaces.</p>";
+        "<p class='note'>"+m.length+" metrics. The same catalog the Snowflake app uses, so a metric is defined "+
+        "once and computed identically on both surfaces — now enforced rather than asserted: every key, formula, "+
+        "input list, category, unit and tier is locked in <code>data/ads/metric-catalog.lock.json</code> and checked "+
+        "in CI. It had drifted: the two catalogs shared 41 of 52 metrics, and <code>hold_rate</code> meant "+
+        "thruplays/impressions here while meaning thruplays/3-sec-plays in Snowflake, so one label reported two "+
+        "different numbers. Metrics whose feed is not wired yet (MER, nCAC) are defined here and read "+
+        "<em>unavailable</em> on the accuracy view rather than showing a zero.</p>";
     }).catch(function(e){
       $("#ops-catalog").innerHTML="<div class='empty'>Catalog unavailable: "+esc(e.message)+"</div>";
     });
