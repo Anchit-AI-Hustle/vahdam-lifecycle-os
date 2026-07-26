@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.10"
+APP_BUILD = "2026-07-26.12"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -2596,43 +2596,106 @@ def render_ugc_scoring():
 #                      wrong creator attribution is worse than a declared gap.
 @st.cache_data(ttl=300, show_spinner=False)
 def ugc_ad_mapping(since, until):
-    """Join live paid ads to creator posts without any manual mapping sheet."""
+    """Join live paid ads to creator posts with no manual mapping sheet.
+
+    HOW THE MATCH WORKS, in strict priority order. Every row reports which rule fired,
+    so a figure can always be traced to the rule that produced it.
+
+      0. Classify. An ad name containing "ugc/reviews" is a review-screenshot STATIC,
+         not creator content - it carries a prose description ("what i bought at
+         target") and never a handle. 8 such ads exist; they are labelled, not counted
+         against creator coverage, because they have no creator to match by design.
+      1. Normalise. Strip a trailing " - Copy" (Meta duplicate) and any stray double
+         quote. Without this, 3 ads reduced to the token " copy" and 1 to a quote.
+      2. Extract the handle from the ad name, in this order:
+           a. text after "CTA-"          -> <n>UGC-<bucket>-CTA-<handle>
+           b. text after "JB-UGC-<n>-"   -> JB-UGC-<n>-<firstname>  (truncated)
+           c. trailing token as a last resort
+         Extraction must NOT split on '-' or '_': the original rule was
+         regexp_substr(ad_name, '[^-_]+$'), which turned megan_kathleen_90 into "90",
+         nicole_lee7 into "lee7" and ana-vm into "vm". Handles legitimately contain
+         both characters, so the separator has to be the CTA- / JB-UGC-<n>- marker.
+      3. videoid, if present. Final underscore field, accepted only when it really is a
+         platform id (>= 15 digits). This is the SOP chain and the target state.
+      4. Exact handle match against JB_USA Creator Username (lower-cased, @ stripped).
+      5. UNIQUE prefix match only. Truncated names like JB-UGC-3-luciana resolve to
+         luciana.bittenzap because exactly ONE JB handle starts with that prefix.
+         Where two or more do, the row stays UNMATCHED and lists the candidates - e.g.
+         "beth" matches both beth_michelle_social and bethchancey8, and "irish" matches
+         irish.kulish and irish_kulish_life. Guessing between them would attribute
+         spend to the wrong creator, which is worse than a declared gap.
+
+    Measured live 2026-07-26 over ads since 2026-06-01: 8 review statics excluded, 36
+    creator ads, of which 27 exact + 5 unique-prefix = 32 matched (89%), 2 ambiguous and
+    2 with name defects. The prior rule matched 23 of 44."""
+    def _clean(col):
+        return (f"trim(replace(regexp_replace({col}, '\\s*-\\s*Copy\\s*$', '', 1, 0, 'i'), "
+                "'\"', ''))")
+    c = _clean('"AD_NAME"')
     try:
         return q(f"""
 with ads as (
   select "AD_NAME" as ad_name, "CAMPAIGN_NAME" as campaign, "ADSET_NAME" as adset,
          sum("SPEND") as spend, sum("IMPRESSIONS") as impressions,
          sum("INLINE_LINK_CLICKS") as link_clicks,
-         -- videoid per SOP nomenclature = final underscore field; only trust it when
-         -- it really is a platform id (>=15 digits), never a stray word.
-         case when regexp_like(split_part("AD_NAME", '_', -1), '[0-9]{{15,}}')
-              then split_part("AD_NAME", '_', -1) end as videoid,
-         lower(regexp_substr("AD_NAME", '[^-_]+$')) as tail_token
+         "AD_NAME" ilike '%ugc/reviews%' as is_review_static,
+         -- A creator ad is one that names a creator. Everything else (Costco broad
+         -- Meta buys, page-deck statics, reach campaigns) has no creator BY DESIGN and
+         -- must not be counted as a matching failure - labelling those "name defect"
+         -- reported 133 ads as broken when none of them were.
+         ("AD_NAME" ilike '%UGC%' and "AD_NAME" not ilike '%ugc/reviews%') as is_creator_ad,
+         case when regexp_like(split_part({c}, '_', -1), '[0-9]{{15,}}')
+              then split_part({c}, '_', -1) end as videoid,
+         lower(coalesce(
+           regexp_substr({c}, 'CTA-(.+)$', 1, 1, 'e'),
+           regexp_substr({c}, '^JB-UGC-[0-9]+-(.+)$', 1, 1, 'e'),
+           regexp_substr({c}, '[^-_]+$')
+         )) as handle_guess
     from {META_RETAIL}
    where "DATE_START" between '{since}' and '{until}' and "AD_NAME" is not null
-   group by 1, 2, 3, 5, 6
+   group by 1, 2, 3, 7, 8, 9, 10
 ), jb as (
   select "Video ID" as vid, lower(replace("Creator Username", '@', '')) as handle,
          max("Creator Name") as creator_name, max("Platform") as platform,
-         max("See Post") as post_url, max("Campaign Name") as jb_campaign,
+         max("See Post") as post_url,
          sum({sf_qty("Video Views")}) as organic_views,
          sum({sf_qty("Likes")}) as organic_likes, sum("Job Price (USD)") as creator_cost
     from {JB_UGC} where "Creator Username" is not null group by 1, 2
+), j_by_handle as (
+  select handle, max(creator_name) as creator_name, max(platform) as platform,
+         max(post_url) as post_url, sum(organic_views) as organic_views,
+         sum(organic_likes) as organic_likes, sum(creator_cost) as creator_cost
+    from jb group by 1
+), pref as (
+  -- prefix candidates per ad, so ambiguity can be counted rather than silently resolved
+  select a.ad_name, count(distinct h.handle) as n_cand,
+         listagg(distinct h.handle, ', ') as candidates, min(h.handle) as only_cand
+    from ads a join j_by_handle h
+      on h.handle like a.handle_guess || '%' and h.handle <> a.handle_guess
+   where a.is_creator_ad and a.handle_guess is not null
+   group by 1
 )
 select a.ad_name, a.campaign, a.adset, round(a.spend, 2) as spend, a.impressions,
-       a.link_clicks, a.videoid,
-       coalesce(v.creator_name, h.creator_name) as creator,
-       coalesce(v.platform, h.platform) as platform,
-       coalesce(v.post_url, h.post_url) as post_url,
-       coalesce(v.organic_views, h.organic_views) as organic_views,
-       coalesce(v.organic_likes, h.organic_likes) as organic_likes,
-       coalesce(v.creator_cost, h.creator_cost) as creator_cost,
-       case when v.vid is not null then 'videoid (SOP chain)'
-            when h.handle is not null then 'creator handle'
-            else 'UNMATCHED' end as match_tier
+       a.link_clicks, a.videoid, a.handle_guess,
+       case when a.is_review_static then 'review static (no creator by design)'
+            when v.vid is not null then 'videoid (SOP chain)'
+            when e.handle is not null then 'handle exact'
+            when p.n_cand = 1 then 'handle unique prefix'
+            when p.n_cand > 1 then 'AMBIGUOUS - human decision'
+            when a.is_creator_ad then 'UNMATCHED - name defect'
+            else 'not a creator ad (no creator by design)' end as match_rule,
+       coalesce(v.creator_name, e.creator_name, u.creator_name) as creator,
+       coalesce(v.platform, e.platform, u.platform) as platform,
+       coalesce(v.post_url, e.post_url, u.post_url) as post_url,
+       coalesce(v.organic_views, e.organic_views, u.organic_views) as organic_views,
+       coalesce(v.organic_likes, e.organic_likes, u.organic_likes) as organic_likes,
+       coalesce(v.creator_cost, e.creator_cost, u.creator_cost) as creator_cost,
+       p.candidates as prefix_candidates
   from ads a
   left join jb v on v.vid = a.videoid
-  left join jb h on h.handle = a.tail_token and v.vid is null
+  left join j_by_handle e on e.handle = a.handle_guess
+  left join pref p on p.ad_name = a.ad_name
+  left join j_by_handle u on p.n_cand = 1 and u.handle = p.only_cand
  order by a.spend desc nulls last""")
     except Exception:  # noqa: BLE001
         return pd.DataFrame()
@@ -2641,40 +2704,90 @@ select a.ad_name, a.campaign, a.adset, round(a.spend, 2) as spend, a.impressions
 def render_ugc_mapping():
     st.markdown("#### Automated videoid / creator to ad mapping")
     st.caption(
-        "This replaces the manual \"Video ID to Ad ID mapping sheet\" the KT Data Request thread "
-        "lists as required manual input. The SOP chain (organic post URL -> videoid -> ad name -> "
-        "ad code -> paid performance) puts the join key inside the ad name, so no second sheet is "
-        "needed. Matching is TIERED and every row states which tier matched it."
+        "Replaces the manual \"Video ID to Ad ID mapping sheet\" the KT Data Request thread lists "
+        "as required manual input. The SOP chain (organic post URL -> videoid -> ad name -> ad code "
+        "-> paid performance) already puts the join key inside the ad name, so no second sheet is "
+        "needed. Matching runs in strict priority order and every row states the rule that matched "
+        "it - nothing is fuzzy-matched."
     )
     m = ugc_ad_mapping(since, until)
     if m.empty:
         st.info("No retail ads with names in the selected window.")
         return
     m = m.rename(columns=str.upper)
-    tiers = m["MATCH_TIER"].value_counts().to_dict()
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Ads in window", f"{len(m):,}")
-    k2.metric("Matched by videoid", f"{tiers.get('videoid (SOP chain)', 0):,}")
-    k3.metric("Matched by handle", f"{tiers.get('creator handle', 0):,}")
-    k4.metric("Unmatched", f"{tiers.get('UNMATCHED', 0):,}")
-    matched = len(m) - tiers.get("UNMATCHED", 0)
-    st.progress(matched / len(m) if len(m) else 0.0,
-                text=f"{matched} of {len(m)} ads joined to a creator "
-                     f"({matched / len(m) * 100:.0f}%) with no manual sheet")
-    st.dataframe(m, use_container_width=True, hide_index=True, height=420)
+    r = m["MATCH_RULE"]
+    statics = int((r == "review static (no creator by design)").sum())
+    non_creator = int((r == "not a creator ad (no creator by design)").sum())
+    creator_ads = len(m) - statics - non_creator
+    exact = int((r == "handle exact").sum())
+    pref = int((r == "handle unique prefix").sum())
+    vid = int((r == "videoid (SOP chain)").sum())
+    amb = int((r == "AMBIGUOUS - human decision").sum())
+    bad = int((r == "UNMATCHED - name defect").sum())
+    matched = vid + exact + pref
+
+    k = st.columns(5)
+    k[0].metric("Creator ads", f"{creator_ads:,}",
+                help=f"of {len(m):,} retail ads in window: {statics} review statics and "
+                     f"{non_creator} non-creator ads (Costco broad buys, page-deck statics, "
+                     "reach campaigns) are excluded - they have no creator by design")
+    k[1].metric("Matched", f"{matched:,}")
+    k[2].metric("By videoid", f"{vid:,}")
+    k[3].metric("Ambiguous", f"{amb:,}")
+    k[4].metric("Name defects", f"{bad:,}")
+    if creator_ads:
+        st.progress(matched / creator_ads,
+                    text=f"{matched} of {creator_ads} creator ads joined automatically "
+                         f"({matched / creator_ads * 100:.0f}%) - no manual sheet")
+
+    st.markdown("**How each rule works, in the order they are tried**")
+    st.dataframe(pd.DataFrame([
+        {"#": 0, "Rule": "review static", "Key": "ad name contains 'ugc/reviews'",
+         "Matched": statics,
+         "Note": "A review-screenshot static, not creator content. No creator exists to match, "
+                 "so these are excluded from the denominator rather than counted as failures."},
+        {"#": 1, "Rule": "videoid (SOP chain)", "Key": "final underscore field, >= 15 digits",
+         "Matched": vid,
+         "Note": "The SOP target state and the only rule that needs no name parsing. Reads 0 "
+                 "while existing ads predate the new nomenclature; rises on its own."},
+        {"#": 2, "Rule": "handle exact", "Key": "text after 'CTA-' = JB Creator Username",
+         "Matched": exact, "Note": "Exact, case-insensitive, '@' stripped. The workhorse rule."},
+        {"#": 3, "Rule": "handle unique prefix", "Key": "exactly ONE JB handle starts with it",
+         "Matched": pref,
+         "Note": "Resolves truncated names (JB-UGC-3-luciana -> luciana.bittenzap) and trailing "
+                 "underscores (fernandacravo -> fernandacravo_). Accepted only when unique."},
+        {"#": 4, "Rule": "AMBIGUOUS", "Key": "two or more handles share the prefix",
+         "Matched": amb,
+         "Note": "Left unmatched on purpose, with candidates listed. 'beth' matches both "
+                 "beth_michelle_social and bethchancey8; 'irish' matches irish.kulish and "
+                 "irish_kulish_life. Guessing would attribute spend to the wrong creator."},
+        {"#": 5, "Rule": "not a creator ad", "Key": "ad name does not contain 'UGC'",
+         "Matched": non_creator,
+         "Note": "Costco broad Meta buys, page-deck statics, reach campaigns. No creator exists "
+                 "to match, so excluded from the denominator. Counting these as failures reported "
+                 "133 ads as broken when none were."},
+        {"#": 6, "Rule": "UNMATCHED - name defect", "Key": "creator ad, but no handle in JB",
+         "Matched": bad,
+         "Note": "A defect in the ad name, fixable at source. Example: "
+                 "'21UGC-Gummies-CTA-orrainealbernazugc' is missing the leading 'l' of "
+                 "lorrainealbernazugc, which does exist in JB_USA."},
+    ]), use_container_width=True, hide_index=True)
+
+    only = st.multiselect("Show rules", sorted(r.unique()), default=sorted(r.unique()),
+                          key="map_rules")
+    st.dataframe(m[m["MATCH_RULE"].isin(only)], use_container_width=True,
+                 hide_index=True, height=420)
     st.info(
-        "**Read the denominator carefully.** Verified live over 2026-06-01 to 2026-07-26: "
-        "39 ads worth $14,333.53 join by creator handle and 153 worth $38,833.52 do not. That is "
-        "NOT an 80% failure - most of those 153 are not creator content at all (Costco broad Meta "
-        "buys, page-deck statics), so they have no creator to match and never will. Among ads that "
-        "ARE creator content, 23 of 44 UGC-named ads match, covering 21 creators.\n\n"
-        "**Why tiered.** 0 of 176 distinct retail ad names currently carry a videoid, because the "
-        "nomenclature only goes live from Monday and existing ads predate it. Tier 1 therefore "
-        "reads 0 today and rises on its own as new ads land, with no code change here. Unmatched "
-        "rows stay unmatched: no fuzzy matching, because attributing spend to the wrong creator is "
-        "worse than a declared gap. Enforcing the videoid field at ad-build time is the single "
-        "change that takes creator ads to 100% automated."
+        "**Extraction must not split on '-' or '_'.** The first version used "
+        "`regexp_substr(ad_name, '[^-_]+$')`, which turned `megan_kathleen_90` into `90`, "
+        "`nicole_lee7` into `lee7` and `ana-vm` into `vm` - handles legitimately contain both "
+        "characters, so the separator has to be the `CTA-` / `JB-UGC-<n>-` marker instead. Adding "
+        "that, plus stripping Meta's ' - Copy' suffix and stray quotes, took coverage from 23 of "
+        "44 to 32 of 36 creator ads. **Enforcing the videoid field at ad-build time is the one "
+        "change that reaches 100%**; the two ambiguous rows also need a human to pick the account."
     )
+
+
 
 # ── FULL METRIC SET for every table and chart ─────────────────────────────────
 # The rule for this app: a table or chart shows EVERY metric the source supports,
