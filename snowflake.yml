@@ -16,7 +16,13 @@ entities:
   vahdam_analytics:
     type: "streamlit"
     identifier:
-      name: "ADSDASHBOARDUSA"          # the LIVE app object (VAHDAM_DB.MAPLEMONK) — URL stays stable
+      # FULLY QUALIFIED on purpose. With only `name`, `snow streamlit deploy`
+      # targets whatever database/schema the CLI connection happens to default
+      # to — so a deploy can silently create/replace a DIFFERENT app object than
+      # the URL everyone opens, and the live app appears "not to update".
+      name: "ADSDASHBOARDUSA"          # the LIVE app object — URL stays stable
+      database: "VAHDAM_DB"
+      schema: "MAPLEMONK"
     stage: "streamlit_stage"
     query_warehouse: "COMPUTE_WH"        # change to your warehouse if different
     title: "Ads Dashboard USA"
