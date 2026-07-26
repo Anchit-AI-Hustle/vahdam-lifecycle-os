@@ -115,12 +115,29 @@ Parsing only the bare date form silently drops the newest rows — it made Targe
 sell-through look like it ended 2026-07-13 when it runs to 2026-07-23,
 understating July by $28,446. Use the `sf_cash` / `sf_qty` / `sf_day` helpers.
 
-#### Theme
-White and green only, mirroring the web app's contrast tokens: white surfaces,
-forest-green (`#004A2B`) headings, metric cards and table headers, dark text on
-light backgrounds everywhere, never a dark panel. Where a chart needs a second
-categorical colour the two greens differ by **shade, not hue**, so the palette
-stays white-and-green while the series remain distinguishable.
+#### Theme — white + green, forced light (three layers, all required)
+White surfaces, forest-green (`#004A2B`) headings, metric cards and table headers,
+dark text on light backgrounds everywhere, never a dark panel and **never a blue**.
+Where a chart needs a second categorical colour the two greens differ by **shade,
+not hue** (`GREEN_SOFT` vs `GREEN`), so the palette holds while series stay
+distinguishable.
+
+Snowsight runs its own dark UI and the embedded app **inherits it**, so the theme
+has to be forced in three places. Skip any one and it goes dark again:
+
+| Layer | Fixes | Why CSS alone is not enough |
+|---|---|---|
+| **`.streamlit/config.toml`** (`base="light"`, `primaryColor="#004A2B"`) | data grids, BaseWeb defaults | `st.dataframe` renders through glide-data-grid on a **canvas**, themed from Streamlit's JS theme object — the DOM is never consulted, so no injected CSS can reach the cells |
+| **CSS in `streamlit_app.py`** | select controls, dropdown popovers, option rows, selection chips, calendar, tabs, code blocks | Selects/menus/calendars render in a **portal at `body` level, outside `.stApp`** — scoping the rules to `.stApp` is exactly what left the dropdowns dark and their options unreadable. These selectors are deliberately unscoped. BaseWeb's accent is **blue** and leaks through any theme that only sets backgrounds, so every checked/hover/focus/chip state is overridden to green |
+| **Altair theme** (registered at import) | chart canvas, axes, legends, categorical ramp | Streamlit hands Vega-Lite a theme following the host UI, so charts come back dark-on-dark under Snowsight dark mode. Registered via `alt.theme.register` with a fallback to the pre-5.5 `alt.themes` API |
+
+⚠️ **`config.toml` must land in the `.streamlit/` SUBFOLDER of the app root**, not
+beside `streamlit_app.py`. In the wrong place it is silently ignored. It is listed
+in `snowflake.yml` `artifacts` so `snow streamlit deploy` places it correctly;
+if you upload by hand, check with
+`LIST @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa;`.
+The sidebar prints the **active** theme and warns loudly when it is not `light`,
+so a config that failed to reach the stage is visible instead of puzzling.
 Created At / Edited On render only when the source truly carries those columns
 (Meta's insights sync does not — honestly omitted, never substituted).
 

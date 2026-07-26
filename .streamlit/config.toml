@@ -1,0 +1,26 @@
+# Streamlit theme — WHITE + GREEN, forced light.
+#
+# This file is load-bearing, not cosmetic. Snowsight runs its own dark UI and the
+# embedded Streamlit app inherits it, which is what made the dropdowns unreadable:
+# dark option text on a dark popover, with blue selection chips.
+#
+# CSS alone cannot fix all of it. st.dataframe renders through glide-data-grid on a
+# CANVAS, and that grid takes its colours from Streamlit's JS theme object rather
+# than from the DOM, so no amount of injected CSS reaches the cells. base="light"
+# here is the only thing that turns the grid light. The CSS in streamlit_app.py
+# then handles the BaseWeb widget chrome (popovers render in a portal at body
+# level, outside the app container) as belt and braces.
+[theme]
+base = "light"
+primaryColor = "#004A2B"            # forest green — selection chips, focus rings, active states
+backgroundColor = "#FFFFFF"         # white page
+secondaryBackgroundColor = "#F0F5F2"# very light green-grey for widget + sidebar surfaces
+textColor = "#1F2A23"               # dark green-black text, WCAG-AA on both surfaces above
+linkColor = "#004A2B"
+font = "sans serif"
+
+[client]
+showErrorDetails = true
+
+[server]
+enableStaticServing = false

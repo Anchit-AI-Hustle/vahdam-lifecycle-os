@@ -24,3 +24,9 @@ entities:
     artifacts:
       - "streamlit_app.py"
       - "environment.yml"
+      # The theme. Not optional: Snowsight's dark UI is inherited by the embedded
+      # app, and st.dataframe renders on a CANVAS themed from Streamlit's JS theme
+      # object rather than the DOM, so base="light" here is the only thing that
+      # turns the data grids light. Omit this file and the dropdowns and tables go
+      # dark again no matter what CSS the app injects.
+      - ".streamlit/config.toml"

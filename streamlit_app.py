@@ -48,32 +48,115 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.1"
+APP_BUILD = "2026-07-26.2"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
 # neighbours. Force everything to wrap INSIDE its own column.
-# White + GREEN only. Mirrors the web app's contrast tokens (ad-campaigns-master
-# .html :root): white surfaces, forest-green headers and accents, dark text on
-# light backgrounds everywhere, never a dark panel. Where a second categorical
-# colour is needed the two greens differ by SHADE, not hue, so the palette stays
-# white-and-green while remaining distinguishable.
+# White + GREEN only, and forced LIGHT.
+#
+# Snowsight runs its own dark UI and the embedded app inherits it, which is what
+# made the filter dropdowns unreadable: dark option text on a dark popover with
+# blue selection chips. Three things are needed, and all three are here or in
+# .streamlit/config.toml:
+#
+#  1. config.toml sets base="light" + primaryColor. That is the ONLY fix for
+#     st.dataframe, which renders through glide-data-grid on a CANVAS and takes
+#     its colours from Streamlit's JS theme object, never from the DOM.
+#  2. BaseWeb widget chrome must be overridden by hand. Selects, menus and
+#     calendars render in a PORTAL at body level — outside .stApp — so these
+#     selectors are deliberately UNSCOPED. Scoping them to .stApp is exactly why
+#     the popovers stayed dark.
+#  3. Every BaseWeb blue (selection chips, focus rings, hover, checked states)
+#     becomes green. BaseWeb's default accent is blue and it leaks through any
+#     theme that only sets backgrounds.
 st.markdown("""
 <style>
   :root {
     --green: #004A2B; --green-mid: #0E5C36; --green-soft: #DCEDE3;
-    --bg: #F5F8F6; --surface: #FFFFFF; --surface-2: #F0F5F2;
+    --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #F0F5F2;
     --line: #DCE7E0; --line-strong: #B8CCC0;
     --text: #1F2A23; --dim: #3D4A42;
+    color-scheme: light only;
   }
-  .stApp, [data-testid="stAppViewContainer"] { background: var(--bg); }
-  [data-testid="stHeader"] { background: transparent; }
-  [data-testid="stSidebar"] { background: var(--surface); border-right: 1px solid var(--line-strong); }
+  html, body { color-scheme: light only; }
+  .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] { background: var(--bg); }
+  [data-testid="stHeader"], [data-testid="stToolbar"] { background: var(--bg) !important; }
+  [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+    background: var(--surface) !important; border-right: 1px solid var(--line-strong);
+  }
   [data-testid="stSidebar"] * { color: var(--text); }
   html, body, [data-testid="stAppViewContainer"] * { font-weight: 500; }
   h1, h2, h3, h4, h5 { color: var(--green) !important; font-weight: 700 !important; }
   p, li, span, label, div { color: var(--text); }
-  /* Metrics as white cards with a green rule, like the web app's .sc tiles. */
+  a, a * { color: var(--green) !important; }
+
+  /* ── Widget CONTROLS: selects, multiselects, inputs, textareas ───────────── */
+  div[data-baseweb="select"] > div,
+  div[data-baseweb="select"] div[role="combobox"],
+  div[data-baseweb="input"], div[data-baseweb="input"] > div,
+  div[data-baseweb="base-input"], div[data-baseweb="textarea"],
+  [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input,
+  [data-testid="stDateInput"] input, [data-testid="stTextArea"] textarea {
+    background: var(--surface) !important; color: var(--text) !important;
+    border-color: var(--line-strong) !important;
+  }
+  div[data-baseweb="select"] input, div[data-baseweb="select"] div { color: var(--text) !important; }
+  div[data-baseweb="select"] svg, div[data-baseweb="input"] svg { fill: var(--green) !important; color: var(--green) !important; }
+  div[data-baseweb="select"] [class*="placeholder"], ::placeholder { color: #5C6B62 !important; }
+  /* focus ring: BaseWeb blue -> green */
+  div[data-baseweb="select"] > div:focus-within, div[data-baseweb="base-input"]:focus-within,
+  [data-testid="stTextInput"] input:focus, [data-testid="stTextArea"] textarea:focus {
+    border-color: var(--green) !important; box-shadow: 0 0 0 2px rgba(0,74,43,.20) !important;
+  }
+
+  /* ── The DROPDOWN itself. Renders in a portal at body level, so NOT scoped
+     to .stApp — that omission is what left these dark. ───────────────────── */
+  div[data-baseweb="popover"], div[data-baseweb="popover"] > div,
+  div[data-baseweb="popover"] div[role="listbox"], div[data-baseweb="menu"],
+  ul[role="listbox"], div[data-baseweb="tooltip"], div[data-baseweb="tooltip"] > div {
+    background: var(--surface) !important; color: var(--text) !important;
+    border: 1px solid var(--line-strong) !important;
+    box-shadow: 0 10px 30px rgba(0,74,43,.18) !important;
+  }
+  li[role="option"], ul[role="listbox"] li, div[data-baseweb="menu"] li,
+  div[data-baseweb="menu"] div, ul[role="listbox"] div {
+    background: transparent !important; color: var(--text) !important;
+  }
+  /* hover + keyboard highlight + already-selected: BaseWeb blue -> light green */
+  li[role="option"]:hover, ul[role="listbox"] li:hover,
+  li[role="option"][aria-selected="true"], li[role="option"][data-highlighted="true"] {
+    background: var(--green-soft) !important; color: var(--green) !important; font-weight: 700 !important;
+  }
+
+  /* ── Selected chips in a multiselect: BaseWeb blue -> forest green ───────── */
+  span[data-baseweb="tag"], span[data-baseweb="tag"] > span, span[data-baseweb="tag"] div {
+    background: var(--green) !important; color: #FFFFFF !important;
+    border-color: var(--green) !important;
+  }
+  span[data-baseweb="tag"] svg { fill: #FFFFFF !important; color: #FFFFFF !important; }
+  span[data-baseweb="tag"] span[role="button"]:hover { background: var(--green-mid) !important; }
+
+  /* ── Date picker calendar (also a portal) ────────────────────────────────── */
+  div[data-baseweb="calendar"], div[data-baseweb="calendar"] * {
+    background: var(--surface) !important; color: var(--text) !important;
+  }
+  div[data-baseweb="calendar"] [aria-selected="true"],
+  div[data-baseweb="calendar"] div[class*="selected"] {
+    background: var(--green) !important; color: #FFFFFF !important;
+  }
+
+  /* ── Radio / checkbox / toggle / slider: every checked state green ───────── */
+  [data-testid="stRadio"] label, [data-testid="stCheckbox"] label { color: var(--text) !important; }
+  [data-baseweb="radio"] div[data-checked="true"], [data-baseweb="checkbox"] div[data-checked="true"] {
+    background: var(--green) !important; border-color: var(--green) !important;
+  }
+  [data-testid="stSlider"] [role="slider"], [data-testid="stSlider"] div[data-baseweb="slider"] div {
+    background: var(--green) !important;
+  }
+  [data-testid="stProgress"] div[role="progressbar"] > div { background: var(--green) !important; }
+
+  /* ── Metrics as white cards with a green rule ────────────────────────────── */
   div[data-testid="stMetric"] {
     background: var(--surface); border: 1px solid var(--line);
     border-left: 4px solid var(--green); border-radius: 11px;
@@ -83,24 +166,52 @@ st.markdown("""
   div[data-testid="stMetricLabel"], div[data-testid="stMetricLabel"] p {
     color: var(--dim) !important; text-transform: uppercase; letter-spacing: .05em;
   }
-  /* Green table headers with white text, striped white/very-light-green body. */
-  [data-testid="stDataFrame"] thead tr th, [data-testid="stTable"] thead tr th {
+
+  /* ── Tables. The st.dataframe grid is a CANVAS and is themed by config.toml;
+     these rules cover st.table and the grid's DOM chrome. ─────────────────── */
+  [data-testid="stDataFrame"], [data-testid="stDataFrameResizable"],
+  [data-testid="stTable"], [data-testid="stDataFrame"] > div {
+    background: var(--surface) !important;
+  }
+  [data-testid="stTable"] thead tr th {
     background: var(--green) !important; color: #fff !important; font-weight: 700 !important;
   }
-  [data-testid="stDataFrame"] tbody tr:nth-child(even) td { background: var(--surface-2); }
   [data-testid="stTable"] tbody tr:nth-child(even) td { background: var(--surface-2); }
-  /* Tabs and expanders on white, active tab underlined green. */
-  button[data-baseweb="tab"] { color: var(--dim) !important; font-weight: 700 !important; }
+  [data-testid="stTable"] tbody td { color: var(--text) !important; }
+
+  /* ── Tabs, expanders, buttons, alerts, code ──────────────────────────────── */
+  button[data-baseweb="tab"] { color: var(--dim) !important; font-weight: 700 !important; background: transparent !important; }
   button[data-baseweb="tab"][aria-selected="true"] { color: var(--green) !important; }
-  [data-baseweb="tab-highlight"] { background: var(--green) !important; }
-  [data-testid="stExpander"] { background: var(--surface); border: 1px solid var(--line); border-radius: 11px; }
-  .stButton > button { background: var(--green); color: #fff; border: 1px solid var(--green); font-weight: 700; }
-  .stButton > button:hover { background: var(--green-mid); border-color: var(--green-mid); }
-  [data-testid="stAlert"] { background: var(--green-soft); border-left: 4px solid var(--green); color: var(--text); }
+  [data-baseweb="tab-highlight"], [data-baseweb="tab-border"] { background: var(--green) !important; }
+  [data-testid="stExpander"], [data-testid="stExpander"] details, [data-testid="stExpander"] summary {
+    background: var(--surface) !important; border-color: var(--line) !important; border-radius: 11px;
+  }
+  [data-testid="stExpander"] summary, [data-testid="stExpander"] summary * { color: var(--green) !important; }
+  .stButton > button, [data-testid="stDownloadButton"] > button {
+    background: var(--green) !important; color: #fff !important;
+    border: 1px solid var(--green) !important; font-weight: 700 !important;
+  }
+  .stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {
+    background: var(--green-mid) !important; border-color: var(--green-mid) !important;
+  }
+  .stButton > button *, [data-testid="stDownloadButton"] > button * { color: #fff !important; }
+  [data-testid="stAlert"], [data-baseweb="notification"] {
+    background: var(--green-soft) !important; border-left: 4px solid var(--green) !important;
+  }
+  [data-testid="stAlert"] *, [data-baseweb="notification"] * { color: var(--text) !important; }
+  pre, code, [data-testid="stCode"], [data-testid="stCodeBlock"], .stCodeBlock,
+  [data-testid="stCodeBlock"] pre, [data-testid="stCodeBlock"] code {
+    background: var(--surface-2) !important; color: var(--text) !important;
+  }
+  code { color: var(--green) !important; }
   hr { border-color: var(--line-strong); }
-  a { color: var(--green) !important; }
+  [data-testid="stSpinner"] > div { border-top-color: var(--green) !important; }
+
+  /* Layout hygiene: Streamlit columns overflow instead of shrinking by default,
+     so long metric values / widget labels / headings visually overlap their
+     neighbours. Force everything to wrap INSIDE its own column. */
   div[data-testid="column"] { min-width: 0; }
-  div[data-testid="stMetric"] { padding: 0.15rem 0.4rem 0.15rem 0; overflow: hidden; }
+  div[data-testid="stMetric"] { overflow: hidden; }
   div[data-testid="stMetricValue"] {
     font-size: clamp(0.95rem, 1.4vw, 1.45rem);
     white-space: normal; overflow-wrap: anywhere; line-height: 1.15;
@@ -109,15 +220,53 @@ st.markdown("""
     white-space: normal; overflow-wrap: anywhere; font-size: 0.78rem;
   }
   div[data-testid="stWidgetLabel"] p {
-    white-space: normal; overflow-wrap: anywhere; font-size: 0.82rem;
+    white-space: normal; overflow-wrap: anywhere; font-size: 0.82rem; color: var(--dim) !important;
   }
   h1, h2, h3, h4 { overflow-wrap: anywhere; }
-  div[data-testid="stCaptionContainer"] p { overflow-wrap: anywhere; }
+  div[data-testid="stCaptionContainer"] p { overflow-wrap: anywhere; color: var(--dim) !important; }
 </style>
 """, unsafe_allow_html=True)
 
+# Charts must not be dark either. Streamlit hands Vega-Lite a theme that follows
+# the host UI, so a chart rendered under Snowsight's dark mode comes back with a
+# dark canvas and light axis text. Registering an explicit white/green Altair
+# theme makes every chart in the app light regardless of the host. Altair 5.5
+# renamed the API (alt.theme.register) from the older alt.themes.register, so both
+# are attempted and a failure is never allowed to break the app.
+_AXIS = {"labelColor": "#1F2A23", "titleColor": "#1F2A23", "gridColor": "#EAF1EC",
+         "domainColor": "#B8CCC0", "tickColor": "#B8CCC0", "labelFontWeight": 500}
+_CHART_THEME = {
+    "config": {
+        "background": "#FFFFFF",
+        "view": {"stroke": "#DCE7E0"},
+        "axis": _AXIS, "axisX": _AXIS, "axisY": _AXIS,
+        "legend": {"labelColor": "#1F2A23", "titleColor": "#1F2A23", "labelFontWeight": 500},
+        "title": {"color": "#004A2B", "fontWeight": 700},
+        # Categorical ramp: shades of the brand green, never a hue outside
+        # white-and-green, so series stay distinguishable within the palette.
+        "range": {"category": ["#004A2B", "#7FA893", "#0E5C36", "#A9C6B6", "#16794A", "#CFE3D7"],
+                  "heatmap": ["#F0F5F2", "#004A2B"], "ramp": ["#F0F5F2", "#004A2B"]},
+        "bar": {"fill": "#004A2B"}, "line": {"stroke": "#004A2B"},
+        "point": {"fill": "#004A2B"}, "area": {"fill": "#7FA893"},
+    }
+}
+try:  # Altair >= 5.5
+    alt.theme.register("vahdam", enable=True)(lambda: _CHART_THEME)
+except Exception:  # noqa: BLE001 — older Altair, or API moved again
+    try:
+        alt.themes.register("vahdam", lambda: _CHART_THEME)
+        alt.themes.enable("vahdam")
+    except Exception:  # noqa: BLE001 — never let theming break the app
+        pass
+
 # Brand palette (docs/CLAUDE.md — the only four colours)
+# Brand palette (CLAUDE.md — the only four colours). This app renders in the
+# WHITE + GREEN subset only: GREEN plus white/near-white surfaces. GOLD, INK and
+# CREAM are kept named for reference but must NOT be used as a background or a
+# series colour here — a chart needing a second categorical colour uses
+# GREEN_SOFT/GREEN_MID (differing by shade, not hue) so the palette holds.
 GREEN, GOLD, INK, CREAM = "#004A2B", "#AB8743", "#171717", "#FBF5EA"
+GREEN_MID, GREEN_SOFT, GREEN_PALE = "#0E5C36", "#7FA893", "#DCEDE3"
 
 # ── Source tables (verified live against the warehouse) ──────────────────────
 META_ADS = "VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS"
@@ -1029,6 +1178,22 @@ st.sidebar.caption(
     f"Costco ${BUDGETS['costco']:,}. Read-only — never written back to any platform."
 )
 st.sidebar.caption(f"Build {APP_BUILD}")
+# Theme diagnostic. A config.toml that failed to reach the stage (or landed beside
+# streamlit_app.py instead of inside .streamlit/) is silently ignored, and the only
+# symptom is that everything goes dark again — unreadable dropdowns, dark data
+# grids. Surfacing the ACTIVE theme makes that failure obvious instead of puzzling.
+try:
+    _base = st.get_option("theme.base") or "unset"
+except Exception:  # noqa: BLE001
+    _base = "unknown"
+if str(_base).lower() == "light":
+    st.sidebar.caption("Theme light · white + green")
+else:
+    st.sidebar.warning(
+        f"Theme is '{_base}', not 'light'. .streamlit/config.toml did not take effect, "
+        "so the data grids will render dark. Confirm it is in the .streamlit/ "
+        "SUBFOLDER of the app root: LIST @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa;"
+    )
 try:
     _mrep = meta_source_report()
     st.sidebar.caption("Meta sources (" + str(len(_mrep["included"])) + "): "
@@ -1974,7 +2139,7 @@ def render_ad_accounts():
                 # white-and-green while the series remain distinguishable.
                 color=alt.Color("Measure:N", scale=alt.Scale(
                     domain=["Retail ad spend", "Target sell-through"],
-                    range=["#7FA893", GREEN]), legend=alt.Legend(orient="top", title=None)),
+                    range=[GREEN_SOFT, GREEN]), legend=alt.Legend(orient="top", title=None)),
                 xOffset="Measure:N",
                 tooltip=["Month", "Measure", alt.Tooltip("USD:Q", format="$,.0f")],
             ).properties(height=260), use_container_width=True)
@@ -2383,7 +2548,7 @@ def render_ads_analytics():
                         bar = comp.loc[sel].reset_index()
                         bar.columns = ["campaign", sel]
                         st.altair_chart(
-                            alt.Chart(bar).mark_bar(color=GOLD).encode(
+                            alt.Chart(bar).mark_bar(color=GREEN).encode(
                                 x=alt.X(f"{sel}:Q", title=sel),
                                 y=alt.Y("campaign:N", sort="-x", title=None),
                                 tooltip=["campaign", sel]).properties(height=max(140, 34 * len(bar))),

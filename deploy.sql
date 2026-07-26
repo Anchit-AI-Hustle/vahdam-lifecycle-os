@@ -22,11 +22,18 @@
 CREATE STAGE IF NOT EXISTS VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE
   DIRECTORY = (ENABLE = TRUE);
 
---    Upload streamlit_app.py + environment.yml to the stage:
+--    Upload streamlit_app.py + environment.yml + .streamlit/config.toml to the stage:
 --    Snowsight -> Data -> VAHDAM_DB -> MAPLEMONK -> STREAMLIT_STAGE -> + Files
 --    (Or via SnowSQL:
 --       PUT file://streamlit_app.py @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
---       PUT file://environment.yml  @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa AUTO_COMPRESS=FALSE OVERWRITE=TRUE; )
+--       PUT file://environment.yml  @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+--       PUT file://.streamlit/config.toml @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE; )
+--
+--    config.toml MUST land in the .streamlit/ SUBFOLDER of the app root, not
+--    beside streamlit_app.py. In the wrong place it is silently ignored and the
+--    app keeps inheriting Snowsight's dark theme: unreadable dropdowns, dark data
+--    grids. Confirm with:
+--       LIST @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa;
 
 -- 2) Create/refresh THE app object (same name = same URL, always).
 CREATE OR REPLACE STREAMLIT VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA
