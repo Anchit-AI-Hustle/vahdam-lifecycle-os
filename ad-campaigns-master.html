@@ -335,10 +335,12 @@
     <p class="eyebrow">The complete knowledge — overview first, expand any section for the details</p>
     <div class="frame" id="kb-exec"><div class="empty">Loading…</div></div>
     <div id="kb-full"></div>
-    <p class="eyebrow">Link registry — single-click access to every referenced sheet, deck, folder and platform</p>
+    <p class="eyebrow">Link registry — the final sheet and the report links actually used</p>
+    <div id="kb-links-policy"></div>
     <div class="bar">
       <label>Group<select id="kb-group"><option value="">All groups</option></select></label>
-      <label>Status<select id="kb-status"><option value="">All</option><option value="verified">verified (live in Drive/platform)</option><option value="from-email">from email URL</option><option value="from-deck">from deck</option><option value="pending-access">pending access</option></select></label>
+      <label>Status<select id="kb-status"><option value="">All</option><option value="verified">verified (live in Drive/platform)</option><option value="from-email">from email URL</option><option value="from-sop">from the SOP</option></select></label>
+      <label><input type="checkbox" id="kb-final"> Final sheet + SOP only</label>
       <label>Search<input type="search" id="kb-q" placeholder="title, owner…"></label>
     </div>
     <div class="frame" id="kb-links"><div class="empty">Loading…</div></div>
@@ -1170,19 +1172,40 @@
     $("#kb-group").innerHTML="<option value=''>All groups</option>"+groups.map(function(g){return "<option>"+esc(g)+"</option>";}).join("");
     function draw(){
       var g=$("#kb-group").value, st=$("#kb-status").value, q=($("#kb-q").value||"").toLowerCase();
+      var fin=$("#kb-final").checked;
       var list=KB.links.filter(function(l){
         if(g&&l.group!==g)return false; if(st&&l.status!==st)return false;
+        if(fin&&!l.final)return false;
         if(q&&((l.title||"")+" "+(l.owner||"")).toLowerCase().indexOf(q)<0)return false; return true;});
       var byGroup={}; list.forEach(function(l){ (byGroup[l.group]=byGroup[l.group]||[]).push(l); });
       $("#kb-links").innerHTML=Object.keys(byGroup).map(function(gr){
         return "<h3>"+esc(gr)+"</h3>"+byGroup[gr].map(function(l){
-          var chip=l.status==="verified"?"<span class='chip good'>verified</span>":l.status==="pending-access"?"<span class='chip warn'>pending access</span>":"<span class='chip dim'>"+esc(l.status)+"</span>";
-          var btn=l.url?"<a class='btn' href='"+esc(l.url)+"' target='_blank' rel='noopener'>Open ↗</a>":"<span class='chip warn'>ask "+esc((l.owner||"owner").split("/")[0])+"</span>";
-          return "<div class='linkrow'><div class='t'><b>"+esc(l.title)+"</b> "+chip+"<div class='m'>Owner: "+esc(l.owner||"—")+(l.note?" · "+esc(l.note):"")+"</div></div>"+btn+"</div>";
+          var chip=l.status==="verified"?"<span class='chip good'>verified</span>":"<span class='chip dim'>"+esc(l.status)+"</span>";
+          var fchip=l.final?"<span class='chip good'>FINAL</span>":"";
+          var btn="<a class='btn' href='"+esc(l.url)+"' target='_blank' rel='noopener'>Open ↗</a>";
+          var meta="Owner: "+esc(l.owner||"—")+(l.role?" · <b>"+esc(l.role)+"</b>":"")+(l.note?" · "+esc(l.note):"");
+          return "<div class='linkrow'><div class='t'><b>"+esc(l.title)+"</b> "+fchip+" "+chip+"<div class='m'>"+meta+"</div></div>"+btn+"</div>";
         }).join("");
       }).join("")||"<div class='empty'>No links match.</div>";
     }
-    ["kb-group","kb-status"].forEach(function(id){document.getElementById(id).addEventListener("change",draw);});
+    // Every entry is a real, resolvable URL that some figure here is sourced from.
+    // State plainly what is NOT listed, so the register reads as curated rather
+    // than as if those documents were never named.
+    var pol=KB.links_policy;
+    if(pol){
+      var rd=pol.removed_detail||{}, sup=rd.no_url_superseded_by_warehouse||{}, doc=rd.no_url_planning_docs||{}, dk=rd.deck_examples||{};
+      var mapRows=Object.keys(sup.mapping||{}).map(function(k){return [esc(k),"<code>"+esc(sup.mapping[k])+"</code>"];});
+      $("#kb-links-policy").innerHTML=
+        "<div class='notice'><b>"+pol.listed+" links listed · "+pol.removed+" not listed.</b> "+esc(pol.rule)+"</div>"+
+        "<details><summary>What is not listed, and why ("+pol.removed+")</summary>"+
+          "<p class='note'><b>"+(sup.count||0)+" superseded by the warehouse.</b> "+esc(sup.why||"")+"</p>"+
+          (mapRows.length?table([{t:"Export named in the thread"},{t:"Read live from instead"}],mapRows):"")+
+          "<p class='note'><b>"+(doc.count||0)+" planning documents.</b> "+esc(doc.why||"")+"</p>"+
+          ((doc.items||[]).length?table([{t:"Document"},{t:"Owner"}],doc.items.map(function(i){return [esc(i.title),esc(i.owner||"—")];})):"")+
+          "<p class='note'><b>"+(dk.count||0)+" deck examples.</b> "+esc(dk.why||"")+"</p>"+
+        "</details>";
+    }
+    ["kb-group","kb-status","kb-final"].forEach(function(id){document.getElementById(id).addEventListener("change",draw);});
     document.getElementById("kb-q").addEventListener("input",draw);
     draw();
     $("#kb-people").innerHTML=table([{t:"Person"},{t:"Owns"}],KB.people.map(function(p){return [esc(p.name),esc(p.role)];}));
