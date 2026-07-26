@@ -51,6 +51,36 @@ live in the top bar of the page** (Channel · Account · Marketplace · Level ·
 Objective · Status · Date range · Refresh). All tables default to **descending**
 sort (spend, else the first metric; raw views newest-first).
 
+### Every table and chart carries the FULL metric set
+Rule for this app: a table or chart shows **every metric the source supports**, never a
+hand-picked handful. `sql_group_sums` sums every additive column in SQL over all rows in
+scope; `full_metric_frame` then adds every **derived** metric from the one catalog on
+those sums, so CTR/CPC/CPM/CPP/frequency/ROAS/hook-rate and the rest appear wherever
+their inputs exist. A derived metric whose inputs are absent stays absent rather than
+rendering as `0`; `order_table` sinks all-empty columns to the right so the schema stays
+honest without getting in the way. Charts take a metric multi-select rather than being
+hardwired to spend.
+
+⚠️ **Ratios must never be summed, and 16 columns were being summed.** `RATIO_COLS` was
+an explicit 9-name set; it caught `ctr`/`cpc`/`cpm`/`cpp`/`frequency` but missed
+`unique_ctr`, every `cost_per_*`, every `*_rate`, the auction bids and the canvas
+averages. Measured live on `Target - In-house - Sales PageDeck Campaign` (1,133 rows,
+July 2026):
+
+| Column | Summed (what was shown) | Correct | Wrong by |
+|---|---|---|---|
+| `ctr` | 3,891.83 | 4.7051 | 827× |
+| `unique_ctr` | 3,639.40 | ~4.7 | ~775× |
+| `cost_per_inline_link_click` | **$107.65** | **$0.2684** | **401×** |
+| `frequency` | 556.95 | ~1.07 | impossible |
+
+This is the most dangerous class of wrong: nothing errors, and the output still looks
+like a metric. Now detected by **name pattern** (`is_ratio_col`) rather than an explicit
+list, so columns Meta adds later are caught too, and those columns are still **shown** —
+as an **impression-weighted average** instead of a sum. Cross-validated: weighted
+`cost_per_inline_link_click` = $0.2702 against $0.2684 recomputed independently from
+sums, and frequency = 1.068.
+
 ### Section 1 — Ad Campaigns Master (11 tabs, the landing section)
 Mirrors `ad-campaigns-master.html` **tab for tab, in the same order, with the same
 labels**, so the Snowflake app and the web app are the same dashboard rather than

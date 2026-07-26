@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.6"
+APP_BUILD = "2026-07-26.7"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -1338,8 +1338,31 @@ except Exception:  # noqa: BLE001 — informational only
 # ═════════════════════════════════════════════════════════════════════════════
 META_CREATIVES = "VAHDAM_DB.MAPLEMONK1.META_USA_AD_CREATIVES"
 CATALOG_FN = {m[0]: m[8] for m in METRICS}
+# Columns that must NEVER be summed. Summing a ratio produces a number that looks
+# like a metric and is not one, which is the most dangerous kind of wrong because
+# nothing errors. Measured live on Target - In-house - Sales PageDeck Campaign
+# (1,133 rows, July 2026):
+#   ctr                        summed 3,891.83  vs correct    4.7051  (827x)
+#   unique_ctr                 summed 3,639.40  vs correct  ~4.7      (~775x)
+#   cost_per_inline_link_click summed   $107.65  vs correct   $0.2684  (401x)
+#   frequency                  summed   556.95  vs correct    ~1-3    (impossible)
+# The explicit set below caught only the first, fourth and a few others; it missed
+# unique_ctr, every cost_per_*, every *_rate, the auction bids and the canvas
+# averages. Name patterns catch them all, including columns Meta adds later.
 RATIO_COLS = {"ctr", "cpc", "cpm", "cpp", "frequency", "inline_link_click_ctr",
               "cost_per_reach", "cost_per_unique_click", "cost_per_thruplay"}
+
+RATIO_PATTERNS = ("ctr", "cpc", "cpm", "cpp", "_rate", "cost_per_", "_bid",
+                  "avg_", "_percent", "frequency", "competitiveness",
+                  "per_link_click", "clicks_to_", "_ratio")
+
+
+def is_ratio_col(c: str) -> bool:
+    """True when a column is a rate, cost-per, average or bid — i.e. non-additive.
+    Such a column is still SHOWN (see sql_group_sums), but as an impression-weighted
+    average rather than a sum, because a sum of ratios is meaningless."""
+    c = str(c).lower()
+    return c in RATIO_COLS or any(pat in c for pat in RATIO_PATTERNS)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -1614,9 +1637,19 @@ def meta_where(campaigns=None):
     return w
 
 
-def _additive_cols(table):
+def _numeric_cols(table):
     return [c for c, t in table_columns(table)
-            if str(t).upper().startswith(("NUMBER", "FLOAT", "DECIMAL", "INT")) and c not in RATIO_COLS]
+            if str(t).upper().startswith(("NUMBER", "FLOAT", "DECIMAL", "INT"))]
+
+
+def _additive_cols(table):
+    """Numeric columns that may legitimately be SUMMED."""
+    return [c for c in _numeric_cols(table) if not is_ratio_col(c)]
+
+
+def _ratio_numeric_cols(table):
+    """Numeric columns that must be WEIGHTED, never summed."""
+    return [c for c in _numeric_cols(table) if is_ratio_col(c)]
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -1624,9 +1657,18 @@ def sql_sums(table, where):
     """EXACT totals over ALL rows in scope, computed in SQL (no fetch cap).
     Additive columns only; derived metrics come from the catalog on these sums."""
     nums = _additive_cols(table)
-    if not nums:
+    rat = _ratio_numeric_cols(table)
+    tcols = {c for c, _ in table_columns(table)}
+    if not nums and not rat:
         return {}
-    sel = ", ".join(f'sum("{c.upper()}") as {c}' for c in nums)
+    pieces = [f'sum("{c.upper()}") as {c}' for c in nums]
+    if "impressions" in tcols:
+        pieces += [f'round(sum("{c.upper()}" * "IMPRESSIONS") / nullif(sum("IMPRESSIONS"), 0), 6) '
+                   f"as {c}" for c in rat]
+    else:
+        pieces += [f'round(avg("{c.upper()}"), 6) as {c}' for c in rat]
+    nums = nums + rat
+    sel = ", ".join(pieces)
     try:
         row = q(f"select {sel} from {table} {where}")
     except Exception:  # noqa: BLE001
@@ -1645,6 +1687,7 @@ def sql_group_sums(table, where, group_cols, limit=None, offset=0):
     group; optional server-side pagination for very wide group lists."""
     gcols = [group_cols] if isinstance(group_cols, str) else list(group_cols)
     nums = [c for c in _additive_cols(table) if c not in gcols]
+    tcols = {c for c, _ in table_columns(table)}
     gsel = ", ".join(f'"{c.upper()}" as {c}' for c in gcols)
     gpos = ", ".join(str(i + 1) for i in range(len(gcols)))
     sel = ", ".join(f'sum("{c.upper()}") as {c}' for c in nums)
@@ -1652,7 +1695,6 @@ def sql_group_sums(table, where, group_cols, limit=None, offset=0):
     # timestamps are not additive, so they must be aggregated explicitly or
     # they silently vanish from grouped tables. Nothing is derived or invented
     # when the source table carries no created/edited columns.
-    tcols = {c for c, _ in table_columns(table)}
     extras = []
     for c in CREATED_CANDS:
         if c in tcols:
@@ -1662,7 +1704,16 @@ def sql_group_sums(table, where, group_cols, limit=None, offset=0):
         if c in tcols:
             extras.append(f'max("{c.upper()}") as {c}')
             break
-    parts = ([sel] if sel else []) + extras
+    # Ratio / cost-per / average / bid columns: impression-weighted average where the
+    # table has impressions, plain average otherwise. Shown, but never summed - so
+    # "every metric" stays true without any of them being a fabricated total.
+    rat = [c for c in _ratio_numeric_cols(table) if c not in gcols]
+    if "impressions" in tcols:
+        wsel = [f'round(sum("{c.upper()}" * "IMPRESSIONS") / nullif(sum("IMPRESSIONS"), 0), 6) '
+                f"as {c}" for c in rat]
+    else:
+        wsel = [f'round(avg("{c.upper()}"), 6) as {c}' for c in rat]
+    parts = ([sel] if sel else []) + wsel + extras
     # Default sort: ALWAYS descending — spend first, else the first metric.
     if "spend" in nums:
         ob = " order by spend desc nulls last"
@@ -2416,6 +2467,67 @@ def live_ugc_posts(since, until):
         return pd.DataFrame()
 
 
+# ── FULL METRIC SET for every table and chart ─────────────────────────────────
+# The rule for this app: a table or chart shows EVERY metric the source supports,
+# never a hand-picked handful. sql_group_sums already sums every additive column in
+# SQL over all rows in scope; this adds every DERIVED metric from the one catalog on
+# top of those sums, so CTR/CPC/CPM/CPP/frequency/ROAS/hook-rate/hold-rate and the
+# rest appear wherever their inputs exist. A derived metric whose inputs are absent
+# stays absent rather than rendering as 0 — order_table sinks all-empty columns to
+# the end so the schema stays honest without getting in the way.
+@st.cache_data(ttl=300, show_spinner=False)
+def full_metric_raw(table, where, group_cols, limit=None):
+    """Base sums + every catalog-derived metric, lower-cased. For charts."""
+    g = sql_group_sums(table, where, group_cols, limit=limit)
+    if g is None or getattr(g, "empty", True):
+        return pd.DataFrame()
+    dkeys = [m[0] for m in METRICS if m[4] == "derived"]
+    out = []
+    for _, r in g.iterrows():
+        base = dict(r)
+        d = compute_all({k: _n(v) for k, v in base.items()})
+        for k in dkeys:
+            if base.get(k) is None and d.get(k) is not None:
+                base[k] = d[k]
+        out.append(base)
+    return pd.DataFrame(out)
+
+
+def full_metric_frame(table, where, group_cols, limit=None):
+    """Display-ready full-metric table: spec column order, catalog labels."""
+    return spec_frame(full_metric_raw(table, where, group_cols, limit=limit))
+
+
+def metric_options(df):
+    """Numeric columns available to plot, priority metrics first."""
+    if df is None or getattr(df, "empty", True):
+        return []
+    nums = [c for c in df.columns
+            if pd.api.types.is_numeric_dtype(df[c]) and df[c].notna().any()]
+    pri = [c for c in ("spend", "impressions", "reach", "inline_link_clicks", "clicks",
+                       "ctr", "cpc", "cpm", "frequency") if c in nums]
+    return pri + [c for c in nums if c not in pri]
+
+
+def metric_chart(df, xcol, metrics, height=300):
+    """Multi-metric chart. Every metric the frame carries is selectable, so a chart
+    is never limited to spend just because spend was the obvious default."""
+    if df is None or getattr(df, "empty", True) or not metrics:
+        return
+    lab = {m[0]: m[1] for m in METRICS}
+    long = df[[xcol] + list(metrics)].melt(xcol, var_name="Metric", value_name="Value")
+    long["Metric"] = long["Metric"].map(lambda k: lab.get(k, str(k).replace("_", " ")))
+    shades = ["#004A2B", "#7FA893", "#0E5C36", "#A9C6B6", "#16794A", "#CFE3D7"]
+    st.altair_chart(
+        alt.Chart(long).mark_line(point=True).encode(
+            x=alt.X(f"{xcol}:T" if "day" in xcol or "date" in xcol else f"{xcol}:N",
+                    sort=None, title=None),
+            y=alt.Y("Value:Q", title=None),
+            color=alt.Color("Metric:N", scale=alt.Scale(range=shades),
+                            legend=alt.Legend(orient="top", title=None)),
+            tooltip=[xcol, "Metric", alt.Tooltip("Value:Q", format=",.4f")],
+        ).properties(height=height), use_container_width=True)
+
 # ── PLATFORM PARITY — every metric, visible ───────────────────────────────────
 @st.cache_data(ttl=3600, show_spinner=False)
 def table_exists(fqn: str) -> bool:
@@ -2750,7 +2862,7 @@ def render_master_dashboard():
                 if f:
                     st.caption(f"{f['campaigns']} campaigns · {int(f['impressions']):,} impr · "
                                f"{int(f['clicks']):,} clicks")
-        st.markdown("#### Daily spend and delivery")
+        st.markdown("#### Daily trend — pick any metrics")
         d1 = live_daily(META_ADS, "DATE_START", since, until)
         d2 = live_daily(META_RETAIL, "DATE_START", since, until)
         if not d1.empty or not d2.empty:
@@ -2771,20 +2883,37 @@ def render_master_dashboard():
                 ).properties(height=280), use_container_width=True)
         else:
             st.info("No daily rows in the selected window.")
-        st.markdown("#### Ad level — what actually served today")
+        with st.expander("Full daily metric series (every metric, either account)"):
+            _ta = st.radio("Account", ["Retail (Target / Costco)", "DTC (own site)"],
+                           horizontal=True, key="live_series_acct")
+            _tt = META_RETAIL if _ta.startswith("Retail") else META_ADS
+            _dw = f'where "DATE_START" between \'{since}\' and \'{until}\''
+            _df = full_metric_raw(_tt, _dw, ["date_start"])
+            if _df.empty:
+                st.info("No rows in window.")
+            else:
+                _df = _df.rename(columns={"date_start": "day"}).sort_values("day")
+                _opts = metric_options(_df)
+                _sel = st.multiselect("Metrics", _opts,
+                                      default=[o for o in ("spend", "impressions") if o in _opts],
+                                      key="live_series_metrics")
+                metric_chart(_df, "day", _sel)
+                st.dataframe(spec_frame(_df), use_container_width=True, hide_index=True, height=280)
+                st.caption(f"{len(_df.columns)} metrics per day.")
+        st.markdown("#### Ad level — what actually served today, every metric")
         for lbl, tbl in (("DTC", META_ADS), ("Retail (Target / Costco)", META_RETAIL)):
-            ads = live_ad_delivery(tbl, today_d)
-            st.markdown(f"**{lbl}** — {len(ads)} ads with impressions today")
-            if ads.empty:
+            where = f'where "DATE_START"::date = \'{today_d}\''
+            full = full_metric_frame(tbl, where, ["campaign_name", "adset_name", "ad_name"])
+            st.markdown(f"**{lbl}** — {0 if full.empty else len(full)} ads today")
+            if full.empty:
                 st.caption("Nothing served yet today in this account, or the day has not "
                            "landed in the warehouse. Reported as no rows, never as zero spend.")
             else:
-                a = ads.rename(columns=str.upper)
-                st.dataframe(pd.DataFrame({
-                    "Campaign": a["CAMPAIGN"], "Ad set": a["ADSET"], "Ad": a["AD"],
-                    "Spend": a["SPEND"].map(money), "Impressions": a["IMPRESSIONS"],
-                    "Link clicks": a["LINK_CLICKS"],
-                }), use_container_width=True, hide_index=True, height=280)
+                st.dataframe(full, use_container_width=True, hide_index=True, height=300)
+                st.caption(f"{len(full.columns)} columns: every additive column the source "
+                           "carries, plus every catalog-derived metric whose inputs exist. "
+                           "Columns that are empty for all rows are sunk to the right, kept "
+                           "visible so the schema stays honest.")
         if snap.get("today"):
             with st.expander("Committed snapshot for comparison (what the web page shows)"):
                 _render_value(snap["today"])
@@ -2794,32 +2923,55 @@ def render_master_dashboard():
         st.subheader("Calendar")
         st.caption("Day-by-day delivery across the selected window, read live. The SOP's "
                    "standing conditions that govern what may run on any given day are below.")
-        cal = live_daily(META_RETAIL, "DATE_START", since, until)
-        cal_d = live_daily(META_ADS, "DATE_START", since, until)
-        if cal.empty and cal_d.empty:
+        _cw = f'where "DATE_START" between \'{since}\' and \'{until}\''
+        cal_r = full_metric_raw(META_RETAIL, _cw, ["date_start"])
+        cal_d = full_metric_raw(META_ADS, _cw, ["date_start"])
+        if cal_r.empty and cal_d.empty:
             st.info("No rows in the selected window.")
         else:
-            merged = {}
-            for lbl, dd in (("Retail", cal), ("DTC", cal_d)):
-                if dd.empty:
-                    continue
-                dd = dd.rename(columns=str.upper)
-                for _, r in dd.iterrows():
-                    day = str(pd.to_datetime(r["DAY"]).date())
-                    row = merged.setdefault(day, {"Day": day, "Retail spend": 0.0,
-                                                  "DTC spend": 0.0, "Impressions": 0, "Clicks": 0})
-                    row[f"{lbl} spend"] = _n(r["SPEND"]) or 0.0
-                    row["Impressions"] += int(_n(r["IMPRESSIONS"]) or 0)
-                    row["Clicks"] += int(_n(r["CLICKS"]) or 0)
-            grid = pd.DataFrame(sorted(merged.values(), key=lambda x: x["Day"], reverse=True))
-            grid["Total spend"] = grid["Retail spend"] + grid["DTC spend"]
-            show = grid.copy()
-            for c in ("Retail spend", "DTC spend", "Total spend"):
-                show[c] = show[c].map(money)
-            show["Impressions"] = show["Impressions"].map(lambda v: f"{int(v):,}")
-            show["Clicks"] = show["Clicks"].map(lambda v: f"{int(v):,}")
-            st.dataframe(show, use_container_width=True, hide_index=True, height=420)
-            st.caption(f"{len(grid)} days in window. Newest first.")
+            which_cal = st.radio("Account", ["Retail (Target / Costco)", "DTC (own site)",
+                                             "Both (side by side)"],
+                                 horizontal=True, key="cal_acct")
+            frames = {"Retail (Target / Costco)": cal_r, "DTC (own site)": cal_d}
+            if which_cal == "Both (side by side)":
+                opts = sorted(set(metric_options(cal_r)) | set(metric_options(cal_d)),
+                              key=lambda c: 0 if c == "spend" else 1)
+                msel = st.selectbox("Metric", opts, key="cal_metric_both")
+                parts = []
+                for lbl, fr in frames.items():
+                    if not fr.empty and msel in fr.columns:
+                        parts.append(pd.DataFrame({"day": pd.to_datetime(fr["date_start"]),
+                                                   "Value": fr[msel], "Account": lbl}))
+                if parts:
+                    both = pd.concat(parts, ignore_index=True)
+                    st.altair_chart(alt.Chart(both).mark_line(point=True).encode(
+                        x=alt.X("day:T", title=None), y=alt.Y("Value:Q", title=msel),
+                        color=alt.Color("Account:N", scale=alt.Scale(
+                            domain=list(frames), range=[GREEN, GREEN_SOFT]),
+                            legend=alt.Legend(orient="top", title=None)),
+                        tooltip=["day:T", "Account:N", alt.Tooltip("Value:Q", format=",.4f")],
+                    ).properties(height=300), use_container_width=True)
+                for lbl, fr in frames.items():
+                    if not fr.empty:
+                        st.markdown(f"**{lbl}** - {len(fr)} days, {len(fr.columns)} metrics")
+                        st.dataframe(spec_frame(fr.sort_values("date_start", ascending=False)),
+                                     use_container_width=True, hide_index=True, height=300)
+            else:
+                fr = frames[which_cal]
+                if fr.empty:
+                    st.info("No rows for this account in the window.")
+                else:
+                    fr = fr.sort_values("date_start")
+                    opts = metric_options(fr)
+                    msel = st.multiselect("Metrics", opts,
+                                          default=[o for o in ("spend", "impressions",
+                                                               "inline_link_clicks") if o in opts],
+                                          key="cal_metrics")
+                    metric_chart(fr.rename(columns={"date_start": "day"}), "day", msel)
+                    st.dataframe(spec_frame(fr.sort_values("date_start", ascending=False)),
+                                 use_container_width=True, hide_index=True, height=420)
+                    st.caption(f"{len(fr)} days x {len(fr.columns)} metrics. Newest first. "
+                               "Every additive column plus every catalog-derived metric.")
         if kb.get("sop", {}).get("standing_conditions"):
             st.markdown("#### Standing conditions (SOP)")
             _render_value(kb["sop"]["standing_conditions"])
@@ -2845,26 +2997,23 @@ def render_master_dashboard():
         st.markdown("#### Live campaign rows, in tracker shape")
         st.caption("The same campaigns the sheet tracks, read live from the warehouse for the "
                    "selected window rather than typed in by hand.")
-        try:
-            rows = sql_group_sums(META_RETAIL, f"\"DATE_START\" between '{since}' and '{until}'",
-                                  ["campaign_name"])
-        except Exception:  # noqa: BLE001
-            rows = pd.DataFrame()
+        _tw = f'where "DATE_START" between \'{since}\' and \'{until}\''
+        _lvl = st.selectbox("Granularity", ["Campaign", "Campaign + Ad set",
+                                            "Campaign + Ad set + Ad"], key="trk_lvl")
+        _gc = {"Campaign": ["campaign_name"],
+               "Campaign + Ad set": ["campaign_name", "adset_name"],
+               "Campaign + Ad set + Ad": ["campaign_name", "adset_name", "ad_name"]}[_lvl]
+        _acct = st.radio("Account", ["Retail (Target / Costco)", "DTC (own site)"],
+                         horizontal=True, key="trk_acct")
+        _tbl = META_RETAIL if _acct.startswith("Retail") else META_ADS
+        rows = full_metric_frame(_tbl, _tw, _gc)
         if rows.empty:
-            st.info("No retail campaign rows in the selected window.")
+            st.info("No campaign rows in the selected window.")
         else:
-            rr = rows.rename(columns=str.upper)
-            sp = rr.get("SPEND")
-            im = rr.get("IMPRESSIONS")
-            ck = rr.get("INLINE_LINK_CLICKS", rr.get("CLICKS"))
-            st.dataframe(pd.DataFrame({
-                "Campaign": rr.iloc[:, 0],
-                "Spend": sp.map(money) if sp is not None else "—",
-                "Impressions": im.map(lambda v: f"{int(v or 0):,}") if im is not None else "—",
-                "Link clicks": ck.map(lambda v: f"{int(v or 0):,}") if ck is not None else "—",
-                "CTR": [pctf(_pct(c, i)) for c, i in zip(ck, im)] if (ck is not None and im is not None) else "—",
-                "CPC": [money(_div(s, c)) for s, c in zip(sp, ck)] if (sp is not None and ck is not None) else "—",
-            }), use_container_width=True, hide_index=True)
+            st.dataframe(rows, use_container_width=True, hide_index=True, height=460)
+            st.caption(f"{len(rows)} rows x {len(rows.columns)} columns - every additive column "
+                       "the source carries plus every catalog-derived metric whose inputs exist. "
+                       "Sorted by spend descending. Nothing is capped.")
 
     # ── 4. Accounts ──────────────────────────────────────────────────────────
     with tabs[3]:
@@ -2910,15 +3059,16 @@ def render_master_dashboard():
                            ("Ad", ["campaign_name", "adset_name", "ad_name"])):
             with st.expander(f"{lvl} level", expanded=(lvl == "Campaign")):
                 try:
-                    g = sql_group_sums(tbl, f"\"DATE_START\" between '{since}' and '{until}'", cols_)
+                    g = full_metric_frame(
+                        tbl, f'where "DATE_START" between \'{since}\' and \'{until}\'', cols_)
                 except Exception as exc:  # noqa: BLE001
                     st.warning(f"Unavailable: {exc}")
                     continue
                 if g.empty:
                     st.info("No rows in the selected window.")
                 else:
-                    st.dataframe(order_table(spec_frame(g)) if "spec_frame" in globals() else g,
-                                 use_container_width=True, hide_index=True)
+                    st.dataframe(g, use_container_width=True, hide_index=True, height=420)
+                    st.caption(f"{len(g)} rows x {len(g.columns)} columns — full metric set.")
         if kb.get("campaign_rollup"):
             with st.expander("KT snapshot rollup (20 Jul 2026) for comparison"):
                 _render_value(kb["campaign_rollup"])
