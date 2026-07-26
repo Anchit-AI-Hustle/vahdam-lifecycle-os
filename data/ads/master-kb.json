@@ -52,6 +52,18 @@
    "label": "Social Update USA - 17th July 2026.pptx (28 slides)",
    "type": "pptx",
    "as_of": "2026-07-17"
+  },
+  {
+   "id": "sop-pdf",
+   "label": "VAHDAM Ad Campaign SOP (final) - UGC, Target, Costco, D2C",
+   "type": "pdf",
+   "as_of": "live from Monday"
+  },
+  {
+   "id": "sop-xlsx",
+   "label": "VAHDAM Master Ad Tracking Sheet - 9 tabs, 26 columns per channel",
+   "type": "xlsx",
+   "as_of": "2026-07-26"
   }
  ],
  "spend": {
@@ -971,11 +983,11 @@
    "name": "Snowflake (warehouse of record for ad data)",
    "status": "connected - verified 2026-07-25 via Snowflake connector",
    "details": [
-    "Meta USA: VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS - 129,741 rows, 2024-05-15 to 2026-07-25 (fresh today)",
-    "Meta actions: META_USA_ADS_INSIGHTS_ACTIONS 1,810,972 rows; PURCHASE_ROAS 17,219 rows; video watch tables populated",
-    "TikTok USA: DATON.RAW.TIKTOK_ADS_USA_CAMPAIGN_REPORT_DAILY 1,012 rows; ADGROUP 3,842; AD 13,838; AGE_GENDER 7,453; COUNTRY 1,114",
-    "Google USA: VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_US_AD_GROUP_AD_REPORT 91,135 rows (the app default previously pointed at GOOGLE_ADS_USA, which does not exist - fixed in ads-snowflake-core.js)",
-    "Raw Meta feed also available: VAHDAM_DB.DC_RAW.FB2_VAHDAM_VAHDAMINDIAUSA_US_FBADS_ADPERFORMANCE 133,948 rows"
+    "Meta USA: VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS - 129,741 rows, fresh to 2026-07-25/26 (includes the current partial day)",
+    "Meta cohort breakdowns VERIFIED PRESENT (an earlier note in this KB wrongly said they were missing): MAPLEMONK1.META_USA_ADS_INSIGHTS_AGE_AND_GENDER 11,521 rows (cols AGE, GENDER, SPEND, DATE_START); MAPLEMONK1.META_USA_ADS_INSIGHTS_PLATFORM_AND_DEVICE 11,511 rows (PUBLISHER_PLATFORM, IMPRESSION_DEVICE, PLATFORM_POSITION); MAPLEMONK1.META_USA_AD_CREATIVES 9,544 rows",
+    "TikTok USA: DATON.RAW.TIKTOK_ADS_USA_CAMPAIGN_REPORT_DAILY 1,012 rows, fresh to 2026-07-23, $68,178.71 total spend; columns are STAT_TIME_DAY and ACCOUNTNAME (NOT date_start/account_name)",
+    "Google US: VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_US_AD_GROUP_AD_REPORT 91,135 rows but the feed is STALE - it ends 2023-11-24 (2018-12-19 to 2023-11-24, $514,353.99, 3 accounts). Columns are dotted lower-case identifiers requiring quotes: \"segments.date\", \"customer.descriptive_name\", \"metrics.cost_micros\" (micros, divided by 1e6 on read)",
+    "Fixed 2026-07-26 in ads-snowflake-core.js: metrics() and cohort() previously hardcoded date_start/account_name, which threw 'invalid identifier' for TikTok and Google. Both now resolve the real columns per table from INFORMATION_SCHEMA, quote dotted identifiers and convert micros. Verified live: TikTok 254 rows and Meta 500 rows returned for 2026-05-01 to 2026-07-26; Meta age/gender cohort returns real spend splits."
    ],
    "links": [
     "https://app.snowflake.com/uxdeihw/mo06981/#/homepage",
@@ -1127,6 +1139,11 @@
    "item": "The Target/Costco Meta ad account (KT workbook, account id begins 805) is NOT mirrored in Snowflake - the warehouse carries only 'Vahdam India USA New EST Main Account' (1303870183798748). So Target/Costco figures on the dashboard are the 20 Jul 2026 KT snapshot, not live. To make them real-time: add that ad account to the Maplemonk/Snowflake pipeline, or set META_ACCESS_TOKEN + META_AD_ACCOUNT_ID for it so /api/brain?action=ads-live reads it straight from the Meta Marketing API."
   },
   {
+   "id": "gap-google-feed-stale",
+   "severity": "high",
+   "item": "Google Ads warehouse feed is STALE: GOOGLE_ADS_US_AD_GROUP_AD_REPORT ends 2023-11-24. The dashboard's Google panels now query correctly but will legitimately show no recent rows until the Google Ads pipeline is resumed. Not a code fault."
+  },
+  {
    "id": "gap-credentials",
    "severity": "high",
    "item": "Snowflake credentials (username + password) were shared in plain text in the UGC Dashboard Automation email thread - rotate that password and move to per-user access."
@@ -1163,6 +1180,39 @@
   }
  ],
  "links": [
+  {
+   "group": "SOP (FINAL)",
+   "title": "VAHDAM Ad Campaign SOP (final standing procedure, PDF)",
+   "url": "/docs/sop/VAHDAM_Ad_Campaign_SOP.pdf",
+   "owner": "Anchit Tandon / VAHDAM Growth",
+   "status": "verified",
+   "source": "sop-pdf",
+   "note": "Committed in-repo copy. Live from Monday; covers UGC, Target, Costco and D2C."
+  },
+  {
+   "group": "SOP (FINAL)",
+   "title": "VAHDAM Master Ad Tracking Sheet (source of truth, Google Sheet)",
+   "url": "https://docs.google.com/spreadsheets/d/1SoYc6YFGa6SM_GpvrCVZDaN0otpshG_E6grxw-BljVA/edit?usp=sharing",
+   "owner": "Anchit Tandon",
+   "status": "from-sop",
+   "note": "9 tabs. The sheet is authoritative over the SOP document wherever they differ."
+  },
+  {
+   "group": "SOP (FINAL)",
+   "title": "VAHDAM Master Ad Tracking Sheet (committed XLSX snapshot)",
+   "url": "/docs/sop/VAHDAM_Master_Ad_Tracking_Sheet.xlsx",
+   "owner": "Anchit Tandon",
+   "status": "verified",
+   "source": "sop-xlsx"
+  },
+  {
+   "group": "SOP (FINAL)",
+   "title": "June USA UGC scoring dashboard (scoring reference)",
+   "url": "https://vahdam-june-usa-ugc-dashboard.netlify.app/",
+   "owner": "VAHDAM Growth",
+   "status": "from-sop",
+   "source": "sop-xlsx"
+  },
   {
    "group": "Paid ads - reports & decks",
    "title": "Target Paid Ads Update (Performance & Creative Insights deck)",
@@ -1690,5 +1740,744 @@
     "June UGC buckets (136 live): Target shelf 41, Cortisol 30, Over 40 20, Gummies vs coffee 16, Taste 16, countering-mushroom 13. Next line-up: 10 influencers + 500 UGC creators; Costco Bay Area 12 influencers + 100 UGC."
    ]
   }
- ]
+ ],
+ "sop": {
+  "id": "sop-ad-campaign",
+  "title": "VAHDAM Ad Campaign SOP — the final standing procedure",
+  "status": "FINAL — live from Monday",
+  "scope": "Ad execution across UGC, Target, Costco and D2C.",
+  "authority": "The master tracking sheet is the source of truth. Where the sheet and the SOP differ, the sheet is correct and the SOP is corrected to match. The SOP carries the process; the sheet carries the data.",
+  "master_sheet": "https://docs.google.com/spreadsheets/d/1SoYc6YFGa6SM_GpvrCVZDaN0otpshG_E6grxw-BljVA/edit?usp=sharing",
+  "local_copies": {
+   "sop_pdf": "/docs/sop/VAHDAM_Ad_Campaign_SOP.pdf",
+   "tracker_xlsx": "/docs/sop/VAHDAM_Master_Ad_Tracking_Sheet.xlsx"
+  },
+  "tabs": [
+   {
+    "tab": "Index",
+    "holds": "Tab guide, row layout, colour coding, setup",
+    "owner": "Orientation / reference"
+   },
+   {
+    "tab": "Scoring Legend",
+    "holds": "Score bands, thresholds, weights, view penalties, run status",
+    "owner": "Reference only"
+   },
+   {
+    "tab": "Nomenclature",
+    "holds": "Naming syntax, rules, token values, URL parameters",
+    "owner": "Reference only"
+   },
+   {
+    "tab": "Landing Pages",
+    "holds": "PageDeck destinations by content bucket, with performance",
+    "owner": "Anchit"
+   },
+   {
+    "tab": "Master UGC Tracker",
+    "holds": "Real-time IMPORTRANGE pull from Vinya's team's sheet",
+    "owner": "Read only"
+   },
+   {
+    "tab": "UGC",
+    "holds": "UGC campaigns, 26 columns; landing page differs per campaign",
+    "owner": "Sneha's team, Sudhanshu, Agency"
+   },
+   {
+    "tab": "Target",
+    "holds": "Target campaigns, 26 columns",
+    "owner": "Sneha's team, Sudhanshu, Agency"
+   },
+   {
+    "tab": "Costco",
+    "holds": "Costco campaigns, 26 columns",
+    "owner": "Sneha's team, Sudhanshu, Agency"
+   },
+   {
+    "tab": "D2C",
+    "holds": "D2C campaigns, 26 columns; every input from Anchit",
+    "owner": "Anchit, Agency"
+   }
+  ],
+  "row_layout": [
+   {
+    "row": "1",
+    "contents": "Column header",
+    "editable": false
+   },
+   {
+    "row": "2",
+    "contents": "Who fills that column",
+    "editable": false
+   },
+   {
+    "row": "3",
+    "contents": "Worked example (the template, copied down)",
+    "editable": false
+   },
+   {
+    "row": "4 onward",
+    "contents": "Live entries",
+    "editable": true
+   }
+  ],
+  "formula_columns": "CTR, CPC, CPA and ROAS are formulas. Inputs are Spend, Impressions, Clicks, Conversions and Revenue. Overwriting a formula cell stops it calculating for every row below. Ad Code is plain text so codes are not converted to currency or scientific notation.",
+  "scoring": {
+   "formulas": {
+    "tiktok": "6-sec View % x 40% + Shares x 25% + (Likes + Comments) x 20% + Views x 15%",
+    "instagram": "Views x 40% + Likes x 35% + Comments x 15%  (sums to 90%, under review with Samvita; the Organic Score column is authoritative until resolved)"
+   },
+   "reference_dashboard": "https://vahdam-june-usa-ugc-dashboard.netlify.app/",
+   "tiktok_weights": [
+    {
+     "metric": "6-sec View %",
+     "weight": "40%",
+     "why": "Strongest signal - hook worked, TikTok rewards this directly"
+    },
+    {
+     "metric": "Shares",
+     "weight": "25%",
+     "why": "Viral intent - the highest organic endorsement"
+    },
+    {
+     "metric": "Likes + Comments",
+     "weight": "20%",
+     "why": "Active engagement; comments = a real reaction"
+    },
+    {
+     "metric": "Views",
+     "weight": "15%",
+     "why": "Reach without resonance - deliberately the smallest weight"
+    }
+   ],
+   "instagram_weights": [
+    {
+     "metric": "Views (Plays)",
+     "weight": "40%",
+     "why": "Reach indicates the algorithm is distributing the content"
+    },
+    {
+     "metric": "Likes",
+     "weight": "35%",
+     "why": "Primary Instagram engagement signal"
+    },
+    {
+     "metric": "Comments",
+     "weight": "15%",
+     "why": "Rarer on Instagram, strong when present"
+    }
+   ],
+   "bands": [
+    {
+     "score": "70-100",
+     "label": "Elite",
+     "meaning": "Top-tier organic. Strong hook, high retention, real engagement. First to boost."
+    },
+    {
+     "score": "50-69",
+     "label": "High",
+     "meaning": "Solid hold and engagement. Boost with confidence."
+    },
+    {
+     "score": "30-49",
+     "label": "Good",
+     "meaning": "Meets the Ad Recommended threshold. Worth testing with budget."
+    },
+    {
+     "score": "20-29",
+     "label": "Consider",
+     "meaning": "Some signal. Small spend first."
+    },
+    {
+     "score": "0-19",
+     "label": "Not ready",
+     "meaning": "No spend. Creative requires rework."
+    }
+   ],
+   "thresholds": [
+    {
+     "platform": "TikTok",
+     "label": "Ad Recommended",
+     "condition": "Score >= 30 OR 6-sec view rate >= 25%"
+    },
+    {
+     "platform": "TikTok",
+     "label": "Consider",
+     "condition": "Score >= 20 OR 6-sec >= 18% OR ER >= 8%"
+    },
+    {
+     "platform": "TikTok",
+     "label": "No",
+     "condition": "Below all of the above"
+    },
+    {
+     "platform": "Instagram",
+     "label": "Ad Recommended",
+     "condition": "Score >= 20"
+    },
+    {
+     "platform": "Instagram",
+     "label": "Consider",
+     "condition": "Score >= 13 OR likes/views >= 5%"
+    },
+    {
+     "platform": "Instagram",
+     "label": "No",
+     "condition": "Below all of the above"
+    }
+   ],
+   "six_second_rule": "A 6-sec view rate of 25% or above auto-qualifies a TikTok post regardless of total score - a hook holding past six seconds has already beaten the platform's skip behaviour.",
+   "view_penalties": [
+    {
+     "platform": "TikTok",
+     "views": "Under 50",
+     "multiplier": "0.45",
+     "why": "Sample too small to be reliable"
+    },
+    {
+     "platform": "TikTok",
+     "views": "50-199",
+     "multiplier": "0.70",
+     "why": "Small and growing"
+    },
+    {
+     "platform": "TikTok",
+     "views": "200-499",
+     "multiplier": "0.85",
+     "why": "Reasonable sample, minor discount"
+    },
+    {
+     "platform": "TikTok",
+     "views": "500+",
+     "multiplier": "none",
+     "why": "Full confidence"
+    },
+    {
+     "platform": "Instagram",
+     "views": "Under 100",
+     "multiplier": "0.50",
+     "why": "Unreliable"
+    },
+    {
+     "platform": "Instagram",
+     "views": "100-499",
+     "multiplier": "0.75",
+     "why": "Small but trackable"
+    },
+    {
+     "platform": "Instagram",
+     "views": "500+",
+     "multiplier": "none",
+     "why": "Sufficient reach"
+    }
+   ],
+   "run_status": {
+    "note": "Two columns look similar; only one is an instruction. Ad Recommended = scoring output. Ads Activated = the run instruction. No ad goes live unless Ads Activated reads 'Review before running ads'.",
+    "values": [
+     {
+      "value": "Review before running ads",
+      "meaning": "Cleared Level 2, queued for the agency",
+      "action": "Review spelling, grammar and formatting, then set live"
+     },
+     {
+      "value": "Yes",
+      "meaning": "Already live",
+      "action": "None. Reporting only."
+     },
+     {
+      "value": "No",
+      "meaning": "Did not clear the benchmark",
+      "action": "Do not set live"
+     },
+     {
+      "value": "(blank)",
+      "meaning": "Not yet assessed",
+      "action": "Wait"
+     }
+    ]
+   }
+  },
+  "nomenclature": {
+   "principle": "One syntax everywhere. The string entered into the platform as a campaign, ad set or ad name is the same string carried in the URL as a UTM value. There is no second, human-readable form.",
+   "character_set": "Lowercase only. Underscore between fields. Hyphen inside a field. Dates as yyyy-mm-dd.",
+   "patterns": [
+    {
+     "what": "Campaign name",
+     "syntax": "yyyy-mm _ platform _ objective _ type",
+     "example": "2026-06_meta_conv_target"
+    },
+    {
+     "what": "Ad Set name",
+     "syntax": "yyyy-mm-dd _ audience _ placement",
+     "example": "2026-06-11_over40-high-performer_ig-reels"
+    },
+    {
+     "what": "Ad name",
+     "syntax": "yyyy-mm-dd _ type _ product _ audience _ surface _ videoid",
+     "example": "2026-06-11_target_ashwa-coffee_over40-high-performer_instagram_7644934695515393294"
+    },
+    {
+     "what": "utm_source",
+     "syntax": "platform-surface",
+     "example": "meta-instagram"
+    },
+    {
+     "what": "utm_medium",
+     "syntax": "fixed literal",
+     "example": "paid-social"
+    },
+    {
+     "what": "utm_campaign",
+     "syntax": "the campaign name",
+     "example": "2026-06_meta_conv_target"
+    },
+    {
+     "what": "utm_term",
+     "syntax": "the ad set name",
+     "example": "2026-06-11_over40-high-performer_ig-reels"
+    },
+    {
+     "what": "utm_content",
+     "syntax": "the ad name",
+     "example": "2026-06-11_target_ashwa-coffee_over40-high-performer_instagram_7644934695515393294"
+    },
+    {
+     "what": "acq_source",
+     "syntax": "type _ platform",
+     "example": "target_meta"
+    },
+    {
+     "what": "acq_subsource",
+     "syntax": "creator _ bucket _ hook",
+     "example": "jeorginaugc_cortisol_problem-pain"
+    }
+   ],
+   "macros": "Where Meta provides one, the macro is used rather than the literal string: {{campaign.name}}, {{adset.name}}, {{ad.name}}, {{site_source_name}}. acq_source and acq_subsource have no macro and are copied from the sheet row.",
+   "costco_note": "Costco runs on TikTok, giving utm_source tiktok-tiktok and acq_source costco_tiktok.",
+   "rules": [
+    {
+     "n": 1,
+     "rule": "No space, /, comma, &, ?, %, + or # in any name or parameter",
+     "consequence": "Space becomes %20, slash %2F, comma breaks CSV export, & and ? break the query string, # truncates the URL"
+    },
+    {
+     "n": 2,
+     "rule": "Lowercase only",
+     "consequence": "GA4 and several platform APIs are case-sensitive; mixed case splits one campaign across multiple report rows"
+    },
+    {
+     "n": 3,
+     "rule": "videoid mandatory on every ad name and inside utm_content",
+     "consequence": "The ad cannot be mapped to its organic performance"
+    },
+    {
+     "n": 4,
+     "rule": "acq_subsource carries creator, bucket and hook",
+     "consequence": "Revenue by creator, content angle and hook style is unavailable"
+    },
+    {
+     "n": 5,
+     "rule": "Target and Costco names kept strictly separate",
+     "consequence": "Reporting overlap; Costco campaigns have previously been built using Target keywords"
+    },
+    {
+     "n": 6,
+     "rule": "Token values copied, not retyped",
+     "consequence": "One mistyped token splits a single audience across two report rows"
+    },
+    {
+     "n": 7,
+     "rule": "Names in Ad Manager match the tracker exactly",
+     "consequence": "The asset is paused"
+    }
+   ],
+   "tokens": {
+    "platform": "meta tiktok",
+    "surface": "instagram facebook tiktok",
+    "objective": "conv",
+    "type": "target costco d2c ugc",
+    "audience": "over40 high-performer over40-high-performer broad-lookalike",
+    "placement": "ig-reels ig-stories fb-feed tiktok-infeed advantage-plus",
+    "product": "ashwa-coffee turmeric-tea",
+    "bucket": "cortisol gummies-vs-coffee target-shelf anti-mushroom taste over40-high-performer target-instore",
+    "hook": "curiosity problem-pain age-stage personal-discovery comparison callout-ifyou lifestyle taste-sensory",
+    "lang": "en es pt"
+   }
+  },
+  "landing_pages": {
+   "principle": "UGC ads route to a dedicated PageDeck page built for that content angle, not to the product page. Each new UGC campaign receives its own page. Anchit supplies the URL with the brief and it is used as given - the generic product page is not substituted, because the page is the attribution.",
+   "pages": [
+    {
+     "bucket": "Cortisol",
+     "slug": "coffee-cta-ugc-cortisol",
+     "url": "https://buy.vahdam.com/coffee-cta-ugc-cortisol",
+     "visitors": 6561,
+     "page_views": 7521,
+     "avg_view": "56s",
+     "external_clicks": 2720,
+     "ctr": "41.46%"
+    },
+    {
+     "bucket": "Countering Mushroom Coffee Trend",
+     "slug": "coffee-cta-ugc-mushroom",
+     "url": "https://buy.vahdam.com/coffee-cta-ugc-mushroom",
+     "visitors": 5768,
+     "page_views": 6727,
+     "avg_view": "57s",
+     "external_clicks": 2387,
+     "ctr": "41.38%"
+    },
+    {
+     "bucket": "Taste",
+     "slug": "coffee-cta-ugc-taste",
+     "url": "https://buy.vahdam.com/coffee-cta-ugc-taste",
+     "visitors": 4129,
+     "page_views": 4962,
+     "avg_view": "32s",
+     "external_clicks": 1574,
+     "ctr": "38.12%"
+    },
+    {
+     "bucket": "Target Shelf Showdown",
+     "slug": "coffee-cta-ugc-targetstore",
+     "url": "https://buy.vahdam.com/coffee-cta-ugc-targetstore",
+     "visitors": 3875,
+     "page_views": 4437,
+     "avg_view": "29s",
+     "external_clicks": 1463,
+     "ctr": "37.75%"
+    },
+    {
+     "bucket": "Gummies vs Coffee",
+     "slug": "coffee-cta-ugc-gummies",
+     "url": "https://buy.vahdam.com/coffee-cta-ugc-gummies",
+     "visitors": 3455,
+     "page_views": 4013,
+     "avg_view": "54s",
+     "external_clicks": 1194,
+     "ctr": "34.56%"
+    },
+    {
+     "bucket": "Over 40 / High Performer",
+     "slug": "coffee-cta-ugc-over-40-woman",
+     "url": "https://buy.vahdam.com/coffee-cta-ugc-over-40-woman",
+     "visitors": 1806,
+     "page_views": 2112,
+     "avg_view": "31s",
+     "external_clicks": 827,
+     "ctr": "45.79%"
+    },
+    {
+     "bucket": "Target In-Store Discovery",
+     "slug": "(none)",
+     "url": "https://www.target.com/p/vahdam-ashwagandha-medium-roast-calm-energy-and-focus-support-instant-coffee-2-11oz/-/A-95055145",
+     "note": "Target PDP direct. No PageDeck page at present."
+    },
+    {
+     "bucket": "(generic, not a UGC bucket)",
+     "slug": "coffee-60",
+     "url": "https://buy.vahdam.com/coffee-60",
+     "visitors": 70393,
+     "page_views": 84312,
+     "avg_view": "1m 20s",
+     "external_clicks": 27873,
+     "ctr": "39.60%"
+    }
+   ],
+   "reconciliation": "Traffic reconciles: 23,570 ad clicks against 25,594 visitors across the six UGC bucket pages (92% match) - the pages are receiving the paid traffic correctly and the remainder is organic.",
+   "conversion_gap": "Those pages produced 10,165 external clicks onward, yet PageDeck reports 0 conversions and $0 revenue on every page. Purchases complete on target.com, instacart.com or Shopify - outside PageDeck's visibility - so zero is EXPECTED on retail destinations. For any page routing to vahdam.com it is NOT expected and points to a missing pixel or goal.",
+   "measure_sources": [
+    {
+     "measure": "Traffic and engagement",
+     "source": "PageDeck"
+    },
+    {
+     "measure": "Conversion and revenue",
+     "source": "Platform reporting and Shopify"
+    }
+   ],
+   "open_items": [
+    "Two pages carrying 7,111 visitors between them are still truncated in the PageDeck export as 'coffee-cta...cer-target' - full slugs needed before they can be attributed.",
+    "targetstore vs targetshelf is not a mismatch: both exist, targetstore carries the live traffic (3,875 visitors), targetshelf is an alternate with 1 visitor. Use targetstore."
+   ]
+  },
+  "campaign_tab_columns": [
+   {
+    "n": 1,
+    "column": "Ad To Be Run (Brief)",
+    "by": "Sneha's team. Anchit for D2C."
+   },
+   {
+    "n": 2,
+    "column": "Campaign Level Name",
+    "by": "Agency, from the brief"
+   },
+   {
+    "n": 3,
+    "column": "Ad Set Level Name",
+    "by": "Agency, from the brief"
+   },
+   {
+    "n": 4,
+    "column": "Ad Level Name",
+    "by": "Agency, from the brief"
+   },
+   {
+    "n": 5,
+    "column": "Platform",
+    "by": "Sneha's team. Anchit for D2C."
+   },
+   {
+    "n": 6,
+    "column": "Placement / Format",
+    "by": "Sneha's team. Anchit for D2C."
+   },
+   {
+    "n": 7,
+    "column": "Product / SKU",
+    "by": "Sneha's team. Anchit for D2C."
+   },
+   {
+    "n": 8,
+    "column": "Target Audience",
+    "by": "Sneha's team. Anchit for D2C."
+   },
+   {
+    "n": 9,
+    "column": "Target Audience Criteria Set for Campaign",
+    "by": "Sneha's team. Anchit for D2C."
+   },
+   {
+    "n": 10,
+    "column": "Budget",
+    "by": "Sneha's team. Anchit for D2C."
+   },
+   {
+    "n": 11,
+    "column": "Goal / KPI",
+    "by": "Sneha's team. Anchit for D2C."
+   },
+   {
+    "n": 12,
+    "column": "Creative Link",
+    "by": "Sudhanshu"
+   },
+   {
+    "n": 13,
+    "column": "Landing Page URL",
+    "by": "Anchit. New page per campaign for UGC."
+   },
+   {
+    "n": 14,
+    "column": "Ad Code",
+    "by": "Agency, on going live"
+   },
+   {
+    "n": 15,
+    "column": "Ad Link",
+    "by": "Agency, on going live"
+   },
+   {
+    "n": 16,
+    "column": "Ad Report Link",
+    "by": "Agency, on going live"
+   },
+   {
+    "n": 17,
+    "column": "Status",
+    "by": "Agency, and on every change"
+   },
+   {
+    "n": 18,
+    "column": "Spend",
+    "by": "Agency, within 72 hours"
+   },
+   {
+    "n": 19,
+    "column": "Impressions",
+    "by": "Agency, within 72 hours"
+   },
+   {
+    "n": 20,
+    "column": "Clicks",
+    "by": "Agency, within 72 hours"
+   },
+   {
+    "n": 21,
+    "column": "CTR",
+    "by": "Auto-calculated"
+   },
+   {
+    "n": 22,
+    "column": "CPC",
+    "by": "Auto-calculated"
+   },
+   {
+    "n": 23,
+    "column": "Conversions",
+    "by": "Agency, within 72 hours"
+   },
+   {
+    "n": 24,
+    "column": "CPA",
+    "by": "Auto-calculated"
+   },
+   {
+    "n": 25,
+    "column": "ROAS",
+    "by": "Auto-calculated"
+   },
+   {
+    "n": 26,
+    "column": "Revenue",
+    "by": "Agency, within 72 hours"
+   }
+  ],
+  "ugc_flow": [
+   {
+    "level": "Level 1 — Vinya's team",
+    "owns": "The master UGC sheet and all organic data: creator post, URL, platform, publish date, content bucket, views, likes, comments, shares, 2-sec and 6-sec view rates, average view time, engagement rate.",
+    "function": "Accuracy at source, and the first quality filter on whether a post is usable.",
+    "dependency": "The tracker pulls from this sheet live. An error here passes directly into scoring and then into what the agency runs. No manual checkpoint exists in between."
+   },
+   {
+    "level": "Level 2 — Anchit",
+    "owns": "The scoring decision, the Ads Activated column, all landing pages and URL parameters, and the full brief for D2C.",
+    "function": "Each post is scored with the formula and view penalties, checked against the platform threshold, and marked in Ads Activated. Clearing sets 'Review before running ads'; failing sets 'No'.",
+    "dependency": "The decision is quantitative, not creative. Level 2 does not assess whether a video is good - it checks whether the market has already indicated so."
+   },
+   {
+    "level": "Level 3 — Kanish and the Bharat Maven team",
+    "owns": "The final quality check, campaign build, naming, launch and performance reporting.",
+    "function": "Everything marked 'Review before running ads' is checked for spelling, grammar, on-screen text, formatting and aspect ratio, then built and named per the Nomenclature standard and taken live. Ad Code, Ad Link and Ad Report Link filled on going live; performance within 72 hours.",
+    "dependency": "Strategic input expected additionally: where a creative clears the threshold but reads weak, or a pattern appears across creatives, that observation forms part of the deliverable."
+   }
+  ],
+  "budgets": {
+   "ownership": [
+    {
+     "channel": "Target",
+     "by": "Sneha's team"
+    },
+    {
+     "channel": "Costco",
+     "by": "Sneha's team"
+    },
+    {
+     "channel": "UGC",
+     "by": "Sneha's team"
+    },
+    {
+     "channel": "D2C",
+     "by": "Anchit"
+    }
+   ],
+   "rules": "Budgets are entered in the Budget column as a daily figure. Nothing is agreed verbally. A row without a budget in the sheet is not ready to build.",
+   "target_cap": "Target spend cap $1,000 per day, paced with automated rules in Meta. Directive agreed with Bala; corrects the $1,700 spike on 19 July. Overpacing is flagged proactively."
+  },
+  "required_before_build": [
+   "Ad To Be Run (Brief) - one or two lines on purpose and intended outcome",
+   "Platform - Meta or TikTok",
+   "Placement / Format - IG Reels, IG Stories, FB Feed, TikTok In-Feed or Advantage+",
+   "Product / SKU - the exact product advertised",
+   "Target Audience - selected from the dropdown",
+   "Target Audience Criteria - the actual targeting, e.g. 'Age 40+, Interests: Business, Wellness'",
+   "Budget - daily figure",
+   "Goal / KPI - e.g. 'ROAS > 2.0' or 'CPA < $25'",
+   "Creative Link - opens without a permission request (Sudhanshu)",
+   "Landing Page URL - full URL including all UTM and acquisition parameters (Anchit)",
+   "Ads Activated - set to 'Review before running ads' once Level 2 clears (Anchit)"
+  ],
+  "automation": {
+   "chain": "organic post URL -> videoid -> ad name -> ad code -> paid performance",
+   "how": "The video id is taken from the end of the organic video URL, appears at the end of every ad name and therefore inside utm_content. When the agency enters the Ad Code for a live ad, the backend matches the ad code to the video id inside the ad name, and the video id back to its row in the Master UGC Tracker. Organic and paid join automatically - no manual matching, no lookups.",
+   "makes_measurable": [
+    "Whether a high organic score predicts better paid performance",
+    "Which content buckets return best against spend",
+    "Which hook types convert",
+    "Which creators drive revenue rather than views"
+   ],
+   "warning": "An ad name without the video id still runs, but is excluded from the analysis, and the spend on it produces no learning.",
+   "acq_subsource": "Carries creator _ bucket _ hook, so one split on the underscore returns revenue attributed by creator, content angle and hook style directly from the URL."
+  },
+  "turnaround": [
+   {
+    "step": "Brief and creative complete in the sheet",
+    "owner": "Sneha's team, Sudhanshu, Anchit",
+    "timing": "Before build begins"
+   },
+   {
+    "step": "Ads Activated set after Level 2 scoring",
+    "owner": "Anchit",
+    "timing": "Same day the data lands"
+   },
+   {
+    "step": "Campaigns built, paused and named",
+    "owner": "Agency",
+    "timing": "2 working days"
+   },
+   {
+    "step": "Approval",
+    "owner": "Anchit",
+    "timing": "1 working day"
+   },
+   {
+    "step": "Live",
+    "owner": "Agency",
+    "timing": "Same day as approval"
+   },
+   {
+    "step": "Ad Code, Ad Link, Ad Report Link",
+    "owner": "Agency",
+    "timing": "On going live"
+   },
+   {
+    "step": "Spend, Impressions, Clicks, Conversions, Revenue",
+    "owner": "Agency",
+    "timing": "Within 72 hours"
+   },
+   {
+    "step": "Performance refresh",
+    "owner": "Agency",
+    "timing": "Weekly, before the Monday review"
+   }
+  ],
+  "standing_conditions": {
+   "handles": "All ads run from VAHDAM brand handles. Creator post URLs in the tracker are performance reference only.",
+   "build_state": "Campaigns are built paused. Spend begins only after Level 2 clearance and row approval.",
+   "cohort_direction": [
+    {
+     "cohort": "Over 40",
+     "emphasis": "Inflammation, recovery, cortisol management"
+    },
+    {
+     "cohort": "High Performer",
+     "emphasis": "Clean energy, focus, no afternoon crash"
+    }
+   ],
+   "channel_product": [
+    {
+     "channel": "Target",
+     "product": "VAHDAM Ashwagandha Medium Roast Instant Coffee",
+     "destination": "Target PDP"
+    },
+    {
+     "channel": "Costco",
+     "product": "Organic Turmeric Tea Variety Pack, 100-count",
+     "destination": "Instacart"
+    },
+    {
+     "channel": "D2C",
+     "product": "Ashwagandha Coffee, expanding into capsules, supplements and teas",
+     "destination": "vahdam.com"
+    },
+    {
+     "channel": "UGC",
+     "product": "Ashwagandha Coffee",
+     "destination": "Dedicated PageDeck page per content bucket"
+    }
+   ],
+   "corrections": "Discrepancies between the SOP and the sheet are raised with Anchit and corrected in the SOP."
+  }
+ }
 }

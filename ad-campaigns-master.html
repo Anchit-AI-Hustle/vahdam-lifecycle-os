@@ -46,6 +46,10 @@
   th{background:var(--green);color:#fff;font-family:var(--sans);font-weight:700;font-size:11.5px;position:sticky;top:0;cursor:pointer;white-space:nowrap}
   th:first-child,td:first-child{text-align:left;font-family:var(--sans)}
   td:first-child{color:var(--ink);font-weight:600;max-width:330px;white-space:normal}
+  /* Text cells wrap so a long value can never overlap the next column; numeric
+     (right-aligned) cells stay on one line so figures stay scannable. */
+  td{white-space:normal;max-width:520px}
+  td[style*="text-align:right"]{white-space:nowrap;max-width:none}
   tbody tr:nth-child(even) td{background:var(--surface-2)}
   .chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid transparent;vertical-align:middle}
   .chip.good{background:var(--good-bg);color:var(--good);border-color:var(--good)}
@@ -128,6 +132,7 @@
     <button data-p="live" class="on">Live Now</button>
     <button data-p="calendar">Calendar</button>
     <button data-p="tracker">Tracker</button>
+    <button data-p="sop">SOP</button>
     <button data-p="overview">Overview</button>
     <button data-p="campaigns">Campaigns &amp; Ads</button>
     <button data-p="creative">Creative Intel</button>
@@ -199,6 +204,11 @@
     </div>
   </div>
 
+  <div class="panel" id="p-sop">
+    <div id="sop-head"><div class="empty">Loading…</div></div>
+    <div id="sop-body"></div>
+  </div>
+
   <div class="panel" id="p-overview">
     <p class="eyebrow">Paid spend — May to 20 Jul 2026 (source: KT workbook)</p>
     <div class="cards" id="ov-cards"><div class="empty">Loading…</div></div>
@@ -268,6 +278,10 @@
   </div>
 
   <div class="panel" id="p-kb">
+    <div class="notice" style="background:var(--live-bg);border-color:var(--live);border-left-color:var(--live);color:#0B3D24">
+      <b>The final SOP for ad campaigns is the standing procedure</b> — scoring, nomenclature, landing pages, the 26 tracker columns, the three-level UGC flow, budgets and turnaround.
+      It has its own tab: <a href="#sop" id="kb-to-sop" style="font-weight:700">open the SOP tab</a>. The master tracking sheet is the source of truth over every document here.
+    </div>
     <p class="eyebrow">The complete knowledge — overview first, expand any section for the details</p>
     <div class="frame" id="kb-exec"><div class="empty">Loading…</div></div>
     <div id="kb-full"></div>
@@ -621,6 +635,105 @@
     barChart("#chart-camp", rows.slice(0,12).map(function(r){return {k:r.campaign,v:r.spend};}), money0);
   }
 
+  // ── SOP (the final standing procedure) ─────────────────────────────────────
+  function renderSOP(){
+    var s=KB.sop;
+    if(!s){$("#sop-head").innerHTML="<div class='empty'>SOP not present in the knowledge base.</div>";return;}
+    $("#sop-head").innerHTML=
+      "<div class='frame'><h2 style='margin-top:0'>"+esc(s.title)+" <span class='chip good'>"+esc(s.status)+"</span></h2>"+
+      "<p style='font-size:13.5px'><b>Scope.</b> "+esc(s.scope)+"</p>"+
+      "<p style='font-size:13.5px'><b>Authority.</b> "+esc(s.authority)+"</p>"+
+      "<p style='margin-top:12px'>"+
+        "<a class='btn' href='"+esc(s.master_sheet)+"' target='_blank' rel='noopener' style='margin-right:8px'>Open the master tracking sheet ↗</a>"+
+        "<a class='btn ghost' href='"+esc(s.local_copies.sop_pdf)+"' target='_blank' rel='noopener' style='margin-right:8px'>SOP PDF</a>"+
+        "<a class='btn ghost' href='"+esc(s.local_copies.tracker_xlsx)+"' target='_blank' rel='noopener'>Tracker XLSX</a></p></div>";
+    function sec(title, overview, body, open){
+      return "<details class='kbd'"+(open?" open":"")+"><summary>"+esc(title)+"<span class='ov'>"+esc(overview)+"</span></summary><div class='kbd-b'>"+body+"</div></details>";
+    }
+    var h="";
+    h+=sec("The nine sheet tabs and who owns each","The SOP carries the process; the sheet carries the data.",
+      "<div class='tbl-wrap'>"+table([{t:"Tab"},{t:"What it holds"},{t:"Who works in it"}],
+        s.tabs.map(function(t){return [esc(t.tab),esc(t.holds),esc(t.owner)];}))+"</div>"+
+      "<div class='tbl-wrap'>"+table([{t:"Row"},{t:"Contents"},{t:"Editable"}],
+        s.row_layout.map(function(r){return [esc(r.row),esc(r.contents),r.editable?"<span class='chip good'>yes</span>":"<span class='chip dim'>no</span>"];}))+"</div>"+
+      "<p class='note'>"+esc(s.formula_columns)+"</p>", true);
+    h+=sec("Scoring — how a creative earns spend","Score out of 100 per organic post, view-penalised, then thresholded per platform.",
+      "<p style='font-size:13.5px'><b>TikTok.</b> <code style='font-family:var(--mono);font-size:11.5px'>"+esc(s.scoring.formulas.tiktok)+"</code></p>"+
+      "<p style='font-size:13.5px'><b>Instagram.</b> <code style='font-family:var(--mono);font-size:11.5px'>"+esc(s.scoring.formulas.instagram)+"</code></p>"+
+      "<div class='tbl-wrap'>"+table([{t:"Score"},{t:"Label"},{t:"What it means"}],
+        s.scoring.bands.map(function(b){return [esc(b.score),"<b>"+esc(b.label)+"</b>",esc(b.meaning)];}))+"</div>"+
+      "<p class='eyebrow'>Weights</p><div class='tbl-wrap'>"+table([{t:"Platform"},{t:"Metric"},{t:"Weight",r:1},{t:"Why"}],
+        s.scoring.tiktok_weights.map(function(w){return ["TikTok",esc(w.metric),esc(w.weight),esc(w.why)];})
+        .concat(s.scoring.instagram_weights.map(function(w){return ["Instagram",esc(w.metric),esc(w.weight),esc(w.why)];})))+"</div>"+
+      "<p class='eyebrow'>Thresholds</p><div class='tbl-wrap'>"+table([{t:"Platform"},{t:"Label"},{t:"Condition"}],
+        s.scoring.thresholds.map(function(t){return [esc(t.platform),"<b>"+esc(t.label)+"</b>",esc(t.condition)];}))+"</div>"+
+      "<div class='notice'><b>The 6-second rule.</b> "+esc(s.scoring.six_second_rule)+"</div>"+
+      "<p class='eyebrow'>View penalties — a high percentage on a small sample is not evidence</p><div class='tbl-wrap'>"+
+        table([{t:"Platform"},{t:"Organic views"},{t:"Multiplier",r:1},{t:"Why"}],
+        s.scoring.view_penalties.map(function(v){return [esc(v.platform),esc(v.views),esc(v.multiplier),esc(v.why)];}))+"</div>"+
+      "<p class='eyebrow'>Run status — only one column is an instruction</p><p class='note'>"+esc(s.scoring.run_status.note)+"</p>"+
+      "<div class='tbl-wrap'>"+table([{t:"Ads Activated value"},{t:"Meaning"},{t:"Agency action"}],
+        s.scoring.run_status.values.map(function(v){return ["<b>"+esc(v.value)+"</b>",esc(v.meaning),esc(v.action)];}))+"</div>");
+    h+=sec("Nomenclature — the standard the agency builds to","One syntax everywhere; the platform name and the UTM value are the same string.",
+      "<p style='font-size:13.5px'>"+esc(s.nomenclature.principle)+"</p>"+
+      "<p style='font-size:13.5px'><b>Character set.</b> "+esc(s.nomenclature.character_set)+"</p>"+
+      "<div class='tbl-wrap'>"+table([{t:"What"},{t:"Syntax"},{t:"Example"}],
+        s.nomenclature.patterns.map(function(p){return [esc(p.what),"<span style='font-family:var(--mono)'>"+esc(p.syntax)+"</span>","<span style='font-family:var(--mono);font-size:11.5px'>"+esc(p.example)+"</span>"];}))+"</div>"+
+      "<p class='note'><b>Macros.</b> "+esc(s.nomenclature.macros)+"</p>"+
+      "<p class='note'>"+esc(s.nomenclature.costco_note)+"</p>"+
+      "<p class='eyebrow'>Rules and what breaks if ignored</p><div class='tbl-wrap'>"+
+        table([{t:"#",r:1},{t:"Rule"},{t:"Consequence if broken"}],
+        s.nomenclature.rules.map(function(r){return [esc(r.n),"<b>"+esc(r.rule)+"</b>",esc(r.consequence)];}))+"</div>"+
+      "<p class='eyebrow'>Permitted token values</p><div class='tbl-wrap'>"+
+        table([{t:"Token"},{t:"Permitted values"}],
+        Object.keys(s.nomenclature.tokens).map(function(k){return ["<b>"+esc(k)+"</b>","<span style='font-family:var(--mono);font-size:11.5px'>"+esc(s.nomenclature.tokens[k])+"</span>"];}))+"</div>");
+    h+=sec("Landing pages — where UGC traffic goes","A dedicated PageDeck page per content angle; the page is the attribution.",
+      "<p style='font-size:13.5px'>"+esc(s.landing_pages.principle)+"</p>"+
+      "<div class='tbl-wrap'>"+table([{t:"Content bucket"},{t:"Page"},{t:"Visitors",r:1},{t:"Page views",r:1},{t:"Avg view",r:1},{t:"External clicks",r:1},{t:"CTR",r:1}],
+        s.landing_pages.pages.map(function(p){
+          var link=p.url?"<a href='"+esc(p.url)+"' target='_blank' rel='noopener'>"+esc(p.slug)+"</a>":esc(p.slug);
+          return [esc(p.bucket),link,p.visitors!=null?intf(p.visitors):"—",p.page_views!=null?intf(p.page_views):"—",
+            esc(p.avg_view||"—"),p.external_clicks!=null?intf(p.external_clicks):"—",esc(p.ctr||(p.note?"":"—"))];}))+"</div>"+
+      "<div class='notice'><b>Conversion gap.</b> "+esc(s.landing_pages.conversion_gap)+"</div>"+
+      "<p class='note'>"+esc(s.landing_pages.reconciliation)+"</p>"+
+      "<ul class='tight'>"+s.landing_pages.open_items.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul>");
+    h+=sec("The 26 campaign columns and who fills each","Identical on all four channel tabs, in this order.",
+      "<div class='tbl-wrap'>"+table([{t:"#",r:1},{t:"Column"},{t:"Provided by"}],
+        s.campaign_tab_columns.map(function(c){return [esc(c.n),"<b>"+esc(c.column)+"</b>",esc(c.by)];}))+"</div>");
+    h+=sec("The UGC flow — three levels","Vinya's team owns the data, Anchit owns the decision, the agency owns the build.",
+      s.ugc_flow.map(function(l){
+        return "<div class='learn'><b>"+esc(l.level)+"</b>"+
+          "<div style='font-size:13px;margin-top:4px'><b>Owns:</b> "+esc(l.owns)+"</div>"+
+          "<div style='font-size:13px;margin-top:3px'><b>Function:</b> "+esc(l.function)+"</div>"+
+          "<div style='font-size:13px;margin-top:3px'><b>Note:</b> "+esc(l.dependency)+"</div></div>";}).join(""));
+    h+=sec("Budget, and what a row needs before it can be built","No verbal budgets; a row without a budget is not ready to build.",
+      "<div class='tbl-wrap'>"+table([{t:"Channel"},{t:"Budget provided by"}],
+        s.budgets.ownership.map(function(b){return [esc(b.channel),esc(b.by)];}))+"</div>"+
+      "<p class='note'>"+esc(s.budgets.rules)+"</p>"+
+      "<div class='notice'><b>Target spend cap.</b> "+esc(s.budgets.target_cap)+"</div>"+
+      "<p class='eyebrow'>Required before build</p><ul class='tight'>"+
+        s.required_before_build.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul>");
+    h+=sec("The automation — video id to ad code","The chain that joins organic performance to paid performance automatically.",
+      "<p style='font-family:var(--mono);font-size:13px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px'>"+esc(s.automation.chain)+"</p>"+
+      "<p style='font-size:13.5px'>"+esc(s.automation.how)+"</p>"+
+      "<p class='eyebrow'>What the chain makes measurable</p><ul class='tight'>"+
+        s.automation.makes_measurable.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul>"+
+      "<div class='notice'>"+esc(s.automation.warning)+"</div>"+
+      "<p class='note'>"+esc(s.automation.acq_subsource)+"</p>");
+    h+=sec("Reporting and turnaround","Built paused; spend begins only after Level 2 clearance and row approval.",
+      "<div class='tbl-wrap'>"+table([{t:"Step"},{t:"Owner"},{t:"Timing"}],
+        s.turnaround.map(function(t){return [esc(t.step),esc(t.owner),"<b>"+esc(t.timing)+"</b>"];}))+"</div>"+
+      "<p class='note'>"+esc(s.standing_conditions.build_state)+"</p>");
+    h+=sec("Standing conditions","Handles, cohort direction, channel and product.",
+      "<p style='font-size:13.5px'><b>Handles.</b> "+esc(s.standing_conditions.handles)+"</p>"+
+      "<div class='tbl-wrap'>"+table([{t:"Cohort"},{t:"Creative emphasis"}],
+        s.standing_conditions.cohort_direction.map(function(c){return [esc(c.cohort),esc(c.emphasis)];}))+"</div>"+
+      "<div class='tbl-wrap'>"+table([{t:"Channel"},{t:"Product"},{t:"Destination"}],
+        s.standing_conditions.channel_product.map(function(c){return [esc(c.channel),esc(c.product),esc(c.destination)];}))+"</div>"+
+      "<p class='note'><b>Corrections.</b> "+esc(s.standing_conditions.corrections)+"</p>");
+    $("#sop-body").innerHTML=h;
+  }
+
   function renderOverview(){
     var s=KB.spend, o=KB.objective_rollup;
     var salesObj=o.filter(function(x){return x.objective==="Sales";})[0]||{};
@@ -833,7 +946,7 @@
     fetch("/data/ads/ads-live-snapshot.json",{cache:"no-store"}).then(function(r){return r.json();}).catch(function(){return null;})
   ]).then(function(res){
     KB=res[0]; ADS=res[1]; SNAP=res[2];
-    renderOverview(); renderCampaigns(); renderCreative(); renderOrganic(); renderKB(); renderOps();
+    renderOverview(); renderCampaigns(); renderCreative(); renderOrganic(); renderKB(); renderOps(); renderSOP();
     if(SNAP){ monthOptions(); renderCalendar(); renderTracker(); drawSpendChart(); if(SNAP.today&&SNAP.today.date) calDetail(SNAP.today.date); }
     loadLive();
     // Auto-refresh the live view every 90s so "is it live yet" stays current.
