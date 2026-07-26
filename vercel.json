@@ -420,7 +420,7 @@
     },
     {
       "source": "/ads",
-      "destination": "/ad-campaigns.html"
+      "destination": "/ad-campaigns-master.html"
     },
     {
       "source": "/ads-master",
@@ -436,11 +436,11 @@
     },
     {
       "source": "/ads-dashboard",
-      "destination": "/ads-dashboard.html"
+      "destination": "/ad-campaigns-master.html"
     },
     {
       "source": "/ad-performance",
-      "destination": "/ads-dashboard.html"
+      "destination": "/ad-campaigns-master.html"
     },
     {
       "source": "/website-designs",

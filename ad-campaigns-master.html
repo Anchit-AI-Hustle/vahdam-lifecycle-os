@@ -155,7 +155,7 @@
 <body>
 <div class="wrap">
   <h1>Ad Campaigns Master Dashboard</h1>
-  <p class="lede">The single knowledge base + performance dashboard for the USA paid program (Target + Costco): every KT email, spend sheet, social update, sheet/deck link, platform data source and creative learning in one place. Every figure is sourced from the KT files or a live connector read; nothing is fabricated. <a href="/ads-dashboard">Open the live Snowflake Ads Analysis</a> for warehouse-fresh rows.</p>
+  <p class="lede">The single knowledge base + performance dashboard for the USA paid program (Target + Costco): every KT email, spend sheet, social update, sheet/deck link, platform data source and creative learning in one place. Every figure is sourced from the KT files or a live connector read; nothing is fabricated. This is now the single dashboard for ad analysis: SOP compliance, spend pacing and the metric catalog read live from Snowflake on the SOP and Ops tabs.</p>
 
   <div class="tabs" id="tabs">
     <button data-p="live" class="on">Live Now</button>
@@ -256,6 +256,17 @@
 
   <div class="panel" id="p-sop">
     <div id="sop-head"><div class="empty">Loading…</div></div>
+    <p class="eyebrow">SOP compliance, scored live against the warehouse</p>
+    <div class="cards" id="sop-cards"><div class="empty">Loading…</div></div>
+    <p class="note">The SOP makes measurement depend on names: organic post URL &rarr; videoid &rarr; ad name &rarr; ad code &rarr; paid performance. An ad whose name omits the videoid still runs, but cannot be joined to its organic performance, so that spend produces no learning. That is the leak these figures measure.</p>
+    <div id="sop-rules"></div>
+    <div class="bar">
+      <label>Show<select id="sop-filter"><option value="all">All ads</option><option value="violations">Violations only</option><option value="compliant">Compliant only</option><option value="novideoid">Missing videoid</option></select></label>
+      <label>Search<input type="search" id="sop-q" placeholder="ad, ad set, campaign…"></label>
+    </div>
+    <div id="sop-rows"></div>
+    <p class="eyebrow">Daily spend against the SOP cap</p>
+    <div id="sop-pacing"><div class="empty">Loading…</div></div>
     <div id="sop-body"></div>
   </div>
 
@@ -364,6 +375,10 @@
   </div>
 
   <div class="panel" id="p-ops">
+    <p class="eyebrow">Live Snowflake connection</p>
+    <div id="ops-ping"><div class="empty">Checking…</div></div>
+    <p class="eyebrow">Metric catalog — every metric, its definition and formula</p>
+    <div id="ops-catalog"><div class="empty">Loading…</div></div>
     <p class="eyebrow">Platform status (live connector reads, 25 Jul 2026)</p>
     <div id="ops-platforms"></div>
     <p class="eyebrow">UGC dashboard automation — runbook</p>
@@ -950,6 +965,110 @@
   }
 
   // ── SOP (the final standing procedure) ─────────────────────────────────────
+  // ── LIVE SOP COMPLIANCE + PACING + METRIC CATALOG ───────────────────────────
+  // Folded in from the retired /ads-dashboard page so consolidating onto one dashboard
+  // does not lose capability. All three read Snowflake through /api/brain; when no live
+  // source is configured each says so and shows the query it WOULD run, rather than
+  // rendering a zero that reads like a real compliance score.
+  var SOPLIVE=null;
+  function apiGet(qs){
+    return fetch("/api/brain?"+qs,{cache:"no-store"}).then(function(r){
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.json();
+    });
+  }
+  function card(k,v){ return "<div class='sc'><div class='k'>"+esc(k)+"</div><div class='v'>"+v+"</div></div>"; }
+  function sopRowsDraw(){
+    if(!SOPLIVE||!SOPLIVE.rows){ $("#sop-rows").innerHTML=""; return; }
+    var mode=$("#sop-filter").value, q=($("#sop-q").value||"").toLowerCase();
+    var rows=SOPLIVE.rows.filter(function(r){
+      if(mode==="violations"&&r.compliant)return false;
+      if(mode==="compliant"&&!r.compliant)return false;
+      if(mode==="novideoid"&&r.videoid)return false;
+      if(q&&((r.ad||"")+" "+(r.adset||"")+" "+(r.campaign||"")).toLowerCase().indexOf(q)<0)return false;
+      return true;
+    });
+    if(!rows.length){ $("#sop-rows").innerHTML="<div class='empty'>Nothing matches.</div>"; return; }
+    $("#sop-rows").innerHTML=table(
+      [{t:"Ad"},{t:"Campaign"},{t:"Spend",r:1},{t:"videoid"},{t:"Status"},{t:"SOP issues"}],
+      rows.slice(0,150).map(function(r){
+        return [esc(r.ad), esc(r.campaign), money(r.spend),
+          r.videoid?"<span class='chip good'>"+esc(r.videoid)+"</span>":"<span class='chip warn'>missing</span>",
+          r.compliant?"<span class='chip good'>compliant</span>":"<span class='chip warn'>"+esc(r.worst||"issue")+"</span>",
+          (r.issues||[]).map(function(i){return "<div><b>"+esc(i.level)+" r"+esc(i.rule)+"</b>: "+esc(i.issue)+"</div>";}).join("")||"\u2014"];
+      }))+"<p class='note'>"+rows.length+" of "+SOPLIVE.rows.length+" rows (max 150 rendered). "+esc(SOPLIVE.note||"")+"</p>";
+  }
+  function loadSopLive(){
+    apiGet("action=ads-sop&op=compliance").then(function(res){
+      if(res.not_connected){
+        $("#sop-cards").innerHTML="<div class='empty'><b>Snowflake not connected</b> \u2014 no compliance figure is invented. "+
+          "Set SNOWFLAKE_PAT (see the Ops tab) and this scores live. The query it will run:<br><br><code style='white-space:pre-wrap'>"+
+          esc(res.would_query||"")+"</code></div>";
+        $("#sop-rules").innerHTML=""; $("#sop-rows").innerHTML="";
+        return;
+      }
+      var x=res.summary||{};
+      $("#sop-cards").innerHTML=
+        card("Ads scored", intf(x.ads_scored))+
+        card("Spend scored", money(x.spend_scored))+
+        card("SOP compliance rate", x.compliance_rate_pct==null?"\u2014":x.compliance_rate_pct+"%")+
+        card("Spend at risk", money(x.spend_at_risk))+
+        card("videoid coverage", x.videoid_coverage_pct==null?"\u2014":x.videoid_coverage_pct+"%")+
+        card("Spend joinable to organic", money(x.spend_joinable_to_organic));
+      var rules=res.by_rule||[];
+      $("#sop-rules").innerHTML=rules.length
+        ? table([{t:"SOP rule"},{t:"Ads affected",r:1},{t:"Spend affected",r:1}],
+                rules.map(function(r){return [esc(r.label), intf(r.ads), money(r.spend)];}))
+        : "<div class='empty'>No rule violations in this window.</div>";
+      SOPLIVE=res; sopRowsDraw();
+    }).catch(function(e){
+      $("#sop-cards").innerHTML="<div class='empty'>Compliance unavailable: "+esc(e.message)+
+        ". Nothing is estimated in its place.</div>";
+    });
+    apiGet("action=ads-sop&op=pacing").then(function(res){
+      if(!res||!res.ok){ $("#sop-pacing").innerHTML="<div class='empty'>"+esc((res&&res.hint)||"Pacing unavailable \u2014 connect a live source.")+"</div>"; return; }
+      var over=res.days_over_cap||0;
+      $("#sop-pacing").innerHTML="<div class='cards'>"+
+        card("Cap applied", money(res.cap_usd)+"/day")+
+        card("Days over cap", intf(over))+
+        card("Total overspend", money(res.total_overspend))+
+        card("Worst day", res.worst_day?(esc(res.worst_day.date)+" +"+money(res.worst_day.over_by)):"none")+
+        "</div>"+
+        table([{t:"Day"},{t:"Spend",r:1},{t:"Over cap"}],
+              (res.days||[]).slice(-30).map(function(d){
+                return [esc(d.date), money(d.spend),
+                        d.over?"<span class='chip warn'>over</span>":"<span class='chip good'>within</span>"];
+              }))+
+        "<p class='note'>"+esc(res.note||"")+"</p>";
+    }).catch(function(e){
+      $("#sop-pacing").innerHTML="<div class='empty'>Pacing unavailable: "+esc(e.message)+"</div>";
+    });
+  }
+  function loadOpsLive(){
+    apiGet("action=ads-snowflake&op=ping").then(function(p){
+      var ok=p&&p.ok&&!p.not_connected;
+      $("#ops-ping").innerHTML="<div class='notice'><b>"+
+        (ok?"Snowflake is connected \u2014 this dashboard reads live."
+           :"Snowflake is NOT connected \u2014 the dashboard is reading the committed snapshot.")+
+        "</b> "+esc((p&&(p.hint||p.note))||"")+
+        (ok?"":" Set SNOWFLAKE_PAT plus SNOWFLAKE_ACCOUNT / USER / WAREHOUSE / DATABASE and LIVE_CONNECTORS=on in Vercel; see docs/snowflake-connect.md. Nothing is fabricated while it is unset \u2014 every panel states its source.")+
+        "</div>";
+    }).catch(function(e){
+      $("#ops-ping").innerHTML="<div class='notice'><b>Could not reach the live endpoint.</b> "+esc(e.message)+" \u2014 falling back to the committed snapshot.</div>";
+    });
+    apiGet("action=ad-metrics&op=catalog").then(function(res){
+      var m=(res&&(res.metrics||res.catalog))||[];
+      if(!m.length){ $("#ops-catalog").innerHTML="<div class='empty'>Metric catalog unavailable from the endpoint.</div>"; return; }
+      $("#ops-catalog").innerHTML=table(
+        [{t:"Metric"},{t:"Category"},{t:"Type"},{t:"Formula"},{t:"What it means"}],
+        m.map(function(x){return [esc(x.label||x.key), esc(x.category||""), esc(x.type||""),
+                                  "<code>"+esc(x.formula||"")+"</code>", esc(x.definition||x.desc||"")];}))+
+        "<p class='note'>"+m.length+" metrics. The same catalog the Snowflake app uses, so a metric is defined once and computed identically on both surfaces.</p>";
+    }).catch(function(e){
+      $("#ops-catalog").innerHTML="<div class='empty'>Catalog unavailable: "+esc(e.message)+"</div>";
+    });
+  }
+
   function renderSOP(){
     var s=KB.sop;
     if(!s){$("#sop-head").innerHTML="<div class='empty'>SOP not present in the knowledge base.</div>";return;}
@@ -1497,6 +1616,9 @@
     var t=(SNAP&&SNAP.today&&SNAP.today.date)||""; if(t){$("#cal-month").value=t.slice(0,7);renderCalendar();calDetail(t);} });
   document.getElementById("cal-grid").addEventListener("click",function(e){
     var c=e.target.closest(".cell[data-d]"); if(c)calDetail(c.dataset.d); });
+  ["sop-filter"].forEach(function(id){document.getElementById(id).addEventListener("change",sopRowsDraw);});
+  document.getElementById("sop-q").addEventListener("input",sopRowsDraw);
+  loadSopLive(); loadOpsLive();
   ["trk-status","trk-acct","trk-sort"].forEach(function(id){document.getElementById(id).addEventListener("change",renderTracker);});
   document.getElementById("trk-q").addEventListener("input",renderTracker);
   document.getElementById("live-acct-chips").addEventListener("click",function(e){

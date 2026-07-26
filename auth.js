@@ -282,14 +282,12 @@
     // Independent LHS item (product-owner request 2026-07-25): the master ads
     // knowledge base + performance dashboard compiled from the KT handover
     // (emails, spend workbook, social update deck) + live connector reads.
-    { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html'] },
-    { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
-      { id: 'ads-perf',    label: 'Ad Performance', href: '/ads-dashboard', icon: 'analysis', ver: 'v2', match: ['/ads-dashboard', '/ad-performance', '/ads-dashboard.html'] },
-      { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
-      { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
-      { id: 'ads-google',  label: 'Google Ads', href: '/ad-campaigns.html#google',   icon: 'google' },
-      { id: 'ads-tiktok',  label: 'TikTok Ads', href: '/ad-campaigns.html#tiktok',   icon: 'tiktok' },
-    ]},
+    // ONE dashboard for ad analysis. The V1 'Ad Campaigns' group (/ads) and the separate
+    // 'Ad Performance' page (/ads-dashboard) are retired: their SOP compliance, pacing and
+    // metric-catalog panels were folded into the master's SOP and Ops tabs, and their
+    // routes now serve the master so existing links and bookmarks still land somewhere
+    // correct rather than 404.
+    { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html', '/ads', '/ads-dashboard', '/ad-performance', '/ad-campaigns.html', '/ads-dashboard.html'] },
     { group: '3D Storefront & Websites', icon: 'landing', gid: 'landing', ver: 'v2', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d', '/store-3d', '/official-designs', '/official-designs.html', '/designs'], children: [
       { id: 'store3d-all', label: '3D Storefront (overview)', href: '/3d', icon: 'vahdam', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d'] },
       { id: 'web-us',     label: '🇺🇸 US Website',     href: '/3d/us',     icon: 'vahdam', match: ['/3d/us', '/store-3d-us'] },
@@ -383,7 +381,7 @@
         ["Content", "Knowledge base compiled: 54 catalogued links (verified via the Google Drive connector where possible), people map, gaps register."],
         ["Design + layout + structure", "Eleven tabs - Live Now, Calendar, Tracker, Accounts, SOP, Overview, Campaigns & Ads, Creative Intel, Organic & UGC, Knowledge Base, Ops & Data Sources - in the brand palette, white and green only, every table sortable and filterable and every chart carrying duration tiles."],
         ["Coding", "Static page + committed JSON (no new serverless function; the Hobby 12-function limit is untouched).", "/ads-master"],
-        ["Final compilation + presentation", "Live Snowflake rows via the Ads Analysis page; Google Slides KT presentation generated from the same knowledge base.", "/ads-dashboard"]
+        ["Final compilation + presentation", "Live Snowflake rows read straight into this dashboard (SOP compliance, pacing and the metric catalog on its SOP and Ops tabs); Google Slides KT presentation generated from the same knowledge base.", "/ads-master"]
       ]
     },
     chaigpt: {
