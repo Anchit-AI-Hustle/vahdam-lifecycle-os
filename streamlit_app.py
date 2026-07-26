@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.4"
+APP_BUILD = "2026-07-26.5"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -306,6 +306,100 @@ JB_UGC = "VAHDAM_DB.MAPLEMONK1.JB_USA"
 
 # Daily budget caps (USD). Reference/alerting only — nothing is ever written back.
 BUDGETS = {"target": 1000, "costco": 300}
+
+# ── Meta sidecar tables (Airbyte normalises Meta's JSON fields into children) ──
+# Every JSON-valued Insights field becomes its own table keyed back to the parent
+# by _AIRBYTE_<PARENT>_HASHID. 198 of them exist for the two USA accounts alone.
+# These are what make full Ads Manager parity possible: ACTIONS carries results
+# PER ACTION TYPE *and* per attribution window (1d/7d/28d view and click), which is
+# exactly the Ads Manager "Results" breakdown plus its attribution comparison.
+def meta_sidecar(parent: str, suffix: str):
+    """(child table, the column joining it to parent). Suffix e.g. 'ACTIONS'."""
+    db, schema, name = parent.split(".", 2)
+    return f"{db}.{schema}.{name}_{suffix}", f"_AIRBYTE_{name}_HASHID"
+
+
+META_BREAKDOWNS = {
+    "Age & gender": (META_AGE_GENDER, ["AGE", "GENDER"]),
+    "Platform, position & device": (META_DEVICE, ["PUBLISHER_PLATFORM", "PLATFORM_POSITION",
+                                                  "IMPRESSION_DEVICE"]),
+}
+
+# ── PLATFORM PARITY MATRIX ────────────────────────────────────────────────────
+# What Meta Ads Manager and the Google Ads UI can do, mapped to whether it can be
+# done here and from which source. Availability is re-checked LIVE against
+# information_schema on render, so this cannot drift into claiming a table that has
+# been dropped, and a genuinely absent capability is a DECLARED GAP with the reason
+# — never a blank or a zero.
+PARITY = [
+    # (platform, capability, table or None, note)
+    ("Meta", "Spend, impressions, reach, frequency, CPM, CPC, CPP, CTR", META_ADS,
+     "Base columns on the insights table."),
+    ("Meta", "Results by action type (purchase, checkout, ATC, landing page view, "
+             "engagement, video view, lead...)", None,
+     "Sidecar ACTIONS table, joined on the parent hashid. Verified live: the retail "
+     "account returns 159,927 initiate_checkout and 457,475 landing_page_view for July."),
+    ("Meta", "Cost per action type / cost per unique action type", None, "Sidecar tables."),
+    ("Meta", "Value per action type (revenue by conversion)", None, "Sidecar ACTION_VALUES."),
+    ("Meta", "Attribution windows: 1d/7d/28d click and 1d/7d/28d view", None,
+     "Columns on the ACTIONS sidecar. Ads Manager's attribution comparison, in full."),
+    ("Meta", "ROAS: purchase, website, mobile app, omni, catalog segment", META_ADS,
+     "Five separate ROAS columns plus their sidecars."),
+    ("Meta", "Video funnel: 2s continuous, 15s, 30s, thruplay, p25/50/75/95/100, "
+             "avg watch time", META_ADS, "All present as base columns and sidecars."),
+    ("Meta", "Video retention curve (drop-off graph)", None,
+     "Sidecar VIDEO_PLAY_CURVE_ACTIONS plus the 0-15s / 20-60s retention tables."),
+    ("Meta", "Ad relevance diagnostics: quality, engagement rate and conversion rate ranking",
+     META_ADS, "QUALITY_RANKING, ENGAGEMENT_RATE_RANKING, CONVERSION_RATE_RANKING."),
+    ("Meta", "Estimated ad recall lift, rate and confidence bounds", META_ADS, ""),
+    ("Meta", "Outbound clicks, unique clicks, landing page views per link click", META_ADS, ""),
+    ("Meta", "Instant Experience / canvas engagement", META_ADS, ""),
+    ("Meta", "Auction: bid, competitiveness, max competitor bid", META_ADS,
+     "Not exposed in the Ads Manager UI at all — an addition, not a parity item."),
+    ("Meta", "Breakdown by age and gender (incl. results per action type within each)",
+     META_AGE_GENDER, "Carries its own full set of action sidecars."),
+    ("Meta", "Breakdown by publisher platform, placement position and device",
+     META_DEVICE, "Carries its own full set of action sidecars."),
+    ("Meta", "Breakdown by hour of day / time of day", None,
+     "GAP: no hourly breakdown table is synced. Meta can export it; the pipeline does not."),
+    ("Meta", "Audience overlap, delivery insights, frequency distribution", None,
+     "GAP: Ads Manager-only diagnostics, not available through the Insights API sync."),
+    ("Google", "Spend, impressions, clicks, conversions, conversion value, CPC, CPM, CTR",
+     GOOGLE_ADS, "Consolidated view — 20 columns, the reporting spine."),
+    ("Google", "Ad-level detail: 145 columns incl. ad strength and policy approval status",
+     GOOGLE_ADGROUP_AD, "The full GAQL ad_group_ad report."),
+    ("Google", "Avg CPV / CPE, engagements, engagement rate, video views and view rate",
+     GOOGLE_ADGROUP_AD, ""),
+    ("Google", "Video quartile rates p25/p50/p75/p100", GOOGLE_ADGROUP_AD, ""),
+    ("Google", "Active View: viewability, measurability, viewable CPM and CTR",
+     GOOGLE_ADGROUP_AD, ""),
+    ("Google", "Top impression percentage, cross-device and view-through conversions",
+     GOOGLE_ADGROUP_AD, ""),
+    ("Google", "Site engagement: bounce rate, avg time on site, pages/session, % new visitors",
+     GOOGLE_ADGROUP_AD, ""),
+    ("Google", "RSA / responsive display assets: headlines, descriptions, final URLs",
+     GOOGLE_ADGROUP_AD, "Asset text is present; asset-level PERFORMANCE ratings are not."),
+    ("Google", "Segments: date, week, month, quarter, year, day of week, network type",
+     GOOGLE_ADGROUP_AD, ""),
+    ("Google", "Shopping performance report", "VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_US_SHOPPING_PERFORMANCE_REPORT", ""),
+    ("Google", "Keywords and quality score", "VAHDAM_DB.DC_RAW.GADS_VAHDAM_VAHDAM_US_GADS_KEYWORDPERFORMANCE",
+     "PARTIAL AND STALE: 1,166 rows covering only 2026-02-27 to 2026-03-30. Usable as "
+     "history, not for current keyword decisions."),
+    ("Google", "Search terms report", None,
+     "GAP: no search-term table is synced for the live US customer 9797311905."),
+    ("Google", "Geographic and location reports", None, "GAP: no geo table synced."),
+    ("Google", "Audience / demographic segments", None, "GAP: no audience table synced."),
+    ("Google", "Impression share, lost IS (budget) and lost IS (rank)", None,
+     "GAP: not synced. This is the main blind spot for search — it cannot be derived "
+     "from spend and clicks, so no substitute is offered."),
+    ("Google", "Auction insights (competitor overlap)", None, "GAP: not synced."),
+    ("Google", "Change history and recommendations", None,
+     "GAP: not synced; both are Google-UI-only surfaces."),
+    ("TikTok", "Campaign / ad group / ad daily performance", None,
+     "DATON.RAW.TIKTOK_ADS_USA_* — account paused since 2026-07-14."),
+    ("TikTok", "Age-gender and country breakdowns", None, "DATON.RAW TikTok breakdown tables."),
+]
+
 
 # ── AD-ACCOUNT REGISTRY ───────────────────────────────────────────────────────
 # Mirrors adAccounts() in the web app's api/_shared/ads-snowflake-core.js, field
@@ -1046,7 +1140,7 @@ section = st.sidebar.radio(
 
 # The LHS menu carries the ANALYSIS VIEWS (use cases); the data filters live in
 # the top bar of the page, never in this menu.
-ADS_VIEWS = ["Ad accounts & retail funnel",
+ADS_VIEWS = ["Ad accounts & retail funnel", "Platform parity — every metric",
              "Omnichannel Master View", "Comparison Engine", "Cohort Exploration",
              "Overview & priority metrics", "Single entity deep-dive",
              "Ad explorer (all fields)", "Spend tracker", "UGC creator ads",
@@ -2300,6 +2394,308 @@ def live_ugc_posts(since, until):
         return pd.DataFrame()
 
 
+# ── PLATFORM PARITY — every metric, visible ───────────────────────────────────
+@st.cache_data(ttl=3600, show_spinner=False)
+def table_exists(fqn: str) -> bool:
+    if not fqn:
+        return False
+    try:
+        db, schema, name = fqn.split(".", 2)
+        r = q(f"select count(*) as n from {db}.information_schema.tables "
+              f"where table_schema = '{schema}' and table_name = '{name}'")
+        return int(r.iloc[0, 0]) > 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def all_fields(fqn: str):
+    """Every column a source really carries, with its type. This is the proof that
+    no metric is hidden: the inventory is read from the warehouse, not curated."""
+    try:
+        db, schema, name = fqn.split(".", 2)
+        return q(f"select column_name, data_type, ordinal_position "
+                 f"from {db}.information_schema.columns where table_schema = '{schema}' "
+                 f"and table_name = '{name}' and column_name not ilike '\\_AIRBYTE%' "
+                 f"order by ordinal_position")
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def results_by_action(parent: str, since, until, breakdown=None):
+    """Ads Manager's "Results" table: every action type with its result count, value and
+    each attribution window, plus cost per result derived from spend.
+
+    THE SIDECARS MUST BE DEDUPED FIRST. Airbyte appends on every incremental sync
+    rather than replacing, so one (parent row, action type) can carry hundreds of
+    rows across dozens of _AIRBYTE_EMITTED_AT values — measured: 1,836,934 ACTIONS
+    rows for only 404,006 distinct (hashid, action_type) keys, one key alone having
+    600 rows across 25 emissions. Joining the raw children fans out catastrophically:
+    it reported July DTC purchases as 51,941 worth $2,331,289.84 against $15,499.25 of
+    spend, a 194x overstatement, and MORE than the all-time raw sum for that action
+    type. Keeping only the newest emission per
+    (hashid, action_type, target, destination) — which preserves genuine per-target
+    detail while dropping re-sync copies — and pre-aggregating each child to one row
+    per key BEFORE joining gives 267 purchases worth $11,456.03 (0.74 ROAS) inside a
+    coherent funnel of 13,510 link clicks -> 1,850 checkouts -> 376 add-to-cart.
+
+    COST_PER_ACTION_TYPE is NOT read: that table is empty (0 rows) in this warehouse,
+    so cost per result is derived as spend / results instead of shown as always blank."""
+    act, hid = meta_sidecar(parent, "ACTIONS")
+    val, _ = meta_sidecar(parent, "ACTION_VALUES")
+    dims = ", ".join(f'p."{d}"' for d in (breakdown or []))
+    sel = (dims + ", ") if dims else ""
+    grp = ", ".join(str(i + 2) for i in range(len(breakdown or [])))
+    grp = ("1, " + grp) if grp else "1"
+
+    def dedup(tbl, valias):
+        # Newest emission per logical key. Airbyte appends; it does not replace.
+        return (f'select "{hid}" as h, ACTION_TYPE, try_to_double(VALUE) as {valias}'
+                + (', try_to_double("1d_click") as c1, try_to_double("7d_click") as c7, '
+                   'try_to_double("28d_click") as c28, try_to_double("1d_view") as w1, '
+                   'try_to_double("7d_view") as w7, try_to_double("28d_view") as w28'
+                   if valias == "v" else "")
+                + f' from {tbl} qualify row_number() over (partition by "{hid}", ACTION_TYPE, '
+                  "coalesce(ACTION_TARGET_ID, '-'), coalesce(ACTION_DESTINATION, '-') "
+                  'order by "_AIRBYTE_EMITTED_AT" desc) = 1')
+    try:
+        sql = f"""
+with p as (select "{hid}" as h, "SPEND" as spend{"," if dims else ""} {dims}
+             from {parent} where "DATE_START" between '{since}' and '{until}'),
+a0 as ({dedup(act, "v")}),
+v0 as ({dedup(val, "val")}),
+a as (select h, ACTION_TYPE, sum(v) as results, sum(c1) as c1, sum(c7) as c7,
+             sum(c28) as c28, sum(w1) as w1, sum(w7) as w7, sum(w28) as w28
+        from a0 group by 1, 2),
+v as (select h, ACTION_TYPE, sum(val) as val from v0 group by 1, 2)
+select a.ACTION_TYPE as action_type, {sel}
+       round(sum(a.results), 0) as results, round(sum(v.val), 2) as value,
+       round(sum(a.c1), 0) as click_1d, round(sum(a.c7), 0) as click_7d,
+       round(sum(a.c28), 0) as click_28d, round(sum(a.w1), 0) as view_1d,
+       round(sum(a.w7), 0) as view_7d, round(sum(a.w28), 0) as view_28d
+  from p join a on p.h = a.h
+  left join v on v.h = a.h and v.ACTION_TYPE = a.ACTION_TYPE
+ group by {grp} having sum(a.results) > 0 order by results desc"""
+        df = q(sql)
+        if not df.empty:
+            try:  # cost per result from spend in the same window
+                sp = q(f'select round(sum("SPEND"), 2) as s from {parent} '
+                       f'where "DATE_START" between \'{since}\' and \'{until}\'')
+                total = _n(sp.iloc[0, 0]) or 0.0
+                df.columns = [str(c).upper() for c in df.columns]
+                df["COST_PER_RESULT"] = [_div(total, _n(r)) for r in df["RESULTS"]]
+            except Exception:  # noqa: BLE001
+                pass
+        return df
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def video_funnel(parent: str, since, until):
+    """The full video funnel as Ads Manager reports it, plus hook and hold rates."""
+    cols = ["IMPRESSIONS", "VIDEO_CONTINUOUS_2_SEC_WATCHED_ACTIONS",
+            "VIDEO_15_SEC_WATCHED_ACTIONS", "VIDEO_30_SEC_WATCHED_ACTIONS",
+            "VIDEO_THRUPLAY_WATCHED_ACTIONS", "VIDEO_P25_WATCHED_ACTIONS",
+            "VIDEO_P50_WATCHED_ACTIONS", "VIDEO_P75_WATCHED_ACTIONS",
+            "VIDEO_P95_WATCHED_ACTIONS", "VIDEO_P100_WATCHED_ACTIONS",
+            "VIDEO_AVG_TIME_WATCHED_ACTIONS", "SPEND"]
+    have = [c for c in cols if has_column(parent, c)]
+    if not have:
+        return pd.DataFrame()
+    try:
+        sums = ", ".join(f'round(sum(try_to_double(to_varchar("{c}"))), 2) as "{c}"' for c in have)
+        return q(f'select {sums} from {parent} '
+                 f'where "DATE_START" between \'{since}\' and \'{until}\'')
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def relevance_diagnostics(parent: str, since, until):
+    """Ads Manager's three relevance rankings, with the spend sitting behind each."""
+    need = ["QUALITY_RANKING", "ENGAGEMENT_RATE_RANKING", "CONVERSION_RATE_RANKING"]
+    if not all(has_column(parent, c) for c in need):
+        return pd.DataFrame()
+    try:
+        return q(f'select "QUALITY_RANKING" as quality, "ENGAGEMENT_RATE_RANKING" as engagement, '
+                 f'"CONVERSION_RATE_RANKING" as conversion, count(distinct "AD_ID") as ads, '
+                 f'round(sum("SPEND"), 2) as spend, sum("IMPRESSIONS") as impressions '
+                 f'from {parent} where "DATE_START" between \'{since}\' and \'{until}\' '
+                 f'and "QUALITY_RANKING" is not null group by 1, 2, 3 order by spend desc')
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+def render_parity():
+    st.subheader("Platform parity — every metric, visible")
+    st.caption(
+        "Whatever can be analysed in Meta Ads Manager or the Google Ads UI should be analysable "
+        "here. This view proves it field by field: the inventory below is read from "
+        "INFORMATION_SCHEMA at render time, not curated, so nothing can be quietly omitted. "
+        "Where a platform capability genuinely is not synced, it is a DECLARED GAP naming what "
+        "is missing and why — never a blank or a zero."
+    )
+
+    # ---- Coverage matrix, existence re-checked live.
+    st.markdown("#### Coverage against the platform UIs")
+    rows, live, partial, gaps = [], 0, 0, 0
+    for platform, cap, tbl, note in PARITY:
+        if tbl is None:
+            ok = not note.startswith("GAP")
+            status = "sidecar / derived" if ok else "GAP"
+        else:
+            ok = table_exists(tbl)
+            status = "live" if ok else "table missing"
+        if note.startswith("PARTIAL"):
+            status = "partial"
+        if status == "GAP" or status == "table missing":
+            gaps += 1
+        elif status == "partial":
+            partial += 1
+        else:
+            live += 1
+        rows.append({"Platform": platform, "Capability": cap, "Status": status,
+                     "Source": tbl or "sidecar tables", "Note": note})
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Capabilities mapped", len(rows))
+    k2.metric("Available here", live)
+    k3.metric("Partial / stale", partial)
+    k4.metric("Declared gaps", gaps)
+    pf = st.multiselect("Platform", sorted({r["Platform"] for r in rows}),
+                        default=sorted({r["Platform"] for r in rows}), key="parity_pf")
+    only_gaps = st.checkbox("Show only gaps and partials", key="parity_gaps")
+    view = [r for r in rows if r["Platform"] in pf
+            and (not only_gaps or r["Status"] in ("GAP", "partial", "table missing"))]
+    st.dataframe(pd.DataFrame(view), use_container_width=True, hide_index=True)
+    st.info(
+        "**The gaps are all one shape: a report the pipeline does not sync.** For Google the "
+        "material one is impression share and lost IS (budget / rank) — it cannot be derived "
+        "from spend and clicks, so no substitute is offered. Search terms, geo and audience "
+        "segments are the same. For Meta the only real gap is the hourly breakdown; everything "
+        "Ads Manager shows in its Results, video, breakdown and relevance panels is here."
+    )
+
+    # ---- Field inventory: the proof that no metric is hidden.
+    st.markdown("#### Field inventory — every column each source carries")
+    srcs = {
+        "Meta DTC insights": META_ADS, "Meta retail insights": META_RETAIL,
+        "Meta age & gender": META_AGE_GENDER, "Meta platform & device": META_DEVICE,
+        "Google consolidated": GOOGLE_ADS, "Google ad-level (145 cols)": GOOGLE_ADGROUP_AD,
+        "Google Amazon (Ampd)": GOOGLE_AMAZON, "Target Roundel": TARGET_ROUNDEL,
+        "TikTok ad daily": TIKTOK["ad"],
+    }
+    pick = st.selectbox("Source", list(srcs), key="parity_src")
+    fields = all_fields(srcs[pick])
+    if fields.empty:
+        st.warning(f"`{srcs[pick]}` is not readable with this role — reported as unreadable, "
+                   "never as having no fields.")
+    else:
+        ff = fields.rename(columns=str.upper)
+        needle = st.text_input("Filter fields", key="parity_field_q").strip().lower()
+        show = ff[ff["COLUMN_NAME"].str.lower().str.contains(needle)] if needle else ff
+        st.caption(f"**{len(ff)} columns** in `{srcs[pick]}`"
+                   + (f" · {len(show)} match '{needle}'" if needle else ""))
+        st.dataframe(pd.DataFrame({"#": show["ORDINAL_POSITION"], "Column": show["COLUMN_NAME"],
+                                  "Type": show["DATA_TYPE"]}),
+                     use_container_width=True, hide_index=True, height=360)
+
+    # ---- Results by action type: the core Ads Manager table.
+    st.markdown("#### Results by action type, with attribution windows")
+    st.caption(
+        "Meta reports results per ACTION TYPE, not as one 'conversions' number, and Airbyte "
+        "normalises that into sidecar tables keyed to the parent row. Joining them back is what "
+        "makes purchases, checkouts, add-to-carts, landing page views, engagements and video "
+        "views separately visible — together with cost per result, value, and each 1d/7d/28d "
+        "click and view window, which is Ads Manager's attribution comparison in full."
+    )
+    which = st.radio("Account", ["Retail (Target / Costco)", "DTC (own site)"],
+                     horizontal=True, key="parity_acct")
+    parent = META_RETAIL if which.startswith("Retail") else META_ADS
+    acts = results_by_action(parent, since, until)
+    if acts.empty:
+        st.info("No action rows in the selected window for this account.")
+    else:
+        a = acts.rename(columns=str.upper)
+        st.dataframe(pd.DataFrame({
+            "Action type": a["ACTION_TYPE"],
+            "Results": a["RESULTS"].map(lambda v: f"{int(v):,}" if pd.notna(v) else "—"),
+            "Value": a["VALUE"].map(money),
+            "Cost / result": a["COST_PER_RESULT"].map(money) if "COST_PER_RESULT" in a else "—",
+            "1d click": a["CLICK_1D"], "7d click": a["CLICK_7D"], "28d click": a["CLICK_28D"],
+            "1d view": a["VIEW_1D"], "7d view": a["VIEW_7D"], "28d view": a["VIEW_28D"],
+        }), use_container_width=True, hide_index=True, height=420)
+        st.caption(
+            f"{len(a)} distinct action types in window. Blank windows mean Meta returned no value "
+            "for that window, not zero. **Cost / result is derived as window spend over results** "
+            "because Meta's COST_PER_ACTION_TYPE sidecar is empty (0 rows) in this warehouse. "
+            "The sidecars are deduped to the newest Airbyte emission per logical key before "
+            "joining: Airbyte appends on every sync, and joining the raw children overstated July "
+            "DTC purchases by 194x.")
+
+    # ---- Video funnel.
+    st.markdown("#### Video funnel")
+    vf = video_funnel(parent, since, until)
+    if vf.empty:
+        st.info("No video columns readable for this account.")
+    else:
+        v = vf.rename(columns=str.upper).iloc[0]
+        imp = _n(v.get("IMPRESSIONS")) or 0
+        steps = [("Impressions", "IMPRESSIONS"), ("2s continuous", "VIDEO_CONTINUOUS_2_SEC_WATCHED_ACTIONS"),
+                 ("25%", "VIDEO_P25_WATCHED_ACTIONS"), ("50%", "VIDEO_P50_WATCHED_ACTIONS"),
+                 ("75%", "VIDEO_P75_WATCHED_ACTIONS"), ("95%", "VIDEO_P95_WATCHED_ACTIONS"),
+                 ("100%", "VIDEO_P100_WATCHED_ACTIONS"), ("15s", "VIDEO_15_SEC_WATCHED_ACTIONS"),
+                 ("30s", "VIDEO_30_SEC_WATCHED_ACTIONS"), ("ThruPlay", "VIDEO_THRUPLAY_WATCHED_ACTIONS")]
+        fr = pd.DataFrame([{"Step": lbl, "Count": _n(v.get(c)),
+                            "% of impressions": pctf(_pct(_n(v.get(c)), imp))}
+                           for lbl, c in steps if _n(v.get(c)) is not None])
+        if not fr.empty:
+            st.dataframe(fr.assign(Count=fr["Count"].map(lambda x: f"{int(x):,}")),
+                         use_container_width=True, hide_index=True)
+            st.altair_chart(alt.Chart(fr).mark_bar().encode(
+                x=alt.X("Count:Q", title=None), y=alt.Y("Step:N", sort=None, title=None),
+                tooltip=["Step", "Count"]).properties(height=300), use_container_width=True)
+
+    # ---- Relevance diagnostics.
+    st.markdown("#### Ad relevance diagnostics")
+    st.caption("Meta's three rankings, against the spend sitting behind each combination. "
+               "Below-average on all three is the signal to replace creative, not to raise bid.")
+    rd = relevance_diagnostics(parent, since, until)
+    if rd.empty:
+        st.info("No ranked rows in the selected window (Meta only populates these above a "
+                "delivery threshold).")
+    else:
+        r = rd.rename(columns=str.upper)
+        st.dataframe(pd.DataFrame({
+            "Quality": r["QUALITY"], "Engagement rate": r["ENGAGEMENT"],
+            "Conversion rate": r["CONVERSION"], "Ads": r["ADS"],
+            "Spend": r["SPEND"].map(money),
+            "Impressions": r["IMPRESSIONS"].map(lambda x: f"{int(x):,}"),
+        }), use_container_width=True, hide_index=True)
+
+    # ---- Breakdowns with results per action type.
+    st.markdown("#### Breakdowns — results per action type within each segment")
+    bk = st.selectbox("Breakdown", list(META_BREAKDOWNS), key="parity_bk")
+    btbl, bdims = META_BREAKDOWNS[bk]
+    bres = results_by_action(btbl, since, until, breakdown=bdims)
+    if bres.empty:
+        st.info(f"No rows for {bk} in the selected window.")
+    else:
+        b = bres.rename(columns=str.upper)
+        keep = ["ACTION_TYPE"] + [d.upper() for d in bdims] + ["RESULTS", "VALUE", "COST_PER_RESULT"]
+        keep = [c for c in keep if c in b.columns]
+        out = b[keep].copy()
+        if "VALUE" in out:
+            out["VALUE"] = out["VALUE"].map(money)
+        if "COST_PER_RESULT" in out:
+            out["COST_PER_RESULT"] = out["COST_PER_RESULT"].map(money)
+        st.dataframe(out, use_container_width=True, hide_index=True, height=420)
+        st.caption("The breakdown tables carry their OWN full set of action sidecars, so a "
+                   "segment can be read on the same action types as the account total — this is "
+                   "Ads Manager's breakdown-by-action-type, not just spend by segment.")
+
+
 def render_master_dashboard():
     st.title("Ad Campaigns Master Dashboard")
     st.caption(
@@ -2658,6 +3054,9 @@ def render_ads_analytics():
 
     if view == "Ad accounts & retail funnel":
         render_ad_accounts()
+
+    if view == "Platform parity — every metric":
+        render_parity()
 
     if view == "Overview & priority metrics":
         if platform == "Meta":

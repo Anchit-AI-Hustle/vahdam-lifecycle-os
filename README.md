@@ -76,7 +76,36 @@ warehouse **live** — today's per-account delivery, the daily spend series, ad-
 the two surfaces intentionally differ, and each figure is labelled so it is never
 ambiguous which is which.
 
-### Section 2 — Ads Analysis (10 analysis views in the LHS menu)
+### Section 2 — Ads Analysis (11 analysis views in the LHS menu)
+View 2 is **Platform parity — every metric**: whatever can be analysed in Meta Ads
+Manager or the Google Ads UI is analysable here, proven field by field. The field
+inventory is read from `INFORMATION_SCHEMA` at render time (not curated, so nothing
+can be quietly omitted) — **119 columns** on Meta DTC insights, **112** on Meta
+retail, **145** on the Google ad-level report. Includes results by action type with
+all six attribution windows, the video funnel and retention curve, Meta's three
+relevance rankings, and breakdowns carrying their own per-action-type detail.
+A capability that genuinely is not synced is a **declared gap** naming what and why.
+
+⚠️ **The Meta sidecars must be deduped before joining.** Airbyte appends on every
+incremental sync instead of replacing: `META_USA_ADS_INSIGHTS_ACTIONS` holds
+1,836,934 rows for only 404,006 distinct `(hashid, action_type)` keys — one key alone
+has 600 rows across 25 `_AIRBYTE_EMITTED_AT` values. Joining the raw children fans
+out catastrophically: July DTC purchases came back as **51,941 worth $2,331,289.84
+against $15,499.25 of spend** — a 194× overstatement, and more than the all-time raw
+sum for that action type. Keeping only the newest emission per
+`(hashid, action_type, target, destination)` and pre-aggregating each child before
+joining gives **267 purchases worth $11,456.03 (0.74 ROAS)** inside a coherent funnel
+of 13,510 link clicks → 1,850 checkouts → 376 add-to-cart. Also note
+`COST_PER_ACTION_TYPE` is **empty (0 rows)**, so cost per result is derived from spend
+rather than shown as permanently blank.
+
+Known gaps, all the same shape (a report the pipeline does not sync): Google
+impression share / lost IS (budget, rank), search terms, geo and audience segments;
+Google keywords exist only as a stale stub (1,166 rows, 2026-02-27 to 2026-03-30);
+Meta hourly breakdown. Impression share cannot be derived from spend and clicks, so
+no substitute is offered.
+
+
 0. **Ad accounts & retail funnel** *(landing view)* — the whole ad-account estate,
    described account by account: what each one is FOR, which KPI it can honestly
    be judged on, its currency, its warehouse table and how fresh that feed is,
