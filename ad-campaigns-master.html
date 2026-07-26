@@ -316,6 +316,25 @@
     var p=String(iso).split("-"); if(p.length<3) return String(iso);
     return String(+p[2])+" "+(MON[+p[1]-1]||p[1]);
   }
+  function pad(n,w){ n=String(Math.abs(Math.trunc(Number(n)||0))); while(n.length<w) n="0"+n; return n; }
+  function fallbackDay(){ return (SNAP&&SNAP.today&&SNAP.today.date)||new Date().toISOString().slice(0,10); }
+  // Rebuilds "YYYY-MM" from parsed integers — nothing from the original string
+  // survives, so DOM-sourced values can never reach the markup verbatim.
+  function monthKey(v){
+    var mm=/^(\d{4})-(\d{2})$/.exec(String(v||""));
+    if(!mm) return monthKey(fallbackDay().slice(0,7));
+    var y=Number(mm[1]), mo=Number(mm[2]);
+    if(!(y>=2000&&y<=2100)||!(mo>=1&&mo<=12)) return monthKey(fallbackDay().slice(0,7));
+    return pad(y,4)+"-"+pad(mo,2);
+  }
+  // Same contract for a full day key ("YYYY-MM-DD"); returns null when invalid.
+  function dayKey(v){
+    var mm=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v||""));
+    if(!mm) return null;
+    var y=Number(mm[1]), mo=Number(mm[2]), d=Number(mm[3]);
+    if(!(y>=2000&&y<=2100)||!(mo>=1&&mo<=12)||!(d>=1&&d<=31)) return null;
+    return pad(y,4)+"-"+pad(mo,2)+"-"+pad(d,2);
+  }
   // Every table is sortable (clickable headers, table-sort.js) + filterable
   // (a row-filter box injected above the scroll wrapper).
   function table(head,rows){
@@ -489,11 +508,11 @@
     sel.value=t.slice(0,7);
   }
   function renderCalendar(){
-    // The month comes from a <select> (DOM text), so it is validated to a
-    // strict YYYY-MM shape before it can reach innerHTML — a value that is not
-    // two numeric fields is replaced by the current month, never rendered.
-    var m=String($("#cal-month").value||"");
-    if(!/^\d{4}-\d{2}$/.test(m)) m=((SNAP&&SNAP.today&&SNAP.today.date)||new Date().toISOString().slice(0,10)).slice(0,7);
+    // The month comes from a <select>, i.e. DOM text. Rather than guard the
+    // string, the month key is REBUILT from two parsed integers, so the value
+    // that reaches innerHTML cannot carry any character other than digits and
+    // the hyphen we add ourselves. An unparseable value falls back to today.
+    var m=monthKey($("#cal-month").value);
     var today=(SNAP&&SNAP.today&&SNAP.today.date)||"";
     var byDay={}; (SNAP&&SNAP.daily||[]).forEach(function(d){byDay[d.date]=d;});
     if(LIVE&&LIVE.daily) LIVE.daily.forEach(function(d){ byDay[d.date]=Object.assign({},byDay[d.date]||{date:d.date},d); });
@@ -522,11 +541,12 @@
       "<div class='sc'><div class='k'>Avg spend / active day</div><div class='v'>"+(activeDays?money0(monthSpend/activeDays):"—")+"</div></div>";
     $("#cal-src").textContent="source: "+((LIVE&&LIVE.daily&&LIVE.daily.length)?"live ad account":"snapshot "+((SNAP&&SNAP.captured_at)||""));
   }
-  function calDetail(iso){
-    // iso arrives from a cell's data-d attribute (DOM text) — reject anything
-    // that is not a strict YYYY-MM-DD date before it reaches innerHTML.
-    iso=String(iso||"");
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+  function calDetail(v){
+    // The day key arrives from a cell's data-d attribute (DOM text). dayKey()
+    // rebuilds it from parsed integers and returns null when it is not a real
+    // date, so nothing from the original string can reach innerHTML.
+    var iso=dayKey(v);
+    if(!iso) return;
     var byDay={}; (SNAP&&SNAP.daily||[]).forEach(function(d){byDay[d.date]=d;});
     var r=byDay[iso], today=(SNAP&&SNAP.today&&SNAP.today.date)||"";
     if(!r){
