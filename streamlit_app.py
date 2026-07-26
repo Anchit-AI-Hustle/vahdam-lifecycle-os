@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.14"
+APP_BUILD = "2026-07-26.15"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -808,7 +808,8 @@ def acct_clause(col: str, account) -> str:
     if not vals or not col:
         return ""
     inlist = ",".join("'" + str(v).lower().replace("'", "''") + "'" for v in vals)
-    return f" and lower({col}) in ({inlist})"
+    # qcol so a dotted GAQL column is not parsed as table.column
+    return f" and lower({qcol(col)}) in ({inlist})"
 
 
 # Marketplace (Target / Costco / Amazon / Walmart / …) is carried in the AD
@@ -1203,9 +1204,30 @@ st.sidebar.markdown("---")
 # are the CHANNEL'S OWN real ad accounts, read live from that channel's table.
 # Marketplace (Target / Costco / Amazon / Walmart / … / D2C) lives in the ad
 # names and is a separate dimension — never an account.
-ACCOUNT_COL_CANDIDATES = ("account_name", "customer_descriptive_name", "customer_name",
-                          "advertiser_name", "account", "advertiser_id", "account_id",
-                          "customer_id")
+# ── Identifier quoting, and the account column per feed ───────────────────────
+# Snowflake stores an unquoted identifier UPPER-CASE and a quoted one verbatim. The
+# Daton/Maplemonk feeds contain both kinds, so one rule cannot cover them:
+#   Meta / TikTok / Google-consolidated : bare names  -> stored UPPER  -> "ACCOUNT_NAME"
+#   Google GAQL ad reports             : dotted names -> stored lower  -> "customer.descriptive_name"
+# Uppercasing a dotted name yields "CUSTOMER.DESCRIPTIVE_NAME", which does not exist,
+# and leaving it unquoted makes Snowflake read it as table.column. Hence qcol().
+def qcol(c: str) -> str:
+    """Correctly quoted identifier for a column name from table_columns()."""
+    c = str(c)
+    return f'"{c}"' if "." in c else f'"{c.upper()}"'
+
+
+# Candidate account columns, widest first. Verified live 2026-07-26:
+#   DATON.RAW.TIKTOK_ADS_USA_*        ACCOUNTNAME / ACCOUNTID   (NO underscores)
+#   MAPLEMONK.US_GOOGLE_ADS_CONSOLIDATED  ACCOUNT
+#   MAPLEMONK.*GADS*AD_GROUP_AD_REPORT    customer.descriptive_name / customer.id (dotted)
+# "accountname" and the dotted Google names were MISSING, so channel_accounts() found no
+# column for TikTok and returned an empty list - the Account filter was silently blank
+# for the whole TikTok channel rather than saying it could not resolve one.
+ACCOUNT_COL_CANDIDATES = ("account_name", "accountname", "customer.descriptive_name",
+                          "customer_descriptive_name", "customer_name", "advertiser_name",
+                          "advertisername", "account", "accountid", "advertiser_id",
+                          "advertiserid", "account_id", "customer.id", "customer_id")
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -1216,8 +1238,8 @@ def channel_accounts(channel):
     if not col:
         return None, []
     try:
-        df = q(f'select distinct "{col.upper()}" as v from {table} '
-               f'where "{col.upper()}" is not null order by 1 limit 200')
+        df = q(f'select distinct {qcol(col)} as v from {table} '
+               f'where {qcol(col)} is not null order by 1 limit 200')
         return col, [str(x) for x in df["v"].dropna().tolist()]
     except Exception:  # noqa: BLE001
         return col, []
@@ -1233,8 +1255,8 @@ LEVEL_LABEL = {"campaign": "Campaign", "adset": "Ad Set", "ad": "Ad"}
 def distinct_values(col):
     """Distinct values of an optional filter column (objective / status)."""
     try:
-        d = q(f'select distinct "{col.upper()}" as v from {META_SRC} '
-              f'where "{col.upper()}" is not null order by 1 limit 100')
+        d = q(f'select distinct {qcol(col)} as v from {META_SRC} '
+              f'where {qcol(col)} is not null order by 1 limit 100')
         return [str(x) for x in d["v"].dropna().tolist()]
     except Exception:  # noqa: BLE001
         return []
