@@ -88,11 +88,20 @@ def _synth(sql: str) -> pd.DataFrame:
         # table_explorer died or bailed and the Ads Intelligence discovery tabs went
         # unexercised. Answer the shape the query actually requests.
         if " as fqn" in low:
+            # Mirror the columns discover_tables actually selects, including
+            # table_schema/table_name (it filters on them) and a couple of rows it
+            # must FILTER OUT: an _AIRBYTE_RAW_ scratch table and another market's
+            # feed. A stub that only returns clean rows cannot exercise either filter.
             return pd.DataFrame({
                 "fqn": ["VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS",
-                        "VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS"],
-                "row_count": [412338, 90211],
-                "bytes": [284000000, 61000000]})
+                        "VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS",
+                        "VAHDAM_DB.MAPLEMONK._AIRBYTE_RAW_META_USA_ADS_INSIGHTS",
+                        "VAHDAM_DB.MAPLEMONK.AMAZONADS_UK_MARKETING"],
+                "table_schema": ["MAPLEMONK"] * 4,
+                "table_name": ["META_USA_ADS_INSIGHTS", "USA_TEA_ADS_ADS_INSIGHTS",
+                               "_AIRBYTE_RAW_META_USA_ADS_INSIGHTS", "AMAZONADS_UK_MARKETING"],
+                "row_count": [129951, 6736, 502052, 7491600],
+                "bytes": [284000000, 61000000, 900000000, 178554880]})
         return pd.DataFrame({"table_schema": ["MAPLEMONK","MAPLEMONK"],
                              "table_name": ["META_USA_ADS_INSIGHTS","USA_TEA_ADS_ADS_INSIGHTS"]})
     if "query_history" in low:
@@ -157,7 +166,16 @@ class FakeST(types.ModuleType):
     def selectbox(self, label, options, index=0, **k):
         o=list(options)
         want=self.CHOICES.get(label)
-        if want is not None and want in o: return want
+        if want is not None:
+            if want in o: return want
+            # Options are often DECORATED with the bare value plus context, e.g.
+            # "db.schema.TABLE   (129,951 rows)" or "ctr  (impression-weighted avg)".
+            # Match on the value the test asked for rather than requiring the test to
+            # know the decoration, which otherwise silently falls through to o[0] —
+            # the placeholder — and skips the whole branch under test.
+            for x in o:
+                if isinstance(x, str) and (x.startswith(want) or x.split("  (")[0] == want):
+                    return x
         return o[index] if o else None
     def multiselect(self, label, options, default=None, **k):
         return list(default) if default is not None else []

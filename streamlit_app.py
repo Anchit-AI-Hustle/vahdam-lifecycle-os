@@ -5252,27 +5252,67 @@ def render_ads_analytics():
 SEARCH_DBS = ["VAHDAM_DB", "DATON"]
 
 
+# Airbyte's own scratch tables are not data: _AIRBYTE_RAW_* holds the undecoded
+# JSON blob and _AIRBYTE_TMP_* is a mid-sync temp that vanishes. They matched the
+# keyword search and crowded out real feeds in a capped list.
+DISCOVERY_NOISE = ("_AIRBYTE_RAW_", "_AIRBYTE_TMP_", "_SCD")
+# Other markets' feeds. A US view offering AMAZONADS_UK_MARKETING or
+# AMAZON_ADS_CA_* invites a cross-market read that no caption can undo, so they
+# are filtered by default and reachable only by explicitly asking.
+REGION_TABLE_HINTS = {
+    "US": ("_UK", "UK_", "_CA", "CA_", "INDIA", "_IN_", "GERMANY", "FRANCE", "SPAIN",
+           "UAE", "_AU", "AU_", "GLOBAL"),
+    "UK": ("USA", "_US_", "US_", "INDIA", "_IN_", "_CA", "CA_", "GERMANY", "GLOBAL"),
+    "India": ("USA", "_US_", "US_", "_UK", "UK_", "_CA", "CA_", "GERMANY", "GLOBAL"),
+    "Global": (),
+}
+
+
 @st.cache_data(ttl=600, show_spinner=False)
-def discover_tables(terms):
-    """Search INFORMATION_SCHEMA across the known databases for tables whose
-    name matches any keyword. Returns fqn/rows/columns — real tables only."""
-    frames = []
+def discover_tables(terms, include_all_markets=False, include_airbyte=False, cap=2000):
+    """Every real table matching any keyword, across every database and schema.
+
+    Was capped at 40 per database, ordered by row_count, which silently hid the
+    long tail — and because Airbyte's _AIRBYTE_RAW_* scratch tables are the largest
+    objects in the warehouse, the 40 slots went to noise while real feeds fell off
+    the list entirely. Now uncapped in practice, de-noised, and the caller is told
+    exactly what was filtered so a short list is never mistaken for a small
+    warehouse.
+    """
     like = " or ".join([f"table_name ilike '%{t.strip().upper()}%'" for t in terms if t.strip()])
     if not like:
-        return pd.DataFrame()
+        return pd.DataFrame(), {}
+    frames = []
     for db in SEARCH_DBS:
         try:
             frames.append(q(
                 f"select table_catalog || '.' || table_schema || '.' || table_name as fqn, "
-                f"row_count, bytes from {db}.information_schema.tables "
-                f"where table_type = 'BASE TABLE' and ({like}) "
-                f"order by row_count desc nulls last limit 40"
-            ))
+                f"table_schema, table_name, row_count, bytes "
+                f"from {db}.information_schema.tables "
+                f"where table_type = 'BASE TABLE' and row_count > 0 and ({like}) "
+                f"order by row_count desc nulls last limit {int(cap)}"))
         except Exception:  # noqa: BLE001 — db absent/no grant: skip, never invent
             continue
     if not frames:
-        return pd.DataFrame()
-    return pd.concat(frames, ignore_index=True)
+        return pd.DataFrame(), {}
+    df = pd.concat(frames, ignore_index=True).drop_duplicates(subset=["fqn"])
+    total = len(df)
+    up = df["table_name"].astype(str).str.upper()
+    dropped_airbyte = 0
+    if not include_airbyte:
+        keep = ~up.str.contains("|".join(DISCOVERY_NOISE), regex=True, na=False)
+        dropped_airbyte = int((~keep).sum())
+        df, up = df[keep], up[keep]
+    dropped_market = 0
+    hints = REGION_TABLE_HINTS.get(region, ())
+    if hints and not include_all_markets:
+        keep = ~up.str.contains("|".join(hints), regex=True, na=False)
+        dropped_market = int((~keep).sum())
+        df = df[keep]
+    df = df.sort_values("row_count", ascending=False, na_position="last")
+    return df.reset_index(drop=True), {
+        "matched": total, "shown": len(df),
+        "airbyte_hidden": dropped_airbyte, "other_markets_hidden": dropped_market}
 
 
 def table_explorer(key, default_terms, gap_note):
@@ -5280,14 +5320,36 @@ def table_explorer(key, default_terms, gap_note):
     chart when a date column and a numeric measure are present."""
     terms = st.text_input("Search warehouse tables (comma-separated keywords)",
                           ", ".join(default_terms), key=key + "_terms")
-    found = discover_tables(terms.split(","))
+    _c1, _c2 = st.columns(2)
+    all_markets = _c1.checkbox(f"Include other markets (not just {region})", key=key + "_allmkt",
+                               help="Off by default so a US view does not offer "
+                                    "AMAZONADS_UK_MARKETING or AMAZON_ADS_CA_* and invite a "
+                                    "cross-market read.")
+    show_airbyte = _c2.checkbox("Include Airbyte scratch tables", key=key + "_ab",
+                                help="_AIRBYTE_RAW_* is the undecoded JSON blob and "
+                                     "_AIRBYTE_TMP_* is a mid-sync temp. They are the biggest "
+                                     "objects here, so they dominate any size-ordered list.")
+    found, stats = discover_tables(terms.split(","), all_markets, show_airbyte)
     if found.empty:
         st.info("No warehouse table matches these keywords. " + gap_note)
         return
-    st.dataframe(found, use_container_width=True, hide_index=True, height=200)
-    pick = st.selectbox("Table to analyse", ["—"] + found["fqn"].tolist(), key=key + "_pick")
-    if pick == "—":
+    # Say what was filtered, so a short list is never read as a small warehouse.
+    bits = [f"**{stats['shown']} of {stats['matched']}** matching tables shown"]
+    if stats.get("other_markets_hidden"):
+        bits.append(f"{stats['other_markets_hidden']} from other markets hidden")
+    if stats.get("airbyte_hidden"):
+        bits.append(f"{stats['airbyte_hidden']} Airbyte scratch tables hidden")
+    st.caption(" · ".join(bits) + " — every match is listed, not a top-N.")
+    st.dataframe(found, use_container_width=True, hide_index=True, height=240)
+    # Row counts in the option label so the choice is informed rather than a guess
+    # from the name alone.
+    _lbl = {f'{r["fqn"]}   ({int(r["row_count"] or 0):,} rows)': r["fqn"]
+            for _, r in found.iterrows()}
+    sel = st.selectbox("Table to analyse", ["—"] + list(_lbl), key=key + "_pick",
+                       help=f"All {len(_lbl)} matching tables are listed, with row counts.")
+    if sel == "—":
         return
+    pick = _lbl[sel]
     try:
         _dc = table_date_col(pick)
         _ob = f' order by "{_dc.upper()}" desc' if _dc else ""

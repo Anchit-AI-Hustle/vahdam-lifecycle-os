@@ -95,3 +95,24 @@ a different kind of hard-coded scope:
 All three are now region-scoped or skipped with a stated reason. Only US is
 verified; UK and India are wired but unreconciled, and Global is Google-only
 because no Meta or TikTok account is registered for it.
+
+
+## Two more stub gaps this session (same failure mode as the first two)
+
+Both were the fake session or the stub widget answering something the app does not
+actually ask for, so a real branch never ran and the sweep still said "no error".
+
+1. **discover_tables selects table_schema/table_name** (it filters on them) but the
+   fake `information_schema.tables` answer returned only fqn/row_count/bytes. The
+   discovery tabs went blank. The stub now mirrors the real column list AND returns
+   rows the app must FILTER OUT -- an `_AIRBYTE_RAW_*` scratch table and another
+   market's feed -- because a stub that only returns clean rows cannot exercise
+   either filter.
+
+2. **Decorated selectbox options.** Options carry context now
+   (`db.schema.TABLE   (129,951 rows)`, `ctr  (impression-weighted avg)`), so an
+   exact-match CHOICES lookup fell through to `options[0]` -- the "—" placeholder --
+   and skipped the branch under test. `stub.selectbox` now also matches a bare
+   value against a decorated option. Widget LABELS are kept stable for the same
+   reason: the label is the handle a test addresses, so counts belong in the caption,
+   not the label.
