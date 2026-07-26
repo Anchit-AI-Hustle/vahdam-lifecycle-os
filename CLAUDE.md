@@ -209,6 +209,11 @@ via `scripts/lib/motion-ad.js` (`renderMotionAd` = self-contained animated HTML 
 `motionBrief` = shot-by-shot brief so the shipped MP4 matches). Quality bar in
 `.claude/commands/ad-creative.md`: hook moves in 0.8s, word-staggered kinetic type, one
 filmic grade, real SKU packaging only, <15s, safe-areas.
+**Evaluated and documented, not wired up:** `meituan-longcat/LongCat-Video-Avatar-1.5`
+(MIT weights, image+audio→lip-synced talking head, 480p/720p) is the open-source route for
+creator-style spokesperson video. It needs 2 local GPUs and has no hosted API, so neither
+Vercel nor Snowflake can run it — Higgsfield remains the engine. Full trade-off table in
+`.claude/commands/ad-creative.md`.
 
 ## Growth OS — integrated team (slash commands + connectors + skills)
 This repo ships project slash commands in `.claude/commands/` that operate the brand as a full growth team for a coffee + wellness D2C brand. Start anything with **`/growth-team`** (the router) or jump to a vertical:

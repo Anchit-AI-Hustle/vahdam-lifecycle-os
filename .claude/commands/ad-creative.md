@@ -15,6 +15,33 @@ Use the Higgsfield skills via the `higgsfield-*` toolchain:
 - **Face/identity consistency** across a campaign → chain `higgsfield-soul-id`.
 - When unsure which model, call `models_explore(action:'recommend')` first.
 
+### Talking-head / creator-style video: LongCat-Video-Avatar 1.5 (evaluated, NOT wired up)
+`meituan-longcat/LongCat-Video-Avatar-1.5` on Hugging Face is audio-driven human video
+generation — a still image plus an audio track becomes a lip-synced talking-head clip.
+Relevant here because the UGC programme is built on creator talking-heads, and the
+Creative Library shows that identity-first hooks delivered spoken to camera are what
+score: the highest-scoring TikTok video in the June set opens "This might be the smartest
+coffee I've ever found at Target."
+
+| | |
+|---|---|
+| Tasks | audio+text→video, audio+text+**image**→video (the useful one), video continuation |
+| Output | 480p or 720p |
+| Audio encoder | Whisper-Large, 8-step distilled inference |
+| Weights licence | **MIT** — commercial use permitted |
+| Run | local `torchrun`, **multi-GPU (2 tested)**, INT8 quantisation to cut VRAM |
+| Vendor states | e-commerce marketing and commercial promotion as target use cases |
+
+**Why it is not the default.** It needs two local GPUs. This repo deploys to Vercel
+serverless and the Snowflake app runs inside a warehouse; neither can host it, and there
+is no hosted API. Higgsfield stays the engine for anything generated from here.
+
+**When to reach for it instead.** A campaign needing many variants of the same spokesperson
+saying different scripts — where per-clip vendor cost dominates and an MIT licence plus a
+GPU box is cheaper. The scripts already exist: the Creative Library holds 182 full scripts
+with their organic scores, so a LongCat run can be fed a proven script rather than a new
+one. Requires provisioning a 2-GPU host first; treat that as the blocker, not the model.
+
 ## Formats to deliver (match what was just shipped)
 - Meta static `1080x1080` PNG
 - Reels/Stories `1080x1920` MP4
