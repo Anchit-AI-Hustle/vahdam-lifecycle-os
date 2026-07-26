@@ -6,12 +6,12 @@ logged-in Snowflake session via get_active_session() — no external keys, no PA
 no Supabase. Every figure is read directly (read-only) from the warehouse tables
 the Daton / Maplemonk pipelines already load. Charts use Altair (not Plotly).
 
-The landing view is "Ad accounts & retail funnel": the whole ad-account estate
+The landing view is "Ad accounts & retail funnel": every ad account
 described account by account (what each is FOR and which KPI it can honestly be
 judged on), plus the retail funnel that joins spend in MAPLEMONK to outcomes in
 MAPLEMONK1 — Target Roundel attributed sales and real Target store sell-through.
 That join is the only honest way to answer "is the Target programme working",
-because the Target/Costco Meta account records zero purchases by construction:
+because the Target/Costco Meta account can never record a purchase:
 its shoppers check out inside Target, so no VAHDAM pixel ever fires.
 
 Two sections (parity comes from ONE source of truth — these Snowflake tables +
@@ -449,7 +449,7 @@ PARITY = [
 
 # ── AD-ACCOUNT REGISTRY ───────────────────────────────────────────────────────
 # Mirrors adAccounts() in the web app's api/_shared/ads-snowflake-core.js, field
-# for field, so the Snowflake app and the web app describe the estate identically
+# for field, so the Snowflake app and the web app describe the accounts identically
 # (spec 24b: one authoritative record, many views).
 #
 # Enumerated LIVE on 2026-07-26 by unioning every base insights / ad-performance
@@ -490,7 +490,7 @@ AD_ACCOUNTS = [
                   "target.com, and to Costco via Instacart: the Page Deck sales sets, scored "
                   "UGC video sets, influencer link-click sets, Costco Bay Area reach buys and "
                   "Target giveaways."),
-         attribution_note=("Zero purchases by construction: checkout happens on target.com, "
+         attribution_note=("No purchase can ever be recorded: checkout happens on target.com, "
                            "Instacart or in store, so no VAHDAM pixel fires. Judge on CTR, CPC, "
                            "CPM and reach, never ROAS. The outcome is reported by Target instead "
                            "-- see the Retail funnel below."),
@@ -1378,9 +1378,94 @@ status_sel = _resolve_all(_g2.multiselect(
     "Status", [ALL_OPT] + distinct_values(STATUS_COL), default=[ALL_OPT],
     help="Campaign delivery status. All = any status.")) if STATUS_COL else []
 
-today = pd.Timestamp.utcnow().normalize()
+# Each feed's own date column. Kept beside account_live_figures because the two
+# must agree: asking for a date with a column the feed does not use returns
+# nothing and reads as "no spend".
+ACCOUNT_DATE_EXPR = {
+    "target_roundel": lambda: sf_day("Event Date"),
+    "google_us": lambda: '"SEGMENTS_DATE"',
+    "_google": lambda: '"segments.date"',
+    "_tiktok": lambda: '"STAT_TIME_DAY"',
+    "_meta": lambda: '"DATE_START"',
+}
+
+
+def _account_date_expr(acct_id, platform):
+    if acct_id in ACCOUNT_DATE_EXPR:
+        return ACCOUNT_DATE_EXPR[acct_id]()
+    return ACCOUNT_DATE_EXPR["_" + str(platform).lower()]()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def account_latest_date(acct_id: str, table: str):
+    """The newest date this feed REALLY holds.
+
+    The dashboard used to anchor 'today' to the wall clock (pd.Timestamp.utcnow).
+    Warehouse syncs land hours late and each feed lands at its own pace, so once
+    UTC rolls past midnight every card asks for a date no feed has yet. Anchoring
+    to the data instead means the newest REAL day is always what gets shown, and
+    the as-of date is stated rather than assumed.
+    """
+    reg = {a["id"]: a for a in AD_ACCOUNTS}.get(acct_id)
+    if not reg:
+        return None
+    try:
+        expr = _account_date_expr(acct_id, reg["platform"])
+        src = table
+        if acct_id == "google_us":
+            src = google_dedup(GOOGLE_ADS_FILTER)
+        d = q(f"select max({expr})::string as d from {src}").iloc[0]["d"]
+        return pd.Timestamp(d).date() if d else None
+    except Exception:  # noqa: BLE001 — unreadable feed: caller reports it
+        return None
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def account_earliest_date(acct_id: str, table: str):
+    """Oldest date this feed holds — the floor for the All-time window."""
+    reg = {a["id"]: a for a in AD_ACCOUNTS}.get(acct_id)
+    if not reg:
+        return None
+    try:
+        expr = _account_date_expr(acct_id, reg["platform"])
+        src = google_dedup(GOOGLE_ADS_FILTER) if acct_id == "google_us" else table
+        d = q(f"select min({expr})::string as d from {src}").iloc[0]["d"]
+        return pd.Timestamp(d).date() if d else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _us_live_accounts():
+    return [a for a in AD_ACCOUNTS
+            if a["status"] == "live" and a.get("region") == "US"]
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def data_max_date():
+    """Newest date across the live US ad feeds — the 'data clock' the date-range
+    presets are anchored to, so 'Last 30 days' means the last 30 days that exist."""
+    ds = [account_latest_date(a["id"], a["table"]) for a in _us_live_accounts()]
+    ds = [d for d in ds if d]
+    return max(ds) if ds else None
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def data_min_date():
+    """Oldest date across the live US ad feeds — the floor for the All-time window."""
+    ds = [account_earliest_date(a["id"], a["table"]) for a in _us_live_accounts()]
+    ds = [d for d in ds if d]
+    return min(ds) if ds else None
+
+
+
+# Anchor the presets to the newest date the DATA holds, not the wall clock. Once
+# UTC passes midnight a clock-anchored "Last 30 days" ends on a day no feed has
+# synced yet, which quietly shifts every window a day off the real data. Falls
+# back to the wall clock only if no feed can be read at all.
+_data_today = data_max_date()
+today = pd.Timestamp(_data_today) if _data_today else pd.Timestamp.utcnow().normalize()
 _preset = _g3.selectbox("Date range",
-                        ["Last 30 days", "Last 7 days", "MTD", "Last quarter", "Custom"])
+                        ["Last 30 days", "Last 7 days", "MTD", "Last quarter", "All time", "Custom"])
 if _preset == "Last 7 days":
     since, until = (today - pd.Timedelta(days=7)).date(), today.date()
 elif _preset == "MTD":
@@ -1390,6 +1475,9 @@ elif _preset == "Last quarter":
     _pq_end = _qs - pd.Timedelta(days=1)
     _pq_start = pd.Timestamp(_pq_end.year, 3 * ((_pq_end.month - 1) // 3) + 1, 1)
     since, until = _pq_start.date(), _pq_end.date()
+elif _preset == "All time":
+    # Everything the feeds hold, so the widest real window is one click away.
+    since, until = (data_min_date() or (today - pd.Timedelta(days=365)).date()), today.date()
 elif _preset == "Custom":
     since = _g4.date_input("Since", (today - pd.Timedelta(days=30)).date())
     until = _g5.date_input("Until", today.date())
@@ -2236,17 +2324,26 @@ def account_live_figures(acct_id: str, table: str, kpi: str, since, until):
             sql = (f"select SPEND as spend, IMPRESSIONS as impressions, "
                    f"INLINE_LINK_CLICKS as clicks, null as revenue, CAMPAIGN_NAME as campaign "
                    f"from {table} where DATE_START between '{since}' and '{until}'")
+        # rows_n distinguishes "this day genuinely had no rows" from "rows exist but
+        # every measure is null" — the two look identical once summed.
         df = q(f"select round(sum(spend), 2) as spend, sum(impressions) as impressions, "
                f"sum(clicks) as clicks, round(sum(revenue), 2) as revenue, "
-               f"count(distinct campaign) as campaigns from ({sql})")
+               f"count(distinct campaign) as campaigns, count(*) as rows_n from ({sql})")
         if df.empty:
-            return None
+            return {"error": "the query returned no result set at all"}
         r = df.iloc[0]
-        return dict(spend=_n(r["SPEND"]) or 0.0, impressions=_n(r["IMPRESSIONS"]) or 0,
-                    clicks=_n(r["CLICKS"]) or 0, revenue=_n(r["REVENUE"]),
-                    campaigns=int(_n(r["CAMPAIGNS"]) or 0))
-    except Exception:  # noqa: BLE001 — missing table/grant: say so, never invent
-        return None
+        # q() LOWER-CASES every column name. Reading r["SPEND"] here raised
+        # KeyError on every call, for every account, on every date -- and the bare
+        # `except Exception: return None` below turned that into a None, which the
+        # Live Now cards rendered as "no rows today". So a code defect was being
+        # reported to the operator as a fact about the data, and these cards had
+        # never once displayed a figure. Lower case, and errors now carry a reason.
+        n_rows = _n(r["rows_n"]) or 0
+        return dict(spend=_n(r["spend"]) or 0.0, impressions=_n(r["impressions"]) or 0,
+                    clicks=_n(r["clicks"]) or 0, revenue=_n(r["revenue"]),
+                    campaigns=int(_n(r["campaigns"]) or 0), rows=int(n_rows))
+    except Exception as e:  # noqa: BLE001 — unreadable table/grant: SAY SO, never invent
+        return {"error": str(e).strip().splitlines()[0][:200]}
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -2294,9 +2391,9 @@ select period, round(sum(meta_spend), 2) as meta_spend,
 
 
 def render_ad_accounts():
-    st.subheader("The ad-account estate")
+    st.subheader("Ad accounts")
     st.caption(
-        "Every VAHDAM ad account held in the warehouse, enumerated live by unioning every base "
+        "Every VAHDAM ad account in the warehouse, listed live by combining every base "
         "insights and ad-performance table in VAHDAM_DB and grouping by account. Accounts do not "
         "share a schema or a naming convention, so searching by the obvious name finds one and "
         "makes the rest look absent: the Target/Costco Meta account is USA_TEA_ADS_ADS_INSIGHTS "
@@ -2319,7 +2416,7 @@ def render_ad_accounts():
         "is tracked, revenue / ROAS / CPA are real. Where checkout happens on a third-party site "
         "(target.com, Instacart, amazon.com) no purchase can ever be attributed, so those accounts "
         "show **n/a** rather than 0 and must be judged on CTR, CPC, CPM and reach. A 0.00x ROAS on "
-        "a retail account is a measurement artefact, not a result."
+        "a retail account is a measurement gap, not a result."
     )
 
     # ---- Live accounts, described. One card per account, equal size, aligned.
@@ -2358,7 +2455,7 @@ def render_ad_accounts():
                                    f"impressions · {int(f['clicks']):,} clicks · read live")
                     st.caption(f"`{a['table']}`  \n_On record: {a['verified']}_")
 
-    # ---- Full estate table.
+    # ---- Full account table.
     st.markdown("#### Every feed in the warehouse")
     _s1, _s2 = st.columns([1, 1])
     st_filter = _s1.multiselect("Status", ["live", "paused", "superseded", "stale", "archive"],
@@ -3603,21 +3700,42 @@ def render_master_dashboard():
     # ── 1. Live Now ──────────────────────────────────────────────────────────
     with tabs[0]:
         st.subheader("Live now — is it delivering?")
-        today_d = pd.Timestamp.utcnow().normalize().date()
-        st.caption(f"Read live from the warehouse for {today_d} (UTC). The current day is "
-                   "PARTIAL by definition — platforms backfill for hours, so today's spend "
-                   "is a floor, not a final number.")
-        live = [a for a in AD_ACCOUNTS if a["status"] == "live"]
+        wall_d = pd.Timestamp.utcnow().normalize().date()
+        st.caption(
+            "Each card shows that account's **most recent day that actually has data**, and "
+            "says which day that is. It is not anchored to the wall clock: syncs land hours "
+            "late and each feed lands at its own pace, so once UTC passes midnight a "
+            "clock-anchored card asks for a day nothing has yet and wrongly reads as no spend. "
+            "A day still being written is marked partial — that spend is a floor, not a final "
+            "number."
+        )
+        # US only. This is the USA paid programme, so UK and India accounts were
+        # taking three of the eight card slots and inviting a comparison against
+        # spend that is not in this programme (and is in another currency).
+        live = _us_live_accounts()
         cols = st.columns(min(4, len(live)) or 1)
         for i, a in enumerate(live[:8]):
-            f = account_live_figures(a["id"], a["table"], a["kpi"], today_d, today_d)
+            d = account_latest_date(a["id"], a["table"])
+            f = account_live_figures(a["id"], a["table"], a["kpi"], d, d) if d else None
             with cols[i % len(cols)]:
-                st.metric(f"{a['platform']} {a['region']} · {a['id']}",
-                          money(f["spend"]) if f else "no rows today",
-                          help=a["label"])
-                if f:
-                    st.caption(f"{f['campaigns']} campaigns · {int(f['impressions']):,} impr · "
+                label = f"{a['platform']} {a['region']} · {a['id']}"
+                if d is None:
+                    # No date at all means the feed could not be read — that is a
+                    # connection/grant problem, not a quiet day, and must not be
+                    # dressed up as one.
+                    st.metric(label, "feed unreadable", help=a["label"])
+                    st.caption("Could not read a date from this table — check the grant.")
+                elif f and f.get("error"):
+                    st.metric(label, "read failed", help=a["label"])
+                    st.caption(f"{f['error']}")
+                elif f and f.get("rows"):
+                    st.metric(label, money(f["spend"]), help=a["label"])
+                    st.caption(f"as of {d}{' · partial' if d >= wall_d else ''} · "
+                               f"{f['campaigns']} campaigns · {int(f['impressions']):,} impr · "
                                f"{int(f['clicks']):,} clicks")
+                else:
+                    st.metric(label, "no rows on its latest day", help=a["label"])
+                    st.caption(f"latest date in this feed is {d}, and it carries no rows")
         st.markdown("#### Daily trend — pick any metrics")
         d1 = live_daily(META_ADS, "DATE_START", since, until)
         d2 = live_daily(META_RETAIL, "DATE_START", since, until)
@@ -3934,7 +4052,7 @@ def render_master_dashboard():
             links = kb["links"]
             finals = [x for x in links if x.get("final")]
             if finals:
-                st.markdown("**The final artefacts — authoritative over everything else:**")
+                st.markdown("**The final files — these override everything else:**")
                 for x in finals:
                     st.markdown(f"- **{x['title']}** — {x.get('role', '')}  \n  {x.get('url')}")
             only_final = st.checkbox("Final sheet + SOP only", key="master_kb_final")

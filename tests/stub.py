@@ -109,7 +109,7 @@ def _synth(sql: str) -> pd.DataFrame:
                                  "post","url","tier","rule","campaign","adset","ad","label",
                                  "objective","age","gender","bucket","candidates","id")):
             row[a] = "x"
-        elif any(k in al for k in ("day","date","created","edited","served","d0","d1","mx","period")):
+        elif al in ("d", "dt", "wk") or any(k in al for k in ("day","date","created","edited","served","d0","d1","mx","period")):
             row[a] = pd.Timestamp("2026-07-01")
         else:
             row[a] = 1.0
