@@ -6,6 +6,14 @@ logged-in Snowflake session via get_active_session() — no external keys, no PA
 no Supabase. Every figure is read directly (read-only) from the warehouse tables
 the Daton / Maplemonk pipelines already load. Charts use Altair (not Plotly).
 
+The landing view is "Ad accounts & retail funnel": the whole ad-account estate
+described account by account (what each is FOR and which KPI it can honestly be
+judged on), plus the retail funnel that joins spend in MAPLEMONK to outcomes in
+MAPLEMONK1 — Target Roundel attributed sales and real Target store sell-through.
+That join is the only honest way to answer "is the Target programme working",
+because the Target/Costco Meta account records zero purchases by construction:
+its shoppers check out inside Target, so no VAHDAM pixel ever fires.
+
 Two sections (parity comes from ONE source of truth — these Snowflake tables +
 the ONE metric catalog below, mirrored field-for-field from the web app's
 api/_shared/ad-metrics-catalog.js so a metric is defined once and computed
@@ -40,13 +48,57 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-25.1"
+APP_BUILD = "2026-07-26.1"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
 # neighbours. Force everything to wrap INSIDE its own column.
+# White + GREEN only. Mirrors the web app's contrast tokens (ad-campaigns-master
+# .html :root): white surfaces, forest-green headers and accents, dark text on
+# light backgrounds everywhere, never a dark panel. Where a second categorical
+# colour is needed the two greens differ by SHADE, not hue, so the palette stays
+# white-and-green while remaining distinguishable.
 st.markdown("""
 <style>
+  :root {
+    --green: #004A2B; --green-mid: #0E5C36; --green-soft: #DCEDE3;
+    --bg: #F5F8F6; --surface: #FFFFFF; --surface-2: #F0F5F2;
+    --line: #DCE7E0; --line-strong: #B8CCC0;
+    --text: #1F2A23; --dim: #3D4A42;
+  }
+  .stApp, [data-testid="stAppViewContainer"] { background: var(--bg); }
+  [data-testid="stHeader"] { background: transparent; }
+  [data-testid="stSidebar"] { background: var(--surface); border-right: 1px solid var(--line-strong); }
+  [data-testid="stSidebar"] * { color: var(--text); }
+  html, body, [data-testid="stAppViewContainer"] * { font-weight: 500; }
+  h1, h2, h3, h4, h5 { color: var(--green) !important; font-weight: 700 !important; }
+  p, li, span, label, div { color: var(--text); }
+  /* Metrics as white cards with a green rule, like the web app's .sc tiles. */
+  div[data-testid="stMetric"] {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 4px solid var(--green); border-radius: 11px;
+    padding: 0.7rem 0.9rem !important; box-shadow: 0 4px 16px rgba(0,74,43,.08);
+  }
+  div[data-testid="stMetricValue"] { color: var(--green) !important; font-weight: 700 !important; }
+  div[data-testid="stMetricLabel"], div[data-testid="stMetricLabel"] p {
+    color: var(--dim) !important; text-transform: uppercase; letter-spacing: .05em;
+  }
+  /* Green table headers with white text, striped white/very-light-green body. */
+  [data-testid="stDataFrame"] thead tr th, [data-testid="stTable"] thead tr th {
+    background: var(--green) !important; color: #fff !important; font-weight: 700 !important;
+  }
+  [data-testid="stDataFrame"] tbody tr:nth-child(even) td { background: var(--surface-2); }
+  [data-testid="stTable"] tbody tr:nth-child(even) td { background: var(--surface-2); }
+  /* Tabs and expanders on white, active tab underlined green. */
+  button[data-baseweb="tab"] { color: var(--dim) !important; font-weight: 700 !important; }
+  button[data-baseweb="tab"][aria-selected="true"] { color: var(--green) !important; }
+  [data-baseweb="tab-highlight"] { background: var(--green) !important; }
+  [data-testid="stExpander"] { background: var(--surface); border: 1px solid var(--line); border-radius: 11px; }
+  .stButton > button { background: var(--green); color: #fff; border: 1px solid var(--green); font-weight: 700; }
+  .stButton > button:hover { background: var(--green-mid); border-color: var(--green-mid); }
+  [data-testid="stAlert"] { background: var(--green-soft); border-left: 4px solid var(--green); color: var(--text); }
+  hr { border-color: var(--line-strong); }
+  a { color: var(--green) !important; }
   div[data-testid="column"] { min-width: 0; }
   div[data-testid="stMetric"] { padding: 0.15rem 0.4rem 0.15rem 0; overflow: hidden; }
   div[data-testid="stMetricValue"] {
@@ -78,10 +130,240 @@ TIKTOK = {
     "age_gender": "DATON.RAW.TIKTOK_ADS_USA_CAMPAIGN_REPORT_DAILY_AGE_GENDER",
     "country": "DATON.RAW.TIKTOK_ADS_USA_CAMPAIGN_REPORT_DAILY_COUNTRY",
 }
-GOOGLE_ADS = "VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_USA"
+# GOOGLE_ADS_USA does not exist in the warehouse, and neither does the live US
+# Google feed live in GOOGLE_ADS_US_AD_GROUP_AD_REPORT — that table holds the
+# RETIRED customer 2769294429 and stops 2023-11-24, which is what made US Google
+# look dead. The live account is 9797311905 in the consolidated view, fresh to
+# 2026-07-25 (verified live 2026-07-26).
+GOOGLE_ADS = "VAHDAM_DB.MAPLEMONK.US_GOOGLE_ADS_CONSOLIDATED"
+GOOGLE_ADS_FILTER = "ACCOUNT = 'Google US CONSOLIDATED'"
+GOOGLE_ADGROUP_AD = "VAHDAM_DB.MAPLEMONK.US_GADS_AD_GROUP_AD_REPORT"
+GOOGLE_AMAZON = "VAHDAM_DB.MAPLEMONK.US_AMZ_GADS_AD_GROUP_AD_REPORT"
+
+# The Target/Costco retail Meta account. It sits in MAPLEMONK under a name that
+# does NOT match META_USA%, which is why a name-based search finds only the DTC
+# account and the retail programme looked absent from the warehouse.
+META_RETAIL = "VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS"
+
+# MAPLEMONK1 is not just Meta breakdown tables — it carries the whole retail
+# partner stack, which is where the Target programme is actually measured.
+TARGET_ROUNDEL = "VAHDAM_DB.MAPLEMONK1.TARGET_ADS_DAY_TARGET_ADS_REPORT"
+TARGET_ROUNDEL_KW = "VAHDAM_DB.MAPLEMONK1.TARGET_ADS_KEYWORD_TARGET_ADS_REPORT"
+TARGET_SALES = "VAHDAM_DB.MAPLEMONK1.TARGET_SALES_TARGET_SALES"
+TARGET_AISLE = "VAHDAM_DB.MAPLEMONK1.TARGET_AISLE_TARGET_AISLE_REPORT"
+TARGET_IBOTTA = "VAHDAM_DB.MAPLEMONK1.TARGET_IBOTTA_REPORT_TARGET_IBOTTA_REPORT"
+JB_UGC = "VAHDAM_DB.MAPLEMONK1.JB_USA"
 
 # Daily budget caps (USD). Reference/alerting only — nothing is ever written back.
 BUDGETS = {"target": 1000, "costco": 300}
+
+# ── AD-ACCOUNT REGISTRY ───────────────────────────────────────────────────────
+# Mirrors adAccounts() in the web app's api/_shared/ads-snowflake-core.js, field
+# for field, so the Snowflake app and the web app describe the estate identically
+# (spec 24b: one authoritative record, many views).
+#
+# Enumerated LIVE on 2026-07-26 by unioning every base insights / ad-performance
+# table in VAHDAM_DB and grouping by account: 19 feeds across 14 distinct
+# accounts. Two things make the registry necessary rather than optional:
+#
+#  1. Accounts do not share a schema or a naming convention. The Target/Costco
+#     Meta account is USA_TEA_ADS_ADS_INSIGHTS (not META_USA%), the live US
+#     Google feed is US_GOOGLE_ADS_CONSOLIDATED (not the retired
+#     GOOGLE_ADS_US_AD_GROUP_AD_REPORT), and Target Roundel — a whole additional
+#     ad platform — sits in MAPLEMONK1. Searching by the obvious name finds one
+#     account and makes the rest look absent.
+#  2. The accounts are NOT comparable on one KPI. DTC, Google and Roundel can
+#     attribute a sale, so ROAS is real. The retail Meta and Amazon accounts send
+#     shoppers to target.com, Instacart and amazon.com, so they record zero
+#     purchases BY CONSTRUCTION. Ranking those on ROAS would report every retail
+#     campaign as a total failure, so each entry declares its own kpi and the
+#     views show n/a rather than 0.00x.
+#
+# "kpi": roas    -> a pixel or platform conversion is tracked; revenue is real.
+#        traffic -> third-party checkout; judge on CTR / CPC / CPM / reach.
+AD_ACCOUNTS = [
+    dict(id="dtc", platform="Meta", region="US", status="live",
+         label="Vahdam India USA New EST Main Account", account_id="1303870183798748",
+         table=META_ADS, schema="MAPLEMONK", fresh_to="2026-07-25", partial_day=True,
+         kpi="roas", attribution="Meta pixel", currency="USD",
+         used_for="Prospecting and retargeting to own-site checkout",
+         purpose=("US direct-to-consumer storefront. The revenue account: coffee, ashwagandha "
+                  "and supplement scale campaigns plus evergreen tea, all landing on "
+                  "vahdamteas.com with the Meta pixel firing."),
+         verified="129,741 rows · 2024-05-15 to 2026-07-25 · 106 campaigns · 2,299 ads · $425,107.22"),
+    dict(id="retail", platform="Meta", region="US", status="live",
+         label="VAHDAM USA - Tea Ad Account (Target / Costco)", account_id="804570870670763",
+         table=META_RETAIL, schema="MAPLEMONK", fresh_to="2026-07-25", partial_day=True,
+         kpi="traffic", attribution="none", currency="USD",
+         used_for="Sell-through at Target and Costco (third-party checkout)",
+         purpose=("US retail-partner demand generation. Drives shoppers to Target stores and "
+                  "target.com, and to Costco via Instacart: the Page Deck sales sets, scored "
+                  "UGC video sets, influencer link-click sets, Costco Bay Area reach buys and "
+                  "Target giveaways."),
+         attribution_note=("Zero purchases by construction: checkout happens on target.com, "
+                           "Instacart or in store, so no VAHDAM pixel fires. Judge on CTR, CPC, "
+                           "CPM and reach, never ROAS. The outcome is reported by Target instead "
+                           "-- see the Retail funnel below."),
+         verified="6,556 rows · 2025-09-24 to 2026-07-25 · 26 campaigns · 214 ads · $50,248.24"),
+    dict(id="target_roundel", platform="Target Roundel", region="US", status="live",
+         label="VAHDAM Teas Global Inc. - RMS", account_id="RMS",
+         table=TARGET_ROUNDEL, schema="MAPLEMONK1", fresh_to="2026-07-22", partial_day=False,
+         kpi="roas", attribution="Target-attributed sales", currency="USD",
+         used_for="Paid placement inside Target search and Target.com",
+         purpose=("Target Roundel Media Studio -- retail media bought inside Target. Unlike the "
+                  "Meta retail account this one DOES report attributed sales and units, because "
+                  "Target matches the ad to the basket, so it is the one Target channel with a "
+                  "real ROAS."),
+         attribution_note=("ROAS is Target-attributed sales over actualized vendor spend, matched "
+                           "by Target, not pixel-based. Comparable across Roundel campaigns but "
+                           "not directly against Meta pixel ROAS."),
+         verified="804 rows · 2026-05-04 to 2026-07-22 · 10 campaigns · $40,314.74 spend · $23,264.68 attributed · 0.58 ROAS"),
+    dict(id="google_us", platform="Google", region="US", status="live",
+         label="VAHDAM (US Google Ads)", account_id="9797311905",
+         table=GOOGLE_ADS, schema="MAPLEMONK", fresh_to="2026-07-25", partial_day=True,
+         kpi="roas", attribution="Google conversions", currency="USD",
+         used_for="US search, Shopping and PMax demand capture",
+         purpose=("US Google Ads: brand and non-brand search, the VM_ PMax family across all "
+                  "products and top cities, Shopping, Demand Gen and remarketing. Carries "
+                  "Google-attributed conversions and conversion value."),
+         verified="2026 YTD: 23 campaigns · $72,343.46 spend · $142,983.81 conversion value · 1.98 ROAS"),
+    dict(id="google_amazon", platform="Google", region="US", status="live",
+         label="Raghuvansh (Amazon marketplace, Ampd)", account_id="3036820580",
+         table=GOOGLE_AMAZON, schema="MAPLEMONK", fresh_to="2026-07-25", partial_day=True,
+         kpi="traffic", attribution="marketplace", currency="USD",
+         used_for="Amazon marketplace demand capture",
+         purpose=("Google Ads bought through Ampd to drive traffic to VAHDAM ASINs on amazon.com "
+                  "and amazon.ca. One campaign per ASIN -- Hibiscus, Amla, Moringa, Curcumin, "
+                  "Dandelion Root, Chamomile."),
+         attribution_note=("Records zero Google conversions because checkout happens inside "
+                           "Amazon; sales appear in Seller Central, not here. Judge on CTR and CPC."),
+         verified="5,417 rows · 2024-05-11 to 2026-07-25 · 64 campaigns · $66,839.97"),
+    dict(id="tiktok_us", platform="TikTok", region="US", status="paused",
+         label="VAHDAM USA (TikTok Ads)", account_id="7393105007056388112",
+         table=TIKTOK["ad"], schema="DATON.RAW", fresh_to="2026-07-14", partial_day=False,
+         kpi="traffic", attribution="TikTok pixel", currency="USD",
+         used_for="US TikTok traffic",
+         purpose="US TikTok Ads, run as link-click traffic buys.",
+         attribution_note="Last spend 2026-07-14 -- the account is paused, not disconnected.",
+         verified="13,838 rows · 2025-04-01 to 2026-07-14 · 25 campaigns · $68,178.71"),
+    dict(id="meta_uk", platform="Meta", region="UK", status="live",
+         label="VAHDAM UK", account_id="573128874469619",
+         table="VAHDAM_DB.MAPLEMONK.META_UK_ADS_INSIGHTS", schema="MAPLEMONK",
+         fresh_to="2026-07-26", partial_day=True, kpi="roas", attribution="Meta pixel",
+         currency="GBP", used_for="UK D2C acquisition and retention",
+         purpose="UK direct-to-consumer account on uk.vahdamteas.com. The freshest feed in the warehouse.",
+         verified="154,585 rows · 37 campaigns · GBP 661,518.68"),
+    dict(id="meta_in", platform="Meta", region="IN", status="live",
+         label="VAHDAM India", account_id="70950428",
+         table="VAHDAM_DB.MAPLEMONK.META_INDIA_ADS_INSIGHTS", schema="MAPLEMONK",
+         fresh_to="2026-07-25", partial_day=True, kpi="roas", attribution="Meta pixel",
+         currency="INR", used_for="India D2C acquisition and retention",
+         purpose=("India D2C account on vahdamindia.com and by far the largest Meta spender in "
+                  "the group. Reports in INR, so never sum it with the USD accounts."),
+         verified="117,863 rows · 89 campaigns · INR 36,866,447.39"),
+    dict(id="google_uk", platform="Google", region="UK", status="live",
+         label="VAHDAM UK (Google Ads)", account_id="3861674115",
+         table="VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_UK_AD_GROUP_AD_REPORT", schema="MAPLEMONK",
+         fresh_to="2026-07-25", partial_day=True, kpi="roas", attribution="Google conversions",
+         currency="GBP", used_for="UK search and Shopping demand capture",
+         purpose="UK Google Ads, a tight 5-campaign account.",
+         verified="1,352 rows · 2025-09-17 to 2026-07-25 · 5 campaigns · GBP 51,968.24"),
+    dict(id="google_in", platform="Google", region="IN", status="live",
+         label="VAHDAM - India (Google Ads)", account_id="7719984554",
+         table="VAHDAM_DB.MAPLEMONK.GADS_IN_AD_GROUP_AD_REPORT", schema="MAPLEMONK",
+         fresh_to="2026-07-25", partial_day=True, kpi="roas", attribution="Google conversions",
+         currency="INR", used_for="India search, Shopping and PMax demand capture",
+         purpose=("India Google Ads, the longest-running account in the warehouse (from "
+                  "2019-08-03) and the largest by spend. Reports in INR."),
+         verified="204,660 rows · 2019-08-03 to 2026-07-25 · 260 campaigns · INR 11,715,204.83"),
+    # ---- Superseded / archive: kept so history stays queryable and so a reader
+    # ---- can see WHY a familiar table is not the one being reported from.
+    dict(id="google_us_retired", platform="Google", region="US", status="archive",
+         label="VAHDAM - USA - Old (retired Google customer)", account_id="2769294429",
+         table="VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_US_AD_GROUP_AD_REPORT", schema="MAPLEMONK",
+         fresh_to="2023-11-24", partial_day=False, kpi="roas",
+         attribution="Google conversions", currency="USD",
+         used_for="Pre-migration Google history (2018-2023)",
+         purpose=("The retired US Google customer 2769294429, migrated to 9797311905 in 2023. "
+                  "This is the table that made US Google look dead: the pipeline still refreshes "
+                  "it but it has held no new rows since 2023-11-24."),
+         attribution_note=("Ends 2023-11-24 by design -- the ACCOUNT closed, not the feed. Point "
+                           "current US Google reporting at US_GOOGLE_ADS_CONSOLIDATED."),
+         verified="91,135 rows · 2018-12-19 to 2023-11-24 · 294 campaigns · $514,353.99"),
+    dict(id="retail_dc", platform="Meta", region="US", status="superseded",
+         label="VAHDAM USA - Tea Ad Account (Datachannel mirror)", account_id="804570870670763",
+         table="VAHDAM_DB.DC_RAW.FB2_VAHDAM_VAHDAMUSATEA_US_FBADS_ADPERFORMANCE", schema="DC_RAW",
+         fresh_to="2026-05-31", partial_day=False, kpi="traffic", attribution="none",
+         currency="USD", used_for="History only -- do not use for current retail reporting",
+         purpose=("Older Datachannel mirror of the same retail account, superseded by the "
+                  "Maplemonk feed which is both fresher and far more complete "
+                  "(26 campaigns / $50,248.24 against 7 / $4,056.11)."),
+         verified="8,953 rows · 2024-11-11 to 2026-05-31 · 7 campaigns · $4,056.11"),
+    dict(id="dtc_dc", platform="Meta", region="US", status="superseded",
+         label="Vahdam India USA New EST Main (Datachannel mirror)", account_id="1303870183798748",
+         table="VAHDAM_DB.DC_RAW.FB2_VAHDAM_VAHDAMINDIAUSA_US_FBADS_ADPERFORMANCE", schema="DC_RAW",
+         fresh_to="2026-06-01", partial_day=False, kpi="traffic", attribution="none",
+         currency="USD", used_for="Pre-May-2024 DTC history",
+         purpose=("Datachannel mirror of the DTC account. Its value is DEPTH, not freshness: it "
+                  "reaches back to 2023-01-16 with 147 campaigns against the Maplemonk feed's "
+                  "106 from 2024-05-15."),
+         verified="133,948 rows · 2023-01-16 to 2026-06-01 · 147 campaigns · $471,130.03"),
+    dict(id="meta_us_2022", platform="Meta", region="US", status="archive",
+         label="Vahdam Teas - USA (pre-2023 main account)", account_id="591998667827917",
+         table="VAHDAM_DB.MAPLEMONK.FB_USA_MAIN_ADS_INSIGHTS", schema="MAPLEMONK",
+         fresh_to="2022-08-08", partial_day=False, kpi="traffic", attribution="none",
+         currency="USD", used_for="Historic benchmark",
+         purpose=("The original US main account and still the largest single US Meta spender on "
+                  "record. Useful as a long-run benchmark for 2021-22 US scale."),
+         verified="308,008 rows · 2021-01-01 to 2022-08-08 · 228 campaigns · $1,108,896.95"),
+]
+
+# The retail-partner measurement layer in MAPLEMONK1 — not ad accounts, but the
+# tables that make the retail ad accounts measurable at all.
+RETAIL_MEASUREMENT = [
+    dict(label="Target store sell-through", table=TARGET_SALES, fresh_to="2026-07-23",
+         what=("Dollars and units actually rung up across Target stores, by store, district and "
+               "region. The ground truth for whether the Target programme works."),
+         verified="12,291 rows · 2026-05-01 to 2026-07-23 · $129,605 · 10,406 units · 1,210 stores"),
+    dict(label="Target Roundel keyword detail", table=TARGET_ROUNDEL_KW, fresh_to="2026-07-22",
+         what="The same Roundel spend split by keyword, for search-term diagnosis.",
+         verified="98,647 rows"),
+    dict(label="Target Aisle", table=TARGET_AISLE, fresh_to="2026-07-24",
+         what="Target Aisle, carrying its own ROI, fees, payout, sign-ups and redemptions.",
+         verified="25 rows"),
+    dict(label="Target Ibotta rebates", table=TARGET_IBOTTA, fresh_to="2026-07-24",
+         what=("Ibotta rebate offers across Walmart, Instacart, DoorDash, Uber, Schnucks, Giant "
+               "Eagle, Family Dollar and Dollar General, with unlocks, redemptions and units moved."),
+         verified="143 rows"),
+    dict(label="JoinBrands UGC creator posts", table=JB_UGC, fresh_to="2026-07-23",
+         what=("Creator posts with platform, handle, post link, posted date, job price, views, "
+               "likes and comments. The only creator feed current to last week -- posts run "
+               "through 2026-07-22, while the Master UGC Tracker's own posts stop 2026-07-16."),
+         verified="471 posts · 302 creators · $36,100.15 creator cost · 107,037 views"),
+]
+
+# These retail feeds are Airbyte CSV loads: money arrives as TEXT carrying a
+# currency symbol and thousands separators ('$125.95', '2,907,903') so a direct
+# numeric cast fails outright, and dates carry TWO shapes in one column
+# ('DD-MM-YYYY' on older rows, 'DD-MM-YYYY H:MI' on newer ones). Parsing only the
+# bare date form silently drops the newest rows -- it made Target sell-through
+# look like it ended 2026-07-13 when it runs to 2026-07-23, understating July by
+# $28,446. Always clean with these helpers, never cast directly.
+def sf_cash(col: str) -> str:
+    """SQL for a money column stored as text with $ and thousands separators."""
+    return f"try_to_double(replace(replace(\"{col}\", '$', ''), ',', ''))"
+
+
+def sf_qty(col: str) -> str:
+    """SQL for a count column stored as text with thousands separators."""
+    return f"try_to_double(replace(\"{col}\", ',', ''))"
+
+
+def sf_day(col: str) -> str:
+    """SQL for a DD-MM-YYYY date column that may carry a trailing time."""
+    return f"try_to_date(split_part(\"{col}\", ' ', 1), 'DD-MM-YYYY')"
+
+
 
 
 # ── ONE metric catalog — mirrors api/_shared/ad-metrics-catalog.js ────────────
@@ -391,6 +673,10 @@ def meta_source_report():
         t = q("select table_schema, table_name from VAHDAM_DB.information_schema.tables "
               "where table_type = 'BASE TABLE' and ("
               "  (table_schema in ('MAPLEMONK', 'MAPLEMONK1') and table_name ilike 'META_USA_ADS%')"
+              # The Target/Costco retail account is USA_TEA_ADS_ADS_INSIGHTS — it
+              # carries no META in its name, so the META.*TEA regex below never
+              # matched it and the account was invisible. Match TEA_ADS directly.
+              "  or (table_schema in ('MAPLEMONK', 'MAPLEMONK1') and table_name ilike '%TEA_ADS_ADS_INSIGHTS')"
               "  or regexp_like(table_name, '.*META.*TEA.*|.*TEA.*META.*', 'i'))")
         cands += [("VAHDAM_DB", str(r["table_schema"]), str(r["table_name"]))
                   for _, r in t.iterrows()]
@@ -610,7 +896,8 @@ section = st.sidebar.radio(
 
 # The LHS menu carries the ANALYSIS VIEWS (use cases); the data filters live in
 # the top bar of the page, never in this menu.
-ADS_VIEWS = ["Omnichannel Master View", "Comparison Engine", "Cohort Exploration",
+ADS_VIEWS = ["Ad accounts & retail funnel",
+             "Omnichannel Master View", "Comparison Engine", "Cohort Exploration",
              "Overview & priority metrics", "Single entity deep-dive",
              "Ad explorer (all fields)", "Spend tracker", "UGC creator ads",
              "UGC command center"]
@@ -1435,6 +1722,284 @@ def all_campaigns_block(key):
 # ═════════════════════════════════════════════════════════════════════════════
 # ADS ANALYTICS
 # ═════════════════════════════════════════════════════════════════════════════
+# ── AD ACCOUNTS & RETAIL FUNNEL ───────────────────────────────────────────────
+def _kpi_badge(kpi: str) -> str:
+    return ("judged on ROAS" if kpi == "roas"
+            else "judged on traffic (CTR / CPC / CPM)")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def account_live_figures(acct_id: str, table: str, kpi: str, since, until):
+    """Live spend / delivery / revenue for one registry account, read with that
+    account's own column names. Returns None when the table or grant is missing —
+    an unreadable account is reported as unreadable, never as zero."""
+    reg = {a["id"]: a for a in AD_ACCOUNTS}.get(acct_id)
+    if not reg:
+        return None
+    try:
+        if acct_id == "target_roundel":
+            sql = (f"select {sf_cash('Actualized Vendor Spend')} as spend, "
+                   f"{sf_qty('IMPRESSIONS')} as impressions, {sf_qty('CLICKS')} as clicks, "
+                   f"{sf_cash('Attributed Total Sales')} as revenue, "
+                   f'"Campaign Name" as campaign from {table} '
+                   f"where {sf_day('Event Date')} between '{since}' and '{until}'")
+        elif reg["platform"] == "Google":
+            if acct_id == "google_us":
+                sql = (f"select SPEND as spend, IMPRESSIONS as impressions, CLICKS as clicks, "
+                       f"CONVERSION_VALUE as revenue, CAMPAIGN_NAME as campaign from {table} "
+                       f"where SEGMENTS_DATE between '{since}' and '{until}' "
+                       f"and {GOOGLE_ADS_FILTER}")
+            else:
+                sql = (f'select "metrics.cost_micros" / 1000000.0 as spend, '
+                       f'"metrics.impressions" as impressions, "metrics.clicks" as clicks, '
+                       f'"metrics.conversions_value" as revenue, "campaign.name" as campaign '
+                       f'from {table} where "segments.date" between \'{since}\' and \'{until}\'')
+        elif reg["platform"] == "TikTok":
+            sql = (f"select SPEND::float as spend, IMPRESSIONS::float as impressions, "
+                   f"CLICKS::float as clicks, null as revenue, CAMPAIGN_NAME as campaign "
+                   f"from {table} where STAT_TIME_DAY between '{since}' and '{until}'")
+        else:  # Meta
+            sql = (f"select SPEND as spend, IMPRESSIONS as impressions, "
+                   f"INLINE_LINK_CLICKS as clicks, null as revenue, CAMPAIGN_NAME as campaign "
+                   f"from {table} where DATE_START between '{since}' and '{until}'")
+        df = q(f"select round(sum(spend), 2) as spend, sum(impressions) as impressions, "
+               f"sum(clicks) as clicks, round(sum(revenue), 2) as revenue, "
+               f"count(distinct campaign) as campaigns from ({sql})")
+        if df.empty:
+            return None
+        r = df.iloc[0]
+        return dict(spend=_n(r["SPEND"]) or 0.0, impressions=_n(r["IMPRESSIONS"]) or 0,
+                    clicks=_n(r["CLICKS"]) or 0, revenue=_n(r["REVENUE"]),
+                    campaigns=int(_n(r["CAMPAIGNS"]) or 0))
+    except Exception:  # noqa: BLE001 — missing table/grant: say so, never invent
+        return None
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def retail_funnel(since, until):
+    """Spend in MAPLEMONK joined to outcomes in MAPLEMONK1.
+
+    The Meta retail account records zero purchases because its shoppers check out
+    inside Target, so judged on its own it can only ever look like cost. Target
+    reports the outcome instead: Roundel matches ads to baskets, and TARGET_SALES
+    carries the dollars actually rung up in store. Reading BOTH schemas is the only
+    honest way to answer "is retail working"."""
+    sql = f"""
+with meta as (
+  select DATE_START::date as d, SPEND::float as spend
+    from {META_RETAIL} where DATE_START between '{since}' and '{until}'
+), roundel as (
+  select {sf_day('Event Date')} as d, {sf_cash('Actualized Vendor Spend')} as spend,
+         {sf_cash('Attributed Total Sales')} as attr_sales,
+         {sf_qty('Attributed Total Units')} as attr_units
+    from {TARGET_ROUNDEL}
+   where {sf_day('Event Date')} between '{since}' and '{until}'
+), sales as (
+  select {sf_day('DATE')} as d, {sf_cash('SALES $')} as sell_through,
+         {sf_qty('SALES U')} as units, "LOCATION ID" as store
+    from {TARGET_SALES}
+   where {sf_day('DATE')} between '{since}' and '{until}'
+), g as (
+  select date_trunc('month', d) as period, sum(spend) as meta_spend,
+         0 as roundel_spend, 0 as attr_sales, 0 as attr_units,
+         0 as sell_through, 0 as units, null as stores from meta group by 1
+  union all
+  select date_trunc('month', d), 0, sum(spend), sum(attr_sales), sum(attr_units),
+         0, 0, null from roundel group by 1
+  union all
+  select date_trunc('month', d), 0, 0, 0, 0, sum(sell_through), sum(units),
+         count(distinct store) from sales group by 1
+)
+select period, round(sum(meta_spend), 2) as meta_spend,
+       round(sum(roundel_spend), 2) as roundel_spend,
+       round(sum(attr_sales), 2) as attr_sales, sum(attr_units)::int as attr_units,
+       round(sum(sell_through), 2) as sell_through, sum(units)::int as units,
+       max(stores) as stores
+  from g group by period order by period"""
+    return q(sql)
+
+
+def render_ad_accounts():
+    st.subheader("The ad-account estate")
+    st.caption(
+        "Every VAHDAM ad account held in the warehouse, enumerated live by unioning every base "
+        "insights and ad-performance table in VAHDAM_DB and grouping by account. Accounts do not "
+        "share a schema or a naming convention, so searching by the obvious name finds one and "
+        "makes the rest look absent: the Target/Costco Meta account is USA_TEA_ADS_ADS_INSIGHTS "
+        "(not META_USA%), the live US Google feed is US_GOOGLE_ADS_CONSOLIDATED (not the retired "
+        "GOOGLE_ADS_US_AD_GROUP_AD_REPORT, which stops 2023-11-24), and Target Roundel — a whole "
+        "additional ad platform — sits in MAPLEMONK1."
+    )
+
+    live = [a for a in AD_ACCOUNTS if a["status"] == "live"]
+    ids = {(a["platform"], a["account_id"]) for a in AD_ACCOUNTS}
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Ad accounts", len(ids))
+    c2.metric("Warehouse feeds", len(AD_ACCOUNTS))
+    c3.metric("Live feeds", len(live))
+    c4.metric("Judged on ROAS", sum(1 for a in AD_ACCOUNTS if a["kpi"] == "roas"))
+    c5.metric("Judged on traffic", sum(1 for a in AD_ACCOUNTS if a["kpi"] == "traffic"))
+
+    st.info(
+        "**Two kinds of account, two kinds of scorecard.** Where a pixel or a platform conversion "
+        "is tracked, revenue / ROAS / CPA are real. Where checkout happens on a third-party site "
+        "(target.com, Instacart, amazon.com) no purchase can ever be attributed, so those accounts "
+        "show **n/a** rather than 0 and must be judged on CTR, CPC, CPM and reach. A 0.00x ROAS on "
+        "a retail account is a measurement artefact, not a result."
+    )
+
+    # ---- Live accounts, described. One card per account, equal size, aligned.
+    st.markdown("#### Live accounts — what each one is for")
+    for i in range(0, len(live), 2):
+        cols = st.columns(2)
+        for col, a in zip(cols, live[i:i + 2]):
+            with col:
+                with st.container(border=True):
+                    st.markdown(f"**{a['label']}**")
+                    st.caption(
+                        f"{a['platform']} · {a['region']} · `{a['account_id']}` · "
+                        f"fresh to {a['fresh_to']}"
+                        f"{' (incl. current partial day)' if a.get('partial_day') else ''} · "
+                        f"{_kpi_badge(a['kpi'])} · {a['currency']}"
+                    )
+                    st.markdown(f"**Used for.** {a['used_for']}")
+                    st.markdown(a["purpose"])
+                    if a.get("attribution_note"):
+                        st.warning(f"**Attribution.** {a['attribution_note']}")
+                    f = account_live_figures(a["id"], a["table"], a["kpi"], since, until)
+                    m1, m2, m3 = st.columns(3)
+                    if f is None:
+                        m1.metric("Spend in window", "unreadable")
+                        st.caption("No rows or no grant for this table in the selected window — "
+                                   "reported as unreadable rather than as zero.")
+                    else:
+                        m1.metric("Spend in window", money(f["spend"]))
+                        if a["kpi"] == "roas" and f["revenue"] is not None and f["spend"]:
+                            m2.metric("ROAS", f"{f['revenue'] / f['spend']:.2f}x")
+                            m3.metric("Revenue", money(f["revenue"]))
+                        else:
+                            m2.metric("CTR", pctf(_pct(f["clicks"], f["impressions"])))
+                            m3.metric("CPC", money(_div(f["spend"], f["clicks"])))
+                        st.caption(f"{f['campaigns']} campaigns · {int(f['impressions']):,} "
+                                   f"impressions · {int(f['clicks']):,} clicks · read live")
+                    st.caption(f"`{a['table']}`  \n_On record: {a['verified']}_")
+
+    # ---- Full estate table.
+    st.markdown("#### Every feed in the warehouse")
+    _s1, _s2 = st.columns([1, 1])
+    st_filter = _s1.multiselect("Status", ["live", "paused", "superseded", "stale", "archive"],
+                                default=["live"])
+    pf_filter = _s2.multiselect("Platform", sorted({a["platform"] for a in AD_ACCOUNTS}),
+                                default=sorted({a["platform"] for a in AD_ACCOUNTS}))
+    rows = [a for a in AD_ACCOUNTS
+            if (not st_filter or a["status"] in st_filter)
+            and (not pf_filter or a["platform"] in pf_filter)]
+    est = pd.DataFrame([{
+        "Account": a["label"], "Platform": a["platform"], "Region": a["region"],
+        "Account id": a["account_id"], "Status": a["status"], "Judged on": a["kpi"],
+        "Currency": a["currency"], "Fresh to": a["fresh_to"], "Used for": a["used_for"],
+        "Warehouse table": a["table"], "On record": a["verified"],
+    } for a in rows])
+    st.dataframe(est, use_container_width=True, hide_index=True)
+    st.caption(
+        f"{len(rows)} of {len(AD_ACCOUNTS)} feeds. Every column header sorts. 'On record' is the "
+        "whole-feed lifetime figure in that account's OWN currency — India is INR and UK is GBP, "
+        "so they must never be summed with the USD accounts."
+    )
+
+    # ---- Retail funnel: the only way the Target programme can be measured.
+    st.markdown("#### Retail funnel — spend in MAPLEMONK, outcomes in MAPLEMONK1")
+    st.caption(
+        "The Target/Costco Meta account cannot attribute a sale, so judged on its own it can only "
+        "ever look like cost. Target reports the outcome instead: Roundel matches ads to baskets, "
+        "and TARGET_SALES carries the dollars actually rung up across Target stores. This is why "
+        "both schemas are required."
+    )
+    try:
+        rf = retail_funnel(since, until)
+    except Exception as exc:  # noqa: BLE001
+        st.warning(f"Retail funnel unavailable: {exc}")
+        rf = pd.DataFrame()
+    if rf.empty:
+        st.info("No retail rows in the selected window.")
+    else:
+        rf = rf.rename(columns=str.upper)
+        tot_meta = float(rf["META_SPEND"].sum())
+        tot_rnd = float(rf["ROUNDEL_SPEND"].sum())
+        tot_attr = float(rf["ATTR_SALES"].sum())
+        tot_sell = float(rf["SELL_THROUGH"].sum())
+        tot_units = int(rf["UNITS"].sum())
+        total_spend = tot_meta + tot_rnd
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Retail ad spend", money(total_spend),
+                  help=f"Meta {money(tot_meta)} + Roundel {money(tot_rnd)}")
+        k2.metric("Roundel attributed sales", money(tot_attr),
+                  help="Matched by Target to the basket — not a pixel conversion.")
+        k3.metric("Target sell-through", money(tot_sell), help=f"{tot_units:,} units rung up in store")
+        k4.metric("Sell-through per ad dollar",
+                  f"{tot_sell / total_spend:.2f}x" if total_spend else "—",
+                  help="Blended, NOT causal.")
+        show = pd.DataFrame({
+            "Month": pd.to_datetime(rf["PERIOD"]).dt.strftime("%B %Y"),
+            "Meta retail spend": rf["META_SPEND"].map(money),
+            "Roundel spend": rf["ROUNDEL_SPEND"].map(money),
+            "Total spend": (rf["META_SPEND"] + rf["ROUNDEL_SPEND"]).map(money),
+            "Roundel attr. sales": rf["ATTR_SALES"].map(money),
+            "Roundel ROAS": [f"{a / b:.2f}x" if b else "—"
+                             for a, b in zip(rf["ATTR_SALES"], rf["ROUNDEL_SPEND"])],
+            "Target sell-through": rf["SELL_THROUGH"].map(money),
+            "Units": rf["UNITS"].map(lambda v: f"{int(v):,}"),
+            "Stores": rf["STORES"].map(lambda v: f"{int(v):,}" if pd.notna(v) else "—"),
+            "Sell-through / $": [f"{s / t:.2f}x" if t else "—" for s, t in
+                                 zip(rf["SELL_THROUGH"], rf["META_SPEND"] + rf["ROUNDEL_SPEND"])],
+        })
+        st.dataframe(show, use_container_width=True, hide_index=True)
+        st.caption(
+            "Sell-through per ad dollar is a BLENDED ratio of Target sell-through to total retail "
+            "ad spend. It is deliberately not called a ROAS: nothing in the warehouse attributes a "
+            "Target basket to a Meta impression, and sell-through includes baseline demand that "
+            "would have happened without any advertising. "
+            f"Sources: {META_RETAIL} · {TARGET_ROUNDEL} · {TARGET_SALES}"
+        )
+        chart_df = pd.DataFrame({
+            "Month": pd.to_datetime(rf["PERIOD"]).dt.strftime("%b %Y"),
+            "Retail ad spend": rf["META_SPEND"] + rf["ROUNDEL_SPEND"],
+            "Target sell-through": rf["SELL_THROUGH"],
+        }).melt("Month", var_name="Measure", value_name="USD")
+        st.altair_chart(
+            alt.Chart(chart_df).mark_bar().encode(
+                x=alt.X("Month:N", sort=None, title=None),
+                y=alt.Y("USD:Q", title="USD"),
+                # Two GREENS, differing by shade not hue, so the palette stays
+                # white-and-green while the series remain distinguishable.
+                color=alt.Color("Measure:N", scale=alt.Scale(
+                    domain=["Retail ad spend", "Target sell-through"],
+                    range=["#7FA893", GREEN]), legend=alt.Legend(orient="top", title=None)),
+                xOffset="Measure:N",
+                tooltip=["Month", "Measure", alt.Tooltip("USD:Q", format="$,.0f")],
+            ).properties(height=260), use_container_width=True)
+
+    # ---- The measurement layer these figures come from.
+    st.markdown("#### Retail measurement layer (MAPLEMONK1)")
+    st.caption(
+        "MAPLEMONK1 is not just Meta breakdown tables. It carries the whole retail-partner stack, "
+        "which is where the Target programme is actually measured."
+    )
+    st.dataframe(pd.DataFrame([{
+        "Feed": m["label"], "What it is": m["what"], "Fresh to": m["fresh_to"],
+        "On record": m["verified"], "Table": m["table"],
+    } for m in RETAIL_MEASUREMENT]), use_container_width=True, hide_index=True)
+    st.warning(
+        "**Data-shape trap in these feeds.** They are Airbyte CSV loads: money arrives as TEXT "
+        "carrying a currency symbol and thousands separators (`'$125.95'`, `'2,907,903'`) so a "
+        "direct numeric cast fails outright, and dates carry TWO shapes in one column "
+        "(`DD-MM-YYYY` on older rows, `DD-MM-YYYY H:MI` on newer ones). Parsing only the bare date "
+        "form silently drops the newest rows — it made Target sell-through look like it ended "
+        "2026-07-13 when it runs to 2026-07-23, understating July by $28,446. Always use the "
+        "`sf_cash` / `sf_qty` / `sf_day` helpers."
+    )
+
+
 def render_ads_analytics():
     st.title("Ads Analysis")
     st.caption(
@@ -1445,6 +2010,9 @@ def render_ads_analytics():
     )
     # Analysis views are selected in the LHS menu (see ADS_VIEWS); each block
     # below renders when its view is active.
+
+    if view == "Ad accounts & retail funnel":
+        render_ad_accounts()
 
     if view == "Overview & priority metrics":
         if platform == "Meta":

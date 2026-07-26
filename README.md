@@ -33,7 +33,16 @@ live in the top bar of the page** (Channel · Account · Marketplace · Level ·
 Objective · Status · Date range · Refresh). All tables default to **descending**
 sort (spend, else the first metric; raw views newest-first).
 
-### Section 1 — Ads Analysis (9 analysis views in the LHS menu)
+### Section 1 — Ads Analysis (10 analysis views in the LHS menu)
+0. **Ad accounts & retail funnel** *(landing view)* — the whole ad-account estate,
+   described account by account: what each one is FOR, which KPI it can honestly
+   be judged on, its currency, its warehouse table and how fresh that feed is,
+   with live spend/ROAS-or-CTR read for the selected window. Then the **retail
+   funnel**, which joins spend in `MAPLEMONK` to outcomes in `MAPLEMONK1` (Target
+   Roundel attributed sales + real Target store sell-through) — the only honest
+   way to answer "is the Target programme working", because the Target/Costco
+   Meta account records zero purchases by construction. Closes with the
+   `MAPLEMONK1` retail measurement layer and the data-shape traps in it
 1. **Omnichannel Master View** — dynamic title per filters, KPI strip, the
    spec column array (hierarchy → Created At/Edited On → Delivery → Engagement
    → Conversion metrics), paginated (no row caps), per-row detail opener
@@ -70,12 +79,48 @@ Snowflake Cortex narrative) · **Feedback** (logs to
 
 ### Data sources
 Meta reads a **live-discovered union**: `VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS`
-plus every warehouse table matching regex `META.*USA.*TEA` (validated
-insights-shaped; columns aligned, missing ones NULL). The sidebar lists the
-discovered sources. Breakdowns: `MAPLEMONK1` age/gender + device tables and
-`META_USA_AD_CREATIVES`. TikTok: `DATON.RAW.TIKTOK_ADS_USA_*` (our Ad Set level
-maps to TikTok's ADGROUP tables). Google: `MAPLEMONK.GOOGLE_ADS_USA`.
+plus every table matching `%TEA_ADS_ADS_INSIGHTS` in `MAPLEMONK`/`MAPLEMONK1` and
+every table matching regex `META.*USA.*TEA` (validated insights-shaped; columns
+aligned, missing ones NULL). The sidebar lists the discovered sources. Breakdowns:
+`MAPLEMONK1` age/gender + device tables and `META_USA_AD_CREATIVES`. TikTok:
+`DATON.RAW.TIKTOK_ADS_USA_*` (our Ad Set level maps to TikTok's ADGROUP tables).
+Google: `MAPLEMONK.US_GOOGLE_ADS_CONSOLIDATED`.
 Trackers: `VAHDAM_DB.TRACKERS.*` via `trackers/load_trackers.sql`.
+
+#### Two source corrections (2026-07-26, both verified live)
+- **The Target/Costco Meta account is in the warehouse.** It is
+  `MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS` — a name carrying no `META`, so the
+  `META.*TEA` regex never matched it and the account was invisible. 6,556 rows,
+  26 campaigns, $50,248.24, fresh to 2026-07-25. Its May ($3,608.06) and June
+  ($14,422.93) spend match the KT Master Ad Tracking Sheet to the cent.
+- **US Google was never stale.** `GOOGLE_ADS_USA` does not exist, and
+  `GOOGLE_ADS_US_AD_GROUP_AD_REPORT` holds the *retired* customer `2769294429`
+  and correctly stops 2023-11-24. The live customer is `9797311905` in
+  `US_GOOGLE_ADS_CONSOLIDATED`, fresh to 2026-07-25 at 1.98 ROAS in 2026 YTD.
+
+#### `MAPLEMONK1` is not just Meta breakdown tables
+It carries the whole retail-partner stack, and that is where the Target programme
+is actually measured: `TARGET_ADS_DAY_TARGET_ADS_REPORT` (**Target Roundel** — an
+entire additional ad platform, with Target-attributed sales and a real ROAS),
+`TARGET_ADS_KEYWORD_TARGET_ADS_REPORT`, `TARGET_SALES_TARGET_SALES` (real store
+sell-through: $129,605 / 10,406 units across 1,210 stores, fresh to 2026-07-23),
+`TARGET_AISLE_*`, `TARGET_IBOTTA_*`, `JB_USA` (JoinBrands UGC, posts through
+2026-07-22), `WALMART_SALES_*`, `CADS_USA_*` (Amazon Ads) and `AVP_NOW_*`.
+
+⚠️ **Data-shape traps in those feeds.** They are Airbyte CSV loads. Money arrives
+as TEXT with a currency symbol and thousands separators (`'$125.95'`,
+`'2,907,903'`) so a direct numeric cast fails outright, and dates carry TWO shapes
+in one column (`DD-MM-YYYY` on older rows, `DD-MM-YYYY H:MI` on newer ones).
+Parsing only the bare date form silently drops the newest rows — it made Target
+sell-through look like it ended 2026-07-13 when it runs to 2026-07-23,
+understating July by $28,446. Use the `sf_cash` / `sf_qty` / `sf_day` helpers.
+
+#### Theme
+White and green only, mirroring the web app's contrast tokens: white surfaces,
+forest-green (`#004A2B`) headings, metric cards and table headers, dark text on
+light backgrounds everywhere, never a dark panel. Where a chart needs a second
+categorical colour the two greens differ by **shade, not hue**, so the palette
+stays white-and-green while the series remain distinguishable.
 Created At / Edited On render only when the source truly carries those columns
 (Meta's insights sync does not — honestly omitted, never substituted).
 
