@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.7"
+APP_BUILD = "2026-07-26.8"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -932,25 +932,52 @@ def meta_source_report():
         except Exception:  # noqa: BLE001
             return None
 
-    # 1) Collect candidates (base table first so it always wins ties).
+    # 1) Collect candidates, SHAPE-FILTERED IN SQL.
+    #
+    # This used to fetch every name matching the patterns and then probe each one
+    # with up to three sequential warehouse round-trips (_cols, _sig, _accounts).
+    # META_USA_ADS% matches all ~50 Airbyte sidecar tables per account, so the
+    # pattern returned 152 candidates and the app issued roughly 450 sequential
+    # queries BEFORE rendering anything. Measured in query history: full app runs
+    # of 268.3s and 260.4s. Requiring campaign_name + spend + date_start and no
+    # breakdown-marker column IN THE SAME information_schema query cuts 152 to 3
+    # (and _SCD is excluded below), so only the 2 real feeds get probed. One query
+    # replaces ~450.
+    SHAPE = ("""
+with cand as (
+  select table_schema, table_name from {db}.information_schema.tables
+  where table_type = 'BASE TABLE' and table_name not ilike '%\\_SCD'
+    and ({pred})
+), shaped as (
+  select c.table_schema, c.table_name,
+    count_if(lower(col.column_name) = 'campaign_name') as has_campaign,
+    count_if(lower(col.column_name) = 'spend') as has_spend,
+    count_if(lower(col.column_name) = 'date_start') as has_date,
+    count_if(lower(col.column_name) in ('age','gender','country','region','state','dma',
+      'city','impression_device','device_platform','publisher_platform',
+      'platform_position','placement')) as bd
+  from cand c join {db}.information_schema.columns col
+    on col.table_schema = c.table_schema and col.table_name = c.table_name
+  group by 1, 2
+)
+select table_schema, table_name from shaped
+where has_campaign > 0 and has_spend > 0 and has_date > 0 and bd = 0""")
     cands = []
     try:
-        t = q("select table_schema, table_name from VAHDAM_DB.information_schema.tables "
-              "where table_type = 'BASE TABLE' and ("
+        t = q(SHAPE.format(db="VAHDAM_DB", pred=(
               "  (table_schema in ('MAPLEMONK', 'MAPLEMONK1') and table_name ilike 'META_USA_ADS%')"
               # The Target/Costco retail account is USA_TEA_ADS_ADS_INSIGHTS — it
               # carries no META in its name, so the META.*TEA regex below never
               # matched it and the account was invisible. Match TEA_ADS directly.
               "  or (table_schema in ('MAPLEMONK', 'MAPLEMONK1') and table_name ilike '%TEA_ADS_ADS_INSIGHTS')"
-              "  or regexp_like(table_name, '.*META.*TEA.*|.*TEA.*META.*', 'i'))")
+              "  or regexp_like(table_name, '.*META.*TEA.*|.*TEA.*META.*', 'i')")))
         cands += [("VAHDAM_DB", str(r["table_schema"]), str(r["table_name"]))
                   for _, r in t.iterrows()]
     except Exception:  # noqa: BLE001
         pass
     try:
-        t = q("select table_schema, table_name from DATON.information_schema.tables "
-              "where table_type = 'BASE TABLE' "
-              "and regexp_like(table_name, '.*META.*TEA.*|.*TEA.*META.*', 'i')")
+        t = q(SHAPE.format(db="DATON", pred=(
+              "regexp_like(table_name, '.*META.*TEA.*|.*TEA.*META.*', 'i')")))
         cands += [("DATON", str(r["table_schema"]), str(r["table_name"]))
                   for _, r in t.iterrows()]
     except Exception:  # noqa: BLE001
