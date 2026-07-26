@@ -7,10 +7,13 @@
  * configurable. Missing credentials return an honest `would_send` envelope.
  */
 
-const DEFAULT_SENDER = 'anchit.tandon@vahdam.com';
+// Global live-connector kill-switch (default OFF) + env-driven sender identity
+// (no hardcoded personal mailbox).
+const { liveConnectorsEnabled, senderIdentity } = require('./live-connectors.js');
+const DEFAULT_SENDER = '';
 
 function clean(v) { return String(v == null ? '' : v).trim(); }
-function senderEmail() { return DEFAULT_SENDER; }
+function senderEmail() { return senderIdentity() || DEFAULT_SENDER; }
 function b64url(v) { return Buffer.from(v).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
 
@@ -74,8 +77,8 @@ function mimeMessage({ to, subject, html, text }) {
 
 async function sendGmail({ to, subject, html, text }) {
   const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
-  const configured = !!(clean(process.env.GMAIL_CLIENT_ID) && clean(process.env.GMAIL_CLIENT_SECRET) && clean(process.env.GMAIL_REFRESH_TOKEN));
-  if (!configured) return { channel: 'gmail', sent: false, connected: false, would_send: { from: senderEmail(), to: recipients, subject } };
+  const configured = liveConnectorsEnabled() && !!(clean(process.env.GMAIL_CLIENT_ID) && clean(process.env.GMAIL_CLIENT_SECRET) && clean(process.env.GMAIL_REFRESH_TOKEN));
+  if (!configured) return { channel: 'gmail', sent: false, connected: false, live_connectors_disabled: !liveConnectorsEnabled(), would_send: { from: senderEmail(), to: recipients, subject } };
   const token = await gmailAccessToken();
   if (!token) return { channel: 'gmail', sent: false, connected: true, error: 'gmail_oauth_token_failed' };
   const results = [];
@@ -92,9 +95,9 @@ async function sendGmail({ to, subject, html, text }) {
 }
 
 async function sendResendFallback({ to, subject, html, text }) {
-  const key = clean(process.env.RESEND_API_KEY);
+  const key = liveConnectorsEnabled() ? clean(process.env.RESEND_API_KEY) : '';
   const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
-  if (!key) return { channel: 'resend', sent: false, connected: false, would_send: { from: senderEmail(), to: recipients, subject } };
+  if (!key) return { channel: 'resend', sent: false, connected: false, live_connectors_disabled: !liveConnectorsEnabled(), would_send: { from: senderEmail(), to: recipients, subject } };
   const r = await fetchJson('https://api.resend.com/emails', {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
@@ -110,8 +113,8 @@ async function sendEmail(payload) {
 }
 
 async function sendGoogleChat({ text }) {
-  const url = clean(process.env.GOOGLE_CHAT_WEBHOOK_URL);
-  if (!url) return { channel: 'google_chat', sent: false, connected: false, would_send: { text } };
+  const url = liveConnectorsEnabled() ? clean(process.env.GOOGLE_CHAT_WEBHOOK_URL) : '';
+  if (!url) return { channel: 'google_chat', sent: false, connected: false, live_connectors_disabled: !liveConnectorsEnabled(), would_send: { text } };
   const r = await fetchJson(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -121,11 +124,12 @@ async function sendGoogleChat({ text }) {
 }
 
 async function sendSms({ to, text }) {
-  const sid = clean(process.env.TWILIO_ACCOUNT_SID);
-  const token = clean(process.env.TWILIO_AUTH_TOKEN);
-  const from = clean(process.env.TWILIO_FROM_NUMBER);
+  const live = liveConnectorsEnabled();
+  const sid = live ? clean(process.env.TWILIO_ACCOUNT_SID) : '';
+  const token = live ? clean(process.env.TWILIO_AUTH_TOKEN) : '';
+  const from = live ? clean(process.env.TWILIO_FROM_NUMBER) : '';
   const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
-  if (!sid || !token || !from) return { channel: 'sms', sent: false, connected: false, would_send: { from, to: recipients, text } };
+  if (!sid || !token || !from) return { channel: 'sms', sent: false, connected: false, live_connectors_disabled: !live, would_send: { from, to: recipients, text } };
   const results = [];
   for (const recipient of recipients) {
     const body = new URLSearchParams({ To: recipient, From: from, Body: String(text || '').slice(0, 1500) });

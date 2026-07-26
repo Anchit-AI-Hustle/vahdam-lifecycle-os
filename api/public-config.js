@@ -16,6 +16,35 @@ function linkedDb() {
   catch (_) { return {}; }
 }
 
+// Privileged modes (pipeline / probe, and the detailed health payload) must not
+// be world-readable: they disclose which providers/keys/models are configured,
+// and `probe` additionally SPENDS quota by calling every provider — unauthed
+// that is a free quota-drain vector. Gate them behind the same operator check
+// the data-analysis routes use (CRON_SECRET, or a Supabase user on an allowed
+// email domain), and never answer them with wildcard CORS.
+async function requireOperator(req, res) {
+  const { authorize } = require('./_shared/data-analysis-core.js');
+  const auth = await authorize(req);
+  if (!auth.ok) {
+    res.status(auth.status || 401).json({
+      ok: false,
+      error: auth.error || 'operator_session_required',
+      hint: 'Operator-only endpoint. Send Authorization: Bearer <Supabase access token of an allowed operator> or the CRON_SECRET.',
+    });
+    return null;
+  }
+  return auth;
+}
+
+// Same-origin/allowlisted origins only for privileged modes (no wildcard).
+const ORIGIN_ALLOW = /^https?:\/\/(localhost(:\d+)?|127\.0\.0\.1(:\d+)?|[a-z0-9-]+\.vercel\.app|([a-z0-9-]+\.)?anchit-tandon\.com)$/i;
+function lockCors(req, res) {
+  const origin = String((req.headers && req.headers.origin) || '');
+  if (origin && ORIGIN_ALLOW.test(origin)) res.setHeader('Access-Control-Allow-Origin', origin);
+  else res.removeHeader('Access-Control-Allow-Origin');
+  res.setHeader('Vary', 'Origin');
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -70,9 +99,12 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // Pipeline health mode.
+  // Pipeline health mode — OPERATOR ONLY (discloses which provider keys and
+  // models are configured).
   if (req.query && req.query.pipeline !== undefined) {
     res.setHeader('Cache-Control', 'no-store');
+    lockCors(req, res);
+    if (!(await requireOperator(req, res))) return;
     const keys = {
       openai: !!process.env.OPENAI_API_KEY, openai2: !!process.env.OPENAI_API_KEY_2, openai3: !!process.env.OPENAI_API_KEY_3,
       anthropic: !!process.env.ANTHROPIC_API_KEY, gemini: !!process.env.GEMINI_API_KEY, grok: !!process.env.XAI_API_KEY,
@@ -95,9 +127,13 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  // Live provider probe.
+  // Live provider probe — OPERATOR ONLY. This one both discloses provider
+  // state AND spends real quota (one live call per provider), so it must never
+  // be reachable anonymously.
   if (req.query && req.query.probe !== undefined) {
     res.setHeader('Cache-Control', 'no-store');
+    lockCors(req, res);
+    if (!(await requireOperator(req, res))) return;
     const callLLM = require('./_shared/llm.js');
     const PROVIDERS = [
       { id: 'anthropic', label: 'Anthropic / Claude', env: 'ANTHROPIC_API_KEY', gen: 'https://console.anthropic.com/settings/keys' },
@@ -141,9 +177,18 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  // Health mode.
+  // Health mode. PUBLIC surface is liveness ONLY (ok/build/ts) — enough for the
+  // footer status dot and uptime monitors, and it discloses nothing about which
+  // providers, keys, models, region or environment are configured. The detailed
+  // payload is returned only to an authenticated operator.
   if (req.query && req.query.health !== undefined) {
     res.setHeader('Cache-Control', 'no-store');
+    const bearerPresent = !!(req.headers && req.headers.authorization);
+    if (!bearerPresent) {
+      return res.status(200).json({ ok: true, build: 'lifecycle-os', ts: new Date().toISOString() });
+    }
+    lockCors(req, res);
+    if (!(await requireOperator(req, res))) return;
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasGemini = !!process.env.GEMINI_API_KEY;
     const hasSupabase = !!(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL);

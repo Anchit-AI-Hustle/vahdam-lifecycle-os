@@ -47,6 +47,15 @@ Mailers come in exactly two named types:
 1. **Text** — pure typographic (the `pure` render style).
 2. **Text + Graphics** — text plus BUILT graphic elements only: brand-palette colors, buttons, labels, badges, dividers, price/receipt tables (CSS/table constructs — never photos; photos are optional slots the user fills). Any combination of such elements qualifies. Maps to the `visual`/`editorial` render styles.
 
+## SiS distribution branch — NEVER merge into main
+The branch **`snowflake-streamlit-app`** is a permanently separate distribution of this repo:
+the Streamlit-in-Snowflake version (runs natively in Snowflake via `get_active_session()`,
+reads warehouse tables directly — no Vercel, no Supabase, no HTML pages). It intentionally
+diverges from main and **must NEVER be merged into main** (nor main into it wholesale; port
+changes by hand when needed). Enforced by the required check
+`.github/workflows/protect-main-from-sis.yml`, which fails any PR from that branch into main.
+Deploy that branch from Snowsight (Git-linked workspace or paste `streamlit_app.py`).
+
 ## Commands
 ```bash
 npm run build          # scripts/build-catalog.js → data/catalog/products_{us,uk,global}.json (runs at deploy via vercel.json buildCommand)
@@ -84,7 +93,7 @@ Each page is a **standalone, self-contained `.html` file** (inline CSS + JS, oft
 | `api/calendar.js` | `?action=generate` (30-day plan) + `?action=trigger-mailer` + `?action=smart-brain-*` (plan/sync-daily/cron/approve/reject/run-daily/feedback…) + `?action=lp&id=` (serves generated landing pages at `/lp/:id`). Logic in `_shared/calendar-generate.js`, `_shared/calendar-trigger.js`, `_shared/smart-brain-plan.js`, `lib/smart-brain/services.js` |
 | `api/competitor.js` | Competitor Benchmarking router (Gmail IMAP → Google Sheet) |
 | `api/kb.js` | Knowledge Base router (Supabase-backed) |
-| `api/public-config.js` | Public config (Supabase URL + anon key) + `?health=1` health check; `/api/health` rewrites here |
+| `api/public-config.js` | Public config (Supabase URL + anon key) + `?health=1` health check; `/api/health` rewrites here. **Operator-only modes:** `?pipeline=1`, `?probe=1`, and the DETAILED `?health=1` payload require `Authorization: Bearer <operator Supabase token or CRON_SECRET>` (allowed domains via `ANALYTICS_ADMIN_DOMAINS`, default `vahdam.com`) and drop wildcard CORS. Anonymous `?health=1` returns liveness only (`ok/build/ts`) — never provider, key, model, region or env state. `?probe=1` also spends provider quota, so it must never be anonymous. |
 
 ### Shared LLM caller — `api/_shared/llm.js`
 6-provider text waterfall, de-duplicated: **OpenAI** (`OPENAI_API_KEY`/`_2`/`_3`) → **Anthropic** (claude-3-5-haiku) → **Gemini** (free tier) → **Grok/xAI** → **Groq** (free) → **Cerebras** (free). All callers should go through this rather than calling providers directly. Per-call provider override is supported (`'gemini'|'openai'|'anthropic'|'grok'`).
@@ -177,6 +186,43 @@ Each sibling project moves to `<slug>.anchit-tandon.com`. `migrate-domains` adds
 
 ## API Keys (2026-05-30) — per-project Gemini via gcloud
 Each app has its OWN restricted Gemini key minted from its own GCP project, pushed to Vercel (Production+Development): vahdam-lifecycle-os ← GCP vahdam-lifecycle-os (others: personal-ai-os, the-third-eye, music-gen-ai, hey-yaara, ai-tele-suite, th-life-engine, marketing-mailers-html-architect). Other providers left as-is.
+
+## Marketing skills pack + reels-grade creative standard (2026-07-24)
+Ten job-complete marketing skills in `.claude/commands/` (mega-prompt discipline: clear,
+highly specific, template-driven, evidence-quoting; skill = a real job run end-to-end):
+`/campaign-audit` `/lp-audit` `/ab-test` `/competitor-teardown` `/utm` `/email-sequence`
+`/content-repurposer` `/icp-builder` `/ad-copy-matrix` `/creative-brief`. All enforce the
+Brand Constants + zero fabrication.
+**Playable ads (2026-07-26)**: `scripts/lib/playable-ad.js` — `renderPlayable` (interactive
+tap-to-build unit) + `renderPlayableVideo` (inlined muted autoplay video + interactive end card) +
+`playableSpecSheet`. Enforces the rules that actually cause rejections: ONE self-contained HTML with
+every asset a `data:` URI (throws on any http asset — reviewers test offline), per-network size caps
+(Meta/TikTok 2MB, Google/AppLovin/Unity 5MB), host CTA APIs (`FbPlayableAd.onCTAClick`,
+`openAppStore`, `mraid.open`, `dapi`) not `window.open`, portrait+landscape, muted by default.
+Verified in Chromium: zero page errors, zero external requests, interaction → end card → Meta CTA
+API fired, no landscape overflow.
+
+**Avatar video (2026-07-26)**: `scripts/lib/avatar-video.js` (`avatarBrief`) targets open-source
+**LongCat-Video-Avatar-1.5** (Meituan, MIT) for lip-synced spokesperson/UGC ads — audio-driven
+AT2V/ATI2V, multi-person dual audio, length via `num_segments`, `--use_int8` (VRAM) / `--use_distill`
+(8-step). It emits a run-ready `torchrun` command + descriptive prompt rather than an API call,
+because the model is self-hosted and needs a GPU (Vercel functions have none); the hosted cascade
+in `api/_shared/video-core.js` (Veo → Sora → Higgsfield → Runway) still owns non-avatar video.
+Hard refusals built in: no `consent: true` on the likeness, no supplied audio, or a language outside
+the model's evaluated set (EN/ZH only — Indic languages need a different lip-sync path).
+
+**Reels-grade creative standard**: stills built to animate via `api/ai/image.js`
+`mode:'reels'` (cinematic 9:16, depth layers for parallax, negative space for type, no baked
+text); real motion via Higgsfield image-to-video; instant no-API preview + generator handoff
+via `scripts/lib/motion-ad.js` (`renderMotionAd` = self-contained animated HTML creative,
+`motionBrief` = shot-by-shot brief so the shipped MP4 matches). Quality bar in
+`.claude/commands/ad-creative.md`: hook moves in 0.8s, word-staggered kinetic type, one
+filmic grade, real SKU packaging only, <15s, safe-areas.
+**Evaluated and documented, not wired up:** `meituan-longcat/LongCat-Video-Avatar-1.5`
+(MIT weights, image+audio→lip-synced talking head, 480p/720p) is the open-source route for
+creator-style spokesperson video. It needs 2 local GPUs and has no hosted API, so neither
+Vercel nor Snowflake can run it — Higgsfield remains the engine. Full trade-off table in
+`.claude/commands/ad-creative.md`.
 
 ## Growth OS — integrated team (slash commands + connectors + skills)
 This repo ships project slash commands in `.claude/commands/` that operate the brand as a full growth team for a coffee + wellness D2C brand. Start anything with **`/growth-team`** (the router) or jump to a vertical:

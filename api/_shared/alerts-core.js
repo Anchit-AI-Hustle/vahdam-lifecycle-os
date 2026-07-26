@@ -10,7 +10,9 @@
  *  - Pulses + EOD forecast need INTRADAY data (Shopify/Klaviyo feeds, B3). Until
  *    that is wired they return a clear "waiting on live intraday feed" status and
  *    send nothing, rather than alerting on assumptions.
- * Recipient: ALERT_EMAIL env (default anchit.tandon@vahdam.com).
+ * Recipient: ALERT_EMAIL env (unset by default — no hardcoded mailbox).
+ * Live sending is gated by the LIVE_CONNECTORS kill-switch (default OFF): while
+ * off, sendEmail always returns a would_send stub and never sends.
  * Wired to CRON_SECRET-guarded actions in api/brain.js:
  *   ?action=alerts-anomaly  (every ~15 min via GitHub Actions)
  *   ?action=alerts-pulse    (every 2 hours)
@@ -20,7 +22,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const ALERT_EMAIL = () => (process.env.ALERT_EMAIL || 'anchit.tandon@vahdam.com');
+const { liveConnectorsEnabled, senderIdentity } = require('./live-connectors.js');
+const ALERT_EMAIL = () => (process.env.ALERT_EMAIL || senderIdentity() || '');
 const ALERT_FROM = () => (process.env.ALERT_FROM || 'VAHDAM Lifecycle OS <alerts@vahdamteas.com>');
 
 // Thresholds (fractional). A completed period must move beyond these vs the
@@ -29,9 +32,9 @@ const TH = { revenue_drop: 0.20, revenue_spike: 0.40, orders_drop: 0.25, aov_dro
 
 // ── Email (Resend). Degrades to a stub when no key. ─────────────────────────
 async function sendEmail(subject, html, text) {
-  const key = process.env.RESEND_API_KEY;
+  const key = liveConnectorsEnabled() ? process.env.RESEND_API_KEY : '';
   const to = ALERT_EMAIL();
-  if (!key) return { sent: false, connected: false, would_send: { to, subject } };
+  if (!key) return { sent: false, connected: false, live_connectors_disabled: !liveConnectorsEnabled(), would_send: { to, subject } };
   if (typeof fetch !== 'function') return { sent: false, connected: true, error: 'fetch unavailable' };
   try {
     const r = await fetch('https://api.resend.com/emails', {
