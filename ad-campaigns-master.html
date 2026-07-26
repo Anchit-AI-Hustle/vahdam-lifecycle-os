@@ -277,8 +277,8 @@
   </div>
 
   <div class="panel" id="p-campaigns">
-    <p class="eyebrow">Campaign rollup — 13 Meta campaigns (Target account, to 20 Jul)</p>
-    <div class="tbl-wrap" id="camp-tbl"></div>
+    <div id="drill-crumb" style="margin:4px 0 10px"></div>
+    <p class="eyebrow" id="drill-title">Campaigns — click a campaign to open its ad sets</p>
     <div class="bar">
       <label>Objective<select id="f-obj"><option value="">All</option><option>Sales</option><option>Traffic</option><option>Awareness</option><option>Engagement</option></select></label>
       <label>Delivery<select id="f-status"><option value="">All</option><option value="active">active</option><option value="inactive">inactive</option><option value="not_delivering">not_delivering</option></select></label>
@@ -286,7 +286,7 @@
       <label>Sort<select id="f-sort"><option value="spend">Spend</option><option value="cost_per_result">Cost / result</option><option value="ctr">CTR</option><option value="cpc">CPC</option><option value="thumb_stop">Thumb stop</option></select></label>
       <a class="btn ghost" id="dl-json" href="/data/ads/target-ads-meta-2026-07-20.json" download>Download ad rows (JSON)</a>
     </div>
-    <div class="tbl-wrap" id="ads-tbl"><div class="empty">Loading…</div></div>
+    <div class="tbl-wrap" id="drill-tbl"><div class="empty">Loading…</div></div>
     <p class="note" id="ads-count"></p>
   </div>
 
@@ -1073,30 +1073,166 @@
     $("#ov-verdicts").innerHTML=v.map(function(x){return "<div class='learn'><span class='chip "+x[0]+"'>"+(x[0]==="good"?"working":x[0]==="bad"?"fix":"watch")+"</span> <b>"+esc(x[1])+"</b><div style='font-size:13.5px;margin-top:4px'>"+esc(x[2])+"</div></div>";}).join("");
   }
 
-  function renderCampaigns(){
-    $("#camp-tbl").innerHTML=table(
-      [{t:"Campaign"},{t:"Objective"},{t:"Spend",r:1},{t:"Ads",r:1},{t:"Impressions",r:1},{t:"Clicks",r:1},{t:"CTR",r:1},{t:"CPC",r:1},{t:"Results",r:1},{t:"Cost/result",r:1},{t:"Verdict"}],
-      KB.campaign_rollup.map(function(c){return [esc(c.campaign),esc(c.objective),money(c.spend),intf(c.ads),intf(c.impressions),intf(c.clicks),pct(c.ctr),money(c.cpc),intf(c.results),money(c.cost_per_result),verdictChip(c.cost_per_result,c.objective)];}));
-    renderAds();
+  // Meta-style drill-down: campaign -> ad sets -> ads -> one ad's detail, with a
+  // breadcrumb back up. Every level aggregates from the SAME ad rows, so a parent total
+  // is always the sum of its children rather than a separately sourced figure.
+  //
+  // Rates are RECOMPUTED at each level, never averaged or summed: ctr = clicks/impr,
+  // cpc = spend/clicks, cpm = spend/impr*1000, cost/result = spend/results,
+  // frequency = impr/reach. thumb_stop is a rate the source gives per ad, so it is
+  // impression-weighted. Summing any of these would produce a number that looks like a
+  // metric and is not one.
+  var DRILL={level:"campaigns", campaign:null, adset:null, ad:null};
+
+  function drillAgg(rows){
+    var a={spend:0,impressions:0,reach:0,clicks:0,results:0,lpv:0,ts_num:0,ads:rows.length};
+    rows.forEach(function(r){
+      a.spend+=r.spend||0; a.impressions+=r.impressions||0; a.reach+=r.reach||0;
+      a.clicks+=r.clicks||0; a.results+=r.results||0; a.lpv+=r.lpv||0;
+      if(r.thumb_stop!=null) a.ts_num+=(r.thumb_stop*(r.impressions||0));
+    });
+    a.ctr = a.impressions ? (a.clicks/a.impressions*100) : null;
+    a.cpc = a.clicks ? (a.spend/a.clicks) : null;
+    a.cpm = a.impressions ? (a.spend/a.impressions*1000) : null;
+    a.cost_per_result = a.results ? (a.spend/a.results) : null;
+    a.frequency = a.reach ? (a.impressions/a.reach) : null;
+    a.thumb_stop = a.impressions ? (a.ts_num/a.impressions) : null;
+    a.live = rows.filter(function(r){return r.status==="active";}).length;
+    return a;
   }
-  function renderAds(){
-    if(!ADS) return;
-    var obj=$("#f-obj").value, st=$("#f-status").value, q=($("#f-q").value||"").toLowerCase(), sort=$("#f-sort").value;
-    var rows=ADS.filter(function(r){
+
+  function drillFiltered(){
+    if(!ADS) return [];
+    var obj=$("#f-obj").value, st=$("#f-status").value, q=($("#f-q").value||"").toLowerCase();
+    return ADS.filter(function(r){
       if(obj&&r.objective!==obj)return false;
       if(st&&r.status!==st)return false;
       if(q&&((r.ad||"")+" "+(r.adset||"")+" "+(r.campaign||"")).toLowerCase().indexOf(q)<0)return false;
       return true;
     });
+  }
+
+  function crumb(){
+    var parts=["<a href='#' data-up='campaigns' style='font-weight:700'>All campaigns</a>"];
+    if(DRILL.campaign) parts.push("<a href='#' data-up='adsets'>"+esc(DRILL.campaign)+"</a>");
+    if(DRILL.adset)    parts.push("<a href='#' data-up='ads'>"+esc(DRILL.adset)+"</a>");
+    if(DRILL.ad)       parts.push("<b>"+esc(DRILL.ad)+"</b>");
+    $("#drill-crumb").innerHTML="<div class='note' style='font-size:13px'>"+parts.join(" &rsaquo; ")+"</div>";
+    Array.prototype.forEach.call(document.querySelectorAll("#drill-crumb [data-up]"),function(a){
+      a.addEventListener("click",function(e){
+        e.preventDefault();
+        var lv=a.getAttribute("data-up");
+        if(lv==="campaigns"){ DRILL={level:"campaigns",campaign:null,adset:null,ad:null}; }
+        else if(lv==="adsets"){ DRILL.level="adsets"; DRILL.adset=null; DRILL.ad=null; }
+        else { DRILL.level="ads"; DRILL.ad=null; }
+        renderAds();
+      });
+    });
+  }
+
+  function bindDrill(attr, fn){
+    Array.prototype.forEach.call(document.querySelectorAll("#drill-tbl ["+attr+"]"),function(a){
+      a.addEventListener("click",function(e){ e.preventDefault(); fn(a.getAttribute(attr)); renderAds(); });
+    });
+  }
+
+  function metricCells(a){
+    return [money(a.spend), intf(a.impressions), intf(a.clicks), pct(a.ctr), money(a.cpc),
+            money(a.cpm), intf(a.results), money(a.cost_per_result),
+            (a.thumb_stop!=null&&a.thumb_stop>0?Number(a.thumb_stop).toFixed(3):"\u2014")];
+  }
+  var METRIC_HEAD=[{t:"Spend",r:1},{t:"Impr.",r:1},{t:"Clicks",r:1},{t:"CTR",r:1},{t:"CPC",r:1},
+                   {t:"CPM",r:1},{t:"Results",r:1},{t:"Cost/result",r:1},{t:"Thumb stop",r:1}];
+
+  function renderCampaigns(){ renderAds(); }
+
+  function renderAds(){
+    if(!ADS){ return; }
+    crumb();
+    var rows=drillFiltered(), sort=$("#f-sort").value;
     var asc=(sort==="cost_per_result"||sort==="cpc");
-    rows.sort(function(a,b){var x=a[sort],y=b[sort];if(x==null)return 1;if(y==null)return -1;return asc?(x-y):(y-x);});
-    $("#ads-tbl").innerHTML=table(
-      [{t:"Ad"},{t:"Ad set"},{t:"Objective"},{t:"Delivery"},{t:"Spend",r:1},{t:"Impr.",r:1},{t:"Clicks",r:1},{t:"CTR",r:1},{t:"CPC",r:1},{t:"Results",r:1},{t:"Cost/result",r:1},{t:"Thumb stop",r:1},{t:"Verdict"}],
-      rows.slice(0,150).map(function(r){return [esc(r.ad),esc(r.adset),esc(r.objective),
-        "<span class='chip "+(r.status==="active"?"good":"dim")+"'>"+esc(r.status)+"</span>",
-        money(r.spend),intf(r.impressions),intf(r.clicks),pct(r.ctr),money(r.cpc),intf(r.results),money(r.cost_per_result),
-        (r.thumb_stop!=null&&r.thumb_stop>0?Number(r.thumb_stop).toFixed(3):"—"),verdictChip(r.cost_per_result,r.objective)];}));
-    $("#ads-count").textContent=rows.length+" of "+ADS.length+" ads shown (max 150 rendered) · reporting window ends 20 Jul 2026 · Sales results = initiate checkout, Traffic = link clicks, Awareness = reach.";
+    function sortAgg(list){
+      list.sort(function(x,y){var a=x.agg[sort],b=y.agg[sort];
+        if(a==null)return 1; if(b==null)return -1; return asc?(a-b):(b-a);});
+      return list;
+    }
+
+    if(DRILL.level==="campaigns"){
+      var byC={};
+      rows.forEach(function(r){ (byC[r.campaign]=byC[r.campaign]||[]).push(r); });
+      var list=sortAgg(Object.keys(byC).map(function(k){
+        return {name:k, agg:drillAgg(byC[k]),
+                adsets:Object.keys(byC[k].reduce(function(m,r){m[r.adset]=1;return m;},{})).length,
+                objective:byC[k][0].objective};
+      }));
+      $("#drill-title").textContent="Campaigns \u2014 click a campaign name to open its ad sets";
+      $("#drill-tbl").innerHTML=table(
+        [{t:"Campaign"},{t:"Objective"},{t:"Ad sets",r:1},{t:"Ads",r:1},{t:"Live",r:1}].concat(METRIC_HEAD).concat([{t:"Verdict"}]),
+        list.map(function(c){return ["<a href='#' data-camp=\""+esc(c.name)+"\" style='font-weight:700'>"+esc(c.name)+"</a>",
+          esc(c.objective), intf(c.adsets), intf(c.agg.ads), intf(c.agg.live)]
+          .concat(metricCells(c.agg)).concat([verdictChip(c.agg.cost_per_result,c.objective)]);}));
+      bindDrill("data-camp", function(v){ DRILL.campaign=v; DRILL.level="adsets"; });
+      $("#ads-count").textContent=list.length+" campaigns \u00b7 "+rows.length+" ads in scope. Every parent total is the sum of its children; rates are recomputed from those sums, never averaged.";
+      return;
+    }
+
+    if(DRILL.level==="adsets"){
+      var inC=rows.filter(function(r){return r.campaign===DRILL.campaign;});
+      var byS={};
+      inC.forEach(function(r){ (byS[r.adset]=byS[r.adset]||[]).push(r); });
+      var slist=sortAgg(Object.keys(byS).map(function(k){
+        return {name:k, agg:drillAgg(byS[k]), objective:byS[k][0].objective};
+      }));
+      var tot=drillAgg(inC);
+      $("#drill-title").textContent="Ad sets in "+DRILL.campaign+" \u2014 click an ad set to open its ads";
+      $("#drill-tbl").innerHTML=table(
+        [{t:"Ad set"},{t:"Objective"},{t:"Ads",r:1},{t:"Live",r:1}].concat(METRIC_HEAD).concat([{t:"Verdict"}]),
+        slist.map(function(a){return ["<a href='#' data-set=\""+esc(a.name)+"\" style='font-weight:700'>"+esc(a.name)+"</a>",
+          esc(a.objective), intf(a.agg.ads), intf(a.agg.live)]
+          .concat(metricCells(a.agg)).concat([verdictChip(a.agg.cost_per_result,a.objective)]);}));
+      bindDrill("data-set", function(v){ DRILL.adset=v; DRILL.level="ads"; });
+      $("#ads-count").textContent=slist.length+" ad sets \u00b7 "+tot.ads+" ads \u00b7 campaign total "+money(tot.spend)+", which is the sum of the rows above.";
+      return;
+    }
+
+    if(DRILL.level==="ads"){
+      var inS=rows.filter(function(r){return r.campaign===DRILL.campaign && r.adset===DRILL.adset;});
+      inS.sort(function(a,b){var x=a[sort],y=b[sort];if(x==null)return 1;if(y==null)return -1;return asc?(x-y):(y-x);});
+      var tot2=drillAgg(inS);
+      $("#drill-title").textContent="Ads in "+DRILL.adset+" \u2014 click an ad to open its detail";
+      $("#drill-tbl").innerHTML=table(
+        [{t:"Ad"},{t:"Delivery"},{t:"Created"}].concat(METRIC_HEAD).concat([{t:"Verdict"}]),
+        inS.map(function(r){return ["<a href='#' data-ad=\""+esc(r.ad)+"\" style='font-weight:700'>"+esc(r.ad)+"</a>",
+          "<span class='chip "+(r.status==="active"?"good":"dim")+"'>"+esc(r.status)+"</span>", esc(r.created||"\u2014")]
+          .concat(metricCells(drillAgg([r]))).concat([verdictChip(r.cost_per_result,r.objective)]);}));
+      bindDrill("data-ad", function(v){ DRILL.ad=v; DRILL.level="ad"; });
+      $("#ads-count").textContent=inS.length+" ads \u00b7 ad set total "+money(tot2.spend)+".";
+      return;
+    }
+
+    // one ad, every field the source carries
+    var r=rows.filter(function(x){return x.ad===DRILL.ad && x.adset===DRILL.adset;})[0]
+          || (ADS.filter(function(x){return x.ad===DRILL.ad;})[0]);
+    if(!r){ $("#drill-tbl").innerHTML="<div class='empty'>That ad is not in the current filter. Clear the filters or step back up.</div>"; return; }
+    $("#drill-title").textContent="Ad detail \u2014 "+r.ad;
+    var order=["ad","status","objective","campaign","adset","created","spend","impressions","reach",
+               "frequency","clicks","ctr","cpc","cpm","lpv","results","cost_per_result","thumb_stop",
+               "result_indicator"];
+    var keys=order.filter(function(k){return k in r;})
+      .concat(Object.keys(r).filter(function(k){return order.indexOf(k)<0;}));
+    $("#drill-tbl").innerHTML=table([{t:"Field"},{t:"Value"}],
+      keys.map(function(k){
+        var v=r[k];
+        var shown=(v==null||v==="")?"\u2014"
+          :(k==="spend"||k==="cpc"||k==="cpm"||k==="cost_per_result")?money(v)
+          :(k==="ctr")?pct(v)
+          :(typeof v==="number")?(Number.isInteger(v)?intf(v):Number(v).toFixed(4)):esc(String(v));
+        return ["<b>"+esc(k.replace(/_/g," "))+"</b>", shown];
+      }));
+    var bm=(KB.benchmarks||[]).filter(function(x){return x.ctr_pct!=null;});
+    $("#ads-count").innerHTML="Every field the ad row carries, nothing derived beyond the source. "+
+      (bm.length?"Judge it against the benchmarks on the Creative Intel tab \u2014 "+
+        esc(bm[0].segment)+" runs "+pct(bm[0].ctr_pct)+" CTR at "+money(bm[0].cpc_usd)+" CPC.":"");
   }
 
   function renderCreative(){
