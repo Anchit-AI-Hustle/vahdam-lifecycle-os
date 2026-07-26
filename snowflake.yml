@@ -30,3 +30,11 @@ entities:
       # turns the data grids light. Omit this file and the dropdowns and tables go
       # dark again no matter what CSS the app injects.
       - ".streamlit/config.toml"
+      # The Ad Campaigns Master tabs read these — the SAME four files the web
+      # dashboard fetches over HTTP. Without them the governance tabs (SOP,
+      # Tracker, Overview, Creative Intel, Knowledge Base, Ops) declare a gap
+      # instead of rendering, because nothing is ever substituted for real data.
+      - "data/ads/master-kb.json"
+      - "data/ads/ads-live-snapshot.json"
+      - "data/ads/ad-accounts.json"
+      - "data/ads/target-ads-meta-2026-07-20.json"

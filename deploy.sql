@@ -1,21 +1,35 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- THE app this branch deploys to — there is exactly ONE:
+-- READ THIS FIRST — you probably do NOT need this script.
 --
---   VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA        (title: "Ads Dashboard USA")
---   https://app.snowflake.com/streamlit/uxdeihw/mo06981/#/apps/VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA
+-- Verified live in the account on 2026-07-26 with SHOW STREAMLITS IN ACCOUNT:
+--   * VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA        DOES NOT EXIST.
+--   * VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE        DOES NOT EXIST
+--     (SHOW STAGES IN DATABASE VAHDAM_DB returns zero rows).
+--   * The ONE app that actually runs is a Snowsight WORKSPACES app:
+--       database USER$   schema PUBLIC   title "Ads Dashboard USA"
+--       object   ST16DFD18C278CC8519B9BDD3318FC9CB3980ABC72
+--       source   /ws/USER$/PUBLIC/DEFAULT$/Ads Dashboard/streamlit_app.py
+--       url_id   6pijhfqfbcoleaokckpm
 --
--- Do NOT create or use any other Streamlit object for this branch. The old
--- VAHDAM_DB.APPS.VAHDAM_ADS_ANALYSIS ("VAHDAM Analytics") object is retired —
--- section 3 below drops it so a stale copy can never be opened by mistake.
+-- That is why running this script fails with
+--   "Stage VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE does not exist or not authorized".
+-- The stage was never created, and a Workspaces app does not use one: Snowsight
+-- serves the app straight out of the Git-linked workspace folder.
 --
--- Preferred deploy paths (in order):
---   1. CI — push to this branch; .github/workflows/deploy-sis.yml runs
---      `snow streamlit deploy --replace` against ADSDASHBOARDUSA.
---      Needs repo secrets: SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PAT,
---      SNOWFLAKE_WAREHOUSE, SNOWFLAKE_ROLE.
---   2. Snowsight Git workspace — Pull this branch, then Deploy to the
---      EXISTING app VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA (replace).
---   3. This worksheet script — manual stage upload, sections 1-2 below.
+-- >> TO DEPLOY, DO THIS (no SQL, no stage):
+--     1. Snowsight -> Projects -> Workspaces -> "Ads Dashboard"
+--     2. Pull  (brings this branch in, including .streamlit/config.toml and
+--               data/ads/*.json -- both are required)
+--     3. Run
+--   The sidebar then shows the build id; if it shows an older one, the Pull did
+--   not take. Nothing else is needed.
+--
+-- Everything below is the ALTERNATIVE stage-based flow, kept only for the case
+-- where you deliberately want a shared account-level app object instead of a
+-- personal workspace app. It needs CREATE STAGE + CREATE STREAMLIT on
+-- VAHDAM_DB.MAPLEMONK, which CLAUDE_ROLE does not currently hold. Creating that
+-- object would give the app a DIFFERENT URL from the one in use today, so do not
+-- run it casually.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- 1) Stage for the app files (idempotent).

@@ -31,6 +31,7 @@ the app URL when the Streamlit object is created in the account.
 """
 
 import json
+import os
 import math
 import re
 import traceback
@@ -48,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.2"
+APP_BUILD = "2026-07-26.3"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -1040,7 +1041,7 @@ def generic_rows(table):
 st.sidebar.title("VAHDAM · Lifecycle OS on Snowflake")
 section = st.sidebar.radio(
     "Section",
-    ["Ads Analysis", "Ads Intelligence"],
+    ["Ad Campaigns Master", "Ads Analysis", "Ads Intelligence"],
 )
 
 # The LHS menu carries the ANALYSIS VIEWS (use cases); the data filters live in
@@ -2163,6 +2164,428 @@ def render_ad_accounts():
         "2026-07-13 when it runs to 2026-07-23, understating July by $28,446. Always use the "
         "`sf_cash` / `sf_qty` / `sf_day` helpers."
     )
+
+
+# ── AD CAMPAIGNS MASTER — the 11-tab dashboard ────────────────────────────────
+# Mirrors ad-campaigns-master.html tab for tab, in the same order, with the same
+# labels, so the Snowflake app and the web app are the SAME dashboard rather than
+# two different products (spec 24b: one record, many views).
+#
+# Content comes from the SAME FOUR FILES the web page fetches — data/ads/*.json —
+# read off the app root instead of over HTTP. In the Snowsight Workspaces flow the
+# whole repo is present next to streamlit_app.py, so these resolve directly; in the
+# stage flow they are listed in snowflake.yml artifacts. A file that is genuinely
+# absent produces a DECLARED GAP, never invented content.
+#
+# Where the web page can only show its committed snapshot, this app reads the
+# warehouse LIVE — that is the one place the two intentionally differ, and the
+# figures are labelled so it is never ambiguous which is which.
+MASTER_TABS = ["Live Now", "Calendar", "Tracker", "Accounts", "SOP", "Overview",
+               "Campaigns & Ads", "Creative Intel", "Organic & UGC",
+               "Knowledge Base", "Ops & Data Sources"]
+
+MASTER_FILES = {
+    "kb": ("data/ads/master-kb.json", "Master knowledge base (KT emails, SOP, benchmarks)"),
+    "ads": ("data/ads/target-ads-meta-2026-07-20.json", "Target ads snapshot (20 Jul 2026)"),
+    "snap": ("data/ads/ads-live-snapshot.json", "Committed live snapshot"),
+    "reg": ("data/ads/ad-accounts.json", "Ad-account registry export"),
+}
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def load_master_json(rel: str):
+    """Read a repo data file from the app root. Tries the module directory first,
+    then the CWD, then the bare relative path, because the app root differs
+    between the Workspaces flow and the stage flow. Returns None when genuinely
+    absent so the caller can declare a gap instead of inventing content."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    for cand in (os.path.join(here, rel), rel, os.path.join(os.getcwd(), rel)):
+        try:
+            with open(cand, "r", encoding="utf-8") as fh:
+                return json.load(fh)
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def master_file(key):
+    rel, label = MASTER_FILES[key]
+    data = load_master_json(rel)
+    if data is None:
+        st.warning(
+            f"**Declared gap — {label} not readable.** Expected `{rel}` beside "
+            "`streamlit_app.py`. In the Snowsight Workspaces flow, Pull the branch so the "
+            "`data/` folder is present; in the stage flow, confirm the file is listed in "
+            "`snowflake.yml` artifacts. Nothing is substituted for it."
+        )
+    return data
+
+
+def _humanize(k: str) -> str:
+    return str(k).replace("_", " ").strip().capitalize()
+
+
+def _render_value(v, level=0):
+    """Render any JSON shape completely — no field silently dropped. Lists of
+    uniform dicts become sortable tables; scalar dicts become field/value tables;
+    nested dicts recurse under their own heading."""
+    if v is None or v == "" or v == [] or v == {}:
+        return
+    if isinstance(v, str):
+        st.markdown(v)
+    elif isinstance(v, (int, float, bool)):
+        st.markdown(f"`{v}`")
+    elif isinstance(v, list):
+        if v and all(isinstance(x, dict) for x in v):
+            flat = []
+            for row in v:
+                flat.append({_humanize(k): (", ".join(map(str, val)) if isinstance(val, list)
+                                            else json.dumps(val) if isinstance(val, dict) else val)
+                             for k, val in row.items()})
+            st.dataframe(pd.DataFrame(flat), use_container_width=True, hide_index=True)
+        else:
+            for x in v:
+                st.markdown(f"- {x}")
+    elif isinstance(v, dict):
+        if all(not isinstance(x, (dict, list)) for x in v.values()):
+            st.dataframe(pd.DataFrame([{"Field": _humanize(k), "Value": val}
+                                       for k, val in v.items()]),
+                         use_container_width=True, hide_index=True)
+        else:
+            for k, val in v.items():
+                if val in (None, "", [], {}):
+                    continue
+                st.markdown(("#" * min(6, 5 + level)) + f" {_humanize(k)}"
+                            if level else f"**{_humanize(k)}**")
+                _render_value(val, level + 1)
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def live_daily(table: str, date_col: str, since, until, spend_col="SPEND"):
+    """Per-day spend / impressions / clicks for one table, live."""
+    try:
+        return q(f'select "{date_col}"::date as day, round(sum("{spend_col}"), 2) as spend, '
+                 f'sum("IMPRESSIONS") as impressions, sum("CLICKS") as clicks '
+                 f'from {table} where "{date_col}" between \'{since}\' and \'{until}\' '
+                 f"group by 1 order by 1")
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def live_ad_delivery(table: str, day):
+    """Ad-level delivery for one day — the "is it live yet?" question."""
+    try:
+        return q(f'select "CAMPAIGN_NAME" as campaign, "ADSET_NAME" as adset, "AD_NAME" as ad, '
+                 f'round(sum("SPEND"), 2) as spend, sum("IMPRESSIONS") as impressions, '
+                 f'sum("INLINE_LINK_CLICKS") as link_clicks from {table} '
+                 f'where "DATE_START"::date = \'{day}\' group by 1, 2, 3 '
+                 f"having sum(\"IMPRESSIONS\") > 0 order by spend desc")
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def live_ugc_posts(since, until):
+    """JoinBrands creator posts, live. Views and Likes are TEXT in this feed."""
+    try:
+        return q(f'select "Creator Name" as creator, "Creator Username" as handle, '
+                 f'"Platform" as platform, "Campaign Name" as campaign, '
+                 f'"Posted Date" as posted, "Job Price (USD)" as cost, '
+                 f'{sf_qty("Video Views")} as views, {sf_qty("Likes")} as likes, '
+                 f'"Comments" as comments, "See Post" as link, "Video Status" as status '
+                 f'from {JB_UGC} where {sf_day("Posted Date")} between \'{since}\' and \'{until}\' '
+                 f"order by views desc nulls last")
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+def render_master_dashboard():
+    st.title("Ad Campaigns Master Dashboard")
+    st.caption(
+        "The single knowledge base + performance dashboard for the USA paid program "
+        "(Target + Costco): every KT email, spend sheet, social update, sheet/deck link, "
+        "platform data source and creative learning in one place. Same eleven tabs as the "
+        "web dashboard, in the same order. Governance content is read from the same "
+        "`data/ads/*.json` files the web page fetches; performance figures are read LIVE "
+        "from the warehouse and labelled as such. Nothing is fabricated."
+    )
+    kb = master_file("kb") or {}
+    snap = master_file("snap") or {}
+    tabs = st.tabs(MASTER_TABS)
+
+    # ── 1. Live Now ──────────────────────────────────────────────────────────
+    with tabs[0]:
+        st.subheader("Live now — is it delivering?")
+        today_d = pd.Timestamp.utcnow().normalize().date()
+        st.caption(f"Read live from the warehouse for {today_d} (UTC). The current day is "
+                   "PARTIAL by definition — platforms backfill for hours, so today's spend "
+                   "is a floor, not a final number.")
+        live = [a for a in AD_ACCOUNTS if a["status"] == "live"]
+        cols = st.columns(min(4, len(live)) or 1)
+        for i, a in enumerate(live[:8]):
+            f = account_live_figures(a["id"], a["table"], a["kpi"], today_d, today_d)
+            with cols[i % len(cols)]:
+                st.metric(f"{a['platform']} {a['region']} · {a['id']}",
+                          money(f["spend"]) if f else "no rows today",
+                          help=a["label"])
+                if f:
+                    st.caption(f"{f['campaigns']} campaigns · {int(f['impressions']):,} impr · "
+                               f"{int(f['clicks']):,} clicks")
+        st.markdown("#### Daily spend and delivery")
+        d1 = live_daily(META_ADS, "DATE_START", since, until)
+        d2 = live_daily(META_RETAIL, "DATE_START", since, until)
+        if not d1.empty or not d2.empty:
+            frames = []
+            for lbl, dd in (("DTC (own site)", d1), ("Retail (Target / Costco)", d2)):
+                if not dd.empty:
+                    dd = dd.rename(columns=str.upper)
+                    frames.append(pd.DataFrame({"Day": pd.to_datetime(dd["DAY"]),
+                                                "Spend": dd["SPEND"], "Account": lbl}))
+            ser = pd.concat(frames, ignore_index=True)
+            st.altair_chart(
+                alt.Chart(ser).mark_line(point=True).encode(
+                    x=alt.X("Day:T", title=None), y=alt.Y("Spend:Q", title="Spend (USD)"),
+                    color=alt.Color("Account:N", scale=alt.Scale(
+                        domain=["DTC (own site)", "Retail (Target / Costco)"],
+                        range=[GREEN, GREEN_SOFT]), legend=alt.Legend(orient="top", title=None)),
+                    tooltip=["Day:T", "Account:N", alt.Tooltip("Spend:Q", format="$,.2f")],
+                ).properties(height=280), use_container_width=True)
+        else:
+            st.info("No daily rows in the selected window.")
+        st.markdown("#### Ad level — what actually served today")
+        for lbl, tbl in (("DTC", META_ADS), ("Retail (Target / Costco)", META_RETAIL)):
+            ads = live_ad_delivery(tbl, today_d)
+            st.markdown(f"**{lbl}** — {len(ads)} ads with impressions today")
+            if ads.empty:
+                st.caption("Nothing served yet today in this account, or the day has not "
+                           "landed in the warehouse. Reported as no rows, never as zero spend.")
+            else:
+                a = ads.rename(columns=str.upper)
+                st.dataframe(pd.DataFrame({
+                    "Campaign": a["CAMPAIGN"], "Ad set": a["ADSET"], "Ad": a["AD"],
+                    "Spend": a["SPEND"].map(money), "Impressions": a["IMPRESSIONS"],
+                    "Link clicks": a["LINK_CLICKS"],
+                }), use_container_width=True, hide_index=True, height=280)
+        if snap.get("today"):
+            with st.expander("Committed snapshot for comparison (what the web page shows)"):
+                _render_value(snap["today"])
+
+    # ── 2. Calendar ──────────────────────────────────────────────────────────
+    with tabs[1]:
+        st.subheader("Calendar")
+        st.caption("Day-by-day delivery across the selected window, read live. The SOP's "
+                   "standing conditions that govern what may run on any given day are below.")
+        cal = live_daily(META_RETAIL, "DATE_START", since, until)
+        cal_d = live_daily(META_ADS, "DATE_START", since, until)
+        if cal.empty and cal_d.empty:
+            st.info("No rows in the selected window.")
+        else:
+            merged = {}
+            for lbl, dd in (("Retail", cal), ("DTC", cal_d)):
+                if dd.empty:
+                    continue
+                dd = dd.rename(columns=str.upper)
+                for _, r in dd.iterrows():
+                    day = str(pd.to_datetime(r["DAY"]).date())
+                    row = merged.setdefault(day, {"Day": day, "Retail spend": 0.0,
+                                                  "DTC spend": 0.0, "Impressions": 0, "Clicks": 0})
+                    row[f"{lbl} spend"] = _n(r["SPEND"]) or 0.0
+                    row["Impressions"] += int(_n(r["IMPRESSIONS"]) or 0)
+                    row["Clicks"] += int(_n(r["CLICKS"]) or 0)
+            grid = pd.DataFrame(sorted(merged.values(), key=lambda x: x["Day"], reverse=True))
+            grid["Total spend"] = grid["Retail spend"] + grid["DTC spend"]
+            show = grid.copy()
+            for c in ("Retail spend", "DTC spend", "Total spend"):
+                show[c] = show[c].map(money)
+            show["Impressions"] = show["Impressions"].map(lambda v: f"{int(v):,}")
+            show["Clicks"] = show["Clicks"].map(lambda v: f"{int(v):,}")
+            st.dataframe(show, use_container_width=True, hide_index=True, height=420)
+            st.caption(f"{len(grid)} days in window. Newest first.")
+        if kb.get("sop", {}).get("standing_conditions"):
+            st.markdown("#### Standing conditions (SOP)")
+            _render_value(kb["sop"]["standing_conditions"])
+        if kb.get("sop", {}).get("turnaround"):
+            st.markdown("#### Turnaround — who owns which step, and by when")
+            _render_value(kb["sop"]["turnaround"])
+
+    # ── 3. Tracker ───────────────────────────────────────────────────────────
+    with tabs[2]:
+        st.subheader("Master Ad Tracking Sheet")
+        sop = kb.get("sop", {})
+        if sop.get("master_sheet"):
+            st.caption(f"Authoritative sheet: {sop['master_sheet']}")
+        if sop.get("authority"):
+            st.info(sop["authority"])
+        for key, head in (("tabs", "Sheet tabs — what each holds and who owns it"),
+                          ("row_layout", "Row layout"),
+                          ("campaign_tab_columns", "Campaign tab columns (all 26)"),
+                          ("formula_columns", "Formula columns")):
+            if sop.get(key):
+                st.markdown(f"#### {head}")
+                _render_value(sop[key])
+        st.markdown("#### Live campaign rows, in tracker shape")
+        st.caption("The same campaigns the sheet tracks, read live from the warehouse for the "
+                   "selected window rather than typed in by hand.")
+        try:
+            rows = sql_group_sums(META_RETAIL, f"\"DATE_START\" between '{since}' and '{until}'",
+                                  ["campaign_name"])
+        except Exception:  # noqa: BLE001
+            rows = pd.DataFrame()
+        if rows.empty:
+            st.info("No retail campaign rows in the selected window.")
+        else:
+            rr = rows.rename(columns=str.upper)
+            sp = rr.get("SPEND")
+            im = rr.get("IMPRESSIONS")
+            ck = rr.get("INLINE_LINK_CLICKS", rr.get("CLICKS"))
+            st.dataframe(pd.DataFrame({
+                "Campaign": rr.iloc[:, 0],
+                "Spend": sp.map(money) if sp is not None else "—",
+                "Impressions": im.map(lambda v: f"{int(v or 0):,}") if im is not None else "—",
+                "Link clicks": ck.map(lambda v: f"{int(v or 0):,}") if ck is not None else "—",
+                "CTR": [pctf(_pct(c, i)) for c, i in zip(ck, im)] if (ck is not None and im is not None) else "—",
+                "CPC": [money(_div(s, c)) for s, c in zip(sp, ck)] if (sp is not None and ck is not None) else "—",
+            }), use_container_width=True, hide_index=True)
+
+    # ── 4. Accounts ──────────────────────────────────────────────────────────
+    with tabs[3]:
+        render_ad_accounts()
+
+    # ── 5. SOP ───────────────────────────────────────────────────────────────
+    with tabs[4]:
+        st.subheader("Ad Campaign SOP")
+        sop = kb.get("sop", {})
+        if not sop:
+            st.info("SOP section not present in the knowledge base file.")
+        else:
+            head = {k: sop[k] for k in ("id", "title", "status", "scope") if sop.get(k)}
+            if head:
+                _render_value(head)
+            for k, v in sop.items():
+                if k in ("id", "title", "status", "scope") or v in (None, "", [], {}):
+                    continue
+                st.markdown(f"#### {_humanize(k)}")
+                _render_value(v)
+
+    # ── 6. Overview ──────────────────────────────────────────────────────────
+    with tabs[5]:
+        st.subheader("Overview")
+        if kb.get("executive_overview"):
+            st.markdown(kb["executive_overview"])
+        for k, head in (("spend", "Spend"), ("objective_rollup", "By objective"),
+                        ("benchmarks", "Benchmarks"), ("campaign_rollup", "Campaign rollup")):
+            if kb.get(k):
+                st.markdown(f"#### {head}")
+                _render_value(kb[k])
+
+    # ── 7. Campaigns & Ads ───────────────────────────────────────────────────
+    with tabs[6]:
+        st.subheader("Campaigns & Ads")
+        st.caption("Live from the warehouse for the selected window. Pick the account; "
+                   "retail and DTC are different programs and are never blended here.")
+        which = st.radio("Account", ["Retail (Target / Costco)", "DTC (own site)"],
+                         horizontal=True, key="master_camp_acct")
+        tbl = META_RETAIL if which.startswith("Retail") else META_ADS
+        for lvl, cols_ in (("Campaign", ["campaign_name"]),
+                           ("Ad set", ["campaign_name", "adset_name"]),
+                           ("Ad", ["campaign_name", "adset_name", "ad_name"])):
+            with st.expander(f"{lvl} level", expanded=(lvl == "Campaign")):
+                try:
+                    g = sql_group_sums(tbl, f"\"DATE_START\" between '{since}' and '{until}'", cols_)
+                except Exception as exc:  # noqa: BLE001
+                    st.warning(f"Unavailable: {exc}")
+                    continue
+                if g.empty:
+                    st.info("No rows in the selected window.")
+                else:
+                    st.dataframe(order_table(spec_frame(g)) if "spec_frame" in globals() else g,
+                                 use_container_width=True, hide_index=True)
+        if kb.get("campaign_rollup"):
+            with st.expander("KT snapshot rollup (20 Jul 2026) for comparison"):
+                _render_value(kb["campaign_rollup"])
+
+    # ── 8. Creative Intel ────────────────────────────────────────────────────
+    with tabs[7]:
+        st.subheader("Creative Intel")
+        for k, head in (("creative_learnings", "Creative learnings"),
+                        ("top_ads_by_efficiency", "Most efficient ads"),
+                        ("worst_ads_by_efficiency", "Least efficient ads"),
+                        ("top_ads_by_spend", "Highest spending ads")):
+            if kb.get(k):
+                st.markdown(f"#### {head}")
+                _render_value(kb[k])
+
+    # ── 9. Organic & UGC ─────────────────────────────────────────────────────
+    with tabs[8]:
+        st.subheader("Organic & UGC")
+        st.markdown("#### Creator posts, live from the warehouse")
+        st.caption(f"`{JB_UGC}` — the JoinBrands feed. This is the only creator source current "
+                   "to last week; the Master UGC Tracker's own posts stop earlier.")
+        posts = live_ugc_posts(since, until)
+        if posts.empty:
+            st.info("No creator posts in the selected window.")
+        else:
+            pp = posts.rename(columns=str.upper)
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Posts", f"{len(pp):,}")
+            k2.metric("Creators", f"{pp['CREATOR'].nunique():,}")
+            k3.metric("Creator cost", money(float(pp["COST"].fillna(0).sum())))
+            k4.metric("Views", f"{int(pp['VIEWS'].fillna(0).sum()):,}")
+            st.dataframe(pd.DataFrame({
+                "Creator": pp["CREATOR"], "Handle": pp["HANDLE"], "Platform": pp["PLATFORM"],
+                "Campaign": pp["CAMPAIGN"], "Posted": pp["POSTED"],
+                "Cost": pp["COST"].map(money),
+                "Views": pp["VIEWS"].map(lambda v: f"{int(v):,}" if pd.notna(v) else "—"),
+                "Likes": pp["LIKES"].map(lambda v: f"{int(v):,}" if pd.notna(v) else "—"),
+                "Comments": pp["COMMENTS"], "Status": pp["STATUS"], "Post": pp["LINK"],
+            }), use_container_width=True, hide_index=True, height=420)
+        if kb.get("organic"):
+            st.markdown("#### Organic program (KT)")
+            _render_value(kb["organic"])
+
+    # ── 10. Knowledge Base ───────────────────────────────────────────────────
+    with tabs[9]:
+        st.subheader("Knowledge Base")
+        for k, head in (("kt_sources", "KT sources"), ("narratives", "KT narratives"),
+                        ("people", "People and ownership"), ("links", "Links register"),
+                        ("gaps", "Declared gaps")):
+            if kb.get(k):
+                st.markdown(f"#### {head}")
+                _render_value(kb[k])
+
+    # ── 11. Ops & Data Sources ───────────────────────────────────────────────
+    with tabs[10]:
+        st.subheader("Ops & Data Sources")
+        st.markdown("#### Live source freshness, checked now")
+        st.caption("Read from the warehouse at render time — this is the Snowflake app's own "
+                   "answer, not a copied note.")
+        checks = []
+        for a in AD_ACCOUNTS:
+            try:
+                dc = "DATE_START"
+                if a["platform"] == "Google":
+                    dc = "SEGMENTS_DATE" if a["id"] == "google_us" else "segments.date"
+                elif a["platform"] == "TikTok":
+                    dc = "STAT_TIME_DAY"
+                elif a["id"] == "target_roundel":
+                    dc = None
+                if dc is None:
+                    r = q(f"select count(*) as n, max({sf_day('Event Date')}) as mx from {a['table']}")
+                else:
+                    r = q(f'select count(*) as n, max("{dc}")::date as mx from {a["table"]}')
+                checks.append({"Account": a["label"], "Status": a["status"],
+                               "Table": a["table"], "Rows": f"{int(r.iloc[0, 0]):,}",
+                               "Latest row": str(r.iloc[0, 1]), "Reachable": "yes"})
+            except Exception:  # noqa: BLE001
+                checks.append({"Account": a["label"], "Status": a["status"],
+                               "Table": a["table"], "Rows": "—", "Latest row": "—",
+                               "Reachable": "no grant or missing"})
+        st.dataframe(pd.DataFrame(checks), use_container_width=True, hide_index=True)
+        for k, head in (("platforms", "Platform registry (KT)"), ("ops", "Ops notes")):
+            if kb.get(k):
+                st.markdown(f"#### {head}")
+                _render_value(kb[k])
 
 
 def render_ads_analytics():
@@ -3452,7 +3875,9 @@ def _run_section(fn):
                     "persists, this is the exact message to report.")
 
 
-if section == "Ads Analysis":
+if section == "Ad Campaigns Master":
+    _run_section(render_master_dashboard)
+elif section == "Ads Analysis":
     _run_section(render_ads_analytics)
 else:
     _run_section(render_ads_intelligence)

@@ -4,20 +4,38 @@
 (Enforced by `main`'s required check `.github/workflows/protect-main-from-sis.yml`,
 which fails any PR from this branch. Port changes by hand in either direction.)
 
-## THE app (there is exactly one)
+## THE app (there is exactly one) — it is a WORKSPACES app, not a stage app
+
+Corrected 2026-07-26 against the live account. This README previously named an
+object that **does not exist**, which is what produced
+`Stage 'VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE' does not exist or not authorized`.
 
 | | |
 |---|---|
-| **App object** | `VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA` |
+| **App object** | `USER$.PUBLIC.ST16DFD18C278CC8519B9BDD3318FC9CB3980ABC72` |
 | **Title in Snowsight** | **Ads Dashboard USA** |
-| **URL** | <https://app.snowflake.com/streamlit/uxdeihw/mo06981/#/apps/VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA> |
+| **Backed by** | Snowsight Workspace `Ads Dashboard` → `/ws/USER$/PUBLIC/DEFAULT$/Ads Dashboard/streamlit_app.py` |
+| **`url_id`** | `6pijhfqfbcoleaokckpm` |
+| **Owner** | `ANCHITTANDON` (USER role type) |
 
-Every deploy from this branch targets that one object, so the URL never changes.
-Any other Streamlit app in the account (e.g. an old "VAHDAM Analytics" /
-"Ads Dashboard" object) is a stale duplicate — `deploy.sql` §3 drops the retired
-`VAHDAM_DB.APPS.VAHDAM_ADS_ANALYSIS` so it cannot be opened by mistake.
-If the app you open does not match this README, you are on the wrong object or
-a stale build: run `SHOW STREAMLITS IN DATABASE VAHDAM_DB;` and redeploy.
+`SHOW STREAMLITS IN ACCOUNT` returns exactly this one row.
+`VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA` is **not** in the account, and
+`SHOW STAGES IN DATABASE VAHDAM_DB` returns **zero rows** — there is no
+`STREAMLIT_STAGE`. A Workspaces app does not use one; Snowsight serves the app
+straight out of the Git-linked workspace folder.
+
+### Deploy: Pull, then Run. No SQL, no stage.
+1. Snowsight → **Projects → Workspaces → "Ads Dashboard"**
+2. **Pull** — brings this branch in, including `.streamlit/config.toml` **and**
+   `data/ads/*.json`. Both are required: the first forces the light theme, the
+   second feeds the governance tabs.
+3. **Run**
+
+The sidebar prints the build id and the active theme. If the build id is older
+than the one in `streamlit_app.py`, the Pull did not take. Do **not** run
+`deploy.sql` to fix a deploy — it targets the alternative stage flow, needs
+`CREATE STAGE` + `CREATE STREAMLIT` on `VAHDAM_DB.MAPLEMONK` (which `CLAUDE_ROLE`
+does not hold), and would mint a **different URL** from the app in use today.
 
 This branch runs **natively inside Snowflake**: authentication and warehouse
 come from the logged-in session (`get_active_session()`) — no Vercel, no
@@ -33,7 +51,32 @@ live in the top bar of the page** (Channel · Account · Marketplace · Level ·
 Objective · Status · Date range · Refresh). All tables default to **descending**
 sort (spend, else the first metric; raw views newest-first).
 
-### Section 1 — Ads Analysis (10 analysis views in the LHS menu)
+### Section 1 — Ad Campaigns Master (11 tabs, the landing section)
+Mirrors `ad-campaigns-master.html` **tab for tab, in the same order, with the same
+labels**, so the Snowflake app and the web app are the same dashboard rather than
+two different products:
+
+**Live Now · Calendar · Tracker · Accounts · SOP · Overview · Campaigns & Ads ·
+Creative Intel · Organic & UGC · Knowledge Base · Ops & Data Sources**
+
+Governance content is read from the **same four files the web page fetches** —
+`data/ads/master-kb.json`, `ads-live-snapshot.json`, `ad-accounts.json`,
+`target-ads-meta-2026-07-20.json` — off the app root rather than over HTTP. They
+are ported by hand onto this branch (the SiS branch is a separate distribution)
+and listed in `snowflake.yml` `artifacts`. A file that is genuinely absent yields a
+**declared gap**, never invented content. Every top-level key in the knowledge base
+is surfaced by some tab; a generic renderer handles each JSON shape (lists of
+uniform dicts become sortable tables, scalar dicts become field/value tables,
+nested dicts recurse) so no field is silently dropped.
+
+Where the web page can only show its committed snapshot, this section reads the
+warehouse **live** — today's per-account delivery, the daily spend series, ad-level
+"is it serving yet", live campaign rows in tracker shape, live creator posts from
+`JB_USA`, and a source-freshness check run at render time. That is the one place
+the two surfaces intentionally differ, and each figure is labelled so it is never
+ambiguous which is which.
+
+### Section 2 — Ads Analysis (10 analysis views in the LHS menu)
 0. **Ad accounts & retail funnel** *(landing view)* — the whole ad-account estate,
    described account by account: what each one is FOR, which KPI it can honestly
    be judged on, its currency, its warehouse table and how fresh that feed is,
@@ -70,7 +113,7 @@ sort (spend, else the first metric; raw views newest-first).
    sheets + live warehouse UGC ads) · Hook & Script Bible. All figures computed
    live from `VAHDAM_DB.TRACKERS.*`; unloaded sheets show declared gaps
 
-### Section 2 — Ads Intelligence (7 tabs)
+### Section 3 — Ads Intelligence (7 tabs)
 Ad platform tables · Creatives & assets · Trackers (UGC/retail/sales) ·
 Metric catalog (the ONE catalog, mirrored from the web app) · Accuracy
 calculator · **Insights generated** (evidence-quoting, computed live; optional
