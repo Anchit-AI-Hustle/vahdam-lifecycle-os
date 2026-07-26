@@ -138,6 +138,17 @@ function sources() {
 function adAccounts() {
   const q = (n) => ({ raw: n, sql: quoteIdent(n) });
   const micros = (n) => ({ raw: n, sql: `(${quoteIdent(n)} / 1000000.0)` });
+  // Retail-media feeds land as Airbyte CSV loads, so every figure arrives as TEXT
+  // carrying a currency symbol and thousands separators ('$125.95', '2,907,903')
+  // and every date as DD-MM-YYYY text. Casting those straight to a number fails
+  // outright, so they are cleaned in the column expression itself.
+  const cash = (n) => ({ raw: n, sql: `try_to_double(replace(replace(${quoteIdent(n)},'$',''),',',''))` });
+  const qty = (n) => ({ raw: n, sql: `try_to_double(replace(${quoteIdent(n)},',',''))` });
+  // Some of these feeds carry TWO date shapes in one column: 'DD-MM-YYYY' for the
+  // older rows and 'DD-MM-YYYY H:MI' for the newer ones. Parsing only the bare
+  // form silently drops the newest rows — it made Target sell-through look like it
+  // ended 2026-07-13 when it actually runs to 2026-07-23. Split on the space first.
+  const dmy = (n) => ({ raw: n, sql: `try_to_date(split_part(${quoteIdent(n)},' ',1),'DD-MM-YYYY')` });
   const lit = (v) => ({ raw: v, sql: `'${String(v).replace(/'/g, "''")}'` });
   const nul = { raw: null, sql: 'null' };
   // Meta insights tables (Maplemonk/Airbyte): purchases and revenue live in
@@ -360,6 +371,40 @@ function adAccounts() {
         adset: q('ad_group.name'), ad: q('ad_group.name'), ad_id: q('ad_group_ad.ad.id'),
         account: q('customer.descriptive_name'), account_id: q('customer.id'),
         objective: q('campaign.status'), conversions: q('metrics.conversions'), revenue: q('metrics.conversions_value') } },
+    // ------------------------------------------- Retail media (MAPLEMONK1)
+    // MAPLEMONK1 is NOT just breakdown tables for the DTC account. It carries the
+    // whole retail-partner stack — Target's own Roundel ad platform, Target
+    // sell-through, Ibotta, Target Aisle, Walmart and the Amazon Ads console —
+    // which is where the retail programme is actually measured. Missing this is
+    // what made the Target/Costco Meta account look unmeasurable: its shoppers
+    // buy in Target, and Target reports that back here, not to the Meta pixel.
+    { id: 'target_roundel', platform: 'target_roundel', region: 'US', status: 'live',
+      label: 'VAHDAM Teas Global Inc. - RMS (Target Roundel)', account_id: 'RMS',
+      table: tableRef('SF_TARGET_ADS_TABLE', 'VAHDAM_DB.MAPLEMONK1.TARGET_ADS_DAY_TARGET_ADS_REPORT'), schema: 'MAPLEMONK1',
+      fresh_to: '2026-07-22', partial_day: false,
+      purpose: 'Target Roundel Media Studio — retail media bought inside Target, on Target search and Target-owned placements. Unlike the Meta retail account this one DOES report attributed sales and units, because Target matches the ad to the basket, so it is the one Target channel with a real ROAS.',
+      used_for: 'Paid placement inside Target search and Target.com',
+      kpi: 'roas', attribution: 'target_attributed_sales',
+      attribution_note: 'ROAS here is Target-attributed sales over actualized vendor spend, matched by Target, not pixel-based. It is comparable across Roundel campaigns but not directly against Meta pixel ROAS.',
+      verified: { rows: 804, first_day: '2026-05-04', last_day: '2026-07-22', campaigns: 10, spend: 40314.74,
+        attributed_sales: 23264.68, roas: 0.58,
+        note: 'Blended Roundel ROAS is 0.58. The spread is wide: "Coffee - Ingredients" returns 1.95 on $2,327.44 at a 3.94% CTR, while the three Manual powder lines (Ashwagandha_Powder_M1, Curry_Powder_M1, Moringa_Powder_M1) burn $15,636.48 combined at 0.09 to 0.42.' },
+      cols: { date: dmy('Event Date'), spend: cash('Actualized Vendor Spend'), impressions: qty('IMPRESSIONS'),
+        clicks: qty('CLICKS'), link_clicks: qty('CLICKS'), campaign: q('Campaign Name'), adset: q('Media Name'),
+        ad: q('Media Name'), ad_id: q('Campaign Name'), account: q('Account Name'), account_id: lit('RMS'),
+        objective: q('Media Name'), conversions: qty('Attributed Total Units'), revenue: cash('Attributed Total Sales') } },
+    { id: 'target_roundel_kw', platform: 'target_roundel', region: 'US', status: 'live',
+      label: 'Target Roundel — keyword level', account_id: 'RMS',
+      table: tableRef('SF_TARGET_KW_TABLE', 'VAHDAM_DB.MAPLEMONK1.TARGET_ADS_KEYWORD_TARGET_ADS_REPORT'), schema: 'MAPLEMONK1',
+      fresh_to: '2026-07-22', partial_day: false,
+      purpose: 'The same Roundel spend broken out by keyword (98,647 rows). Use it to find which Target search terms carry the winning campaigns and which are draining the manual powder lines.',
+      used_for: 'Target search-term diagnosis',
+      kpi: 'roas', attribution: 'target_attributed_sales',
+      verified: { rows: 98647, last_day: '2026-07-22' },
+      cols: { date: dmy('Event Date'), spend: cash('Actualized Vendor Spend'), impressions: qty('IMPRESSIONS'),
+        clicks: qty('CLICKS'), link_clicks: qty('CLICKS'), campaign: q('Campaign Name'), adset: q('KEYWORD'),
+        ad: q('KEYWORD'), ad_id: q('KEYWORD'), account: q('Account Name'), account_id: lit('RMS'),
+        objective: q('Media Name'), conversions: qty('Attributed Total Units'), revenue: cash('Attributed Total Sales') } },
     // ------------------------------------------------------------------ TikTok
     { id: 'tiktok_us', platform: 'tiktok', region: 'US', status: 'paused',
       label: 'VAHDAM USA (TikTok Ads)', account_id: '7393105007056388112',
@@ -569,6 +614,117 @@ async function campaigns({ since, until, account, level = 'campaign' } = {}) {
   });
   return { ok: true, connected: true, source: 'snowflake', since: from, until: to, level: lv,
     account: describeAccount(s), kpi: s.kpi, rows };
+}
+
+/**
+ * Retail funnel — the view that makes the Target programme measurable at all.
+ *
+ * The Meta retail account (804570870670763) records ZERO purchases because its
+ * shoppers check out inside Target, not on vahdamteas.com. Judged on its own it
+ * looks like pure cost. The measurement lives one schema over: MAPLEMONK1 carries
+ * Target's own Roundel ad platform (which DOES report attributed sales, matched by
+ * Target to the basket) and TARGET_SALES_TARGET_SALES, the actual store-level
+ * sell-through. Joining spend from MAPLEMONK to outcomes in MAPLEMONK1 is the only
+ * way to answer "is retail working", which is why both schemas are required.
+ *
+ * Returns three tiers, each labelled with what it can and cannot claim:
+ *   spend      — Meta retail (demand generation, unattributable) + Roundel (attributed)
+ *   attributed — Roundel attributed sales and units, Target-matched
+ *   actual     — Target sell-through: dollars and units rung up in Target stores
+ * The ratio of sell-through to total retail spend is reported as a BLENDED figure,
+ * never as a causal ROAS: nothing in the warehouse attributes a Target basket to a
+ * Meta impression, and pretending otherwise would be fabrication.
+ */
+const RETAIL_TABLES = () => ({
+  meta: tableRef('SF_META_RETAIL_TABLE', 'VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS'),
+  roundel: tableRef('SF_TARGET_ADS_TABLE', 'VAHDAM_DB.MAPLEMONK1.TARGET_ADS_DAY_TARGET_ADS_REPORT'),
+  sales: tableRef('SF_TARGET_SALES_TABLE', 'VAHDAM_DB.MAPLEMONK1.TARGET_SALES_TARGET_SALES'),
+  ibotta: tableRef('SF_TARGET_IBOTTA_TABLE', 'VAHDAM_DB.MAPLEMONK1.TARGET_IBOTTA_REPORT_TARGET_IBOTTA_REPORT'),
+  aisle: tableRef('SF_TARGET_AISLE_TABLE', 'VAHDAM_DB.MAPLEMONK1.TARGET_AISLE_TARGET_AISLE_REPORT'),
+});
+async function retailFunnel({ since, until, by = 'month' } = {}) {
+  const to = until || new Date().toISOString().slice(0, 10);
+  const from = since || '2026-05-01';
+  const t = RETAIL_TABLES();
+  const grain = by === 'day' ? 'd' : "date_trunc('month', d)";
+  const cash = (n) => `try_to_double(replace(replace(${quoteIdent(n)},'$',''),',',''))`;
+  const qty = (n) => `try_to_double(replace(${quoteIdent(n)},',',''))`;
+  // Same two-shape date problem as the registry's dmy(): split on the space so
+  // rows carrying a time component are not silently dropped.
+  const day = (n) => `try_to_date(split_part(${quoteIdent(n)},' ',1),'DD-MM-YYYY')`;
+  const sql = `with meta as (
+  select DATE_START::date as d, SPEND::float as spend, IMPRESSIONS::float as impressions,
+         INLINE_LINK_CLICKS::float as clicks
+    from ${t.meta} where DATE_START between '${from}' and '${to}'
+), roundel as (
+  select ${day('Event Date')} as d,
+         ${cash('Actualized Vendor Spend')} as spend, ${qty('IMPRESSIONS')} as impressions,
+         ${qty('CLICKS')} as clicks, ${cash('Attributed Total Sales')} as attr_sales,
+         ${qty('Attributed Total Units')} as attr_units
+    from ${t.roundel}
+   where ${day('Event Date')} between '${from}' and '${to}'
+), sales as (
+  select ${day('DATE')} as d,
+         ${cash('SALES $')} as sell_through, ${qty('SALES U')} as units,
+         ${quoteIdent('LOCATION ID')} as store
+    from ${t.sales}
+   where ${day('DATE')} between '${from}' and '${to}'
+), g as (
+  select ${grain} as period, sum(spend) as meta_spend, sum(impressions) as meta_impressions,
+         sum(clicks) as meta_clicks, 0 as roundel_spend, 0 as roundel_attr_sales, 0 as roundel_attr_units,
+         0 as sell_through, 0 as units_sold, null as store
+    from meta group by 1
+  union all
+  select ${grain}, 0, 0, 0, sum(spend), sum(attr_sales), sum(attr_units), 0, 0, null from roundel group by 1
+  union all
+  select ${grain}, 0, 0, 0, 0, 0, 0, sum(sell_through), sum(units), count(distinct store) from sales group by 1
+)
+select period, round(sum(meta_spend),2) as meta_spend, sum(meta_impressions)::int as meta_impressions,
+       sum(meta_clicks)::int as meta_clicks, round(sum(roundel_spend),2) as roundel_spend,
+       round(sum(roundel_attr_sales),2) as roundel_attr_sales, sum(roundel_attr_units)::int as roundel_attr_units,
+       round(sum(sell_through),2) as target_sell_through, sum(units_sold)::int as target_units,
+       max(store) as target_stores
+  from g group by period order by period`;
+  if (!isConfigured()) {
+    return notConnected(sql, { since: from, until: to, by,
+      tables: t,
+      note: 'Retail measurement spans BOTH schemas: spend in MAPLEMONK, outcomes in MAPLEMONK1.' });
+  }
+  const r = await runStatement(sql);
+  const rows = (r.rows || []).map((x) => {
+    const meta_spend = Number(x.meta_spend) || 0;
+    const roundel_spend = Number(x.roundel_spend) || 0;
+    const total_spend = Number((meta_spend + roundel_spend).toFixed(2));
+    const attr = Number(x.roundel_attr_sales) || 0;
+    const sell = Number(x.target_sell_through) || 0;
+    return { period: String(x.period || '').slice(0, 10),
+      meta_spend, meta_impressions: Number(x.meta_impressions) || 0, meta_clicks: Number(x.meta_clicks) || 0,
+      roundel_spend, roundel_attr_sales: attr, roundel_attr_units: Number(x.roundel_attr_units) || 0,
+      roundel_roas: roundel_spend > 0 ? Number((attr / roundel_spend).toFixed(2)) : null,
+      target_sell_through: sell, target_units: Number(x.target_units) || 0,
+      target_stores: Number(x.target_stores) || 0,
+      total_retail_spend: total_spend,
+      // Blended, NOT causal — see the note below.
+      sell_through_per_dollar: total_spend > 0 ? Number((sell / total_spend).toFixed(2)) : null };
+  });
+  const tot = rows.reduce((a, x) => ({
+    meta_spend: Number((a.meta_spend + x.meta_spend).toFixed(2)),
+    roundel_spend: Number((a.roundel_spend + x.roundel_spend).toFixed(2)),
+    roundel_attr_sales: Number((a.roundel_attr_sales + x.roundel_attr_sales).toFixed(2)),
+    target_sell_through: Number((a.target_sell_through + x.target_sell_through).toFixed(2)),
+    target_units: a.target_units + x.target_units,
+  }), { meta_spend: 0, roundel_spend: 0, roundel_attr_sales: 0, target_sell_through: 0, target_units: 0 });
+  const totalSpend = Number((tot.meta_spend + tot.roundel_spend).toFixed(2));
+  return { ok: true, connected: true, source: 'snowflake', since: from, until: to, by, tables: t, rows,
+    totals: Object.assign({}, tot, { total_retail_spend: totalSpend,
+      roundel_roas: tot.roundel_spend > 0 ? Number((tot.roundel_attr_sales / tot.roundel_spend).toFixed(2)) : null,
+      sell_through_per_dollar: totalSpend > 0 ? Number((tot.target_sell_through / totalSpend).toFixed(2)) : null }),
+    tiers: {
+      spend: 'Meta retail (demand generation, no attribution possible) + Target Roundel (attributed by Target).',
+      attributed: 'Roundel attributed sales and units only. Target matches these to the basket; they are NOT pixel conversions and are not comparable with Meta pixel ROAS.',
+      actual: 'Target sell-through: dollars and units actually rung up across Target stores, from TARGET_SALES_TARGET_SALES.',
+    },
+    caveat: 'sell_through_per_dollar is a BLENDED ratio of Target sell-through to total retail ad spend. It is not a causal ROAS: nothing in the warehouse attributes a Target basket to a Meta impression, and sell-through includes baseline demand that would have happened without any advertising.' };
 }
 
 function primaryTable(platform, level) {
@@ -847,5 +1003,5 @@ module.exports = {
   status, ping, describe, metrics, cohort, budgets, runStatement,
   isConfigured, PLATFORMS, ACCOUNTS, DIMENSION_CANDIDATES, sources,
   adAccounts, liveAccounts, describeAccount, accounts, multiDaily, campaigns,
-  pickSources, unionSelect,
+  pickSources, unionSelect, retailFunnel,
 };

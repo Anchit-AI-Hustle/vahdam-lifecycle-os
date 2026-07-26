@@ -3,12 +3,13 @@
   "captured_at": "2026-07-26",
   "generated_by": "scripts/build-ads-live-snapshot.js from adAccounts() in api/_shared/ads-snowflake-core.js",
   "counts": {
-    "feeds": 17,
-    "distinct_accounts": 13,
-    "live": 9,
+    "feeds": 19,
+    "distinct_accounts": 14,
+    "live": 11,
     "by_platform": {
       "meta": 10,
       "google": 6,
+      "target_roundel": 2,
       "tiktok": 1
     }
   },
@@ -446,6 +447,58 @@
         "last_day": "2026-07-25",
         "campaigns": 260,
         "spend": 11715204.83
+      }
+    },
+    {
+      "id": "target_roundel",
+      "label": "VAHDAM Teas Global Inc. - RMS (Target Roundel)",
+      "platform": "target_roundel",
+      "region": "US",
+      "status": "live",
+      "account_id": "RMS",
+      "table": "VAHDAM_DB.MAPLEMONK1.TARGET_ADS_DAY_TARGET_ADS_REPORT",
+      "schema": "MAPLEMONK1",
+      "fresh_to": "2026-07-22",
+      "partial_day": false,
+      "purpose": "Target Roundel Media Studio — retail media bought inside Target, on Target search and Target-owned placements. Unlike the Meta retail account this one DOES report attributed sales and units, because Target matches the ad to the basket, so it is the one Target channel with a real ROAS.",
+      "used_for": "Paid placement inside Target search and Target.com",
+      "kpi": "roas",
+      "attribution": "target_attributed_sales",
+      "attribution_note": "ROAS here is Target-attributed sales over actualized vendor spend, matched by Target, not pixel-based. It is comparable across Roundel campaigns but not directly against Meta pixel ROAS.",
+      "currency": "USD",
+      "stale_note": null,
+      "verified": {
+        "rows": 804,
+        "first_day": "2026-05-04",
+        "last_day": "2026-07-22",
+        "campaigns": 10,
+        "spend": 40314.74,
+        "attributed_sales": 23264.68,
+        "roas": 0.58,
+        "note": "Blended Roundel ROAS is 0.58. The spread is wide: \"Coffee - Ingredients\" returns 1.95 on $2,327.44 at a 3.94% CTR, while the three Manual powder lines (Ashwagandha_Powder_M1, Curry_Powder_M1, Moringa_Powder_M1) burn $15,636.48 combined at 0.09 to 0.42."
+      }
+    },
+    {
+      "id": "target_roundel_kw",
+      "label": "Target Roundel — keyword level",
+      "platform": "target_roundel",
+      "region": "US",
+      "status": "live",
+      "account_id": "RMS",
+      "table": "VAHDAM_DB.MAPLEMONK1.TARGET_ADS_KEYWORD_TARGET_ADS_REPORT",
+      "schema": "MAPLEMONK1",
+      "fresh_to": "2026-07-22",
+      "partial_day": false,
+      "purpose": "The same Roundel spend broken out by keyword (98,647 rows). Use it to find which Target search terms carry the winning campaigns and which are draining the manual powder lines.",
+      "used_for": "Target search-term diagnosis",
+      "kpi": "roas",
+      "attribution": "target_attributed_sales",
+      "attribution_note": null,
+      "currency": "USD",
+      "stale_note": null,
+      "verified": {
+        "rows": 98647,
+        "last_day": "2026-07-22"
       }
     },
     {

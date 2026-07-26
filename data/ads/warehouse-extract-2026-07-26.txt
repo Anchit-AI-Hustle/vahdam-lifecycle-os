@@ -207,3 +207,16 @@ R~Costco_Awareness_Founder_Videos17072026~OUTCOME_AWARENESS~1~2026-07-17~2026-07
 R~Trendyfavefinds - Target Awareness~OUTCOME_AWARENESS~1~2026-05-25~2026-07-25~156.77~82316~47~39~0~0
 R~Giveaway - Target - Engagement~OUTCOME_ENGAGEMENT~1~2026-07-10~2026-07-25~150.27~5274~799~14~0~0
 R~Giveaway - Target~OUTCOME_AWARENESS~1~2026-07-09~2026-07-25~8.93~5271~8~3~0~0
+
+[RETAIL_FUNNEL]
+# Retail measurement, read 2026-07-26. Spend from MAPLEMONK, outcomes from MAPLEMONK1.
+#   meta_spend   VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS  (no attribution possible)
+#   roundel_*    VAHDAM_DB.MAPLEMONK1.TARGET_ADS_DAY_TARGET_ADS_REPORT  (Target-matched)
+#   target_*     VAHDAM_DB.MAPLEMONK1.TARGET_SALES_TARGET_SALES  (real store sell-through)
+# Roundel and sell-through dates arrive as DD-MM-YYYY text, some rows carrying a time
+# component; parsing only the bare form dropped the newest rows and made sell-through
+# look like it ended 2026-07-13 when it runs to 2026-07-23.
+# period meta_spend roundel_spend roundel_attr_sales target_sell_through target_units target_stores
+2026-05 3608.06 4473.74 3433.03 21628.00 2086 814
+2026-06 14422.93 28291.83 12635.91 47642.00 3902 1072
+2026-07 32217.25 7549.17 7195.74 60335.00 4418 1090

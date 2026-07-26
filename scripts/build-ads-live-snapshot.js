@@ -64,11 +64,22 @@ function r3(n) { return Math.round(n * 1000) / 1000; }
 function parseExtract(text) {
   const daily = [];
   const campaigns = [];
+  const retail = [];
   let section = null;
   text.split('\n').forEach((raw) => {
     const line = raw.trim();
     if (!line || line.startsWith('#')) return;
-    if (line === '[DAILY]' || line === '[CAMPAIGNS]') { section = line; return; }
+    if (line === '[DAILY]' || line === '[CAMPAIGNS]' || line === '[RETAIL_FUNNEL]') { section = line; return; }
+    if (section === '[RETAIL_FUNNEL]') {
+      const [period, ms, rs, ras, st, units, stores] = line.split(/\s+/);
+      const meta_spend = +ms, roundel_spend = +rs, total = r2(meta_spend + roundel_spend);
+      retail.push({ period, meta_spend, roundel_spend, total_retail_spend: total,
+        roundel_attr_sales: +ras,
+        roundel_roas: roundel_spend > 0 ? r2(+ras / roundel_spend) : null,
+        target_sell_through: +st, target_units: +units, target_stores: +stores,
+        sell_through_per_dollar: total > 0 ? r2(+st / total) : null });
+      return;
+    }
     if (section === '[DAILY]') {
       const [date, acct, ads, camps, spend, impressions, clicks, link_clicks] = line.split(/\s+/);
       daily.push({ date, account: ACCOUNTS[acct].key, ads_live: +ads, campaigns: +camps,
@@ -94,7 +105,7 @@ function parseExtract(text) {
       });
     }
   });
-  return { daily, campaigns };
+  return { daily, campaigns, retail };
 }
 
 function rollup(rows, keys) {
@@ -111,7 +122,7 @@ function rollup(rows, keys) {
 }
 
 function build() {
-  const { daily, campaigns } = parseExtract(fs.readFileSync(EXTRACT, 'utf8'));
+  const { daily, campaigns, retail } = parseExtract(fs.readFileSync(EXTRACT, 'utf8'));
   const dates = [...new Set(daily.map((d) => d.date))].sort();
   const since = dates[0];
   const until = dates[dates.length - 1];
@@ -185,6 +196,31 @@ function build() {
       by_account: lastDay.accounts,
       note: 'Partial day at capture time. The dashboard re-reads this live via /api/brain?action=ads-live&op=today; the figures here are the snapshot taken at capture.',
     },
+    // Retail measurement, so the Accounts tab can answer "is Target working" even
+    // with no warehouse credentials. The Meta retail account has no pixel; Target
+    // reports the outcome instead (Roundel attributed sales + store sell-through).
+    retail_funnel: {
+      rows: retail,
+      totals: (() => {
+        const t = retail.reduce((a, x) => ({
+          meta_spend: r2(a.meta_spend + x.meta_spend),
+          roundel_spend: r2(a.roundel_spend + x.roundel_spend),
+          roundel_attr_sales: r2(a.roundel_attr_sales + x.roundel_attr_sales),
+          target_sell_through: r2(a.target_sell_through + x.target_sell_through),
+          target_units: a.target_units + x.target_units,
+        }), { meta_spend: 0, roundel_spend: 0, roundel_attr_sales: 0, target_sell_through: 0, target_units: 0 });
+        const total = r2(t.meta_spend + t.roundel_spend);
+        return Object.assign(t, { total_retail_spend: total,
+          roundel_roas: t.roundel_spend > 0 ? r2(t.roundel_attr_sales / t.roundel_spend) : null,
+          sell_through_per_dollar: total > 0 ? r2(t.target_sell_through / total) : null });
+      })(),
+      tables: {
+        meta: 'VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS',
+        roundel: 'VAHDAM_DB.MAPLEMONK1.TARGET_ADS_DAY_TARGET_ADS_REPORT',
+        sales: 'VAHDAM_DB.MAPLEMONK1.TARGET_SALES_TARGET_SALES',
+      },
+      caveat: 'sell_through_per_dollar is a BLENDED ratio of Target sell-through to total retail ad spend. It is not a causal ROAS: nothing in the warehouse attributes a Target basket to a Meta impression, and sell-through includes baseline demand that would have happened without any advertising.',
+    },
     account_notes: [
       'Corrects an earlier snapshot which stated the Target/Costco account was NOT in the warehouse. It is: VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS, 6,556 rows, fresh to 2026-07-25. It was missed because its table name does not match META_USA%.',
       'A second, older mirror of the same retail account exists at VAHDAM_DB.DC_RAW.FB2_VAHDAM_VAHDAMUSATEA_US_FBADS_ADPERFORMANCE, but it ends 2026-05-31 and holds only 7 of the 26 campaigns. Do not report from it.',
@@ -198,6 +234,7 @@ function build() {
   console.log(`  dtc    $${dtc.spend.toLocaleString()} · ROAS ${dtc.roas} · ${dtc.campaigns_in_window} campaigns`);
   console.log(`  retail $${rt.spend.toLocaleString()} · CTR ${rt.ctr}% · CPC $${rt.cpc} · ${rt.campaigns_in_window} campaigns`);
   console.log(`  total  $${totals.spend.toLocaleString()} -> ${path.relative(ROOT, OUT)}`);
+  console.log(`  retail funnel: ${retail.length} periods, Target sell-through $${retail.reduce((s, x) => s + x.target_sell_through, 0).toLocaleString()}`);
 }
 
 /**

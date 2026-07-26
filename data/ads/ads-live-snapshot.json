@@ -3039,6 +3039,62 @@
     },
     "note": "Partial day at capture time. The dashboard re-reads this live via /api/brain?action=ads-live&op=today; the figures here are the snapshot taken at capture."
   },
+  "retail_funnel": {
+    "rows": [
+      {
+        "period": "2026-05",
+        "meta_spend": 3608.06,
+        "roundel_spend": 4473.74,
+        "total_retail_spend": 8081.8,
+        "roundel_attr_sales": 3433.03,
+        "roundel_roas": 0.77,
+        "target_sell_through": 21628,
+        "target_units": 2086,
+        "target_stores": 814,
+        "sell_through_per_dollar": 2.68
+      },
+      {
+        "period": "2026-06",
+        "meta_spend": 14422.93,
+        "roundel_spend": 28291.83,
+        "total_retail_spend": 42714.76,
+        "roundel_attr_sales": 12635.91,
+        "roundel_roas": 0.45,
+        "target_sell_through": 47642,
+        "target_units": 3902,
+        "target_stores": 1072,
+        "sell_through_per_dollar": 1.12
+      },
+      {
+        "period": "2026-07",
+        "meta_spend": 32217.25,
+        "roundel_spend": 7549.17,
+        "total_retail_spend": 39766.42,
+        "roundel_attr_sales": 7195.74,
+        "roundel_roas": 0.95,
+        "target_sell_through": 60335,
+        "target_units": 4418,
+        "target_stores": 1090,
+        "sell_through_per_dollar": 1.52
+      }
+    ],
+    "totals": {
+      "meta_spend": 50248.24,
+      "roundel_spend": 40314.74,
+      "roundel_attr_sales": 23264.68,
+      "target_sell_through": 129605,
+      "target_units": 10406,
+      "total_retail_spend": 90562.98,
+      "roundel_roas": 0.58,
+      "sell_through_per_dollar": 1.43
+    },
+    "tables": {
+      "meta": "VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS",
+      "roundel": "VAHDAM_DB.MAPLEMONK1.TARGET_ADS_DAY_TARGET_ADS_REPORT",
+      "sales": "VAHDAM_DB.MAPLEMONK1.TARGET_SALES_TARGET_SALES"
+    },
+    "caveat": "sell_through_per_dollar is a BLENDED ratio of Target sell-through to total retail ad spend. It is not a causal ROAS: nothing in the warehouse attributes a Target basket to a Meta impression, and sell-through includes baseline demand that would have happened without any advertising."
+  },
   "account_notes": [
     "Corrects an earlier snapshot which stated the Target/Costco account was NOT in the warehouse. It is: VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS, 6,556 rows, fresh to 2026-07-25. It was missed because its table name does not match META_USA%.",
     "A second, older mirror of the same retail account exists at VAHDAM_DB.DC_RAW.FB2_VAHDAM_VAHDAMUSATEA_US_FBADS_ADPERFORMANCE, but it ends 2026-05-31 and holds only 7 of the 26 campaigns. Do not report from it.",
