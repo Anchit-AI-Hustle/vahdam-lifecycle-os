@@ -34,4 +34,11 @@ The bar is what top reels actually do — not a slideshow of stills:
 4. **Instant preview / no-API fallback**: `scripts/lib/motion-ad.js` — `renderMotionAd(spec)` outputs a self-contained animated 9:16 HTML creative (layered Ken Burns, parallax veils, crossfades, kinetic type, CTA card), and `motionBrief(spec)` emits the same design as a shot-by-shot brief for Higgsfield/CapCut so the shipped MP4 matches the preview.
 5. **Non-negotiables**: real SKU packaging only (never AI-invented tins), one filmic grade, licensed audio only, total under 15s, safe-areas (7% sides, bottom 18% clear).
 
+## Spokesperson / UGC talking-head ads (avatar video)
+For lip-synced spokesperson or creator-style ads, use `scripts/lib/avatar-video.js` (`avatarBrief`) — it targets the open-source **LongCat-Video-Avatar-1.5** (Meituan, MIT): audio-driven AT2V / ATI2V, multi-person dual-audio, length via `num_segments`, `--use_int8` for lower VRAM, `--use_distill` for 8-step serving.
+- It emits a **run-ready command + descriptive prompt**, not an API call: LongCat is self-hosted and needs a GPU host (`torchrun`), which Vercel functions do not have. Run it on a GPU box / Modal / RunPod, then finish captions + CTA in `motion-ad.js`.
+- **Refuses to brief** unless `consent: true` (the likeness is a creator/model who signed off on synthetic video), audio is supplied (the model does not synthesize speech), and the language is within the model's evaluated set (**English or Chinese only** — Hindi/Tamil/Telugu/Kannada/Malayalam need a different lip-sync path, never unevaluated output).
+- Never fabricate a testimonial, rating or endorsement for the avatar to speak; it may only say what that person agreed to say.
+- Hosted, non-avatar video stays on the `api/_shared/video-core.js` cascade (Veo 3.1 → Sora 2 → Higgsfield → Runway).
+
 Offer to mirror the assets into `ads_generated` and wire them to a campaign via `/campaign-plan`.

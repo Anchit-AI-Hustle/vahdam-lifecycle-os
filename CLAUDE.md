@@ -193,6 +193,15 @@ highly specific, template-driven, evidence-quoting; skill = a real job run end-t
 `/campaign-audit` `/lp-audit` `/ab-test` `/competitor-teardown` `/utm` `/email-sequence`
 `/content-repurposer` `/icp-builder` `/ad-copy-matrix` `/creative-brief`. All enforce the
 Brand Constants + zero fabrication.
+**Avatar video (2026-07-26)**: `scripts/lib/avatar-video.js` (`avatarBrief`) targets open-source
+**LongCat-Video-Avatar-1.5** (Meituan, MIT) for lip-synced spokesperson/UGC ads — audio-driven
+AT2V/ATI2V, multi-person dual audio, length via `num_segments`, `--use_int8` (VRAM) / `--use_distill`
+(8-step). It emits a run-ready `torchrun` command + descriptive prompt rather than an API call,
+because the model is self-hosted and needs a GPU (Vercel functions have none); the hosted cascade
+in `api/_shared/video-core.js` (Veo → Sora → Higgsfield → Runway) still owns non-avatar video.
+Hard refusals built in: no `consent: true` on the likeness, no supplied audio, or a language outside
+the model's evaluated set (EN/ZH only — Indic languages need a different lip-sync path).
+
 **Reels-grade creative standard**: stills built to animate via `api/ai/image.js`
 `mode:'reels'` (cinematic 9:16, depth layers for parallax, negative space for type, no baked
 text); real motion via Higgsfield image-to-video; instant no-API preview + generator handoff
