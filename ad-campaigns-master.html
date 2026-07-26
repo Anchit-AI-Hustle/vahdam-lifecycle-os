@@ -245,6 +245,11 @@
     <p class="eyebrow">Every feed in the warehouse</p>
     <div class="tbl-wrap" id="acct-tbl"><div class="empty">Loading…</div></div>
     <p class="note" id="acct-note"></p>
+    <p class="eyebrow">Retail funnel — the only way the Target programme can be measured</p>
+    <div class="notice" id="rf-note"></div>
+    <div class="cards" id="rf-cards"></div>
+    <div class="tbl-wrap" id="rf-tbl"><div class="empty">Loading…</div></div>
+    <p class="note" id="rf-caveat"></p>
     <p class="eyebrow">Account detail</p>
     <div id="acct-detail"></div>
   </div>
@@ -401,7 +406,7 @@
       "</tr></thead><tbody>"+rows.map(function(r){return "<tr>"+r.map(function(c,i){return "<td style='text-align:"+(head[i]&&head[i].r?"right":"left")+"'>"+c+"</td>";}).join("")+"</tr>";}).join("")+"</tbody></table>";
   }
   var KB=null, ADS=null, SNAP=null, LIVE=null, RANGE=30, CAMPRANGE='all';
-  var REG=null, ACCTLIVE=null, LVACCT='';
+  var REG=null, ACCTLIVE=null, LVACCT='', RETAIL=null;
 
   // ── Charts: dependency-free inline SVG. Every chart is preceded by ALWAYS
   // visible duration tiles (7D/14D/30D/60D/All) wired through rangeTiles().
@@ -821,6 +826,48 @@
       "<p class='note'>Read live from the warehouse on "+esc((REG&&REG.captured_at)||"")+". Registry source: adAccounts() in api/_shared/ads-snowflake-core.js.</p></div>";
     $("#acct-detail").scrollIntoView({behavior:'smooth',block:'nearest'});
   }
+  // The Meta retail account records zero purchases because its shoppers check out
+  // inside Target. The measurement lives one schema over, in MAPLEMONK1: Target's
+  // own Roundel platform (which DOES report attributed sales, matched by Target to
+  // the basket) and TARGET_SALES, the real store-level sell-through. Reading spend
+  // from MAPLEMONK against outcomes in MAPLEMONK1 is the only honest answer to
+  // "is retail working", which is why both schemas are needed.
+  function renderRetailFunnel(){
+    // Live warehouse read when available, else the committed snapshot — the same
+    // honest-fallback rule the rest of the page follows.
+    var f=RETAIL||(SNAP&&SNAP.retail_funnel)||null;
+    var live=!!RETAIL;
+    if(!f){ $("#rf-tbl").innerHTML="<div class='empty'>Retail funnel data not loaded.</div>"; return; }
+    var t=f.totals||{};
+    $("#rf-note").innerHTML="<b>Why this section exists.</b> The Target/Costco Meta account cannot attribute a sale, so judged on its own it can only ever look like cost. Target reports the outcome instead: Roundel matches ads to baskets, and TARGET_SALES carries the dollars actually rung up across Target stores.";
+    $("#rf-cards").innerHTML=
+      "<div class='sc' style='border-left-color:var(--gold-deep)'><div class='k'>Retail ad spend</div><div class='v'>"+money0(t.total_retail_spend||0)+"</div><div class='s'>Meta "+money0(t.meta_spend||0)+" + Roundel "+money0(t.roundel_spend||0)+"</div></div>"+
+      "<div class='sc'><div class='k'>Roundel attributed sales</div><div class='v'>"+money0(t.roundel_attr_sales||0)+"</div><div class='s'>ROAS "+(t.roundel_roas!=null?t.roundel_roas+"x":"—")+" · Target-matched</div></div>"+
+      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Target sell-through</div><div class='v'>"+money0(t.target_sell_through||0)+"</div><div class='s'>"+intf(t.target_units||0)+" units rung up in store</div></div>"+
+      "<div class='sc'><div class='k'>Sell-through per ad dollar</div><div class='v'>"+(t.sell_through_per_dollar!=null?t.sell_through_per_dollar+"x":"—")+"</div><div class='s'>blended, not causal</div></div>";
+    $("#rf-tbl").innerHTML=table(
+      [{t:"Period"},{t:"Meta retail spend",r:1},{t:"Roundel spend",r:1},{t:"Total spend",r:1},{t:"Roundel attr. sales",r:1},{t:"Roundel ROAS",r:1},{t:"Target sell-through",r:1},{t:"Units",r:1},{t:"Stores",r:1},{t:"Sell-through / $",r:1}],
+      (f.rows||[]).map(function(r){
+        return ["<span data-sort-value='"+esc(r.period)+"'>"+esc(monthLabel(r.period))+"</span>",
+          money0(r.meta_spend),money0(r.roundel_spend),money0(r.total_retail_spend),
+          money0(r.roundel_attr_sales),r.roundel_roas!=null?r.roundel_roas+"x":"—",
+          money0(r.target_sell_through),intf(r.target_units),intf(r.target_stores),
+          r.sell_through_per_dollar!=null?r.sell_through_per_dollar+"x":"—"];
+      }));
+    $("#rf-caveat").textContent=(f.caveat||"")+" Source: "+(live?"live warehouse read":"committed snapshot "+((SNAP&&SNAP.captured_at)||""))+
+      " — "+((f.tables&&[f.tables.meta,f.tables.roundel,f.tables.sales].join(" · "))||"")+
+      ". Target sell-through runs to 2026-07-23; Roundel ads to 2026-07-22.";
+  }
+  function monthLabel(iso){
+    if(!/^\d{4}-\d{2}/.test(String(iso||""))) return String(iso||"");
+    var d=new Date(String(iso).slice(0,7)+"-01T12:00:00Z");
+    return d.toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
+  }
+  function loadRetailFunnel(){
+    getJSON("/api/brain?action=ads-snowflake&op=retail-funnel&since=2026-05-01")
+      .then(function(res){ if(res&&res.ok&&res.rows){ RETAIL=res; } renderRetailFunnel(); })
+      .catch(function(){ renderRetailFunnel(); });
+  }
   function loadAccountsLive(){
     getJSON("/api/brain?action=ads-snowflake&op=accounts&since=2026-05-01")
       .then(function(res){ if(res&&res.ok&&res.rows&&res.rows.length){ ACCTLIVE=res; renderAccounts(); } })
@@ -1216,6 +1263,7 @@
     renderOverview(); renderCampaigns(); renderCreative(); renderOrganic(); renderKB(); renderOps(); renderSOP();
     if(SNAP){ monthOptions(); renderCalendar(); renderTracker(); drawSpendChart(); if(SNAP.today&&SNAP.today.date) calDetail(SNAP.today.date); }
     if(REG){ renderAccounts(); loadAccountsLive(); }
+    loadRetailFunnel();
     loadLive();
     // Auto-refresh the live view every 90s so "is it live yet" stays current.
     setInterval(function(){ if(document.querySelector("#tabs button[data-p='live']").classList.contains("on")) loadLive(); },90000);

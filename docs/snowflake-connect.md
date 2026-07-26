@@ -112,11 +112,50 @@ and grouping by account. The registry lives in `adAccounts()` in
 | Google — Raghuvansh (Amazon, Ampd) | `3036820580` | `MAPLEMONK.US_AMZ_GADS_AD_GROUP_AD_REPORT` | 2026-07-25 | CTR / CPC |
 | TikTok — VAHDAM USA | `7393105007056388112` | `DATON.RAW.TIKTOK_ADS_USA_AD_REPORT_DAILY` | 2026-07-14 (paused) | CTR / CPC |
 
-Meta cohort breakdowns are live in `MAPLEMONK1` (age/gender 11,521 rows · platform/device 11,511 ·
-creatives 9,544) and belong to the DTC account. Non-US live feeds: Meta UK `573128874469619`
-(fresh to 2026-07-26, the freshest in the warehouse), Meta India `70950428`, Google UK
-`3861674115`, Google India `7719984554`. **UK reports GBP and India reports INR — never sum them
-with the USD accounts.**
+### MAPLEMONK1 is not just breakdown tables
+
+`MAPLEMONK1` carries Meta cohort breakdowns for the DTC account (age/gender 11,521 rows ·
+platform/device 11,511 · creatives 9,544) — but it also holds the **entire retail-partner stack**,
+and that is where the Target programme is actually measured:
+
+| Table | Rows | Fresh to | What it is |
+|---|---|---|---|
+| `TARGET_ADS_DAY_TARGET_ADS_REPORT` | 804 | 2026-07-22 | **Target Roundel Media Studio** — a whole additional ad platform, with attributed sales, units, orders and ROAS matched by Target |
+| `TARGET_ADS_KEYWORD_TARGET_ADS_REPORT` | 98,647 | 2026-07-22 | the same Roundel spend by keyword |
+| `TARGET_SALES_TARGET_SALES` | 12,291 | 2026-07-23 | **real Target store sell-through** — $129,605 / 10,406 units across 1,210 stores since 2026-05-01 |
+| `TARGET_AISLE_TARGET_AISLE_REPORT` | 25 | 2026-07-24 | Target Aisle, with its own ROI and redemptions |
+| `TARGET_IBOTTA_REPORT_TARGET_IBOTTA_REPORT` | 143 | 2026-07-24 | Ibotta rebates across Walmart, Instacart, DoorDash, Uber and others |
+| `JB_USA` | 471 | 2026-07-23 | JoinBrands UGC — 302 creators, posts through **2026-07-22**, $36,100.15 creator cost |
+| `WALMART_SALES_DATA_WALMART_SALES_DATA_RAW` | 11.66M | 2026-07-25 | Walmart sell-through |
+| `CADS_USA_SEARCH_TERM_SPONSORED_{PRODUCTS,BRANDS}` | 37,590 | 2026-07-21 | Amazon Ads console search terms |
+| `AVP_NOW_IN_GET_VENDOR_SALES_REPORT` | 765 | 2026-07-25 | Amazon Vendor Central sales |
+
+This is why both schemas are required. The Meta retail account has no pixel, so on its own it can
+only ever look like cost; `/api/brain?action=ads-snowflake&op=retail-funnel` joins spend in
+`MAPLEMONK` to outcomes in `MAPLEMONK1` and returns three clearly-labelled tiers:
+
+| Month | Meta retail | Roundel | Roundel attr. sales | Roundel ROAS | Target sell-through | Units | Stores |
+|---|---|---|---|---|---|---|---|
+| May 2026 | $3,608.06 | $4,473.74 | $3,433.03 | 0.77 | $21,628 | 2,086 | 814 |
+| June 2026 | $14,422.93 | $28,291.83 | $12,635.91 | 0.45 | $47,642 | 3,902 | 1,072 |
+| July 2026 | $32,217.25 | $7,549.17 | $7,195.74 | 0.95 | $60,335 | 4,418 | 1,090 |
+| **Total** | **$50,248.24** | **$40,314.74** | **$23,264.68** | **0.58** | **$129,605** | **10,406** | — |
+
+`sell_through_per_dollar` (1.43 blended) is deliberately **not** called a ROAS: nothing in the
+warehouse attributes a Target basket to a Meta impression, and sell-through includes baseline
+demand that would have happened without any advertising.
+
+⚠️ **Two date formats in one column.** These retail feeds are Airbyte CSV loads. Dates arrive as
+`DD-MM-YYYY` on older rows and `DD-MM-YYYY H:MI` on newer ones, and money arrives as text with a
+currency symbol and thousands separators (`'$125.95'`, `'2,907,903'`). Parsing only the bare date
+form silently drops the newest rows — it made Target sell-through look like it ended 2026-07-13 when
+it runs to 2026-07-23. Always `split_part(col,' ',1)` first; the registry's `dmy()` helper does.
+
+### Non-US
+
+Live feeds: Meta UK `573128874469619` (fresh to 2026-07-26, the freshest in the warehouse), Meta
+India `70950428`, Google UK `3861674115`, Google India `7719984554`. **UK reports GBP and India
+reports INR — never sum them with the USD accounts.**
 
 ### Two corrections to earlier notes in this file
 
