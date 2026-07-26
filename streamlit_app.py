@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.15"
+APP_BUILD = "2026-07-26.16"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -293,10 +293,27 @@ GOOGLE_ADS_FILTER = "ACCOUNT = 'Google US CONSOLIDATED'"
 # distinct rows, i.e. ~7,690 exact copies. The legitimate grain is
 # (ad, day, ad_network_type) - there are 10 network values (SEARCH, YOUTUBE, DISCOVER,
 # GMAIL, CONTENT, SEARCH_PARTNERS, ...) whose spend SHOULD sum; the copies sit on top
-# of that. Effect on 2026 YTD: spend $73,300.39 raw against $72,309.85 deduped
-# (+1.37%), conversion value $143,393.30 against $141,767.16 (+1.15%). ROAS is
-# UNAFFECTED at 1.96 because numerator and denominator inflate together - which is
-# exactly why this hid: the headline ratio looked right while the dollars did not.
+# of that.
+#
+# MAGNITUDE DEPENDS ON THE WINDOW, and I first understated it by quoting YTD:
+#   2026 YTD      spend $73,300.39 raw vs $72,309.85 deduped   +1.37%
+#   LAST 30 DAYS  spend  $8,704.88 raw vs  $7,818.38 deduped  +11.34%
+# The long YTD window dilutes the duplicates; the recent window - which is the app's
+# DEFAULT and what anyone actually reads - overstates by more than 11%. Quote the 30-day
+# figure, not the YTD one.
+#
+# ROAS is UNAFFECTED because numerator and denominator inflate together, which is exactly
+# why this hid: every headline ratio looked right while the dollars did not.
+# Some "tables" in this app are RELATIONS, not base tables: the Meta union, and the
+# deduped Google view below. Metadata lookups (columns, date column, filters) must
+# resolve to the underlying base table or they silently fail.
+RELATION_BASE = {}
+
+
+def relation_base(rel: str) -> str:
+    return RELATION_BASE.get(rel, rel)
+
+
 def google_dedup(where: str = "") -> str:
     """Deduped subquery over the consolidated Google view. Always read through this
     rather than the table directly, or absolute spend and revenue come out ~1.4% high."""
@@ -306,6 +323,13 @@ def google_dedup(where: str = "") -> str:
             "coalesce(SEGMENTS_AD_NETWORK_TYPE, '-'), coalesce(to_varchar(SPEND), '-'), "
             "coalesce(to_varchar(IMPRESSIONS), '-'), coalesce(to_varchar(CLICKS), '-') "
             "order by 1) = 1)")
+
+
+# THE relation every Google view must read. Reading GOOGLE_ADS directly over-reports
+# spend by 1.37% (7,690 exact duplicate rows); four views were still doing that,
+# including the non-Meta KPI strip added in the audit pass.
+GOOGLE_ADS_REL = google_dedup()
+RELATION_BASE[GOOGLE_ADS_REL] = GOOGLE_ADS
 GOOGLE_ADGROUP_AD = "VAHDAM_DB.MAPLEMONK.US_GADS_AD_GROUP_AD_REPORT"
 GOOGLE_AMAZON = "VAHDAM_DB.MAPLEMONK.US_AMZ_GADS_AD_GROUP_AD_REPORT"
 
@@ -384,9 +408,10 @@ PARITY = [
     ("Meta", "Audience overlap, delivery insights, frequency distribution", None,
      "GAP: Ads Manager-only diagnostics, not available through the Insights API sync."),
     ("Google", "Spend, impressions, clicks, conversions, conversion value, CPC, CPM, CTR",
-     GOOGLE_ADS, "Consolidated view — 20 columns, the reporting spine. Read through "
-     "google_dedup(): the raw view holds ~7,690 exact duplicate rows and over-reports "
-     "2026 YTD spend by 1.37 percent."),
+     GOOGLE_ADS, "Consolidated view — 20 columns, the reporting spine. Always read via "
+     "GOOGLE_ADS_REL: the raw view holds ~7,690 exact duplicate rows and over-reports "
+     "spend by 11.3 percent over the last 30 days (1.4 percent over 2026 YTD — the long "
+     "window dilutes it, so the 30-day figure is the one that matters)."),
     ("Google", "Ad-level detail: 145 columns incl. ad strength and policy approval status",
      GOOGLE_ADGROUP_AD, "The full GAQL ad_group_ad report."),
     ("Google", "Avg CPV / CPE, engagements, engagement rate, video views and view rate",
@@ -880,6 +905,9 @@ def has_column(table: str, col: str) -> bool:
     """True when the table really has the column (guards optional filters).
     For the Meta union relation, true when ANY member table has it."""
     if table.startswith("("):
+        base = relation_base(table)
+        if base != table:                      # a registered relation (deduped Google)
+            return has_column(base, col)
         return any(col.lower() in cols for _, cols in meta_source_tables())
     try:
         db, schema, name = table.split(".", 2)
@@ -1419,6 +1447,9 @@ def table_columns(table: str):
     """All (column, type) pairs the table really has, in ordinal order. For
     the Meta union relation: the merged columns of every member table."""
     if table.startswith("("):
+        base = relation_base(table)
+        if base != table:
+            return table_columns(base)
         seen, out = set(), []
         for fqn, _ in meta_source_tables():
             for c, t in table_columns(fqn):
@@ -3780,7 +3811,7 @@ def render_ads_analytics():
                     )
                     st.altair_chart(chart, use_container_width=True)
         else:
-            table = GOOGLE_ADS if platform == "Google" else TIKTOK[level if level in TIKTOK else "campaign"]
+            table = GOOGLE_ADS_REL if platform == "Google" else TIKTOK[level if level in TIKTOK else "campaign"]
             st.info(
                 f"{platform}: showing recent rows from `{table}`. Column-level metric "
                 "mapping for this source is being finalised; Meta has the full computed "
@@ -3811,7 +3842,7 @@ def render_ads_analytics():
             # NOTHING - no tiles, no message - while the table below it rendered fine,
             # so the view looked half-broken rather than honestly partial. The generic
             # sums path works on any table, so there is no reason to show nothing.
-            _gt = GOOGLE_ADS if platform == "Google" else tiktok_table(level)
+            _gt = GOOGLE_ADS_REL if platform == "Google" else tiktok_table(level)
             _gw = generic_where(_gt)
             _gs = sql_sums(_gt, _gw)
             if not _gs:
@@ -3868,7 +3899,7 @@ def render_ads_analytics():
                     st.markdown(f"### {LEVEL_LABEL.get(level, 'Campaign')} detail — {pick_r}")
                     render_campaign_detail(pick_r, "rows", LEVEL_COL.get(level, "campaign_name"))
         else:
-            table = GOOGLE_ADS if platform == "Google" else tiktok_table(level)
+            table = GOOGLE_ADS_REL if platform == "Google" else tiktok_table(level)
             wg = generic_where(table)
             total = count_rows(table, wg)
             if not total:
@@ -4121,7 +4152,7 @@ def render_ads_analytics():
     # ── AD EXPLORER — every field the table carries, upfront ─────────────────
     if view == "Ad explorer (all fields)":
         if platform != "Meta":
-            table = GOOGLE_ADS if platform == "Google" else tiktok_table(level)
+            table = GOOGLE_ADS_REL if platform == "Google" else tiktok_table(level)
             st.info(f"{platform}: raw rows with whatever columns exist in `{table}`.")
             wg = generic_where(table)
             total_g = count_rows(table, wg)
