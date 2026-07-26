@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.12"
+APP_BUILD = "2026-07-26.13"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -2577,6 +2577,108 @@ def render_ugc_scoring():
                                    for a, b, c in u["view_penalties_tiktok"]]),
                      use_container_width=True, hide_index=True)
 
+# ── DEPLOYMENT TIMING — created vs actually served ────────────────────────────
+# "Deployed" is NOT "created". Meta gives CREATED_TIME (when the object was built) and
+# UPDATED_TIME (last edit), both 100% populated at ad level here - but neither says the
+# ad ever ran. The real deployment moment is the FIRST DAY WITH IMPRESSIONS, and the
+# gap between the two is what the SOP's turnaround section actually governs.
+#
+# This matters because Live Now only lists ads WITH impressions, so an ad that was built
+# and never served is invisible there - the exact case someone asking "is it live yet?"
+# needs to see. Measured live 2026-07-26 on the retail account, 218 ads:
+#   176 served, of which 164 on the SAME DAY they were created, 8 within 3 days,
+#       3 over a week (max 9 days). Median lag 0 days.
+#   42 NEVER served: 20 created 2026-07-17 to 07-21 (built last week, still dark - the
+#       chase list) and 22 created between 2024-11-15 and 2026-06-12 (abandoned).
+#   0 ads served before they were created, which is the integrity check on these dates.
+@st.cache_data(ttl=300, show_spinner=False)
+def deployment_timing(table: str):
+    """Per ad: created, last edited, first and last served, lag, and serving days."""
+    if not all(has_column(table, c) for c in ("CREATED_TIME", "AD_ID", "IMPRESSIONS")):
+        return pd.DataFrame()
+    try:
+        return q(f"""
+select "AD_ID" as ad_id, max("AD_NAME") as ad_name, max("CAMPAIGN_NAME") as campaign,
+       max("ADSET_NAME") as adset, min("CREATED_TIME")::date as created,
+       max("UPDATED_TIME")::date as last_edited,
+       min(case when "IMPRESSIONS" > 0 then "DATE_START" end)::date as first_served,
+       max(case when "IMPRESSIONS" > 0 then "DATE_START" end)::date as last_served,
+       datediff('day', min("CREATED_TIME"),
+                min(case when "IMPRESSIONS" > 0 then "DATE_START" end)) as lag_days,
+       datediff('day', min("CREATED_TIME"), current_date()) as age_days,
+       count_if("IMPRESSIONS" > 0) as serving_days,
+       round(sum("SPEND"), 2) as spend, sum("IMPRESSIONS") as impressions
+  from {table} group by 1 order by created desc nulls last""")
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+def render_deployment_timing(table: str, label: str):
+    st.markdown(f"#### Deployment timing — {label}")
+    st.caption(
+        "**Created is not deployed.** Meta's CREATED_TIME says an ad was built; it does not say "
+        "it ever ran. The real deployment moment is the first day with impressions, and the gap "
+        "between the two is what the SOP turnaround section governs. Ads that never served are "
+        "invisible in the tables above, because those list only ads WITH impressions - so this is "
+        "where a built-but-dark ad shows up."
+    )
+    d = deployment_timing(table)
+    if d.empty:
+        st.info("This source does not carry CREATED_TIME, so deployment lag cannot be measured "
+                "for it. Reported as unavailable rather than estimated.")
+        return
+    d = d.rename(columns=str.upper)
+    served = d[d["FIRST_SERVED"].notna()]
+    never = d[d["FIRST_SERVED"].isna()]
+    k = st.columns(5)
+    k[0].metric("Ads", f"{len(d):,}")
+    k[1].metric("Ever served", f"{len(served):,}")
+    k[2].metric("Never served", f"{len(never):,}")
+    if not served.empty:
+        k[3].metric("Median lag", f"{served['LAG_DAYS'].median():.0f}d",
+                    help="Created to first impression")
+        k[4].metric("Live same day", f"{int((served['LAG_DAYS'] == 0).sum()):,}")
+
+    if not served.empty:
+        bands = [("Same day", served["LAG_DAYS"] == 0),
+                 ("1-3 days", served["LAG_DAYS"].between(1, 3)),
+                 ("4-7 days", served["LAG_DAYS"].between(4, 7)),
+                 ("Over 7 days", served["LAG_DAYS"] > 7)]
+        bf = pd.DataFrame([{"Time to live": n, "Ads": int(m.sum()),
+                            "Spend": money(float(served.loc[m, "SPEND"].sum()))}
+                           for n, m in bands])
+        st.dataframe(bf, use_container_width=True, hide_index=True)
+        st.altair_chart(alt.Chart(bf).mark_bar(color=GREEN).encode(
+            x=alt.X("Ads:Q", title=None), y=alt.Y("Time to live:N", sort=None, title=None),
+            tooltip=["Time to live", "Ads"]).properties(height=170), use_container_width=True)
+
+    if not never.empty:
+        chase = never[never["AGE_DAYS"] <= 14]
+        dead = never[never["AGE_DAYS"] > 14]
+        st.warning(
+            f"**{len(never)} ads were created and have never served.** "
+            f"{len(chase)} were built in the last 14 days - that is the chase list, creative "
+            f"sitting dark. {len(dead)} are older than 14 days and are effectively abandoned "
+            "production. All carry zero spend, which is consistent: no impressions, no cost. "
+            "The cost is the creative that was made and never ran."
+        )
+        for nm, frame in (("Chase — built in the last 14 days, still dark", chase),
+                          ("Abandoned — created over 14 days ago, never served", dead)):
+            if frame.empty:
+                continue
+            with st.expander(f"{nm} ({len(frame)})", expanded=(frame is chase)):
+                st.dataframe(pd.DataFrame({
+                    "Ad": frame["AD_NAME"], "Campaign": frame["CAMPAIGN"],
+                    "Ad set": frame["ADSET"], "Created": frame["CREATED"],
+                    "Last edited": frame["LAST_EDITED"],
+                    "Days since created": frame["AGE_DAYS"],
+                }), use_container_width=True, hide_index=True, height=280)
+
+    with st.expander("Every ad — created, edited, first and last served, lag"):
+        st.dataframe(d, use_container_width=True, hide_index=True, height=420)
+        st.caption("lag_days is created to first impression. It is NULL where the ad never "
+                   "served — never 0, because 0 would read as 'went live immediately'.")
+
 # ── AUTOMATED videoid / creator -> AD MAPPING ─────────────────────────────────
 # Replaces the manual "Video ID to Ad ID mapping sheet" that the KT Data Request
 # thread lists as REQUIRED manual input for the UGC dashboard. The SOP already
@@ -3236,6 +3338,11 @@ def render_master_dashboard():
                            "carries, plus every catalog-derived metric whose inputs exist. "
                            "Columns that are empty for all rows are sunk to the right, kept "
                            "visible so the schema stays honest.")
+        st.markdown("---")
+        _dep = st.radio("Account", ["Retail (Target / Costco)", "DTC (own site)"],
+                        horizontal=True, key="dep_acct")
+        render_deployment_timing(META_RETAIL if _dep.startswith("Retail") else META_ADS, _dep)
+
         if snap.get("today"):
             with st.expander("Committed snapshot for comparison (what the web page shows)"):
                 _render_value(snap["today"])
