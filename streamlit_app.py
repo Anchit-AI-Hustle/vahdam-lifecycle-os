@@ -225,6 +225,19 @@ st.markdown("""
   }
   h1, h2, h3, h4 { overflow-wrap: anywhere; }
   div[data-testid="stCaptionContainer"] p { overflow-wrap: anywhere; color: var(--dim) !important; }
+
+  /* Every view queries the warehouse live, so a rerun is normal and frequent.
+     Streamlit dims already-rendered content while one is in flight, which on a
+     dashboard this query-heavy means the page spends much of its time looking
+     greyed-out and half-loaded even though the figures on screen are real and
+     final. Keep rendered content at full opacity: a stale-looking number is
+     worse than a number, and the as-of date is stated next to it anyway. */
+  [data-stale="true"], .stale-element, div[data-stale="true"] * {
+    opacity: 1 !important; filter: none !important; transition: none !important;
+  }
+  /* The floating "Running..." toolbar overlaps the bottom of tables. */
+  div[data-testid="stStatusWidget"] { opacity: .55; }
+  div[data-testid="stStatusWidget"]:hover { opacity: 1; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -3479,24 +3492,59 @@ select a.ACTION_TYPE as action_type, {sel}
         return pd.DataFrame()
 
 
+# The video metrics are NOT columns on the insights table. Airbyte normalises each
+# of Meta's JSON video fields into its own SIDECAR table keyed by
+# _AIRBYTE_<PARENT>_HASHID. video_funnel used to test has_column(parent, ...) for
+# them, which is false for every one, so `have` collapsed to IMPRESSIONS + SPEND
+# and the "funnel" rendered a single 100% bar. Every video metric therefore read
+# as unavailable while the data sat in the warehouse untouched.
+#
+# Ordered so the funnel is monotonic: a viewer who reached 75% necessarily reached
+# 50% and 25%. The time-based watches (2s / 15s / 30s / ThruPlay) are NOT part of
+# that chain -- ThruPlay is 15s OR complete, so on a short video it can exceed 75%
+# -- and are reported separately rather than jumbled into the same ladder.
+VIDEO_FUNNEL_STEPS = [
+    ("3-sec plays", "VIDEO_PLAY_ACTIONS"),
+    ("25% watched", "VIDEO_P25_WATCHED_ACTIONS"),
+    ("50% watched", "VIDEO_P50_WATCHED_ACTIONS"),
+    ("75% watched", "VIDEO_P75_WATCHED_ACTIONS"),
+    ("95% watched", "VIDEO_P95_WATCHED_ACTIONS"),
+    ("100% watched", "VIDEO_P100_WATCHED_ACTIONS"),
+]
+VIDEO_TIME_STEPS = [
+    ("2s continuous", "VIDEO_CONTINUOUS_2_SEC_WATCHED_ACTIONS"),
+    ("15s watched", "VIDEO_15_SEC_WATCHED_ACTIONS"),
+    ("30s watched", "VIDEO_30_SEC_WATCHED_ACTIONS"),
+    ("ThruPlay", "VIDEO_THRUPLAY_WATCHED_ACTIONS"),
+]
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def video_funnel(parent: str, since, until):
-    """The full video funnel as Ads Manager reports it, plus hook and hold rates."""
-    cols = ["IMPRESSIONS", "VIDEO_CONTINUOUS_2_SEC_WATCHED_ACTIONS",
-            "VIDEO_15_SEC_WATCHED_ACTIONS", "VIDEO_30_SEC_WATCHED_ACTIONS",
-            "VIDEO_THRUPLAY_WATCHED_ACTIONS", "VIDEO_P25_WATCHED_ACTIONS",
-            "VIDEO_P50_WATCHED_ACTIONS", "VIDEO_P75_WATCHED_ACTIONS",
-            "VIDEO_P95_WATCHED_ACTIONS", "VIDEO_P100_WATCHED_ACTIONS",
-            "VIDEO_AVG_TIME_WATCHED_ACTIONS", "SPEND"]
-    have = [c for c in cols if has_column(parent, c)]
-    if not have:
-        return pd.DataFrame()
+    """Video counts read from the sidecar tables, deduped to the newest Airbyte
+    emission per logical key before summing — Airbyte appends on every sync, and
+    joining the raw children is what once overstated purchases by 194x."""
+    where = f'"DATE_START" between \'{since}\' and \'{until}\''
     try:
-        sums = ", ".join(f'round(sum(try_to_double(to_varchar("{c}"))), 2) as "{c}"' for c in have)
-        return q(f'select {sums} from {parent} '
-                 f'where "DATE_START" between \'{since}\' and \'{until}\'')
+        imp = q(f'select sum("IMPRESSIONS") as impressions, round(sum("SPEND"), 2) as spend '
+                f"from {parent} where {where}").iloc[0]
     except Exception:  # noqa: BLE001
         return pd.DataFrame()
+    out = [{"metric": "impressions", "count": _n(imp["impressions"]) or 0},
+           {"metric": "spend", "count": _n(imp["spend"]) or 0}]
+    for _lbl, suffix in VIDEO_FUNNEL_STEPS + VIDEO_TIME_STEPS:
+        child, hid = meta_sidecar(parent, suffix)
+        try:
+            v = q(f'select round(sum(v.val), 0) as n from '
+                  f'(select "{hid}" as h, "IMPRESSIONS" from {parent} where {where}) p '
+                  f'join (select "{hid}" as h, VALUE as val from {child} '
+                  f'qualify row_number() over (partition by "{hid}", ACTION_TYPE, '
+                  "coalesce(ACTION_TARGET_ID, '-'), coalesce(ACTION_DESTINATION, '-') "
+                  'order by "_AIRBYTE_EMITTED_AT" desc) = 1) v on v.h = p.h')
+            out.append({"metric": suffix.lower(), "count": _n(v.iloc[0]["n"])})
+        except Exception:  # noqa: BLE001 — a sidecar that is absent stays absent
+            out.append({"metric": suffix.lower(), "count": None})
+    return pd.DataFrame(out)
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -3623,26 +3671,67 @@ def render_parity():
 
     # ---- Video funnel.
     st.markdown("#### Video funnel")
+    st.caption(
+        "How far people actually watch. Each step is a count of viewers, so the two "
+        "percentages answer different questions: **of impressions** is how big the step is "
+        "against everyone who saw the ad, and **kept from previous** is how many survived "
+        "that one step. A cliff between two adjacent steps is where the creative loses "
+        "people, and it is the drop that tells you where to recut — not the total."
+    )
     vf = video_funnel(parent, since, until)
     if vf.empty:
-        st.info("No video columns readable for this account.")
+        st.info("Could not read the video sidecar tables for this account.")
     else:
-        v = vf.rename(columns=str.upper).iloc[0]
-        imp = _n(v.get("IMPRESSIONS")) or 0
-        steps = [("Impressions", "IMPRESSIONS"), ("2s continuous", "VIDEO_CONTINUOUS_2_SEC_WATCHED_ACTIONS"),
-                 ("25%", "VIDEO_P25_WATCHED_ACTIONS"), ("50%", "VIDEO_P50_WATCHED_ACTIONS"),
-                 ("75%", "VIDEO_P75_WATCHED_ACTIONS"), ("95%", "VIDEO_P95_WATCHED_ACTIONS"),
-                 ("100%", "VIDEO_P100_WATCHED_ACTIONS"), ("15s", "VIDEO_15_SEC_WATCHED_ACTIONS"),
-                 ("30s", "VIDEO_30_SEC_WATCHED_ACTIONS"), ("ThruPlay", "VIDEO_THRUPLAY_WATCHED_ACTIONS")]
-        fr = pd.DataFrame([{"Step": lbl, "Count": _n(v.get(c)),
-                            "% of impressions": pctf(_pct(_n(v.get(c)), imp))}
-                           for lbl, c in steps if _n(v.get(c)) is not None])
-        if not fr.empty:
-            st.dataframe(fr.assign(Count=fr["Count"].map(lambda x: f"{int(x):,}")),
+        got = {r["metric"]: r["count"] for _, r in vf.iterrows()}
+        imp = got.get("impressions") or 0
+        rows, prev = [], None
+        for lbl, suffix in [("Impressions", "impressions")] + [
+                (l, s.lower()) for l, s in VIDEO_FUNNEL_STEPS]:
+            n = imp if suffix == "impressions" else got.get(suffix)
+            if n is None:
+                continue
+            rows.append({"Step": lbl, "Viewers": int(n),
+                         "% of impressions": pctf(_pct(n, imp)),
+                         "Kept from previous": "—" if prev is None else pctf(_pct(n, prev)),
+                         "Lost at this step": "—" if prev is None else f"{int(prev - n):,}"})
+            prev = n
+        fr = pd.DataFrame(rows)
+        if len(fr) > 1:
+            st.dataframe(fr.assign(Viewers=fr["Viewers"].map(lambda x: f"{x:,}")),
                          use_container_width=True, hide_index=True)
-            st.altair_chart(alt.Chart(fr).mark_bar().encode(
-                x=alt.X("Count:Q", title=None), y=alt.Y("Step:N", sort=None, title=None),
-                tooltip=["Step", "Count"]).properties(height=300), use_container_width=True)
+            st.altair_chart(alt.Chart(fr).mark_bar(color=GREEN).encode(
+                x=alt.X("Viewers:Q", title="Viewers", scale=alt.Scale(type="sqrt")),
+                y=alt.Y("Step:N", sort=None, title=None),
+                tooltip=["Step", "Viewers", "% of impressions", "Kept from previous"],
+            ).properties(height=210), use_container_width=True)
+            st.caption("The bar axis is square-root scaled on purpose: impressions dwarf every "
+                       "later step, and on a linear axis the steps that matter are invisible.")
+        else:
+            st.info("Only impressions came back — the video sidecar tables returned nothing "
+                    "for this account and window.")
+
+        # Time-based watches are a different question from the quartile ladder, so
+        # they get their own table rather than being mixed into it.
+        tr = [{"Watch point": lbl, "Viewers": f"{int(got[s.lower()]):,}",
+               "% of impressions": pctf(_pct(got[s.lower()], imp))}
+              for lbl, s in VIDEO_TIME_STEPS if got.get(s.lower()) is not None]
+        if tr:
+            st.markdown("**Time-based watches** — not a ladder: ThruPlay is 15 seconds *or* "
+                        "complete, so on a short video it can exceed the 75% step.")
+            st.dataframe(pd.DataFrame(tr), use_container_width=True, hide_index=True)
+
+        # The catalog's video family, now computable because the sidecars are joined.
+        plays, thru = got.get("video_play_actions"), got.get("video_thruplay_watched_actions")
+        p100 = got.get("video_p100_watched_actions")
+        derived = [("Hook rate", _pct(plays, imp), "3-sec plays / impressions — did the first frame stop the scroll"),
+                   ("Hold rate", _pct(thru, plays), "ThruPlay / 3-sec plays — of those hooked, how many held"),
+                   ("ThruPlay rate", _pct(thru, imp), "ThruPlay / impressions"),
+                   ("Completion rate", _pct(p100, imp), "100% / impressions"),
+                   ("Completion of starts", _pct(p100, plays), "100% / 3-sec plays — of those who started, how many finished")]
+        dr = [{"Rate": n, "Value": pctf(v), "What it means": d} for n, v, d in derived if v is not None]
+        if dr:
+            st.markdown("**Derived video rates** (from the counts above, per the shared catalog)")
+            st.dataframe(pd.DataFrame(dr), use_container_width=True, hide_index=True)
 
     # ---- Relevance diagnostics.
     st.markdown("#### Ad relevance diagnostics")
