@@ -5,6 +5,7 @@ import sys, types, re, traceback
 import pandas as pd
 
 SQL_LOG = []
+ERRORS = []   # st.error / st.exception text — an in-page traceback is a FAILURE
 
 # Real column sets, read from the warehouse 2026-07-26. The point of the harness is to
 # test the app's COLUMN RESOLUTION, so a stub that claims every table has account_name
@@ -116,8 +117,15 @@ def _synth(sql: str) -> pd.DataFrame:
         al = a.lower()
         if any(k in al for k in ("name","type","status","platform","account","creator","handle",
                                  "post","url","tier","rule","campaign","adset","ad","label",
-                                 "objective","age","gender","bucket","candidates","id")):
+                                 "objective","age","gender","bucket","candidates")) or al == "id" or al.endswith("_id"):
             row[a] = "x"
+        # A DURATION is not a date: lag_days, age_days, days_to_live and the like are
+        # integers from datediff(). Mapping them to a Timestamp made
+        # served["LAG_DAYS"].between(1, 3) raise "Invalid comparison between
+        # dtype=datetime64 and int" — a stub artifact that looked exactly like an app
+        # bug once rendered errors started failing the sweep.
+        elif al.endswith(("_days", "_n", "_count", "_secs", "_hours")) or al.startswith(("n_", "num_", "days_")):
+            row[a] = 2.0
         elif al in ("d", "dt", "wk") or any(k in al for k in ("day","date","created","edited","served","d0","d1","mx","period")):
             row[a] = pd.Timestamp("2026-07-01")
         else:
@@ -147,9 +155,20 @@ class Ctx:
     def __exit__(self,*a): return False
 class Col(Ctx):
     def __getattr__(self, n): return getattr(ST, n)
+class _ColumnConfig:
+    """st.column_config is a MODULE of column-spec factories, not a callable. The
+    catch-all __getattr__ returned a function, so `st.column_config.NumberColumn(...)`
+    raised "'function' object has no attribute 'NumberColumn'" — which the app caught
+    and rendered, hiding six whole views from the sweep."""
+    def __getattr__(self, name):
+        def _spec(*a, **k): return {"_col_spec": name, "args": a, "kwargs": k}
+        return _spec
+
+
 class FakeST(types.ModuleType):
     VIEW = None
     CHOICES = {}
+    column_config = _ColumnConfig()
     def __getattr__(self, name):
         # any unknown attribute becomes a no-op callable
         def _f(*a, **k):
@@ -202,6 +221,12 @@ class FakeST(types.ModuleType):
     def altair_chart(self, ch=None, **k):
         CALLS["altair_chart"]+=1
         if ch is not None and hasattr(ch,"to_dict"): ch.to_dict()   # force spec build
+    def error(self, *a, **k):
+        CALLS["error"]=CALLS.get("error",0)+1
+        if a and isinstance(a[0], str): ERRORS.append(a[0])
+    def exception(self, *a, **k):
+        CALLS["error"]=CALLS.get("error",0)+1
+        ERRORS.append(str(a[0]) if a else "exception")
     def warning(self, *a, **k): CALLS["warning"]+=1
     def info(self, *a, **k): CALLS["info"]+=1
     def set_page_config(self, **k): pass

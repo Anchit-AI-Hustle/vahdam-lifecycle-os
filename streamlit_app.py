@@ -1978,7 +1978,12 @@ def sql_sums(table, where):
     for c in nums:
         v = row.iloc[0].get(c)
         if v is not None and pd.notna(v):
-            out[c] = float(v)
+            # A column that unexpectedly comes back non-numeric must not take the whole
+            # view down with it — report that metric as absent and keep the rest.
+            try:
+                out[c] = float(v)
+            except (TypeError, ValueError):
+                continue
     return out
 
 
@@ -3950,14 +3955,30 @@ def render_master_dashboard():
                 metric_chart(_df, "day", _sel)
                 st.dataframe(spec_frame(_df), use_container_width=True, hide_index=True, height=280)
                 st.caption(f"{len(_df.columns)} metrics per day.")
-        st.markdown("#### Ad level — what actually served today, every metric")
-        for lbl, tbl in (("DTC", META_ADS), ("Retail (Target / Costco)", META_RETAIL)):
-            where = f'where "DATE_START"::date = \'{today_d}\''
+        st.markdown("#### Ad level — what actually served, every metric")
+        # Each account's own latest real date, same as the cards above. This block
+        # previously used a single wall-clock `today_d` for both accounts, which was
+        # wrong twice: the two feeds land at different times, and once UTC passed
+        # midnight neither had the day at all.
+        _acct_tables = ((("DTC", META_ADS, "dtc"),
+                         ("Retail (Target / Costco)", META_RETAIL, "retail"))
+                        if region == "US" else ())
+        if region != "US":
+            st.info(f"This ad-level view names the two US Meta accounts explicitly, so it is "
+                    f"not shown for {region}.")
+        for lbl, tbl, _aid in _acct_tables:
+            d = account_latest_date(_aid, tbl)
+            if d is None:
+                st.markdown(f"**{lbl}**")
+                st.caption("Could not read a date from this feed — check the grant.")
+                continue
+            where = f'where "DATE_START"::date = \'{d}\''
             full = full_metric_frame(tbl, where, ["campaign_name", "adset_name", "ad_name"])
-            st.markdown(f"**{lbl}** — {0 if full.empty else len(full)} ads today")
+            st.markdown(f"**{lbl}** — {0 if full.empty else len(full)} ads on {d}"
+                        + (" (partial)" if d >= wall_d else ""))
             if full.empty:
-                st.caption("Nothing served yet today in this account, or the day has not "
-                           "landed in the warehouse. Reported as no rows, never as zero spend.")
+                st.caption(f"No rows for {d} in this account. Reported as no rows, never as "
+                           "zero spend.")
             else:
                 st.dataframe(full, use_container_width=True, hide_index=True, height=300)
                 st.caption(f"{len(full.columns)} columns: every additive column the source "

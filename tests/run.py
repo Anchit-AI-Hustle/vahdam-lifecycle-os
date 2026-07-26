@@ -1,7 +1,7 @@
 import sys, traceback, json
 sys.path.insert(0, '.')
 import stub
-from stub import ST, SQL_LOG, CALLS
+from stub import ST, SQL_LOG, CALLS, ERRORS
 
 VIEWS = ["Ad accounts & retail funnel","Platform parity — every metric","Omnichannel Master View",
          "Comparison Engine","Cohort Exploration","Overview & priority metrics",
@@ -13,7 +13,7 @@ results=[]
 PLATFORMS = ["Meta Ads", "Google Ads", "TikTok Ads"]
 TARGETS = [(t, None) for t in SECTIONS] + [(v, p) for v in VIEWS for p in PLATFORMS]
 for target, plat in TARGETS:
-    SQL_LOG.clear(); [CALLS.__setitem__(k,0) for k in list(CALLS)]
+    SQL_LOG.clear(); ERRORS.clear(); [CALLS.__setitem__(k,0) for k in list(CALLS)]
     if target in SECTIONS:
         ST.CHOICES = {"Section": target}
         # Ads Intelligence's discovery tabs are gated behind a "pick a table"
@@ -37,6 +37,11 @@ for target, plat in TARGETS:
         err=f"{type(e).__name__}: {e}"
         tb=traceback.format_exc().strip().split('\n')
         err += " || " + " <- ".join(l.strip() for l in tb[-4:-1])
+    if err is None and ERRORS:
+        # The app catches per-view exceptions and renders them with st.error. That
+        # is friendlier than a white screen, but it also meant a NameError inside a
+        # view passed this sweep. A rendered error is a failed target.
+        err = "RENDERED IN PAGE: " + ERRORS[0][:160]
     results.append({"target":target + (f"  [{plat}]" if plat else ""),"error":err,"sql":len(SQL_LOG),
                     "tables":CALLS.get("dataframe",0),"charts":CALLS.get("altair_chart",0),
                     "metrics":CALLS.get("metric",0)})
