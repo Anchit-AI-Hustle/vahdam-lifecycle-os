@@ -90,6 +90,7 @@
     <button data-p="overview" class="on">Overview</button>
     <button data-p="rows">Campaign / ad rows</button>
     <button data-p="cohorts">Cohorts</button>
+    <button data-p="sop">SOP compliance</button>
     <button data-p="metrics">Metrics &amp; accuracy</button>
     <button data-p="sis">Snowflake app</button>
     <button data-p="source">Source &amp; connection</button>
@@ -121,6 +122,29 @@
     </div>
     <div class="rangetiles" id="rt-cohort"></div>
     <div id="cohort-body"><div class="empty">Pick a dimension and build.</div></div>
+  </div>
+
+  <div class="panel" id="p-sop">
+    <h2>SOP compliance — live names scored against the Ad Campaign SOP</h2>
+    <p class="note">The SOP makes measurement depend on names: <b>organic post URL → videoid → ad name → ad code → paid performance</b>.
+      An ad without the videoid still runs but cannot be joined to its organic performance, so that spend produces no learning.
+      Every figure below is computed from the live warehouse names and the real dollars behind them.
+      Full procedure: <a href="/ads-master#sop">the SOP tab</a> · <a href="/docs/sop/VAHDAM_Ad_Campaign_SOP.pdf" target="_blank" rel="noopener">SOP PDF</a>.
+      The nomenclature is live from Monday, so older names predate it — this is the measured baseline.</p>
+    <div class="rangetiles" id="rt-sop"></div>
+    <div class="scorecards" id="sop-cards"><div class="empty">Loading…</div></div>
+    <p class="eyebrow">Spend at risk by SOP rule</p>
+    <div id="sop-rules"><div class="empty">Loading…</div></div>
+    <p class="eyebrow">Daily spend vs the SOP cap</p>
+    <div id="sop-pacing"><div class="empty">Loading…</div></div>
+    <p class="eyebrow">Worst offenders by spend</p>
+    <div class="bar">
+      <label>Show<select id="sop-filter"><option value="violations">Violations only</option><option value="novideoid">Missing videoid</option><option value="all">All rows</option><option value="compliant">Compliant only</option></select></label>
+      <label>Search<input type="search" id="sop-q" placeholder="ad, ad set, campaign…"></label>
+    </div>
+    <div id="sop-rows"><div class="empty">Loading…</div></div>
+    <p class="eyebrow">The standard being enforced</p>
+    <div id="sop-ref"></div>
   </div>
 
   <div class="panel" id="p-metrics">
@@ -250,7 +274,7 @@
     load();
   }
   function drawRangeTiles(){
-    ['#rt-cohort','#rt-top'].forEach(function(sel){
+    ['#rt-cohort','#rt-top','#rt-sop'].forEach(function(sel){
       var el=$(sel); if(!el)return;
       el.innerHTML="<span class='rtlab'>Duration</span>"+RANGE_TILES.map(function(o){
         return "<button type='button' class='rt"+(o.v===curRange?' on':'')+"' data-v='"+o.v+"'>"+o.t+"</button>";
@@ -328,6 +352,121 @@
       .then(function(r){return r.json();}).then(renderAccuracy)
       .catch(function(e){$('#accuracy-body').innerHTML='<div class="empty">'+e.message+'</div>';});
   }
+  // ── SOP compliance (live names scored against the SOP) ─────────────────────
+  var SOPDATA=null;
+  function esc2(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  function renderSopCards(res){
+    if(res.not_connected){
+      $('#sop-cards').innerHTML='<div class="empty">Snowflake not connected — no compliance figure is invented. Query it will run:<br><br><code>'+esc2(res.would_query||'')+'</code></div>';
+      $('#sop-rules').innerHTML=''; $('#sop-rows').innerHTML='';
+      if(res.sop) renderSopRef(res.sop);
+      return;
+    }
+    var s=res.summary||{};
+    var rate=s.compliance_rate_pct, cov=s.videoid_coverage_pct;
+    $('#sop-cards').innerHTML=
+      '<div class="sc"><div class="k">Ads scored</div><div class="v">'+intf(s.ads_scored)+'</div></div>'+
+      '<div class="sc"><div class="k">Spend scored</div><div class="v">'+money(s.spend_scored)+'</div></div>'+
+      '<div class="sc" style="border-left-color:'+(rate>=90?'var(--good)':'var(--warn)')+'"><div class="k">SOP compliance rate</div><div class="v">'+(rate==null?'—':rate+'%')+'</div></div>'+
+      '<div class="sc" style="border-left-color:var(--warn)"><div class="k">Spend at risk</div><div class="v">'+money(s.spend_at_risk)+'</div></div>'+
+      '<div class="sc" style="border-left-color:'+(cov>=90?'var(--good)':'var(--warn)')+'"><div class="k">videoid coverage</div><div class="v">'+(cov==null?'—':cov+'%')+'</div></div>'+
+      '<div class="sc"><div class="k">Spend joinable to organic</div><div class="v">'+money(s.spend_joinable_to_organic)+'</div></div>';
+    var rules=res.by_rule||[];
+    $('#sop-rules').innerHTML=rules.length
+      ? '<div class="tbl-wrap"><table data-sortable data-filterable><thead><tr><th style="text-align:left">SOP rule</th><th>Ads affected</th><th>Spend affected</th></tr></thead><tbody>'+
+        rules.map(function(r){return '<tr><td style="text-align:left">'+esc2(r.label)+'</td><td>'+intf(r.ads)+'</td><td>'+money(r.spend)+'</td></tr>';}).join('')+
+        '</tbody></table></div>'
+      : '<div class="empty">No rule violations in this window.</div>';
+    renderSopRows();
+    if(res.sop) renderSopRef(res.sop);
+  }
+  function renderSopRows(){
+    if(!SOPDATA||!SOPDATA.rows){$('#sop-rows').innerHTML='';return;}
+    var mode=$('#sop-filter').value, q=($('#sop-q').value||'').toLowerCase();
+    var rows=SOPDATA.rows.filter(function(r){
+      if(mode==='violations'&&r.compliant)return false;
+      if(mode==='compliant'&&!r.compliant)return false;
+      if(mode==='novideoid'&&r.videoid)return false;
+      if(q&&((r.ad||'')+' '+(r.adset||'')+' '+(r.campaign||'')).toLowerCase().indexOf(q)<0)return false;
+      return true;
+    });
+    if(!rows.length){$('#sop-rows').innerHTML='<div class="empty">Nothing matches.</div>';$('#sop-rows').insertAdjacentHTML('beforeend','');return;}
+    $('#sop-rows').innerHTML='<div class="tbl-wrap"><table data-sortable data-filterable><thead><tr>'+
+      '<th style="text-align:left">Ad</th><th style="text-align:left">Campaign</th><th>Spend</th><th style="text-align:left">videoid</th><th style="text-align:left">Status</th><th style="text-align:left">SOP issues</th>'+
+      '</tr></thead><tbody>'+rows.slice(0,150).map(function(r){
+        var chip=r.compliant?'<span class="chip good">compliant</span>'
+          :'<span class="chip '+(r.worst==='high'?'warn':'warn')+'">'+esc2(r.worst)+'</span>';
+        var vid=r.videoid?'<span class="chip good">'+esc2(r.videoid)+'</span>':'<span class="chip warn">missing</span>';
+        var iss=(r.issues||[]).map(function(i){return '<div style="margin:2px 0"><b>'+esc2(i.level)+' r'+esc2(i.rule)+'</b>: '+esc2(i.issue)+'</div>';}).join('')||'—';
+        return '<tr><td style="text-align:left">'+esc2(r.ad)+'</td><td style="text-align:left">'+esc2(r.campaign)+'</td><td>'+money(r.spend)+'</td><td style="text-align:left">'+vid+'</td><td style="text-align:left">'+chip+'</td><td style="text-align:left;white-space:normal;font-family:var(--sans);font-size:12px;max-width:520px">'+iss+'</td></tr>';
+      }).join('')+'</tbody></table></div>'+
+      '<p class="note">'+rows.length+' of '+SOPDATA.rows.length+' rows (max 150 rendered). '+esc2(SOPDATA.note||'')+'</p>';
+  }
+  function renderSopPacing(res){
+    if(!res||!res.ok){$('#sop-pacing').innerHTML='<div class="empty">'+esc2((res&&res.hint)||'Pacing unavailable — connect a live source.')+'</div>';return;}
+    var days=(res.days||[]).slice(-30);
+    var over=res.days_over_cap||0;
+    $('#sop-pacing').innerHTML=
+      '<div class="scorecards" style="margin-bottom:10px">'+
+        '<div class="sc"><div class="k">Cap applied</div><div class="v">'+money(res.cap_usd)+'<span style="font-size:12px;font-weight:400">/day</span></div></div>'+
+        '<div class="sc" style="border-left-color:'+(over?'var(--warn)':'var(--good)')+'"><div class="k">Days over cap</div><div class="v">'+intf(over)+'</div></div>'+
+        '<div class="sc"><div class="k">Total overspend</div><div class="v">'+money(res.total_overspend)+'</div></div>'+
+        '<div class="sc"><div class="k">Worst day</div><div class="v" style="font-size:16px">'+(res.worst_day?esc2(res.worst_day.date)+' +'+money(res.worst_day.over_by):'none')+'</div></div>'+
+      '</div>'+
+      '<div class="frame">'+days.map(function(d){
+        var w=Math.min(100,Math.round(d.spend/(res.cap_usd||1)*100));
+        return '<div class="barrow"><span class="lab">'+esc2(d.date)+'</span><span class="track"><span class="fill" style="width:'+w+'%;background:'+(d.over?'linear-gradient(90deg,#8f2f1f,#c0562f)':'linear-gradient(90deg,var(--green),var(--gold))')+'"></span></span><span class="val">'+money(d.spend)+(d.over?' ⚠':'')+'</span></div>';
+      }).join('')+'</div>'+
+      '<p class="note">'+esc2(res.note||'')+'</p>';
+  }
+  function renderSopRef(sop){
+    if(!sop){$('#sop-ref').innerHTML='';return;}
+    var p=sop.patterns||{}, sc=sop.scoring||{};
+    $('#sop-ref').innerHTML='<div class="frame">'+
+      '<p class="eyebrow" style="margin-top:0">Naming patterns</p>'+
+      '<div class="tbl-wrap"><table data-sortable><thead><tr><th style="text-align:left">Level</th><th style="text-align:left">Pattern</th></tr></thead><tbody>'+
+        [['Campaign',p.campaign],['Ad set',p.adset],['Ad',p.ad]].map(function(x){return '<tr><td style="text-align:left">'+esc2(x[0])+'</td><td style="text-align:left"><code>'+esc2(x[1])+'</code></td></tr>';}).join('')+
+      '</tbody></table></div>'+
+      '<p class="eyebrow">Scoring thresholds (how a creative earns spend)</p>'+
+      '<div class="tbl-wrap"><table data-sortable><thead><tr><th style="text-align:left">Platform</th><th style="text-align:left">Formula</th><th style="text-align:left">Ad Recommended</th><th style="text-align:left">Consider</th></tr></thead><tbody>'+
+        ['tiktok','instagram'].map(function(k){var v=sc[k]||{};return '<tr><td style="text-align:left">'+k+'</td><td style="text-align:left;white-space:normal;font-family:var(--sans)">'+esc2(v.formula)+'</td><td style="text-align:left">'+esc2(v.ad_recommended)+'</td><td style="text-align:left">'+esc2(v.consider)+'</td></tr>';}).join('')+
+      '</tbody></table></div>'+
+      '<p class="note"><b>The chain:</b> <code>'+esc2(sop.chain)+'</code></p>'+
+      '<p class="note"><b>Run gate:</b> '+esc2((sc||{}).run_gate||'')+'</p>'+
+      '<p class="note"><b>Authority:</b> '+esc2(sop.authority||'')+' · <a href="'+esc2(sop.master_sheet)+'" target="_blank" rel="noopener">master tracking sheet ↗</a></p></div>';
+  }
+  // Reads JSON but never lets a non-JSON response (a static-preview 404 page,
+  // an auth redirect) surface as a raw parse error in the UI.
+  function getJSON2(url){
+    return fetch(url,{cache:'no-store'}).then(function(r){
+      return r.text().then(function(t){
+        try{ return JSON.parse(t); }
+        catch(_){ return {ok:false,connected:false,__unreachable:true,status:r.status,
+          hint:'The endpoint '+url.split('?')[0]+' is not reachable from here (HTTP '+r.status+'). On the deployed app it returns JSON; a static preview has no serverless function.'}; }
+      });
+    });
+  }
+  var sopLoaded=false;
+  function loadSop(force){
+    if(sopLoaded&&!force)return; sopLoaded=true;
+    var s=$('#f-since').value,u=$('#f-until').value;
+    var qs=(s&&u)?('&since='+s+'&until='+u):'';
+    getJSON2('/api/brain?action=ads-sop&op=compliance'+qs)
+      .then(function(res){
+        SOPDATA=res;
+        if(res.__unreachable){
+          $('#sop-cards').innerHTML='<div class="empty">'+esc2(res.hint)+'</div>';
+          $('#sop-rules').innerHTML=''; $('#sop-rows').innerHTML='';
+          // Still show the standard being enforced — it needs no live data.
+          getJSON2('/api/brain?action=ads-sop&op=reference').then(function(rr){ if(rr&&rr.sop) renderSopRef(rr.sop); }).catch(function(){});
+          return;
+        }
+        renderSopCards(res);
+      })
+      .catch(function(e){sopLoaded=false;$('#sop-cards').innerHTML='<div class="empty">'+esc2(e.message)+'</div>';});
+    getJSON2('/api/brain?action=ads-sop&op=pacing'+qs).then(renderSopPacing).catch(function(){});
+  }
+
   function load(){
     $('#lvl-label').textContent=$('#f-level').value;
     get('budgets').then(renderBudgets).catch(function(){});
@@ -341,6 +480,7 @@
     loadCatalog();
     loadCohort();
     loadKB();
+    loadSop(true); // re-scores against the SOP whenever the window changes
   }
   document.getElementById('tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-p]');if(!b)return;
     document.querySelectorAll('#tabs button').forEach(function(x){x.classList.toggle('on',x===b);});
@@ -349,6 +489,8 @@
     if(b.dataset.p==='sis'){var fr=document.getElementById('sis-frame');if(fr&&!fr.src)fr.src=fr.dataset.src;}});
   $('#f-apply').addEventListener('click',load);
   $('#c-apply').addEventListener('click',loadCohort);
+  $('#sop-filter').addEventListener('change',renderSopRows);
+  $('#sop-q').addEventListener('input',renderSopRows);
   (function(){var u=new Date(),s=new Date(Date.now()-30*864e5);$('#f-until').value=u.toISOString().slice(0,10);$('#f-since').value=s.toISOString().slice(0,10);})();
   drawRangeTiles();
   load();

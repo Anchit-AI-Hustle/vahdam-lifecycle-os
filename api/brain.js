@@ -44,6 +44,7 @@ const klaviyo = require('./_shared/klaviyo-core.js');
 const adInsights = require('./_shared/ad-insights-core.js');
 const adsSnowflake = require('./_shared/ads-snowflake-core.js');
 const adsLive = require('./_shared/ads-live-core.js');
+const adsSop = require('./_shared/ads-sop-core.js');
 const adMetrics = require('./_shared/ad-metrics-catalog.js');
 const webengage = require('./_shared/webengage-core.js');
 const video = require('./_shared/video-core.js');
@@ -420,6 +421,18 @@ module.exports = async function handler(req, res) {
         if (op === 'daily') return res.json(await adsLive.daily({ since: p.since, until: p.until, account: p.account }));
         if (op === 'calendar') return res.json(await adsLive.calendar({ month: p.month, account: p.account }));
         return res.json(await adsLive.today({ account: p.account }));
+      }
+
+      // ── SOP ENFORCEMENT (nomenclature compliance + spend pacing) ──────────
+      // Scores the LIVE warehouse names against the final Ad Campaign SOP and
+      // paces real daily spend against its caps. Read-only.
+      case 'ads-sop': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = p.op || 'reference';
+        if (op === 'reference') return res.json({ ok: true, sop: adsSop.reference() });
+        if (op === 'pacing') return res.json(await adsSop.pacing({ since: p.since, until: p.until, account: p.account }));
+        if (op === 'parse') return res.json({ ok: true, campaign: adsSop.parseCampaignName(p.campaign || ''), adset: adsSop.parseAdSetName(p.adset || ''), ad: adsSop.parseAdName(p.ad || '') });
+        return res.json(await adsSop.compliance({ since: p.since, until: p.until, platform: p.platform, account: p.account, limit: p.limit }));
       }
 
       // ── AD METRICS CATALOG + ACCURACY (single source of truth for formulas) ──
