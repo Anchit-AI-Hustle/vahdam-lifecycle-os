@@ -446,9 +446,10 @@
       });
     });
   }
-  var sopLoaded=false;
-  function loadSop(force){
-    if(sopLoaded&&!force)return; sopLoaded=true;
+  // Always re-scores: the compliance figures are window-scoped, so they must be
+  // recomputed whenever the date range changes (there is deliberately no
+  // load-once guard here).
+  function loadSop(){
     var s=$('#f-since').value,u=$('#f-until').value;
     var qs=(s&&u)?('&since='+s+'&until='+u):'';
     getJSON2('/api/brain?action=ads-sop&op=compliance'+qs)
@@ -463,7 +464,7 @@
         }
         renderSopCards(res);
       })
-      .catch(function(e){sopLoaded=false;$('#sop-cards').innerHTML='<div class="empty">'+esc2(e.message)+'</div>';});
+      .catch(function(e){$('#sop-cards').innerHTML='<div class="empty">'+esc2(e.message)+'</div>';});
     getJSON2('/api/brain?action=ads-sop&op=pacing'+qs).then(renderSopPacing).catch(function(){});
   }
 
@@ -480,7 +481,7 @@
     loadCatalog();
     loadCohort();
     loadKB();
-    loadSop(true); // re-scores against the SOP whenever the window changes
+    loadSop(); // re-scores against the SOP whenever the window changes
   }
   document.getElementById('tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-p]');if(!b)return;
     document.querySelectorAll('#tabs button').forEach(function(x){x.classList.toggle('on',x===b);});
