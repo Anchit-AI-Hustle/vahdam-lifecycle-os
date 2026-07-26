@@ -1176,12 +1176,22 @@ def meta_rows(account, level, since, until):
     name_col = LEVEL_COL.get(level, "campaign_name")
     where = ("where 1=1" + acct_clause("account_name", account)
              + mkt_clause(marketplace) + date_clause("date_start", since, until))
+    # The platform-reported ratio columns are IMPRESSION-WEIGHTED, not avg()'d.
+    # These five are what SOURCED_EQUIVALENT compares the catalog's derived value
+    # against, so a naive avg() here does not just mis-state them -- it corrupts
+    # the accuracy calculator's own agreement score, reporting disagreement on
+    # data that actually agrees. A day with 12 impressions must not weigh the
+    # same as a day with 400,000. Matches sql_sums(), which already weights.
     sql = f"""
         select {name_col} as name,
                sum(spend) as spend, sum(impressions) as impressions, sum(reach) as reach,
                sum(clicks) as clicks, sum(inline_link_clicks) as inline_link_clicks,
-               avg(frequency) as frequency, avg(ctr) as ctr, avg(cpc) as cpc, avg(cpm) as cpm,
-               avg(inline_link_click_ctr) as inline_link_click_ctr
+               round(sum(frequency * impressions) / nullif(sum(impressions), 0), 6) as frequency,
+               round(sum(ctr * impressions) / nullif(sum(impressions), 0), 6) as ctr,
+               round(sum(cpc * impressions) / nullif(sum(impressions), 0), 6) as cpc,
+               round(sum(cpm * impressions) / nullif(sum(impressions), 0), 6) as cpm,
+               round(sum(inline_link_click_ctr * impressions) / nullif(sum(impressions), 0), 6)
+                 as inline_link_click_ctr
         from {META_SRC} {where}
         group by {name_col} order by spend desc nulls last limit 500
     """
@@ -1193,6 +1203,40 @@ def meta_rows(account, level, since, until):
         fn = next(m[8] for m in METRICS if m[0] == key)
         df[key] = df.apply(lambda row, f=fn: f(row.to_dict()), axis=1)
     return df
+
+
+# Raw, UNAGGREGATED rows for the accuracy calculator. Coverage is defined as the
+# share of ROWS where every input for a metric is present, so it has to be scored
+# on rows -- scoring it on grouped output overstates coverage twice over, because
+# sum(spend) is non-null when ANY row in the group had spend, and because the
+# grouped query keeps only the top 500 by spend, which are the best-instrumented
+# entities in the account. Snowflake SAMPLE gives an unbiased draw instead, and
+# the exact scope total is fetched alongside it so the UI can state what share
+# was scored rather than implying it scored everything.
+ACCURACY_SAMPLE_ROWS = 50000
+
+
+def meta_raw_sample(account, level, since, until, n=ACCURACY_SAMPLE_ROWS):
+    where = ("where 1=1" + acct_clause("account_name", account)
+             + mkt_clause(marketplace) + date_clause("date_start", since, until))
+    cols = {c.lower() for c, _ in table_columns(META_SRC)}
+    want = ["spend", "impressions", "reach", "clicks", "inline_link_clicks",
+            "frequency", "ctr", "cpc", "cpm", "inline_link_click_ctr",
+            "outbound_clicks", "unique_clicks", "unique_ctr", "landing_page_views"]
+    sel = ", ".join(f'"{c.upper()}" as {c}' for c in want if c in cols)
+    if not sel:
+        return pd.DataFrame(), 0
+    try:
+        total = int(q(f"select count(*) as n from {META_SRC} {where}").iloc[0]["n"] or 0)
+    except Exception:  # noqa: BLE001
+        total = 0
+    if not total:
+        return pd.DataFrame(), 0
+    try:
+        df = q(f"select {sel} from (select * from {META_SRC} {where}) sample ({int(n)} rows)")
+    except Exception:  # noqa: BLE001 — SAMPLE unsupported on this relation shape
+        df = q(f"select {sel} from {META_SRC} {where} limit {int(n)}")
+    return df, total
 
 
 def generic_rows(table):
@@ -4960,30 +5004,104 @@ def table_explorer(key, default_terms, gap_note):
     if df.empty:
         st.info("Table is readable but returned no rows.")
         return
-    st.caption(f"{pick} · {len(df):,} rows fetched, newest {min(len(df), 300):,} shown "
-               "· read-only")
+    st.caption(f"{pick} · preview of the newest {min(len(df), 300):,} of {len(df):,} rows "
+               "fetched · read-only. The chart below is NOT built from this preview.")
     st.dataframe(order_table(df).head(300), use_container_width=True, height=340)
-    date_cols = [c for c in df.columns if any(k in c for k in ("date", "day", "month", "created", "time"))]
-    num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
-    if date_cols and num_cols:
-        c1, c2 = st.columns(2)
-        dcol = c1.selectbox("Date column", date_cols, key=key + "_d")
-        mcol = c2.selectbox("Measure (sum)", num_cols, key=key + "_m")
+
+    tcols = table_columns(pick)
+    tnames = {c.lower() for c, _ in tcols}
+    # Airbyte loads in APPEND mode: a re-synced row arrives again under a newer
+    # _AIRBYTE_EMITTED_AT rather than replacing the old one. This is the same
+    # mechanism that once turned 404,006 real action rows into 1,836,934. A
+    # generic explorer cannot know a table's logical key, so this DISCLOSES the
+    # risk rather than guessing a key and silently collapsing real rows.
+    if "_airbyte_emitted_at" in tnames:
         try:
-            g = df.copy()
-            g[dcol] = pd.to_datetime(g[dcol], errors="coerce")
-            g = g.dropna(subset=[dcol]).groupby(pd.Grouper(key=dcol, freq="W"))[mcol].sum().reset_index()
-            if not g.empty:
-                st.altair_chart(
-                    alt.Chart(g).mark_line(color=GREEN, point=True).encode(
-                        x=alt.X(f"{dcol}:T", title=None),
-                        y=alt.Y(f"{mcol}:Q", title=mcol),
-                        tooltip=[dcol, mcol],
-                    ).properties(height=260),
-                    use_container_width=True,
+            e = q(f'select count(*) as n, count(distinct "_AIRBYTE_EMITTED_AT") as emissions '
+                  f"from {pick}").iloc[0]
+            n_rows, n_em = int(e["n"] or 0), int(e["emissions"] or 0)
+            if n_em > 1:
+                st.warning(
+                    f"**Append-mode table.** {n_rows:,} rows across {n_em:,} distinct Airbyte "
+                    "emissions. A row re-synced with updated metrics appears more than once, so "
+                    "totals taken straight off this table can double-count. The Ads Analysis "
+                    "section dedupes to the newest emission per logical key; this explorer "
+                    "deliberately does not guess a key for an arbitrary table."
                 )
-        except Exception:  # noqa: BLE001 — chart is best-effort; the table above is the data
+        except Exception:  # noqa: BLE001
             pass
+
+    # ── Trend, computed in SQL over EVERY row, not from the 1,000-row preview ──
+    # The old chart grouped the fetched sample weekly and called it a trend. On a
+    # 400k-row insights table that is the last few days wearing the label of the
+    # whole history. It also offered every numeric column under "Measure (sum)" --
+    # including ctr, cpc, cpm, frequency and cost_per_* -- and summed them, which
+    # is the bug that once printed CTR 3,891 against a true 4.71. Measures are now
+    # split by kind and aggregated the only way each kind permits.
+    date_expr = {}
+    for c, t in tcols:
+        cl, tu = c.lower(), str(t).upper()
+        if tu.startswith(("DATE", "TIMESTAMP")):
+            date_expr[c] = f'"{c.upper()}"'
+        elif any(k in cl for k in ("date", "day", "month", "created", "time")):
+            date_expr[c] = sf_day(c)          # DD-MM-YYYY text, as the trackers store it
+    add_cols = _additive_cols(pick)
+    rat_cols = _ratio_numeric_cols(pick)
+    # Money/count columns the workbook loaders store as TEXT ($ and commas) are
+    # invisible to a numeric-dtype test, which is why spend was never chartable
+    # on the tracker tables. Convert them the same way the rest of the app does.
+    txt_measures = {}
+    for c, t in tcols:
+        cl = c.lower()
+        if not str(t).upper().startswith(("TEXT", "VARCHAR", "STRING")):
+            continue
+        if any(k in cl for k in ("spend", "sales", "revenue", "price", "cost", "$")):
+            txt_measures[c] = sf_cash(c)
+        elif any(k in cl for k in ("impression", "click", "unit", "view", "like", " u")):
+            txt_measures[c] = sf_qty(c)
+    if not date_expr or not (add_cols or rat_cols or txt_measures):
+        return
+    has_impr = "impressions" in tnames
+    opts = ([f"{c}  (sum)" for c in add_cols]
+            + [f"{c}  (sum, parsed from text)" for c in txt_measures]
+            + [f"{c}  ({'impression-weighted avg' if has_impr else 'plain avg'})" for c in rat_cols])
+    c1, c2 = st.columns(2)
+    dpick = c1.selectbox("Date column", list(date_expr), key=key + "_d")
+    mpick = c2.selectbox("Measure", opts, key=key + "_m")
+    mcol = mpick.split("  (")[0]
+    if mcol in txt_measures:
+        agg, how = f"sum({txt_measures[mcol]})", "summed after parsing $ and , out of the text"
+    elif mcol in rat_cols:
+        if has_impr:
+            agg = (f'round(sum("{mcol.upper()}" * "IMPRESSIONS") '
+                   f'/ nullif(sum("IMPRESSIONS"), 0), 6)')
+            how = "impression-weighted, because a sum of ratios is meaningless"
+        else:
+            agg, how = f'avg("{mcol.upper()}")', ("plain average -- this table has no impressions "
+                                                 "column to weight by, so read it as indicative")
+    else:
+        agg, how = f'sum("{mcol.upper()}")', "summed"
+    try:
+        d = date_expr[dpick]
+        g = q(f"select date_trunc('week', {d}) as wk, {agg} as v "
+              f"from {pick} where {d} is not null group by 1 order by 1")
+    except Exception as e:  # noqa: BLE001 — the table above is still the data
+        st.caption(f"Trend unavailable for this column pair: {e}")
+        return
+    g = g[g["v"].notna()] if not g.empty else g
+    if g.empty:
+        st.caption("No dated rows to chart for this column pair.")
+        return
+    st.altair_chart(
+        alt.Chart(g).mark_line(color=GREEN, point=True).encode(
+            x=alt.X("wk:T", title=None),
+            y=alt.Y("v:Q", title=mcol),
+            tooltip=["wk", "v"],
+        ).properties(height=260),
+        use_container_width=True,
+    )
+    st.caption(f"Weekly {mcol}, computed in SQL over every row in {pick} "
+               f"({len(g):,} weeks) -- {how}.")
 
 
 # ── INSIGHTS ENGINE — deterministic, evidence-quoting insights computed live
@@ -5161,15 +5279,27 @@ def render_ads_intelligence():
         st.caption(
             "Coverage = share of rows where every input for a metric is present. "
             "Agreement = how closely our derived value matches the platform's own "
-            "reported value where one exists (drift check). Computed live over the "
-            "Meta rows in the current top-bar filter scope."
+            "reported value where one exists (drift check). Scored on RAW, "
+            "unaggregated rows drawn at random from the current top-bar scope -- "
+            "grouped rows would overstate coverage, because a summed column is "
+            "non-null whenever any row in the group had a value."
         )
-        df = meta_rows(account, level, since, until)
+        df, scope_total = meta_raw_sample(account, level, since, until)
         if df.empty:
             st.warning("No rows to score. Widen the date range or clear the account filter.")
         else:
             acc = accuracy(df.to_dict("records"))
             counts = acc["Confidence"].value_counts()
+            share = (len(df) / scope_total * 100) if scope_total else 0
+            if scope_total > len(df):
+                st.info(
+                    f"Scored a random **{len(df):,}-row** sample of the **{scope_total:,}** rows "
+                    f"in scope ({share:.1f}%). The draw is random rather than spend-ranked on "
+                    "purpose: the highest-spend entities are the best instrumented, so ranking "
+                    "by spend would report better coverage than the account really has."
+                )
+            else:
+                st.success(f"Scored **every one** of the {scope_total:,} rows in scope.")
             c1, c2, c3, c4, c5 = st.columns(5)
             c1.metric("Rows scored", f"{len(df):,}")
             c2.metric("High", int(counts.get("high", 0)))

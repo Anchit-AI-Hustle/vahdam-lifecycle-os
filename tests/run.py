@@ -16,6 +16,13 @@ for target, plat in TARGETS:
     SQL_LOG.clear(); [CALLS.__setitem__(k,0) for k in list(CALLS)]
     if target in SECTIONS:
         ST.CHOICES = {"Section": target}
+        # Ads Intelligence's discovery tabs are gated behind a "pick a table"
+        # selectbox whose first option is the placeholder "—", so with the default
+        # stub choice table_explorer returned immediately and those three tabs were
+        # NEVER executed by this harness -- which is exactly how a ratio-summing
+        # chart and a missing Airbyte-dedup warning survived in there. Pick a real
+        # table so the body runs.
+        ST.CHOICES["Table to analyse"] = "VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS"
     else:
         ST.CHOICES = {"Section": "Ads Analysis", "Analysis view": target}
         if plat: ST.CHOICES["Channel"] = plat

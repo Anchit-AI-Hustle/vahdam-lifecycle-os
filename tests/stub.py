@@ -83,6 +83,16 @@ def _synth(sql: str) -> pd.DataFrame:
                              "data_type":[t for _,t in sch],
                              "ordinal_position": list(range(1, len(sch)+1))})
     if "information_schema.tables" in low:
+        # discover_tables() asks for "... as fqn, row_count, bytes". Returning only
+        # table_schema/table_name made found["fqn"] a KeyError, so every caller of
+        # table_explorer died or bailed and the Ads Intelligence discovery tabs went
+        # unexercised. Answer the shape the query actually requests.
+        if " as fqn" in low:
+            return pd.DataFrame({
+                "fqn": ["VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS",
+                        "VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS"],
+                "row_count": [412338, 90211],
+                "bytes": [284000000, 61000000]})
         return pd.DataFrame({"table_schema": ["MAPLEMONK","MAPLEMONK"],
                              "table_name": ["META_USA_ADS_INSIGHTS","USA_TEA_ADS_ADS_INSIGHTS"]})
     if "query_history" in low:
