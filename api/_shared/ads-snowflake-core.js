@@ -934,6 +934,56 @@ async function metrics({ platform = 'meta', account, since, until, level, limit 
     columns: r.columns.indexOf('spend') >= 0 ? r.columns : r.columns.concat(spendCol ? ['spend'] : []), rows };
 }
 
+// ── Meta-style hierarchy: campaign → ad set → ad ────────────────────────────
+// Ads Manager drill-down. Returns ONE row per entity at `level`, with metrics
+// aggregated from the rows beneath it, optionally scoped to a parent (campaign
+// and/or ad set) so clicking a campaign lists only its ad sets, and clicking an
+// ad set lists only its ads.
+//
+// Meta and Google keep every level in one flat insights table, so a level is
+// produced by GROUP BY on that level's name column. TikTok has per-level report
+// tables, so primaryTable() switches source by level as it already does.
+const LEVEL_COL = { campaign: 'CAMPAIGN_NAME', adset: 'ADSET_NAME', ad: 'AD_NAME' };
+// TikTok calls the middle level "adgroup" — primaryTable()'s keys match that.
+const TIKTOK_LEVEL = { campaign: 'campaign', adset: 'adgroup', ad: 'ad' };
+
+function sqlStr(v) { return `'${String(v).replace(/'/g, "''")}'`; }
+
+async function hierarchy({ platform = 'meta', level = 'campaign', campaign, adset, account, since, until, limit = 500 } = {}) {
+  const lvl = String(level).toLowerCase();
+  const nameCol = LEVEL_COL[lvl];
+  if (!nameCol) return { ok: false, error: `Unknown level '${level}'. Use campaign | adset | ad.` };
+
+  const t = platform === 'tiktok' ? primaryTable(platform, TIKTOK_LEVEL[lvl]) : primaryTable(platform, lvl);
+  if (!t) return { ok: false, error: `Unknown platform '${platform}'.` };
+
+  const acctCol = ACCOUNT_CANDIDATES[0], dateCol = DATE_CANDIDATES[0];
+  // Scope to the clicked ancestors (only for levels below that parent).
+  let parentWhere = '';
+  if (campaign && lvl !== 'campaign') parentWhere += ` and "${LEVEL_COL.campaign}" = ${sqlStr(campaign)}`;
+  if (adset && lvl === 'ad') parentWhere += ` and "${LEVEL_COL.adset}" = ${sqlStr(adset)}`;
+
+  const N = `"${nameCol}"`;
+  const where = `where 1=1${accountFilter(acctCol, account)}${dateFilter(dateCol, since, until)}${parentWhere}`;
+  // Additive measures only — ratios (CTR/CPC/CPM) are derived by the caller so
+  // they stay correct after aggregation (averaging per-row CTRs would be wrong).
+  const sql =
+    `select ${N} as name, ` +
+    `sum("SPEND") as spend, sum("IMPRESSIONS") as impressions, ` +
+    `sum("INLINE_LINK_CLICKS") as inline_link_clicks, sum("CLICKS") as clicks, ` +
+    `count(*) as rows_n ` +
+    `from ${t} ${where} and ${N} is not null ` +
+    `group by ${N} order by spend desc nulls last limit ${Math.min(+limit || 500, 5000)}`;
+
+  if (!isConfigured()) return notConnected(sql, { platform, level: lvl, campaign: campaign || null, adset: adset || null, table: t });
+  const r = await runStatement(sql);
+  return {
+    ok: true, connected: true, platform, level: lvl,
+    campaign: campaign || null, adset: adset || null,
+    table: t, source: 'snowflake', columns: r.columns, rows: r.rows,
+  };
+}
+
 // Aggregate a measure by a cohort dimension (age/gender/country/…) — the raw
 // material for building demographic / geo / behavioural cohorts. Resolves the
 // real column names from describe() first so it adapts to each table.
@@ -1021,7 +1071,7 @@ async function ping() {
 }
 
 module.exports = {
-  status, ping, describe, metrics, cohort, budgets, runStatement,
+  status, ping, describe, metrics, hierarchy, cohort, budgets, runStatement,
   isConfigured, PLATFORMS, ACCOUNTS, DIMENSION_CANDIDATES, sources,
   adAccounts, liveAccounts, describeAccount, accounts, multiDaily, campaigns,
   pickSources, unionSelect, retailFunnel,
