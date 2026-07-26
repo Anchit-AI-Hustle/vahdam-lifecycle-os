@@ -1,5 +1,5 @@
 {
-  "count": 152,
+  "count": 153,
   "designs": [
     {
       "id": "landing-pages-ashwagandha-matrix-anxiety-varianta",
@@ -1032,6 +1032,14 @@
       "angle": "",
       "variant": "",
       "url": "/landing-pages/final/lp_all_in_one_agent_v2.html"
+    },
+    {
+      "id": "landing-pages-final-vahdam-cortisol-3d",
+      "title": "Calm Your Cortisol — VAHDAM Ashwagandha Coffee (3D)",
+      "family": "Final Landing Pages",
+      "angle": "",
+      "variant": "",
+      "url": "/landing-pages/final/vahdam-cortisol-3d.html"
     },
     {
       "id": "landing-pages-final-vahdam-uk-cortisol-agent-best",

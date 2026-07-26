@@ -119,6 +119,35 @@
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0;font-size:12px;color:var(--dim);font-weight:600}
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .legend i{width:12px;height:12px;border-radius:3px;border:1px solid var(--line-strong);display:inline-block}
+  /* Chip filter bars and horizontal distribution bars, matching the UGC
+     dashboard's scannable pattern. White surface, green fill, no dark panels. */
+  .chipbar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:12px 0 4px}
+  .chipbar .cb{background:var(--surface);border:1px solid var(--line-strong);border-radius:999px;color:var(--dim);
+    font-family:var(--sans);font-weight:700;font-size:12px;padding:6px 13px;cursor:pointer;line-height:1.2}
+  .chipbar .cb:hover{border-color:var(--gold);color:var(--head)}
+  .chipbar .cb.on{background:var(--green);color:#fff;border-color:var(--green)}
+  .chipbar .cblab{font-family:var(--mono);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gold-deep);margin-right:3px}
+  .dist{margin:6px 0 2px}
+  .dist .row{display:grid;grid-template-columns:minmax(150px,26%) 1fr auto;gap:11px;align-items:center;padding:5px 0}
+  .dist .lb{font-size:12.5px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dist .tr{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;height:18px;overflow:hidden}
+  .dist .fl{height:100%;background:var(--green);border-radius:5px 0 0 5px;min-width:2px}
+  .dist .fl.alt{background:var(--gold-deep)}
+  .dist .vl{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--head);font-variant-numeric:tabular-nums;min-width:82px;text-align:right}
+  /* Account cards: equal size, aligned, one per account, light surface only. */
+  .acctgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin:8px 0}
+  .acard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--green);border-radius:11px;
+    padding:15px 17px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:7px}
+  .acard.traffic{border-left-color:var(--gold-deep)}
+  .acard.dimmed{border-left-color:var(--line-strong);background:var(--surface-2)}
+  .acard h4{margin:0;font-family:var(--serif);font-size:16.5px;font-weight:700;color:var(--head)}
+  .acard .id{font-family:var(--mono);font-size:11px;color:var(--dim);font-weight:600}
+  .acard .use{font-size:13px;color:var(--ink);font-weight:600}
+  .acard .why{font-size:12.5px;color:var(--dim);margin:0}
+  .acard .mx{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:auto;padding-top:9px;border-top:1px solid var(--line)}
+  .acard .mx div{min-width:0}
+  .acard .mx .k{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+  .acard .mx .v{font-family:var(--serif);font-size:17px;font-weight:700;color:var(--head);font-variant-numeric:tabular-nums}
   .notice{background:var(--warn-bg);border:1px solid var(--warn);border-left:4px solid var(--warn);border-radius:9px;padding:11px 14px;margin:10px 0;font-size:13px;color:#4A3208;font-weight:500}
   .notice b{color:#3A2706}
 </style>
@@ -132,6 +161,7 @@
     <button data-p="live" class="on">Live Now</button>
     <button data-p="calendar">Calendar</button>
     <button data-p="tracker">Tracker</button>
+    <button data-p="accounts">Accounts</button>
     <button data-p="sop">SOP</button>
     <button data-p="overview">Overview</button>
     <button data-p="campaigns">Campaigns &amp; Ads</button>
@@ -150,7 +180,9 @@
         <button class="btn ghost" id="live-refresh" style="cursor:pointer;font-family:inherit">Refresh now</button>
       </span>
     </div>
+    <div class="chipbar" id="live-acct-chips"></div>
     <div class="cards" id="live-cards"><div class="empty">Loading…</div></div>
+    <div id="live-acct-split"></div>
     <div id="live-notice"></div>
     <div class="chartcard">
       <h3>Daily spend &amp; delivery</h3>
@@ -190,7 +222,7 @@
     <div class="cards" id="trk-cards"></div>
     <div class="bar">
       <label>Status<select id="trk-status"><option value="">All</option><option value="live">live today</option><option value="ended">ended</option></select></label>
-      <label>Account<select id="trk-acct"><option value="">Both accounts</option><option value="dtc">DTC (live warehouse)</option><option value="retail">Target / Costco (KT snapshot)</option></select></label>
+      <label>Account<select id="trk-acct"><option value="">Both accounts</option><option value="dtc">DTC — own site</option><option value="retail">Target / Costco — retail</option></select></label>
       <label>Search<input type="search" id="trk-q" placeholder="campaign…"></label>
       <label>Sort<select id="trk-sort"><option value="spend">Spend</option><option value="ctr">CTR</option><option value="cpc">CPC</option><option value="last_day">Last active day</option></select></label>
     </div>
@@ -202,6 +234,19 @@
       <div class="rangetiles" id="rt-camp"></div>
       <div id="chart-camp"></div>
     </div>
+  </div>
+
+  <div class="panel" id="p-accounts">
+    <p class="eyebrow">The ad-account estate — what each account is, what it is for, and what it can be judged on</p>
+    <div class="cards" id="acct-cards"></div>
+    <div class="notice" id="acct-kpi-note"></div>
+    <div class="chipbar" id="acct-filters"></div>
+    <div id="acct-live"></div>
+    <p class="eyebrow">Every feed in the warehouse</p>
+    <div class="tbl-wrap" id="acct-tbl"><div class="empty">Loading…</div></div>
+    <p class="note" id="acct-note"></p>
+    <p class="eyebrow">Account detail</p>
+    <div id="acct-detail"></div>
   </div>
 
   <div class="panel" id="p-sop">
@@ -356,6 +401,7 @@
       "</tr></thead><tbody>"+rows.map(function(r){return "<tr>"+r.map(function(c,i){return "<td style='text-align:"+(head[i]&&head[i].r?"right":"left")+"'>"+c+"</td>";}).join("")+"</tr>";}).join("")+"</tbody></table>";
   }
   var KB=null, ADS=null, SNAP=null, LIVE=null, RANGE=30, CAMPRANGE='all';
+  var REG=null, ACCTLIVE=null, LVACCT='';
 
   // ── Charts: dependency-free inline SVG. Every chart is preceded by ALWAYS
   // visible duration tiles (7D/14D/30D/60D/All) wired through rangeTiles().
@@ -455,6 +501,7 @@
       "<div class='sc'><div class='k'>Impressions today</div><div class='v'>"+intf(tot.impressions)+"</div><div class='s'>link clicks "+intf(tot.link_clicks)+"</div></div>"+
       "<div class='sc'><div class='k'>CTR today</div><div class='v'>"+(ctr==null?"—":pct(ctr))+"</div><div class='s'>"+(connected&&res.cpc!=null?"CPC "+money(res.cpc):"")+"</div></div>"+
       "<div class='sc'><div class='k'>Yesterday (full day)</div><div class='v'>"+(yest?money0(yest.spend):"—")+"</div><div class='s'>"+(yest?intf(yest.impressions)+" impressions":"")+"</div></div>";
+    renderLiveAccounts(res, connected);
     if(!connected){
       $("#live-notice").innerHTML="<div class='notice'><b>Not reading the ad account live right now.</b> "+
         esc((res&&res.hint)||"")+" The figures above are the committed snapshot captured "+esc((SNAP&&SNAP.captured_at)||"")+
@@ -463,6 +510,52 @@
     } else { $("#live-notice").innerHTML=""; }
     renderLiveAds(res);
     drawSpendChart();
+  }
+  // The two live US accounts, side by side. Never blended into one ROAS: only the
+  // DTC account can attribute a sale, so a combined figure would be meaningless.
+  function renderLiveAccounts(res, connected){
+    var rows = (connected && res && res.accounts && res.accounts.length)
+      ? res.accounts.map(function(a){
+          return {id:a.source_id,label:a.label||a.account,kpi:a.kpi,used_for:a.used_for,
+            spend:a.spend,impressions:a.impressions,link_clicks:a.link_clicks,
+            campaigns:a.campaigns,ads:a.ads_live,ctr:a.ctr,cpc:a.cpc,cpm:a.cpm,src:'live'};
+        })
+      : Object.keys((SNAP&&SNAP.today&&SNAP.today.by_account)||{}).map(function(k){
+          var t=SNAP.today.by_account[k];
+          var meta=(SNAP.accounts||[]).filter(function(a){return a.key===k;})[0]||{};
+          return {id:k,label:meta.account||k,kpi:meta.kpi,used_for:meta.used_for,
+            spend:t.spend,impressions:t.impressions,link_clicks:t.link_clicks,
+            campaigns:t.campaigns,ads:t.ads_live,
+            ctr:t.impressions?(100*t.link_clicks/t.impressions):null,
+            cpc:t.link_clicks?(t.spend/t.link_clicks):null,
+            cpm:t.impressions?(1000*t.spend/t.impressions):null,src:'snapshot'};
+        });
+    if(!rows.length){ $("#live-acct-split").innerHTML=""; $("#live-acct-chips").innerHTML=""; return; }
+    rows.sort(function(a,b){return (b.spend||0)-(a.spend||0);});
+    $("#live-acct-chips").innerHTML="<span class='cblab'>Account</span>"+
+      "<button class='cb"+(LVACCT===''?" on":"")+"' data-lva=''>Both accounts</button>"+
+      rows.map(function(a){return "<button class='cb"+(LVACCT===a.id?" on":"")+"' data-lva='"+esc(a.id)+"'>"+esc(a.id==='dtc'?'DTC — own site':(a.id==='retail'?'Target / Costco':a.label))+"</button>";}).join("");
+    var max=rows[0].spend||1;
+    $("#live-acct-split").innerHTML="<div class='chartcard'><h3>Today by account</h3>"+
+      "<p class='sub'>"+esc(rows[0].src==='live'?"Live from the ad accounts.":"From the committed snapshot at capture.")+" Each account is scored on what it can measure.</p>"+
+      "<div class='acctgrid'>"+rows.map(function(a){
+        var m2 = a.kpi==='roas'
+          ? {k:'CTR today', v:a.ctr!=null?pct(a.ctr):"—"}
+          : {k:'CTR today', v:a.ctr!=null?pct(a.ctr):"—"};
+        return "<div class='acard"+(a.kpi==='traffic'?" traffic":"")+"'>"+
+          "<h4>"+esc(a.label)+"</h4>"+
+          "<div class='id'>"+intf(a.ads)+" ads · "+intf(a.campaigns)+" campaigns "+(a.kpi?kpiChip(a.kpi):"")+"</div>"+
+          (a.used_for?"<div class='use'>"+esc(a.used_for)+"</div>":"")+
+          "<div class='mx'><div><div class='k'>Spend today</div><div class='v'>"+money(a.spend)+"</div></div>"+
+          "<div><div class='k'>"+esc(m2.k)+"</div><div class='v'>"+m2.v+"</div></div>"+
+          "<div><div class='k'>CPC</div><div class='v'>"+(a.cpc!=null?money(a.cpc):"—")+"</div></div></div>"+
+          "</div>";
+      }).join("")+"</div>"+
+      "<div class='dist' style='margin-top:12px'>"+rows.map(function(a){
+        return "<div class='row'><div class='lb'>"+esc(a.label)+"</div>"+
+          "<div class='tr'><div class='fl"+(a.kpi==='traffic'?" alt":"")+"' style='width:"+Math.max(1,Math.round(100*(a.spend||0)/max))+"%'></div></div>"+
+          "<div class='vl'>"+money(a.spend)+"</div></div>";
+      }).join("")+"</div></div>";
   }
   function renderLiveAds(res){
     var rows=(res&&res.ads)||[];
@@ -474,14 +567,16 @@
     var st=$("#lv-status").value, q=($("#lv-q").value||"").toLowerCase();
     var f=rows.filter(function(r){
       if(st&&r.status!==st)return false;
+      if(LVACCT&&r.source_id&&r.source_id!==LVACCT)return false;
       if(q&&((r.ad||"")+" "+(r.adset||"")+" "+(r.campaign||"")).toLowerCase().indexOf(q)<0)return false;
       return true;
     }).sort(function(a,b){return (b.spend||0)-(a.spend||0);});
     $("#live-ads").innerHTML=table(
-      [{t:"Ad"},{t:"Campaign"},{t:"Status"},{t:"Spend today",r:1},{t:"Impressions",r:1},{t:"Link clicks",r:1},{t:"CTR",r:1}],
+      [{t:"Ad"},{t:"Account"},{t:"Campaign"},{t:"Status"},{t:"Spend today",r:1},{t:"Impressions",r:1},{t:"Link clicks",r:1},{t:"CTR",r:1}],
       f.slice(0,200).map(function(r){
         var chip=r.status==="live"?"<span class='chip good'>live</span>":r.status==="starting"?"<span class='chip warn'>starting</span>":"<span class='chip dim'>not live yet</span>";
-        return [esc(r.ad),esc(r.campaign),chip,money(r.spend),intf(r.impressions),intf(r.link_clicks),r.ctr!=null?pct(r.ctr):"—"];
+        var ac=r.source_id?"<span class='chip "+(r.source_id==='dtc'?'good':'warn')+"'>"+esc(r.source_id==='dtc'?'DTC':'retail')+"</span>":"—";
+        return [esc(r.ad),ac,esc(r.campaign),chip,money(r.spend),intf(r.impressions),intf(r.link_clicks),r.ctr!=null?pct(r.ctr):"—"];
       }));
     $("#live-ads-note").textContent=f.length+" of "+rows.length+" ads · live = delivering impressions today · starting = spend recorded but no impressions yet · not live yet = no delivery today.";
   }
@@ -587,18 +682,165 @@
       "<p class='note'>Per-day spend is the account total for that date. Campaign rows show each campaign's full flight window and its window total — the warehouse mirror does not split a campaign's spend per day at this grain.</p>";
   }
 
+  // ── ACCOUNTS ───────────────────────────────────────────────────────────────
+  // VAHDAM runs several accounts per platform and they are NOT comparable on one
+  // KPI: the DTC and Google accounts carry a pixel or Google conversion, so ROAS
+  // is real, while the retail and Amazon accounts send shoppers to target.com,
+  // Instacart or amazon.com and can never attribute a sale. This tab states that
+  // for each account rather than leaving a reader to read a structural zero as a
+  // failure. The registry comes from adAccounts() in ads-snowflake-core, emitted
+  // to /data/ads/ad-accounts.json at build so the tab renders with no backend.
+  var ACCTFILTER={status:'live',platform:''};
+  function acctById(id){ return ((REG&&REG.accounts)||[]).filter(function(a){return a.id===id;})[0]||null; }
+  function kpiChip(k){
+    return k==='roas'
+      ? "<span class='chip good'>judged on ROAS</span>"
+      : "<span class='chip warn'>judged on traffic</span>";
+  }
+  function statusChip(st){
+    if(st==='live') return "<span class='chip good'>live</span>";
+    if(st==='paused') return "<span class='chip warn'>paused</span>";
+    if(st==='superseded') return "<span class='chip dim'>superseded</span>";
+    if(st==='stale') return "<span class='chip dim'>stale</span>";
+    return "<span class='chip dim'>archive</span>";
+  }
+  // Spend actually observed for an account, from whichever source we have. The
+  // snapshot covers the two live US Meta accounts; the live API (when connected)
+  // covers whatever the registry query returned.
+  function acctObserved(id){
+    var live=(ACCTLIVE&&ACCTLIVE.rows||[]).filter(function(r){return r.id===id;})[0];
+    if(live&&live.in_window) return {spend:live.spend,impressions:live.impressions,link_clicks:live.link_clicks,
+      campaigns:live.campaigns,ads:live.ads,revenue:live.revenue,roas:live.roas,src:'live'};
+    var sn=(SNAP&&SNAP.accounts||[]).filter(function(a){return a.key===id;})[0];
+    if(sn) return {spend:sn.spend,impressions:sn.impressions,link_clicks:sn.link_clicks,
+      campaigns:sn.campaigns_in_window,ads:null,revenue:sn.revenue,roas:sn.roas,src:'snapshot'};
+    return null;
+  }
+  function renderAccounts(){
+    var reg=(REG&&REG.accounts)||[];
+    if(!reg.length){ $("#acct-tbl").innerHTML="<div class='empty'>Account registry not loaded.</div>"; return; }
+    var live=reg.filter(function(a){return a.status==='live';});
+    var byPlat={}; reg.forEach(function(a){byPlat[a.platform]=(byPlat[a.platform]||0)+1;});
+    var distinct=(REG.counts&&REG.counts.distinct_accounts)||reg.length;
+    $("#acct-cards").innerHTML=
+      "<div class='sc'><div class='k'>Ad accounts</div><div class='v'>"+intf(distinct)+"</div><div class='s'>"+intf(reg.length)+" warehouse feeds</div></div>"+
+      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Live feeds</div><div class='v'>"+intf(live.length)+"</div><div class='s'>current enough to report from</div></div>"+
+      "<div class='sc'><div class='k'>Judged on ROAS</div><div class='v'>"+intf(reg.filter(function(a){return a.kpi==='roas';}).length)+"</div><div class='s'>pixel or Google conversion tracked</div></div>"+
+      "<div class='sc' style='border-left-color:var(--gold-deep)'><div class='k'>Judged on traffic</div><div class='v'>"+intf(reg.filter(function(a){return a.kpi==='traffic';}).length)+"</div><div class='s'>third-party checkout, no attribution</div></div>"+
+      "<div class='sc'><div class='k'>Platforms</div><div class='v'>"+Object.keys(byPlat).length+"</div><div class='s'>"+esc(Object.keys(byPlat).map(function(k){return k+" "+byPlat[k];}).join(" · "))+"</div></div>";
+    $("#acct-kpi-note").innerHTML="<b>Two kinds of account, two kinds of scorecard.</b> "+
+      esc((REG.kpis&&REG.kpis.roas)||"")+" "+esc((REG.kpis&&REG.kpis.traffic)||"");
+
+    // Chip filters, UGC-dashboard style.
+    var plats=[''].concat(Object.keys(byPlat));
+    var sts=['live','all','paused','superseded','stale','archive'];
+    $("#acct-filters").innerHTML=
+      "<span class='cblab'>Status</span>"+sts.map(function(x){
+        return "<button class='cb"+(ACCTFILTER.status===x?" on":"")+"' data-af='status' data-v='"+esc(x)+"'>"+esc(x==='all'?'All':x)+"</button>";}).join("")+
+      "<span class='cblab' style='margin-left:10px'>Platform</span>"+plats.map(function(x){
+        return "<button class='cb"+(ACCTFILTER.platform===x?" on":"")+"' data-af='platform' data-v='"+esc(x)+"'>"+esc(x||'All')+"</button>";}).join("");
+
+    // Live-account cards with the observed figures we actually have.
+    var liveCards=live.map(function(a){
+      var o=acctObserved(a.id);
+      var m1=o?money0(o.spend):"—", m1k="Spend observed";
+      var m2 = a.kpi==='roas'
+        ? {k:'ROAS', v:(o&&o.roas!=null)?o.roas+"x":"—"}
+        : {k:'CTR', v:(o&&o.impressions)?pct(100*o.link_clicks/o.impressions):"—"};
+      var m3 = a.kpi==='roas'
+        ? {k:'Revenue', v:(o&&o.revenue!=null)?money0(o.revenue):"—"}
+        : {k:'CPC', v:(o&&o.link_clicks)?money(o.spend/o.link_clicks):"—"};
+      return "<div class='acard"+(a.kpi==='traffic'?" traffic":"")+"'>"+
+        "<h4>"+esc(a.label)+"</h4>"+
+        "<div class='id'>"+esc(a.platform.toUpperCase())+" · "+esc(a.region)+" · "+esc(a.account_id||"—")+" · fresh to "+esc(a.fresh_to)+" "+statusChip(a.status)+" "+kpiChip(a.kpi)+"</div>"+
+        "<div class='use'>"+esc(a.used_for)+"</div>"+
+        "<p class='why'>"+esc(a.purpose)+"</p>"+
+        (a.attribution_note?"<p class='why' style='color:var(--warn)'><b>Attribution.</b> "+esc(a.attribution_note)+"</p>":"")+
+        "<div class='mx'><div><div class='k'>"+esc(m1k)+"</div><div class='v'>"+m1+"</div></div>"+
+        "<div><div class='k'>"+esc(m2.k)+"</div><div class='v'>"+m2.v+"</div></div>"+
+        "<div><div class='k'>"+esc(m3.k)+"</div><div class='v'>"+m3.v+"</div></div></div>"+
+        (o?"<div class='id'>"+esc(o.src==='live'?"live warehouse read":"committed snapshot")+(o.campaigns!=null?" · "+intf(o.campaigns)+" campaigns":"")+"</div>":
+            "<div class='id'>no observed rows in the loaded window</div>")+
+        "</div>";
+    }).join("");
+    $("#acct-live").innerHTML="<p class='eyebrow'>Live accounts — what each is delivering</p><div class='acctgrid'>"+liveCards+"</div>";
+
+    var rows=reg.filter(function(a){
+      if(ACCTFILTER.status!=='all'&&a.status!==ACCTFILTER.status)return false;
+      if(ACCTFILTER.platform&&a.platform!==ACCTFILTER.platform)return false;
+      return true;
+    });
+    $("#acct-tbl").innerHTML=table(
+      [{t:"Account"},{t:"Platform"},{t:"Region"},{t:"Account id"},{t:"Status"},{t:"Judged on"},{t:"Fresh to"},{t:"Campaigns",r:1},{t:"Spend on record",r:1},{t:"Warehouse table"}],
+      rows.map(function(a){
+        var v=a.verified||{};
+        return ["<a href='#' data-acct='"+esc(a.id)+"'>"+esc(a.label)+"</a>",esc(a.platform),esc(a.region),
+          "<span style='font-family:var(--mono)'>"+esc(a.account_id||"—")+"</span>",statusChip(a.status),kpiChip(a.kpi),
+          "<span data-sort-value='"+esc(a.fresh_to)+"'>"+esc(shortDay(a.fresh_to))+"</span>",
+          v.campaigns!=null?intf(v.campaigns):"—",
+          v.spend!=null?money0(v.spend)+(a.currency&&a.currency!=='USD'?" <span class='chip dim'>"+esc(a.currency)+"</span>":""):"—",
+          "<span style='font-family:var(--mono);font-size:11px'>"+esc(a.table)+"</span>"];
+      }));
+    $("#acct-note").textContent=rows.length+" of "+reg.length+" feeds. Spend on record is the whole-feed lifetime figure read from the warehouse when the registry was written, in that account's own currency — India and UK figures are INR and GBP and must never be summed with the USD accounts. Click an account name for the full description.";
+    // Spend comparison across the live accounts, in USD only so the bars mean something.
+    var usd=live.filter(function(a){return (a.currency||'USD')==='USD'&&a.verified&&a.verified.spend;})
+      .sort(function(x,y){return y.verified.spend-x.verified.spend;});
+    $("#acct-detail").innerHTML="<div class='chartcard'><h3>Lifetime spend on record — USD accounts</h3>"+
+      "<p class='sub'>Whole-feed totals. UK and India accounts are excluded because they report in GBP and INR.</p>"+
+      "<div class='dist'>"+usd.map(function(a){
+        var max=usd[0].verified.spend;
+        return "<div class='row'><div class='lb' title='"+esc(a.label)+"'>"+esc(a.label)+"</div>"+
+          "<div class='tr'><div class='fl"+(a.kpi==='traffic'?" alt":"")+"' style='width:"+Math.max(1,Math.round(100*a.verified.spend/max))+"%'></div></div>"+
+          "<div class='vl'>"+money0(a.verified.spend)+"</div></div>";
+      }).join("")+"</div>"+
+      "<p class='note'>Green = the account can attribute a sale. Gold = third-party checkout, so spend buys traffic and reach only.</p></div>";
+  }
+  function acctDetail(id){
+    var a=acctById(id); if(!a) return;
+    var v=a.verified||{};
+    $("#acct-detail").innerHTML="<div class='frame'>"+
+      "<h3 style='margin-top:0'>"+esc(a.label)+" "+statusChip(a.status)+" "+kpiChip(a.kpi)+"</h3>"+
+      "<p style='font-size:13.5px'><b>Used for.</b> "+esc(a.used_for)+"</p>"+
+      "<p style='font-size:13.5px'>"+esc(a.purpose)+"</p>"+
+      (a.attribution_note?"<div class='notice'><b>Attribution.</b> "+esc(a.attribution_note)+"</div>":"")+
+      (a.stale_note?"<div class='notice'><b>Freshness.</b> "+esc(a.stale_note)+"</div>":"")+
+      table([{t:"Field"},{t:"Value"}],[
+        ["Platform",esc(a.platform)+" · "+esc(a.region)],
+        ["Account id","<span style='font-family:var(--mono)'>"+esc(a.account_id||"—")+"</span>"],
+        ["Currency",esc(a.currency||'USD')],
+        ["Warehouse table","<span style='font-family:var(--mono);font-size:11.5px'>"+esc(a.table)+"</span>"],
+        ["Schema",esc(a.schema)],
+        ["Data fresh to",esc(a.fresh_to)+(a.partial_day?" (includes the current partial day)":"")],
+        ["Attribution",esc(a.attribution)],
+        ["Rows on record",v.rows!=null?intf(v.rows):"—"],
+        ["Date range",(v.first_day||"—")+" → "+(v.last_day||"—")],
+        ["Campaigns / ads",(v.campaigns!=null?intf(v.campaigns):"—")+" / "+(v.ads!=null?intf(v.ads):"—")],
+        ["Spend on record",v.spend!=null?money0(v.spend)+" "+esc(a.currency||'USD'):"—"],
+      ])+
+      (v.note?"<p class='note'>"+esc(v.note)+"</p>":"")+
+      "<p class='note'>Read live from the warehouse on "+esc((REG&&REG.captured_at)||"")+". Registry source: adAccounts() in api/_shared/ads-snowflake-core.js.</p></div>";
+    $("#acct-detail").scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  function loadAccountsLive(){
+    getJSON("/api/brain?action=ads-snowflake&op=accounts&since=2026-05-01")
+      .then(function(res){ if(res&&res.ok&&res.rows&&res.rows.length){ ACCTLIVE=res; renderAccounts(); } })
+      .catch(function(){});
+  }
+
   // ── TRACKER ────────────────────────────────────────────────────────────────
+  // Both live US accounts now come from the snapshot, each already carrying the
+  // metrics its own account can support (revenue and ROAS only where a pixel
+  // fires). The retail rows used to be the KT workbook snapshot because the
+  // account was believed to be absent from the warehouse; it is not.
   function trackerRows(){
-    var rows=(SNAP&&SNAP.campaigns||[]).map(function(c){
-      return Object.assign({},c,{account:'dtc',account_label:'DTC · live warehouse'});
+    var today=(SNAP&&SNAP.today&&SNAP.today.date)||"";
+    return (SNAP&&SNAP.campaigns||[]).map(function(c){
+      var a=(SNAP.accounts||[]).filter(function(x){return x.key===c.account;})[0];
+      return Object.assign({},c,{
+        live_today: c.last_day===today,
+        account_label:(a&&a.account)||c.account_name||c.account,
+      });
     });
-    (KB&&KB.campaign_rollup||[]).forEach(function(c){
-      rows.push({campaign:c.campaign,first_day:null,last_day:'2026-07-20',ads:c.ads,spend:c.spend,
-        impressions:c.impressions,link_clicks:c.clicks,ctr:c.ctr,cpc:c.cpc,status:'snapshot',
-        live_today:false,account:'retail',account_label:'Target/Costco · KT snapshot 20 Jul',objective:c.objective,
-        cost_per_result:c.cost_per_result});
-    });
-    return rows;
   }
   function renderTracker(){
     var all=trackerRows();
@@ -616,22 +858,32 @@
       var x=a[sort],y=b[sort]; if(x==null)return 1; if(y==null)return -1; return asc?x-y:y-x;
     });
     var live=all.filter(function(r){return r.live_today;});
+    var dtc=(SNAP&&SNAP.accounts||[]).filter(function(a){return a.key==='dtc';})[0]||{};
+    var rt=(SNAP&&SNAP.accounts||[]).filter(function(a){return a.key==='retail';})[0]||{};
+    var win=(SNAP&&SNAP.window)||{};
     $("#trk-cards").innerHTML=
-      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Campaigns live today</div><div class='v'>"+intf(live.length)+"</div><div class='s'>DTC account, "+esc((SNAP&&SNAP.today&&SNAP.today.date)||"")+"</div></div>"+
-      "<div class='sc'><div class='k'>Tracked campaigns</div><div class='v'>"+intf(all.length)+"</div><div class='s'>"+intf((SNAP&&SNAP.campaigns||[]).length)+" DTC + "+intf((KB&&KB.campaign_rollup||[]).length)+" retail</div></div>"+
-      "<div class='sc'><div class='k'>DTC spend (May 1 → today)</div><div class='v'>"+money0((SNAP&&SNAP.totals&&SNAP.totals.spend)||0)+"</div><div class='s'>live warehouse</div></div>"+
-      "<div class='sc'><div class='k'>Target/Costco spend</div><div class='v'>"+money0((KB&&KB.spend&&KB.spend.meta_total)||0)+"</div><div class='s'>KT snapshot to 20 Jul</div></div>";
+      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Campaigns live on the last day</div><div class='v'>"+intf(live.length)+"</div><div class='s'>"+esc((SNAP&&SNAP.today&&SNAP.today.date)||"")+" · partial day</div></div>"+
+      "<div class='sc'><div class='k'>Tracked campaigns</div><div class='v'>"+intf(all.length)+"</div><div class='s'>"+intf(dtc.campaigns_in_window||0)+" DTC + "+intf(rt.campaigns_in_window||0)+" retail</div></div>"+
+      "<div class='sc'><div class='k'>DTC spend</div><div class='v'>"+money0(dtc.spend||0)+"</div><div class='s'>ROAS "+(dtc.roas!=null?dtc.roas+"x":"—")+" · CPA "+(dtc.cpa!=null?money(dtc.cpa):"—")+"</div></div>"+
+      "<div class='sc' style='border-left-color:var(--gold-deep)'><div class='k'>Target / Costco spend</div><div class='v'>"+money0(rt.spend||0)+"</div><div class='s'>CTR "+(rt.ctr!=null?pct(rt.ctr):"—")+" · CPC "+(rt.cpc!=null?money(rt.cpc):"—")+" · no ROAS by design</div></div>"+
+      "<div class='sc'><div class='k'>Combined spend</div><div class='v'>"+money0((SNAP&&SNAP.totals&&SNAP.totals.spend)||0)+"</div><div class='s'>"+esc((win.since||"")+" → "+(win.until||""))+"</div></div>";
     $("#trk-tbl").innerHTML=table(
-      [{t:"Campaign"},{t:"Account"},{t:"Flight window"},{t:"Status"},{t:"Ads",r:1},{t:"Spend",r:1},{t:"Impressions",r:1},{t:"CTR",r:1},{t:"CPC",r:1}],
+      [{t:"Campaign"},{t:"Account"},{t:"Objective"},{t:"Flight window"},{t:"Status"},{t:"Ads",r:1},{t:"Spend",r:1},{t:"Impressions",r:1},{t:"CTR",r:1},{t:"CPC",r:1},{t:"CPM",r:1},{t:"Revenue",r:1},{t:"ROAS",r:1},{t:"CPA",r:1}],
       rows.map(function(r){
-        var chip=r.live_today?"<span class='chip good'>live today</span>":(r.account==='retail'?"<span class='chip dim'>snapshot</span>":"<span class='chip dim'>ended</span>");
+        var chip=r.live_today?"<span class='chip good'>live</span>":"<span class='chip dim'>ended</span>";
+        var na="<span class='chip dim' title='This account cannot attribute a sale — checkout happens on target.com, Instacart or in store, so no VAHDAM pixel fires.'>n/a</span>";
         return [esc(r.campaign),
-          "<span class='chip "+(r.account==='dtc'?'good':'warn')+"'>"+esc(r.account==='dtc'?'DTC live':'retail KT')+"</span>",
+          "<span class='chip "+(r.account==='dtc'?'good':'warn')+"'>"+esc(r.account==='dtc'?'DTC':'retail')+"</span>",
+          esc(String(r.objective||"").replace("OUTCOME_","").toLowerCase()),
           "<span data-sort-value='"+esc(r.first_day||"")+"'>"+esc(shortDay(r.first_day)+" → "+shortDay(r.last_day))+"</span>",
           chip,intf(r.ads),money(r.spend),intf(r.impressions),
-          r.ctr!=null?pct(r.ctr):"—",r.cpc!=null?money(r.cpc):"—"];
+          r.ctr!=null?pct(r.ctr):"—",r.cpc!=null?money(r.cpc):"—",r.cpm!=null?money(r.cpm):"—",
+          r.revenue!=null?money0(r.revenue):na,
+          r.roas!=null?r.roas+"x":na,
+          r.cpa!=null?money(r.cpa):na];
       }));
-    $("#trk-note").textContent=rows.length+" of "+all.length+" campaigns. DTC rows are live from the warehouse mirror (fresh to "+((SNAP&&SNAP.account&&SNAP.account.data_fresh_to)||"")+"). Target/Costco rows are the KT workbook snapshot to 20 Jul 2026 — that ad account is not in the warehouse (see Ops tab).";
+    $("#trk-note").textContent=rows.length+" of "+all.length+" campaigns, both live US Meta accounts, "+
+      (win.since||"")+" to "+(win.until||"")+". Revenue, ROAS and CPA are shown only for the DTC account, which is the one with a pixel on the landing page. The retail account shows n/a rather than zero: its shoppers check out on target.com, Instacart or in store, so a sale can never be attributed back to the ad, and a 0.00x ROAS there would be a measurement artefact, not a result. Judge retail on CTR, CPC, CPM and reach.";
     barChart("#chart-camp", rows.slice(0,12).map(function(r){return {k:r.campaign,v:r.spend};}), money0);
   }
 
@@ -932,6 +1184,20 @@
     var c=e.target.closest(".cell[data-d]"); if(c)calDetail(c.dataset.d); });
   ["trk-status","trk-acct","trk-sort"].forEach(function(id){document.getElementById(id).addEventListener("change",renderTracker);});
   document.getElementById("trk-q").addEventListener("input",renderTracker);
+  document.getElementById("live-acct-chips").addEventListener("click",function(e){
+    var b=e.target.closest("button[data-lva]"); if(!b)return;
+    LVACCT=b.getAttribute("data-lva")||"";
+    renderLive(LIVE&&LIVE.today?LIVE.today:{ok:false,connected:false});
+  });
+  document.getElementById("acct-filters").addEventListener("click",function(e){
+    var b=e.target.closest("button[data-af]"); if(!b)return;
+    ACCTFILTER[b.getAttribute("data-af")]=b.getAttribute("data-v")||"";
+    renderAccounts();
+  });
+  document.getElementById("acct-tbl").addEventListener("click",function(e){
+    var a=e.target.closest("a[data-acct]"); if(!a)return;
+    e.preventDefault(); acctDetail(a.getAttribute("data-acct"));
+  });
 
   // Duration tiles are rendered immediately (never hidden, never conditional).
   var SPEND_TILES=[{v:7,t:"7D"},{v:14,t:"14D"},{v:30,t:"30D"},{v:60,t:"60D"},{v:"all",t:"All"}];
@@ -943,11 +1209,13 @@
   Promise.all([
     fetch("/data/ads/master-kb.json",{cache:"no-store"}).then(function(r){return r.json();}),
     fetch("/data/ads/target-ads-meta-2026-07-20.json",{cache:"no-store"}).then(function(r){return r.json();}),
-    fetch("/data/ads/ads-live-snapshot.json",{cache:"no-store"}).then(function(r){return r.json();}).catch(function(){return null;})
+    fetch("/data/ads/ads-live-snapshot.json",{cache:"no-store"}).then(function(r){return r.json();}).catch(function(){return null;}),
+    fetch("/data/ads/ad-accounts.json",{cache:"no-store"}).then(function(r){return r.json();}).catch(function(){return null;})
   ]).then(function(res){
-    KB=res[0]; ADS=res[1]; SNAP=res[2];
+    KB=res[0]; ADS=res[1]; SNAP=res[2]; REG=res[3];
     renderOverview(); renderCampaigns(); renderCreative(); renderOrganic(); renderKB(); renderOps(); renderSOP();
     if(SNAP){ monthOptions(); renderCalendar(); renderTracker(); drawSpendChart(); if(SNAP.today&&SNAP.today.date) calDetail(SNAP.today.date); }
+    if(REG){ renderAccounts(); loadAccountsLive(); }
     loadLive();
     // Auto-refresh the live view every 90s so "is it live yet" stays current.
     setInterval(function(){ if(document.querySelector("#tabs button[data-p='live']").classList.contains("on")) loadLive(); },90000);

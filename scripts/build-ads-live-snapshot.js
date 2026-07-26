@@ -30,6 +30,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const EXTRACT = path.join(ROOT, 'data', 'ads', 'warehouse-extract-2026-07-26.txt');
 const OUT = path.join(ROOT, 'data', 'ads', 'ads-live-snapshot.json');
+const REGISTRY_OUT = path.join(ROOT, 'data', 'ads', 'ad-accounts.json');
 const CAPTURED_AT = '2026-07-26';
 
 // The two live US Meta accounts, mirroring adAccounts() in
@@ -199,4 +200,43 @@ function build() {
   console.log(`  total  $${totals.spend.toLocaleString()} -> ${path.relative(ROOT, OUT)}`);
 }
 
+/**
+ * The Accounts tab has to render the estate even with no serverless function and
+ * no warehouse credentials (a static preview, or the current deployment). Rather
+ * than duplicate the descriptions in the HTML, emit them from the ONE source of
+ * truth — adAccounts() in api/_shared/ads-snowflake-core.js — so the page and the
+ * API can never drift apart.
+ */
+function buildRegistry() {
+  const core = require(path.join(ROOT, 'api', '_shared', 'ads-snowflake-core.js'));
+  const rows = core.adAccounts().map(core.describeAccount);
+  const byPlatform = {};
+  rows.forEach((r) => { byPlatform[r.platform] = (byPlatform[r.platform] || 0) + 1; });
+  fs.writeFileSync(REGISTRY_OUT, JSON.stringify({
+    id: 'ad-accounts',
+    captured_at: CAPTURED_AT,
+    generated_by: 'scripts/build-ads-live-snapshot.js from adAccounts() in api/_shared/ads-snowflake-core.js',
+    counts: {
+      feeds: rows.length,
+      distinct_accounts: new Set(rows.map((r) => r.platform + ':' + r.account_id)).size,
+      live: rows.filter((r) => r.status === 'live').length,
+      by_platform: byPlatform,
+    },
+    statuses: {
+      live: 'Feed is current and should drive reporting.',
+      paused: 'Feed is connected but the account has stopped spending.',
+      superseded: 'A second mirror of an account that is better served by another feed. History only.',
+      stale: 'Account wound down; the feed stops where the account stopped.',
+      archive: 'Closed account kept as a historic benchmark.',
+    },
+    kpis: {
+      roas: 'A pixel or Google conversion is tracked, so revenue, ROAS and CPA are real.',
+      traffic: 'Checkout happens on a third-party site (target.com, Instacart, amazon.com) so no purchase is ever attributed here. Judge on CTR, CPC, CPM and reach — a zero ROAS is an attribution fact, not a result.',
+    },
+    accounts: rows,
+  }, null, 2) + '\n');
+  console.log(`ad-accounts: ${rows.length} feeds across ${new Set(rows.map((r) => r.platform + ':' + r.account_id)).size} accounts -> ${path.relative(ROOT, REGISTRY_OUT)}`);
+}
+
 build();
+buildRegistry();
