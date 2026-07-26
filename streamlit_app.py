@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.13"
+APP_BUILD = "2026-07-26.14"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -1755,9 +1755,14 @@ def sql_group_sums(table, where, group_cols, limit=None, offset=0):
 
 @st.cache_data(ttl=600, show_spinner=False)
 def daily_series(table, where, metric, by=None):
+    """Daily series for ANY table. The date column was hardcoded to DATE_START while the
+    function accepted an arbitrary table, so it happened to work only because every
+    caller passed a Meta table. Resolving the real column removes the trap."""
     byc = f', "{by.upper()}" as {by}' if by else ""
     byg = ", 2" if by else ""
-    return q(f'select "DATE_START" as date_start{byc}, sum("{metric.upper()}") as {metric} '
+    dc = table_date_col(table) or "date_start"
+    return q(f'select "{dc.upper()}"::date as date_start{byc}, '
+             f'sum("{metric.upper()}") as {metric} '
              f"from {table} {where} group by 1{byg} order by 1")
 
 
@@ -1798,6 +1803,8 @@ def cohort_chart(df, dim, title):
         return
     g = df.groupby(dim, as_index=False)[numc].sum().sort_values("spend", ascending=False)
     top = g.head(30)
+    if len(g) > len(top):
+        st.caption(f"Chart shows the top {len(top)} of {len(g):,} {dim} values by spend.")
     st.altair_chart(
         alt.Chart(top).mark_bar(color=GREEN).encode(
             x=alt.X("spend:Q", title="Spend"),
@@ -1922,6 +1929,12 @@ def meta_targeting_conditions(selection):
 def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
     _ev = str(camp).replace("'", "''")
     ew = meta_where() + f" and \"{entity_col.upper()}\" = '{_ev}'"
+    # This cap is DISCLOSED below. The module comment promises "no hidden caps", and a
+    # silent limit 2000 broke that promise: the KPI tiles come from sql_sums (SQL over
+    # every row, correct) but this frame drives the row table and any pandas-derived
+    # figure, so on a long-running entity it truncated without saying so. The Target
+    # PageDeck campaign alone carries 1,133 ad-days in July.
+    _true_rows = count_rows(META_SRC, ew)
     df = q(f"select * from {META_SRC} {ew} order by date_start desc limit 2000")
     if df.empty:
         st.warning("No rows for this campaign in the window.")
@@ -1929,6 +1942,10 @@ def render_campaign_detail(camp, key_prefix="cd", entity_col="campaign_name"):
         groups = classify_columns(table_columns(META_SRC))
         sums = sql_sums(META_SRC, ew)
         derived = compute_all(sums)
+        if _true_rows and _true_rows > len(df):
+            st.caption(f"Row table below shows the newest {len(df):,} of {_true_rows:,} ad-days. "
+                       "The metric tiles and totals are computed in SQL over ALL "
+                       f"{_true_rows:,} rows, so they are not affected by this display cap.")
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Spend", money(sums.get("spend")))
         c2.metric("Impressions", f"{sums.get('impressions', 0):,.0f}")
@@ -3729,6 +3746,8 @@ def render_ads_analytics():
                 df = meta_rows(account, level, since, until)
                 if not df.empty:
                     top = df.head(15)
+                    if len(df) > 15:
+                        st.caption(f"Top 15 of {len(df):,} by spend.")
                     chart = (
                         alt.Chart(top).mark_bar(color=GREEN).encode(
                             x=alt.X("spend:Q", title="Spend (USD)"),
@@ -3764,6 +3783,37 @@ def render_ads_analytics():
             k5.metric("Clicks", f"{_ks.get('clicks', 0):,.0f}")
             k6.metric("Link CTR", pctf(_kd.get("link_ctr")))
             k7.metric("CPC", money(_kd.get("cpc")))
+            st.divider()
+        else:
+            # This branch did not exist. On Google or TikTok the KPI strip rendered
+            # NOTHING - no tiles, no message - while the table below it rendered fine,
+            # so the view looked half-broken rather than honestly partial. The generic
+            # sums path works on any table, so there is no reason to show nothing.
+            _gt = GOOGLE_ADS if platform == "Google" else tiktok_table(level)
+            _gw = generic_where(_gt)
+            _gs = sql_sums(_gt, _gw)
+            if not _gs:
+                st.info(f"No readable numeric columns in `{_gt}` for this scope. Reported as "
+                        "unreadable rather than as zero.")
+            else:
+                _sp = _gs.get("spend", _gs.get("cost_micros"))
+                if _sp is None and "cost_micros" in _gs:
+                    _sp = _gs["cost_micros"] / 1e6
+                g1, g2, g3, g4 = st.columns(4)
+                g1.metric("Spend", money(_sp))
+                g2.metric("Impressions", f"{_gs.get('impressions', 0):,.0f}")
+                g3.metric("Clicks", f"{_gs.get('clicks', 0):,.0f}")
+                g4.metric("CTR", pctf(_pct(_gs.get("clicks"), _gs.get("impressions"))))
+                g5, g6, g7, _g8 = st.columns(4)
+                g5.metric("CPC", money(_div(_sp, _gs.get("clicks"))))
+                g6.metric("CPM", money((lambda d: None if d is None else d * 1000)(
+                    _div(_sp, _gs.get("impressions")))))
+                g7.metric("Conversion value", money(_gs.get("conversion_value")))
+                st.caption(
+                    f"`{_gt}` — exact SQL totals over all rows in scope. {platform} carries "
+                    "fewer columns than Meta, so metrics whose inputs this source does not have "
+                    "are omitted rather than shown as zero. Full field list: Platform parity view."
+                )
             st.divider()
         if platform == "Meta":
             gcols = ident_cols(level)
@@ -4270,6 +4320,9 @@ def render_ads_analytics():
                 if rank_col:
                     show = ud.sort_values(rank_col, ascending=False)
                     st.dataframe(show.head(200), use_container_width=True, height=420)
+                    if len(show) > 200:
+                        st.caption(f"Top 200 of {len(show):,} rows by {rank_col}. "
+                                   "The CSV download below contains all rows.")
                     st.download_button("Download scored UGC CSV", show.to_csv(index=False).encode(),
                                        "ugc_scored.csv", "text/csv", key="ugc_score_dl")
 
@@ -4598,7 +4651,8 @@ def table_explorer(key, default_terms, gap_note):
     if df.empty:
         st.info("Table is readable but returned no rows.")
         return
-    st.caption(f"{pick} · showing up to 1,000 rows · read-only")
+    st.caption(f"{pick} · {len(df):,} rows fetched, newest {min(len(df), 300):,} shown "
+               "· read-only")
     st.dataframe(order_table(df).head(300), use_container_width=True, height=340)
     date_cols = [c for c in df.columns if any(k in c for k in ("date", "day", "month", "created", "time"))]
     num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
