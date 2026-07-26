@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.17"
+APP_BUILD = "2026-07-26.18"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -2566,6 +2566,126 @@ def live_ugc_posts(since, until):
         return pd.DataFrame()
 
 
+# ── DRILL-DOWN: campaign -> ad set -> ad -> one ad's detail ───────────────────
+# Ads Manager behaviour: clicking a name opens what is inside it. Every level is
+# aggregated from the SAME ad rows by full_metric_frame, so a parent total is the sum of
+# its children by construction rather than a separately sourced figure that could
+# disagree, and every rate is recomputed from those sums by the one metric catalog
+# (summing rate columns is what produced a 3,891% CTR before the ratio fix).
+#
+# Streamlit has no click-through on a table cell, so the level is held in session_state
+# and driven by a breadcrumb plus a picker. The path is the same as Meta's; only the
+# input control differs.
+# Plain key access and an explicit membership test, not attribute access or
+# setdefault(). st.session_state supports all of them, but key access is the form
+# guaranteed across versions and it is also what a plain dict supports - which means the
+# headless harness exercises the real code path instead of needing a special stub.
+def _drill_get(k):
+    return st.session_state[k] if k in st.session_state else None
+
+
+def _drill_set(**kw):
+    for k, v in kw.items():
+        st.session_state[k] = v
+
+
+def render_drilldown(table: str, label: str):
+    camp, aset, adnm = _drill_get("dr_campaign"), _drill_get("dr_adset"), _drill_get("dr_ad")
+    where = f'where "DATE_START" between \'{since}\' and \'{until}\''
+
+    # Breadcrumb — each step back up is a button, so you can leave any level.
+    crumbs = st.columns([1, 1, 1, 3])
+    if crumbs[0].button("All campaigns", key="dr_up0"):
+        _drill_set(dr_campaign=None, dr_adset=None, dr_ad=None)
+        camp = aset = adnm = None
+    if camp and crumbs[1].button(f"↑ {camp[:28]}", key="dr_up1"):
+        _drill_set(dr_adset=None, dr_ad=None)
+        aset = adnm = None
+    if aset and crumbs[2].button(f"↑ {aset[:28]}", key="dr_up2"):
+        _drill_set(dr_ad=None)
+        adnm = None
+    crumbs[3].caption(" › ".join(x for x in ["All campaigns", camp, aset, adnm] if x))
+
+    # ---- Level 4: one ad, every column the source carries.
+    if adnm:
+        st.markdown(f"#### Ad detail — {adnm}")
+        w = (where + f' and "CAMPAIGN_NAME" = \'{camp.replace(chr(39), chr(39) * 2)}\''
+             f' and "ADSET_NAME" = \'{aset.replace(chr(39), chr(39) * 2)}\''
+             f' and "AD_NAME" = \'{adnm.replace(chr(39), chr(39) * 2)}\'')
+        one = full_metric_frame(table, w, ["campaign_name", "adset_name", "ad_name"])
+        if one.empty:
+            st.info("No rows for this ad in the selected window.")
+            return
+        st.dataframe(pd.DataFrame({"Field": one.columns,
+                                   "Value": [one.iloc[0][c] for c in one.columns]}),
+                     use_container_width=True, hide_index=True, height=520)
+        st.caption(f"{len(one.columns)} fields — every additive column the source carries plus "
+                   "every catalog-derived metric whose inputs exist. Rates are computed from this "
+                   "ad's own sums.")
+        dt = deployment_timing(table)
+        if not dt.empty:
+            dt = dt.rename(columns=str.upper)
+            row = dt[dt["AD_NAME"] == adnm]
+            if not row.empty:
+                r = row.iloc[0]
+                a, b, c = st.columns(3)
+                a.metric("Created", str(r["CREATED"]))
+                b.metric("First served", str(r["FIRST_SERVED"]) if pd.notna(r["FIRST_SERVED"])
+                         else "never served")
+                c.metric("Days to live", f"{int(r['LAG_DAYS'])}d" if pd.notna(r["LAG_DAYS"]) else "—")
+        return
+
+    # ---- Level 3: ads inside the chosen ad set.
+    if aset:
+        st.markdown(f"#### Ads in {aset}")
+        w = (where + f' and "CAMPAIGN_NAME" = \'{camp.replace(chr(39), chr(39) * 2)}\''
+             f' and "ADSET_NAME" = \'{aset.replace(chr(39), chr(39) * 2)}\'')
+        ads = full_metric_raw(table, w, ["ad_name"])
+        if ads.empty:
+            st.info("No ads for this ad set in the window.")
+            return
+        st.dataframe(spec_frame(ads), use_container_width=True, hide_index=True, height=360)
+        st.caption(f"{len(ads)} ads · ad set total {money(float(ads['spend'].sum()))}, "
+                   "the sum of the rows above.")
+        pick = st.selectbox("Open an ad", ["—"] + sorted(ads["ad_name"].astype(str)), key="dr_pick_ad")
+        if pick != "—":
+            _drill_set(dr_ad=pick)
+            st.rerun()
+        return
+
+    # ---- Level 2: ad sets inside the chosen campaign.
+    if camp:
+        st.markdown(f"#### Ad sets in {camp}")
+        w = where + f' and "CAMPAIGN_NAME" = \'{camp.replace(chr(39), chr(39) * 2)}\''
+        sets_ = full_metric_raw(table, w, ["adset_name"])
+        if sets_.empty:
+            st.info("No ad sets for this campaign in the window.")
+            return
+        st.dataframe(spec_frame(sets_), use_container_width=True, hide_index=True, height=340)
+        st.caption(f"{len(sets_)} ad sets · campaign total {money(float(sets_['spend'].sum()))}, "
+                   "the sum of the rows above.")
+        pick = st.selectbox("Open an ad set", ["—"] + sorted(sets_["adset_name"].astype(str)),
+                            key="dr_pick_set")
+        if pick != "—":
+            _drill_set(dr_adset=pick)
+            st.rerun()
+        return
+
+    # ---- Level 1: campaigns.
+    st.markdown(f"#### Campaigns — {label}")
+    camps = full_metric_raw(table, where, ["campaign_name"])
+    if camps.empty:
+        st.info("No campaigns in the selected window.")
+        return
+    st.dataframe(spec_frame(camps), use_container_width=True, hide_index=True, height=360)
+    st.caption(f"{len(camps)} campaigns · account total {money(float(camps['spend'].sum()))}. "
+               "Open one to see its ad sets, then its ads, then a single ad's every field.")
+    pick = st.selectbox("Open a campaign", ["—"] + sorted(camps["campaign_name"].astype(str)),
+                        key="dr_pick_camp")
+    if pick != "—":
+        _drill_set(dr_campaign=pick)
+        st.rerun()
+
 # ── CREATIVE LIBRARY — the Knowledge Base as usable content ───────────────────
 # The KB tab used to be a link registry: to learn anything you left the app and opened
 # a sheet, which is a bookmark folder, not a knowledge base. The scraped June USA UGC
@@ -3682,26 +3802,21 @@ def render_master_dashboard():
     # ── 7. Campaigns & Ads ───────────────────────────────────────────────────
     with tabs[6]:
         st.subheader("Campaigns & Ads")
-        st.caption("Live from the warehouse for the selected window. Pick the account; "
-                   "retail and DTC are different programs and are never blended here.")
+        st.caption(
+            "Click through the way Ads Manager does: a campaign opens its ad sets, an ad set "
+            "opens its ads, an ad opens every field it carries. Read live from the warehouse for "
+            "the selected window. Retail and DTC are separate programmes and are never blended."
+        )
         which = st.radio("Account", ["Retail (Target / Costco)", "DTC (own site)"],
                          horizontal=True, key="master_camp_acct")
-        tbl = META_RETAIL if which.startswith("Retail") else META_ADS
-        for lvl, cols_ in (("Campaign", ["campaign_name"]),
-                           ("Ad set", ["campaign_name", "adset_name"]),
-                           ("Ad", ["campaign_name", "adset_name", "ad_name"])):
-            with st.expander(f"{lvl} level", expanded=(lvl == "Campaign")):
-                try:
-                    g = full_metric_frame(
-                        tbl, f'where "DATE_START" between \'{since}\' and \'{until}\'', cols_)
-                except Exception as exc:  # noqa: BLE001
-                    st.warning(f"Unavailable: {exc}")
-                    continue
-                if g.empty:
-                    st.info("No rows in the selected window.")
-                else:
-                    st.dataframe(g, use_container_width=True, hide_index=True, height=420)
-                    st.caption(f"{len(g)} rows x {len(g.columns)} columns — full metric set.")
+        _tbl = META_RETAIL if which.startswith("Retail") else META_ADS
+        # Switching account must reset the path, or the breadcrumb points at a campaign
+        # that does not exist in the newly selected account.
+        if st.session_state.get("_dr_last_acct") != which:
+            st.session_state["_dr_last_acct"] = which
+            st.session_state["dr_campaign"] = st.session_state["dr_adset"] = None
+            st.session_state["dr_ad"] = None
+        render_drilldown(_tbl, which)
         if kb.get("campaign_rollup"):
             with st.expander("KT snapshot rollup (20 Jul 2026) for comparison"):
                 _render_value(kb["campaign_rollup"])

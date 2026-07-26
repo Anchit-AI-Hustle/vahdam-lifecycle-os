@@ -185,8 +185,14 @@ class FakeST(types.ModuleType):
     def rerun(self): raise SystemExit("rerun")
     @property
     def sidebar(self): return self
+    # A real, persistent dict. The first version returned a fresh {} on every access, so
+    # anything the app stored vanished immediately and every session_state branch silently
+    # took its default path - the harness reported "no error" while never executing the
+    # code under test. Same failure mode as the fake column list: a stub that lies
+    # manufactures confidence.
+    _SS = {}
     @property
-    def session_state(self): return {}
+    def session_state(self): return FakeST._SS
 ST = FakeST("streamlit")
 ST.cache_resource = ST.cache_data
 sys.modules["streamlit"]=ST

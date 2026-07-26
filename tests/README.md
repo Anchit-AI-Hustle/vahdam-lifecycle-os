@@ -14,6 +14,11 @@ It sweeps 33 targets — 3 sections and 10 analysis views x 3 channels — repor
 exception plus how many SQL statements, tables, charts and metrics each produced, and
 writes every statement to `sql_*.txt`.
 
+**`session_state` must be a persistent dict.** The first version returned a fresh `{}` on
+every access, so anything the app stored vanished immediately and every `session_state`
+branch silently took its default path — the harness reported "no error" while never
+executing the drill-down levels at all. Same failure mode as the fake column list below.
+
 **The stub reports REAL column lists** (`SCHEMAS` in `stub.py`, read from the warehouse
 2026-07-26). That matters: an earlier version claimed every table had `account_name`,
 which hid exactly the column-resolution bugs the harness exists to find. If a schema
