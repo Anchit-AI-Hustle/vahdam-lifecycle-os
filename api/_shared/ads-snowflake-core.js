@@ -35,6 +35,29 @@
  * Token), SNOWFLAKE_WAREHOUSE, SNOWFLAKE_DATABASE, SNOWFLAKE_ROLE.
  */
 
+// Airbyte APPENDS to the Meta action sidecars on every incremental sync instead of
+// replacing, so one (parent row, action type) can carry hundreds of rows across dozens
+// of _AIRBYTE_EMITTED_AT values. Summing them raw multiplies purchases and revenue.
+//
+// Measured live 2026-07-26, DTC account, 2026-05-01 to 07-25:
+//   raw      revenue $827,998.03  ->  ROAS 8.98x   <- what this dashboard was reporting
+//   deduped  revenue  $72,320.74  ->  ROAS 0.78x   <- the real figure
+// An 11.4x overstatement of revenue, and it looked plausible: a high ROAS on a
+// direct-to-consumer account is exactly what you hope to see, so nothing flagged it.
+// The Snowflake app hit the same bug in the same tables and the deduped result there
+// (0.74x for July alone) agrees with this.
+//
+// Keeping only the newest emission per (hash, action_type, target, destination) preserves
+// genuine per-destination detail while dropping the re-sync copies.
+function sidecarDedup(table, hashCol, actionType) {
+  const h = quoteIdent(hashCol);
+  return `select ${h} as h, "VALUE"::float as v
+    from ${table} where ACTION_TYPE = '${actionType}'
+   qualify row_number() over (partition by ${h}, ACTION_TYPE,
+             coalesce(ACTION_TARGET_ID, '-'), coalesce(ACTION_DESTINATION, '-')
+             order by "_AIRBYTE_EMITTED_AT" desc) = 1`;
+}
+
 function cfg() {
   return {
     account: (process.env.SNOWFLAKE_ACCOUNT || '').trim(),
@@ -561,11 +584,9 @@ function campaignSql(s, since, until, level) {
          ${n(c.link_clicks)} as link_clicks, ${c.ad_id.sql} as ad_id, ${quoteIdent(rv.hash)} as h
     from ${s.table}${srcWhere(s, since, until)}
 ), pur as (
-  select ${quoteIdent(rv.hash)} as h, sum("VALUE"::float) as purchases
-    from ${pre}${rv.actions} where ACTION_TYPE = '${rv.action_type}' group by 1
+  select h, sum(v) as purchases from (${sidecarDedup(pre + rv.actions, rv.hash, rv.action_type)}) group by 1
 ), rev as (
-  select ${quoteIdent(rv.hash)} as h, sum("VALUE"::float) as revenue
-    from ${pre}${rv.values} where ACTION_TYPE = '${rv.action_type}' group by 1
+  select h, sum(v) as revenue from (${sidecarDedup(pre + rv.values, rv.hash, rv.action_type)}) group by 1
 )
 select b.dim, any_value(b.objective) as objective, count(distinct b.ad_id) as ads,
        min(b.day) as first_day, max(b.day) as last_day, round(sum(b.spend),2) as spend,
