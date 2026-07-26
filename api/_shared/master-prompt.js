@@ -82,7 +82,8 @@ Deliver, in order:
 ${VISUAL_CASCADE}`;
 }
 
-// The studio compositor (ad-campaigns.html) renders ONE still PNG per size with
+// The studio compositor (Creative Studio tab of ad-campaigns-master.html) renders ONE
+// still PNG per size with
 // the text overlay baked in. Be honest about that: list the exact static sizes
 // it produces and treat motion as an OPTIONAL hand-off brief, never a delivered
 // asset. The text fields (headlines/captions/scripts) are still authored as copy.

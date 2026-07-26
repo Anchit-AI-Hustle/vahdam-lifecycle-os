@@ -181,7 +181,7 @@ Every feature below follows the same lens: **Origin → Need → Purpose → Wha
 - **How it works.** `api/kb.js` router (`ingest|list|top-emails|brands|classify-emails`) over Supabase (`kb_knowledge`, `kb_files`, `kb_top_emails`, `competitor_brands`, `competitor_emails_classified`).
 - **Future.** Vector embeddings + "find designs like this" retrieval; RAG-conditioning of the Studio and ad builder on brand-compliant exemplars (learn patterns, never copy).
 
-### 6.8 Ad Campaigns (`/ads`, `ad-campaigns.html`) & Landing Pages (`/landing`, `landing-pages.html`)
+### 6.8 Ad Campaigns (`/ads-master`, `ad-campaigns-master.html`) & Landing Pages (`/landing`, `landing-pages.html`)
 
 - **Origin.** Email covered retention; paid acquisition briefs still lived in slides. Both modules extend the same brand kernel to paid. The landing-page system additionally absorbed a real campaign need — the Ashwagandha-coffee presell funnel — which produced the `/lp/*` hosted-page contract and the battle-tested LP compiler.
 - **Need.** Ad creative was produced ad-hoc per platform and size; landing pages required a developer for every campaign; neither enforced the brand system; and **Aman's P01 mandate** — *"sell happiness, not ingredients"* (target women 45+/busy mums, emotional end-state, 1-second scroll-stop, baked-in offer text) — needed to be encoded, not remembered.

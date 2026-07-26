@@ -411,6 +411,11 @@ module.exports = async function handler(req, res) {
         if (op === 'accounts') return res.json(await adsSnowflake.accounts({ since: p.since, until: p.until, accounts: p.accounts }));
         if (op === 'multi-daily') return res.json(await adsSnowflake.multiDaily({ since: p.since, until: p.until, accounts: p.accounts, by: p.by }));
         if (op === 'campaigns') return res.json(await adsSnowflake.campaigns({ since: p.since, until: p.until, account: p.account, level: p.level }));
+        // Ads-Manager drill-down: one GROUP BY per level, scoped to the clicked
+        // ancestors. hierarchy() was exported by the core but never dispatched
+        // here, so op=hierarchy fell through to metrics() below and the caller
+        // silently got flat metric rows instead of the level it asked for.
+        if (op === 'hierarchy') return res.json(await adsSnowflake.hierarchy({ platform: p.platform, level: p.level, campaign: p.campaign, adset: p.adset, account: p.account, since: p.since, until: p.until, limit: p.limit }));
         // Retail funnel: spend in MAPLEMONK joined to outcomes in MAPLEMONK1 (Target
         // Roundel attributed sales + real Target store sell-through). The only way
         // to answer "is the Target programme working" — the Meta retail account has

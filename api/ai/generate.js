@@ -44,8 +44,9 @@ function deepScrubDashes(v) {
   return v;
 }
 
-// Static creative sizes the ad-campaigns.html compositor actually renders, per
-// surface. Mirrors CRE_CFG in ad-campaigns.html — used to build creative_spec
+// Static creative sizes the compositor actually renders, per surface. Mirrors CRE_CFG
+// in the Creative Studio tab of ad-campaigns-master.html (moved there when the
+// standalone /ads page was retired) — used to build creative_spec
 // so the autofill response describes exactly the assets that get produced.
 const AD_FORMATS = {
   google: [
@@ -447,7 +448,8 @@ Return ONLY the segment text. No preamble, no quotes around it, no JSON.`;
   } else if (mode === 'autofill') {
     // ─────────────────────────────────────────────────────────────────
     // AUTOFILL — single-prompt → all form fields for the chosen surface.
-    // Used by ad-campaigns.html (google/meta/tiktok) and landing-pages.html
+    // Used by the Creative Studio tab of ad-campaigns-master.html (google/meta/tiktok)
+    // and landing-pages.html
     // (lp-mailer/lp-meta/lp-google/lp-tiktok).
     //
     // Input  : { mode:'autofill', surface:'<surface>', prompt:'<plain text>', market?, region? }
@@ -879,7 +881,7 @@ Target market for this autofill: ${targetMarket}.`;
 
     // ── Autofill on an ad surface: also return the portable master_prompt and a
     //    structured creative_spec the compositor can render. creative_spec lists
-    //    the EXACT static sizes ad-campaigns.html composites, each carrying the
+    //    the EXACT static sizes the Creative Studio compositor composites, each carrying the
     //    LLM-authored overlay copy (headline/sub) + the real P01 offer — so the
     //    canvas stops hardcoding 'Shop now'. Non-ad surfaces are unaffected.
     if (mode === 'autofill') {
