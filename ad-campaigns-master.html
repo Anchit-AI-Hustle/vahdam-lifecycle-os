@@ -3131,10 +3131,21 @@ try{
   // SVG data URI, and SVG pulled through <img>/canvas cannot run script. A value
   // that fails becomes '' and the caller falls through to its next visual tier
   // (catalog photo, then ambient backdrop) exactly as if the field were blank.
-  var LOADABLE_URL = /^(?:https?:\/\/|blob:https?:\/\/|data:image\/[a-z0-9.+-]+[;,])/i;
+  //
+  // The check is on a PARSED url, not a regex over the raw string: the parser
+  // resolves the scheme the browser will actually use, so the tab/newline and
+  // leading-whitespace tricks that smuggle "java\tscript:" past a prefix match
+  // collapse to their real protocol and get rejected. Returning the normalized
+  // .href rather than the input also percent-encodes quotes and angle brackets.
+  // No base is passed, so a relative path throws and is refused outright.
+  var LOADABLE_PROTOCOL = /^(?:https?|blob|data):$/i;
   function loadableUrl(u) {
-    var s = String(u == null ? '' : u).trim();
-    return LOADABLE_URL.test(s) ? s : '';
+    var parsed;
+    try { parsed = new URL(String(u == null ? '' : u).trim()); } catch (_) { return ''; }
+    if (!LOADABLE_PROTOCOL.test(parsed.protocol)) return '';
+    // data: is only acceptable when it actually carries an image.
+    if (/^data:$/i.test(parsed.protocol) && !/^data:image\//i.test(parsed.href)) return '';
+    return parsed.href;
   }
   // RENDERABLE — what may reach a src/href ATTRIBUTE in showCreatives. Every URL
   // it emits is canvas output (composeCreative → toDataURL('image/png')), so the
