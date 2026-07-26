@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.3"
+APP_BUILD = "2026-07-26.4"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -2548,11 +2548,68 @@ def render_master_dashboard():
     with tabs[9]:
         st.subheader("Knowledge Base")
         for k, head in (("kt_sources", "KT sources"), ("narratives", "KT narratives"),
-                        ("people", "People and ownership"), ("links", "Links register"),
-                        ("gaps", "Declared gaps")):
+                        ("people", "People and ownership")):
             if kb.get(k):
                 st.markdown(f"#### {head}")
                 _render_value(kb[k])
+
+        # Links register. Only the final sheet and the report links actually used
+        # are cited: every entry is a real resolvable URL that some figure or
+        # decision here is sourced from. What is NOT listed is stated plainly, so
+        # the register reads as curated rather than as if those documents were
+        # never named.
+        if kb.get("links"):
+            st.markdown("#### Links register — the final sheet and the reports actually used")
+            pol = kb.get("links_policy") or {}
+            if pol:
+                st.info(f"**{pol.get('listed')} links listed · {pol.get('removed')} not listed.** "
+                        f"{pol.get('rule', '')}")
+            links = kb["links"]
+            finals = [x for x in links if x.get("final")]
+            if finals:
+                st.markdown("**The final artefacts — authoritative over everything else:**")
+                for x in finals:
+                    st.markdown(f"- **{x['title']}** — {x.get('role', '')}  \n  {x.get('url')}")
+            only_final = st.checkbox("Final sheet + SOP only", key="master_kb_final")
+            groups = sorted({x.get("group", "") for x in links})
+            gsel = st.multiselect("Group", groups, default=groups, key="master_kb_groups")
+            rows = [x for x in links
+                    if (not only_final or x.get("final")) and x.get("group") in gsel]
+            st.dataframe(pd.DataFrame([{
+                "Final": "FINAL" if x.get("final") else "",
+                "Title": x.get("title"), "Group": x.get("group"),
+                "Status": x.get("status"), "Owner": x.get("owner") or "—",
+                "Role / note": x.get("role") or x.get("note") or "",
+                "URL": x.get("url"),
+            } for x in rows]), use_container_width=True, hide_index=True)
+            rd = pol.get("removed_detail") or {}
+            if rd:
+                with st.expander(f"What is not listed, and why ({pol.get('removed')})"):
+                    sup = rd.get("no_url_superseded_by_warehouse") or {}
+                    if sup:
+                        st.markdown(f"**{sup.get('count')} superseded by the warehouse.** "
+                                    f"{sup.get('why', '')}")
+                        mapping = sup.get("mapping") or {}
+                        if mapping:
+                            st.dataframe(pd.DataFrame(
+                                [{"Export named in the thread": k2, "Read live from instead": v2}
+                                 for k2, v2 in mapping.items()]),
+                                use_container_width=True, hide_index=True)
+                    doc = rd.get("no_url_planning_docs") or {}
+                    if doc:
+                        st.markdown(f"**{doc.get('count')} planning documents.** {doc.get('why', '')}")
+                        if doc.get("items"):
+                            st.dataframe(pd.DataFrame(
+                                [{"Document": i.get("title"), "Owner": i.get("owner") or "—"}
+                                 for i in doc["items"]]),
+                                use_container_width=True, hide_index=True)
+                    dk = rd.get("deck_examples") or {}
+                    if dk:
+                        st.markdown(f"**{dk.get('count')} deck examples.** {dk.get('why', '')}")
+
+        if kb.get("gaps"):
+            st.markdown("#### Declared gaps")
+            _render_value(kb["gaps"])
 
     # ── 11. Ops & Data Sources ───────────────────────────────────────────────
     with tabs[10]:
