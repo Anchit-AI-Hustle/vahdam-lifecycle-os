@@ -9,6 +9,11 @@
  * copy (sanitizeBrand).
  */
 const { PAL, shippingLine } = require('./flagship-mailer.js');
+// Video creatives: renderMotionAd = a real animated 9:16 unit that plays with no
+// API and no render farm; motionBrief = the same design as a generator brief so
+// the shipped MP4 matches the preview. Every ad set therefore has a VIDEO
+// creative, not just stills.
+const { renderMotionAd, motionBrief } = require('./motion-ad.js');
 // Plain-text (no-entity) shipping line for ad copy fields, region-correct.
 function shipText(market) { return String(shippingLine(market)).replace(/&pound;/g, '£'); }
 const HF = "'LAO MN','Cormorant Garamond',Georgia,serif";
@@ -59,10 +64,34 @@ function renderAds(o = {}) {
     <div style="color:#1a0dab;font-size:18px;line-height:1.3;margin:6px 0;font-family:${BF};">${esc(c.google.headlines.join(' | '))}</div>
     <div style="color:#4d5156;font-size:13px;line-height:1.5;">${esc(c.google.descriptions.join(' '))}</div></div>`;
 
+  // ── VIDEO CREATIVE ─────────────────────────────────────────────────────
+  // Scenes come from the same scrubbed copy + verified hero image the statics
+  // use, so the video says exactly what the statics say (no new claims).
+  const vScenes = [
+    { image: o.heroImageUrl || '', headline: o.headline || o.productName, sub: o.tastingLine || '', seconds: 2.6 },
+    { image: o.secondImageUrl || o.heroImageUrl || '', headline: o.subline || 'Single-estate, hand-picked', sub: o.price ? String(o.price) : '', seconds: 2.6 },
+  ];
+  const vSpec = {
+    product: o.productName,
+    scenes: vScenes,
+    cta: c.tiktok.cta || 'Shop now',
+    ctaHeadline: o.headline || o.productName,
+    offer: o.price || null,
+    footnote: shipText(o.market),
+  };
+  const videoHtml = renderMotionAd(vSpec);
+  const videoBrief = motionBrief(vSpec);
+  // Inline the animated unit via srcdoc so the preview page shows the real
+  // creative playing, not a description of it.
+  const videoPreview = `<div style="width:250px;aspect-ratio:9/16;border-radius:12px;overflow:hidden;border:1px solid ${PAL.gold}33;background:#000;">
+    <iframe title="Video ad preview" srcdoc="${esc(videoHtml)}" style="width:250px;height:444px;border:0;display:block;" sandbox="allow-scripts"></iframe></div>`;
+
   const copyBlock = `<pre style="white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#fff;border:1px solid ${PAL.gold}33;border-radius:10px;padding:16px;color:${PAL.ink};overflow:auto;">${esc(JSON.stringify(c, null, 2))}</pre>`;
 
   return {
     copy: c,
+    video: { html: videoHtml, brief: videoBrief, aspect: '9:16' },
+    formats: ['meta_1x1_static', 'tiktok_9x16_static', 'google_rsa_text', 'video_9x16_animated'],
     html: `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ads · ${esc(o.productName)}</title>
 <style>${FONT} body{margin:0;background:${PAL.cream};color:${PAL.ink};font-family:${BF};padding:22px;} h1,h2{font-family:${HF};color:${PAL.green};}</style></head><body>
   <h1 style="font-size:24px;margin:0 0 4px;">Paid-social ads · ${esc(o.productName)}</h1>
@@ -71,7 +100,10 @@ function renderAds(o = {}) {
     <div><h2 style="font-size:15px;">Meta · 1:1</h2>${meta}</div>
     <div><h2 style="font-size:15px;">TikTok / Reels · 9:16</h2>${tiktok}</div>
     <div><h2 style="font-size:15px;">Google · RSA</h2>${google}</div>
+    <div><h2 style="font-size:15px;">Video · 9:16 (plays here)</h2>${videoPreview}</div>
   </div>
+  <h2 style="font-size:15px;margin:26px 0 8px;">Video shot list (for the MP4 render)</h2>
+  <pre style="white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#fff;border:1px solid ${PAL.gold}33;border-radius:10px;padding:16px;color:${PAL.ink};overflow:auto;">${esc(JSON.stringify(videoBrief, null, 2))}</pre>
   <h2 style="font-size:15px;margin:26px 0 8px;">Copy (structured)</h2>
   ${copyBlock}
 </body></html>`,
