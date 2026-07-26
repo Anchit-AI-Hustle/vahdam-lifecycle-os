@@ -9,15 +9,18 @@
   :root{
     --green:#004A2B; --gold:#AB8743; --gold-deep:#7a5a1e; --ink:#171717; --cream:#FBF5EA;
     --bg:#F3EEE2; --surface:#ffffff; --surface-2:#FBF5EA; --line:#E3D8BF; --line-strong:#CBB98C;
-    --text:#26302a; --dim:#5c6b60; --head:#004A2B;
-    --good:#137547; --good-bg:#E4F1E8; --warn:#9a6a12; --warn-bg:#F7ECD2;
+    /* Contrast tokens matched to /ads-master: every text/background pair is
+       dark-on-light and clears WCAG-AA (>=4.5:1). */
+    --text:#1F2A23; --dim:#3D4A42; --head:#004A2B;
+    --good:#0E5C36; --good-bg:#DCEDE3; --warn:#6E4A0C; --warn-bg:#F7ECD2;
     --shadow:0 4px 16px rgba(0,74,43,.08);
     --sans:'Proxima Nova','Helvetica Neue',Arial,sans-serif;
     --serif:'Lao MN','Cormorant Garamond',Georgia,serif;
     --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.55;font-weight:500;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
   .wrap{max-width:1280px;margin:0 auto;padding:26px 22px 90px}
   h1{font-family:var(--serif);font-weight:700;color:var(--head);font-size:30px;margin:0}
   h2{font-family:var(--serif);font-weight:700;color:var(--head);font-size:22px;margin:22px 0 8px}
@@ -43,8 +46,8 @@
   .sc .v{font-family:var(--serif);font-size:24px;font-weight:700;color:var(--head);font-variant-numeric:tabular-nums}
   .tbl-wrap{overflow-x:auto;border:1px solid var(--line-strong);border-radius:11px;box-shadow:var(--shadow);margin:8px 0}
   table{border-collapse:collapse;width:100%;font-size:13px;background:var(--surface);white-space:nowrap}
-  th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12.5px}
-  th{background:var(--green);color:#fff;font-family:var(--sans);font-weight:600;font-size:11.5px;position:sticky;top:0}
+  th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12.5px;font-weight:500;color:var(--text)}
+  th{background:var(--green);color:#fff;font-family:var(--sans);font-weight:700;font-size:11.5px;position:sticky;top:0;white-space:nowrap}
   th:first-child,td:first-child{text-align:left;font-family:var(--sans)}
   td:first-child{color:var(--ink);font-weight:600;max-width:280px;white-space:normal}
   tbody tr:nth-child(even) td{background:var(--surface-2)}
@@ -60,6 +63,13 @@
   .note{font-size:12.5px;color:var(--dim);margin:8px 0}
   .empty{padding:22px;text-align:center;color:var(--dim);background:var(--surface);border:1px dashed var(--line-strong);border-radius:11px}
   code{font-family:var(--mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:2px 6px;color:var(--gold-deep);white-space:pre-wrap;word-break:break-word;display:inline-block}
+  /* Duration tiles — always visible above the chart, same contract as /ads-master. */
+  .rangetiles{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 4px}
+  .rangetiles .rt{font-family:var(--mono);font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--line-strong);background:var(--surface-2);color:var(--dim)}
+  .rangetiles .rt:hover{border-color:var(--gold);color:var(--head)}
+  .rangetiles .rt.on{background:var(--green);color:#fff;border-color:var(--green)}
+  .rangetiles .rtlab{font-family:var(--mono);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gold-deep);margin-right:4px}
 </style>
 </head>
 <body>
@@ -89,6 +99,7 @@
     <p class="eyebrow">Daily budget caps (reference · read-only)</p>
     <div class="budgets" id="budgets"><div class="empty">Loading…</div></div>
     <p class="eyebrow">Portfolio priority metrics</p>
+    <div class="rangetiles" id="rt-top"></div>
     <div class="scorecards" id="scorecards"><div class="empty">Loading…</div></div>
     <p class="note" id="ov-note"></p>
     <p class="eyebrow">KT benchmarks (from the Ad Campaigns Master KB — judge live rows against these)</p>
@@ -108,6 +119,7 @@
       <label>Measure<select id="c-measure"><option value="spend">Spend</option><option value="impressions">Impressions</option><option value="reach">Reach</option><option value="clicks">Clicks</option></select></label>
       <button class="apply" id="c-apply">Build cohort</button>
     </div>
+    <div class="rangetiles" id="rt-cohort"></div>
     <div id="cohort-body"><div class="empty">Pick a dimension and build.</div></div>
   </div>
 
@@ -225,6 +237,28 @@
   }
   function loadCohort(){get('cohort','&dimension='+$('#c-dim').value+'&measure='+$('#c-measure').value).then(renderCohort).catch(function(e){$('#cohort-body').innerHTML='<div class="empty">'+e.message+'</div>';});}
 
+  // ── Duration tiles: always rendered, and they drive the Since/Until window
+  // that every panel on this page (including the cohort chart) reads from.
+  var RANGE_TILES=[{v:7,t:'7D'},{v:14,t:'14D'},{v:30,t:'30D'},{v:60,t:'60D'},{v:90,t:'90D'}];
+  var curRange=30;
+  function applyRange(d){
+    curRange=Number(d);
+    var u=new Date(), s=new Date(Date.now()-(curRange-1)*864e5);
+    $('#f-until').value=u.toISOString().slice(0,10);
+    $('#f-since').value=s.toISOString().slice(0,10);
+    drawRangeTiles();
+    load();
+  }
+  function drawRangeTiles(){
+    ['#rt-cohort','#rt-top'].forEach(function(sel){
+      var el=$(sel); if(!el)return;
+      el.innerHTML="<span class='rtlab'>Duration</span>"+RANGE_TILES.map(function(o){
+        return "<button type='button' class='rt"+(o.v===curRange?' on':'')+"' data-v='"+o.v+"'>"+o.t+"</button>";
+      }).join('');
+      el.onclick=function(e){var b=e.target.closest('button[data-v]'); if(b)applyRange(b.dataset.v);};
+    });
+  }
+
   // ── KT benchmarks + learnings (shared KB: /data/ads/master-kb.json) ─────────
   // The Master Dashboard KB is the judgement layer for this page: derived from
   // the KT spend workbook (125 Meta ads to 20 Jul 2026) + Social Update deck.
@@ -316,6 +350,7 @@
   $('#f-apply').addEventListener('click',load);
   $('#c-apply').addEventListener('click',loadCohort);
   (function(){var u=new Date(),s=new Date(Date.now()-30*864e5);$('#f-until').value=u.toISOString().slice(0,10);$('#f-since').value=s.toISOString().slice(0,10);})();
+  drawRangeTiles();
   load();
 })();
 </script>

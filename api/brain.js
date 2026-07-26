@@ -43,6 +43,7 @@ const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
 const adInsights = require('./_shared/ad-insights-core.js');
 const adsSnowflake = require('./_shared/ads-snowflake-core.js');
+const adsLive = require('./_shared/ads-live-core.js');
 const adMetrics = require('./_shared/ad-metrics-catalog.js');
 const webengage = require('./_shared/webengage-core.js');
 const video = require('./_shared/video-core.js');
@@ -406,6 +407,19 @@ module.exports = async function handler(req, res) {
         if (op === 'describe') return res.json(await adsSnowflake.describe({ platform: p.platform, level: p.level }));
         if (op === 'cohort') return res.json(await adsSnowflake.cohort({ platform: p.platform, dimension: p.dimension, measure: p.measure, account: p.account, since: p.since, until: p.until, level: p.level }));
         return res.json(await adsSnowflake.metrics({ platform: p.platform, account: p.account, since: p.since, until: p.until, level: p.level, limit: p.limit }));
+      }
+
+      // ── LIVE ADS (real-time link to the Meta ad account) ──────────────────
+      // Powers the Master Dashboard's Live Now / Calendar / Tracker views.
+      // Meta Marketing API first (minute-fresh), else the Snowflake per-day
+      // mirror, else a not_connected envelope carrying the exact query.
+      case 'ads-live': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = p.op || 'today';
+        if (op === 'status') return res.json(adsLive.status());
+        if (op === 'daily') return res.json(await adsLive.daily({ since: p.since, until: p.until, account: p.account }));
+        if (op === 'calendar') return res.json(await adsLive.calendar({ month: p.month, account: p.account }));
+        return res.json(await adsLive.today({ account: p.account }));
       }
 
       // ── AD METRICS CATALOG + ACCURACY (single source of truth for formulas) ──

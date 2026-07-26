@@ -983,6 +983,22 @@
    ]
   },
   {
+   "id": "meta-live",
+   "name": "Meta ad account (real-time link)",
+   "status": "live via warehouse mirror for DTC; direct API pending token for retail",
+   "details": [
+    "DTC account 'Vahdam India USA New EST Main Account' (1303870183798748): per-day rows incl. the current partial day, verified fresh to 2026-07-25 - 129,741 rows, 106 campaigns",
+    "Live reads: /api/brain?action=ads-live&op=today | op=daily | op=calendar - Meta Marketing API first (META_ACCESS_TOKEN + META_AD_ACCOUNT_ID), else the Snowflake mirror, else an honest not_connected envelope carrying the exact SQL",
+    "Today is treated as a PARTIAL day: an ad is 'live' once it has impressions today, 'starting' with spend but no impressions, 'not live yet' with neither",
+    "Reporting timezone America/New_York (ADS_REPORT_TZ) so the current day is not empty after UTC midnight",
+    "Target/Costco account is NOT in the warehouse - see the gaps register"
+   ],
+   "links": [
+    "/ads-master#live",
+    "/ads-master#calendar"
+   ]
+  },
+  {
    "id": "supabase",
    "name": "Supabase (app persistence)",
    "status": "connected - verified 2026-07-25",
@@ -1105,6 +1121,11 @@
   }
  ],
  "gaps": [
+  {
+   "id": "gap-retail-account-not-live",
+   "severity": "high",
+   "item": "The Target/Costco Meta ad account (KT workbook, account id begins 805) is NOT mirrored in Snowflake - the warehouse carries only 'Vahdam India USA New EST Main Account' (1303870183798748). So Target/Costco figures on the dashboard are the 20 Jul 2026 KT snapshot, not live. To make them real-time: add that ad account to the Maplemonk/Snowflake pipeline, or set META_ACCESS_TOKEN + META_AD_ACCOUNT_ID for it so /api/brain?action=ads-live reads it straight from the Meta Marketing API."
+  },
   {
    "id": "gap-credentials",
    "severity": "high",

@@ -1,0 +1,1125 @@
+{
+ "id": "ads-live-snapshot",
+ "captured_at": "2026-07-25",
+ "source": "Snowflake VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS (Maplemonk pipeline) - read live via the Snowflake connector",
+ "account": {
+  "name": "Vahdam India USA New EST Main Account",
+  "id": "1303870183798748",
+  "rows_total": 129741,
+  "campaigns_total": 106,
+  "data_fresh_to": "2026-07-25",
+  "note": "This is the ONLY Meta ad account mirrored in the warehouse. Per-day rows including the current partial day."
+ },
+ "window": {
+  "since": "2026-05-01",
+  "until": "2026-07-25",
+  "days": 86
+ },
+ "totals": {
+  "spend": 91867.82,
+  "impressions": 2473864,
+  "clicks": 97748,
+  "link_clicks": 66845
+ },
+ "daily": [
+  {
+   "date": "2026-05-01",
+   "ads_live": 279,
+   "campaigns": 14,
+   "spend": 1446.4,
+   "impressions": 40160,
+   "clicks": 1377,
+   "link_clicks": 1047
+  },
+  {
+   "date": "2026-05-02",
+   "ads_live": 279,
+   "campaigns": 14,
+   "spend": 1366.11,
+   "impressions": 34946,
+   "clicks": 1197,
+   "link_clicks": 885
+  },
+  {
+   "date": "2026-05-03",
+   "ads_live": 279,
+   "campaigns": 14,
+   "spend": 1350.61,
+   "impressions": 36780,
+   "clicks": 1326,
+   "link_clicks": 985
+  },
+  {
+   "date": "2026-05-04",
+   "ads_live": 279,
+   "campaigns": 14,
+   "spend": 1865.83,
+   "impressions": 39401,
+   "clicks": 1754,
+   "link_clicks": 1373
+  },
+  {
+   "date": "2026-05-05",
+   "ads_live": 279,
+   "campaigns": 14,
+   "spend": 943.45,
+   "impressions": 22656,
+   "clicks": 946,
+   "link_clicks": 754
+  },
+  {
+   "date": "2026-05-06",
+   "ads_live": 275,
+   "campaigns": 13,
+   "spend": 1296.62,
+   "impressions": 34662,
+   "clicks": 1322,
+   "link_clicks": 1023
+  },
+  {
+   "date": "2026-05-07",
+   "ads_live": 278,
+   "campaigns": 13,
+   "spend": 1056.11,
+   "impressions": 27471,
+   "clicks": 1059,
+   "link_clicks": 764
+  },
+  {
+   "date": "2026-05-08",
+   "ads_live": 283,
+   "campaigns": 13,
+   "spend": 759.26,
+   "impressions": 19808,
+   "clicks": 719,
+   "link_clicks": 523
+  },
+  {
+   "date": "2026-05-09",
+   "ads_live": 283,
+   "campaigns": 13,
+   "spend": 1315.04,
+   "impressions": 33734,
+   "clicks": 1244,
+   "link_clicks": 906
+  },
+  {
+   "date": "2026-05-10",
+   "ads_live": 283,
+   "campaigns": 13,
+   "spend": 1121.29,
+   "impressions": 30287,
+   "clicks": 1044,
+   "link_clicks": 791
+  },
+  {
+   "date": "2026-05-11",
+   "ads_live": 283,
+   "campaigns": 13,
+   "spend": 1144.94,
+   "impressions": 42253,
+   "clicks": 1111,
+   "link_clicks": 872
+  },
+  {
+   "date": "2026-05-12",
+   "ads_live": 293,
+   "campaigns": 13,
+   "spend": 1090.4,
+   "impressions": 33088,
+   "clicks": 1106,
+   "link_clicks": 867
+  },
+  {
+   "date": "2026-05-13",
+   "ads_live": 293,
+   "campaigns": 13,
+   "spend": 909.17,
+   "impressions": 27134,
+   "clicks": 882,
+   "link_clicks": 666
+  },
+  {
+   "date": "2026-05-14",
+   "ads_live": 293,
+   "campaigns": 13,
+   "spend": 1010.16,
+   "impressions": 26828,
+   "clicks": 973,
+   "link_clicks": 744
+  },
+  {
+   "date": "2026-05-15",
+   "ads_live": 293,
+   "campaigns": 13,
+   "spend": 1149.37,
+   "impressions": 34872,
+   "clicks": 1192,
+   "link_clicks": 926
+  },
+  {
+   "date": "2026-05-16",
+   "ads_live": 293,
+   "campaigns": 13,
+   "spend": 1425.77,
+   "impressions": 43798,
+   "clicks": 1560,
+   "link_clicks": 1174
+  },
+  {
+   "date": "2026-05-17",
+   "ads_live": 293,
+   "campaigns": 13,
+   "spend": 1292.59,
+   "impressions": 37245,
+   "clicks": 1255,
+   "link_clicks": 928
+  },
+  {
+   "date": "2026-05-18",
+   "ads_live": 293,
+   "campaigns": 13,
+   "spend": 885.84,
+   "impressions": 26690,
+   "clicks": 846,
+   "link_clicks": 662
+  },
+  {
+   "date": "2026-05-19",
+   "ads_live": 317,
+   "campaigns": 13,
+   "spend": 887.12,
+   "impressions": 24880,
+   "clicks": 832,
+   "link_clicks": 656
+  },
+  {
+   "date": "2026-05-20",
+   "ads_live": 317,
+   "campaigns": 13,
+   "spend": 916.06,
+   "impressions": 26753,
+   "clicks": 926,
+   "link_clicks": 696
+  },
+  {
+   "date": "2026-05-21",
+   "ads_live": 317,
+   "campaigns": 13,
+   "spend": 1059.95,
+   "impressions": 28201,
+   "clicks": 1088,
+   "link_clicks": 807
+  },
+  {
+   "date": "2026-05-22",
+   "ads_live": 317,
+   "campaigns": 13,
+   "spend": 1256.35,
+   "impressions": 34965,
+   "clicks": 1266,
+   "link_clicks": 908
+  },
+  {
+   "date": "2026-05-23",
+   "ads_live": 317,
+   "campaigns": 13,
+   "spend": 1335.17,
+   "impressions": 32867,
+   "clicks": 1185,
+   "link_clicks": 829
+  },
+  {
+   "date": "2026-05-24",
+   "ads_live": 317,
+   "campaigns": 13,
+   "spend": 1699.24,
+   "impressions": 39116,
+   "clicks": 1448,
+   "link_clicks": 1029
+  },
+  {
+   "date": "2026-05-25",
+   "ads_live": 317,
+   "campaigns": 13,
+   "spend": 1710.89,
+   "impressions": 44404,
+   "clicks": 1648,
+   "link_clicks": 1157
+  },
+  {
+   "date": "2026-05-26",
+   "ads_live": 317,
+   "campaigns": 13,
+   "spend": 1587.09,
+   "impressions": 43870,
+   "clicks": 1556,
+   "link_clicks": 1126
+  },
+  {
+   "date": "2026-05-27",
+   "ads_live": 275,
+   "campaigns": 13,
+   "spend": 1419.39,
+   "impressions": 37741,
+   "clicks": 1399,
+   "link_clicks": 1048
+  },
+  {
+   "date": "2026-05-28",
+   "ads_live": 271,
+   "campaigns": 12,
+   "spend": 1444.09,
+   "impressions": 35670,
+   "clicks": 1468,
+   "link_clicks": 1038
+  },
+  {
+   "date": "2026-05-29",
+   "ads_live": 271,
+   "campaigns": 12,
+   "spend": 1855.84,
+   "impressions": 38224,
+   "clicks": 1912,
+   "link_clicks": 1372
+  },
+  {
+   "date": "2026-05-30",
+   "ads_live": 271,
+   "campaigns": 12,
+   "spend": 2463.94,
+   "impressions": 43986,
+   "clicks": 2384,
+   "link_clicks": 1632
+  },
+  {
+   "date": "2026-05-31",
+   "ads_live": 271,
+   "campaigns": 12,
+   "spend": 2513.46,
+   "impressions": 52443,
+   "clicks": 2438,
+   "link_clicks": 1636
+  },
+  {
+   "date": "2026-06-01",
+   "ads_live": 271,
+   "campaigns": 12,
+   "spend": 1693.54,
+   "impressions": 42197,
+   "clicks": 1819,
+   "link_clicks": 1266
+  },
+  {
+   "date": "2026-06-02",
+   "ads_live": 287,
+   "campaigns": 12,
+   "spend": 1543.45,
+   "impressions": 36303,
+   "clicks": 1781,
+   "link_clicks": 1187
+  },
+  {
+   "date": "2026-06-03",
+   "ads_live": 287,
+   "campaigns": 12,
+   "spend": 1425.06,
+   "impressions": 38231,
+   "clicks": 1770,
+   "link_clicks": 1140
+  },
+  {
+   "date": "2026-06-04",
+   "ads_live": 287,
+   "campaigns": 12,
+   "spend": 1536.29,
+   "impressions": 37788,
+   "clicks": 1764,
+   "link_clicks": 1180
+  },
+  {
+   "date": "2026-06-05",
+   "ads_live": 287,
+   "campaigns": 12,
+   "spend": 1408.75,
+   "impressions": 34487,
+   "clicks": 1639,
+   "link_clicks": 1038
+  },
+  {
+   "date": "2026-06-06",
+   "ads_live": 287,
+   "campaigns": 12,
+   "spend": 1802.99,
+   "impressions": 59205,
+   "clicks": 2473,
+   "link_clicks": 1565
+  },
+  {
+   "date": "2026-06-07",
+   "ads_live": 261,
+   "campaigns": 12,
+   "spend": 1470.62,
+   "impressions": 38245,
+   "clicks": 1797,
+   "link_clicks": 1130
+  },
+  {
+   "date": "2026-06-08",
+   "ads_live": 261,
+   "campaigns": 12,
+   "spend": 1239.97,
+   "impressions": 34454,
+   "clicks": 1437,
+   "link_clicks": 929
+  },
+  {
+   "date": "2026-06-09",
+   "ads_live": 261,
+   "campaigns": 12,
+   "spend": 923.7,
+   "impressions": 33811,
+   "clicks": 1144,
+   "link_clicks": 691
+  },
+  {
+   "date": "2026-06-10",
+   "ads_live": 261,
+   "campaigns": 12,
+   "spend": 882.95,
+   "impressions": 30660,
+   "clicks": 1125,
+   "link_clicks": 639
+  },
+  {
+   "date": "2026-06-11",
+   "ads_live": 261,
+   "campaigns": 12,
+   "spend": 873.72,
+   "impressions": 28354,
+   "clicks": 1074,
+   "link_clicks": 586
+  },
+  {
+   "date": "2026-06-12",
+   "ads_live": 261,
+   "campaigns": 12,
+   "spend": 757.37,
+   "impressions": 25313,
+   "clicks": 950,
+   "link_clicks": 527
+  },
+  {
+   "date": "2026-06-13",
+   "ads_live": 261,
+   "campaigns": 12,
+   "spend": 880.26,
+   "impressions": 27467,
+   "clicks": 1061,
+   "link_clicks": 576
+  },
+  {
+   "date": "2026-06-14",
+   "ads_live": 261,
+   "campaigns": 12,
+   "spend": 1047.33,
+   "impressions": 32383,
+   "clicks": 1296,
+   "link_clicks": 782
+  },
+  {
+   "date": "2026-06-15",
+   "ads_live": 264,
+   "campaigns": 13,
+   "spend": 854.83,
+   "impressions": 26851,
+   "clicks": 978,
+   "link_clicks": 651
+  },
+  {
+   "date": "2026-06-16",
+   "ads_live": 259,
+   "campaigns": 13,
+   "spend": 1391.69,
+   "impressions": 30950,
+   "clicks": 1231,
+   "link_clicks": 798
+  },
+  {
+   "date": "2026-06-17",
+   "ads_live": 262,
+   "campaigns": 13,
+   "spend": 1501.78,
+   "impressions": 30931,
+   "clicks": 1291,
+   "link_clicks": 809
+  },
+  {
+   "date": "2026-06-18",
+   "ads_live": 262,
+   "campaigns": 13,
+   "spend": 1308.15,
+   "impressions": 31182,
+   "clicks": 1234,
+   "link_clicks": 775
+  },
+  {
+   "date": "2026-06-19",
+   "ads_live": 262,
+   "campaigns": 13,
+   "spend": 1336.3,
+   "impressions": 26757,
+   "clicks": 1102,
+   "link_clicks": 688
+  },
+  {
+   "date": "2026-06-20",
+   "ads_live": 262,
+   "campaigns": 13,
+   "spend": 1382.45,
+   "impressions": 28419,
+   "clicks": 1225,
+   "link_clicks": 779
+  },
+  {
+   "date": "2026-06-21",
+   "ads_live": 262,
+   "campaigns": 13,
+   "spend": 1513.9,
+   "impressions": 30266,
+   "clicks": 1213,
+   "link_clicks": 785
+  },
+  {
+   "date": "2026-06-22",
+   "ads_live": 262,
+   "campaigns": 13,
+   "spend": 1449.44,
+   "impressions": 30695,
+   "clicks": 1204,
+   "link_clicks": 783
+  },
+  {
+   "date": "2026-06-23",
+   "ads_live": 280,
+   "campaigns": 13,
+   "spend": 1264.99,
+   "impressions": 26612,
+   "clicks": 1140,
+   "link_clicks": 757
+  },
+  {
+   "date": "2026-06-24",
+   "ads_live": 280,
+   "campaigns": 13,
+   "spend": 868.58,
+   "impressions": 24949,
+   "clicks": 892,
+   "link_clicks": 568
+  },
+  {
+   "date": "2026-06-25",
+   "ads_live": 280,
+   "campaigns": 13,
+   "spend": 783.68,
+   "impressions": 22142,
+   "clicks": 798,
+   "link_clicks": 542
+  },
+  {
+   "date": "2026-06-26",
+   "ads_live": 278,
+   "campaigns": 13,
+   "spend": 780.58,
+   "impressions": 21486,
+   "clicks": 731,
+   "link_clicks": 501
+  },
+  {
+   "date": "2026-06-27",
+   "ads_live": 276,
+   "campaigns": 13,
+   "spend": 883.23,
+   "impressions": 22175,
+   "clicks": 900,
+   "link_clicks": 591
+  },
+  {
+   "date": "2026-06-28",
+   "ads_live": 276,
+   "campaigns": 13,
+   "spend": 861.77,
+   "impressions": 24160,
+   "clicks": 835,
+   "link_clicks": 522
+  },
+  {
+   "date": "2026-06-29",
+   "ads_live": 276,
+   "campaigns": 13,
+   "spend": 749.11,
+   "impressions": 21489,
+   "clicks": 836,
+   "link_clicks": 540
+  },
+  {
+   "date": "2026-06-30",
+   "ads_live": 276,
+   "campaigns": 13,
+   "spend": 738.52,
+   "impressions": 21875,
+   "clicks": 802,
+   "link_clicks": 532
+  },
+  {
+   "date": "2026-07-01",
+   "ads_live": 276,
+   "campaigns": 13,
+   "spend": 672.77,
+   "impressions": 20336,
+   "clicks": 771,
+   "link_clicks": 496
+  },
+  {
+   "date": "2026-07-02",
+   "ads_live": 256,
+   "campaigns": 13,
+   "spend": 868.93,
+   "impressions": 22668,
+   "clicks": 994,
+   "link_clicks": 633
+  },
+  {
+   "date": "2026-07-03",
+   "ads_live": 227,
+   "campaigns": 10,
+   "spend": 921.81,
+   "impressions": 29306,
+   "clicks": 1173,
+   "link_clicks": 768
+  },
+  {
+   "date": "2026-07-04",
+   "ads_live": 220,
+   "campaigns": 9,
+   "spend": 998.98,
+   "impressions": 29225,
+   "clicks": 1259,
+   "link_clicks": 871
+  },
+  {
+   "date": "2026-07-05",
+   "ads_live": 219,
+   "campaigns": 9,
+   "spend": 1246.95,
+   "impressions": 34892,
+   "clicks": 1576,
+   "link_clicks": 1107
+  },
+  {
+   "date": "2026-07-06",
+   "ads_live": 219,
+   "campaigns": 9,
+   "spend": 834.2,
+   "impressions": 23873,
+   "clicks": 954,
+   "link_clicks": 678
+  },
+  {
+   "date": "2026-07-07",
+   "ads_live": 219,
+   "campaigns": 9,
+   "spend": 633.65,
+   "impressions": 20328,
+   "clicks": 883,
+   "link_clicks": 608
+  },
+  {
+   "date": "2026-07-08",
+   "ads_live": 219,
+   "campaigns": 9,
+   "spend": 631.44,
+   "impressions": 19131,
+   "clicks": 867,
+   "link_clicks": 598
+  },
+  {
+   "date": "2026-07-09",
+   "ads_live": 217,
+   "campaigns": 9,
+   "spend": 575.88,
+   "impressions": 18135,
+   "clicks": 738,
+   "link_clicks": 471
+  },
+  {
+   "date": "2026-07-10",
+   "ads_live": 217,
+   "campaigns": 9,
+   "spend": 661.35,
+   "impressions": 19189,
+   "clicks": 872,
+   "link_clicks": 592
+  },
+  {
+   "date": "2026-07-11",
+   "ads_live": 217,
+   "campaigns": 9,
+   "spend": 719.94,
+   "impressions": 21404,
+   "clicks": 955,
+   "link_clicks": 650
+  },
+  {
+   "date": "2026-07-12",
+   "ads_live": 217,
+   "campaigns": 9,
+   "spend": 666.35,
+   "impressions": 20554,
+   "clicks": 835,
+   "link_clicks": 532
+  },
+  {
+   "date": "2026-07-13",
+   "ads_live": 217,
+   "campaigns": 9,
+   "spend": 522.32,
+   "impressions": 18664,
+   "clicks": 736,
+   "link_clicks": 455
+  },
+  {
+   "date": "2026-07-14",
+   "ads_live": 217,
+   "campaigns": 9,
+   "spend": 530.54,
+   "impressions": 22468,
+   "clicks": 804,
+   "link_clicks": 511
+  },
+  {
+   "date": "2026-07-15",
+   "ads_live": 217,
+   "campaigns": 9,
+   "spend": 449.97,
+   "impressions": 16764,
+   "clicks": 619,
+   "link_clicks": 392
+  },
+  {
+   "date": "2026-07-16",
+   "ads_live": 211,
+   "campaigns": 9,
+   "spend": 410.19,
+   "impressions": 13889,
+   "clicks": 528,
+   "link_clicks": 346
+  },
+  {
+   "date": "2026-07-17",
+   "ads_live": 211,
+   "campaigns": 9,
+   "spend": 432.49,
+   "impressions": 14710,
+   "clicks": 542,
+   "link_clicks": 371
+  },
+  {
+   "date": "2026-07-18",
+   "ads_live": 211,
+   "campaigns": 9,
+   "spend": 523.96,
+   "impressions": 16668,
+   "clicks": 772,
+   "link_clicks": 479
+  },
+  {
+   "date": "2026-07-19",
+   "ads_live": 211,
+   "campaigns": 9,
+   "spend": 586.25,
+   "impressions": 18808,
+   "clicks": 720,
+   "link_clicks": 468
+  },
+  {
+   "date": "2026-07-20",
+   "ads_live": 211,
+   "campaigns": 9,
+   "spend": 449.82,
+   "impressions": 16031,
+   "clicks": 644,
+   "link_clicks": 436
+  },
+  {
+   "date": "2026-07-21",
+   "ads_live": 211,
+   "campaigns": 9,
+   "spend": 580.38,
+   "impressions": 18672,
+   "clicks": 817,
+   "link_clicks": 527
+  },
+  {
+   "date": "2026-07-22",
+   "ads_live": 211,
+   "campaigns": 9,
+   "spend": 429.64,
+   "impressions": 15402,
+   "clicks": 590,
+   "link_clicks": 379
+  },
+  {
+   "date": "2026-07-23",
+   "ads_live": 211,
+   "campaigns": 9,
+   "spend": 391.76,
+   "impressions": 14323,
+   "clicks": 578,
+   "link_clicks": 435
+  },
+  {
+   "date": "2026-07-24",
+   "ads_live": 211,
+   "campaigns": 9,
+   "spend": 373.91,
+   "impressions": 12712,
+   "clicks": 472,
+   "link_clicks": 323
+  },
+  {
+   "date": "2026-07-25",
+   "ads_live": 210,
+   "campaigns": 9,
+   "spend": 21.79,
+   "impressions": 942,
+   "clicks": 44,
+   "link_clicks": 38
+  }
+ ],
+ "campaigns": [
+  {
+   "campaign": "Conversion_BCAP_Coffee_NewB",
+   "first_day": "2026-05-01",
+   "last_day": "2026-07-25",
+   "ads": 107,
+   "spend": 44894.6,
+   "impressions": 1001775,
+   "link_clicks": 31658,
+   "live_today": true,
+   "ctr": 3.16,
+   "cpc": 1.418,
+   "status": "live"
+  },
+  {
+   "campaign": "Conversion_Scale_Ashwagandha_NewB_SUPP",
+   "first_day": "2026-05-07",
+   "last_day": "2026-07-25",
+   "ads": 31,
+   "spend": 30907.12,
+   "impressions": 725965,
+   "link_clicks": 20635,
+   "live_today": true,
+   "ctr": 2.84,
+   "cpc": 1.498,
+   "status": "live"
+  },
+  {
+   "campaign": "Old Evergreen Tea_Conversion",
+   "first_day": "2026-05-01",
+   "last_day": "2026-07-25",
+   "ads": 27,
+   "spend": 5064.17,
+   "impressions": 360501,
+   "link_clicks": 5434,
+   "live_today": true,
+   "ctr": 1.51,
+   "cpc": 0.932,
+   "status": "live"
+  },
+  {
+   "campaign": "Conversion_Partnership_Coffee",
+   "first_day": "2026-06-15",
+   "last_day": "2026-07-25",
+   "ads": 6,
+   "spend": 3996.33,
+   "impressions": 39264,
+   "link_clicks": 1381,
+   "live_today": true,
+   "ctr": 3.52,
+   "cpc": 2.894,
+   "status": "live"
+  },
+  {
+   "campaign": "SUPP_BCAP_Conversion",
+   "first_day": "2026-05-01",
+   "last_day": "2026-07-25",
+   "ads": 2,
+   "spend": 2126.89,
+   "impressions": 121920,
+   "link_clicks": 1702,
+   "live_today": true,
+   "ctr": 1.4,
+   "cpc": 1.25,
+   "status": "live"
+  },
+  {
+   "campaign": "OTB-Sales_Conversion",
+   "first_day": "2026-05-01",
+   "last_day": "2026-07-25",
+   "ads": 1,
+   "spend": 1500.97,
+   "impressions": 92900,
+   "link_clicks": 1321,
+   "live_today": true,
+   "ctr": 1.42,
+   "cpc": 1.136,
+   "status": "live"
+  },
+  {
+   "campaign": "Conversion_Scale_Ashwagandha_NewB",
+   "first_day": "2026-05-01",
+   "last_day": "2026-05-06",
+   "ads": 29,
+   "spend": 1373.16,
+   "impressions": 31276,
+   "link_clicks": 1069,
+   "live_today": false,
+   "ctr": 3.42,
+   "cpc": 1.285,
+   "status": "ended"
+  },
+  {
+   "campaign": "tts_Coffee",
+   "first_day": "2026-05-07",
+   "last_day": "2026-07-25",
+   "ads": 1,
+   "spend": 784.44,
+   "impressions": 66652,
+   "link_clicks": 2494,
+   "live_today": true,
+   "ctr": 3.74,
+   "cpc": 0.315,
+   "status": "live"
+  },
+  {
+   "campaign": "Conversion_BCAP_WTS_NewB",
+   "first_day": "2026-05-01",
+   "last_day": "2026-07-03",
+   "ads": 7,
+   "spend": 687.01,
+   "impressions": 14817,
+   "link_clicks": 448,
+   "live_today": false,
+   "ctr": 3.02,
+   "cpc": 1.534,
+   "status": "ended"
+  },
+  {
+   "campaign": "Conversion_Tea_BOF",
+   "first_day": "2026-05-01",
+   "last_day": "2026-07-25",
+   "ads": 6,
+   "spend": 210.18,
+   "impressions": 9017,
+   "link_clicks": 300,
+   "live_today": true,
+   "ctr": 3.33,
+   "cpc": 0.701,
+   "status": "live"
+  },
+  {
+   "campaign": "Conversion_Scale_Triphala_NewB_SUPP",
+   "first_day": "2026-05-07",
+   "last_day": "2026-07-02",
+   "ads": 12,
+   "spend": 121.57,
+   "impressions": 2055,
+   "link_clicks": 118,
+   "live_today": false,
+   "ctr": 5.74,
+   "cpc": 1.03,
+   "status": "ended"
+  },
+  {
+   "campaign": "Conversion_Scale_Psyllium_NewB_SUPP",
+   "first_day": "2026-05-07",
+   "last_day": "2026-07-02",
+   "ads": 8,
+   "spend": 75.45,
+   "impressions": 1239,
+   "link_clicks": 33,
+   "live_today": false,
+   "ctr": 2.66,
+   "cpc": 2.286,
+   "status": "ended"
+  },
+  {
+   "campaign": "Conversion_BCAP_Turmeric_Curcumin_NewB_SUPP",
+   "first_day": "2026-05-07",
+   "last_day": "2026-07-25",
+   "ads": 91,
+   "spend": 58.97,
+   "impressions": 1216,
+   "link_clicks": 53,
+   "live_today": true,
+   "ctr": 4.36,
+   "cpc": 1.113,
+   "status": "live"
+  },
+  {
+   "campaign": "tts",
+   "first_day": "2026-05-01",
+   "last_day": "2026-05-06",
+   "ads": 1,
+   "spend": 43.8,
+   "impressions": 4588,
+   "link_clicks": 177,
+   "live_today": false,
+   "ctr": 3.86,
+   "cpc": 0.247,
+   "status": "ended"
+  },
+  {
+   "campaign": "Conversion_Scale_Moringa_NewB_SUPP",
+   "first_day": "2026-05-07",
+   "last_day": "2026-07-02",
+   "ads": 12,
+   "spend": 22.81,
+   "impressions": 663,
+   "link_clicks": 21,
+   "live_today": false,
+   "ctr": 3.17,
+   "cpc": 1.086,
+   "status": "ended"
+  },
+  {
+   "campaign": "Conversion_BCAP_Turmeric_Curcumin_NewB",
+   "first_day": "2026-05-01",
+   "last_day": "2026-05-06",
+   "ads": 64,
+   "spend": 0.35,
+   "impressions": 16,
+   "link_clicks": 1,
+   "live_today": false,
+   "ctr": 6.25,
+   "cpc": 0.35,
+   "status": "ended"
+  },
+  {
+   "campaign": "Conversion_Scale_Moringa_NewB",
+   "first_day": "2026-05-01",
+   "last_day": "2026-05-06",
+   "ads": 12,
+   "spend": 0.0,
+   "impressions": 0,
+   "link_clicks": 0,
+   "live_today": false,
+   "ctr": null,
+   "cpc": null,
+   "status": "ended"
+  },
+  {
+   "campaign": "Conversion_Scale_Turmeric_NewB",
+   "first_day": "2026-05-01",
+   "last_day": "2026-05-06",
+   "ads": 46,
+   "spend": 0.0,
+   "impressions": 0,
+   "link_clicks": 0,
+   "live_today": false,
+   "ctr": null,
+   "cpc": null,
+   "status": "ended"
+  },
+  {
+   "campaign": "Old_Scale_Turmeric_NewB_SUPP",
+   "first_day": "2026-05-15",
+   "last_day": "2026-05-27",
+   "ads": 46,
+   "spend": 0.0,
+   "impressions": 0,
+   "link_clicks": 0,
+   "live_today": false,
+   "ctr": null,
+   "cpc": null,
+   "status": "ended"
+  },
+  {
+   "campaign": "Old_Scale_Turmeric_NewB",
+   "first_day": "2026-05-07",
+   "last_day": "2026-05-14",
+   "ads": 46,
+   "spend": 0.0,
+   "impressions": 0,
+   "link_clicks": 0,
+   "live_today": false,
+   "ctr": null,
+   "cpc": null,
+   "status": "ended"
+  },
+  {
+   "campaign": "Conversion_Scale_Triphala_NewB",
+   "first_day": "2026-05-01",
+   "last_day": "2026-05-06",
+   "ads": 12,
+   "spend": 0.0,
+   "impressions": 0,
+   "link_clicks": 0,
+   "live_today": false,
+   "ctr": null,
+   "cpc": null,
+   "status": "ended"
+  },
+  {
+   "campaign": "New Leads campaign",
+   "first_day": "2026-05-01",
+   "last_day": "2026-05-05",
+   "ads": 4,
+   "spend": 0.0,
+   "impressions": 0,
+   "link_clicks": 0,
+   "live_today": false,
+   "ctr": null,
+   "cpc": null,
+   "status": "ended"
+  },
+  {
+   "campaign": "Conversion_Scale_Psyllium_NewB",
+   "first_day": "2026-05-01",
+   "last_day": "2026-05-06",
+   "ads": 8,
+   "spend": 0.0,
+   "impressions": 0,
+   "link_clicks": 0,
+   "live_today": false,
+   "ctr": null,
+   "cpc": null,
+   "status": "ended"
+  }
+ ],
+ "today": {
+  "date": "2026-07-25",
+  "ads_live": 210,
+  "campaigns_live": 9,
+  "spend_so_far": 21.79,
+  "impressions": 942,
+  "link_clicks": 38,
+  "note": "Partial day at capture time. The dashboard re-reads this live via /api/brain?action=ads-live&op=today; the figures here are the snapshot taken at capture."
+ },
+ "separate_accounts_notice": [
+  {
+   "account": "Vahdam India USA New EST Main Account (1303870183798748)",
+   "status": "LIVE in warehouse",
+   "scope": "US DTC - Coffee, Ashwagandha, Tea, supplement campaigns",
+   "realtime": true
+  },
+  {
+   "account": "Target / Costco retail ad account (KT workbook, account id begins 805)",
+   "status": "NOT in the warehouse",
+   "scope": "Target In-house Sales PageDeck, UGC Videos Scored-CTA, Target-Influencer, Traffic_Target_Statics, TARGET_Awareness, Costco dark posts",
+   "realtime": false,
+   "to_make_realtime": "Either add this ad account to the Maplemonk/Snowflake pipeline, or set META_ACCESS_TOKEN + META_AD_ACCOUNT_ID for it so /api/brain?action=ads-live reads it directly from the Meta Marketing API. Until then the Target/Costco figures on this dashboard are the 20 Jul 2026 KT workbook snapshot and are labelled as such."
+  }
+ ]
+}

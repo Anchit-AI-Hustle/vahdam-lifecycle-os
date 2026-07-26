@@ -78,21 +78,24 @@
     const css = document.createElement('style');
     css.id = 'table-sort-styles';
     css.textContent = `
-      table[data-sortable] th[data-sortable-col] {
+      th[data-sortable-col] {
         cursor: pointer; user-select: none; position: relative;
         transition: color .12s;
       }
-      table[data-sortable] th[data-sortable-col]:hover { color: #FBF5EA; }
-      table[data-sortable] th[data-sortable-col] .ts-arrow {
-        display: inline-block; margin-left: 4px; opacity: 0.25;
-        font-size: 0.85em; transition: opacity .12s, transform .12s;
-        font-family: 'JetBrains Mono', monospace;
+      th[data-sortable-col]:hover { color: #FBF5EA; }
+      /* Sort affordance is ALWAYS visible (both chevrons) so every column
+         reads as sortable without hovering; the active column shows one solid
+         arrow in gold. Opacity .72 keeps it legible on the green header. */
+      th[data-sortable-col] .ts-arrow {
+        display: inline-block; margin-left: 5px; opacity: 0.72;
+        font-size: 0.8em; line-height: 1; transition: opacity .12s, color .12s;
+        font-family: ui-monospace, 'JetBrains Mono', monospace;
       }
-      table[data-sortable] th[data-sort-direction] .ts-arrow {
-        opacity: 1; color: #AB8743;
-      }
-      table[data-sortable] th[data-sort-direction="asc"]  .ts-arrow::before { content: '▲'; }
-      table[data-sortable] th[data-sort-direction="desc"] .ts-arrow::before { content: '▼'; }
+      th[data-sortable-col] .ts-arrow::before { content: '⇅'; }
+      th[data-sortable-col]:hover .ts-arrow { opacity: 1; }
+      th[data-sort-direction] .ts-arrow { opacity: 1; color: #F0D9A6; }
+      th[data-sort-direction="asc"]  .ts-arrow::before { content: '▲'; }
+      th[data-sort-direction="desc"] .ts-arrow::before { content: '▼'; }
       input.ts-filter {
         display: block; margin: 6px 0 6px; padding: 6px 10px;
         font: inherit; font-size: 12.5px; color: inherit;
@@ -135,10 +138,26 @@
     });
   }
 
+  // Sorting is now the DEFAULT for every real data table on every page: any
+  // <table> with a <thead> and at least two body rows is made sortable unless
+  // it opts out with data-no-sortable (layout/e-mail tables). data-sortable is
+  // still honoured explicitly and forces attachment regardless of row count.
+  function sortableTables(scope) {
+    const out = [];
+    scope.querySelectorAll('table:not([data-sort-attached])').forEach((t) => {
+      if (t.hasAttribute('data-no-sortable')) return;
+      if (t.hasAttribute('data-sortable')) { out.push(t); return; }
+      const headCells = t.querySelectorAll('thead th');
+      const bodyRows = t.tBodies[0] ? t.tBodies[0].rows.length : 0;
+      if (headCells.length >= 2 && bodyRows >= 2) out.push(t);
+    });
+    return out;
+  }
+
   function attachTableSort(root) {
     injectStylesOnce();
     const scope = root || document;
-    const tables = scope.querySelectorAll('table[data-sortable]:not([data-sort-attached])');
+    const tables = sortableTables(scope);
     tables.forEach((table) => {
       table.dataset.sortAttached = '1';
       const headers = table.querySelectorAll('thead th');
@@ -175,7 +194,7 @@
     for (const m of mutations) {
       if (m.addedNodes.length) {
         for (const n of m.addedNodes) {
-          if (n.nodeType === 1 && (n.matches?.('table[data-sortable], table[data-filterable]') || n.querySelector?.('table[data-sortable], table[data-filterable]'))) {
+          if (n.nodeType === 1 && (n.matches?.('table') || n.querySelector?.('table'))) {
             needsAttach = true; break;
           }
         }
