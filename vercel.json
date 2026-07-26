@@ -46,6 +46,21 @@
   },
   "redirects": [
     {
+      "source": "/ad-campaigns.html",
+      "destination": "/ads-master",
+      "permanent": true
+    },
+    {
+      "source": "/ads-dashboard.html",
+      "destination": "/ads-master",
+      "permanent": true
+    },
+    {
+      "source": "/ads-masterclass.html",
+      "destination": "/ads-master",
+      "permanent": true
+    },
+    {
       "source": "/studio-v2",
       "destination": "/studio?theme=dark",
       "permanent": false

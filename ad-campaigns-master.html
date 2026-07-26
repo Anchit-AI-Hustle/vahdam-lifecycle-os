@@ -35,6 +35,22 @@
   .tabs button.on{color:var(--green);border-bottom-color:var(--gold)}
   .panel{display:none}.panel.on{display:block}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:8px 0}
+  /* Live warehouse drill-down (campaign -> ad set -> ad), ported with the
+     op=hierarchy panel. Token names matched the master's already. */
+  .tree-crumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;margin:10px 0 12px}
+  .tree-crumb button{background:none;border:0;padding:0;cursor:pointer;color:var(--gold-deep);font:inherit;text-decoration:underline}
+  .tree-crumb button:hover{color:var(--head)}
+  .tree-crumb .sep{color:var(--dim)} .tree-crumb .cur{color:var(--dim)}
+  .trow{display:grid;grid-template-columns:minmax(0,2.2fr) repeat(4,minmax(70px,1fr)) auto;gap:10px;align-items:center;
+    width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;background:var(--surface);
+    border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:7px;transition:border-color .15s,transform .15s}
+  .trow:hover{border-color:var(--gold);transform:translateY(-1px)}
+  .trow .nm b{display:block;font-size:14px;color:var(--head);overflow-wrap:anywhere}
+  .trow .nm span{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+  .trow .mt i{display:block;font-style:normal;font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+  .trow .mt b{font-size:13px;font-weight:600;color:var(--text)}
+  .trow .go{font-family:var(--mono);color:var(--gold-deep)}
+  @media(max-width:760px){.trow{grid-template-columns:minmax(0,1fr) auto;row-gap:6px}.trow .mt{display:inline-block;margin-right:12px}}
   .sc{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:11px;padding:14px 16px;box-shadow:var(--shadow)}
   .sc .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
   .sc .v{font-family:var(--serif);font-size:23px;font-weight:700;color:var(--head);font-variant-numeric:tabular-nums}
@@ -655,6 +671,16 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     </div>
     <div class="tbl-wrap" id="drill-tbl"><div class="empty">Loading…</div></div>
     <p class="note" id="ads-count"></p>
+
+    <h2 style="margin-top:34px">Account structure, live from the warehouse</h2>
+    <p class="note" style="margin-top:2px">The drill-down above walks the committed snapshot, so it is bounded by what was
+      captured. This one aggregates in Snowflake itself (<code>op=hierarchy</code>, one GROUP BY per level, scoped to the
+      names you clicked), so it covers every row in the warehouse rather than the exported subset. Click a campaign for its
+      ad sets, an ad set for its ads, an ad for its detail. Ratios are derived from the additive sums after aggregation,
+      never averaged, so CTR / CPC / CPM stay correct at every level. Scope: the <b>Meta</b> insights table over its full
+      date range — it is not narrowed by the filter bar above, which drives the snapshot view only.</p>
+    <nav id="tree-crumb" class="tree-crumb" aria-label="Ads hierarchy"></nav>
+    <div id="tree-body"><div class="empty">Open this tab to load the live structure…</div></div>
   </div>
 
   <div class="panel" id="p-creative">
@@ -2462,6 +2488,97 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         esc(bm[0].segment)+" runs "+pct(bm[0].ctr_pct)+" CTR at "+money(bm[0].cpc_usd)+" CPC.":"");
   }
 
+  /* \u2500\u2500 Live warehouse drill-down: campaign \u2192 ad set \u2192 ad \u2192 ad detail \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+     The sibling of renderAds() above, over LIVE Snowflake instead of the
+     committed snapshot: op=hierarchy does one GROUP BY per level, scoped to the
+     ancestors clicked, so it sees every warehouse row rather than the exported
+     subset. Ratios are derived HERE from the additive sums (spend, impressions,
+     link clicks) \u2014 summing a per-row CTR or CPC is the bug that once reported
+     CTR 3,891% on this data, so aggregation must never touch a stored ratio. */
+  var TREE={campaign:null,adset:null,ad:null};
+  function tRatios(r){
+    var sp=Number(r.spend)||0, im=Number(r.impressions)||0,
+        lk=Number(r.inline_link_clicks)||Number(r.clicks)||0;
+    return {spend:sp,impressions:im,link:lk,
+            ctr: im? lk/im*100 : null, cpc: lk? sp/lk : null, cpm: im? sp/im*1000 : null};
+  }
+  function tRow(name, sub, r, isLeaf, onClick){
+    var m=tRatios(r);
+    var b=document.createElement("button"); b.type="button"; b.className="trow";
+    b.innerHTML="<div class='nm'><b>"+esc(name==null?"(none)":name)+"</b><span>"+esc(sub)+"</span></div>"+
+      "<div class='mt'><i>Spend</i><b>"+money(m.spend)+"</b></div>"+
+      "<div class='mt'><i>Impressions</i><b>"+intf(m.impressions)+"</b></div>"+
+      "<div class='mt'><i>Link clicks</i><b>"+intf(m.link)+"</b></div>"+
+      "<div class='mt'><i>Link CTR</i><b>"+(m.ctr==null?"\u2014":pct(m.ctr))+"</b></div>"+
+      "<div class='go'>"+(isLeaf?"\u25a4":"\u203a")+"</div>";
+    if(onClick) b.addEventListener("click",onClick);
+    return b;
+  }
+  function treeCrumb(){
+    var el=$("#tree-crumb"); if(!el) return; el.innerHTML="";
+    var parts=[["All campaigns",{campaign:null,adset:null,ad:null}]];
+    if(TREE.campaign) parts.push([TREE.campaign,{campaign:TREE.campaign,adset:null,ad:null}]);
+    if(TREE.adset)    parts.push([TREE.adset,{campaign:TREE.campaign,adset:TREE.adset,ad:null}]);
+    if(TREE.ad)       parts.push([TREE.ad,{campaign:TREE.campaign,adset:TREE.adset,ad:TREE.ad}]);
+    parts.forEach(function(pr,i){
+      if(i){ var s=document.createElement("span"); s.className="sep"; s.textContent="\u203a"; el.appendChild(s); }
+      if(i===parts.length-1){
+        var cur=document.createElement("span"); cur.className="cur"; cur.textContent=pr[0]; el.appendChild(cur);
+      }else{
+        var b=document.createElement("button"); b.type="button"; b.textContent=pr[0];
+        b.addEventListener("click",function(){ TREE=pr[1]; loadTree(); });
+        el.appendChild(b);
+      }
+    });
+  }
+  function loadTree(){
+    treeCrumb();
+    var host=$("#tree-body"); if(!host) return;
+    var level = TREE.adset ? "ad" : (TREE.campaign ? "adset" : "campaign");
+    // platform is stated rather than left to the core's default, and level is sent
+    // exactly ONCE — a duplicate level= arrives as an array and fails the level
+    // lookup outright ("campaign,adset" is not a level).
+    var extra="&platform=meta&level="+level+(TREE.campaign?"&campaign="+encodeURIComponent(TREE.campaign):"")
+                                          +(TREE.adset?"&adset="+encodeURIComponent(TREE.adset):"");
+    host.innerHTML="<div class='empty'>Loading "+esc(level)+"s\u2026</div>";
+    apiGet("action=ads-snowflake&op=hierarchy"+extra).then(function(res){
+      // Not connected is stated, never papered over with a zero that would read
+      // as a real result. The query it WOULD run is shown so it stays checkable.
+      if(res.not_connected){
+        host.innerHTML="<div class='empty'>Snowflake is not connected, so this is the query it would run \u2014 nothing is estimated in its place."+
+          "<br><br><code style='white-space:pre-wrap;text-align:left;display:block'>"+esc(res.would_query||"")+"</code></div>"; return;
+      }
+      if(!res.ok){ host.innerHTML="<div class='empty'>"+esc(res.error||"No data")+"</div>"; return; }
+      var rows=res.rows||[];
+      if(!rows.length){ host.innerHTML="<div class='empty'>No "+esc(level)+"s for this selection.</div>"; return; }
+      host.innerHTML="";
+      if(TREE.ad){
+        var hit=rows.filter(function(r){return String(r.name)===String(TREE.ad);})[0]||rows[0];
+        var m=tRatios(hit);
+        host.innerHTML="<div class='frame'><h3 style='margin-top:0'>"+esc(hit.name)+"</h3><div class='cards'>"+
+          [["Amount spent",money(m.spend)],["Impressions",intf(m.impressions)],["Link clicks",intf(m.link)],
+           ["Link CTR",m.ctr==null?"\u2014":pct(m.ctr)],["CPC",m.cpc==null?"\u2014":money(m.cpc)],
+           ["CPM",m.cpm==null?"\u2014":money(m.cpm)]].map(function(c){return card(c[0],c[1]);}).join("")+
+          "</div><p class='note'>Campaign: <b>"+esc(TREE.campaign||"")+"</b> \u00b7 Ad set: <b>"+esc(TREE.adset||"")+
+          "</b> \u00b7 "+intf(hit.rows_n||0)+" source rows aggregated \u00b7 <code>"+esc(res.table||"")+"</code></p></div>";
+        return;
+      }
+      rows.forEach(function(r){
+        var isAd = level==="ad";
+        var sub = (isAd?"Ad":level==="adset"?"Ad set":"Campaign")+" \u00b7 "+intf(r.rows_n||0)+" rows";
+        host.appendChild(tRow(r.name, sub, r, isAd, function(){
+          if(level==="campaign")     TREE={campaign:r.name,adset:null,ad:null};
+          else if(level==="adset")   TREE={campaign:TREE.campaign,adset:r.name,ad:null};
+          else                       TREE={campaign:TREE.campaign,adset:TREE.adset,ad:r.name};
+          loadTree();
+        }));
+      });
+    }).catch(function(e){
+      host.innerHTML="<div class='empty'>Could not reach the live endpoint \u2014 "+esc(e.message)+
+        ". The snapshot drill-down above is unaffected.</div>";
+    });
+  }
+
   function renderCreative(){
     $("#bm-tbl").innerHTML=table(
       [{t:"Segment"},{t:"CTR",r:1},{t:"CPC",r:1},{t:"Cost / key result",r:1},{t:"Note"}],
@@ -2708,11 +2825,19 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       "<p class='eyebrow'>Priority explorations</p><ul class='tight'>"+dr.priority_explorations.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul>";
   }
 
+  var TREE_LOADED=false;
   document.getElementById("tabs").addEventListener("click",function(e){
     var b=e.target.closest("button[data-p]"); if(!b)return;
     document.querySelectorAll("#tabs button").forEach(function(x){x.classList.toggle("on",x===b);});
-    document.querySelectorAll(".panel").forEach(function(x){x.classList.toggle("on",x.id==="p-"+b.dataset.p);});
+    // Scoped to this page's own panels (id p-*): the merged Creative Studio ships
+    // its own .panel elements, and a blind sweep over every .panel would reach in.
+    document.querySelectorAll(".panel").forEach(function(x){
+      if(x.id.indexOf("p-")!==0) return;
+      x.classList.toggle("on",x.id==="p-"+b.dataset.p);
+    });
     if(history.replaceState) history.replaceState(null,"","#"+b.dataset.p);
+    // Live structure is one query per level, so only fetch it once the tab is opened.
+    if(b.dataset.p==="campaigns"&&!TREE_LOADED){ TREE_LOADED=true; loadTree(); }
   });
   ["f-obj","f-status","f-sort"].forEach(function(id){document.getElementById(id).addEventListener("change",renderAds);});
   document.getElementById("f-q").addEventListener("input",renderAds);
@@ -2997,8 +3122,32 @@ try{
     if (line && lines.length < maxLines) lines.push(line);
     return lines;
   }
+  // A pasted media URL is operator-typed DOM text, so it is NOT a trusted URL: a
+  // javascript: or data:text/html value assigned to .src would execute in the
+  // page. Two allowlists, because the two sinks have different needs.
+  //
+  // LOADABLE — what loadImage may fetch: http(s), blob:, and any data:image/*.
+  // svg+xml is included deliberately: the server-side brand placeholder is an
+  // SVG data URI, and SVG pulled through <img>/canvas cannot run script. A value
+  // that fails becomes '' and the caller falls through to its next visual tier
+  // (catalog photo, then ambient backdrop) exactly as if the field were blank.
+  var LOADABLE_URL = /^(?:https?:\/\/|blob:https?:\/\/|data:image\/[a-z0-9.+-]+[;,])/i;
+  function loadableUrl(u) {
+    var s = String(u == null ? '' : u).trim();
+    return LOADABLE_URL.test(s) ? s : '';
+  }
+  // RENDERABLE — what may reach a src/href ATTRIBUTE in showCreatives. Every URL
+  // it emits is canvas output (composeCreative → toDataURL('image/png')), so the
+  // raster set is the entire legitimate surface: the download href never needs to
+  // carry svg or a remote URL, and narrowing it costs nothing.
+  var RENDERABLE_URL = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+  function renderableUrl(u) {
+    var s = String(u == null ? '' : u).trim();
+    return RENDERABLE_URL.test(s) ? s : '';
+  }
   // Load an image (CORS-safe) for compositing. Returns null on failure.
-  function loadImage(src) {
+  function loadImage(rawSrc) {
+    const src = loadableUrl(rawSrc);
     return new Promise((resolve) => {
       if (!src) return resolve(null);
       // MP4/WebM (e.g. a Shopify product video) → grab the first frame.
@@ -3171,13 +3320,17 @@ try{
       const ar = (assets[0] && assets[0].size.split('x').map(Number)) || [1, 1];
       html += '<div class="cre-asset"><span class="cre-asset-label">Animated preview</span>' +
         '<div class="cre-anim" style="aspect-ratio:' + ar[0] + '/' + ar[1] + '">' +
-        animFrames.map((f) => '<img src="' + f + '" alt="frame">').join('') + '</div></div>';
+        animFrames.map((f) => '<img src="' + esc(renderableUrl(f)) + '" alt="frame">').join('') + '</div></div>';
     }
-    html += '<div class="cre-assets">' + assets.map((a, i) =>
-      '<div class="cre-asset"><span class="cre-asset-label">' + esc(a.format) + '</span>' +
-      '<img src="' + a.url + '" alt="' + esc(a.format) + '">' +
-      '<a class="cre-asset-dl" href="' + a.url + '" download="vahdam-' + ch + '-' + a.size + '.png">⬇ Download</a></div>'
-    ).join('') + '</div>';
+    html += '<div class="cre-assets">' + assets.map((a) => {
+      // Attribute context: allowlist the transport, then escape. The base visual
+      // can originate from the pasted media field, so an unescaped url here
+      // would let a crafted value close the attribute and inject markup.
+      const u = esc(renderableUrl(a.url));
+      return '<div class="cre-asset"><span class="cre-asset-label">' + esc(a.format) + '</span>' +
+      '<img src="' + u + '" alt="' + esc(a.format) + '">' +
+      '<a class="cre-asset-dl" href="' + u + '" download="vahdam-' + ch + '-' + esc(a.size) + '.png">⬇ Download</a></div>';
+    }).join('') + '</div>';
     html += '<div class="cre-actions">' +
       '<button class="btn btn-ghost" type="button" data-cre-redo="' + ch + '">↻ Regenerate</button>' +
       '<button class="btn btn-ghost" type="button" data-cre-clear="' + ch + '">Remove</button>' +
@@ -3336,16 +3489,24 @@ try{
     setTimeout(() => { btn.textContent = orig; }, 1600);
   }
 
-  // ── Tabs (hash-routed to match sidebar deep-links) ───────────────────
+  // ── Channel tabs, INTERNAL to the Creative Studio panel ──────────────
+  // On its own page these were the top-level tabs and owned the URL hash. Here
+  // they do not: the hash belongs to this page's 13-tab bar (#tabs, [data-p]),
+  // which the LHS rail deep-links into. Left as it shipped, this ran at parse
+  // time, found a hash like #kb that is not in TABS, fell back to 'calendar' and
+  // replaceState'd the hash to #calendar -- so every deep link landed on
+  // Calendar. So: no hash read, no hash write, no hashchange listener, and both
+  // queries scoped to #p-crestudio so a global .tab/.panel sweep cannot reach
+  // this page's own tabs and panels.
+  const CRE_ROOT = document.getElementById('p-crestudio');
   const TABS = ['calendar', 'google', 'meta', 'tiktok'];
   function showTab(t) {
     if (!TABS.includes(t)) t = 'calendar';
-    document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === t));
-    document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + t));
-    if (location.hash.slice(1) !== t) history.replaceState(null, '', '#' + t);
+    if (!CRE_ROOT) return;
+    CRE_ROOT.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === t));
+    CRE_ROOT.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + t));
   }
-  document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
-  window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
+  if (CRE_ROOT) CRE_ROOT.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
   // ── Calendar — the SAME rolling plan as the Vahdam Brain mailer calendar ──
   // Not a separate manual grid: it reads the Smart Brain plan (identical slots,
@@ -3701,7 +3862,9 @@ try{
       }
     });
   });
-  showTab(location.hash.slice(1) || (location.pathname.includes('landing') ? 'landing' : 'calendar'));
+  // Open on the first channel. Deliberately NOT seeded from location.hash: that
+  // hash addresses this page's 13 tabs, not these four channels.
+  showTab('calendar');
 })();
 
 }catch(e){ console.error("Creative Studio init:", e); }
@@ -3928,7 +4091,14 @@ try{
       d.innerHTML='<b>'+t[0]+'</b><p>'+t[1]+'</p>';
       glossGrid.appendChild(d);
     });
-    if(!glossGrid.children.length){glossGrid.innerHTML='<p style="color:var(--text-dim);font-family:JetBrains Mono;font-size:.85rem">No term matches "'+filter+'".</p>';}
+    if(!glossGrid.children.length){
+      // The query is DOM text straight from the search box. Echo it as TEXT --
+      // concatenated into innerHTML, a typed tag would be parsed into the page.
+      var em=document.createElement('p');
+      em.style.cssText='color:var(--text-dim);font-family:JetBrains Mono;font-size:.85rem';
+      em.textContent='No term matches "'+(filter||'')+'".';
+      glossGrid.appendChild(em);
+    }
   }
   document.getElementById('glossSearch').addEventListener('input',function(e){renderGloss(e.target.value);});
   renderGloss('');

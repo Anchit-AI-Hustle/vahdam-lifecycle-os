@@ -22,7 +22,7 @@ A retention/lifecycle-marketing toolkit for VAHDAM Teas. Multi-page static-HTML 
 | `/studio` | `vahdam_mailer_architect_v34.html` (Mailer Studio) | live |
 | `/competitor` | `competitor-benchmarking.html` | live |
 | `/kb` | `knowledge-base.html` | live |
-| `/ads` | `ad-campaigns.html` | live |
+| `/ads`, `/ads-master`, `/ads-dashboard`, `/ad-performance`, `/ads-masterclass` | `ad-campaigns-master.html` (the single ad dashboard) | live |
 | `/lp/:id` | generated landing pages (`api/calendar.js?action=lp`) | live |
 | `/brain` | `smart-brain.html` console | live |
 | `/agent` | `agent.html` (conversational + voice) | live |

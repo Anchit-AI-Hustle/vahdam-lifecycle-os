@@ -73,9 +73,19 @@ There is no real `dev` server (the `dev` script is a no-op stub). For local serv
 Each page is a **standalone, self-contained `.html` file** (inline CSS + JS, often huge — `vahdam_mailer_architect_v34.html` is ~7700 lines / 700KB+). They are NOT a component tree; they share state via **localStorage** and a common script:
 
 - **`auth.js`** — dropped into every page via `<script>`. It (1) boots a Supabase client from `window.__SUPABASE__` or `/api/public-config`, (2) forces one-time Google sign-in, (3) renders the shared top-bar / cross-step navigation, (4) registers the service worker (`sw.js`) for PWA install + aggressive cache self-healing, (5) exposes `window.LifecycleAuth.{client, session, signOut}`.
-- Pages: `index.html` (home), `dashboard.html` (RFM/cohort analytics), `calendar.html` (30-day plan), `vahdam_mailer_architect_v34.html` (Mailer Studio — the main app, served at `/studio`), `competitor-benchmarking.html`, `knowledge-base.html`, `ad-campaigns.html`, `landing-pages.html`, `cohort-definitions.html`.
+- Pages: `index.html` (home), `dashboard.html` (RFM/cohort analytics), `calendar.html` (30-day plan), `vahdam_mailer_architect_v34.html` (Mailer Studio — the main app, served at `/studio`), `competitor-benchmarking.html`, `knowledge-base.html`, `ad-campaigns-master.html` (the SINGLE ad dashboard — see below), `landing-pages.html`, `cohort-definitions.html`.
 - Friendly URLs are wired in `vercel.json` `rewrites` (e.g. `/studio`, `/analytics`, `/plan`, `/competitor`, `/kb`, `/ads`). When adding a page, add its rewrite there.
 - Shared front-end helpers: `chart-enhance.js`, `table-sort.js`.
+- **One ad dashboard only (owner's instruction, 2026-07-26).** `ad-campaigns-master.html` (`/ads-master`) is the
+  SOLE page for ad analysis, 13 tabs. `ads-dashboard.html`, `ad-campaigns.html` and `ads-masterclass.html` were
+  each MERGED into it and then deleted — SOP compliance + spend pacing + metric catalog onto its SOP/Ops tabs, the
+  canvas creative compositor as the **Creative Studio** tab, the paid-ads lesson as the **Playbook** tab, and the
+  live `op=hierarchy` warehouse drill-down onto Campaigns & Ads. Do NOT recreate any of them. `/ads`,
+  `/ads-dashboard`, `/ad-performance`, `/ads-masterclass` rewrite to the master, and the three retired `.html`
+  paths 308-redirect to `/ads-master` (needed because `cleanUrls` is false, so those were real URLs).
+  When porting a page into another here, remember the two traps this merge hit: prefix the ported CSS with the
+  host panel id (rewriting its `:root`/`html`/`body` rules), and check for a ported top-level router that assumes
+  it owns `location.hash` or sweeps `.tab`/`.panel` globally — scope it to its own panel.
 
 ### Backend: Vercel serverless functions under `api/`
 **Hard constraint — Hobby plan caps Serverless Functions at 12.** The app sits at that limit, which dictates the structure:
