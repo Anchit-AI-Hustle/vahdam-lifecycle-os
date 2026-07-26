@@ -38,3 +38,7 @@ entities:
       - "data/ads/ads-live-snapshot.json"
       - "data/ads/ad-accounts.json"
       - "data/ads/target-ads-meta-2026-07-20.json"
+      # The creative library: 178 hooks, 182 scripts, 178 CTAs and the 7-bucket Hook &
+      # Script Bible. Without it the Knowledge Base tab has no usable content and falls
+      # back to a declared gap.
+      - "data/ads/ugc-june-usa-2026-06.json"

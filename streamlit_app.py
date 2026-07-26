@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.16"
+APP_BUILD = "2026-07-26.17"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -2453,6 +2453,8 @@ MASTER_FILES = {
     "ads": ("data/ads/target-ads-meta-2026-07-20.json", "Target ads snapshot (20 Jul 2026)"),
     "snap": ("data/ads/ads-live-snapshot.json", "Committed live snapshot"),
     "reg": ("data/ads/ad-accounts.json", "Ad-account registry export"),
+    "ugc": ("data/ads/ugc-june-usa-2026-06.json",
+            "Creative library — hooks, scripts, CTAs and the Hook & Script Bible"),
 }
 
 
@@ -2563,6 +2565,102 @@ def live_ugc_posts(since, until):
     except Exception:  # noqa: BLE001
         return pd.DataFrame()
 
+
+# ── CREATIVE LIBRARY — the Knowledge Base as usable content ───────────────────
+# The KB tab used to be a link registry: to learn anything you left the app and opened
+# a sheet, which is a bookmark folder, not a knowledge base. The scraped June USA UGC
+# dashboard already holds the usable material and nothing was reading it: 178 hooks,
+# 182 full scripts, 178 CTAs and 178 content outlines across 201 videos, plus a
+# 7-bucket Hook & Script Bible with per-platform counts, averages and winning hook
+# types. This renders that, filterable, with the scripts in place.
+def render_creative_library():
+    lib = master_file("ugc")
+    if not lib or not lib.get("posts"):
+        return
+    posts = [p for p in lib["posts"] if p.get("hook") or p.get("script")]
+    tot = lib.get("totals") or {}
+    st.markdown("#### Creative library — the hooks, scripts and CTAs that actually ran")
+    st.caption(
+        f"{len(posts)} creator videos carry a usable hook or script, captured "
+        f"{lib.get('captured_at', '')} from the June USA UGC dashboard"
+        + (f", {tot.get('creators')} creators" if tot.get("creators") else "")
+        + ". Ranked by the organic score the master sheet defines (TikTok ad-recommended at "
+          "30+, Instagram at 20+), so this is the same ranking the agency filters on. The "
+          "default view is 30+ — what cleared the bar, not everything ever posted."
+    )
+    c1, c2, c3, c4 = st.columns(4)
+    buckets = sorted({p.get("bucket") for p in posts if p.get("bucket")})
+    htypes = sorted({p.get("hookType") for p in posts if p.get("hookType")})
+    b_sel = c1.multiselect("Bucket", buckets, default=buckets, key="lib_bucket")
+    p_sel = c2.multiselect("Platform", sorted({p.get("platform") for p in posts if p.get("platform")}),
+                           default=sorted({p.get("platform") for p in posts if p.get("platform")}),
+                           key="lib_plat")
+    h_sel = c3.multiselect("Hook type", htypes, default=htypes, key="lib_hook")
+    mn = c4.selectbox("Min score", [30, 50, 20, 0], format_func=lambda v: {
+        30: "30+ ad recommended", 50: "50+ high", 20: "20+ consider", 0: "any"}[v],
+        key="lib_min")
+    needle = st.text_input("Search hook, script, creator or CTA", key="lib_q").strip().lower()
+
+    rows = [p for p in posts
+            if p.get("bucket") in b_sel and p.get("platform") in p_sel
+            and p.get("hookType") in h_sel
+            and (p.get("score") or 0) >= mn
+            and (not needle or needle in " ".join(str(p.get(k) or "") for k in
+                                                  ("hook", "script", "creator", "cta")).lower())]
+    rows.sort(key=lambda p: p.get("score") or 0, reverse=True)
+    st.markdown(f"**{len(rows)} of {len(posts)} videos match.** Highest organic score first.")
+    if not rows:
+        st.info("No creative matches these filters.")
+    else:
+        st.dataframe(pd.DataFrame([{
+            "Score": p.get("score"), "Platform": p.get("platform"), "Bucket": p.get("bucket"),
+            "Hook type": p.get("hookType"), "Creator": p.get("creator"),
+            "Hook": p.get("hook"), "CTA": p.get("cta"), "Ad rec": p.get("adRec"),
+            "Post": p.get("url"),
+        } for p in rows]), use_container_width=True, hide_index=True, height=380)
+        st.caption("Full scripts are below — the table is for scanning, the scripts for using.")
+        for p in rows[:25]:
+            with st.expander(f"{p.get('score')}  ·  {p.get('creator')}  ·  {p.get('bucket')}  ·  "
+                             f"{p.get('hookType')}"):
+                st.markdown(f"**Hook.** {p.get('hook') or '—'}")
+                if p.get("cta"):
+                    st.markdown(f"**CTA.** {p['cta']}")
+                if p.get("script"):
+                    st.markdown("**Full script**")
+                    st.code(p["script"], language=None)
+                if p.get("contentSummary"):
+                    st.markdown(f"**Content beats.**  \n{p['contentSummary']}")
+                if p.get("url"):
+                    st.markdown(f"[Watch the original post]({p['url']})")
+        if len(rows) > 25:
+            st.caption(f"Scripts shown for the top 25 of {len(rows)} matches — narrow the filters "
+                       "to reach the rest. The table above lists all of them.")
+
+    bible = lib.get("hook_script_bible") or {}
+    if bible:
+        st.markdown("#### Bucket playbook — what wins in each content angle")
+        st.dataframe(pd.DataFrame([{
+            "Bucket": k,
+            "TikTok videos": v.get("tt_count"), "TikTok avg score": v.get("tt_avg"),
+            "Instagram videos": v.get("ig_count"), "Instagram avg score": v.get("ig_avg"),
+            "Winning TikTok hooks": ", ".join(f"{h[0]} ({h[1]})" for h in (v.get("tt_top_hooks") or [])),
+            "Winning Instagram hooks": ", ".join(f"{h[0]} ({h[1]})" for h in (v.get("ig_top_hooks") or [])),
+        } for k, v in bible.items()]), use_container_width=True, hide_index=True)
+        pick = st.selectbox("Top examples with full scripts for", list(bible), key="lib_bible")
+        for plat_key, plat in (("tt", "TikTok"), ("ig", "Instagram")):
+            ex = (bible.get(pick) or {}).get(plat_key) or []
+            if not ex:
+                continue
+            st.markdown(f"**{plat} — top {len(ex)}**")
+            for e in ex:
+                with st.expander(f"{e.get('score')}  ·  {e.get('creator')}  ·  {e.get('hookType')}"):
+                    st.markdown(f"**Hook.** {e.get('hook') or '—'}")
+                    if e.get("cta"):
+                        st.markdown(f"**CTA.** {e['cta']}")
+                    if e.get("script"):
+                        st.code(e["script"], language=None)
+                    if e.get("url"):
+                        st.markdown(f"[Watch the original post]({e['url']})")
 
 # ── UGC SCORING — ONE authoritative definition ────────────────────────────────
 # Source of truth: the "Scoring Legend" tab of the VAHDAM Master Ad Tracking Sheet.
@@ -3520,19 +3618,55 @@ def render_master_dashboard():
 
     # ── 5. SOP ───────────────────────────────────────────────────────────────
     with tabs[4]:
-        st.subheader("Ad Campaign SOP")
+        st.subheader("Ad Campaign SOP — the standing procedure")
         sop = kb.get("sop", {})
         if not sop:
             st.info("SOP section not present in the knowledge base file.")
         else:
-            head = {k: sop[k] for k in ("id", "title", "status", "scope") if sop.get(k)}
-            if head:
-                _render_value(head)
-            for k, v in sop.items():
-                if k in ("id", "title", "status", "scope") or v in (None, "", [], {}):
-                    continue
-                st.markdown(f"#### {_humanize(k)}")
-                _render_value(v)
+            if sop.get("title"):
+                st.markdown(f"**{sop['title']}**")
+            meta = " · ".join(str(sop[k]) for k in ("status", "scope") if sop.get(k))
+            if meta:
+                st.caption(meta)
+            if sop.get("authority"):
+                st.info(sop["authority"])
+            if sop.get("master_sheet"):
+                st.markdown(f"**Source of truth.** {sop['master_sheet']}")
+
+            # Grouped in the order the job is actually done, rather than whatever order
+            # the keys happen to sit in. Every remaining key still renders below, so
+            # nothing in the SOP is dropped by the grouping.
+            GROUPS = [
+                ("Before you build", ["required_before_build", "standing_conditions"]),
+                ("Naming and tracking", ["nomenclature", "campaign_tab_columns", "row_layout",
+                                         "formula_columns", "tabs"]),
+                ("Scoring and the run gate", ["scoring", "ugc_flow"]),
+                ("Money and pages", ["budgets", "landing_pages"]),
+                ("Who and by when", ["turnaround", "automation"]),
+            ]
+            shown = {"id", "title", "status", "scope", "authority", "master_sheet"}
+            gtabs = st.tabs([g[0] for g in GROUPS] + ["Everything else"])
+            for (label, keys), t in zip(GROUPS, gtabs):
+                with t:
+                    any_here = False
+                    for k in keys:
+                        v = sop.get(k)
+                        if v in (None, "", [], {}):
+                            continue
+                        any_here = True
+                        shown.add(k)
+                        st.markdown(f"##### {_humanize(k)}")
+                        _render_value(v)
+                    if not any_here:
+                        st.info(f"No {label.lower()} content in this SOP record.")
+            with gtabs[-1]:
+                rest = [(k, v) for k, v in sop.items()
+                        if k not in shown and v not in (None, "", [], {})]
+                if not rest:
+                    st.caption("Every SOP field is covered by the tabs above.")
+                for k, v in rest:
+                    st.markdown(f"##### {_humanize(k)}")
+                    _render_value(v)
 
     # ── 6. Overview ──────────────────────────────────────────────────────────
     with tabs[5]:
@@ -3614,6 +3748,13 @@ def render_master_dashboard():
     # ── 10. Knowledge Base ───────────────────────────────────────────────────
     with tabs[9]:
         st.subheader("Knowledge Base")
+        st.caption(
+            "The usable creative comes first — hooks, scripts, CTAs and what each bucket "
+            "rewards. Sources, ownership and the reference links follow. A knowledge base "
+            "should answer a question in place, not hand you a link to a sheet."
+        )
+        render_creative_library()
+        st.markdown("---")
         for k, head in (("kt_sources", "KT sources"), ("narratives", "KT narratives"),
                         ("people", "People and ownership")):
             if kb.get(k):
