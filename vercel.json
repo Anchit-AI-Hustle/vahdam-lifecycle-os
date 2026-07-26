@@ -41,6 +41,7 @@
     { "source": "/os", "destination": "/all-in-one.html" },
     { "source": "/dashboard-os", "destination": "/all-in-one.html" },
     { "source": "/connectors", "destination": "/connectors.html" },
+<<<<<<< Updated upstream
     { "source": "/access-issues", "destination": "/access-issues.html" },
     { "source": "/access", "destination": "/access-issues.html" },
     { "source": "/official-designs", "destination": "/official-designs.html" },
@@ -65,6 +66,11 @@
     { "source": "/store-3d-uk", "destination": "/storefront-3d.html?variant=uk" },
     { "source": "/store-3d-global", "destination": "/storefront-3d.html?variant=global" },
     { "source": "/shop-3d", "destination": "/storefront-3d.html?variant=signature" },
+=======
+    { "source": "/official-designs", "destination": "/official-designs.html" },
+    { "source": "/store-3d", "destination": "/official-designs.html" },
+    { "source": "/designs", "destination": "/official-designs.html" },
+>>>>>>> Stashed changes
     { "source": "/api/os/daily", "destination": "/api/brain?action=os-run-daily-job&cron=1" },
     { "source": "/brain", "destination": "/smart-brain.html" },
     { "source": "/smart-brain", "destination": "/smart-brain.html" },

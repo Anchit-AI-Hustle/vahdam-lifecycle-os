@@ -249,7 +249,12 @@
     { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
+<<<<<<< Updated upstream
     { id: 'storefront3d', label: '3D Storefront', href: '/3d', icon: 'vahdam', ver: 'v2', match: ['/3d', '/storefront-3d', '/shop-3d', '/storefront-3d.html', '/official-designs', '/official-designs.html', '/store-3d', '/designs'] },
+=======
+    { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
+    { id: 'officialdesigns', label: 'Official Website Designs', href: '/official-designs', icon: 'vahdam', ver: 'v2', match: ['/official-designs', '/store-3d', '/designs', '/official-designs.html'] },
+>>>>>>> Stashed changes
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
@@ -603,6 +608,7 @@
         ['Final compilation + presentation', 'Served as the Official Website Designs showcase and reused inside landing-page templates.', '/official-designs'],
       ],
     },
+<<<<<<< Updated upstream
     accessissues: {
       title: 'Access Issues',
       what: "A strictly read-only audit of Shopify account access and installed apps. It runs entirely in the browser over evidence you provide (user, role, group and activity CSV exports, an app register, login history, and HR/agency/contract context), aggregates effective access per user, and flags unnecessary users, excessive permissions, unused apps, duplicate functionality, security concerns, and avoidable cost. It emits findings and recommendations only.",
@@ -620,6 +626,8 @@
         ['Final compilation + presentation', 'Findings and recommendations only; a human approves and implements any remediation.', '/access-issues'],
       ],
     },
+=======
+>>>>>>> Stashed changes
     social: {
       title: 'Social Media OS',
       what: "The daily social engine (V2 — Lifecycle OS): a 7-agent pipeline produces one complete day-package of posts across 11 platform formats — Instagram Feed, Reels and Stories, Facebook, TikTok, LinkedIn, X, Threads, Pinterest, YouTube Shorts, plus a long-form blog — every string brand-scrubbed, nothing published without a human approve.",

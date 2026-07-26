@@ -45,7 +45,10 @@ const webengage = require('./_shared/webengage-core.js');
 const video = require('./_shared/video-core.js');
 const social = require('./_shared/social-core.js');
 const osb = require('./_shared/os-backbone.js');
+<<<<<<< Updated upstream
 const alerts = require('./_shared/alerts-core.js');
+=======
+>>>>>>> Stashed changes
 let snowflake = null;
 try { snowflake = require('./_shared/snowflake-sync-core.js'); } catch (_) { snowflake = null; }
 
@@ -531,6 +534,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, reply });
       }
 
+<<<<<<< Updated upstream
       // ── ALERTS (revenue/number monitoring by email — _shared/alerts-core.js) ──
       // Anomaly runs NOW on real monthly market data. Pulse/EOD degrade cleanly
       // until INTRADAY_FEED_READY=1 (needs the live Shopify/Klaviyo feed, B3).
@@ -573,6 +577,8 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, narrative });
       }
 
+=======
+>>>>>>> Stashed changes
       // ── SNOWFLAKE → SUPABASE MIRROR ──────────────────────────────────────
       // Webhook / pub-sub trigger for the daily Snowflake pull. Also runs off
       // the daily ?action=cron (below) so no 3rd Hobby-limited cron is added.
@@ -672,7 +678,11 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, ...(await osb.dashboard()) });
 
       default:
+<<<<<<< Updated upstream
         return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'webengage-sync', 'webengage-report', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'access-narrative', 'snowflake-sync', 'snowflake-metrics', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+=======
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'snowflake-sync', 'snowflake-metrics', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+>>>>>>> Stashed changes
     }
   } catch (err) {
     console.error('[api/brain]', action, err);
