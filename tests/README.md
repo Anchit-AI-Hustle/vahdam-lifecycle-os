@@ -48,6 +48,7 @@ statements for real and reconciling against hand-written queries.
 python3 run.py                # 33-target sweep: any Python error, per-target SQL/table/chart counts
 python3 ratio_guard.py        # table_explorer: SQL-side aggregation + no summed ratio
 python3 meta_rows_check.py    # meta_rows(): the five sourced ratios are impression-weighted
+python3 region_guard.py       # all four regions render, none reads another market's tables
 ```
 
 **The sweep alone was not enough, twice over.** Both blind spots were in the same place,
@@ -72,3 +73,25 @@ exit 1 against `HEAD~`, exit 0 against the fix.
 **`meta_rows()` is not reachable from the sweep** — its call site sits behind a branch the
 33 targets do not hit — which is why its naive `avg(ctr)` survived. `meta_rows_check.py`
 drives it directly.
+
+
+## region_guard.py
+
+The Region control (US / UK / India / Global) resolves the source tables, so the
+failure that matters is not an exception -- it is a region quietly reading another
+market's feed and captioning it as its own. The guard renders each region and
+asserts its SQL contains no other market's identifying table.
+
+It failed on first run for **all four** regions, including US, and each cause was
+a different kind of hard-coded scope:
+
+  * the Accounts view enumerated the whole 14-account registry regardless of
+    region, so US read the UK and India Meta feeds
+  * the DTC-vs-Retail trend and the retail funnel name the two US Meta accounts
+    explicitly, so under UK/India they charted US spend under a foreign heading
+  * the sidebar Meta-source diagnostic probes META_USA_ADS% by construction and
+    ran for every region
+
+All three are now region-scoped or skipped with a stated reason. Only US is
+verified; UK and India are wired but unreconciled, and Global is Google-only
+because no Meta or TikTok account is registered for it.

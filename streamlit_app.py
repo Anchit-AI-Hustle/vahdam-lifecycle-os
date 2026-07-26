@@ -1152,7 +1152,70 @@ def _meta_src():
     return "(" + " union all ".join(selects) + ")"
 
 
-META_SRC = _meta_src()
+# ── REGION ────────────────────────────────────────────────────────────────────
+# Rendered here, above everything, because the source tables below are resolved
+# from it and Streamlit builds the page top-down: a control placed lower cannot
+# influence a constant computed higher up.
+#
+# Only US is verified. UK and India have real feeds of the same shape, so they
+# swap in cleanly, but no figure on them has been reconciled the way the US ones
+# have. Global has NO accounts in the registry at all -- the only global feed in
+# this warehouse is GLOBAL_GOOGLE_ADS_CONSOLIDATED -- so it is Google-only and
+# says so rather than rendering an empty dashboard that reads as broken.
+REGION_SOURCES = {
+    "US": dict(verified=True, meta=None,   # None -> the discovered US union (_meta_src)
+               google="VAHDAM_DB.MAPLEMONK.US_GOOGLE_ADS_CONSOLIDATED",
+               google_filter="ACCOUNT = 'Google US CONSOLIDATED'",
+               tiktok="VAHDAM_DB.MAPLEMONK1.TIKTOK_USA_TT_ADS_USA"),
+    "UK": dict(verified=False, meta="VAHDAM_DB.MAPLEMONK.META_UK_ADS_INSIGHTS",
+               google="VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_UK_AD_GROUP_AD_REPORT",
+               google_filter=None,
+               tiktok="VAHDAM_DB.MAPLEMONK1.TIKTOK_UK_TT_ADS_UK"),
+    "India": dict(verified=False, meta="VAHDAM_DB.MAPLEMONK.META_INDIA_ADS_INSIGHTS",
+                  google="VAHDAM_DB.MAPLEMONK.INDIA_GOOGLE_ADS_CONSOLIDATED",
+                  google_filter=None, tiktok=None),
+    "Global": dict(verified=False, meta=None,
+                   google="VAHDAM_DB.MAPLEMONK.GLOBAL_GOOGLE_ADS_CONSOLIDATED",
+                   google_filter=None, tiktok=None),
+}
+REGION_CODE = {"US": "US", "UK": "UK", "India": "IN", "Global": "GLOBAL"}
+
+_rcol, _rnote = st.columns([2.2, 3.8])
+region = _rcol.radio("Region", list(REGION_SOURCES), horizontal=True, index=0,
+                     help="Which market's ad accounts to read. US is the verified market.")
+_RS = REGION_SOURCES[region]
+if region == "US":
+    _rnote.success("**US — verified.** Every figure on this market has been reconciled "
+                   "against the warehouse.", icon="✅")
+elif region == "Global":
+    _rnote.warning("**Global — Google only.** No Meta or TikTok account is registered for "
+                   "Global, and the only global feed here is GLOBAL_GOOGLE_ADS_CONSOLIDATED. "
+                   "Nothing is estimated for the missing channels.", icon="⚠️")
+else:
+    _rnote.warning(f"**{region} — wired, not verified.** The feeds are real and the shape "
+                   "matches US, but no figure on this market has been reconciled yet. "
+                   "Treat it as indicative.", icon="⚠️")
+
+# Region drives the sources. US keeps the live discovery union (which carries the
+# no-double-counting guarantee); the other markets point at their single feed.
+if _RS["meta"]:
+    META_SRC = _RS["meta"]
+else:
+    META_SRC = _meta_src() if region == "US" else None
+if _RS["google"]:
+    GOOGLE_ADS = _RS["google"]
+    GOOGLE_ADS_FILTER = _RS["google_filter"] or "1=1"
+    GOOGLE_ADS_REL = google_dedup() if region == "US" else GOOGLE_ADS
+if _RS["tiktok"]:
+    TIKTOK = dict(TIKTOK, campaign=_RS["tiktok"], ad=_RS["tiktok"], adgroup=_RS["tiktok"])
+
+
+def region_accounts(status=("live",)):
+    """Registry accounts for the selected region — the one place account scope is
+    decided, so a view cannot accidentally mix markets or currencies."""
+    code = REGION_CODE[region]
+    return [a for a in AD_ACCOUNTS
+            if a.get("region") == code and (not status or a["status"] in status)]
 
 
 def date_clause(col: str, since, until) -> str:
@@ -1359,7 +1422,13 @@ def _resolve_all(selection):
 
 
 _f1, _f2, _f3, _f4 = st.columns([1.0, 1.6, 1.5, 0.9])
-platform_label = _f1.selectbox("Channel", ["Meta Ads", "Google Ads", "TikTok Ads"])
+_chan_opts = ([("Meta Ads", META_SRC)] if META_SRC else []) \
+    + ([("Google Ads", _RS["google"])] if _RS.get("google") else []) \
+    + ([("TikTok Ads", _RS["tiktok"])] if _RS.get("tiktok") else [])
+# Offer only channels this region really has a feed for. Listing a channel with no
+# source behind it produced an empty view that read as "no spend" rather than
+# "not connected for this market".
+platform_label = _f1.selectbox("Channel", [c for c, _ in _chan_opts] or ["(no feed)"])
 platform = platform_label.replace(" Ads", "")
 acct_col, _acct_opts = channel_accounts(platform)
 # Cascade: options come from THIS channel's own table, so picking Meta Ads only
@@ -1449,8 +1518,9 @@ def account_earliest_date(acct_id: str, table: str):
 
 
 def _us_live_accounts():
-    return [a for a in AD_ACCOUNTS
-            if a["status"] == "live" and a.get("region") == "US"]
+    """Live accounts for the SELECTED region (name kept: every caller means
+    'the accounts in scope', and scope is now the region control at the top)."""
+    return region_accounts(status=("live",))
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -1532,7 +1602,13 @@ else:
         "so the data grids will render dark. Confirm it is in the .streamlit/ "
         "SUBFOLDER of the app root: LIST @VAHDAM_DB.MAPLEMONK.STREAMLIT_STAGE/adsdashboardusa;"
     )
+# This diagnostic describes the US Meta discovery union specifically (which tables
+# were included, which were excluded as duplicates). It probes META_USA_ADS% by
+# construction, so running it under another region put US table names on screen
+# while that region was selected.
 try:
+    if region != "US":
+        raise RuntimeError(f"Meta source discovery is US-specific; not run for {region}.")
     _mrep = meta_source_report()
     st.sidebar.caption("Meta sources (" + str(len(_mrep["included"])) + "): "
                        + " · ".join(t.split(".")[-1] for t, _ in _mrep["included"]))
@@ -2415,14 +2491,15 @@ def render_ad_accounts():
         "additional ad platform — sits in MAPLEMONK1."
     )
 
-    live = [a for a in AD_ACCOUNTS if a["status"] == "live"]
-    ids = {(a["platform"], a["account_id"]) for a in AD_ACCOUNTS}
+    _scope = region_accounts(status=None)
+    live = [a for a in _scope if a["status"] == "live"]
+    ids = {(a["platform"], a["account_id"]) for a in _scope}
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Ad accounts", len(ids))
     c2.metric("Warehouse feeds", len(AD_ACCOUNTS))
     c3.metric("Live feeds", len(live))
-    c4.metric("Judged on ROAS", sum(1 for a in AD_ACCOUNTS if a["kpi"] == "roas"))
-    c5.metric("Judged on traffic", sum(1 for a in AD_ACCOUNTS if a["kpi"] == "traffic"))
+    c4.metric("Judged on ROAS", sum(1 for a in _scope if a["kpi"] == "roas"))
+    c5.metric("Judged on traffic", sum(1 for a in _scope if a["kpi"] == "traffic"))
 
     st.info(
         "**Two kinds of account, two kinds of scorecard.** Where a pixel or a platform conversion "
@@ -2473,9 +2550,9 @@ def render_ad_accounts():
     _s1, _s2 = st.columns([1, 1])
     st_filter = _s1.multiselect("Status", ["live", "paused", "superseded", "stale", "archive"],
                                 default=["live"])
-    pf_filter = _s2.multiselect("Platform", sorted({a["platform"] for a in AD_ACCOUNTS}),
-                                default=sorted({a["platform"] for a in AD_ACCOUNTS}))
-    rows = [a for a in AD_ACCOUNTS
+    pf_filter = _s2.multiselect("Platform", sorted({a["platform"] for a in _scope}),
+                                default=sorted({a["platform"] for a in _scope}))
+    rows = [a for a in _scope
             if (not st_filter or a["status"] in st_filter)
             and (not pf_filter or a["platform"] in pf_filter)]
     est = pd.DataFrame([{
@@ -2500,7 +2577,11 @@ def render_ad_accounts():
         "both schemas are required."
     )
     try:
-        rf = retail_funnel(since, until)
+        # Target/Costco sell-through is a US retail-partner construct.
+        rf = retail_funnel(since, until) if region == "US" else pd.DataFrame()
+        if region != "US":
+            st.info(f"The retail funnel (Target Roundel spend joined to Target-reported sales) "
+                    f"exists only for the US programme; there is no {region} equivalent feed.")
     except Exception as exc:  # noqa: BLE001
         st.warning(f"Retail funnel unavailable: {exc}")
         rf = pd.DataFrame()
@@ -3826,8 +3907,14 @@ def render_master_dashboard():
                     st.metric(label, "no rows on its latest day", help=a["label"])
                     st.caption(f"latest date in this feed is {d}, and it carries no rows")
         st.markdown("#### Daily trend — pick any metrics")
-        d1 = live_daily(META_ADS, "DATE_START", since, until)
-        d2 = live_daily(META_RETAIL, "DATE_START", since, until)
+        if region != "US":
+            st.info(f"The DTC vs Retail trend is specific to the US programme — it compares the "
+                    f"two US Meta accounts by name. Not shown for {region}, rather than "
+                    f"charting US spend under a {region} heading.")
+            d1 = d2 = pd.DataFrame()
+        else:
+            d1 = live_daily(META_ADS, "DATE_START", since, until)
+            d2 = live_daily(META_RETAIL, "DATE_START", since, until)
         if not d1.empty or not d2.empty:
             frames = []
             for lbl, dd in (("DTC (own site)", d1), ("Retail (Target / Costco)", d2)):
@@ -4192,7 +4279,7 @@ def render_master_dashboard():
         st.caption("Read from the warehouse at render time — this is the Snowflake app's own "
                    "answer, not a copied note.")
         checks = []
-        for a in AD_ACCOUNTS:
+        for a in region_accounts(status=None):
             try:
                 dc = "DATE_START"
                 if a["platform"] == "Google":
