@@ -16,6 +16,20 @@
     --serif:'Lao MN','Cormorant Garamond',Georgia,serif;
     --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
   }
+  .tree-crumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;margin:10px 0 12px}
+  .tree-crumb button{background:none;border:0;padding:0;cursor:pointer;color:var(--gold-deep);font:inherit;text-decoration:underline}
+  .tree-crumb button:hover{color:var(--head)}
+  .tree-crumb .sep{color:var(--dim)} .tree-crumb .cur{color:var(--dim)}
+  .trow{display:grid;grid-template-columns:minmax(0,2.2fr) repeat(4,minmax(70px,1fr)) auto;gap:10px;align-items:center;
+    width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;background:var(--surface);
+    border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:7px;transition:border-color .15s,transform .15s}
+  .trow:hover{border-color:var(--gold);transform:translateY(-1px)}
+  .trow .nm b{display:block;font-size:14px;color:var(--head);overflow-wrap:anywhere}
+  .trow .nm span{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+  .trow .mt i{display:block;font-style:normal;font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+  .trow .mt b{font-size:13px;font-weight:600;color:var(--text)}
+  .trow .go{font-family:var(--mono);color:var(--gold-deep)}
+  @media(max-width:760px){.trow{grid-template-columns:minmax(0,1fr) auto;row-gap:6px}.trow .mt{display:inline-block;margin-right:12px}}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5}
   .wrap{max-width:1280px;margin:0 auto;padding:26px 22px 90px}
@@ -79,6 +93,7 @@
   <div class="tabs" id="tabs">
     <button data-p="overview" class="on">Overview</button>
     <button data-p="rows">Campaign / ad rows</button>
+    <button data-p="tree">Campaigns → ad sets → ads</button>
     <button data-p="cohorts">Cohorts</button>
     <button data-p="metrics">Metrics &amp; accuracy</button>
     <button data-p="source">Source &amp; connection</button>
@@ -95,6 +110,12 @@
   <div class="panel" id="p-rows">
     <h2>Per-<span id="lvl-label">campaign</span> rows (all available metrics)</h2>
     <div id="rows-body"><div class="empty">Loading…</div></div>
+  </div>
+
+  <div class="panel" id="p-tree">
+    <h2>Account structure <span style="font-weight:400;font-size:14px;color:var(--dim)">— click a campaign for its ad sets, an ad set for its ads, an ad for its detail</span></h2>
+    <nav id="tree-crumb" class="tree-crumb" aria-label="Ads hierarchy"></nav>
+    <div id="tree-body"><div class="empty">Loading…</div></div>
   </div>
 
   <div class="panel" id="p-cohorts">
@@ -261,10 +282,85 @@
     loadCatalog();
     loadCohort();
   }
+  /* ── Meta-style drill-down: campaign → ad set → ad → ad detail ──────────
+     Each level is one aggregated row per entity from op=hierarchy (GROUP BY the
+     level's name column, scoped to the clicked ancestors). Ratios are derived
+     here from the additive sums, so they stay correct after aggregation. */
+  var TREE={campaign:null,adset:null,ad:null};
+  function tRatios(r){
+    var sp=num(r.spend)||0, im=num(r.impressions)||0,
+        lk=num(r.inline_link_clicks)||num(r.clicks)||0;
+    return {spend:sp,impressions:im,link:lk,
+            ctr: im? lk/im*100 : null, cpc: lk? sp/lk : null, cpm: im? sp/im*1000 : null};
+  }
+  function tRow(name, sub, r, isLeaf, onClick){
+    var m=tRatios(r);
+    var b=document.createElement('button'); b.type='button'; b.className='trow';
+    b.innerHTML='<div class="nm"><b>'+String(name==null?'(none)':name).replace(/</g,'&lt;')+'</b><span>'+sub+'</span></div>'+
+      '<div class="mt"><i>Spend</i><b>'+money(m.spend)+'</b></div>'+
+      '<div class="mt"><i>Impressions</i><b>'+intf(m.impressions)+'</b></div>'+
+      '<div class="mt"><i>Link clicks</i><b>'+intf(m.link)+'</b></div>'+
+      '<div class="mt"><i>Link CTR</i><b>'+(m.ctr==null?'—':pct(m.ctr))+'</b></div>'+
+      '<div class="go">'+(isLeaf?'\u25a4':'\u203a')+'</div>';
+    if(onClick) b.addEventListener('click',onClick);
+    return b;
+  }
+  function treeCrumb(){
+    var el=$('#tree-crumb'); if(!el) return; el.innerHTML='';
+    var parts=[['All campaigns',{campaign:null,adset:null,ad:null}]];
+    if(TREE.campaign) parts.push([TREE.campaign,{campaign:TREE.campaign,adset:null,ad:null}]);
+    if(TREE.adset) parts.push([TREE.adset,{campaign:TREE.campaign,adset:TREE.adset,ad:null}]);
+    if(TREE.ad) parts.push([TREE.ad,{campaign:TREE.campaign,adset:TREE.adset,ad:TREE.ad}]);
+    parts.forEach(function(pr,i){
+      if(i) el.insertAdjacentHTML('beforeend','<span class="sep">\u203a</span>');
+      if(i===parts.length-1){ el.insertAdjacentHTML('beforeend','<span class="cur">'+String(pr[0]).replace(/</g,'&lt;')+'</span>'); return; }
+      var b=document.createElement('button'); b.type='button'; b.textContent=pr[0];
+      b.addEventListener('click',function(){ TREE=pr[1]; loadTree(); });
+      el.appendChild(b);
+    });
+  }
+  function loadTree(){
+    treeCrumb();
+    var host=$('#tree-body'); if(!host) return;
+    // Ad detail: one aggregated row for the clicked ad.
+    var level = TREE.adset ? 'ad' : (TREE.campaign ? 'adset' : 'campaign');
+    var extra='&level='+level+(TREE.campaign?'&campaign='+encodeURIComponent(TREE.campaign):'')+(TREE.adset?'&adset='+encodeURIComponent(TREE.adset):'');
+    host.innerHTML='<div class="empty">Loading '+level+'s\u2026</div>';
+    get('hierarchy',extra).then(function(res){
+      if(res.not_connected){ host.innerHTML='<div class="empty">Snowflake not connected. Query it will run:<br><br><code>'+(res.would_query||'').replace(/</g,'&lt;')+'</code></div>'; return; }
+      if(!res.ok){ host.innerHTML='<div class="empty">'+((res.error||'No data')+'').replace(/</g,'&lt;')+'</div>'; return; }
+      var rows=res.rows||[];
+      if(!rows.length){ host.innerHTML='<div class="empty">No '+level+'s for this selection.</div>'; return; }
+      host.innerHTML='';
+      if(TREE.ad){   // detail for the selected ad
+        var hit=rows.filter(function(r){return String(r.name)===String(TREE.ad);})[0]||rows[0];
+        var m=tRatios(hit);
+        host.innerHTML='<div class="frame"><h2 style="margin-top:0">'+String(hit.name).replace(/</g,'&lt;')+'</h2>'+
+          '<div id="ad-detail-sc" class="scorecards">'+
+          [['Amount spent',money(m.spend)],['Impressions',intf(m.impressions)],['Link clicks',intf(m.link)],
+           ['Link CTR',m.ctr==null?'\u2014':pct(m.ctr)],['CPC',m.cpc==null?'\u2014':money(m.cpc)],['CPM',m.cpm==null?'\u2014':money(m.cpm)]]
+          .map(function(c){return '<div class="sc"><div class="k">'+c[0]+'</div><div class="v">'+c[1]+'</div></div>';}).join('')+'</div>'+
+          '<p class="note">Campaign: <b>'+String(TREE.campaign||'').replace(/</g,'&lt;')+'</b> \u00b7 Ad set: <b>'+String(TREE.adset||'').replace(/</g,'&lt;')+'</b> \u00b7 '+(hit.rows_n||0)+' source rows aggregated \u00b7 <code>'+(res.table||'')+'</code></p></div>';
+        return;
+      }
+      rows.forEach(function(r){
+        var isAd = level==='ad';
+        var sub = isAd ? 'Ad \u00b7 '+(r.rows_n||0)+' rows' : (level==='adset' ? 'Ad set' : 'Campaign')+' \u00b7 '+(r.rows_n||0)+' rows';
+        host.appendChild(tRow(r.name, sub, r, isAd, function(){
+          if(level==='campaign'){ TREE={campaign:r.name,adset:null,ad:null}; }
+          else if(level==='adset'){ TREE={campaign:TREE.campaign,adset:r.name,ad:null}; }
+          else { TREE={campaign:TREE.campaign,adset:TREE.adset,ad:r.name}; }
+          loadTree();
+        }));
+      });
+    }).catch(function(e){ host.innerHTML='<div class="empty">'+e.message+'</div>'; });
+  }
+
   document.getElementById('tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-p]');if(!b)return;
     document.querySelectorAll('#tabs button').forEach(function(x){x.classList.toggle('on',x===b);});
-    document.querySelectorAll('.panel').forEach(function(x){x.classList.toggle('on',x.id==='p-'+b.dataset.p);});});
-  $('#f-apply').addEventListener('click',load);
+    document.querySelectorAll('.panel').forEach(function(x){x.classList.toggle('on',x.id==='p-'+b.dataset.p);});
+    if(b.dataset.p==='tree') loadTree();});
+  $('#f-apply').addEventListener('click',function(){load();if(document.getElementById('p-tree').classList.contains('on'))loadTree();});
   $('#c-apply').addEventListener('click',loadCohort);
   (function(){var u=new Date(),s=new Date(Date.now()-30*864e5);$('#f-until').value=u.toISOString().slice(0,10);$('#f-since').value=s.toISOString().slice(0,10);})();
   load();
