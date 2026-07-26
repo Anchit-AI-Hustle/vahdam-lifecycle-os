@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.5"
+APP_BUILD = "2026-07-26.6"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -287,6 +287,25 @@ TIKTOK = {
 # 2026-07-25 (verified live 2026-07-26).
 GOOGLE_ADS = "VAHDAM_DB.MAPLEMONK.US_GOOGLE_ADS_CONSOLIDATED"
 GOOGLE_ADS_FILTER = "ACCOUNT = 'Google US CONSOLIDATED'"
+
+# This view carries EXACT DUPLICATE ROWS and summing it raw over-reports. Measured
+# 2026-07-26 inside ACCOUNT = 'Google US CONSOLIDATED': 32,265 rows for 24,575 fully
+# distinct rows, i.e. ~7,690 exact copies. The legitimate grain is
+# (ad, day, ad_network_type) - there are 10 network values (SEARCH, YOUTUBE, DISCOVER,
+# GMAIL, CONTENT, SEARCH_PARTNERS, ...) whose spend SHOULD sum; the copies sit on top
+# of that. Effect on 2026 YTD: spend $73,300.39 raw against $72,309.85 deduped
+# (+1.37%), conversion value $143,393.30 against $141,767.16 (+1.15%). ROAS is
+# UNAFFECTED at 1.96 because numerator and denominator inflate together - which is
+# exactly why this hid: the headline ratio looked right while the dollars did not.
+def google_dedup(where: str = "") -> str:
+    """Deduped subquery over the consolidated Google view. Always read through this
+    rather than the table directly, or absolute spend and revenue come out ~1.4% high."""
+    w = f"where {where}" if where else ""
+    return (f"(select * from {GOOGLE_ADS} {w} qualify row_number() over ("
+            "partition by AD_GROUP_AD_ID, SEGMENTS_DATE, "
+            "coalesce(SEGMENTS_AD_NETWORK_TYPE, '-'), coalesce(to_varchar(SPEND), '-'), "
+            "coalesce(to_varchar(IMPRESSIONS), '-'), coalesce(to_varchar(CLICKS), '-') "
+            "order by 1) = 1)")
 GOOGLE_ADGROUP_AD = "VAHDAM_DB.MAPLEMONK.US_GADS_AD_GROUP_AD_REPORT"
 GOOGLE_AMAZON = "VAHDAM_DB.MAPLEMONK.US_AMZ_GADS_AD_GROUP_AD_REPORT"
 
@@ -365,7 +384,9 @@ PARITY = [
     ("Meta", "Audience overlap, delivery insights, frequency distribution", None,
      "GAP: Ads Manager-only diagnostics, not available through the Insights API sync."),
     ("Google", "Spend, impressions, clicks, conversions, conversion value, CPC, CPM, CTR",
-     GOOGLE_ADS, "Consolidated view — 20 columns, the reporting spine."),
+     GOOGLE_ADS, "Consolidated view — 20 columns, the reporting spine. Read through "
+     "google_dedup(): the raw view holds ~7,690 exact duplicate rows and over-reports "
+     "2026 YTD spend by 1.37 percent."),
     ("Google", "Ad-level detail: 145 columns incl. ad strength and policy approval status",
      GOOGLE_ADGROUP_AD, "The full GAQL ad_group_ad report."),
     ("Google", "Avg CPV / CPE, engagements, engagement rate, video views and view rate",
@@ -2005,10 +2026,11 @@ def account_live_figures(acct_id: str, table: str, kpi: str, since, until):
                    f"where {sf_day('Event Date')} between '{since}' and '{until}'")
         elif reg["platform"] == "Google":
             if acct_id == "google_us":
-                sql = (f"select SPEND as spend, IMPRESSIONS as impressions, CLICKS as clicks, "
-                       f"CONVERSION_VALUE as revenue, CAMPAIGN_NAME as campaign from {table} "
-                       f"where SEGMENTS_DATE between '{since}' and '{until}' "
-                       f"and {GOOGLE_ADS_FILTER}")
+                # Deduped: the raw view double-counts (see google_dedup above).
+                sql = ("select SPEND as spend, IMPRESSIONS as impressions, CLICKS as clicks, "
+                       "CONVERSION_VALUE as revenue, CAMPAIGN_NAME as campaign from "
+                       + google_dedup(f"SEGMENTS_DATE between '{since}' and '{until}' "
+                                      f"and {GOOGLE_ADS_FILTER}"))
             else:
                 sql = (f'select "metrics.cost_micros" / 1000000.0 as spend, '
                        f'"metrics.impressions" as impressions, "metrics.clicks" as clicks, '
