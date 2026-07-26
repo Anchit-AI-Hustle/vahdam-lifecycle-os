@@ -21,10 +21,7 @@
     "express": "^4.21.2",
     "dotenv": "^17.2.3",
     "motion": "^12.23.24",
-<<<<<<< Updated upstream
     "framer-motion": "^12.40.0",
-=======
->>>>>>> Stashed changes
     "three": "^0.169.0",
     "@react-three/fiber": "^8.17.10",
     "@react-three/drei": "^9.114.3"
