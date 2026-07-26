@@ -60,6 +60,24 @@
     } catch (_) {}
   })();
 
+  // ─── Shared motion layer: load /motion.js once on every page ────────────
+  // Additive scroll-reveal + depth choreography (Design DNA / Motion). It is
+  // fully fail-safe (never hides content if it doesn't run) and self-skips the
+  // frozen diff snapshot + reduced-motion users. Loaded deferred so it never
+  // blocks first paint.
+  (function ensureMotion() {
+    try {
+      if (IS_FROZEN_DIFF) return;
+      var d = document;
+      if (d.querySelector('script[data-vh-motion]')) return;
+      var s = d.createElement('script');
+      s.src = '/motion.js?v=20260719';
+      s.defer = true;
+      s.setAttribute('data-vh-motion', '1');
+      (d.head || d.documentElement).appendChild(s);
+    } catch (_) {}
+  })();
+
   // Theme switcher removed — the theme is locked to green (see theme.css).
   // Clean up the old floating button if a cached page still has one.
   (function removeLegacyThemeSwitch() {
@@ -220,7 +238,18 @@
       { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
     ]},
     { id: 'designintel', label: 'Design Intelligence', href: '/design-intel', icon: 'insights', ver: 'v2', match: ['/design-intel', '/design-intelligence', '/design-intelligence.html'] },
-    { id: 'analysis', label: 'Data Analysis',      href: '/data-analysis',           icon: 'analysis', ver: 'v2', match: ['/data-analysis', '/data-analysis.html', '/analytics', '/dashboard.html', '/rfm'] },
+    { group: 'Data Analysis', icon: 'analysis', gid: 'dataanalysis', ver: 'v2', match: ['/data-analysis', '/data-analysis.html', '/analytics', '/dashboard.html', '/rfm', '/d2c-review', '/business-review', '/usa-d2c-report', '/usa-d2c-dashboard'], children: [
+      { id: 'da-control',  label: 'Control Room',                  href: '/data-analysis?tab=control',              icon: 'analysis' },
+      { id: 'da-acq',      label: 'Acquisition · Ads + LP',        href: '/data-analysis?tab=acq',                  icon: 'insights' },
+      { id: 'da-ret',      label: 'Retention · Mailer + LP',       href: '/data-analysis?tab=ret',                  icon: 'insights' },
+      { id: 'da-cohort',   label: 'Cohorts & Calendar',            href: '/data-analysis?tab=cohort',               icon: 'cohort' },
+      { id: 'da-liveads',  label: 'Live Ads (Meta/Google/TikTok)', href: '/data-analysis?tab=live-ads',             icon: 'ads' },
+      { id: 'da-mailer',   label: 'Mailer Intelligence',           href: '/data-analysis?tab=mailer-intelligence',  icon: 'insights' },
+      { id: 'da-landing',  label: 'Landing Pages & Experiments',   href: '/data-analysis?tab=landing-intelligence', icon: 'landing' },
+      { id: 'da-actions',  label: 'Actions & Outcomes',            href: '/data-analysis?tab=action-outcomes',      icon: 'insights' },
+      { id: 'da-alerts',   label: 'Alert Settings',                href: '/data-analysis?tab=alert-settings',       icon: 'insights' },
+      { id: 'da-review',   label: 'Sales & Business Review',       href: '/data-analysis?tab=review-overview',      icon: 'analysis', match: ['/d2c-review', '/business-review', '/usa-d2c-report', '/usa-d2c-dashboard'] },
+    ]},
     { group: 'Cohorts', icon: 'cohort', gid: 'cohorts', ver: 'v1', children: [
       { id: 'coh-overview',   label: 'Overview',            href: '/cohorts?tab=overview',   icon: 'cohort' },
       { id: 'coh-engagement', label: 'Engagement Cohorts',  href: '/cohorts?tab=engagement', icon: 'insights' },
@@ -249,23 +278,34 @@
     { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
+<<<<<<< HEAD
 <<<<<<< Updated upstream
     { id: 'storefront3d', label: '3D Storefront', href: '/3d', icon: 'vahdam', ver: 'v2', match: ['/3d', '/storefront-3d', '/shop-3d', '/storefront-3d.html', '/official-designs', '/official-designs.html', '/store-3d', '/designs'] },
 =======
     { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     { id: 'officialdesigns', label: 'Official Website Designs', href: '/official-designs', icon: 'vahdam', ver: 'v2', match: ['/official-designs', '/store-3d', '/designs', '/official-designs.html'] },
 >>>>>>> Stashed changes
+=======
+    // Independent LHS item (product-owner request 2026-07-25): the master ads
+    // knowledge base + performance dashboard compiled from the KT handover
+    // (emails, spend workbook, social update deck) + live connector reads.
+    { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html'] },
+>>>>>>> 79fb5cfb2945d1de257e930a52443d068452d5de
     { group: 'Ad Campaigns', icon: 'ads', gid: 'ads', ver: 'v1', children: [
+      { id: 'ads-perf',    label: 'Ad Performance', href: '/ads-dashboard', icon: 'analysis', ver: 'v2', match: ['/ads-dashboard', '/ad-performance', '/ads-dashboard.html'] },
       { id: 'ads-cal',     label: 'Calendar',   href: '/ad-campaigns.html#calendar', icon: 'calendar' },
       { id: 'ads-meta',    label: 'Meta Ads',   href: '/ad-campaigns.html#meta',     icon: 'meta' },
       { id: 'ads-google',  label: 'Google Ads', href: '/ad-campaigns.html#google',   icon: 'google' },
       { id: 'ads-tiktok',  label: 'TikTok Ads', href: '/ad-campaigns.html#tiktok',   icon: 'tiktok' },
     ]},
-    { group: 'Website Designs', icon: 'landing', gid: 'landing', ver: 'v1', children: [
-      { id: 'lp-overview', label: 'Designs Overview', href: '/website-designs', icon: 'landing', match: ['/website-designs', '/website-designs.html'] },
-      { id: 'web-us', label: 'US Website', href: '/website-designs?market=US', icon: 'vahdam' },
-      { id: 'web-uk', label: 'UK Website', href: '/website-designs?market=UK', icon: 'vahdam' },
-      { id: 'web-global', label: 'Global Website', href: '/website-designs?market=GLOBAL', icon: 'vahdam' },
+    { group: '3D Storefront & Websites', icon: 'landing', gid: 'landing', ver: 'v2', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d', '/store-3d', '/official-designs', '/official-designs.html', '/designs'], children: [
+      { id: 'store3d-all', label: '3D Storefront (overview)', href: '/3d', icon: 'vahdam', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d'] },
+      { id: 'web-us',     label: '🇺🇸 US Website',     href: '/3d/us',     icon: 'vahdam', match: ['/3d/us', '/store-3d-us'] },
+      { id: 'web-uk',     label: '🇬🇧 UK Website',     href: '/3d/uk',     icon: 'vahdam', match: ['/3d/uk', '/store-3d-uk'] },
+      { id: 'web-global', label: '🌍 Global Website',  href: '/3d/global', icon: 'vahdam', match: ['/3d/global', '/store-3d-global'] },
+      { id: 'web-india',  label: '🇮🇳 India Website',  href: '/3d/in',     icon: 'vahdam', match: ['/3d/in', '/3d/india', '/store-3d-in'] },
+      { id: 'lp-overview', label: 'Design References', href: '/website-designs', icon: 'landing', match: ['/website-designs', '/website-designs.html'] },
+      { id: 'lp-templates', label: 'Landing Page Templates', href: '/landing-page-templates', icon: 'landing', match: ['/landing-page-templates', '/templates', '/template-gallery', '/template-gallery.html'] },
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
       { id: 'lp-best-3d', label: '★ 3D Agent Page (motion)', href: '/lp/best-3d', icon: 'vahdam', match: ['/lp/best-3d'] },
       { id: 'lp-agent',   label: 'Landing Page with All-In-One Voice+Chat+Talk Agent',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
@@ -282,11 +322,11 @@
     { id: 'assets', label: 'Created Assets', href: '/assets', icon: 'analysis', ver: 'v1', match: ['/assets', '/assets.html'] },
 
     { section: 'Assistants' },
-    // SteepSense (internal team chat/info tool) and Vahdam Agent (customer-facing
+    // ChaiGPT (internal team chat/info tool) and Vahdam Agent (customer-facing
     // concierge) are conversational assistants and stay here. The former Smart
     // Brain moved to Plan and was renamed Automated Calendar Creation — it is a
     // calendar-creation feature, not a chat assistant, so it no longer lives here.
-    { id: 'chaigpt', label: 'SteepSense',   href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
+    { id: 'chaigpt', label: 'ChaiGPT',   href: '/chaigpt', icon: 'vahdam', ver: 'v1', match: ['/chaigpt', '/chai', '/ask', '/chaigpt.html'] },
     { id: 'agent',   label: 'Vahdam Agent', href: '/agent',   icon: 'vahdam', ver: 'v1', match: ['/agent', '/agent.html'] },
 
     { section: 'Settings' },
@@ -338,9 +378,25 @@
         ['Compilation + presentation', 'An overall rating, the blocker board, the scorecard and the roadmap, plus a downloadable Markdown audit.', '/audit']
       ]
     },
+    adsmaster: {
+      title: "Ad Campaigns Master Dashboard",
+      what: "The single source of truth for the USA paid ads program (Target + Costco): a performance dashboard over the KT spend workbook (125 Meta ads, 13 campaigns, May to 20 Jul) plus the complete ads knowledge base - every sheet, deck, drive folder and platform link from the KT emails as single-click links, the creative learnings from the Social Update deck, benchmarks, the UGC-dashboard automation runbook, the Costco dark-post launch config, owners and open gaps. Zero fabrication: every figure cites its KT source or a live connector read.",
+      who: "The paid ads team (Samvita, Kritagya, Anchit) and anyone onboarding onto the USA ads program - it IS the knowledge transfer, in product form.",
+      how: "Live-first, snapshot-honest: Live Now, Calendar and Tracker read /api/brain?action=ads-live, which unions BOTH live US Meta ad accounts (the DTC account and the Target/Costco retail account) from the warehouse and treats today as a partial day; when no live source is configured the page falls back to a committed snapshot and labels it as one. The Accounts tab renders the whole ad-account estate from data/ads/ad-accounts.json, built from the single registry in api/_shared/ads-snowflake-core.js. Knowledge comes from data/ads/master-kb.json and the ad-level export. Links that could not be resolved from this account are listed as pending-access with their owner, never invented.",
+      input: "Nothing to enter. Filters: objective, delivery status, free-text search, sort metric on the ads table; group, status and search on the knowledge base. New KT files extend master-kb.json.",
+      steps: [
+        ["Ideology", "One master surface for the ads program: knowledge (links, owners, runbooks) and performance (spend, benchmarks, verdicts) belong together."],
+        ["Data analysis + review + hypothesis", "KT files parsed (3 email threads, spend workbook, 28-slide social deck); rollups computed per campaign and objective; benchmarks derived from the data."],
+        ["Business & strategy decisions", "Portfolio verdicts: Sales engine clears the $0.80 bench, JoinBrands UGC traffic is the cheapest click, Awareness is the drag, July TikTok reads zero. Accounts are scored on what each can actually measure - ROAS only where a pixel or Google conversion fires, CTR/CPC/CPM where checkout happens on target.com, Instacart or amazon.com and no sale can ever be attributed back to the ad."],
+        ["Content", "Knowledge base compiled: 54 catalogued links (verified via the Google Drive connector where possible), people map, gaps register."],
+        ["Design + layout + structure", "Eleven tabs - Live Now, Calendar, Tracker, Accounts, SOP, Overview, Campaigns & Ads, Creative Intel, Organic & UGC, Knowledge Base, Ops & Data Sources - in the brand palette, white and green only, every table sortable and filterable and every chart carrying duration tiles."],
+        ["Coding", "Static page + committed JSON (no new serverless function; the Hobby 12-function limit is untouched).", "/ads-master"],
+        ["Final compilation + presentation", "Live Snowflake rows via the Ads Analysis page; Google Slides KT presentation generated from the same knowledge base.", "/ads-dashboard"]
+      ]
+    },
     chaigpt: {
-      title: 'SteepSense',
-      what: "INTERNAL TOOL, for the VAHDAM team only (not customer-facing). SteepSense is VAHDAM's own brand LLM: a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
+      title: 'ChaiGPT',
+      what: "INTERNAL TOOL, for the VAHDAM team only (not customer-facing). ChaiGPT is VAHDAM's own brand LLM: a conversational operator that actually RUNS the growth stack instead of just chatting: it queries analytics, reads competitor benchmarks, searches the knowledge base, and can generate calendars and campaign assets on explicit request.",
       who: "The operator (growth and retention team). Its recommendations span every cohort — the nine RFM segments (Champions through Lost) and the UK engagement cohorts (Non-Buyers/Non-Engagers and T&B Buyers/Non-Engagers).",
       how: "A provider-agnostic tool-calling loop: the model emits strict JSON actions, the server executes them against the same _shared cores the public API routes use, feeds results back, and loops (default 5 steps, up to 3 tools in parallel). Because tool calls are plain JSON, it works across the whole 6-provider text waterfall, including free tiers. An evidence contract forces every recommendation to quote exact tool-sourced figures.",
       input: "A plain-English question or instruction in the chat. Write and generate tools (generate_calendar, generate_assets_for_slot, run_agentic_campaign, klaviyo) fire only when you explicitly ask.",
@@ -463,13 +519,13 @@
         ['Classify', 'LLM classification tags each email with its angle, offer, and structure.', '/api/kb?action=classify-emails'],
         ['Brand-tag', 'Assets are attributed to brands, cross-referencing Competitor Benchmarking.', '/api/kb?action=brands'],
         ['Rank', 'Top-performing emails are ranked and kept fresh.', '/api/kb?action=top-emails'],
-        ['Serve', 'Generators and SteepSense search this library while writing new work.', '/api/kb?action=list'],
+        ['Serve', 'Generators and ChaiGPT search this library while writing new work.', '/api/kb?action=list'],
       ],
     },
     competitor: {
       title: 'Competitor Benchmarking',
       what: "Competitor intelligence: captures rival tea, coffee, and wellness brands' marketing emails from a dedicated Gmail inbox into a Google Sheet, renders them for side-by-side study, and distils benchmarks — cadence, offer depth, creative angles. It also owns brand discovery.",
-      who: "The strategy layer. Benchmarks feed SteepSense's evidence contract, Smart Brain planning, and the human planner — informing campaigns for every cohort.",
+      who: "The strategy layer. Benchmarks feed ChaiGPT's evidence contract, Smart Brain planning, and the human planner — informing campaigns for every cohort.",
       how: "One router dispatched by ?action=list|html|poll|sync. Poll reads the capture inbox over IMAP; parsed emails become rows (columns A–K) in the Google Sheet database; sync runs on a CRON_SECRET-protected schedule. Google auth is keyless via Workload Identity Federation (Vercel OIDC → Google STS → service-account impersonation), with a legacy JSON-key fallback.",
       input: "Subscribe the capture inbox to competitor newsletters — the system does the rest. Optionally add brands to discover and track.",
       steps: [
@@ -477,7 +533,7 @@
         ['Poll', 'IMAP polling pulls new messages and parses brand, subject, offer, and full HTML.', '/api/competitor?action=poll'],
         ['Store', 'Each email becomes a row (columns A–K) in the Google Sheet via keyless WIF auth.', '/api/competitor?action=sync (cron)'],
         ['Browse', 'The page lists captured emails and renders their full HTML for study.', '/api/competitor?action=list · ?action=html'],
-        ['Benchmark', 'Cadence, offer, and angle insights feed SteepSense, Smart Brain, and human planning.'],
+        ['Benchmark', 'Cadence, offer, and angle insights feed ChaiGPT, Smart Brain, and human planning.'],
       ],
     },
     calendar: {
@@ -704,6 +760,16 @@
     for (const it of leaves) {
       if ((it.match || []).some((m) => m !== '/' && p.startsWith(String(m).toLowerCase() + '/'))) return it.id;
     }
+    // 5. pathname-exact fallback IGNORING query/hash — when the URL carries a
+    //    ?tab=/#hash that matched no specific sub-tab leaf (steps 1-2), keep the
+    //    page's OWN group/leaf lit instead of falling through to Home. (Step 3
+    //    only fires when there is no query/hash; this covers the query/hash case.)
+    for (const it of leaves) {
+      if (it.href) {
+        const hp = it.href.split('#')[0].split('?')[0].toLowerCase();
+        if (hp !== '/' && hp === p) return it.id;
+      }
+    }
     return 'home';
   }
   // Pages that must never gate behind the login wall.
@@ -719,6 +785,10 @@
     // Legal/consent pages are always open (Google OAuth review + never lock a
     // user out of the privacy/terms pages).
     if (/(^|\/)(privacy|terms)(\.html)?$/.test(p)) return true;
+    // The HOMEPAGE must be publicly viewable (Google OAuth "app homepage"
+    // requirement: not behind a login page, and it explains the app's purpose).
+    // It renders a guest nav + a Sign in button, but is never walled.
+    if (p === '/' || p === '' || /(^|\/)index(\.html)?$/.test(p)) return true;
     // Otherwise a page is open ONLY if its nav leaf is explicitly flagged
     // open (Mailer Studio). Everything else requires Google sign-in.
     const id = currentStepId();
@@ -1360,7 +1430,7 @@
           max-width: 460px; width: 100%;
           background: #ffffff; border: 1px solid rgba(171,135,67,0.25);
           border-radius: 16px; padding: 40px 36px;
-          text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+          text-align: center; box-shadow: 0 20px 60px rgba(0,74,43,0.16);
         }
         #lifecycle-loginwall .llw-dot {
           width: 44px; height: 44px; border-radius: 50%;
@@ -1374,7 +1444,7 @@
         }
         #lifecycle-loginwall h1 {
           font-family: 'Lora','Inter',serif; font-size: 26px;
-          color: #FBF5EA; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em;
+          color: #171717; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em;
         }
         #lifecycle-loginwall h1 em { color: #AB8743; font-style: italic; }
         #lifecycle-loginwall p {
@@ -1384,7 +1454,7 @@
         #lifecycle-loginwall button {
           display: inline-flex; align-items: center; justify-content: center;
           gap: 10px; padding: 13px 22px;
-          background: #FBF5EA; color: #ffffff;
+          background: #004A2B; color: #ffffff;
           border: none; border-radius: 9px;
           font-family: inherit; font-size: 14px; font-weight: 600;
           letter-spacing: 0.02em; cursor: pointer;
@@ -1402,8 +1472,8 @@
           border-radius: 8px; margin-bottom: 18px;
         }
         #lifecycle-loginwall .llw-config {
-          color: #fbbf24; font-size: 11px; padding: 12px;
-          background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.25);
+          color: #7a5510; font-size: 11px; padding: 12px;
+          background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.4);
           border-radius: 8px; margin-top: 16px; text-align: left;
           font-family: 'JetBrains Mono', monospace; line-height: 1.6;
         }

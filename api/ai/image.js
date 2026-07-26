@@ -46,6 +46,26 @@ const AD_PROMPT_PREAMBLE = `Scroll-stopping paid social ad creative for VAHDAM I
 Ad creative:
 `;
 
+// Ambient / lifestyle backdrop ONLY — used for ads where the real product photo
+// is composited separately. The model must NEVER render product packaging: image
+// models fabricate garbled fake tins/labels, and ad branding + packaging must be
+// REAL. So this depicts only an empty tea scene (brewed cup, leaves, surface,
+// light) with no product, no tin, no box, no label, no text.
+const AMBIENT_PROMPT_PREAMBLE = `Photoreal ambient lifestyle backdrop for VAHDAM India premium tea brand — an atmospheric tea scene with NO product and NO packaging in frame. Show only: a freshly brewed cup of tea with rising steam, loose tea leaves, a marble or wood surface, warm natural light, soft shallow depth of field. ABSOLUTELY NO product packaging, NO tin, NO box, NO pouch, NO label, NO brand mark, NO logo, NO text, NO words, NO watermark, NO UI. The real product photo is added separately, so this frame must stay a clean product-free backdrop. Brand palette accents allowed: deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. Gallery-print resolution, zero AI smear artifacts.
+
+Scene:
+`;
+
+// Reels-grade cinematic frame — a still that is DESIGNED TO BE ANIMATED
+// (Higgsfield image-to-video, Ken Burns, parallax). Distinct from 'ad': no
+// baked-in text (kinetic type is layered at motion time), strong depth
+// separation for parallax, and clear negative space where type will land.
+// Used when mode === 'reels'.
+const REELS_PROMPT_PREAMBLE = `Cinematic 9:16 hero frame for a VAHDAM India premium tea Reel — the opening shot of a high-end social video, graded like a film still. Composition rules: strong foreground / midground / background depth separation (for parallax animation), a single clear subject, generous negative space in the upper third where kinetic typography will be layered later — so NO text, NO logos, NO watermarks, NO UI in the frame. Movement cues frozen mid-action welcome: steam curling, tea pouring, leaves drifting. Palette accents: deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. Packaging, if present, shows a gold botanical illustration only — NO readable lettering (label out of focus or angled away; never garbled fake text). Editorial food-film lighting, shallow depth of field, filmic colour grade.
+
+Frame:
+`;
+
 // Universal quality bar appended to every image prompt (all modes). Excludes
 // any "no text" directive on purpose — the per-mode preambles above own the
 // text policy (ads bake in an overlay; photos/designs handle it themselves).
@@ -117,6 +137,8 @@ module.exports = async function handler(req, res) {
   const isPremium = _tier === 'premium' || _tier === 'maxpower' || _tier === 'max-power' || _tier === 'max' || _tier === 'output' || _tier === 'quality';
   const preamble = (mode === 'design') ? DESIGN_PROMPT_PREAMBLE
     : (mode === 'ad') ? AD_PROMPT_PREAMBLE
+    : (mode === 'ambient') ? AMBIENT_PROMPT_PREAMBLE
+    : (mode === 'reels') ? REELS_PROMPT_PREAMBLE
     : IMAGE_PROMPT_PREAMBLE;
   // Reserve room so the quality bar always survives the 4000-char cap.
   const finalPrompt = (preamble + userPrompt).substring(0, 4000 - QUALITY_SUFFIX.length) + QUALITY_SUFFIX;
@@ -330,16 +352,51 @@ module.exports = async function handler(req, res) {
     return null;
   }
 
+  // ── Rung: Cloudflare Workers AI (free daily allowance — Flux-schnell) ────────
+  // Independent free bucket; only active when CLOUDFLARE_ACCOUNT_ID + _API_TOKEN
+  // are both set. Returns base64 JPEG in result.image (no data: prefix).
+  const CF_ACCOUNT = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
+  const CF_TOKEN   = (process.env.CLOUDFLARE_API_TOKEN || '').trim();
+  async function tryCloudflare() {
+    if (!CF_ACCOUNT || !CF_TOKEN) return null;
+    const model = process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell';
+    const url = 'https://api.cloudflare.com/client/v4/accounts/' + CF_ACCOUNT + '/ai/run/' + model;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    console.log('[image] Trying Cloudflare model=' + model);
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + CF_TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: finalPrompt.substring(0, 2000), steps: 6 }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (!r.ok) { console.warn('[image] Cloudflare → HTTP ' + r.status); return null; }
+      const data = await r.json().catch(() => null);
+      const b64 = data && data.result && data.result.image;
+      if (!b64 || b64.length < 5000) { console.warn('[image] Cloudflare — no image in response'); return null; }
+      console.log('[image] Success · Cloudflare ' + model);
+      return { provider: 'cloudflare', model, image_data_url: 'data:image/jpeg;base64,' + b64 };
+    } catch (e) {
+      clearTimeout(timeout);
+      console.error('[image] Cloudflare exception:', String(e.message || e).substring(0, 200));
+      return null;
+    }
+  }
+
   // ── Tier-ordered cascade ────────────────────────────────────────────────────
   const rungs = isPremium
     ? [
         tryOpenai,                                                             // gpt-image-2 → gpt-image-1
         () => tryGeminiNative(['gemini-3-pro-image-preview', 'gemini-2.5-flash-image']),
         () => tryImagen(['imagen-4.0-fast-generate-001']),
+        tryCloudflare,                                                         // free Flux bucket
         tryPollinations
       ]
     : [
         () => tryGeminiNative(['gemini-2.5-flash-image']),                     // free ~500/day
+        tryCloudflare,                                                         // free Flux bucket
         tryPollinations,                                                       // free floor
         tryOpenai                                                              // last paid resort
       ];

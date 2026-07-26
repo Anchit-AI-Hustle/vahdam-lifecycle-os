@@ -74,3 +74,10 @@ workers/.artifacts/
 # local dashboard build artifacts
 scratchpad/
 .env*
+<<<<<<< HEAD
+=======
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+>>>>>>> 79fb5cfb2945d1de257e930a52443d068452d5de

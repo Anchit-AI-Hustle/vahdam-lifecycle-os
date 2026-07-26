@@ -208,15 +208,33 @@ function placeholderImage(label, w, h) {
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
 
+// Stable non-crypto hash of a slot's identity → a deterministic gallery index, so
+// the SAME slot always resolves the SAME photo but DIFFERENT slots (even of the
+// same product) get DIFFERENT real photos. Not a security context.
+function slotHash(entry) {
+  const key = String(entry.id || `${entry.date || ''}|${entry.cohort_key || entry.cohort_label || ''}|${entry.hero_handle || entry.hero_product || ''}|${entry.play_key || ''}`);
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) { h = ((h << 5) + h) + key.charCodeAt(i); h |= 0; }
+  return Math.abs(h);
+}
+
 function resolveHero(entry, w, h) {
   // Real, already-hosted product image is the guarantee. Prefer an explicit
-  // hero_image on the slot; otherwise resolve the product's own catalog photo
-  // by handle (the generator does not always stamp hero_image, and older
-  // persisted rows never did — this is why Text + Visual heroes rendered as a
-  // broken data: placeholder). Only fall back to the fillable placeholder when
-  // the catalog genuinely has no photo for this handle.
-  const real = (entry.hero_image && /^https?:\/\//.test(entry.hero_image) ? entry.hero_image : null)
-    || catalogImage.imageFor(entry.hero_handle || entry.hero_product || entry, entry.market);
+  // hero_image on the slot; otherwise resolve the product's own catalog photo.
+  // For UNIQUENESS, rotate through the product's REAL PDP gallery keyed by the
+  // slot's identity, so two slots featuring the same product don't repeat one
+  // shot — while every image is still a genuine hosted product photo (zero
+  // fabrication). Only fall back to the fillable placeholder when the catalog
+  // genuinely has no photo for this handle.
+  if (entry.hero_image && /^https?:\/\//.test(entry.hero_image)) {
+    return { url: entry.hero_image, mode: 'catalog', size: `${w}x${h}`, prompt: null };
+  }
+  const gallery = catalogImage.imagesFor(entry.hero_handle || entry.hero_product || entry, entry.market, { width: Math.max(w, 1200) }) || [];
+  if (gallery.length) {
+    const idx = slotHash(entry) % gallery.length;
+    return { url: gallery[idx], mode: 'catalog', size: `${w}x${h}`, prompt: null, gallery_index: idx, gallery_size: gallery.length };
+  }
+  const real = catalogImage.imageFor(entry.hero_handle || entry.hero_product || entry, entry.market);
   if (real) {
     return { url: real, mode: 'catalog', size: `${w}x${h}`, prompt: null };
   }
@@ -245,6 +263,17 @@ async function loadEntryById(id) {
   return row ? (row.payload || null) : null;
 }
 
+// Load a slot's ALREADY-BUILT mailer (persisted by a prior build) so View/Download
+// return instantly instead of regenerating. Returns { payload, mailer } or null.
+async function loadPersistedMailer(id) {
+  const supa = supaIfConfigured();
+  if (!supa) return null;
+  const rows = await supa.select('lifecycle_calendar_entries', { filters: { id: `eq.${id}` }, limit: 1 }).catch(() => []);
+  const row = rows && rows[0];
+  if (!row) return null;
+  return { payload: row.payload || null, mailer: row.mailer || null, status: row.status || null };
+}
+
 async function persistMailer(id, mailer) {
   const supa = supaIfConfigured();
   if (!supa || !id) return { persisted: false, reason: supa ? 'no_entry_id' : 'supabase_not_configured' };
@@ -261,7 +290,22 @@ async function persistMailer(id, mailer) {
 
 // ─── Main entry point ────────────────────────────────────────────────────────
 
-async function buildLifecycleMailer({ id = null, entry = null } = {}) {
+async function buildLifecycleMailer({ id = null, entry = null, force = false } = {}) {
+  // Retrieve-first: if this slot was already built and persisted, return it
+  // instantly (no LLM) so View/Download load immediately. Only a real regenerate
+  // (force:true) rebuilds. Zero fabrication: we return exactly what was saved.
+  if (id && !force) {
+    const saved = await loadPersistedMailer(id).catch(() => null);
+    const savedMailer = saved && saved.mailer;
+    const savedVariants = savedMailer && Array.isArray(savedMailer.variants) ? savedMailer.variants : null;
+    if (savedMailer && (savedVariants ? savedVariants.length : (savedMailer.html || savedMailer.subject))) {
+      return {
+        ok: true, id, entry: saved.payload || entry, mailer: savedMailer,
+        variants: savedVariants && savedVariants.length ? savedVariants : [savedMailer],
+        persisted: true, retrieved: true, persistence: { persisted: true, retrieved: true },
+      };
+    }
+  }
   let row = entry;
   if (!row && id) row = await loadEntryById(id);
   if (!row) throw new Error('entry not found - pass { entry } inline or an { id } that exists in lifecycle_calendar_entries');
@@ -401,6 +445,9 @@ async function buildLifecycleMailer({ id = null, entry = null } = {}) {
     })(),
   };
 
+  // Embed the variants INTO the persisted mailer so a later retrieve-first returns
+  // all 4 variants (not just a single fallback).
+  if (!Array.isArray(mailer.variants) || !mailer.variants.length) mailer.variants = variants;
   const persistence = await persistMailer(row.id, mailer);
 
   return { ok: true, id: row.id || null, entry: row, mailer, variants, persisted: persistence.persisted, persistence };

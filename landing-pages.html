@@ -751,6 +751,22 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
       } catch (_) {}
       return;
     }
+    // Empty-state "Load a sample page" — makes Preview/Clone/Copy-prompt
+    // discoverable immediately, without waiting on an AI generation.
+    const smp = e.target.closest('[data-lp-sample]');
+    if (smp) {
+      const channel = smp.dataset.lpSample;
+      const key = 'lp-' + channel;
+      const list = JSON.parse(localStorage.getItem(key) || '[]');
+      list.unshift({
+        hero: 'Steep into stillness — Himalayan Green', sub: 'A quiet morning ritual, garden-fresh in 72 hours.',
+        offer: 'Free sample tin with your first order', notes: 'Sample page — try Preview, Clone and Copy AI prompt below.',
+        region: 'US', channel, created_at: new Date().toISOString(),
+      });
+      localStorage.setItem(key, JSON.stringify(list.slice(0, 50)));
+      loadLibrary(channel);
+      return;
+    }
   });
 
   // ─── Library renderer (merges Supabase cross-device rows + localStorage) ───
@@ -759,7 +775,12 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
   function renderLibrary(channel, rows) {
     const list = $('[data-list="' + channel + '"]');
     if (!list) return;
-    if (!rows.length) { list.innerHTML = '<div class="empty">No pages yet for ' + channel + '. Brief one on the left to start.</div>'; return; }
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty">No pages yet for ' + channel + '. Brief one on the left to start — every saved page gets ' +
+        '<b>Preview</b>, <b>Download</b>, <b>⧉ Clone</b> and <b>📋 Copy AI prompt</b> buttons.<br><br>' +
+        '<button type="button" class="lp-btn" data-lp-sample="' + channel + '">✦ Load a sample page to try it now</button></div>';
+      return;
+    }
     list.innerHTML = rows.map((p) => {
       const enc = encodeURIComponent(JSON.stringify({ hero: p.hero, sub: p.sub, offer: p.offer, notes: p.notes, region: p.region }));
       return `

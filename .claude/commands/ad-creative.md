@@ -26,4 +26,12 @@ Use the Higgsfield skills via the `higgsfield-*` toolchain:
 - **No banned phrases.** Lead with the feeling (calm, warmth, ritual), not the ingredient spec.
 - Save outputs to the repo root with descriptive names: `vahdam_{product}_{platform}_{format}_{WxH}.{ext}`.
 
+## Reels-grade quality bar (the "as good as real Reels" standard)
+The bar is what top reels actually do — not a slideshow of stills:
+1. **Stills built to animate**: generate hero frames via Higgsfield product-photoshoot or `/api/ai/image` with `mode:'reels'` (cinematic 9:16, depth-separated layers for parallax, negative space for type, NO baked text).
+2. **Real motion**: animate each frame with `higgsfield-generate` image-to-video (subtle push/pan/drift + organic motion only — steam, light; never added objects). Hook must move within 0.8s.
+3. **Kinetic type**: headlines animate in word-staggered, not all at once; hard cut only into the CTA card.
+4. **Instant preview / no-API fallback**: `scripts/lib/motion-ad.js` — `renderMotionAd(spec)` outputs a self-contained animated 9:16 HTML creative (layered Ken Burns, parallax veils, crossfades, kinetic type, CTA card), and `motionBrief(spec)` emits the same design as a shot-by-shot brief for Higgsfield/CapCut so the shipped MP4 matches the preview.
+5. **Non-negotiables**: real SKU packaging only (never AI-invented tins), one filmic grade, licensed audio only, total under 15s, safe-areas (7% sides, bottom 18% clear).
+
 Offer to mirror the assets into `ads_generated` and wire them to a campaign via `/campaign-plan`.

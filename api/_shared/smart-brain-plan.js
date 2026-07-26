@@ -515,7 +515,9 @@ async function strategyBrief(entry) {
       responseFormat: { type: 'json_object' },
       maxTokens: 900,
       temperature: 0.7,
-      timeoutMs: 30000,
+      // Optional enrichment on the on-demand path — keep it tightly bounded so it
+      // can never dominate the function budget (copy runs fine without it).
+      timeoutMs: 12000,
       stage: 'smart-brain-strategy',
       tier: 'premium',
     });
@@ -827,30 +829,54 @@ async function writeCopyWithLLM(entry, fw = null, brief = null) {
   // generation with no fallback — one hiccup on that provider failed the whole
   // mailer. Copy is critical, so it must run the FULL cascaded waterfall every
   // time (OpenAI -> Anthropic -> Gemini -> Grok -> Groq -> Cerebras).
-  const res = await callLLMTiered({
-    systemPrompt: BRAND_SYSTEM + sysLine,
-    userMessage: copyPrompt(entry, fw, brief),
-    responseFormat: { type: 'json_object' },
-    // 1800 truncated the full email+landing+ads copy object on some providers, so
-    // the JSON came back incomplete and the whole mailer fell to template copy.
-    // 3200 gives the object room to close on every provider in the waterfall.
-    maxTokens: 3200,
-    temperature: 0.75,
-    timeoutMs: 40000,
-    stage: 'smart-brain-copy',
-    tier: 'premium',
-  });
-  const json = parseJSON(res.text);
-  if (!json || !json.email || !json.landing || !json.ads) {
-    // Distinguish the two real causes so the reviewer knows whether to fund a key
-    // or just Regenerate: empty text = no provider answered (quota/keys); non-empty
-    // but unparseable/partial = a provider replied with truncated or non-JSON copy.
+  // Copy is critical, so make it resilient to a transient rate-limit STORM (the
+  // free Gemini/Groq tiers can all 429 at once when Smart Brain fires many slots)
+  // AND to a reasoning-model TRUNCATION of the big email+landing+ads JSON. Each
+  // round re-runs the FULL premium->standard->fast waterfall; between rounds we
+  // back off (so per-minute limits reset) and widen maxTokens (so the object has
+  // more room to close). Only after every round fails do we surface the error that
+  // drops the slot to template copy.
+  // Bounded so the whole copy pipeline (this ×2 directions + optional brief) stays
+  // well under the serverless function budget. 2 rounds with a short backoff; the
+  // wider token budget on the retry lets a reasoning model close the JSON.
+  const ROUNDS = [
+    { maxTokens: 3600, waitBefore: 0 },
+    { maxTokens: 4096, waitBefore: 1500 },
+  ];
+  let lastErr;
+  for (let i = 0; i < ROUNDS.length; i++) {
+    const r = ROUNDS[i];
+    if (r.waitBefore) await new Promise((res) => setTimeout(res, r.waitBefore));
+    let res;
+    try {
+      res = await callLLMTiered({
+        systemPrompt: BRAND_SYSTEM + sysLine,
+        userMessage: copyPrompt(entry, fw, brief),
+        responseFormat: { type: 'json_object' },
+        maxTokens: r.maxTokens,
+        temperature: 0.75,
+        timeoutMs: 20000,
+        stage: 'smart-brain-copy',
+        tier: 'premium',
+      });
+    } catch (e) {
+      // Whole waterfall threw (every provider rate-limited/failed this round).
+      lastErr = new Error('no LLM provider returned copy (all text keys missing or quota-exhausted for this deployment)');
+      continue; // back off + retry the waterfall
+    }
+    let json = null;
+    try { json = parseJSON(res.text); } catch (_) { json = null; }
+    if (json && json.email && json.landing && json.ads) {
+      return { copy: json, provider: res.provider, model: res.model };
+    }
+    // Non-empty but incomplete/unparseable (usually a reasoning model truncating
+    // the big JSON). Retry with more room / a fresh roll of the waterfall.
     const empty = !res.text || !String(res.text).trim();
-    throw new Error(empty
+    lastErr = new Error(empty
       ? 'no LLM provider returned copy (all text keys missing or quota-exhausted for this deployment)'
-      : `LLM copy JSON incomplete from ${res.provider || 'provider'} (reply was ${String(res.text).length} chars) — Regenerate to retry the waterfall`);
+      : `LLM copy JSON incomplete from ${res.provider || 'provider'} (reply was ${String(res.text).length} chars)`);
   }
-  return { copy: json, provider: res.provider, model: res.model };
+  throw lastErr || new Error('copy generation failed');
 }
 
 // Deep brand scrub of an LLM copy object: every string through sanitizeBrand
@@ -1085,7 +1111,12 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
     const fwA = CF.pickCopyFramework({ play_key: entry.objective || '', cohort_key: (entry.cohort && (entry.cohort.key || entry.cohort.name)) || '', seed: entry.id || entry.date || '' });
     const otherKeys = Object.keys(CF.COPY_FRAMEWORKS).filter((k) => k !== fwA.key);
     const fwB = CF.frameworkByKey(otherKeys[CF.stableIndex(`${entry.id || entry.date || ''}|b`, otherKeys.length)]) || fwA;
-    const [pA, pB] = await Promise.allSettled([writeCopyWithLLM(entry, fwA, brief), writeCopyWithLLM(entry, fwB, brief)]);
+    // Stagger the two copy directions by ~600ms so they don't hit the same
+    // provider's per-minute limit in the exact same instant (reduces burst-429s).
+    const [pA, pB] = await Promise.allSettled([
+      writeCopyWithLLM(entry, fwA, brief),
+      (async () => { await new Promise((r) => setTimeout(r, 600)); return writeCopyWithLLM(entry, fwB, brief); })(),
+    ]);
     if (pA.status !== 'fulfilled' && pB.status !== 'fulfilled') {
       throw new Error('copy generation failed for both directions: ' + String((pA.reason && pA.reason.message) || pA.reason));
     }
@@ -1161,12 +1192,18 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   const { entry, row } = await resolveEntry({ id, inlineEntry, config, db });
   if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
 
-  // Approved/final slots always return the FINAL saved campaign — the reviewer
-  // sees exactly what ships, never a fresh regeneration.
+  // Approved/final slots return the FINAL saved campaign — the reviewer sees
+  // exactly what ships, never a fresh regeneration — EXCEPT when that saved
+  // campaign is a stale template fallback (copywriter.provider ===
+  // 'template-fallback'), i.e. it was built during an LLM outage. Returning it
+  // would replay the "template fallback" warning forever, so we skip it and fall
+  // through to republishOrphan below, which rebuilds real copy now that providers
+  // are healthy and re-persists under the same id (so /lp links still resolve).
   if (db.connected && row && (row.status === 'approved' || row.status === 'final') && row.generated_campaign_id) {
     const fin = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${row.generated_campaign_id}` }, limit: 1 }).catch(() => []);
     const c = fin && fin[0] && fin[0].payload;
-    if (c) {
+    const cIsFallback = !!(c && c.copywriter && c.copywriter.provider === 'template-fallback');
+    if (c && !cIsFallback) {
       return {
         ok: true, preview: false, persisted: true, campaign: c,
         copywriter: c.copywriter,
@@ -1181,7 +1218,7 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     // effort with creatives; buildCampaign falls back to template assets if the
     // LLM/image providers are unavailable, so it never blocks the reviewer.
     try {
-      const healedC = await republishOrphan(db, config, entry, row, { reviewer, withCreatives: 'hero', noLLM: false });
+      const healedC = await republishOrphan(db, config, entry, row, { reviewer, withCreatives: false, noLLM: false });
       return {
         ok: true, preview: false, persisted: true, healed: true, campaign: healedC,
         copywriter: healedC.copywriter,
@@ -1203,14 +1240,26 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${reuseId}` }, limit: 1 }).catch(() => []);
     if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
   }
-  // Fallback (slot never built yet): build copy + layout + the EMAIL HERO image
-  // only ('hero'). Generating all 5 images inline overran the function limit and
-  // returned a non-JSON timeout page; a single hero stays within budget so View
-  // shows a complete mailer (hero included) instead of an image-less shell. The
-  // full ad/LP image set still comes from the prebuild queue or Download.
+  // AUTO-HEAL stale template fallbacks. A slot built during an earlier LLM outage
+  // persisted template-fallback copy (copywriter.provider === 'template-fallback')
+  // and would otherwise be REPLAYED forever — showing the "template fallback"
+  // warning even though providers now work. Treat such a bundle as not-built so the
+  // block below regenerates it through the (now healthy) cascade and re-persists a
+  // real campaign. Self-limiting: only fires for fallback bundles, once each.
+  if (campaign && campaign.copywriter && campaign.copywriter.provider === 'template-fallback') {
+    campaign = null;
+  }
+  // Fallback (slot never built yet): build copy + layout with REAL CATALOG PHOTOS
+  // as the hero/product imagery — NO inline image GENERATION. Generating even one
+  // hero image invokes the image cascade (up to a 60s per-image budget); combined
+  // with the multi-call LLM copy that overran api/calendar's function limit and
+  // returned a 504 (so nothing built/persisted). Catalog photos are a fast URL
+  // lookup, so View returns a complete, real-photo mailer well within budget. The
+  // GENERATED lifestyle/ad image set still comes from the background prebuild queue
+  // (its own per-batch budget) or Download.
   let builtFresh = false;
   if (!campaign) {
-    campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: 'hero' });
+    campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: false });
     campaign.status = 'preview';
     campaign.calendar_entry_id = entry.id || id || null;
     builtFresh = true;

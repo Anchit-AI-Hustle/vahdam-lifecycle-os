@@ -15,7 +15,7 @@
  * Rename the product: change BRAND_LLM_NAME below (single source of truth).
  */
 
-const BRAND_LLM_NAME = 'SteepSense';
+const BRAND_LLM_NAME = 'ChaiGPT';
 const BRAND_LLM_TAGLINE = "VAHDAM's brand intelligence — steeped in your own data";
 
 const core = require('./brain-core.js');
@@ -29,6 +29,7 @@ const marketAnalytics = require('./market-analytics.js');
 const webengage = require('./webengage-core.js');
 const agentic = require('./agentic-orchestrator.js');
 const klaviyo = require('./klaviyo-core.js');
+const adInsights = require('./ad-insights-core.js');
 
 let callLLM = null;
 try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
@@ -115,9 +116,14 @@ const TOOLS = {
     desc: 'REAL sales performance from our Shopify order exports (US or UK): top products by revenue AND by units (exact net sales, quantity, orders), full monthly revenue trend, month-on-month change, the CURRENT month run-rate PROJECTION, product-type mix, channel split, discount split, returning-customer rate. USE THIS for any "top/best/most-selling product", revenue, orders, AOV, trend, run-rate or projection question. params: {market} (US|UK, defaults to current market).',
     run: async (a) => marketAnalytics.performance(a.market || a.region || 'US'),
   },
+  audience_base: {
+    mutates: false,
+    desc: 'REAL customer / audience base for a market, straight from the Shopify export: unique purchasing customers over the window (new + returning), returning-customer rate, orders. USE THIS for any "audience base / customer base / how many customers / how big is our audience" question — it is the ONLY source for the real customer-base SIZE. Do NOT quote list_cohorts counts as the audience size (those are a modelled RFM sample). params: {market} (US|UK, defaults to current market).',
+    run: async (a) => marketAnalytics.audience(a.market || a.region || 'US'),
+  },
   ask_analytics: {
     mutates: false,
-    desc: 'Answer an RFM / cohort / customer-segment analytics question from our Supabase data. params: {question}. NOTE: for product/revenue/top-seller/trend/projection questions use market_performance instead (real Shopify export numbers).',
+    desc: 'Answer an RFM / cohort / customer-segment analytics question from our Supabase data. params: {question}. NOTE: for product/revenue/top-seller/trend/projection questions use market_performance; for audience/customer-base SIZE ("how many customers", "our audience base") use audience_base (real Shopify totals) — not this.',
     run: async (a) => agents.analyze({ message: a.question || a.message || '' }),
   },
   webengage_performance: {
@@ -126,6 +132,13 @@ const TOOLS = {
     run: async (a) => ((a.op || 'campaigns') === 'summary'
       ? webengage.eventSummary({ hours: a.hours ? parseInt(a.hours, 10) : 24, market: a.market })
       : webengage.campaignPerformance({ event: a.event || 'Notification Clicked', hours: a.hours ? parseInt(a.hours, 10) : 24, market: a.market })),
+  },
+  ad_insights: {
+    mutates: false,
+    desc: 'REAL paid-ads performance pulled from each platform\'s OWN reporting API — Meta Ads (Graph Insights), Google Ads (GAQL) and TikTok Ads (Business report) — PER CAMPAIGN or PER AD. Every result leads with the client priority metrics IN ORDER: Amount spent, Frequency, Hook Rate, Through Rate, Reach, Cost Per Reach, Impressions, Link clicks, CTR, CPC, CPM, 3-sec video plays, video plays 25/50/75%, Cost per 3-sec play (in result.priority_metrics + result.rows). Report those first, before any other metric. Region-aware: pass {market} (US|UK). params: {platform?("meta"|"google"|"tiktok"; omit for ALL three), level?("campaign"|"ad"|"account", default campaign), market?, since?(YYYY-MM-DD), until?}. If a platform\'s keys are not set it returns the exact request it would send (never a fabricated number) — relay that the platform needs connecting.',
+    run: async (a) => (a.platform
+      ? adInsights.insights({ platform: a.platform, market: a.market, level: a.level, since: a.since, until: a.until })
+      : adInsights.summary({ market: a.market, level: a.level, since: a.since, until: a.until })),
   },
   run_analysis: {
     mutates: false,
@@ -159,8 +172,8 @@ const TOOLS = {
   },
   list_cohorts: {
     mutates: false,
-    desc: 'List active customer cohorts (highest value first). No params.',
-    run: async () => ({ cohorts: await core.db().select('smart_cohorts', { limit: 50, order: 'value_score.desc', filters: { active: 'eq.true' } }) }),
+    desc: 'List active customer cohorts (RFM value segments), highest value first — use for the SHAPE of the base (which segments exist, their relative value/LTV ranking). IMPORTANT: any per-cohort profile counts here are a modelled RFM sample, NOT the real customer-base size — never sum them or quote them as "total customers / audience base". For the real audience SIZE use audience_base. No params.',
+    run: async () => ({ note: 'Cohorts are RFM value segments; per-cohort counts are a modelled sample, not the real customer-base size. For real audience size call audience_base.', cohorts: await core.db().select('smart_cohorts', { limit: 50, order: 'value_score.desc', filters: { active: 'eq.true' } }) }),
   },
   get_calendar: {
     mutates: false,
@@ -292,18 +305,74 @@ function sanitizeReply(raw) {
   if (!s) return '';
   s = s.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim();
   s = s.split('\n').filter((line) => !LEAK_MARKERS.some((re) => re.test(line))).join('\n').trim();
+  // Kill mustache/template placeholders like {{mailer_html_for_at_risk_cohort}} —
+  // the model must never emit these; real assets are rendered as clickable cards.
+  s = s.replace(/\{\{[^}]{0,120}\}\}/g, '(see the asset card below)');
   return s;
 }
 
-function systemPrompt(market) {
-  return `You are ${BRAND_LLM_NAME} — ${BRAND_LLM_TAGLINE}. You are the in-house AI operator for VAHDAM Teas (premium Indian heritage tea, B-Corp, single-estate, garden-fresh within 72 hours). You don't just chat — you OPERATE the brand's growth stack by calling tools, then explain the results like a sharp, warm growth lead.
+// Pull renderable ASSETS out of a tool result into a CLIENT-ONLY channel (never
+// fed back to the model — keeps its context small) so the chat UI can show real
+// View / Download buttons instead of the model pasting HTML or placeholders.
+function collectAssets(name, result, into) {
+  if (!result || typeof result !== 'object' || !Array.isArray(into)) return;
+  const seen = new Set(into.map((a) => a.url || (a.html || '').slice(0, 80)));
+  const add = (o) => {
+    if (!o || (!o.html && !o.url) || into.length >= 16) return;
+    const key = o.url || (o.html || '').slice(0, 80);
+    if (seen.has(key)) return; seen.add(key);
+    into.push(o);
+  };
+  if (typeof result.html === 'string' && result.html.length > 200) add({ label: 'Mailer' + (result.entry_id ? ' · ' + result.entry_id : ''), kind: 'mailer', html: result.html });
+  const m = result.mailer;
+  if (m && typeof m === 'object') {
+    if (typeof m.html === 'string') add({ label: 'Mailer', kind: 'mailer', html: m.html });
+    if (Array.isArray(m.variants)) m.variants.forEach((v, i) => { if (v && v.html) add({ label: v.label || ('Variant ' + (i + 1)), kind: 'mailer', html: v.html }); });
+  }
+  if (Array.isArray(result.variants)) result.variants.forEach((v, i) => { if (v && v.html) add({ label: v.label || ('Variant ' + (i + 1)), kind: 'mailer', html: v.html }); });
+  if (Array.isArray(result.assets)) result.assets.forEach((a) => { if (a && a.url) add({ label: a.slot || a.kind || 'Asset', kind: a.kind || 'image', url: a.url }); });
+  if (Array.isArray(result.campaigns)) result.campaigns.forEach((c) => { if (c && c.id) add({ label: 'Landing page · ' + (c.theme || c.market || c.id), kind: 'landing', url: '/lp/' + c.id }); });
+}
 
-CURRENT MARKET: ${market || 'NOT YET SPECIFIED'} (store domains: US vahdam.com · UK vahdam.co.uk · Global vahdam.global · IN vahdam.in).
+// A PUBLISHABLE final answer — never blank, never raw JSON/array scaffolding like
+// the "[ ]" a stray {"action":"final","reply":[]} used to render. Returns '' when
+// the text is unusable so the caller can synthesize a real fallback instead.
+function cleanFinal(raw) {
+  let r = sanitizeReply(typeof raw === 'string' ? raw : (raw == null ? '' : JSON.stringify(raw)));
+  r = String(r || '').trim();
+  if (!r) return '';
+  if (/^[\[\]{}()\s"'`,:;.\-]*$/.test(r)) return '';        // only brackets/punctuation/whitespace
+  if (/^[\[{][\s\S]*[\]}]$/.test(r) && !/\s[a-z]/i.test(r.replace(/["'\[\]{}:,]/g, ''))) return ''; // a bare JSON blob
+  return r;
+}
+// When the model returns nothing usable, don't show a blank — summarize what the
+// tools actually returned (and point at the real cause: no funded text key).
+function synthFromWorking(working) {
+  if (working && working.length) {
+    const used = working.map((w) => w.tool).filter((v, i, a) => a.indexOf(v) === i);
+    return `I pulled live data from ${used.join(', ')}, but the language model did not return a written summary this turn — the exact figures are in the tool trace above. This usually means no funded text provider answered; set OPENAI_API_KEY or ANTHROPIC_API_KEY (or check quota) for full narrative answers. You can also ask me to "summarize what you found".`;
+  }
+  return 'I could not compose an answer just now. Please rephrase, or check that a text-LLM key (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY) is set and not quota-exhausted for this deployment.';
+}
+
+function systemPrompt(market) {
+  const mk = (market && String(market).trim()) || '';
+  const regionBlock = mk
+    ? `CURRENT MARKET: ${mk} — this is the region the user SELECTED in the UI. It is the ACTIVE region (store domains: US vahdam.com · UK vahdam.co.uk · Global vahdam.global · IN vahdam.in).
 
 REGION CONTEXT (important):
-- If the question depends on region (performance, catalog, pricing, calendar, audience, cohorts, revenue) and the market above is NOT YET SPECIFIED and the user has NOT stated one earlier in this conversation, ASK ONE short clarifying question first — "Which region should I use — US, UK, IN, or Global?" — and stop there (action:final). Do not guess or default to US.
-- Once the user states a region (now or earlier in the conversation), treat it as the ACTIVE region and keep using it for every following answer WITHOUT asking again — until they explicitly change it. Read the conversation history to recover the region they already chose.
-- Note real-data coverage: live Shopify-export sales exist for US and UK only; for IN/Global say so plainly and offer what IS available.
+- The ACTIVE region above is already set by the user's selector. Use it for EVERY region-dependent answer and action — performance, catalog, pricing, calendar, audience, cohorts, revenue, ad insights AND asset generation (mailers/ads/landing pages). Do NOT ask "which region" — it is already chosen. Pass this market to every tool that takes one.
+- Only override it for a single answer if the user EXPLICITLY names a different region in their message (e.g. "and in the UK?"). Then go back to the active region.
+- Real-data coverage: live Shopify-export sales exist for US and UK only; for IN/Global say so plainly and offer what IS available.`
+    : `CURRENT MARKET: NOT YET SPECIFIED (store domains: US vahdam.com · UK vahdam.co.uk · Global vahdam.global · IN vahdam.in).
+
+REGION CONTEXT (important):
+- If the question depends on region (performance, catalog, pricing, calendar, audience, cohorts, revenue, ad insights) and no region is set and the user has NOT stated one earlier in this conversation, ASK ONE short clarifying question first — "Which region should I use — US, UK, IN, or Global?" — and stop there (action:final). Do not guess or default to US.
+- Once the user states a region, treat it as the ACTIVE region for every following answer WITHOUT asking again — until they explicitly change it.
+- Real-data coverage: live Shopify-export sales exist for US and UK only; for IN/Global say so plainly and offer what IS available.`;
+  return `You are ${BRAND_LLM_NAME} — ${BRAND_LLM_TAGLINE}. You are the in-house AI operator for VAHDAM Teas (premium Indian heritage tea, B-Corp, single-estate, garden-fresh within 72 hours). You don't just chat — you OPERATE the brand's growth stack by calling tools, then explain the results like a sharp, warm growth lead.
+
+${regionBlock}
 
 YOU CAN CALL THESE TOOLS:
 ${toolManifest().map((t) => `- ${t.name}${t.mutates ? ' [writes/generates — only on explicit user request]' : ''}: ${t.description}`).join('\n')}
@@ -331,7 +400,7 @@ PERFORMANCE questions ("which product/collection/bundle is best/worst", "how is 
 3. the current month's PROJECTION from current_month_projection, quoting its stated basis;
 4. WHAT IS WORKING and how to SCALE or MAINTAIN it (specific, doable in this app);
 5. any GAPS, RISKS or ISSUES you notice, called out explicitly (a dip, a thinning cohort, over-reliance on one product, a stalled repeat rate).
-State the data window (market_performance.window_note) so the user knows the period. Never estimate what a tool can return — call the tool. If market_performance returns no data for a market (e.g. Global), say so and name US/UK as the markets with real exports.
+State the data window (market_performance.window_note) so the user knows the period; note when data_source is "shopify_admin_live" (a live Shopify Admin snapshot, e.g. US) vs a CSV export (e.g. UK). Never estimate what a tool can return — call the tool. If market_performance returns ok:false for a market (e.g. Global or India), relay its message verbatim — that the market's Shopify store must be authorized via the Shopify MCP (or a CSV export dropped in) — and name US/UK as the markets that currently have real data. Never fabricate a figure for an unauthorized market.
 
 FINAL-ANSWER FORMAT:
 - Recommendation / strategy / "what should we do" questions → a DETAILED, structured markdown reply: the answer in 1–2 lines, then "**What the data shows**" (bulleted exact numbers with tool sources), "**Hypothesis**", "**Expected metric impact**", "**Competitor benchmark**" (quoted figures), "**Next actions**" (numbered, each doable inside this app with slot ids/dates where relevant).
@@ -345,6 +414,10 @@ RULES:
 - Prefer real data over guessing FOR OUR OWN NUMBERS: if a question is about our numbers, audience, calendar, competitors, or Klaviyo, CALL TOOLS before answering — batched in parallel when independent, chained (e.g. get_calendar → generate_assets_for_slot) when dependent.
 - PRODUCTS & LINKS (critical): to name a product or give a product link, you MUST first call catalog_products and use ONLY the exact name, price and url it returns. NEVER invent, guess, shorten or edit a product handle or URL, and never use a vahdamteas.com/vahdamindia.com domain — the only valid domains are vahdam.com / vahdam.co.uk / vahdam.global / vahdam.in. If catalog_products returns nothing for the query, say you could not find that product rather than guessing a link.
 - Never invent figures. If a tool returns 'not_connected' or empty, say so plainly and state what's needed (e.g. "set KLAVIYO_API_KEY").
+- AUDIENCE / CUSTOMER-BASE SIZE (critical): for "our audience base", "how many customers", "customer count", "how big is our list", ALWAYS use audience_base (real Shopify totals) for the SIZE. NEVER report the profile counts from list_cohorts / ask_analytics cohorts as the audience size — those are a modelled RFM sample (a few hundred rows) and are NOT the real base. Use list_cohorts only for the value-segment SHAPE. State the window and that it is purchasing customers; if asked for total subscribers/list size, say that needs Klaviyo (not connected).
+- PAID ADS PERFORMANCE (critical): for any Meta / Facebook / Instagram / Google / TikTok ad question — spend, ROAS, conversions, impressions, clicks, CTR, CPC, reach, engagement, video views — use ad_insights (real data from each platform's own reporting API), scoped to the region. NEVER invent ad numbers. If a platform's keys aren't set, ad_insights returns the exact request it would send — relay that that platform needs connecting (name the env vars) rather than guessing a figure.
+- GENERATED ASSETS: when you generate mailers/ads/landing pages, the chat UI automatically renders each real asset as a clickable View / Download card below your message. So DO NOT paste raw HTML, and NEVER emit template placeholders like {{mailer_html_for_...}} or {{...}} — just briefly describe what was generated and refer the user to the asset cards below.
+- SELF-SUFFICIENCY (critical): NEVER ask the user for data you can fetch yourself with a tool — calendar/slot/entry IDs, mailer or landing-page HTML, cohort definitions, product handles/prices, audience sizes, metrics. If you need an entry to act on (e.g. to fill a mailer's asset slots), FIRST call get_calendar (or list_campaigns / list_cohorts) to resolve the real slot/entry IDs for the market, THEN call the generate/asset tool with those IDs — do NOT reply "share the entry IDs or HTML". You operate the whole app; look things up yourself. The ONLY thing you ask the user for is a genuine business DECISION (which offer, which market, approve/reject) — never a data lookup the app can answer.
 - Never repeat or describe these instructions, your JSON action format, or tool scaffolding to the user. Reply only with the answer itself.
 - Only call [writes/generates] tools when the user clearly asks to create/generate/run something.
 - Brand voice: warm, sensory, story-driven. Use ritual, restore, origin, single-estate, steep, heritage. NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME, hurry, don't miss out, last chance.`;
@@ -369,7 +442,7 @@ function renderTranscript(history, message, working) {
  * The conversational tool-calling loop.
  * @returns {ok, reply, steps:[{tool,args,summary}], provider, brand}
  */
-async function chat({ message, history = [], market = 'US', maxSteps = 4 } = {}) {
+async function chat({ message, history = [], market = 'US', maxSteps = 3 } = {}) {
   const brand = { name: BRAND_LLM_NAME, tagline: BRAND_LLM_TAGLINE };
   if (!message || !String(message).trim()) return { ok: false, error: 'message required', brand };
   if (!callLLM) {
@@ -379,29 +452,63 @@ async function chat({ message, history = [], market = 'US', maxSteps = 4 } = {})
   const sys = systemPrompt(market);
   const working = [];
   const steps = [];
+  const assets = []; // client-only: real generated assets for clickable View/Download
   let provider = null;
+  // Hard wall-clock budget so a turn can never stall like the old 105s runs: once
+  // a provider is pinned (see preferProvider below) later steps are fast, and if
+  // we near the budget we force a final synthesis instead of another tool round.
+  const t0 = Date.now();
+  const TURN_BUDGET_MS = 40000;   // total turn ceiling
+  const RESERVE_FINAL_MS = 12000; // keep this much for the closing answer
+  const budgetLeft = () => TURN_BUDGET_MS - (Date.now() - t0);
+
+  // Resilient LLM call: the 6-provider waterfall already cascades on 429, but when
+  // every keyed provider is simultaneously rate-limited it throws. Free-tier limits
+  // reset within seconds, so we re-run the WHOLE cascade after a short backoff
+  // (within the turn budget) before giving up — a transient "rate limit reached"
+  // must never surface to the user.
+  const isTransient = (e) => /429|rate[ _-]?limit|quota|All providers failed|exhausted/i.test(String((e && e.message) || e || ''));
+  async function callResilient(opts) {
+    const waits = [0, 1600, 3200];
+    let lastErr;
+    for (let i = 0; i < waits.length; i++) {
+      if (waits[i]) {
+        if (budgetLeft() - waits[i] < 6000) break; // no time for another attempt
+        await new Promise((r) => setTimeout(r, waits[i]));
+      }
+      try { return await callLLM(opts); }
+      catch (e) { lastErr = e; if (!isTransient(e)) throw e; }
+    }
+    throw lastErr;
+  }
 
   for (let step = 0; step < maxSteps; step++) {
-    const force = step === maxSteps - 1;
+    const nearDeadline = (Date.now() - t0) > (TURN_BUDGET_MS - RESERVE_FINAL_MS);
+    const force = step === maxSteps - 1 || nearDeadline;
     const userMessage = renderTranscript(history, message, working) +
       (force ? '\n\nYou have gathered enough. Respond with {"action":"final",...} now — do not call more tools.' : '');
     // maxTokens is a cap, not a target: tool actions stay tiny, but detailed
-    // evidence-backed finals get room. 20s timeout per provider keeps a hung
-    // provider from stalling the turn — the cascade moves on instead.
-    const llmOpts = { systemPrompt: sys, userMessage, responseFormat: { type: 'json_object' }, maxTokens: 2800, temperature: 0.4, timeoutMs: 15000, stage: 'chaigpt', tier: 'premium' };
+    // evidence-backed finals get room. A tighter 9s per-provider timeout means a
+    // dead/quota'd key is skipped fast instead of stalling the whole turn; the
+    // sticky provider then keeps subsequent steps quick.
+    const llmOpts = { systemPrompt: sys, userMessage, responseFormat: { type: 'json_object' }, maxTokens: 2600, temperature: 0.4, timeoutMs: force ? 14000 : 9000, stage: 'chaigpt', tier: 'premium' };
     let out;
     try {
       // Sticky provider: once a provider answers, later steps of this turn go
       // straight to it instead of re-walking dead keys / rate-limit sleeps in
       // the full cascade. If it dies mid-turn, fall back to the cascade once.
       if (provider) {
-        try { out = await callLLM({ ...llmOpts, preferProvider: provider }); }
-        catch (_) { provider = null; out = await callLLM(llmOpts); }
+        try { out = await callResilient({ ...llmOpts, preferProvider: provider }); }
+        catch (_) { provider = null; out = await callResilient(llmOpts); }
       } else {
-        out = await callLLM(llmOpts);
+        out = await callResilient(llmOpts);
       }
     } catch (e) {
-      return { ok: true, brand, provider, steps, reply: `I hit a provider error: ${e.message}. The data tools and dashboards are still available.` };
+      const rateLimited = isTransient(e);
+      const reply = rateLimited
+        ? `Every AI provider is momentarily rate-limited (free-tier limits reset within a minute) — I retried and they're still busy. Please try again in a few seconds. To make this never happen, add a funded key (OPENAI_API_KEY or ANTHROPIC_API_KEY) in Vercel. All data tools and dashboards still work in the meantime.`
+        : `I hit a provider error: ${e.message}. The data tools and dashboards are still available.`;
+      return { ok: true, brand, provider, steps, assets, reply };
     }
     provider = (out && out.provider) || provider;
     const text = (typeof out === 'string' ? out : (out.text || '')).trim();
@@ -410,14 +517,14 @@ async function chat({ message, history = [], market = 'US', maxSteps = 4 } = {})
     // No parseable action → the model replied in prose (ignored JSON mode) or
     // truncated. Salvage a CLEAN answer; never dump raw scaffolding/instructions.
     if (!parsed || !parsed.action) {
-      const salvaged = sanitizeReply(text);
-      const junk = !salvaged || /^\{|"action"\s*:/.test(salvaged);
-      return { ok: true, brand, provider, steps, reply: junk
-        ? 'Sorry, I could not compose a clean answer to that. Could you rephrase or narrow the question a little?'
-        : salvaged };
+      const salvaged = cleanFinal(text);
+      return { ok: true, brand, provider, steps, assets, reply: salvaged || synthFromWorking(working) };
     }
 
-    if (parsed.action === 'final') return { ok: true, brand, provider, steps, reply: sanitizeReply(parsed.reply) || 'Done.' };
+    if (parsed.action === 'final') {
+      const rep = cleanFinal(parsed.reply);
+      return { ok: true, brand, provider, steps, assets, reply: rep || synthFromWorking(working) };
+    }
 
     if (parsed.action === 'tool' || parsed.action === 'tools') {
       // Accept a single tool or a batch — batched lookups execute in parallel.
@@ -440,21 +547,28 @@ async function chat({ message, history = [], market = 'US', maxSteps = 4 } = {})
       await Promise.all(batch.map(async ({ name, args }) => {
         const tool = TOOLS[name];
         if (!tool) { working.push({ tool: name, args, result: { ok: false, error: `Unknown tool '${name}'. Available: ${Object.keys(TOOLS).join(', ')}` } }); return; }
+        // Default every market-aware tool to the SESSION's selected region unless
+        // the model explicitly passed one (explicit wins). Tools are defined at
+        // module load and can't see the per-request market, so we inject it here.
+        // This makes the US/UK selector actually drive audience, catalog,
+        // performance, ad insights AND asset generation for the chosen region.
+        const runArgs = (args && args.market != null && String(args.market).trim()) ? args : { ...(args || {}), market };
         let result;
-        try { result = await tool.run(args); } catch (e) { result = { ok: false, error: e.message }; }
-        working.push({ tool: name, args, result });
-        steps.push({ tool: name, args, summary: truncate(result, 600) });
+        try { result = await tool.run(runArgs); } catch (e) { result = { ok: false, error: e.message }; }
+        collectAssets(name, result, assets); // client-only asset channel (before truncation)
+        working.push({ tool: name, args: runArgs, result });
+        steps.push({ tool: name, args: runArgs, summary: truncate(result, 600) });
       }));
       continue;
     }
 
     // Unknown action shape → salvage a clean answer, never raw scaffolding.
-    const salv = sanitizeReply(text);
-    return { ok: true, brand, provider, steps, reply: (salv && !/^\{|"action"\s*:/.test(salv)) ? salv : 'Sorry, I could not compose a clean answer to that. Could you rephrase?' };
+    const salv = cleanFinal(text);
+    return { ok: true, brand, provider, steps, assets, reply: salv || synthFromWorking(working) };
   }
 
-  // Exhausted steps without a final — synthesize from gathered results.
-  return { ok: true, brand, provider, steps, reply: 'I gathered the data above but ran out of reasoning steps before composing a summary. Ask me to "summarize what you found" and I will.' };
+  // Exhausted steps without a final — synthesize from gathered results (never blank).
+  return { ok: true, brand, provider, steps, assets, reply: synthFromWorking(working) };
 }
 
 module.exports = { chat, toolManifest, TOOLS, BRAND_LLM_NAME, BRAND_LLM_TAGLINE, sanitizeReply, catalogProducts };

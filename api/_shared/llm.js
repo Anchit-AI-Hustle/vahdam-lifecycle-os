@@ -40,6 +40,22 @@ const GEMINI_BASE    = 'https://generativelanguage.googleapis.com/v1beta';
 const GROK_BASE      = 'https://api.x.ai/v1';
 const GROQ_BASE      = 'https://api.groq.com/openai/v1';
 const CEREBRAS_BASE  = 'https://api.cerebras.ai/v1';
+// OpenRouter — one OpenAI-compatible gateway that routes to Claude / GPT / Gemini /
+// Llama etc. via a single key. Placed as a PAID BACKSTOP rung (after the free
+// tiers) so a funded OpenRouter key catches burst-overflow instead of dropping to
+// the template. Unfunded (free-tier) it simply 402/404s and the cascade continues.
+const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
+// GitHub Models — FREE OpenAI-compatible access to GPT-4o / o-series / Llama /
+// Mistral via a GitHub PAT (GITHUB_MODELS_TOKEN, or a plain GITHUB_TOKEN). Generous
+// per-model daily limits, an independent rate-limit bucket. Added as a free rung.
+const GITHUB_MODELS_BASE = 'https://models.inference.ai.azure.com';
+// Cloudflare Workers AI — FREE daily neuron allowance, OpenAI-compatible endpoint at
+// /accounts/{id}/ai/v1. Needs CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN; skipped
+// cleanly when either is absent. Same account also serves free Flux images.
+const CF_ACCOUNT_ID  = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
+const CLOUDFLARE_BASE = CF_ACCOUNT_ID
+  ? 'https://api.cloudflare.com/client/v4/accounts/' + CF_ACCOUNT_ID + '/ai/v1'
+  : '';
 // Optional tail rungs — only active when their env config is present.
 // Ollama exposes an OpenAI-compatible API at ${OLLAMA_BASE_URL}/v1.
 const OLLAMA_BASE    = (process.env.OLLAMA_BASE_URL || '').replace(/\/+$/, '') + (process.env.OLLAMA_BASE_URL ? '/v1' : '');
@@ -75,7 +91,7 @@ function modelsFor(provider, tier) {
       if (tier === 'fast')    return _dedupe([env.ANTHROPIC_TEXT_MODEL_FAST || 'claude-haiku-4-5']);
       return _dedupe([env.ANTHROPIC_TEXT_MODEL || 'claude-sonnet-5', 'claude-haiku-4-5']);
     case 'gemini':
-      if (tier === 'premium') return _dedupe([env.GEMINI_TEXT_MODEL_MAX || 'gemini-3.1-pro', 'gemini-3.5-flash', 'gemini-2.5-flash']);
+      if (tier === 'premium') return _dedupe([env.GEMINI_TEXT_MODEL_MAX || 'gemini-2.5-flash', 'gemini-3.5-flash']);
       if (tier === 'fast')    return _dedupe([env.GEMINI_TEXT_MODEL_FAST || 'gemini-2.5-flash']);
       return _dedupe([env.GEMINI_TEXT_MODEL || 'gemini-3.5-flash', 'gemini-2.5-flash']);
     case 'grok':
@@ -85,6 +101,24 @@ function modelsFor(provider, tier) {
       return _dedupe([env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile']);
     case 'cerebras':
       return _dedupe([env.CEREBRAS_TEXT_MODEL || 'gpt-oss-120b', 'llama-3.3-70b']);
+    case 'openrouter':
+      // Defaults are slugs verified to answer on the currently-provisioned key
+      // (GPT-4o / GPT-4o-mini / Gemini-2.5-flash / Llama-3.3-70b). All env-overridable
+      // — to route premium through Claude once OpenRouter credits are added, set
+      // OPENROUTER_TEXT_MODEL_MAX=anthropic/claude-sonnet-4.5 (etc).
+      if (tier === 'premium') return _dedupe([env.OPENROUTER_TEXT_MODEL_MAX || 'openai/gpt-4o', 'google/gemini-2.5-flash', 'meta-llama/llama-3.3-70b-instruct']);
+      if (tier === 'fast')    return _dedupe([env.OPENROUTER_TEXT_MODEL_FAST || 'openai/gpt-4o-mini', 'google/gemini-2.5-flash']);
+      return _dedupe([env.OPENROUTER_TEXT_MODEL || 'openai/gpt-4o-mini', 'google/gemini-2.5-flash', 'meta-llama/llama-3.3-70b-instruct']);
+    case 'github':
+      // GitHub Models slugs. Env-overridable. Free GPT-4o family + open models.
+      if (tier === 'premium') return _dedupe([env.GITHUB_TEXT_MODEL_MAX || 'gpt-4o', 'gpt-4o-mini']);
+      if (tier === 'fast')    return _dedupe([env.GITHUB_TEXT_MODEL_FAST || 'gpt-4o-mini']);
+      return _dedupe([env.GITHUB_TEXT_MODEL || 'gpt-4o-mini']);
+    case 'cloudflare':
+      // Cloudflare Workers AI model ids (the @cf/... slugs). Env-overridable.
+      if (tier === 'premium') return _dedupe([env.CLOUDFLARE_TEXT_MODEL_MAX || '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct']);
+      if (tier === 'fast')    return _dedupe([env.CLOUDFLARE_TEXT_MODEL_FAST || '@cf/meta/llama-3.1-8b-instruct']);
+      return _dedupe([env.CLOUDFLARE_TEXT_MODEL || '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct']);
     case 'ollama':
       if (tier === 'premium') return _dedupe([env.OLLAMA_TEXT_MODEL_MAX || env.OLLAMA_TEXT_MODEL || 'llama3.3']);
       if (tier === 'fast')    return _dedupe([env.OLLAMA_TEXT_MODEL_FAST || env.OLLAMA_TEXT_MODEL || 'llama3.2']);
@@ -99,8 +133,8 @@ function modelsFor(provider, tier) {
 // Provider ORDER per tier (blueprint). Fast skips Grok (no cheap rung there).
 function providerOrder(tier) {
   return tier === 'fast'
-    ? ['anthropic', 'openai', 'gemini', 'groq', 'cerebras', 'ollama', 'sakana']
-    : ['anthropic', 'openai', 'gemini', 'grok', 'groq', 'cerebras', 'ollama', 'sakana'];
+    ? ['anthropic', 'openai', 'gemini', 'groq', 'cerebras', 'github', 'cloudflare', 'openrouter', 'ollama', 'sakana']
+    : ['anthropic', 'openai', 'gemini', 'grok', 'groq', 'cerebras', 'github', 'cloudflare', 'openrouter', 'ollama', 'sakana'];
 }
 
 // ── Failure classification (drives demotion) ─────────────────────────────────
@@ -162,6 +196,15 @@ module.exports = async function callLLM(opts) {
   const grokKey      = _clean(process.env.XAI_API_KEY);
   const groqKey      = _clean(process.env.GROQ_API_KEY);
   const cerebrasKey  = _clean(process.env.CEREBRAS_API_KEY);
+  // OpenRouter — accept the canonical name OR the existing mixed-case env var name
+  // (`OpenRouter_API_KEY`) already provisioned in this project. Node env names are
+  // case-sensitive, so both spellings are read explicitly.
+  const openrouterKey = _clean(process.env.OPENROUTER_API_KEY) || _clean(process.env.OpenRouter_API_KEY);
+  // GitHub Models — dedicated token or a plain GitHub PAT.
+  const githubKey    = _clean(process.env.GITHUB_MODELS_TOKEN) || _clean(process.env.GITHUB_TOKEN);
+  // Cloudflare Workers AI — needs BOTH account id (folded into CLOUDFLARE_BASE) and token.
+  const cloudflareKey = _clean(process.env.CLOUDFLARE_API_TOKEN);
+  const cloudflareOn  = !!CLOUDFLARE_BASE && !!cloudflareKey;
   // Optional tail rungs (skipped cleanly unless configured):
   //   Ollama gate = OLLAMA_BASE_URL present (auth optional).
   //   Sakana gate = both SAKANA_BASE_URL and SAKANA_API_KEY present. Forward-looking:
@@ -174,8 +217,8 @@ module.exports = async function callLLM(opts) {
   // Debug: log key presence (not values) for cascade diagnostics
   console.log('[llm] Keys present: groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' gemini=' + !!geminiKey + ' tier=' + tierNorm);
 
-  if (!openaiKeys.length && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey) {
-    throw new Error('No AI provider configured. Set at least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY');
+  if (!openaiKeys.length && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey && !openrouterKey && !githubKey && !cloudflareOn) {
+    throw new Error('No AI provider configured. Set at least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, GITHUB_MODELS_TOKEN, CLOUDFLARE_API_TOKEN(+CLOUDFLARE_ACCOUNT_ID)');
   }
 
   // When a preferred provider is set, skip others to avoid wasting time on failed providers
@@ -188,6 +231,9 @@ module.exports = async function callLLM(opts) {
     grok:      isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'grok'),
     groq:      isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'groq'),
     cerebras:  isGeminiPlus ? false : !!(preferredProvider && preferredProvider !== 'cerebras'),
+    openrouter: isGeminiPlus ? true : !!(preferredProvider && preferredProvider !== 'openrouter'),
+    github:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'github'),
+    cloudflare: isGeminiPlus ? true : !!(preferredProvider && preferredProvider !== 'cloudflare'),
     ollama:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'ollama'),
     sakana:    isGeminiPlus ? true  : !!(preferredProvider && preferredProvider !== 'sakana')
   };
@@ -199,6 +245,9 @@ module.exports = async function callLLM(opts) {
     grok:      !!grokKey,
     groq:      !!groqKey,
     cerebras:  !!cerebrasKey,
+    openrouter: !!openrouterKey,
+    github:    !!githubKey,
+    cloudflare: cloudflareOn,  // gated on CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN
     ollama:    ollamaOn,   // gated on OLLAMA_BASE_URL (auth optional)
     sakana:    sakanaOn    // gated on SAKANA_BASE_URL + SAKANA_API_KEY
   };
@@ -232,6 +281,7 @@ module.exports = async function callLLM(opts) {
       }
       const data = await r.json();
       const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      if (!String(text).trim()) { console.warn('[llm][' + stage + '] openai EMPTY content on ' + model + ' — demoting'); return { ok: false, status: 502, err: 'empty_response' }; }
       console.log('[llm][' + stage + '] openai ok len=' + text.length);
       return { ok: true, text, provider: 'openai', model };
     } catch (e) {
@@ -275,6 +325,7 @@ module.exports = async function callLLM(opts) {
       }
       const data = await r.json();
       const text = (data.content && data.content[0] && data.content[0].text) || '';
+      if (!String(text).trim()) { console.warn('[llm][' + stage + '] anthropic EMPTY content on ' + model + ' — demoting'); return { ok: false, status: 502, err: 'empty_response' }; }
       console.log('[llm][' + stage + '] anthropic ok model=' + model + ' len=' + text.length);
       return { ok: true, text, provider: 'anthropic', model };
     } catch (e) {
@@ -319,6 +370,7 @@ module.exports = async function callLLM(opts) {
         data.candidates[0].content && data.candidates[0].content.parts &&
         data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text
       ) || '';
+      if (!String(text).trim()) { console.warn('[llm][' + stage + '] gemini EMPTY content on ' + model + ' — demoting'); return { ok: false, status: 502, err: 'empty_response' }; }
       console.log('[llm][' + stage + '] gemini ok model=' + model + ' len=' + text.length);
       return { ok: true, text, provider: 'gemini', model };
     } catch (e) {
@@ -352,6 +404,11 @@ module.exports = async function callLLM(opts) {
         }
         const data = await r.json();
         const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+        // Empty content (e.g. a reasoning model that spent the whole token budget on
+        // its hidden reasoning field, or a JSON-mode truncation) is NOT a usable
+        // answer — demote so the cascade tries the next model/provider instead of
+        // returning a blank "success" that surfaces downstream as an LLM error.
+        if (!String(text).trim()) { console.warn('[llm][' + stage + '] ' + providerName + ' EMPTY content on ' + model + ' — demoting'); return { ok: false, status: 502, err: 'empty_response' }; }
         console.log('[llm][' + stage + '] ' + providerName + ' ok model=' + model + ' len=' + text.length);
         return { ok: true, text, provider: providerName, model };
       } catch (e) {
@@ -372,6 +429,21 @@ module.exports = async function callLLM(opts) {
   // Cerebras: free tier caps output at 8K; no response_format support yet.
   const _cerebras = _openaiCompatible('cerebras', CEREBRAS_BASE, cerebrasKey, () => ({
     max_tokens: Math.min(maxTokens, 8192)
+  }));
+  // OpenRouter (OpenAI-compatible). Optional ranking headers omitted (not required).
+  const _openrouter = _openaiCompatible('openrouter', OPENROUTER_BASE, openrouterKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
+  }));
+  // GitHub Models (OpenAI-compatible). Free GPT-4o family via a GitHub PAT.
+  const _github = _openaiCompatible('github', GITHUB_MODELS_BASE, githubKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
+  }));
+  // Cloudflare Workers AI (OpenAI-compatible at /ai/v1). Free daily allowance.
+  const _cloudflare = _openaiCompatible('cloudflare', CLOUDFLARE_BASE, cloudflareKey, () => ({
+    max_tokens: maxTokens,
+    ...(responseFormat ? { response_format: responseFormat } : {})
   }));
   // Optional tail rungs (OpenAI-compatible). Only ever reached if configured
   // (hasKey.ollama / hasKey.sakana gate them in the cascade loop).
@@ -415,13 +487,11 @@ module.exports = async function callLLM(opts) {
         console.warn('[llm][' + stage + '] ' + providerName + ' model-not-found on ' + model + ' — demoting within provider');
         continue;
       }
-      // Gemini rate-limit retry: wait 4s and retry the same model once before moving on
-      if (kind === 'quota' && providerName === 'gemini' && result.status === 429) {
-        console.warn('[llm][' + stage + '] Gemini 429 on ' + model + ' — waiting 4s and retrying');
-        await new Promise(r => setTimeout(r, 4000));
-        result = await _gemini(model);
-        if (result.ok) return result;
-      }
+      // NOTE: no wait-and-retry on Gemini 429. In practice the free-tier 429 is a
+      // DAILY-quota exhaustion (not a per-minute blip), so a 4s wait+retry never
+      // recovered and just burned ~8-10s per call across the two Gemini models —
+      // stacking into function timeouts when several LLM calls run in one request.
+      // Demote immediately to the next model/provider instead.
       if (kind === 'quota' || kind === 'transient') {
         console.warn('[llm][' + stage + '] ' + providerName + ' ' + result.status + ' (' + kind + ') on ' + model + ' — trying next model');
         continue;
@@ -485,6 +555,9 @@ module.exports = async function callLLM(opts) {
         : providerName === 'grok' ? _grok
         : providerName === 'groq' ? _groq
         : providerName === 'cerebras' ? _cerebras
+        : providerName === 'openrouter' ? _openrouter
+        : providerName === 'github' ? _github
+        : providerName === 'cloudflare' ? _cloudflare
         : providerName === 'ollama' ? _ollama
         : _sakana;
       result = await runChain(providerName, fn, models);

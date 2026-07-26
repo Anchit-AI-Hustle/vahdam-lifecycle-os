@@ -113,6 +113,8 @@
       <div class="mkt" id="mktToggle" role="tablist" aria-label="Market">
         <button data-mkt="US" class="on">🇺🇸 United States</button>
         <button data-mkt="UK">🇬🇧 United Kingdom</button>
+        <button data-mkt="GLOBAL">🌍 Global</button>
+        <button data-mkt="IN">🇮🇳 India</button>
       </div>
     </div>
 
@@ -122,6 +124,11 @@
       <button data-tab="ret">Retention · Mailer + LP</button>
       <button data-tab="cohort">Cohort &amp; Calendar</button>
     </div>
+
+    <a href="/usa-d2c-report" id="reviewCta" style="display:block;margin:14px 0 6px;padding:14px 18px;border:1px solid var(--line-strong,#CBB98C);border-left:4px solid var(--accent,#AB8743);border-radius:11px;background:var(--surface,#fff);text-decoration:none;box-shadow:0 4px 14px rgba(0,74,43,.08)">
+      <span style="display:block;font-weight:700;color:var(--head,#004A2B);font-size:15.5px">Full D2C Business Review — 8 deep-dive areas &nbsp;→</span>
+      <span style="display:block;margin-top:4px;color:var(--soft,#31483B);font-size:13px">Website performance · customer cohorts &amp; reactivation · catalog &amp; Amazon price parity · order fulfilment &amp; delivery · support / CX tickets · category performance · coffee deep-dive · apps &amp; access audit.</span>
+    </a>
 
     <div class="kpis" id="kpis"></div>
     <div class="signals" id="signals"></div>
@@ -143,8 +150,10 @@
 <script>
 (function(){
   var A = (window.VAHDAM_ANALYTICS) || {markets:{}};
-  var MKT = (new URLSearchParams(location.search).get('mkt') || 'US').toUpperCase();
-  if(!A.markets[MKT]) MKT = 'US';
+  // MKT comes from the ?mkt= URL param — remap through a literal allowlist so the
+  // stored value is always a constant (never the raw, potentially-hostile input).
+  // This clears the taint at the source; every use below is then a fixed string.
+  var MKT = ({ US:'US', UK:'UK', GLOBAL:'GLOBAL', IN:'IN' })[(new URLSearchParams(location.search).get('mkt') || 'US').toUpperCase()] || 'US';
 
   // Normalise each market so a widget only appears when its data actually
   // exists (some markets export fewer datasets than others — e.g. UK ships
@@ -173,9 +182,18 @@
     return req.every(function(k){ return m && nonEmpty(m[k]); });
   }
 
+  // ── market metadata (all four regions are first-class) ───────────────────
+  var MARKET_META = {
+    US:     { label:'United States', region:'us',     cur:'$', store:'www.vahdam.com' },
+    UK:     { label:'United Kingdom', region:'uk',     cur:'£', store:'uk.vahdamteas.com' },
+    GLOBAL: { label:'Global',         region:'global', cur:'$', store:'www.vahdamteas.com' },
+    IN:     { label:'India',          region:'in',     cur:'₹', store:'www.vahdamindia.com' }
+  };
+  function meta(mk){ return MARKET_META[mk] || { label:mk, region:String(mk||'').toLowerCase(), cur:'$', store:'' }; }
+  function mktLabel(mk){ return meta(mk||MKT).label; }
+
   // ── formatting ──────────────────────────────────────────────────────────
-  var CUR = {US:'$', UK:'£'};
-  function cur(){ return CUR[MKT] || '$'; }
+  function cur(){ return meta(MKT).cur || '$'; }
   function money(v){ v=+v||0; if(Math.abs(v)>=1000000) return cur()+(v/1000000).toFixed(2)+'M'; if(Math.abs(v)>=1000) return cur()+(v/1000).toFixed(1)+'K'; return cur()+v.toFixed(0); }
   function moneyFull(v){ return cur()+(+v||0).toLocaleString(undefined,{maximumFractionDigits:2}); }
   function intf(v){ return (+v||0).toLocaleString(); }
@@ -519,7 +537,7 @@
     var dh='';
     if(dec){ var dir=dec.dRev>=0?'up':'down';
       dh='<div class="sig-decomp"><b>Revenue driver split</b> ('+mLabel(dec.from.month)+' to '+mLabel(dec.to.month)+', order volume × basket size): <b class="'+dir+'">'+(dec.dRev>=0?'+':'')+moneyFull(dec.dRev)+'</b> total, of which <b class="'+(dec.ordersEffect>=0?'up':'down')+'">'+(dec.ordersEffect>=0?'+':'')+moneyFull(dec.ordersEffect)+'</b> is from order volume and <b class="'+(dec.aovEffect>=0?'up':'down')+'">'+(dec.aovEffect>=0?'+':'')+moneyFull(dec.aovEffect)+'</b> is from AOV. This is where the month moved, and which lever moved it.</div>'; }
-    document.getElementById('signals').innerHTML='<div class="sig-head">Signals · what needs attention<span class="sig-sub">auto-computed from the live '+(MKT==='US'?'US':'UK')+' data</span></div><div class="sig-grid">'+cards+'</div>'+dh;
+    document.getElementById('signals').innerHTML='<div class="sig-head">Signals · what needs attention<span class="sig-sub">auto-computed from the live '+esc(mktLabel())+' data</span></div><div class="sig-grid">'+cards+'</div>'+dh;
   }
 
   function renderKPIs(){
@@ -664,7 +682,7 @@
     }
     document.getElementById('detail').innerHTML =
       '<button class="crumb" id="backBtn">← Back to dashboard</button>'+
-      '<div class="topbar"><div><h1>'+esc(w.title)+'</h1><p class="lede">'+esc(w.sub||'')+' · '+(MKT==='US'?'United States':'United Kingdom')+' market</p></div>'+dl+'</div>'+
+      '<div class="topbar"><div><h1>'+esc(w.title)+'</h1><p class="lede">'+esc(w.sub||'')+' · '+esc(mktLabel())+' market</p></div>'+dl+'</div>'+
       chartBlock+
       (det.insight?'<div class="insight">'+det.insight+'</div>':'')+
       (det.table||'');
@@ -685,16 +703,29 @@
   function closeDetail(){ document.body.classList.remove('detailing'); history.replaceState(null,'','?mkt='+MKT); window.scrollTo(0,0); }
 
   function downloadCSV(name){
-    var region = (MKT==='UK') ? 'uk' : 'us';
+    var region = meta(MKT).region;
     var url='/data/market/'+region+'/'+name+'.csv';
     var a=document.createElement('a'); a.href=url; a.download=name+'.csv'; document.body.appendChild(a); a.click(); a.remove();
   }
 
   function renderFootnote(){
-    document.getElementById('footnote').innerHTML='Source: live VAHDAM '+(MKT==='US'?'US':'UK')+' market exports in <span class="datalink">data/market/'+(MKT==='US'?'us':'uk')+'/</span>, compiled by <span class="datalink">scripts/build-market-analytics.js</span>. Trailing 12-month window. The upstream ingestion + DuckDB engine lives in <a class="datalink" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">vahdam_dtc_data_engine</a> (live: <a class="datalink" href="/data-engine">DTC Data Engine</a>).';
+    var m=d()||{}; var live=m.__live;
+    var src = live
+      ? 'Source: <b>live Shopify Admin</b> snapshot for '+esc(mktLabel())+' ('+esc(live.store_url||live.shop||meta(MKT).store)+', pulled '+esc(live.pulled_at||'recently')+') overlaying the '+esc(mktLabel())+' market exports.'
+      : 'Source: live VAHDAM '+esc(mktLabel())+' market exports in <span class="datalink">data/market/'+esc(meta(MKT).region)+'/</span>, compiled by <span class="datalink">scripts/build-market-analytics.js</span>.';
+    document.getElementById('footnote').innerHTML=src+' Trailing 12-month window. The upstream ingestion + DuckDB engine lives in <a class="datalink" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">vahdam_dtc_data_engine</a> (live: <a class="datalink" href="/data-engine">DTC Data Engine</a>).';
   }
 
-  function setMarket(mk){ MKT=mk; document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===mk); }); renderKPIs(); renderSignals(); renderGrid(); renderFootnote(); closeDetail(); }
+  function marketHasData(mk){ var m=A.markets[mk]; return !!(m && Object.keys(m).length && (m.summary || (m.monthly && m.monthly.length))); }
+  function renderEmptyMarket(){
+    var kp=document.getElementById('kpis'); if(kp) kp.innerHTML='';
+    var sg=document.getElementById('signals'); if(sg) sg.innerHTML='';
+    var g=document.getElementById('grid');
+    if(g) g.innerHTML='<div class="empty" style="padding:32px;text-align:center;line-height:1.7">No analytics loaded for <b>'+esc(mktLabel())+'</b> yet.<br>This view shows <b>only real data</b>. To populate '+esc(mktLabel())+', authorize its Shopify store (<span class="datalink">'+esc(meta(MKT).store)+'</span>) via the connected Shopify MCP, or drop its CSV export into <span class="datalink">data/market/'+esc(meta(MKT).region)+'/</span>. No sample or fabricated figures are ever shown.</div>';
+    var fn=document.getElementById('footnote'); if(fn) fn.textContent='Awaiting live data for '+mktLabel()+'. Authorize its Shopify store via the Shopify MCP (or add its CSV export); nothing is fabricated.';
+  }
+  function renderMarket(){ if(marketHasData(MKT)){ renderKPIs(); renderSignals(); renderGrid(); renderFootnote(); } else { renderEmptyMarket(); } }
+  function setMarket(mk){ MKT=mk; document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===mk); }); renderMarket(); closeDetail(); }
 
   document.querySelectorAll('#mktToggle button').forEach(function(b){ b.addEventListener('click',function(){ setMarket(b.dataset.mkt); }); });
   document.querySelectorAll('#anTabs button').forEach(function(b){ b.addEventListener('click',function(){
@@ -703,18 +734,50 @@
     closeDetail(); renderGrid(); window.scrollTo(0,0);
   }); });
 
+  // ── LIVE overlay: prefer the read-only Shopify Admin snapshot pulled via the
+  // connected Shopify MCP (data/analytics/live-shopify.json) over the CSV export.
+  // Only the fresh time-series (monthly / summary / referrers / sessions) are
+  // overlaid; CSV-only datasets (top_by_qty, cohort, etc.) are preserved. Zero
+  // fabrication: if the file is absent the CSV exports show unchanged.
+  function applyLive(live){
+    if(!live || !live.markets) return;
+    Object.keys(live.markets).forEach(function(mk){
+      var l=live.markets[mk]; if(!l) return;
+      var m=A.markets[mk] || (A.markets[mk]={});
+      if(l.monthly && l.monthly.length){
+        m.monthly=l.monthly;
+        m.aov_trend=l.monthly.map(function(x){ return { month:x.month, aov:x.aov, orders:x.orders, sales:x.sales }; });
+      }
+      if(l.summary) m.summary=Object.assign({}, m.summary||{}, l.summary);
+      if(l.referrers) m.referrers=l.referrers;
+      if(l.sessions) m.sessions=l.sessions;
+      m.__live={ store_url:l.store_url, shop:l.shop, pulled_at:l.pulled_at||live.pulled_at };
+    });
+  }
+
   // init — STRICT real-data-only: render only when real data is present;
   // otherwise an honest "no live data" state (never baked/sample numbers).
-  var hasData = A && A.markets && Object.keys(A.markets).some(function(k){ return A.markets[k] && Object.keys(A.markets[k]).length; });
-  if(!hasData){
-    var g=document.getElementById('grid');
-    if(g) g.innerHTML='<div class="empty" style="padding:32px;text-align:center;line-height:1.65">No live data connected yet.<br>This view shows <b>only real data</b> pulled from your connected sources (Supabase / the read-only Shopify, Klaviyo and WebEngage syncs). Once the daily sync populates Supabase, the KPIs, cohorts and channel breakdowns appear here automatically. No sample or static figures are shown.</div>';
-    var fn0=document.getElementById('footnote'); if(fn0) fn0.textContent='Awaiting live data from the connected sources.';
-  } else {
-    renderKPIs(); renderSignals(); renderGrid(); renderFootnote();
+  function boot(){
+    var hasData = A && A.markets && Object.keys(A.markets).some(function(k){ return A.markets[k] && Object.keys(A.markets[k]).length; });
+    if(!hasData){
+      var g=document.getElementById('grid');
+      if(g) g.innerHTML='<div class="empty" style="padding:32px;text-align:center;line-height:1.65">No live data connected yet.<br>This view shows <b>only real data</b> pulled from your connected sources (Supabase / the read-only Shopify, Klaviyo and WebEngage syncs). Once the daily sync populates Supabase, the KPIs, cohorts and channel breakdowns appear here automatically. No sample or static figures are shown.</div>';
+      var fn0=document.getElementById('footnote'); if(fn0) fn0.textContent='Awaiting live data from the connected sources.';
+      return;
+    }
+    if(!marketHasData(MKT)){ var k=Object.keys(A.markets).filter(marketHasData); if(k.length) MKT=k[0]; }
     document.querySelectorAll('#mktToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mkt===MKT); });
-    var hash=(location.hash||'').replace('#',''); if(hash && WIDGETS.find(function(w){return w.id===hash;})) openDetail(hash);
+    renderMarket();
+    if(marketHasData(MKT)){ var hash=(location.hash||'').replace('#',''); if(hash && WIDGETS.find(function(w){return w.id===hash;})) openDetail(hash); }
   }
+
+  var booted=false; function once(){ if(booted) return; booted=true; boot(); }
+  fetch('/data/analytics/live-shopify.json',{cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ applyLive(j); })
+    .catch(function(){})
+    .then(once);
+  setTimeout(once, 2500);
 })();
 </script>
 <script defer src="/auth.js"></script>

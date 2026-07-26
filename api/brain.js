@@ -41,6 +41,11 @@ const calendarScenarios = require('./_shared/calendar-scenarios.js');
 const smartbrain = require('../lib/smart-brain/services.js');
 const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
+const adInsights = require('./_shared/ad-insights-core.js');
+const adsSnowflake = require('./_shared/ads-snowflake-core.js');
+const adsLive = require('./_shared/ads-live-core.js');
+const adsSop = require('./_shared/ads-sop-core.js');
+const adMetrics = require('./_shared/ad-metrics-catalog.js');
 const webengage = require('./_shared/webengage-core.js');
 const video = require('./_shared/video-core.js');
 const social = require('./_shared/social-core.js');
@@ -382,6 +387,78 @@ module.exports = async function handler(req, res) {
         const params = req.method === 'POST' ? b : Object.assign({}, req.query);
         const out = await klaviyo.dispatch(op, params);
         return res.json(out);
+      }
+
+      // ── AD INSIGHTS (real Meta/Google/TikTok reporting; priority metrics first) ──
+      case 'ad-insights': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = p.op || 'summary';
+        if (op === 'status') return res.json(adInsights.status(p.market));
+        const args = { market: p.market, level: p.level, since: p.since, until: p.until };
+        const out = (op === 'platform' && p.platform)
+          ? await adInsights.insights({ platform: p.platform, ...args })
+          : await adInsights.summary(args);
+        return res.json(out);
+      }
+
+      // ── ADS FROM SNOWFLAKE (live warehouse tables; cohort/segmentation) ──
+      case 'ads-snowflake': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = p.op || 'status';
+        if (op === 'status') return res.json(adsSnowflake.status());
+        if (op === 'ping') return res.json(await adsSnowflake.ping());
+        if (op === 'budgets') return res.json(adsSnowflake.budgets());
+        if (op === 'describe') return res.json(await adsSnowflake.describe({ platform: p.platform, level: p.level }));
+        // The ad-account estate: every account, what it is used for, and the KPI
+        // it can honestly be judged on (see adAccounts() in the core).
+        if (op === 'accounts') return res.json(await adsSnowflake.accounts({ since: p.since, until: p.until, accounts: p.accounts }));
+        if (op === 'multi-daily') return res.json(await adsSnowflake.multiDaily({ since: p.since, until: p.until, accounts: p.accounts, by: p.by }));
+        if (op === 'campaigns') return res.json(await adsSnowflake.campaigns({ since: p.since, until: p.until, account: p.account, level: p.level }));
+        // Retail funnel: spend in MAPLEMONK joined to outcomes in MAPLEMONK1 (Target
+        // Roundel attributed sales + real Target store sell-through). The only way
+        // to answer "is the Target programme working" — the Meta retail account has
+        // no pixel, so on its own it can only ever look like cost.
+        if (op === 'retail-funnel') return res.json(await adsSnowflake.retailFunnel({ since: p.since, until: p.until, by: p.by }));
+        if (op === 'cohort') return res.json(await adsSnowflake.cohort({ platform: p.platform, dimension: p.dimension, measure: p.measure, account: p.account, since: p.since, until: p.until, level: p.level }));
+        return res.json(await adsSnowflake.metrics({ platform: p.platform, account: p.account, since: p.since, until: p.until, level: p.level, limit: p.limit }));
+      }
+
+      // ── LIVE ADS (real-time link to the Meta ad account) ──────────────────
+      // Powers the Master Dashboard's Live Now / Calendar / Tracker views.
+      // Meta Marketing API first (minute-fresh), else the Snowflake per-day
+      // mirror, else a not_connected envelope carrying the exact query.
+      case 'ads-live': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = p.op || 'today';
+        if (op === 'status') return res.json(adsLive.status());
+        if (op === 'daily') return res.json(await adsLive.daily({ since: p.since, until: p.until, account: p.account }));
+        if (op === 'calendar') return res.json(await adsLive.calendar({ month: p.month, account: p.account }));
+        return res.json(await adsLive.today({ account: p.account }));
+      }
+
+      // ── SOP ENFORCEMENT (nomenclature compliance + spend pacing) ──────────
+      // Scores the LIVE warehouse names against the final Ad Campaign SOP and
+      // paces real daily spend against its caps. Read-only.
+      case 'ads-sop': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = p.op || 'reference';
+        if (op === 'reference') return res.json({ ok: true, sop: adsSop.reference() });
+        if (op === 'pacing') return res.json(await adsSop.pacing({ since: p.since, until: p.until, account: p.account }));
+        if (op === 'parse') return res.json({ ok: true, campaign: adsSop.parseCampaignName(p.campaign || ''), adset: adsSop.parseAdSetName(p.adset || ''), ad: adsSop.parseAdName(p.ad || '') });
+        return res.json(await adsSop.compliance({ since: p.since, until: p.until, platform: p.platform, account: p.account, limit: p.limit }));
+      }
+
+      // ── AD METRICS CATALOG + ACCURACY (single source of truth for formulas) ──
+      case 'ad-metrics': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = p.op || 'catalog';
+        if (op === 'catalog') return res.json(adMetrics.catalog());
+        if (op === 'accuracy') return res.json(adMetrics.accuracy(p.rows || []));
+        if (op === 'compute') {
+          const rows = (p.rows || []).map((r) => ({ row: r, metrics: adMetrics.computeAll(r) }));
+          return res.json({ ok: true, count: rows.length, computed: rows, accuracy: adMetrics.accuracy(p.rows || []) });
+        }
+        return res.json({ ok: false, error: 'Unknown op. Use catalog|compute|accuracy.' });
       }
 
       // ── WEBENGAGE ──────────────────────────────────────────────────────────

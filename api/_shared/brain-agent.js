@@ -22,6 +22,11 @@ try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 let smartBrain = null;
 try { smartBrain = require('../../lib/smart-brain/services.js'); } catch (_) { smartBrain = null; }
 
+// Real per-market Shopify totals (order/customer exports). Audience-size answers
+// come from here, NOT the seeded RFM sample in ownData.users / smart_cohorts.
+let marketAnalytics = null;
+try { marketAnalytics = require('./market-analytics.js'); } catch (_) { marketAnalytics = null; }
+
 const dataClass = require('./data-classification.js');
 // Customer-facing evidence + brand/confidentiality guardrails (ported from Vahdam-Super-App).
 // Appended to the BUYER chat() persona only — never to teamChat() (internal analyst).
@@ -38,6 +43,12 @@ function looksAnalytical(message) {
 
 function fmtMoney(n) { return '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
 function pct(n) { return (Number(n || 0) * 100).toFixed(2) + '%'; }
+function fmtNum(n) { return Number(n || 0).toLocaleString('en-US'); }
+// Which market a question is about (default US) — used to pull the right real
+// Shopify totals for audience/customer-base answers.
+function marketFromText(q) {
+  return /\b(uk|u\.k\.|britain|british|england|united kingdom|gbp|£)\b/i.test(String(q)) ? 'UK' : 'US';
+}
 
 /**
  * agent-analyze — answer a natural-language analytical question with EXACT
@@ -65,11 +76,37 @@ async function analyze({ message = '' }) {
   let answer = '';
   const data = {};
 
-  const wantsProducts = /(product|sku|best[- ]?sell|top|most[- ]?(sold|popular)|hero)/.test(q) && !/cohort|channel|customer/.test(q);
-  const wantsCohorts = /(cohort|segment|customer|ltv|lifetime|champion|loyal|winback|at[- ]?risk)/.test(q);
+  // Audience SIZE / customer-base questions must be answered from the REAL
+  // Shopify export totals, never the seeded ~600-row RFM sample. Detect these
+  // first so "how many customers / our audience base" never reports the sample.
+  const wantsAudience = /(audience|customer base|subscriber|list size|how (many|big).*(customer|user|subscriber|buyer|people|profile|audience)|(total|number of).*(customer|buyer|audience|subscriber)|reachable|contactable|how many (people|profiles))/.test(q);
+  const wantsProducts = /(product|sku|best[- ]?sell|top|most[- ]?(sold|popular)|hero)/.test(q) && !/cohort|channel|customer|audience/.test(q);
+  const wantsCohorts = /(cohort|segment|ltv|lifetime|champion|loyal|winback|at[- ]?risk)/.test(q) || (/customer/.test(q) && !wantsAudience);
   const wantsChannels = /(channel|email|meta|google|tiktok|roas|ctr|conversion|open[- ]?rate|click[- ]?rate|benchmark|aov|average order)/.test(q);
 
-  if (wantsProducts) {
+  if (wantsAudience && marketAnalytics) {
+    const mk = marketFromText(q);
+    const aud = marketAnalytics.audience(mk);
+    if (aud && aud.ok) {
+      data.audience = aud;
+      // Cohort SHAPE (share of the analyzed RFM records) — reported as shares,
+      // NOT scaled to fabricated per-segment counts. Headline size stays the
+      // real Shopify total; the split is explicitly "of N analyzed records".
+      const nSample = cohorts.reduce((s, c) => s + (Number(c.count) || 0), 0);
+      const dist = (nSample > 0) ? cohorts.map((c) => ({
+        name: c.name, share_pct: Math.round((c.count / nSample) * 1000) / 10,
+        avgLtv: Number(c.avgLtv || 0),
+      })) : [];
+      data.cohort_shares = dist;
+      data.cohort_sample_size = nSample;
+      answer = `${mk} purchasing customer base: ${fmtNum(aud.purchasing_customers)} unique buyers on Shopify over ${aud.window} `
+        + `(${fmtNum(aud.new_customers)} new, ${fmtNum(aud.returning_customers)} returning; ${aud.returning_rate_pct}% returning rate). Source: ${aud.source}. `
+        + (dist.length ? `RFM value split (share of ${fmtNum(nSample)} analyzed records): ${dist.slice(0, 5).map((d) => `${d.name} ${d.share_pct}%`).join(', ')}. ` : '')
+        + `Total email/SMS list size (all subscribers, including non-buyers) needs Klaviyo, which is not connected.`;
+    } else if (aud) {
+      answer = aud.error || '';
+    }
+  } else if (wantsProducts) {
     const byRevenue = /revenue|sales|\$|money|earn/.test(q);
     const sorted = productScores.slice().sort((a, b) =>
       byRevenue ? (b.revenue - a.revenue) : (b.orderCount - a.orderCount) || (b.score - a.score));

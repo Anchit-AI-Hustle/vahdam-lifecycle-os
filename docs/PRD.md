@@ -1,7 +1,8 @@
 # VAHDAM Lifecycle OS — Product Requirements Document
 
-**Status:** v1.0 (complete) · **Owner:** Anchit Tandon (anchit.tandon@vahdam.com) · **Last updated:** 2026-07-02
-**Supersedes:** the v0.1 draft of 2026-06-04 (preserved in git history — it documents the original consolidation thinking and is quoted where the "origin" of a feature matters).
+**Status:** v1.1 (complete) · **Owner:** Anchit Tandon (anchit.tandon@vahdam.com) · **Last updated:** 2026-07-06
+**Supersedes:** v1.0 of 2026-07-02, and the v0.1 draft of 2026-06-04 (both preserved in git history — the draft documents the original consolidation thinking and is quoted where the "origin" of a feature matters).
+**What changed in v1.1 (2026-07-06):** the V1/V2 version taxonomy (§1.4) is now recorded; the demo/mock access gate has been removed, so every signed-in user gets full live access (§9); the app UI is locked to a single forest-green theme, with the dark/dusk/light switcher removed (§7.1/§8); domain + OAuth migration tooling was added (§7.5); and the milestones (§11) run through 2026-07-06.
 
 **Live app:** https://vahdam-marketing-mailers-architect.vercel.app/ · **Presentation deck:** [`/prd-deck`](../docs/prd-deck.html) · **Repo:** `Anchit-AI-Hustle/vahdam-lifecycle-os`
 
@@ -33,6 +34,14 @@ The end state this project is building toward, in order of maturity:
 
 ### 1.3 Why "OS"
 The name is deliberate. This is not a mailer tool with extras; it is an **operating system for the growth function**: shared auth/navigation shell, shared brand kernel (palette/typography/voice enforced in every generator), shared data layer, shared AI services — and applications (Analytics, Calendar, Studio, Competitor Intel, KB, Ads, Landing Pages, Brain, ChaiGPT) running on top of it.
+
+### 1.4 Version taxonomy (V1 vs V2) — product-owner convention (2026-07-03)
+As the OS matured, a two-generation convention was adopted so menus, hubs and this document can speak precisely about what is the legacy base versus the newer Lifecycle-OS layer:
+
+- **V1 = the legacy base app** — everything that existed before 2026-07-03: the dashboard/analytics, the `/plan` 30-day RFM calendar, the Mailer Studio (`/studio`), Competitor Benchmarking, Knowledge Base, Ad Campaigns, Landing Pages, ChaiGPT, and the Smart Brain.
+- **V2 = the Lifecycle OS additions of 2026-07-03** — the cohort mailer-calendar system (`/mailer-calendar`), the UK non-engagers campaign hub (`/uk-non-engagers`), tier-routed LLM/image cascades plus a video-core, the Social Media OS (`/social`), the retention/influencer knowledge library (`knowledge/retention/`), and the standing left-hand-nav information-architecture rule.
+
+V1 features are upgraded by customising the base version only where needed. Where a capability exposes both generations, the earlier build is labelled **Draft 1** and the current one **Draft 2** (e.g. Plan Calendar V1 = Draft 1 vs Mailer Calendar V2 = Draft 2 of calendaring; Mailer Studio V1 = Draft 1 vs the Mailer Calendar's built mailers = Draft 2 of mailer creation). The nav shows a quiet V1/V2 chip; Draft 1/2 lives in tooltips and info panels.
 
 ---
 
@@ -247,7 +256,7 @@ Every feature below follows the same lens: **Origin → Need → Purpose → Wha
 ## 7. Platform architecture
 
 ### 7.1 Shape
-- **Frontend:** independent, self-contained static HTML pages (inline CSS/JS; the Studio alone is ~7,700 lines) sharing one auth/nav shell (`auth.js`) and localStorage state. No framework, no build step for pages — deliberate: any page can be understood, patched and shipped in isolation.
+- **Frontend:** independent, self-contained static HTML pages (inline CSS/JS; the Studio alone is ~7,700 lines) sharing one auth/nav shell (`auth.js`) and localStorage state. No framework, no build step for pages — deliberate: any page can be understood, patched and shipped in isolation. The UI is locked to a **single forest-green theme** (`theme.css`): the earlier dark/dusk/light switcher was removed on 2026-07-06, so every page renders on the brand's forest-green canvas with gold/cream text and cannot drift to an off-brand light mode.
 - **Backend:** Vercel serverless functions under `api/`; heavy logic in `api/_shared/` (underscore paths don't count against the function cap) and `lib/`.
 - **Deploy:** single Vercel project (`framework: null`); `npm run build` only rebuilds product catalogs; friendly URLs via `vercel.json` rewrites; CI = HTML smoke check + syntax/function-cap/Playwright gates.
 
@@ -297,7 +306,8 @@ Source of truth: `Brand style guide.pdf`, codified in `_shared/master-prompt.js`
 
 ## 9. Security, auth & data governance
 
-- **App auth:** Google OAuth (PKCE) via Supabase on the shared shell; sessions persist; the login wall is currently relaxed for the internal team (Mailer Studio always open by design); per-page gating can be re-enabled by flag.
+- **App auth:** Google OAuth (PKCE) via Supabase on the shared shell; sessions persist; the login wall is currently relaxed for the internal team (Mailer Studio always open by design); per-page gating can be re-enabled by flag. **Access mode (updated 2026-07-06):** the former demo/mock gate — which put non-`@vahdam.com` signed-in accounts into a simulated read-only mode (a `window.fetch` guard that faked write/generation responses, plus a demo banner) — was **removed**. Every signed-in user now gets full, live access; the `mockMode` / `__VAHDAM_MOCK__` flags remain pinned to `false` for any external reader.
+- **Domain + OAuth migration:** moving a project to its `<slug>.anchit-tandon.com` domain is handled by `scripts/migrate-domains.*` (Vercel domain + GoDaddy CNAME) which then hands off to `scripts/migrate-oauth.*`. Because Google sign-in is Supabase-mediated, the change that actually matters is the Supabase Auth redirect allowlist (auto-applied via the Supabase Management API); the Google web-client's JavaScript origin is a Console-only step (no gcloud/API can edit a web OAuth client), for which the tooling emits an exact plan. Detail in `docs/oauth-redirect-migration.md`.
 - **Secrets:** live only in Vercel env vars; `/api/public-config` never exposes service-role keys; provider keys never reach the browser.
 - **Cron protection:** `CRON_SECRET` guards `?action=cron` and sync; optional `INGEST_TOKEN` guards the email webhook.
 - **Keyless where possible:** WIF (§7.5) removed the standing Google key.
@@ -337,8 +347,10 @@ Source of truth: `Brand style guide.pdf`, codified in `_shared/master-prompt.js`
 | Jun 27–30 | LP cloning; reproducible Google-Sheets dashboard generator |
 | Jul 01 | **Native Android + iOS super apps** (Capacitor over live PWA); interactive portfolio-hub homepage; ChaiGPT faster loop + evidence answers; **asset hub** with portable prompts |
 | Jul 02 | **This PRD v1.0 + business presentation deck**; Mobile Builds workflow with downloadable APK/IPA links |
+| Jul 03 | **V2 Lifecycle OS layer** (§1.4): cohort **Mailer Calendar** (`/mailer-calendar`), **UK Non-Engagers Hub** (`/uk-non-engagers`), tier-routed LLM/image cascades + video-core, **Social Media OS** (`/social`), retention/influencer knowledge library, and the LHS-nav IA rule; V1/V2 taxonomy adopted |
+| Jul 06 | **Demo/mock access gate removed** (every signed-in user gets live access); **UI locked to a single forest-green theme** (dark/dusk/light switcher removed); **domain + OAuth migration tooling** (`migrate-domains`/`migrate-oauth`); brand-compliant campaign **mailer pack**; **PRD v1.1** + refreshed decks (PPT/PDF/Word) |
 
-180 commits, ~25 days of build velocity, 57 merged PRs.
+~190 commits, ~27 days of build velocity, 60+ merged PRs.
 
 ---
 

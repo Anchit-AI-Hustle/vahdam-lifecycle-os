@@ -47,6 +47,15 @@ Mailers come in exactly two named types:
 1. **Text** — pure typographic (the `pure` render style).
 2. **Text + Graphics** — text plus BUILT graphic elements only: brand-palette colors, buttons, labels, badges, dividers, price/receipt tables (CSS/table constructs — never photos; photos are optional slots the user fills). Any combination of such elements qualifies. Maps to the `visual`/`editorial` render styles.
 
+## SiS distribution branch — NEVER merge into main
+The branch **`snowflake-streamlit-app`** is a permanently separate distribution of this repo:
+the Streamlit-in-Snowflake version (runs natively in Snowflake via `get_active_session()`,
+reads warehouse tables directly — no Vercel, no Supabase, no HTML pages). It intentionally
+diverges from main and **must NEVER be merged into main** (nor main into it wholesale; port
+changes by hand when needed). Enforced by the required check
+`.github/workflows/protect-main-from-sis.yml`, which fails any PR from that branch into main.
+Deploy that branch from Snowsight (Git-linked workspace or paste `streamlit_app.py`).
+
 ## Commands
 ```bash
 npm run build          # scripts/build-catalog.js → data/catalog/products_{us,uk,global}.json (runs at deploy via vercel.json buildCommand)
@@ -84,7 +93,7 @@ Each page is a **standalone, self-contained `.html` file** (inline CSS + JS, oft
 | `api/calendar.js` | `?action=generate` (30-day plan) + `?action=trigger-mailer` + `?action=smart-brain-*` (plan/sync-daily/cron/approve/reject/run-daily/feedback…) + `?action=lp&id=` (serves generated landing pages at `/lp/:id`). Logic in `_shared/calendar-generate.js`, `_shared/calendar-trigger.js`, `_shared/smart-brain-plan.js`, `lib/smart-brain/services.js` |
 | `api/competitor.js` | Competitor Benchmarking router (Gmail IMAP → Google Sheet) |
 | `api/kb.js` | Knowledge Base router (Supabase-backed) |
-| `api/public-config.js` | Public config (Supabase URL + anon key) + `?health=1` health check; `/api/health` rewrites here |
+| `api/public-config.js` | Public config (Supabase URL + anon key) + `?health=1` health check; `/api/health` rewrites here. **Operator-only modes:** `?pipeline=1`, `?probe=1`, and the DETAILED `?health=1` payload require `Authorization: Bearer <operator Supabase token or CRON_SECRET>` (allowed domains via `ANALYTICS_ADMIN_DOMAINS`, default `vahdam.com`) and drop wildcard CORS. Anonymous `?health=1` returns liveness only (`ok/build/ts`) — never provider, key, model, region or env state. `?probe=1` also spends provider quota, so it must never be anonymous. |
 
 ### Shared LLM caller — `api/_shared/llm.js`
 6-provider text waterfall, de-duplicated: **OpenAI** (`OPENAI_API_KEY`/`_2`/`_3`) → **Anthropic** (claude-3-5-haiku) → **Gemini** (free tier) → **Grok/xAI** → **Groq** (free) → **Cerebras** (free). All callers should go through this rather than calling providers directly. Per-call provider override is supported (`'gemini'|'openai'|'anthropic'|'grok'`).
@@ -120,6 +129,17 @@ Competitor data lives in a Google Sheet. Auth has **two modes** (see `docs/workl
 - **`brand_assets` table** (`supabase/migrations/20260711120000_brand_assets.sql`) is the origin-validated asset store: `sku_key, asset_type, url, alt, w/h, source_pdp, origin_validated, status(verified|placeholder), region`. Logic in `api/_shared/brand-assets-core.js` (not a function file): PREFIX-match allowlist (`vahdam.com`, `vahdam.co.uk`, `vahdam.global`, `try.vahdam.*`), rewrites a Shopify store-CDN URL to the brand host (`www.vahdam.com/cdn/shop/files/…`, byte-identical asset) so it validates, and NEVER fabricates a URL — an unverifiable slot is stored `status='placeholder'`. Seed with `npm run seed:assets` (`scripts/seed-brand-assets.js`): resolves the US SKU→handle map from the built catalog, writes `data/brand-assets/us.json` + `supabase/seed/brand_assets_us.sql`, and upserts live when Supabase env is present.
 - **USA July calendar + mailers** (`npm run build:july`): `scripts/build-july-mailers.js` keeps the automated-calendar 4-variant STRUCTURE (2 Text + 2 Text+Visual, framework A/B) and the same `sanitizeBrand`/`assertNoBanned` gates (`scenario-model.js`), but renders each variant in the **flagship design system** (`scripts/lib/flagship-mailer.js`: web fonts, green utility bar, colorway hero band — forest/midnight/daylight, price pill, MSO-safe CTA, trust badges, "Rated 4.9/5 · 250,000+ reviews · Oprah's Favorite Things" proof bar, non-clickable footer). Hosted image URLs only (never base64). 12 cohort sends × 4 = 48 files in `mailers/usa-july/`; hero images come ONLY from verified `brand_assets` rows (image-free otherwise, never a fake URL). The same pass also renders, per send, a paid-social **ad set** (Meta/Google/TikTok, `scripts/lib/ad-creative.js` → `ads/usa-july/`) and a flagship **landing page** (`scripts/lib/landing-page.js` → `landing-pages/usa-july/`), all from the same scrubbed copy + verified assets (no invented discount codes). `scripts/build-july-studio.js` assembles `vahdam-usa-july-calendar-mailer-studio.html` (served at `/july-studio` · `/usa-july`): Card/List toggle, scenario tabs (C = executed model, 2-3 emails/user/week), per-send **Mailers / Ads / Landing** tabs whose preview = the exact embedded downloadable file (Blob URL, no `srcdoc`), plus the data-grounded reasoning per row. Manifest: `data/calendar/usa-july-2026.json`. Event hooks wired into reasoning: WC Final Jul 19 @ MetLife, National Ice Cream Day Jul 19, Parents' Day Jul 26, Int'l Day of Friendship Jul 30, National Wellness Month (Aug) ramp.
 - **Selected-collection coverage rule:** `SELECTED_COLLECTIONS` in `build-july-mailers.js` (default: chai-teas, samplers, gifts, best-sellers) MUST each be represented by ≥1 send — the build **hard-fails** if any is uncovered, so a selected collection is never silently dropped. Each slot carries `collections` + a `collection_cta`; the collection is wired into asset generation (landing-page "Explore all {collection}" CTA) and surfaced in the studio (chips + a "Collections covered" stat). `manifest.selected_collections` lists each with its covering send dates.
+
+## Agent memory (TencentDB-Agent-Memory bridge, 2026-07-19)
+`integrations/tencentdb-memory/` gives Claude persistent long-term memory (TencentDB-Agent-Memory's
+local L0->L3 pyramid: conversation -> atoms -> scenarios -> persona). That project has NO native
+MCP/Claude connector — only a "Hermes" REST gateway (`:8420`) — so `mcp-server.mjs` is a **zero-dependency
+MCP bridge** mapping the gateway (`/recall /capture /search/* /session/end /health`) onto MCP tools
+(`memory_recall`, `memory_capture`, `memory_search`, `memory_search_conversations`, `memory_session_end`,
+`memory_health`). Wired into this repo's Claude Code sessions via root `.mcp.json`. Start the gateway with
+`integrations/tencentdb-memory/setup.sh` (clones the upstream gateway into gitignored `vendor/`, needs an
+LLM key for distillation only), verify with `npm run smoke`. Full setup (repo + CLI + Desktop) in that
+folder's README. Habit: `memory_recall` at task start, `memory_capture` after meaningful turns.
 
 ## Product Catalogs
 US: 173 · UK: 101 · Global: 102 active products. Built at deploy from `products_export_{usa,uk,global}.csv` via `scripts/build-catalog.js` → `data/catalog/products_{region}.json` (served with CORS + cache headers per `vercel.json`).
@@ -166,6 +186,20 @@ Each sibling project moves to `<slug>.anchit-tandon.com`. `migrate-domains` adds
 
 ## API Keys (2026-05-30) — per-project Gemini via gcloud
 Each app has its OWN restricted Gemini key minted from its own GCP project, pushed to Vercel (Production+Development): vahdam-lifecycle-os ← GCP vahdam-lifecycle-os (others: personal-ai-os, the-third-eye, music-gen-ai, hey-yaara, ai-tele-suite, th-life-engine, marketing-mailers-html-architect). Other providers left as-is.
+
+## Marketing skills pack + reels-grade creative standard (2026-07-24)
+Ten job-complete marketing skills in `.claude/commands/` (mega-prompt discipline: clear,
+highly specific, template-driven, evidence-quoting; skill = a real job run end-to-end):
+`/campaign-audit` `/lp-audit` `/ab-test` `/competitor-teardown` `/utm` `/email-sequence`
+`/content-repurposer` `/icp-builder` `/ad-copy-matrix` `/creative-brief`. All enforce the
+Brand Constants + zero fabrication.
+**Reels-grade creative standard**: stills built to animate via `api/ai/image.js`
+`mode:'reels'` (cinematic 9:16, depth layers for parallax, negative space for type, no baked
+text); real motion via Higgsfield image-to-video; instant no-API preview + generator handoff
+via `scripts/lib/motion-ad.js` (`renderMotionAd` = self-contained animated HTML creative,
+`motionBrief` = shot-by-shot brief so the shipped MP4 matches). Quality bar in
+`.claude/commands/ad-creative.md`: hook moves in 0.8s, word-staggered kinetic type, one
+filmic grade, real SKU packaging only, <15s, safe-areas.
 
 ## Growth OS — integrated team (slash commands + connectors + skills)
 This repo ships project slash commands in `.claude/commands/` that operate the brand as a full growth team for a coffee + wellness D2C brand. Start anything with **`/growth-team`** (the router) or jump to a vertical:

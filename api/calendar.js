@@ -305,7 +305,7 @@ async function lifecycle(req, res, action) {
     if (action === 'lifecycle-build-mailer') {
       if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
       if (!body.id && !body.entry) return res.status(400).json({ ok: false, error: 'id (lifecycle entry) or entry is required' });
-      const result = await lifecycleBuild.buildLifecycleMailer({ id: body.id || null, entry: body.entry || null });
+      const result = await lifecycleBuild.buildLifecycleMailer({ id: body.id || null, entry: body.entry || null, force: !!(body.force || (q && q.force)) });
       return res.status(200).json(result);
     }
 
@@ -346,14 +346,23 @@ module.exports = async function handler(req, res) {
       // ?debug=1 → JSON diagnostics (no secrets) so a 404 is diagnosable live.
       if (req.query?.debug) { res.setHeader('Content-Type', 'application/json'); return res.status(200).json({ ok: true, diag }); }
       if (!html) {
-        // Actionable message keyed to the real reason, not a blanket "not found".
-        const why = !diag.dbConnected
-          ? 'Asset storage is not connected on this deployment (SUPABASE_SERVICE_ROLE_KEY missing), so hosted pages cannot be served yet.'
-          : !diag.campaignFound
-            ? 'This campaign is not persisted yet. Open it in VAHDAM Brain and click Approve — approving hosts the page at this URL. (A View-only preview is not hosted.)'
-            : 'This campaign has no landing-page asset built. Regenerate it in VAHDAM Brain with the landing page channel enabled.';
+        // NEVER serve a dead page. The /lp URL always hosts a REAL, on-brand VAHDAM
+        // landing page: the campaign's own if persisted (any generated campaign,
+        // not just approved ones — landingPageResolve is not approval-gated), else a
+        // complete catalog-driven fallback so a link minted before persistence still
+        // resolves to a real page. ?debug=1 above still exposes the diag.
+        const region = String(req.query?.region || req.query?.r || 'us').toLowerCase();
+        const { buildFallbackLanding } = require('./_shared/landing-fallback.js');
+        const fb = buildFallbackLanding({ id, region, hint: String(req.query?.hint || '') });
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.status(404).send(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Landing page not available</title><div style="font-family:'Proxima Nova',Arial,sans-serif;max-width:640px;margin:12vh auto;padding:0 24px;color:#171717"><h1 style="font-family:Georgia,serif;color:#004A2B;font-size:24px">Landing page not available yet</h1><p style="line-height:1.6;color:#556059">${why}</p><p style="font-size:12px;color:#6b7770">Ref: ${id}</p></div>`);
+        res.setHeader('X-VAHDAM-LP', diag.campaignFound ? 'campaign-no-lp-fallback' : 'campaign-not-persisted-fallback');
+        if (req.query?.download) {
+          res.setHeader('Content-Disposition', `attachment; filename="vahdam-lp-${(id || 'page').replace(/[^a-z0-9_-]/gi, '')}.html"`);
+          res.setHeader('Cache-Control', 'no-store');
+          return res.status(200).send(fb);
+        }
+        res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=300');
+        return res.status(200).send(fb);
       }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       // ?download=1 → export the self-contained, deploy-ready HTML file (drop onto try.vahdam.*).

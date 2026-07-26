@@ -15,17 +15,25 @@
     "api/ai/pipeline/images.js":   { "maxDuration": 120 },
     "api/ai/pipeline/html.js":     { "maxDuration": 90 },
     "api/ai/pipeline/score.js":    { "maxDuration": 45 },
-    "api/calendar.js":             { "maxDuration": 90 },
+    "api/calendar.js":             { "maxDuration": 120 },
     "api/competitor.js":           { "maxDuration": 60 },
     "api/kb.js":                   { "maxDuration": 60 },
-    "api/public-config.js":        { "maxDuration": 3 }
+    "api/public-config.js":        { "maxDuration": 120 }
   },
-  "redirects": [{ "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false }],
+  "redirects": [
+    { "source": "/studio-v2", "destination": "/studio?theme=dark", "permanent": false },
+    { "source": "/usa-d2c-report", "destination": "/data-analysis?tab=review-overview", "permanent": false },
+    { "source": "/usa-d2c-dashboard", "destination": "/data-analysis?tab=review-overview", "permanent": false },
+    { "source": "/d2c-review", "destination": "/data-analysis?tab=review-overview", "permanent": false },
+    { "source": "/business-review", "destination": "/data-analysis?tab=review-overview", "permanent": false }
+  ],
   "crons": [
     { "path": "/api/brain?action=cron", "schedule": "30 18 * * *" },
     { "path": "/api/cron/social", "schedule": "0 19 * * *" }
   ],
   "rewrites": [
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
     { "source": "/api/ai/pipeline/health", "destination": "/api/public-config?pipeline=1" },
     { "source": "/api/ai/landing-page", "destination": "/api/ai/generate?action=landing-page" },
     { "source": "/api/voice", "destination": "/api/brain?action=tts" },
@@ -62,15 +70,24 @@
     { "source": "/3d/us", "destination": "/storefront-3d.html?variant=us" },
     { "source": "/3d/uk", "destination": "/storefront-3d.html?variant=uk" },
     { "source": "/3d/global", "destination": "/storefront-3d.html?variant=global" },
+    { "source": "/3d/in", "destination": "/storefront-3d.html?variant=in" },
+    { "source": "/3d/india", "destination": "/storefront-3d.html?variant=in" },
     { "source": "/store-3d-us", "destination": "/storefront-3d.html?variant=us" },
     { "source": "/store-3d-uk", "destination": "/storefront-3d.html?variant=uk" },
     { "source": "/store-3d-global", "destination": "/storefront-3d.html?variant=global" },
+    { "source": "/store-3d-in", "destination": "/storefront-3d.html?variant=in" },
     { "source": "/shop-3d", "destination": "/storefront-3d.html?variant=signature" },
+<<<<<<< HEAD
 =======
     { "source": "/official-designs", "destination": "/official-designs.html" },
     { "source": "/store-3d", "destination": "/official-designs.html" },
     { "source": "/designs", "destination": "/official-designs.html" },
 >>>>>>> Stashed changes
+=======
+    { "source": "/3d-connector", "destination": "/connector-3d.html" },
+    { "source": "/connector-engine", "destination": "/connector-3d.html" },
+    { "source": "/spatial-store", "destination": "/connector-3d.html" },
+>>>>>>> 79fb5cfb2945d1de257e930a52443d068452d5de
     { "source": "/api/os/daily", "destination": "/api/brain?action=os-run-daily-job&cron=1" },
     { "source": "/brain", "destination": "/smart-brain.html" },
     { "source": "/smart-brain", "destination": "/smart-brain.html" },
@@ -98,8 +115,8 @@
     { "source": "/premium", "destination": "/premium-experience.html" },
     { "source": "/analytics", "destination": "/data-analysis-contrast.html" },
     { "source": "/data-analysis", "destination": "/data-analysis-contrast.html" },
-    { "source": "/usa-d2c-report", "destination": "/vahdam-usa-d2c-dashboard.html" },
-    { "source": "/usa-d2c-dashboard", "destination": "/vahdam-usa-d2c-dashboard.html" },
+    { "source": "/d2c-lifecycle-os", "destination": "/index.html" },
+    { "source": "/lifecycle-os", "destination": "/index.html" },
     { "source": "/rfm", "destination": "/dashboard.html" },
     { "source": "/plan", "destination": "/calendar.html" },
     { "source": "/mailer-calendar", "destination": "/lifecycle-calendar.html" },
@@ -109,6 +126,11 @@
     { "source": "/design-intel", "destination": "/design-intelligence.html" },
     { "source": "/design-intelligence", "destination": "/design-intelligence.html" },
     { "source": "/ads", "destination": "/ad-campaigns.html" },
+    { "source": "/ads-master", "destination": "/ad-campaigns-master.html" },
+    { "source": "/ad-campaigns-master", "destination": "/ad-campaigns-master.html" },
+    { "source": "/ads-kb", "destination": "/ad-campaigns-master.html" },
+    { "source": "/ads-dashboard", "destination": "/ads-dashboard.html" },
+    { "source": "/ad-performance", "destination": "/ads-dashboard.html" },
     { "source": "/website-designs", "destination": "/website-designs.html" },
     { "source": "/landing", "destination": "/landing-pages.html" },
     { "source": "/landing-pages", "destination": "/landing-pages.html" },

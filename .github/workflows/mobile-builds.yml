@@ -75,7 +75,14 @@ jobs:
             --title "VAHDAM Lifecycle OS — mobile builds (latest)" \
             --notes "Auto-published by the Mobile Builds workflow. The apps render the live deployment, so they stay current without rebuilds. Android: install the APK directly. iOS: unsigned IPA — sideload or sign for TestFlight." \
             || true
-          gh release upload mobile-latest vahdam-lifecycle-os.apk --clobber
+          # GitHub's release API returns transient 503s; the build is fine, so retry
+          # the upload with backoff instead of failing the whole job on a blip.
+          for i in 1 2 3 4 5; do
+            gh release upload mobile-latest vahdam-lifecycle-os.apk --clobber && exit 0
+            echo "upload attempt $i failed (likely a transient GitHub 503) — retrying in $((i*15))s"
+            sleep $((i*15))
+          done
+          echo "release upload still failing after retries"; exit 1
 
   ios:
     name: iOS unsigned IPA
@@ -95,21 +102,30 @@ jobs:
 
       - run: npm ci
 
+      - name: cap add ios (regenerate native platform)
+        # ios/ is intentionally NOT committed — keeping Swift (AppDelegate.swift) and
+        # the Ruby Podfile out of the repo is what stops CodeQL from erroring on
+        # unbuildable Swift/Ruby. The iOS shell is a pure derivative of
+        # capacitor.config.json (server.url -> live site), so regenerate it fresh from
+        # node_modules for each build. `|| true` no-ops if it already exists.
+        run: npx cap add ios || true
+
       - name: cap sync ios
-        # ios/App/Podfile does `require_relative '../../node_modules/@capacitor/ios/...'`
-        # — needs node_modules present, plus keeps the plugin list in sync.
+        # Resolves Swift Package Manager dependencies (Capacitor 8 iOS uses SPM,
+        # not CocoaPods) and keeps the plugin list in sync.
         run: npx cap sync ios
 
-      - name: Install CocoaPods dependencies
-        working-directory: ios/App
-        run: pod install
-
+      # NOTE: no `pod install` — Capacitor 8 iOS is Swift Package Manager. A fresh
+      # `cap add ios` produces App.xcodeproj + CapApp-SPM/Package.swift and NO
+      # Podfile / .xcworkspace, so we build the .xcodeproj directly and let
+      # xcodebuild resolve the SPM packages.
       - name: Build (no code signing)
         working-directory: ios/App
         run: |
-          xcodebuild -workspace App.xcworkspace -scheme App \
+          xcodebuild -project App.xcodeproj -scheme App \
             -configuration Release -sdk iphoneos \
             -derivedDataPath build \
+            -clonedSourcePackagesDirPath build/SourcePackages \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             build
 
@@ -127,4 +143,10 @@ jobs:
             --title "VAHDAM Lifecycle OS — mobile builds (latest)" \
             --notes "Auto-published by the Mobile Builds workflow." \
             || true
-          gh release upload mobile-latest vahdam-lifecycle-os-ios-unsigned.ipa --clobber
+          # Retry the upload past transient GitHub 503s (see the Android job).
+          for i in 1 2 3 4 5; do
+            gh release upload mobile-latest vahdam-lifecycle-os-ios-unsigned.ipa --clobber && exit 0
+            echo "upload attempt $i failed (likely a transient GitHub 503) — retrying in $((i*15))s"
+            sleep $((i*15))
+          done
+          echo "release upload still failing after retries"; exit 1
