@@ -489,7 +489,12 @@
     sel.value=t.slice(0,7);
   }
   function renderCalendar(){
-    var m=$("#cal-month").value, today=(SNAP&&SNAP.today&&SNAP.today.date)||"";
+    // The month comes from a <select> (DOM text), so it is validated to a
+    // strict YYYY-MM shape before it can reach innerHTML — a value that is not
+    // two numeric fields is replaced by the current month, never rendered.
+    var m=String($("#cal-month").value||"");
+    if(!/^\d{4}-\d{2}$/.test(m)) m=((SNAP&&SNAP.today&&SNAP.today.date)||new Date().toISOString().slice(0,10)).slice(0,7);
+    var today=(SNAP&&SNAP.today&&SNAP.today.date)||"";
     var byDay={}; (SNAP&&SNAP.daily||[]).forEach(function(d){byDay[d.date]=d;});
     if(LIVE&&LIVE.daily) LIVE.daily.forEach(function(d){ byDay[d.date]=Object.assign({},byDay[d.date]||{date:d.date},d); });
     var y=+m.slice(0,4), mo=+m.slice(5,7);
@@ -517,6 +522,10 @@
     $("#cal-src").textContent="source: "+((LIVE&&LIVE.daily&&LIVE.daily.length)?"live ad account":"snapshot "+((SNAP&&SNAP.captured_at)||""));
   }
   function calDetail(iso){
+    // iso arrives from a cell's data-d attribute (DOM text) — reject anything
+    // that is not a strict YYYY-MM-DD date before it reaches innerHTML.
+    iso=String(iso||"");
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
     var byDay={}; (SNAP&&SNAP.daily||[]).forEach(function(d){byDay[d.date]=d;});
     var r=byDay[iso], today=(SNAP&&SNAP.today&&SNAP.today.date)||"";
     if(!r){
