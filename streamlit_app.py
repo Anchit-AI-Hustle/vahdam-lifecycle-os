@@ -4327,6 +4327,94 @@ def render_master_dashboard():
                 _render_value(kb[k])
 
 
+# ── WHEN campaigns go live ────────────────────────────────────────────────────
+# Checked against the warehouse first, because the two levels disagree and the
+# difference decides what can honestly be claimed:
+#   META_USA_ADS_INSIGHTS.CREATED_TIME   DATE          -> day only, hour truncated
+#   META_USA_CAMPAIGNS.CREATED_TIME      TIMESTAMP_TZ  -> full clock time
+#   META_USA_CAMPAIGNS.START_TIME        TIMESTAMP_TZ
+# Hour-of-day is therefore answerable at CAMPAIGN level and NOT at ad level. The
+# hours are real rather than nominal midnights: 20 distinct hours appear, peaking
+# at 06:00 ET with 21 campaigns.
+#
+# The timezone is stated, not assumed. The column is TIMESTAMP_TZ so it carries an
+# offset; it is converted to America/New_York because that is the market being
+# bought. Read in UTC these hours shift 4-5 and quietly mislead.
+CAMPAIGN_META_TABLE = "VAHDAM_DB.MAPLEMONK.META_USA_CAMPAIGNS"
+POSTING_TZ = "America/New_York"
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def posting_time_analysis(insights_src, since, until, tcol="CREATED_TIME"):
+    """Campaign launch hour / weekday joined to what those campaigns then delivered.
+    Returns (by_hour, by_weekday, coverage); coverage states how many campaigns
+    carry a usable timestamp so a partial join is never presented as complete."""
+    if not insights_src:
+        return pd.DataFrame(), pd.DataFrame(), {}
+    base = (f'select "CAMPAIGN_NAME" as campaign, '
+            f"""convert_timezone('{POSTING_TZ}', "{tcol}") as t """
+            f'from {CAMPAIGN_META_TABLE} where "{tcol}" is not null')
+    perf = (f'select "CAMPAIGN_NAME" as campaign, sum("SPEND") as spend, '
+            f'sum("IMPRESSIONS") as impressions, sum("INLINE_LINK_CLICKS") as link_clicks '
+            f"""from {insights_src} where "DATE_START" between '{since}' and '{until}' """
+            f'group by 1')
+    # Ratios derived from the sums AFTER grouping, never averaged across campaigns.
+    agg = ("sum(p.spend) as spend, sum(p.impressions) as impressions, "
+           "sum(p.link_clicks) as link_clicks, count(distinct c.campaign) as campaigns, "
+           "round(sum(p.link_clicks) / nullif(sum(p.impressions), 0) * 100, 4) as link_ctr, "
+           "round(sum(p.spend) / nullif(sum(p.link_clicks), 0), 4) as cpc, "
+           "round(sum(p.spend) / nullif(sum(p.impressions), 0) * 1000, 4) as cpm")
+    try:
+        cov = q(f"select count(*) as n_ts from ({base})").iloc[0]["n_ts"]
+        tot = q(f'select count(distinct "CAMPAIGN_NAME") as n '
+                f"from {CAMPAIGN_META_TABLE}").iloc[0]["n"]
+        by_hour = q(f"select hour(c.t) as launch_hour, {agg} "
+                    f"from ({base}) c join ({perf}) p on p.campaign = c.campaign "
+                    f"group by 1 order by 1")
+        by_dow = q(f"select dayname(c.t) as launch_weekday, dayofweekiso(c.t) as ord, {agg} "
+                   f"from ({base}) c join ({perf}) p on p.campaign = c.campaign "
+                   f"group by 1, 2 order by 2")
+        return by_hour, by_dow, {"with_timestamp": int(cov or 0), "campaigns": int(tot or 0)}
+    except Exception:  # noqa: BLE001 — table/grant missing: caller reports it
+        return pd.DataFrame(), pd.DataFrame(), {}
+
+
+def render_posting_time(insights_src, since, until):
+    st.markdown("#### When campaigns go live — launch hour and weekday")
+    tcol = st.radio("Timestamp", ["CREATED_TIME", "START_TIME"], horizontal=True,
+                    key="pt_tcol",
+                    help="CREATED_TIME is when the campaign was built; START_TIME is when "
+                         "it was scheduled to begin delivering. Different decisions, and "
+                         "they can differ by days.")
+    by_hour, by_dow, cov = posting_time_analysis(insights_src, since, until, tcol)
+    if by_hour.empty and by_dow.empty:
+        st.info(f"No campaign timestamps readable from {CAMPAIGN_META_TABLE}.")
+        return
+    st.caption(
+        f"Launch time in **{POSTING_TZ}** — the market being bought; in UTC these hours "
+        f"shift 4-5 and mislead — joined to what those campaigns delivered in this window. "
+        f"{cov.get('with_timestamp', 0)} of {cov.get('campaigns', 0)} campaigns carry a "
+        f"usable {tcol}. **Ad-level launch hour does not exist:** CREATED_TIME on the "
+        f"insights table is a DATE, so the clock time is truncated upstream — this is "
+        f"campaign level, and the day is the finest ad-level grain available."
+    )
+    for df, xcol in ((by_hour, "launch_hour"), (by_dow, "launch_weekday")):
+        if df.empty:
+            continue
+        show = df.drop(columns=[c for c in ("ord",) if c in df.columns])
+        st.dataframe(order_table(show), use_container_width=True, hide_index=True)
+        opts = [c for c in ("spend", "link_ctr", "cpc", "cpm", "impressions",
+                            "link_clicks", "campaigns") if c in df.columns]
+        m = st.selectbox("Measure", opts, key=f"pt_m_{xcol}")
+        st.altair_chart(alt.Chart(df).mark_bar(color=GREEN).encode(
+            x=alt.X(f"{xcol}:N", sort=None, title=None), y=alt.Y(f"{m}:Q", title=m),
+            tooltip=list(show.columns)).properties(height=240), use_container_width=True)
+    st.caption("A launch-discipline signal, not a delivery-time one: Meta decides when "
+               "inside the day to serve, so this is when the team shipped, not when the "
+               "audience saw it. An hourly DELIVERY breakdown needs Meta's hourly "
+               "breakdown table, which this pipeline does not sync.")
+
+
 def render_ads_analytics():
     st.title("Ads Analysis")
     st.caption(
@@ -4346,6 +4434,10 @@ def render_ads_analytics():
 
     if view == "Overview & priority metrics":
         if platform == "Meta":
+            # US only: the campaigns table it joins is the US one.
+            if region == "US":
+                render_posting_time(META_SRC, since, until)
+                st.markdown("---")
             # EXACT portfolio totals in SQL over all rows in scope — no fetch cap.
             sums = sql_sums(META_SRC, meta_where())
             derived = compute_all(sums)
