@@ -66,6 +66,10 @@
   .item-copy .h { color: #171717; font-weight: 600; }
   .x { margin-left: auto; background: transparent; border: none; color: #48524c; cursor: pointer; font-size: 16px; }
   .x:hover { color: #ef4444; }
+  .item-acts { display: flex; gap: 6px; margin-top: 8px; }
+  .abtn { flex: 1; font-family: inherit; font-size: 11.5px; font-weight: 600; color: #cdd8d2; background: transparent;
+    border: 1px solid rgba(171,135,67,0.28); border-radius: 8px; padding: 7px 8px; cursor: pointer; transition: all .12s; }
+  .abtn:hover { border-color: #AB8743; color: #FBF5EA; background: rgba(171,135,67,0.06); }
   .chan { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; }
   .chan-google { background: rgba(59,130,246,0.15); color: #1d4ed8; }
   .chan-meta   { background: rgba(34,197,94,0.15); color: #0a7d33; }
@@ -392,6 +396,66 @@
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
   const save = () => localStorage.setItem(KEY, JSON.stringify(store));
   const store = Object.assign({ google: [], meta: [], tiktok: [], landing: [], calendar: {} }, load());
+
+  // ── Clone + portable AI prompt (same pattern as /assets and /landing) ─
+  function copyText(txt, okMsg) {
+    const done = (ok) => toast(ok ? (okMsg || 'Copied') : 'Could not copy — see console');
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(() => done(true), () => done(false)); return; } } catch (_) {}
+    try { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(true); } catch (_) { console.log(txt); done(false); }
+  }
+  const BRAND_BLOCK = [
+    'BRAND RULES (strict — obey exactly):',
+    '- Palette, ONLY these four: forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA.',
+    "- Headings: 'Lao MN','Cormorant Garamond',Georgia,serif. Body: 'Proxima Nova','Helvetica Neue',Arial,sans-serif.",
+    '- Voice: warm, sensory, story-driven, premium. Prefer: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
+    "- NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
+    '- VAHDAM India: premium Indian heritage tea · B-Corp · single-estate · garden-fresh within 72 hours of harvest.'
+  ].join('\n');
+  const SELF_CHECK = '\n\nSELF-CHECK (do this before finishing): re-read the BRAND RULES, list any violations in your draft, fix them, and return ONLY the corrected final output.';
+  function buildAdPrompt(ch, c) {
+    const platform = ch === 'google' ? 'Google Ads' : ch === 'meta' ? 'Meta (Facebook/Instagram)' : 'TikTok';
+    const market = c.market || 'US';
+    return 'ROLE: You are a senior paid-social/search creative director + performance copywriter for VAHDAM India.\nMARKET: ' + market + '\n\n' + BRAND_BLOCK + '\n\n' + [
+      'Produce a scroll-stopping ' + platform + ' ad campaign package.',
+      '',
+      'CAMPAIGN BRIEF:',
+      '- Name: ' + (c.name || '(name it)'),
+      c.aud ? '- Audience: ' + c.aud : '',
+      c.primary || c.hook ? '- Existing angle to improve on: ' + (c.primary || c.hook) : '',
+      c.headlines && c.headlines.length ? '- Existing headlines: ' + c.headlines.join(' | ') : '',
+      '',
+      'DELIVER, clearly labelled:',
+      '1) 3 headline options leading with the emotional end-state, never an ingredient list.',
+      '2) Primary text / caption + a strong CTA, sized correctly for ' + platform + '.',
+      '3) An IMAGE-GENERATION PROMPT for a photoreal lifestyle scene: brand palette, gallery-print/8K sharpness, soft natural light; VAHDAM tin shows a gold botanical illustration only with NO readable lettering; NO logos, NO watermarks, NO garbled text.',
+      '4) Which cohort/audience this is aimed at and why.',
+      'OUTPUT: clean sections, ready to paste into the ' + platform + ' ad builder. No preamble.'
+    ].filter(Boolean).join('\n') + SELF_CHECK;
+  }
+  function cloneAd(ch, c) {
+    store[ch] = store[ch] || [];
+    const copy = Object.assign({}, c, { id: uid(), name: (c.name || 'Ad') + ' (Copy)' });
+    store[ch].unshift(copy);
+    save();
+  }
+  function adActionsHtml(ch, c) {
+    const enc = encodeURIComponent(JSON.stringify(c));
+    return '<div class="item-acts">' +
+      '<button class="abtn" type="button" data-clone="' + ch + '" data-payload="' + enc + '">⧉ Clone</button>' +
+      '<button class="abtn" type="button" data-prompt="' + ch + '" data-payload="' + enc + '">📋 AI prompt</button></div>';
+  }
+  // Event delegation for clone/prompt across all three list containers.
+  ['#g-list', '#m-list', '#t-list'].forEach((sel) => {
+    const el = $(sel); if (!el) return;
+    el.addEventListener('click', (e) => {
+      const cb = e.target.closest('[data-clone]'), pb = e.target.closest('[data-prompt]');
+      const btn = cb || pb; if (!btn) return;
+      let c; try { c = JSON.parse(decodeURIComponent(btn.dataset.payload)); } catch (_) { return; }
+      const ch = btn.dataset.clone || btn.dataset.prompt;
+      if (cb) { cloneAd(ch, c); ({ google: renderGoogle, meta: renderMeta, tiktok: renderTikTok }[ch] || (() => {}))(); toast('⧉ Cloned "' + (c.name || 'ad') + '"'); }
+      else copyText(buildAdPrompt(ch, c), '📋 AI prompt copied — paste into Claude, Gemini or ChatGPT.');
+    });
+  });
 
   // ── Supabase (reuse the client auth.js already booted) ───────────────
   const sbClient = () => (window.LifecycleAuth && window.LifecycleAuth.client) || null;
@@ -1079,6 +1143,7 @@
         ${(c.headlines || []).length ? `<div class="item-copy"><span class="h">Headlines:</span> ${c.headlines.map(esc).join(' · ')}</div>` : ''}
         ${(c.descriptions || []).length ? `<div class="item-copy">${c.descriptions.map(esc).join('<br>')}</div>` : ''}
         ${creativeThumbs(c)}
+        ${adActionsHtml('google', c)}
       </div>`).join('') : '<div class="empty">No Google campaigns yet.</div>';
     $('#g-list').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { store.google = store.google.filter((x) => x.id !== b.dataset.rm); save(); renderGoogle(); }));
   }
@@ -1102,6 +1167,7 @@
         ${c.primary ? `<div class="item-copy">${esc(c.primary)}</div>` : ''}
         ${c.headline ? `<div class="item-copy"><span class="h">${esc(c.headline)}</span></div>` : ''}
         ${creativeThumbs(c)}
+        ${adActionsHtml('meta', c)}
       </div>`).join('') : '<div class="empty">No Meta campaigns yet.</div>';
     $('#m-list').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { store.meta = store.meta.filter((x) => x.id !== b.dataset.rm); save(); renderMeta(); }));
   }
@@ -1123,6 +1189,7 @@
         <div class="item-copy" style="margin-top:6px"><span class="h">${esc(c.hook || '')}</span><br>${esc(c.caption || '')}</div>
         ${c.hashtags ? `<div class="item-meta" style="margin-top:6px"><span>${esc(c.hashtags)}</span></div>` : ''}
         ${creativeThumbs(c)}
+        ${adActionsHtml('tiktok', c)}
       </div>`).join('') : '<div class="empty">No TikTok campaigns yet.</div>';
     $('#t-list').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { store.tiktok = store.tiktok.filter((x) => x.id !== b.dataset.rm); save(); renderTikTok(); }));
   }
