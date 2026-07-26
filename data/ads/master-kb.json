@@ -881,16 +881,31 @@
       }
     ],
     "ugc_june_buckets": {
-      "total_live": 136,
-      "cortisol": 30,
-      "countering_mushroom": 13,
-      "gummies_vs_coffee": 16,
-      "target_shelf": 41,
-      "taste": 16,
-      "over_40": 20,
-      "tiktok": 70,
-      "instagram": 60,
-      "youtube": 6
+      "total_live": 201,
+      "tiktok": 95,
+      "instagram": 93,
+      "youtube": 13,
+      "cortisol": 43,
+      "target_shelf": 46,
+      "over_40": 32,
+      "gummies_vs_coffee": 25,
+      "countering_mushroom": 23,
+      "taste": 15,
+      "target_in_store": 15,
+      "unclassified": 2,
+      "_corrected": "CORRECTED 2026-07-26 by scraping the June USA UGC dashboard directly. Every previous figure understated the programme: total_live was 136 against an actual 201 (a 32% undercount), tiktok 70 vs 95, instagram 60 vs 93, youtube 6 vs 13, cortisol 30 vs 43, over_40 20 vs 32, countering_mushroom 13 vs 23, gummies 16 vs 25, target_shelf 41 vs 46. The 'Target In-Store Discovery' bucket (15 videos) was missing entirely, which mattered: the dashboard shows it as the HIGHEST scoring TikTok bucket at 28.9 average. Full scrape with per-post rows, the scoring formulas and the Hook & Script Bible is in data/ads/ugc-june-usa-2026-06.json.",
+      "_previous_claim": {
+        "total_live": 136,
+        "cortisol": 30,
+        "countering_mushroom": 13,
+        "gummies_vs_coffee": 16,
+        "target_shelf": 41,
+        "taste": 16,
+        "over_40": 20,
+        "tiktok": 70,
+        "instagram": 60,
+        "youtube": 6
+      }
     },
     "retention_funnel": {
       "note": "Instagram creator campaign, May vs June 2026",
