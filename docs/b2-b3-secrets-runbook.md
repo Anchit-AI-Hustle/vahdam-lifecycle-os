@@ -68,8 +68,14 @@ vercel --prod                   # or: npm run deploy
 
 ```bash
 curl -s https://vahdam-lifecycle-os.anchit-tandon.com/api/health | jq .
-# public-config health probe (never leaks the service-role key):
-curl -s "https://vahdam-lifecycle-os.anchit-tandon.com/api/public-config?health=1" | jq .
+# Anonymous health returns liveness only: {ok, build, ts}.
+# The DETAILED payload (providers/region/env) and the operator-only pipeline /
+# probe modes need an operator bearer token (Supabase access token on an allowed
+# domain, or CRON_SECRET). probe spends provider quota - operators only.
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  "https://vahdam-lifecycle-os.anchit-tandon.com/api/public-config?health=1" | jq .
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  "https://vahdam-lifecycle-os.anchit-tandon.com/api/public-config?pipeline=1" | jq .
 ```
 
 A healthy response shows Supabase reachable and no 401. The `/audit` page's Master Dashboard / Created
