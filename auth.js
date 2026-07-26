@@ -287,7 +287,7 @@
     // metric-catalog panels were folded into the master's SOP and Ops tabs, and their
     // routes now serve the master so existing links and bookmarks still land somewhere
     // correct rather than 404.
-    { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html', '/ads', '/ads-dashboard', '/ad-performance', '/ad-campaigns.html', '/ads-dashboard.html'] },
+    { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html', '/ads', '/ads-dashboard', '/ad-performance', '/ad-campaigns.html', '/ads-dashboard.html', '/ads-masterclass', '/ads-masterclass.html'] },
     { group: '3D Storefront & Websites', icon: 'landing', gid: 'landing', ver: 'v2', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d', '/store-3d', '/official-designs', '/official-designs.html', '/designs'], children: [
       { id: 'store3d-all', label: '3D Storefront (overview)', href: '/3d', icon: 'vahdam', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d'] },
       { id: 'web-us',     label: '🇺🇸 US Website',     href: '/3d/us',     icon: 'vahdam', match: ['/3d/us', '/store-3d-us'] },

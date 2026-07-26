@@ -423,6 +423,10 @@
       "destination": "/ad-campaigns-master.html"
     },
     {
+      "source": "/ads-masterclass",
+      "destination": "/ad-campaigns-master.html"
+    },
+    {
       "source": "/ads-master",
       "destination": "/ad-campaigns-master.html"
     },
