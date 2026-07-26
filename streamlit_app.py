@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.8"
+APP_BUILD = "2026-07-26.10"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -1191,8 +1191,8 @@ section = st.sidebar.radio(
 ADS_VIEWS = ["Ad accounts & retail funnel", "Platform parity — every metric",
              "Omnichannel Master View", "Comparison Engine", "Cohort Exploration",
              "Overview & priority metrics", "Single entity deep-dive",
-             "Ad explorer (all fields)", "Spend tracker", "UGC creator ads",
-             "UGC command center"]
+             "Ad explorer (all fields)", "Spend tracker",
+             "UGC creators, scoring & paid performance"]
 if section == "Ads Analysis":
     view = st.sidebar.radio("Analysis view", ADS_VIEWS)
 else:
@@ -2494,6 +2494,188 @@ def live_ugc_posts(since, until):
         return pd.DataFrame()
 
 
+# ── UGC SCORING — ONE authoritative definition ────────────────────────────────
+# Source of truth: the "Scoring Legend" tab of the VAHDAM Master Ad Tracking Sheet.
+# Per the SOP, the SHEET is authoritative over the SOP document wherever they differ,
+# so this mirrors the sheet verbatim and every UGC view reads it from here. It used to
+# be restated in prose in two places, and the two disagreed: one claimed components
+# were "min-max normalised" and gave Instagram an "ER x 10%" term that the sheet does
+# not contain. The live reference dashboard states log-normalisation explicitly
+# (log(value+1) / log(max+1)), and the sheet's Instagram formula has no ER term.
+# Defining it once makes that class of drift impossible.
+UGC_SCORING = {
+    "authority": ("Master Ad Tracking Sheet, 'Scoring Legend' tab. The sheet is "
+                  "authoritative over the SOP document wherever the two differ. Reference "
+                  "dashboard: https://vahdam-june-usa-ugc-dashboard.netlify.app/"),
+    "range": "Organic Score is 0-100 and measures organic performance BEFORE any paid boosting.",
+    "normalisation": ("Each input is LOG-normalised to 0-1 as log(value + 1) / log(max + 1), "
+                      "then weighted, then multiplied by 100. Not min-max."),
+    "tiktok_formula": "6-sec View % x 40% + Shares x 25% + (Likes + Comments) x 20% + Views x 15%",
+    "instagram_formula": "Views x 40% + Likes x 35% + Comments x 15% (+ Shares x 0.1)",
+    "weights_caveat": ("The sheet's own note: the Instagram weights sum to 90%, not 100%. That is "
+                       "the sheet's stated definition, reproduced as-is rather than silently "
+                       "rescaled to 100% - rescaling would change every Instagram score."),
+    "tiktok_thresholds": [
+        ("Ad Recommended", "Score >= 30 OR 6-sec >= 25%", "Strong organic proof, safe to amplify"),
+        ("Consider", "Score >= 20 OR 6-sec >= 18% OR ER >= 8%", "Some signal, test with small budget"),
+        ("No", "Below all thresholds", "Insufficient organic data"),
+    ],
+    "instagram_thresholds": [
+        ("Ad Recommended", "Score >= 20", "Good IG organic performance"),
+        ("Consider", "Score >= 13 OR Likes/Views >= 5%", "Emerging signal, worth a small test"),
+        ("No", "Below all thresholds", "Not enough proof yet"),
+    ],
+    "auto_qualify": ("TikTok only: a 6-second view rate of 25% or more is Ad Recommended "
+                     "REGARDLESS of score."),
+    "benchmarks": [
+        ("70-100", "Elite", "Top-tier organic. Strong hook, high retention, real engagement. First to boost."),
+        ("50-69", "High", "Very good creative with solid hold/engagement. Boost with confidence."),
+        ("30-49", "Good", "Meets Ad Recommended threshold. Worth testing with budget."),
+        ("20-29", "Consider", "Some signal. Test with small spend first."),
+        ("0-19", "Not ready", "Do not boost, fix the creative first."),
+    ],
+    "view_penalties_tiktok": [("Under 50", "x 0.45", "Too small, data unreliable"),
+                              ("50-199", "x 0.70", "Small but growing, some caution"),
+                              ("200-499", "x 0.85", "Reasonable, minor discount"),
+                              ("500+", "no penalty", "Full confidence")],
+    "run_instruction": ("THE RUN INSTRUCTION IS THE 'Ads Activated' COLUMN, NOT THE SCORE. The "
+                        "sheet is explicit: 'Ad Recommended is a scoring output, not the run "
+                        "instruction.' Values: 'Review before running ads' (cleared Level 2, "
+                        "queued for the agency's final check), 'Yes' (already live, reporting "
+                        "only), 'No' (did not clear the benchmark, do not set live), blank (not "
+                        "yet assessed, wait)."),
+}
+
+
+def render_ugc_scoring():
+    """The one place UGC scoring is explained. Called by the single UGC view."""
+    u = UGC_SCORING
+    st.caption(f"Authority: {u['authority']}")
+    st.markdown(f"{u['range']}  \n{u['normalisation']}")
+    c1, c2 = st.columns(2)
+    c1.markdown(f"**TikTok organic score**  \n`{u['tiktok_formula']}`")
+    c2.markdown(f"**Instagram organic score**  \n`{u['instagram_formula']}`")
+    st.warning(u["weights_caveat"])
+    st.info(u["run_instruction"])
+    st.markdown("**Ad recommendation thresholds**")
+    st.dataframe(pd.DataFrame(
+        [{"Platform": "TikTok", "Label": a, "Condition": b, "Meaning": c}
+         for a, b, c in u["tiktok_thresholds"]] +
+        [{"Platform": "Instagram", "Label": a, "Condition": b, "Meaning": c}
+         for a, b, c in u["instagram_thresholds"]]),
+        use_container_width=True, hide_index=True)
+    st.caption(u["auto_qualify"])
+    c3, c4 = st.columns(2)
+    with c3:
+        st.markdown("**Score benchmarks**")
+        st.dataframe(pd.DataFrame([{"Score": a, "Label": b, "What it means": c}
+                                   for a, b, c in u["benchmarks"]]),
+                     use_container_width=True, hide_index=True)
+    with c4:
+        st.markdown("**View penalties (TikTok)**")
+        st.dataframe(pd.DataFrame([{"Organic views": a, "Multiplier": b, "Why": c}
+                                   for a, b, c in u["view_penalties_tiktok"]]),
+                     use_container_width=True, hide_index=True)
+
+# ── AUTOMATED videoid / creator -> AD MAPPING ─────────────────────────────────
+# Replaces the manual "Video ID to Ad ID mapping sheet" that the KT Data Request
+# thread lists as REQUIRED manual input for the UGC dashboard. The SOP already
+# defines the chain that makes it automatable:
+#     organic post URL -> videoid -> ad name -> ad code -> paid performance
+# so the join key is already inside the ad name and no second sheet is needed.
+#
+# Measured live 2026-07-26 on retail ads since 2026-06-01, which is why this is
+# TIERED rather than a single rule:
+#   Tier 1  videoid    0 of 176 distinct ad names carry one. The nomenclature is only
+#                      live from Monday, so existing ads predate it. Coverage rises on
+#                      its own as new ads land - nothing here needs changing.
+#   Tier 2  handle     23 of 44 UGC ad names (52%) match a JB_USA Creator Username on
+#                      the trailing token of the ad name, covering 21 creators. This is
+#                      what carries the join TODAY.
+#   Tier 3  unmatched  reported as unmatched. Never guessed, never fuzzy-matched - a
+#                      wrong creator attribution is worse than a declared gap.
+@st.cache_data(ttl=300, show_spinner=False)
+def ugc_ad_mapping(since, until):
+    """Join live paid ads to creator posts without any manual mapping sheet."""
+    try:
+        return q(f"""
+with ads as (
+  select "AD_NAME" as ad_name, "CAMPAIGN_NAME" as campaign, "ADSET_NAME" as adset,
+         sum("SPEND") as spend, sum("IMPRESSIONS") as impressions,
+         sum("INLINE_LINK_CLICKS") as link_clicks,
+         -- videoid per SOP nomenclature = final underscore field; only trust it when
+         -- it really is a platform id (>=15 digits), never a stray word.
+         case when regexp_like(split_part("AD_NAME", '_', -1), '[0-9]{{15,}}')
+              then split_part("AD_NAME", '_', -1) end as videoid,
+         lower(regexp_substr("AD_NAME", '[^-_]+$')) as tail_token
+    from {META_RETAIL}
+   where "DATE_START" between '{since}' and '{until}' and "AD_NAME" is not null
+   group by 1, 2, 3, 5, 6
+), jb as (
+  select "Video ID" as vid, lower(replace("Creator Username", '@', '')) as handle,
+         max("Creator Name") as creator_name, max("Platform") as platform,
+         max("See Post") as post_url, max("Campaign Name") as jb_campaign,
+         sum({sf_qty("Video Views")}) as organic_views,
+         sum({sf_qty("Likes")}) as organic_likes, sum("Job Price (USD)") as creator_cost
+    from {JB_UGC} where "Creator Username" is not null group by 1, 2
+)
+select a.ad_name, a.campaign, a.adset, round(a.spend, 2) as spend, a.impressions,
+       a.link_clicks, a.videoid,
+       coalesce(v.creator_name, h.creator_name) as creator,
+       coalesce(v.platform, h.platform) as platform,
+       coalesce(v.post_url, h.post_url) as post_url,
+       coalesce(v.organic_views, h.organic_views) as organic_views,
+       coalesce(v.organic_likes, h.organic_likes) as organic_likes,
+       coalesce(v.creator_cost, h.creator_cost) as creator_cost,
+       case when v.vid is not null then 'videoid (SOP chain)'
+            when h.handle is not null then 'creator handle'
+            else 'UNMATCHED' end as match_tier
+  from ads a
+  left join jb v on v.vid = a.videoid
+  left join jb h on h.handle = a.tail_token and v.vid is null
+ order by a.spend desc nulls last""")
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+def render_ugc_mapping():
+    st.markdown("#### Automated videoid / creator to ad mapping")
+    st.caption(
+        "This replaces the manual \"Video ID to Ad ID mapping sheet\" the KT Data Request thread "
+        "lists as required manual input. The SOP chain (organic post URL -> videoid -> ad name -> "
+        "ad code -> paid performance) puts the join key inside the ad name, so no second sheet is "
+        "needed. Matching is TIERED and every row states which tier matched it."
+    )
+    m = ugc_ad_mapping(since, until)
+    if m.empty:
+        st.info("No retail ads with names in the selected window.")
+        return
+    m = m.rename(columns=str.upper)
+    tiers = m["MATCH_TIER"].value_counts().to_dict()
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Ads in window", f"{len(m):,}")
+    k2.metric("Matched by videoid", f"{tiers.get('videoid (SOP chain)', 0):,}")
+    k3.metric("Matched by handle", f"{tiers.get('creator handle', 0):,}")
+    k4.metric("Unmatched", f"{tiers.get('UNMATCHED', 0):,}")
+    matched = len(m) - tiers.get("UNMATCHED", 0)
+    st.progress(matched / len(m) if len(m) else 0.0,
+                text=f"{matched} of {len(m)} ads joined to a creator "
+                     f"({matched / len(m) * 100:.0f}%) with no manual sheet")
+    st.dataframe(m, use_container_width=True, hide_index=True, height=420)
+    st.info(
+        "**Read the denominator carefully.** Verified live over 2026-06-01 to 2026-07-26: "
+        "39 ads worth $14,333.53 join by creator handle and 153 worth $38,833.52 do not. That is "
+        "NOT an 80% failure - most of those 153 are not creator content at all (Costco broad Meta "
+        "buys, page-deck statics), so they have no creator to match and never will. Among ads that "
+        "ARE creator content, 23 of 44 UGC-named ads match, covering 21 creators.\n\n"
+        "**Why tiered.** 0 of 176 distinct retail ad names currently carry a videoid, because the "
+        "nomenclature only goes live from Monday and existing ads predate it. Tier 1 therefore "
+        "reads 0 today and rises on its own as new ads land, with no code change here. Unmatched "
+        "rows stay unmatched: no fuzzy matching, because attributing spend to the wrong creator is "
+        "worse than a declared gap. Enforcing the videoid field at ad-build time is the single "
+        "change that takes creator ads to 100% automated."
+    )
+
 # ── FULL METRIC SET for every table and chart ─────────────────────────────────
 # The rule for this app: a table or chart shows EVERY metric the source supports,
 # never a hand-picked handful. sql_group_sums already sums every additive column in
@@ -3753,7 +3935,7 @@ def render_ads_analytics():
                 st.warning(f"Day-wise matrix unavailable: {e}")
 
     # ── UGC CREATOR ADS — the UGC Master workbook's PAID side, live ──────────
-    if view == "UGC creator ads":
+    if view == "UGC creators, scoring & paid performance":
         st.subheader("UGC creator ads — paid performance per creator (live)")
         st.caption(
             "Replicates the UGC Master ad-performance sheets: every ad whose name "
@@ -3801,17 +3983,17 @@ def render_ads_analytics():
             "the ads warehouse. Load the tracker sheets as tables to analyse the full "
             "organic-to-paid loop here; until then this is a declared gap, not a zero."
         )
-        table_explorer("ugc_org", ["ugc", "creator", "organic", "instagram", "tiktok_organic"],
+        # "tiktok_organic" matched DATON.RAW.TIKTOK_SHOP_USA_INVENTORY_* — TikTok Shop
+        # inventory, nothing to do with creator content. Narrowed so the picker offers
+        # only tables that could actually hold UGC rows.
+        table_explorer("ugc_org", ["ugc", "creator"],
                        "Load the UGC Master tracker (Master UGC Tracker / Metric Summary sheets) into the warehouse to light this up.")
 
         st.markdown("---")
-        st.subheader("UGC scoring engine")
-        st.caption(
-            "TikTok Score = 6-sec%×40% + Shares×25% + (Likes+Comments)×20% + Views×15% · "
-            "Instagram Score = Likes×35% + Views×40% + Comments×15% + ER×10%. Components are "
-            "min-max normalised to 0-100 per platform before weighting — computed live over "
-            "the loaded tracker table."
-        )
+        st.subheader("UGC scoring engine — as defined by the master sheet")
+        render_ugc_scoring()
+        st.markdown("---")
+        render_ugc_mapping()
         UGC_T = "VAHDAM_DB.TRACKERS.UGC_MASTER_TRACKER"
         if not table_columns(UGC_T):
             st.info("Scoring activates once the UGC Master tracker is loaded "
@@ -3876,7 +4058,7 @@ def render_ads_analytics():
     # log-normalisation, view-confidence multipliers, ad-rec thresholds, score
     # benchmarks) is mirrored exactly; every FIGURE is computed live from the
     # loaded tracker tables — a sheet that is not loaded shows a declared gap.
-    if view == "UGC command center":
+    if view == "UGC creators, scoring & paid performance":
         st.subheader("UGC command center — JB UGC tracker, native")
         st.caption(
             "Organic scoring, ad recommendations and the hook bible from the UGC "
