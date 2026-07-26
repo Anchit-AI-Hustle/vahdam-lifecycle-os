@@ -133,8 +133,46 @@ const DIMENSION_CANDIDATES = {
   device: ['device', 'device_platform', 'platform_device', 'impression_device'],
   placement: ['placement', 'publisher_platform', 'network', 'ad_network_type'],
 };
-const DATE_CANDIDATES = ['date_start', 'stat_time_day', 'date', 'day', 'stat_date', 'report_date', 'date_stop', 'segments_date', 'event_date'];
-const ACCOUNT_CANDIDATES = ['account_name', 'account', 'advertiser_name', 'advertiser', 'customer_name', 'ad_account_name'];
+// Verified against the live warehouse 2026-07-25/26 — the three platforms do
+// NOT share column naming, which is why every query resolves its columns from
+// INFORMATION_SCHEMA instead of assuming one convention:
+//   Meta   META_USA_ADS_INSIGHTS            date_start / account_name / spend
+//   TikTok TIKTOK_ADS_USA_*_REPORT_DAILY    stat_time_day / accountname / spend
+//   Google GOOGLE_ADS_US_AD_GROUP_AD_REPORT "segments.date" / "customer.descriptive_name" / "metrics.cost_micros"
+// Google's are literal dotted, lower-case identifiers and must be quoted; its
+// cost is in micros and is converted to currency units on read.
+const DATE_CANDIDATES = ['date_start', 'stat_time_day', 'segments.date', 'date', 'day', 'stat_date', 'report_date', 'date_stop', 'segments_date', 'event_date'];
+const ACCOUNT_CANDIDATES = ['account_name', 'accountname', 'customer.descriptive_name', 'account', 'advertiser_name', 'advertisername', 'advertiser', 'customer_name', 'ad_account_name'];
+const SPEND_CANDIDATES = ['spend', 'metrics.cost_micros', 'cost_micros', 'cost', 'total_cost'];
+const MICRO_COLS = ['metrics.cost_micros', 'cost_micros'];
+
+// Snowflake folds unquoted identifiers to upper case, so a column actually
+// named `segments.date` (dotted, lower case, as Airbyte creates it) only
+// resolves when quoted verbatim. Bare upper-case names are left unquoted.
+function quoteIdent(name) {
+  const n = String(name || '');
+  if (!n) return n;
+  return /^[A-Z_][A-Z0-9_]*$/.test(n) ? n : `"${n.replace(/"/g, '""')}"`;
+}
+// A spend expression in currency units, converting micros where needed.
+function spendExpr(col) {
+  if (!col) return null;
+  const q = quoteIdent(col);
+  return MICRO_COLS.includes(String(col).toLowerCase()) ? `(${q} / 1000000)` : q;
+}
+// Resolves the real date / account / spend columns for a table, case-insensitively.
+async function resolveCols(fqn) {
+  const { db, schema, table } = splitTable(fqn);
+  const sql = `select column_name from ${db}.information_schema.columns where table_schema = '${schema}' and table_name = '${table}'`;
+  const r = await runStatement(sql);
+  const names = (r.rows || []).map((x) => String(x.column_name || ''));
+  const lower = names.map((n) => n.toLowerCase());
+  const pick = (cands) => {
+    for (const c of cands) { const i = lower.indexOf(String(c).toLowerCase()); if (i >= 0) return names[i]; }
+    return null;
+  };
+  return { columns: names, date: pick(DATE_CANDIDATES), account: pick(ACCOUNT_CANDIDATES), spend: pick(SPEND_CANDIDATES) };
+}
 
 // ── Snowflake SQL REST API v2 (read-only) ─────────────────────────────────────
 function sqlApiUrl(c) {
@@ -201,11 +239,11 @@ async function describe({ platform = 'meta', level, table: tblOverride } = {}) {
 
 function accountFilter(col, account) {
   if (!account || !col) return '';
-  return ` and lower(${col}) like '%${String(account).toLowerCase().replace(/'/g, '')}%'`;
+  return ` and lower(${quoteIdent(col)}) like '%${String(account).toLowerCase().replace(/'/g, '')}%'`;
 }
 function dateFilter(col, since, until) {
   if (!col || !since || !until) return '';
-  return ` and ${col} between '${since}' and '${until}'`;
+  return ` and ${quoteIdent(col)} between '${since}' and '${until}'`;
 }
 
 // Recent rows (all available metrics) for a platform, optionally scoped to an
@@ -214,12 +252,35 @@ function dateFilter(col, since, until) {
 async function metrics({ platform = 'meta', account, since, until, level, limit = 500 } = {}) {
   const t = primaryTable(platform, level);
   if (!t) return { ok: false, error: `Unknown platform '${platform}'.` };
-  const acctCol = ACCOUNT_CANDIDATES[0], dateCol = DATE_CANDIDATES[0];
-  const where = `where 1=1${accountFilter(acctCol, account)}${dateFilter(dateCol, since, until)}`;
-  const sql = `select * from ${t} ${where} order by ${dateCol} desc limit ${Math.min(+limit || 500, 5000)}`;
-  if (!isConfigured()) return notConnected(sql, { platform, account: account || null, level: level || null, table: t });
+  const cap = Math.min(+limit || 500, 5000);
+  if (!isConfigured()) {
+    // Unconnected preview uses the most likely names per platform; the live
+    // path below resolves them for real from INFORMATION_SCHEMA.
+    const guessDate = platform === 'tiktok' ? 'stat_time_day' : platform === 'google' ? 'segments.date' : 'date_start';
+    const guessAcct = platform === 'tiktok' ? 'accountname' : platform === 'google' ? 'customer.descriptive_name' : 'account_name';
+    const sql = `select * from ${t} where 1=1${accountFilter(guessAcct, account)}${dateFilter(guessDate, since, until)} order by ${quoteIdent(guessDate)} desc limit ${cap}`;
+    return notConnected(sql, { platform, account: account || null, level: level || null, table: t });
+  }
+  // Resolve the real column names — Meta, TikTok and Google each name their
+  // date and account columns differently (see the candidate lists above).
+  const cols = await resolveCols(t);
+  const where = `where 1=1${accountFilter(cols.account, account)}${dateFilter(cols.date, since, until)}`;
+  const order = cols.date ? ` order by ${quoteIdent(cols.date)} desc` : '';
+  const sql = `select * from ${t} ${where}${order} limit ${cap}`;
   const r = await runStatement(sql);
-  return { ok: true, connected: true, platform, level: level || null, account: account || null, table: t, source: 'snowflake', columns: r.columns, rows: r.rows };
+  // Expose a normalized `spend` alongside the raw columns so the UI totals are
+  // correct even where the platform reports cost in micros (Google).
+  const spendCol = cols.spend;
+  const isMicro = spendCol && MICRO_COLS.includes(String(spendCol).toLowerCase());
+  const rows = (r.rows || []).map((row) => {
+    if (!spendCol) return row;
+    const raw = row[String(spendCol).toLowerCase()];
+    const v = raw == null || raw === '' || isNaN(Number(raw)) ? null : Number(raw) / (isMicro ? 1e6 : 1);
+    return (v == null || row.spend != null) ? row : Object.assign({}, row, { spend: v });
+  });
+  return { ok: true, connected: true, platform, level: level || null, account: account || null, table: t,
+    source: 'snowflake', resolved_columns: { date: cols.date, account: cols.account, spend: spendCol, spend_in_micros: !!isMicro },
+    columns: r.columns.indexOf('spend') >= 0 ? r.columns : r.columns.concat(spendCol ? ['spend'] : []), rows };
 }
 
 // Aggregate a measure by a cohort dimension (age/gender/country/…) — the raw
@@ -230,22 +291,34 @@ async function cohort({ platform = 'meta', dimension = 'country', measure = 'spe
   // fall back to the primary table (e.g. device/placement columns present there).
   const t = cohortTable(platform, dimension) || primaryTable(platform, level);
   if (!t) return { ok: false, error: `Unknown platform '${platform}'.` };
-  const buildSql = (dimCol, dateCol, acctCol, measureCol) => {
+  const buildSql = (dimCol, dateCol, acctCol, measureExpr) => {
     const where = `where 1=1${accountFilter(acctCol, account)}${dateFilter(dateCol, since, until)}`;
-    return `select ${dimCol} as cohort, sum(${measureCol}) as value, count(*) as rows
-            from ${t} ${where} group by ${dimCol} order by value desc nulls last limit 200`;
+    const dq = quoteIdent(dimCol);
+    return `select ${dq} as cohort, sum(${measureExpr}) as value, count(*) as rows
+            from ${t} ${where} group by ${dq} order by value desc nulls last limit 200`;
   };
   if (!isConfigured()) {
     const guessDim = (DIMENSION_CANDIDATES[dimension] || [dimension])[0];
-    return notConnected(buildSql(guessDim, DATE_CANDIDATES[0], ACCOUNT_CANDIDATES[0], measure), { platform, dimension, measure, account: account || null, table: t });
+    const guessDate = platform === 'tiktok' ? 'stat_time_day' : platform === 'google' ? 'segments.date' : 'date_start';
+    const guessAcct = platform === 'tiktok' ? 'accountname' : platform === 'google' ? 'customer.descriptive_name' : 'account_name';
+    return notConnected(buildSql(guessDim, guessDate, guessAcct, quoteIdent(measure)), { platform, dimension, measure, account: account || null, table: t });
   }
   const d = await describe({ platform, table: t });
   const dimCol = d.detected && d.detected.dimensions && d.detected.dimensions[dimension];
   if (!dimCol) return { ok: false, connected: true, platform, dimension, table: t, error: `Dimension '${dimension}' is not a column in ${t}. Available dimensions: ${Object.entries((d.detected || {}).dimensions || {}).filter(([, v]) => v).map(([k]) => k).join(', ') || 'none detected'}.` };
-  const measureCol = (d.columns || []).map((c) => c.name).includes(String(measure).toLowerCase()) ? measure : 'spend';
-  const sql = buildSql(dimCol, d.detected.date, d.detected.account, measureCol);
+  // Resolve the measure against the real columns; fall back to the table's own
+  // spend column (which may be micros, e.g. Google) rather than a literal 'spend'.
+  const names = (d.columns || []).map((c) => c.name);
+  const lower = names.map((n) => n.toLowerCase());
+  const askedIdx = lower.indexOf(String(measure).toLowerCase());
+  const cols = await resolveCols(t);
+  const measureCol = askedIdx >= 0 ? names[askedIdx] : cols.spend;
+  if (!measureCol) return { ok: false, connected: true, platform, dimension, table: t, error: `Measure '${measure}' is not a column in ${t} and no spend column was found.` };
+  const sql = buildSql(dimCol, cols.date, cols.account, spendExpr(measureCol));
   const r = await runStatement(sql);
-  return { ok: true, connected: true, platform, dimension, dimension_column: dimCol, measure: measureCol, account: account || null, table: t, source: 'snowflake', rows: r.rows };
+  return { ok: true, connected: true, platform, dimension, dimension_column: dimCol, measure: measureCol,
+    measure_in_micros: MICRO_COLS.includes(String(measureCol).toLowerCase()),
+    account: account || null, table: t, source: 'snowflake', rows: r.rows };
 }
 
 function status() {
