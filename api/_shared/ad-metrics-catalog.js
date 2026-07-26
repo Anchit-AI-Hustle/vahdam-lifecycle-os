@@ -57,6 +57,8 @@ const METRICS = [
   { key: 'cost_per_3s', label: 'Cost per 3-sec video play', category: 'cost', unit: 'usd', tier: 'derived', inputs: ['spend', 'video_3s'], formula: 'spend / 3-sec plays', compute: (r) => div(r.spend, r.video_3s), def: 'Cost per 3-second (hook) view.' },
   { key: 'cost_per_thruplay', label: 'Cost per ThruPlay', category: 'cost', unit: 'usd', tier: 'derived', inputs: ['spend', 'thruplays'], formula: 'spend / thruplays', compute: (r) => div(r.spend, r.thruplays), def: 'Cost per ThruPlay (15s or complete).' },
   { key: 'cost_per_purchase', label: 'Cost per purchase (CPA)', category: 'cost', unit: 'usd', tier: 'derived', inputs: ['spend', 'purchases'], formula: 'spend / purchases', compute: (r) => div(r.spend, r.purchases), def: 'Acquisition cost per purchase.' },
+  { key: 'cost_per_result', label: 'Cost per Result', category: 'cost', unit: 'usd', tier: 'derived', inputs: ['spend', 'results'], formula: 'spend / results', compute: (r) => div(r.spend, r.results), def: 'Cost per objective result.' },
+  { key: 'cost_per_unique_outbound_click', label: 'Cost per unique outbound click', category: 'cost', unit: 'usd', tier: 'derived', inputs: ['spend', 'unique_outbound_clicks'], formula: 'spend / unique outbound clicks', compute: (r) => div(r.spend, r.unique_outbound_clicks), def: 'Cost per unique outbound clicker.' },
   { key: 'cost_per_lpv', label: 'Cost per landing-page view', category: 'cost', unit: 'usd', tier: 'derived', inputs: ['spend', 'landing_page_views'], formula: 'spend / landing-page views', compute: (r) => div(r.spend, r.landing_page_views), def: 'Cost per fully-loaded landing-page view.' },
 
   // ── Click Engagement ──
@@ -66,6 +68,7 @@ const METRICS = [
   { key: 'link_ctr', label: 'Link CTR', category: 'click', unit: 'pct', tier: 'derived', inputs: ['inline_link_clicks', 'impressions'], formula: 'link clicks / impressions × 100', compute: (r) => pct(r.inline_link_clicks, r.impressions), def: 'Click-through rate on link clicks (the honest CTR).' },
   { key: 'outbound_ctr', label: 'Outbound CTR', category: 'click', unit: 'pct', tier: 'derived', inputs: ['outbound_clicks', 'impressions'], formula: 'outbound clicks / impressions × 100', compute: (r) => pct(r.outbound_clicks, r.impressions), def: 'Clicks that left the platform, per impression.' },
   { key: 'unique_ctr', label: 'Unique link CTR', category: 'click', unit: 'pct', tier: 'derived', inputs: ['inline_link_clicks', 'reach'], formula: 'link clicks / reach × 100', compute: (r) => pct(r.inline_link_clicks, r.reach), def: 'Link clicks per unique person reached.' },
+  { key: 'unique_outbound_clicks', label: 'Unique outbound clicks', category: 'click', unit: 'int', tier: 'base', inputs: ['unique_outbound_clicks'], formula: 'unique_outbound_clicks', compute: (r) => n(r.unique_outbound_clicks), def: 'Unique people who clicked out.' },
 
   // ── Video Engagement (the hook → hold → through funnel) ──
   { key: 'video_3s', label: '3-second video plays', category: 'video', unit: 'int', tier: 'base', inputs: ['video_3s'], formula: '3-sec plays', compute: (r) => n(r.video_3s), def: 'Plays of at least 3 seconds (the hook).' },
@@ -75,9 +78,19 @@ const METRICS = [
   { key: 'video_p75', label: 'Video plays 75%', category: 'video', unit: 'int', tier: 'base', inputs: ['video_p75'], formula: 'p75 watched', compute: (r) => n(r.video_p75), def: 'Reached 75%.' },
   { key: 'video_p100', label: 'Video plays 100%', category: 'video', unit: 'int', tier: 'base', inputs: ['video_p100'], formula: 'p100 watched', compute: (r) => n(r.video_p100), def: 'Watched to the end.' },
   { key: 'hook_rate', label: 'Hook Rate', category: 'video', unit: 'pct', tier: 'derived', inputs: ['video_3s', 'impressions'], formula: '3-sec plays / impressions × 100', compute: (r) => pct(r.video_3s, r.impressions), def: 'Share of impressions that stopped to watch 3s. Creative-hook strength.' },
-  { key: 'hold_rate', label: 'Hold Rate', category: 'video', unit: 'pct', tier: 'derived', inputs: ['thruplays', 'impressions'], formula: 'thruplays / impressions × 100', compute: (r) => pct(r.thruplays, r.impressions), def: 'Share of impressions held to ThruPlay (15s/complete). Retention strength.' },
+  // hold_rate is thruplays / 3-SEC PLAYS, not thruplays / impressions. It answers
+  // "of the people the hook stopped, how many held?", which is the only reading
+  // that pairs with hook_rate (3-sec plays / impressions) to decompose retention.
+  // Divided by impressions it is a different metric entirely -- that one is
+  // thruplay_rate, added below, so the old meaning is preserved under its correct
+  // name. This key previously meant thruplays/impressions here while meaning
+  // thruplays/video_3s in the Snowflake app, so the same label reported different
+  // numbers on the two dashboards.
+  { key: 'hold_rate', label: 'Hold Rate', category: 'video', unit: 'pct', tier: 'derived', inputs: ['thruplays', 'video_3s'], formula: 'thruplays / 3-sec plays × 100', compute: (r) => pct(r.thruplays, r.video_3s), def: 'Of those hooked (3-sec), how many held to ThruPlay. Mid-video retention.' },
+  { key: 'thruplay_rate', label: 'ThruPlay Rate', category: 'video', unit: 'pct', tier: 'derived', inputs: ['thruplays', 'impressions'], formula: 'thruplays / impressions × 100', compute: (r) => pct(r.thruplays, r.impressions), def: 'Share of impressions that reached ThruPlay (15s/complete).' },
   { key: 'through_rate', label: 'Through Rate (completion)', category: 'video', unit: 'pct', tier: 'derived', inputs: ['video_p100', 'impressions'], formula: '100% plays / impressions × 100', compute: (r) => pct(r.video_p100, r.impressions), def: 'Share of impressions that watched to the end.' },
-  { key: 'hook_to_hold', label: 'Hook → Hold retention', category: 'video', unit: 'pct', tier: 'derived', inputs: ['thruplays', 'video_3s'], formula: 'thruplays / 3-sec plays × 100', compute: (r) => pct(r.thruplays, r.video_3s), def: 'Of those hooked, how many held. Isolates mid-video drop-off.' },
+  // 'hook_to_hold' removed: it was thruplays / video_3s, i.e. exactly the corrected
+  // hold_rate above. Two keys for one formula is how the two surfaces drifted apart.
   { key: 'completion_of_starts', label: 'Completion of starts', category: 'video', unit: 'pct', tier: 'derived', inputs: ['video_p100', 'video_3s'], formula: '100% plays / 3-sec plays × 100', compute: (r) => pct(r.video_p100, r.video_3s), def: 'Of viewers who started, how many finished.' },
 
   // ── Conversion & Value ──
@@ -86,6 +99,16 @@ const METRICS = [
   { key: 'roas', label: 'ROAS', category: 'conversion', unit: 'ratio', tier: 'derived', inputs: ['purchase_value', 'spend'], formula: 'purchase value / spend', compute: (r) => div(r.purchase_value, r.spend), def: 'Return on ad spend.' },
   { key: 'cvr', label: 'Conversion rate (CVR)', category: 'conversion', unit: 'pct', tier: 'derived', inputs: ['purchases', 'inline_link_clicks'], formula: 'purchases / link clicks × 100', compute: (r) => pct(r.purchases, r.inline_link_clicks), def: 'Purchases per link click.' },
   { key: 'aov', label: 'AOV (attributed)', category: 'conversion', unit: 'usd', tier: 'derived', inputs: ['purchase_value', 'purchases'], formula: 'purchase value / purchases', compute: (r) => div(r.purchase_value, r.purchases), def: 'Average order value of attributed purchases.' },
+  { key: 'results', label: 'Results', category: 'conversion', unit: 'int', tier: 'base', inputs: ['results'], formula: 'results (per objective)', compute: (r) => n(r.results), def: 'Result events as configured by the campaign objective.' },
+  { key: 'add_to_cart', label: 'Adds to Cart', category: 'conversion', unit: 'int', tier: 'base', inputs: ['add_to_cart'], formula: 'add_to_cart', compute: (r) => n(r.add_to_cart), def: 'Attributed add-to-cart events.' },
+  { key: 'cart_abandonment', label: 'Cart Abandonment Rate', category: 'conversion', unit: 'pct', tier: 'derived', inputs: ['purchases', 'add_to_cart'], formula: '(1 - purchases / adds to cart) × 100', compute: (r) => { const p = pct(r.purchases, r.add_to_cart); return p === null ? null : 100 - p; }, def: 'Share of carts that never purchased.' },
+  // MER and nCAC are the two the owner reads first and the two this catalog was
+  // missing. Both need a feed the ad platforms cannot supply on their own: MER is
+  // deliberately attribution-proof, so it wants REALIZED revenue, and nCAC needs a
+  // new-vs-returning split. Defined here so they are computed identically once the
+  // feed lands, and reported 'unavailable' by accuracy() until then -- never guessed.
+  { key: 'mer', label: 'MER (Marketing Efficiency Ratio)', category: 'conversion', unit: 'ratio', tier: 'derived', inputs: ['total_revenue', 'spend'], formula: 'total revenue / total ad spend', compute: (r) => div(r.total_revenue, r.spend), def: 'Blended, attribution-proof media efficiency. Needs realized revenue joined in.' },
+  { key: 'ncac', label: 'nCAC (New-Customer CAC)', category: 'conversion', unit: 'usd', tier: 'derived', inputs: ['spend', 'net_new_customers'], formula: 'spend / net new customers', compute: (r) => div(r.spend, r.net_new_customers), def: 'Acquisition cost counting NEW customers only. Needs a new-customer feed.' },
 
   // ── Landing Page ──
   { key: 'landing_page_views', label: 'Landing-page views', category: 'landing', unit: 'int', tier: 'base', inputs: ['landing_page_views'], formula: 'landing_page_view actions', compute: (r) => n(r.landing_page_views), def: 'Fully-loaded landing-page views after the click.' },
@@ -93,6 +116,8 @@ const METRICS = [
   { key: 'click_to_lpv_dropoff', label: 'Click→LPV drop-off', category: 'landing', unit: 'pct', tier: 'derived', inputs: ['landing_page_views', 'inline_link_clicks'], formula: '100 − LP-view rate', compute: (r) => { const p = pct(r.landing_page_views, r.inline_link_clicks); return p == null ? null : 100 - p; }, def: 'Clicks lost before the page loaded.' },
   { key: 'lp_bounce_rate', label: 'LP bounce rate', category: 'landing', unit: 'pct', tier: 'derived', inputs: ['bounces', 'sessions'], formula: 'bounces / sessions × 100  (PageDeck)', compute: (r) => pct(r.bounces, r.sessions), def: 'Single-page sessions on the landing page (PageDeck/analytics).' },
   { key: 'lp_conversion_rate', label: 'LP conversion rate', category: 'landing', unit: 'pct', tier: 'derived', inputs: ['lp_conversions', 'sessions'], formula: 'LP conversions / sessions × 100  (PageDeck)', compute: (r) => pct(r.lp_conversions, r.sessions), def: 'Conversions per landing-page session.' },
+  { key: 'ga4_sessions', label: 'GA4 Sessions', category: 'landing', unit: 'int', tier: 'base', inputs: ['ga4_sessions'], formula: 'ga4 sessions', compute: (r) => n(r.ga4_sessions), def: 'Sessions landed (GA4).' },
+  { key: 'click_to_session_yield', label: 'Click-to-Session Yield', category: 'landing', unit: 'pct', tier: 'derived', inputs: ['ga4_sessions', 'outbound_clicks'], formula: 'GA4 sessions / outbound clicks × 100', compute: (r) => pct(r.ga4_sessions, r.outbound_clicks), def: 'Share of outbound clicks that became real sessions.' },
   { key: 'avg_time_on_page', label: 'Avg time on page', category: 'landing', unit: 'sec', tier: 'base', inputs: ['time_on_page'], formula: 'avg session duration (PageDeck)', compute: (r) => n(r.time_on_page), def: 'Average time on the landing page.' },
 
   // ── Experiment (A/B — PageDeck) ──
