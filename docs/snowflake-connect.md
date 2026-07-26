@@ -96,18 +96,55 @@ Failure modes the ping distinguishes for you: `not connected` (vars missing, it 
 
 ## 5. What goes live, and what will still look empty
 
-| Platform | After connecting | Note |
-|---|---|---|
-| Meta USA | Live, including the current partial day | `MAPLEMONK.META_USA_ADS_INSIGHTS`, 129,741 rows, fresh to 2026-07-25/26 |
-| Meta cohorts | Live | `MAPLEMONK1` age/gender 11,521 rows · platform/device 11,511 · creatives 9,544 |
-| TikTok USA | Live | `DATON.RAW.TIKTOK_ADS_USA_*_REPORT_DAILY`, fresh to 2026-07-23, $68,178.71 |
-| Google US | **Queries correctly but returns no recent rows** | the feed is stale, ending **2023-11-24**. Resume the Google Ads pipeline to fix; this is a data gap, not a code fault |
+VAHDAM runs **13 distinct ad accounts across 17 warehouse feeds** (Meta 10, Google 6, TikTok 1),
+enumerated live on 2026-07-26 by unioning every base insights / ad-performance table in `VAHDAM_DB`
+and grouping by account. The registry lives in `adAccounts()` in
+`api/_shared/ads-snowflake-core.js` and is served at
+`/api/brain?action=ads-snowflake&op=accounts` (and statically at `/data/ads/ad-accounts.json`).
 
-The Target/Costco retail ad account is **not** in the warehouse at all — only the DTC account
-*Vahdam India USA New EST Main Account* (`1303870183798748`) is mirrored. To make Target/Costco
-real-time, either add that account to the Maplemonk pipeline, or set `META_ACCESS_TOKEN` +
-`META_AD_ACCOUNT_ID` for it and `/api/brain?action=ads-live` will read it straight from the Meta
-Marketing API (that path is already implemented and preferred over the warehouse when configured).
+### US, live
+
+| Account | Id | Warehouse table | Fresh to | Judged on |
+|---|---|---|---|---|
+| Meta — Vahdam India USA New EST Main (D2C) | `1303870183798748` | `MAPLEMONK.META_USA_ADS_INSIGHTS` | 2026-07-25 + partial day | ROAS |
+| Meta — VAHDAM USA - Tea Ad Account (Target / Costco) | `804570870670763` | `MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS` | 2026-07-25 + partial day | CTR / CPC / CPM |
+| Google — VAHDAM | `9797311905` | `MAPLEMONK.US_GOOGLE_ADS_CONSOLIDATED` (filter `ACCOUNT='Google US CONSOLIDATED'`) | 2026-07-25 | ROAS |
+| Google — Raghuvansh (Amazon, Ampd) | `3036820580` | `MAPLEMONK.US_AMZ_GADS_AD_GROUP_AD_REPORT` | 2026-07-25 | CTR / CPC |
+| TikTok — VAHDAM USA | `7393105007056388112` | `DATON.RAW.TIKTOK_ADS_USA_AD_REPORT_DAILY` | 2026-07-14 (paused) | CTR / CPC |
+
+Meta cohort breakdowns are live in `MAPLEMONK1` (age/gender 11,521 rows · platform/device 11,511 ·
+creatives 9,544) and belong to the DTC account. Non-US live feeds: Meta UK `573128874469619`
+(fresh to 2026-07-26, the freshest in the warehouse), Meta India `70950428`, Google UK
+`3861674115`, Google India `7719984554`. **UK reports GBP and India reports INR — never sum them
+with the USD accounts.**
+
+### Two corrections to earlier notes in this file
+
+1. **The Target/Costco retail account IS in the warehouse.** It sits in `MAPLEMONK` under
+   `USA_TEA_ADS_ADS_INSIGHTS` — a name that does not match `META_USA%`, which is why a name-based
+   search found only the DTC account. 6,556 rows, 26 campaigns, 214 ads, $50,248.24, from
+   2025-09-24 through the current partial day. Its May ($3,608.06) and June ($14,422.93) spend
+   match the KT Master Ad Tracking Sheet to the cent. A second, older Datachannel mirror exists at
+   `DC_RAW.FB2_VAHDAM_VAHDAMUSATEA_US_FBADS_ADPERFORMANCE` but ends 2026-05-31 and holds only 7 of
+   the 26 campaigns — do not report from it.
+2. **US Google is not stale.** `GOOGLE_ADS_US_AD_GROUP_AD_REPORT` holds the **retired** customer
+   `2769294429` ("VAHDAM - USA - Old") and correctly stops 2023-11-24; the account was closed, not
+   the feed. The live customer is `9797311905` in `US_GOOGLE_ADS_CONSOLIDATED`: 23 campaigns,
+   $72,343.46 spend against $142,983.81 conversion value in 2026 YTD (ROAS 1.98), fresh to
+   2026-07-25. No pipeline work is required.
+
+### The KPI rule that matters more than the connection
+
+Accounts are **not comparable on one KPI**. Where a pixel or a Google conversion is tracked,
+revenue / ROAS / CPA are real. Where checkout happens on **target.com, Instacart or amazon.com**,
+no purchase can ever be attributed back to the ad, so those accounts return `null` rather than `0`
+and must be judged on CTR, CPC, CPM and reach. A 0.00x ROAS on a retail account is a measurement
+artefact, not a result — ranking the estate on ROAS would report every Target and Costco campaign
+as a total failure.
+
+Setting `META_ACCESS_TOKEN` + `META_AD_ACCOUNT_ID` still gives a minute-fresh read for whichever
+account those credentials belong to, and `/api/brain?action=ads-live` prefers it over the
+warehouse. It is no longer required to see Target/Costco at all — the warehouse now carries it.
 
 ## 6. Security note
 

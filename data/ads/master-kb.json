@@ -986,7 +986,7 @@
     "Meta USA: VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS - 129,741 rows, fresh to 2026-07-25/26 (includes the current partial day)",
     "Meta cohort breakdowns VERIFIED PRESENT (an earlier note in this KB wrongly said they were missing): MAPLEMONK1.META_USA_ADS_INSIGHTS_AGE_AND_GENDER 11,521 rows (cols AGE, GENDER, SPEND, DATE_START); MAPLEMONK1.META_USA_ADS_INSIGHTS_PLATFORM_AND_DEVICE 11,511 rows (PUBLISHER_PLATFORM, IMPRESSION_DEVICE, PLATFORM_POSITION); MAPLEMONK1.META_USA_AD_CREATIVES 9,544 rows",
     "TikTok USA: DATON.RAW.TIKTOK_ADS_USA_CAMPAIGN_REPORT_DAILY 1,012 rows, fresh to 2026-07-23, $68,178.71 total spend; columns are STAT_TIME_DAY and ACCOUNTNAME (NOT date_start/account_name)",
-    "Google US: VAHDAM_DB.MAPLEMONK.GOOGLE_ADS_US_AD_GROUP_AD_REPORT 91,135 rows but the feed is STALE - it ends 2023-11-24 (2018-12-19 to 2023-11-24, $514,353.99, 3 accounts). Columns are dotted lower-case identifiers requiring quotes: \"segments.date\", \"customer.descriptive_name\", \"metrics.cost_micros\" (micros, divided by 1e6 on read)",
+    "Google US is LIVE, in VAHDAM_DB.MAPLEMONK.US_GOOGLE_ADS_CONSOLIDATED (fresh to 2026-07-25; 23 campaigns and $72,343.46 spend against $142,983.81 conversion value in 2026 YTD, ROAS 1.98). Its columns are bare UPPER_CASE with SPEND already in dollars: SEGMENTS_DATE, CAMPAIGN_NAME, AD_GROUP_NAME, SPEND, IMPRESSIONS, CLICKS, CONVERSIONS, CONVERSION_VALUE, ACCOUNT, CHANNEL. Filter ACCOUNT = 'Google US CONSOLIDATED' — the same table also holds the archived 'Google US' label that stops 2023-11-24. Ad-level detail (ad strength, approval status, headlines) is in US_GADS_AD_GROUP_AD_REPORT, which uses dotted lower-case GAQL names requiring quotes and cost in micros: \"segments.date\", \"customer.descriptive_name\", \"metrics.cost_micros\" (divide by 1e6). GOOGLE_ADS_US_AD_GROUP_AD_REPORT is the RETIRED customer 2769294429 and legitimately ends 2023-11-24 — do not report from it",
     "Fixed 2026-07-26 in ads-snowflake-core.js: metrics() and cohort() previously hardcoded date_start/account_name, which threw 'invalid identifier' for TikTok and Google. Both now resolve the real columns per table from INFORMATION_SCHEMA, quote dotted identifiers and convert micros. Verified live: TikTok 254 rows and Meta 500 rows returned for 2026-05-01 to 2026-07-26; Meta age/gender cohort returns real spend splits."
    ],
    "links": [
@@ -1003,7 +1003,7 @@
     "Live reads: /api/brain?action=ads-live&op=today | op=daily | op=calendar - Meta Marketing API first (META_ACCESS_TOKEN + META_AD_ACCOUNT_ID), else the Snowflake mirror, else an honest not_connected envelope carrying the exact SQL",
     "Today is treated as a PARTIAL day: an ad is 'live' once it has impressions today, 'starting' with spend but no impressions, 'not live yet' with neither",
     "Reporting timezone America/New_York (ADS_REPORT_TZ) so the current day is not empty after UTC midnight",
-    "Target/Costco account is NOT in the warehouse - see the gaps register"
+    "Target/Costco IS in the warehouse: VAHDAM_DB.MAPLEMONK.USA_TEA_ADS_ADS_INSIGHTS, account 804570870670763, 6,556 rows, 26 campaigns, 214 ads, $50,248.24, 2025-09-24 to 2026-07-25 including the current partial day. It was missed on the first pass because the table name does not match META_USA%. Its May ($3,608.06) and June ($14,422.93) spend match the KT Master Ad Tracking Sheet to the cent. The older DC_RAW mirror (FB2_VAHDAM_VAHDAMUSATEA_US_FBADS_ADPERFORMANCE) ends 2026-05-31 and holds only 7 of the 26 campaigns - do not report from it"
    ],
    "links": [
     "/ads-master#live",
@@ -1140,8 +1140,8 @@
   },
   {
    "id": "gap-google-feed-stale",
-   "severity": "high",
-   "item": "Google Ads warehouse feed is STALE: GOOGLE_ADS_US_AD_GROUP_AD_REPORT ends 2023-11-24. The dashboard's Google panels now query correctly but will legitimately show no recent rows until the Google Ads pipeline is resumed. Not a code fault."
+   "severity": "resolved",
+   "item": "RESOLVED 2026-07-26: US Google was never stale. GOOGLE_ADS_US_AD_GROUP_AD_REPORT holds the RETIRED customer 2769294429 and correctly stops 2023-11-24; the live account is 9797311905 in US_GOOGLE_ADS_CONSOLIDATED, fresh to 2026-07-25. The Google panels were pointed at the retired table and now read the live one. No pipeline work is needed."
   },
   {
    "id": "gap-credentials",
@@ -2479,5 +2479,19 @@
    ],
    "corrections": "Discrepancies between the SOP and the sheet are raised with Anchit and corrected in the SOP."
   }
+ },
+ "ad_accounts_registry": {
+  "canonical_source": "adAccounts() in api/_shared/ads-snowflake-core.js",
+  "served_as": "/data/ads/ad-accounts.json (built by scripts/build-ads-live-snapshot.js) and /api/brain?action=ads-snowflake&op=accounts",
+  "summary": "13 distinct VAHDAM ad accounts across 17 warehouse feeds (Meta 10, Google 6, TikTok 1); 9 feeds are live. Enumerated live 2026-07-26 by unioning every base insights and ad-performance table in VAHDAM_DB and grouping by account.",
+  "us_live": [
+   "Meta 1303870183798748 Vahdam India USA New EST Main Account - US D2C on vahdamteas.com, judged on ROAS (pixel fires)",
+   "Meta 804570870670763 VAHDAM USA - Tea Ad Account - Target and Costco sell-through, judged on CTR/CPC/CPM (third-party checkout, no attribution possible)",
+   "Google 9797311905 VAHDAM - US search, Shopping, PMax, Demand Gen, judged on ROAS",
+   "Google 3036820580 Raghuvansh - Amazon marketplace via Ampd, one campaign per ASIN, judged on CTR/CPC (sales land in Seller Central)",
+   "TikTok 7393105007056388112 VAHDAM USA - paused, last spend 2026-07-14"
+  ],
+  "kpi_rule": "Accounts are not comparable on one KPI. Where a pixel or Google conversion is tracked, revenue/ROAS/CPA are real. Where checkout happens on target.com, Instacart or amazon.com, no purchase can ever be attributed, so those accounts report null rather than 0 and must be judged on CTR, CPC, CPM and reach. A 0.00x ROAS on a retail account is a measurement artefact, not a result.",
+  "currency_rule": "India reports INR and UK reports GBP. Never sum them with the USD accounts."
  }
 }

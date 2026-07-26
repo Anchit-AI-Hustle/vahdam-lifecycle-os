@@ -406,6 +406,11 @@ module.exports = async function handler(req, res) {
         if (op === 'ping') return res.json(await adsSnowflake.ping());
         if (op === 'budgets') return res.json(adsSnowflake.budgets());
         if (op === 'describe') return res.json(await adsSnowflake.describe({ platform: p.platform, level: p.level }));
+        // The ad-account estate: every account, what it is used for, and the KPI
+        // it can honestly be judged on (see adAccounts() in the core).
+        if (op === 'accounts') return res.json(await adsSnowflake.accounts({ since: p.since, until: p.until, accounts: p.accounts }));
+        if (op === 'multi-daily') return res.json(await adsSnowflake.multiDaily({ since: p.since, until: p.until, accounts: p.accounts, by: p.by }));
+        if (op === 'campaigns') return res.json(await adsSnowflake.campaigns({ since: p.since, until: p.until, account: p.account, level: p.level }));
         if (op === 'cohort') return res.json(await adsSnowflake.cohort({ platform: p.platform, dimension: p.dimension, measure: p.measure, account: p.account, since: p.since, until: p.until, level: p.level }));
         return res.json(await adsSnowflake.metrics({ platform: p.platform, account: p.account, since: p.since, until: p.until, level: p.level, limit: p.limit }));
       }
