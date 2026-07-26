@@ -30,30 +30,32 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # FAIL, do not skip. This step used to emit a notice and pass green when
+      # secrets were missing, so the job looked successful while nothing was ever
+      # deployed — the live app silently stayed on an old build. A missing secret
+      # is a broken deploy pipeline and must be red.
       - name: Check secrets are configured
-        id: gate
         env:
           HAS_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT != '' }}
           HAS_USER: ${{ secrets.SNOWFLAKE_USER != '' }}
           HAS_PAT: ${{ secrets.SNOWFLAKE_PAT != '' }}
         run: |
-          if [ "$HAS_ACCOUNT" = "true" ] && [ "$HAS_USER" = "true" ] && [ "$HAS_PAT" = "true" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Snowflake deploy skipped::Repo secrets SNOWFLAKE_ACCOUNT / SNOWFLAKE_USER / SNOWFLAKE_PAT (+ WAREHOUSE, ROLE) are not set. Add them in Settings -> Secrets and variables -> Actions, then re-run. Until then, deploy manually from the Snowsight workspace (Pull -> Deploy to VAHDAM_DB.MAPLEMONK.ADSDASHBOARDUSA)."
+          missing=""
+          [ "$HAS_ACCOUNT" = "true" ] || missing="$missing SNOWFLAKE_ACCOUNT"
+          [ "$HAS_USER" = "true" ]    || missing="$missing SNOWFLAKE_USER"
+          [ "$HAS_PAT" = "true" ]     || missing="$missing SNOWFLAKE_PAT"
+          if [ -n "$missing" ]; then
+            echo "::error title=Snowflake deploy NOT run::Missing repo secrets:$missing. Add them in Settings -> Secrets and variables -> Actions and re-run. The live app is still on its previous build."
+            exit 1
           fi
+          echo "All required secrets present."
       - uses: actions/checkout@v4
-        if: steps.gate.outputs.ready == 'true'
       - uses: actions/setup-python@v5
-        if: steps.gate.outputs.ready == 'true'
         with:
           python-version: "3.11"
       - name: Install Snowflake CLI
-        if: steps.gate.outputs.ready == 'true'
         run: pip install --quiet snowflake-cli
       - name: Deploy app (CREATE OR REPLACE STREAMLIT)
-        if: steps.gate.outputs.ready == 'true'
         env:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
