@@ -332,22 +332,35 @@
       <b>The final SOP for ad campaigns is the standing procedure</b> — scoring, nomenclature, landing pages, the 26 tracker columns, the three-level UGC flow, budgets and turnaround.
       It has its own tab: <a href="#sop" id="kb-to-sop" style="font-weight:700">open the SOP tab</a>. The master tracking sheet is the source of truth over every document here.
     </div>
-    <p class="eyebrow">The complete knowledge — overview first, expand any section for the details</p>
+    <p class="eyebrow">Creative library — the hooks, scripts and CTAs that actually ran, ranked by organic score</p>
+    <div id="kb-lib-stats"></div>
+    <div class="bar" id="kb-lib-bar">
+      <label>Bucket<select id="lib-bucket"><option value="">All buckets</option></select></label>
+      <label>Platform<select id="lib-plat"><option value="">All</option><option>Tiktok</option><option>Instagram</option><option>Youtube</option></select></label>
+      <label>Hook type<select id="lib-hook"><option value="">All hook types</option></select></label>
+      <label>Min score<select id="lib-min"><option value="0">any</option><option value="20">20+ consider</option><option value="30" selected>30+ ad recommended</option><option value="50">50+ high</option></select></label>
+      <label>Search<input type="search" id="lib-q" placeholder="hook, script, creator…"></label>
+    </div>
+    <div class="frame" id="kb-lib"><div class="empty">Loading…</div></div>
+    <p class="eyebrow">Bucket playbook — what wins in each content angle</p>
+    <div class="frame" id="kb-buckets"></div>
+    <p class="eyebrow">Benchmarks and creative learnings — what the numbers say to do</p>
     <div class="frame" id="kb-exec"><div class="empty">Loading…</div></div>
     <div id="kb-full"></div>
-    <p class="eyebrow">Link registry — the final sheet and the report links actually used</p>
-    <div id="kb-links-policy"></div>
-    <div class="bar">
-      <label>Group<select id="kb-group"><option value="">All groups</option></select></label>
-      <label>Status<select id="kb-status"><option value="">All</option><option value="verified">verified (live in Drive/platform)</option><option value="from-email">from email URL</option><option value="from-sop">from the SOP</option></select></label>
-      <label><input type="checkbox" id="kb-final"> Final sheet + SOP only</label>
-      <label>Search<input type="search" id="kb-q" placeholder="title, owner…"></label>
-    </div>
-    <div class="frame" id="kb-links"><div class="empty">Loading…</div></div>
-    <p class="eyebrow">People — who owns what</p>
+    <p class="eyebrow">People — who owns what, and who to ask</p>
     <div class="tbl-wrap" id="kb-people"></div>
     <p class="eyebrow">Open gaps &amp; risks</p>
     <div id="kb-gaps"></div>
+    <details><summary style="cursor:pointer;font-weight:700;margin:18px 0 8px">Reference links (the final sheet and the reports actually used)</summary>
+      <div id="kb-links-policy"></div>
+      <div class="bar">
+        <label>Group<select id="kb-group"><option value="">All groups</option></select></label>
+        <label>Status<select id="kb-status"><option value="">All</option><option value="verified">verified (live in Drive/platform)</option><option value="from-email">from email URL</option><option value="from-sop">from the SOP</option></select></label>
+        <label><input type="checkbox" id="kb-final"> Final sheet + SOP only</label>
+        <label>Search<input type="search" id="kb-q" placeholder="title, owner…"></label>
+      </div>
+      <div class="frame" id="kb-links"><div class="empty">Loading…</div></div>
+    </details>
   </div>
 
   <div class="panel" id="p-ops">
@@ -408,7 +421,7 @@
       "</tr></thead><tbody>"+rows.map(function(r){return "<tr>"+r.map(function(c,i){return "<td style='text-align:"+(head[i]&&head[i].r?"right":"left")+"'>"+c+"</td>";}).join("")+"</tr>";}).join("")+"</tbody></table>";
   }
   var KB=null, ADS=null, SNAP=null, LIVE=null, RANGE=30, CAMPRANGE='all';
-  var REG=null, ACCTLIVE=null, LVACCT='', RETAIL=null;
+  var REG=null, ACCTLIVE=null, LVACCT='', RETAIL=null, UGCLIB=null;
 
   // ── Charts: dependency-free inline SVG. Every chart is preceded by ALWAYS
   // visible duration tiles (7D/14D/30D/60D/All) wired through rangeTiles().
@@ -1166,8 +1179,104 @@
       "<p class='note'>All verified table names, row counts and links: Ops &amp; Data Sources tab.</p>");
     $("#kb-full").innerHTML=html;
   }
+  // The Knowledge Base was a link registry: to learn anything you had to leave the page
+  // and open a sheet. Everything below is the CONTENT itself - the hooks that ran, their
+  // full scripts, the CTAs, and what each bucket rewards - filterable and copyable in
+  // place. The links still exist, moved to a fold at the bottom.
+  function renderCreativeLibrary(){
+    if(!UGCLIB || !UGCLIB.posts){
+      $("#kb-lib").innerHTML="<div class='empty'>Creative library unavailable - "+
+        "<code>/data/ads/ugc-june-usa-2026-06.json</code> did not load. Nothing is substituted for it.</div>";
+      return;
+    }
+    var P=UGCLIB.posts.filter(function(p){ return p.hook || p.script; });
+    var buckets=[], hooks=[];
+    P.forEach(function(p){
+      if(p.bucket && buckets.indexOf(p.bucket)<0) buckets.push(p.bucket);
+      if(p.hookType && hooks.indexOf(p.hookType)<0) hooks.push(p.hookType);
+    });
+    buckets.sort(); hooks.sort();
+    $("#lib-bucket").innerHTML="<option value=''>All buckets</option>"+buckets.map(function(b){return "<option>"+esc(b)+"</option>";}).join("");
+    $("#lib-hook").innerHTML="<option value=''>All hook types</option>"+hooks.map(function(h){return "<option>"+esc(h)+"</option>";}).join("");
+    var t=UGCLIB.totals||{};
+    $("#kb-lib-stats").innerHTML="<div class='notice'><b>"+P.length+" creator videos with a usable hook or script</b>"+
+      " - captured "+esc(UGCLIB.captured_at||"")+" from the June USA UGC dashboard"+
+      (t.creators?", "+t.creators+" creators":"")+". Scores are the organic score defined by the master sheet "+
+      "(TikTok ad-recommended at 30+, Instagram at 20+), so this ranking is the one the agency filters on. "+
+      "Copy any hook or script straight out of the list.</div>";
+
+    function draw(){
+      var b=$("#lib-bucket").value, pl=$("#lib-plat").value, hk=$("#lib-hook").value,
+          mn=parseFloat($("#lib-min").value||"0"), q=($("#lib-q").value||"").toLowerCase();
+      var rows=P.filter(function(p){
+        if(b && p.bucket!==b) return false;
+        if(pl && p.platform!==pl) return false;
+        if(hk && p.hookType!==hk) return false;
+        if((typeof p.score==="number"?p.score:0) < mn) return false;
+        if(q && ((p.hook||"")+" "+(p.script||"")+" "+(p.creator||"")+" "+(p.cta||"")).toLowerCase().indexOf(q)<0) return false;
+        return true;
+      }).sort(function(x,y){ return (y.score||0)-(x.score||0); });
+      if(!rows.length){ $("#kb-lib").innerHTML="<div class='empty'>No creative matches these filters.</div>"; return; }
+      $("#kb-lib").innerHTML=rows.map(function(p,i){
+        var sc=(typeof p.score==="number")?p.score.toFixed(1):"-";
+        var band=(p.score>=30)?"good":(p.score>=20)?"warn":"dim";
+        var id="libc"+i;
+        return "<div class='linkrow' style='align-items:flex-start'><div class='t' style='flex:1'>"+
+          "<div><span class='chip "+band+"'>"+sc+"</span> <span class='chip dim'>"+esc(p.platform||"")+"</span> "+
+          "<span class='chip dim'>"+esc(p.bucket||"")+"</span> <span class='chip dim'>"+esc(p.hookType||"")+"</span> "+
+          "<b>"+esc(p.creator||"")+"</b>"+(p.adRec?" &middot; "+esc(p.adRec):"")+"</div>"+
+          "<div style='margin:6px 0;font-size:15px;font-weight:700'>&ldquo;"+esc(p.hook||"(no hook captured)")+"&rdquo;</div>"+
+          (p.cta?"<div class='m'><b>CTA:</b> "+esc(p.cta)+"</div>":"")+
+          (p.script?"<details style='margin-top:6px'><summary style='cursor:pointer;font-size:12px'>Full script</summary>"+
+             "<div style='white-space:pre-wrap;margin:6px 0;font-size:13px'>"+esc(p.script)+"</div>"+
+             (p.contentSummary?"<div class='m' style='white-space:pre-wrap'><b>Beats:</b> "+esc(p.contentSummary)+"</div>":"")+
+             "</details>":"")+
+          "</div><div style='display:flex;flex-direction:column;gap:6px'>"+
+          "<button class='btn ghost' data-copy='"+id+"' style='cursor:pointer;font-family:inherit'>Copy</button>"+
+          (p.url?"<a class='btn' href='"+esc(p.url)+"' target='_blank' rel='noopener'>Watch &#8599;</a>":"")+
+          "<textarea id='"+id+"' style='position:absolute;left:-9999px' readonly>"+esc((p.hook||"")+String.fromCharCode(10,10)+(p.script||""))+"</textarea>"+
+          "</div></div>";
+      }).join("")+"<p class='note'>"+rows.length+" of "+P.length+" videos match. Sorted by organic score, highest first.</p>";
+      Array.prototype.forEach.call(document.querySelectorAll("#kb-lib [data-copy]"), function(btn){
+        btn.addEventListener("click", function(){
+          var ta=document.getElementById(btn.getAttribute("data-copy"));
+          if(!ta) return;
+          navigator.clipboard.writeText(ta.value).then(function(){
+            var o=btn.textContent; btn.textContent="Copied"; setTimeout(function(){btn.textContent=o;},1200);
+          });
+        });
+      });
+    }
+    ["lib-bucket","lib-plat","lib-hook","lib-min"].forEach(function(id){document.getElementById(id).addEventListener("change",draw);});
+    document.getElementById("lib-q").addEventListener("input",draw);
+    draw();
+
+    var B=UGCLIB.hook_script_bible||{};
+    var keys=Object.keys(B);
+    function hookList(list){ return (list||[]).map(function(h){return esc(h[0])+" ("+h[1]+")";}).join(" &middot; ")||"-"; }
+    $("#kb-buckets").innerHTML=!keys.length?"<div class='empty'>No bucket bible in the scrape.</div>":
+      keys.map(function(k){
+        var v=B[k]||{};
+        return "<div class='linkrow' style='align-items:flex-start'><div class='t' style='flex:1'>"+
+          "<b>"+esc(k)+"</b>"+
+          "<div class='m'>TikTok "+(v.tt_count||0)+" videos, avg score "+(v.tt_avg!=null?v.tt_avg:"-")+
+          " &middot; Instagram "+(v.ig_count||0)+" videos, avg score "+(v.ig_avg!=null?v.ig_avg:"-")+"</div>"+
+          "<div class='m'><b>Winning hook types, TikTok:</b> "+hookList(v.tt_top_hooks)+"</div>"+
+          "<div class='m'><b>Winning hook types, Instagram:</b> "+hookList(v.ig_top_hooks)+"</div>"+
+          ((v.tt||[]).length?"<details style='margin-top:6px'><summary style='cursor:pointer;font-size:12px'>Top "+
+            (v.tt||[]).length+" TikTok examples with full scripts</summary>"+
+            (v.tt||[]).map(function(e){return "<div style='margin:8px 0'><span class='chip good'>"+
+              (e.score!=null?e.score:"-")+"</span> <b>"+esc(e.creator||"")+"</b> &middot; "+esc(e.hookType||"")+
+              "<div style='font-weight:700;margin:4px 0'>&ldquo;"+esc(e.hook||"")+"&rdquo;</div>"+
+              (e.script?"<div style='white-space:pre-wrap;font-size:13px'>"+esc(e.script)+"</div>":"")+"</div>";}).join("")+
+            "</details>":"")+
+          "</div></div>";
+      }).join("");
+  }
+
   function renderKB(){
     renderKBFull();
+    renderCreativeLibrary();
     var groups=[]; KB.links.forEach(function(l){ if(groups.indexOf(l.group)<0) groups.push(l.group); });
     $("#kb-group").innerHTML="<option value=''>All groups</option>"+groups.map(function(g){return "<option>"+esc(g)+"</option>";}).join("");
     function draw(){
@@ -1280,9 +1389,10 @@
     fetch("/data/ads/master-kb.json",{cache:"no-store"}).then(function(r){return r.json();}),
     fetch("/data/ads/target-ads-meta-2026-07-20.json",{cache:"no-store"}).then(function(r){return r.json();}),
     fetch("/data/ads/ads-live-snapshot.json",{cache:"no-store"}).then(function(r){return r.json();}).catch(function(){return null;}),
-    fetch("/data/ads/ad-accounts.json",{cache:"no-store"}).then(function(r){return r.json();}).catch(function(){return null;})
+    fetch("/data/ads/ad-accounts.json",{cache:"no-store"}).then(function(r){return r.json();}).catch(function(){return null;}),
+    fetch("/data/ads/ugc-june-usa-2026-06.json",{cache:"no-store"}).then(function(r){return r.json();}).catch(function(){return null;})
   ]).then(function(res){
-    KB=res[0]; ADS=res[1]; SNAP=res[2]; REG=res[3];
+    KB=res[0]; ADS=res[1]; SNAP=res[2]; REG=res[3]; UGCLIB=res[4];
     renderOverview(); renderCampaigns(); renderCreative(); renderOrganic(); renderKB(); renderOps(); renderSOP();
     if(SNAP){ monthOptions(); renderCalendar(); renderTracker(); drawSpendChart(); if(SNAP.today&&SNAP.today.date) calDetail(SNAP.today.date); }
     if(REG){ renderAccounts(); loadAccountsLive(); }
