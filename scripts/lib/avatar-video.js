@@ -36,6 +36,16 @@
 'use strict';
 
 const REPO = 'https://huggingface.co/meituan-longcat/LongCat-Video-Avatar-1.5';
+
+// POSIX shell quoting for values interpolated into the generated command.
+// Single quotes are literal in every POSIX shell, so nothing inside needs
+// escaping except a single quote itself — which also means backslashes,
+// double quotes, $, backticks and newlines are all safe. (Escaping only `"`
+// inside a double-quoted string was incomplete: a backslash in the prompt
+// would break or alter the command. CodeQL flagged exactly that.)
+function shq(value) {
+  return `'${String(value == null ? '' : value).replace(/'/g, "'\\''")}'`;
+}
 const SUPPORTED_LANGS = ['en', 'english', 'zh', 'chinese'];
 // The model card describes examples at num_segments=5; segments are the length
 // dial, so we derive a count from the target duration and state the assumption.
@@ -97,10 +107,10 @@ function avatarBrief(spec) {
 
   const args = [
     'torchrun', `--nproc_per_node=${Math.max(1, Number(s.gpus) || 2)}`, 'run_inference.py',
-    `--prompt "${prompt.replace(/"/g, '\\"')}"`,
-    `--audio "${s.audio || '<path to the voice track>'}"`,
-    hasRef ? `--image "${s.reference_image}"` : null,
-    s.second_speaker && s.second_speaker.audio ? `--audio2 "${s.second_speaker.audio}"` : null,
+    `--prompt ${shq(prompt)}`,
+    `--audio ${shq(s.audio || '<path to the voice track>')}`,
+    hasRef ? `--image ${shq(s.reference_image)}` : null,
+    s.second_speaker && s.second_speaker.audio ? `--audio2 ${shq(s.second_speaker.audio)}` : null,
     `--num_segments ${segments}`,
     s.low_vram === false ? null : '--use_int8',
     s.fast === false ? null : '--use_distill',

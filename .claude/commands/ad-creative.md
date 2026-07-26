@@ -34,6 +34,19 @@ The bar is what top reels actually do — not a slideshow of stills:
 4. **Instant preview / no-API fallback**: `scripts/lib/motion-ad.js` — `renderMotionAd(spec)` outputs a self-contained animated 9:16 HTML creative (layered Ken Burns, parallax veils, crossfades, kinetic type, CTA card), and `motionBrief(spec)` emits the same design as a shot-by-shot brief for Higgsfield/CapCut so the shipped MP4 matches the preview.
 5. **Non-negotiables**: real SKU packaging only (never AI-invented tins), one filmic grade, licensed audio only, total under 15s, safe-areas (7% sides, bottom 18% clear).
 
+## Playable ads (interactive + video)
+`scripts/lib/playable-ad.js` builds the ad unit itself, ready to upload:
+- `renderPlayable(spec)` — interactive unit (tap ingredients, the cup fills, offer + CTA end card).
+- `renderPlayableVideo(spec)` — inlined muted-autoplay video with an interactive end card.
+- `playableSpecSheet()` — what each network checks, for the hand-off.
+
+Non-negotiables it enforces so creatives are not rejected:
+- **ONE self-contained .html**, every asset a `data:` URI — it **throws** on any `http(s)` asset, because reviewers test with the network cut.
+- **Size budget validated** against the chosen network (Meta 2MB · TikTok 2MB · Google/AppLovin/Unity 5MB).
+- **CTA calls the host API**, not `window.open`: `FbPlayableAd.onCTAClick()` (Meta), `openAppStore()` / `playableSDK` (TikTok), `mraid.open(url)` (Google/AppLovin/ironSource), `dapi`/postMessage (Unity), with a plain-link fallback for preview — one file works across networks.
+- Portrait **and** landscape, first tap within ~2s, **muted** by default (sound only after a tap).
+- Honesty: no fake discount codes, no invented ratings, no resetting countdowns.
+
 ## Spokesperson / UGC talking-head ads (avatar video)
 For lip-synced spokesperson or creator-style ads, use `scripts/lib/avatar-video.js` (`avatarBrief`) — it targets the open-source **LongCat-Video-Avatar-1.5** (Meituan, MIT): audio-driven AT2V / ATI2V, multi-person dual-audio, length via `num_segments`, `--use_int8` for lower VRAM, `--use_distill` for 8-step serving.
 - It emits a **run-ready command + descriptive prompt**, not an API call: LongCat is self-hosted and needs a GPU host (`torchrun`), which Vercel functions do not have. Run it on a GPU box / Modal / RunPod, then finish captions + CTA in `motion-ad.js`.

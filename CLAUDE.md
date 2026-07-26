@@ -193,6 +193,15 @@ highly specific, template-driven, evidence-quoting; skill = a real job run end-t
 `/campaign-audit` `/lp-audit` `/ab-test` `/competitor-teardown` `/utm` `/email-sequence`
 `/content-repurposer` `/icp-builder` `/ad-copy-matrix` `/creative-brief`. All enforce the
 Brand Constants + zero fabrication.
+**Playable ads (2026-07-26)**: `scripts/lib/playable-ad.js` — `renderPlayable` (interactive
+tap-to-build unit) + `renderPlayableVideo` (inlined muted autoplay video + interactive end card) +
+`playableSpecSheet`. Enforces the rules that actually cause rejections: ONE self-contained HTML with
+every asset a `data:` URI (throws on any http asset — reviewers test offline), per-network size caps
+(Meta/TikTok 2MB, Google/AppLovin/Unity 5MB), host CTA APIs (`FbPlayableAd.onCTAClick`,
+`openAppStore`, `mraid.open`, `dapi`) not `window.open`, portrait+landscape, muted by default.
+Verified in Chromium: zero page errors, zero external requests, interaction → end card → Meta CTA
+API fired, no landscape overflow.
+
 **Avatar video (2026-07-26)**: `scripts/lib/avatar-video.js` (`avatarBrief`) targets open-source
 **LongCat-Video-Avatar-1.5** (Meituan, MIT) for lip-synced spokesperson/UGC ads — audio-driven
 AT2V/ATI2V, multi-person dual audio, length via `num_segments`, `--use_int8` (VRAM) / `--use_distill`
