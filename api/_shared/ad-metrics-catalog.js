@@ -130,8 +130,8 @@ const METRICS = [
   // attribution windows Amazon reports against the click. Inputs use the REAL
   // report column names, so a metric whose column is absent renders
   // "unavailable — needs: X" instead of a fabricated figure.
-  { key: 'rm_impressions', label: 'Impressions (retail)', category: 'retail', unit: 'int', tier: 'base', inputs: ['impressions'], formula: 'impressions', compute: (r) => n(r.impressions), def: 'Times the marketplace ad was shown.' },
-  { key: 'rm_clicks', label: 'Clicks (retail)', category: 'retail', unit: 'int', tier: 'base', inputs: ['clicks'], formula: 'clicks', compute: (r) => n(r.clicks), def: 'Clicks on the marketplace ad.' },
+  { key: 'rm_impressions', label: 'Impressions (retail)', category: 'retail', unit: 'int', tier: 'base', inputs: ['impressions'], formula: 'impressions (marketplace report)', compute: (r) => n(r.impressions), def: 'Times the marketplace ad was shown.' },
+  { key: 'rm_clicks', label: 'Clicks (retail)', category: 'retail', unit: 'int', tier: 'base', inputs: ['clicks'], formula: 'clicks (marketplace report)', compute: (r) => n(r.clicks), def: 'Clicks on the marketplace ad.' },
   { key: 'rm_cost', label: 'Ad cost (retail spend)', category: 'retail', unit: 'usd', tier: 'base', inputs: ['cost'], formula: 'cost', compute: (r) => n(r.cost), def: 'Marketplace ad spend (Amazon reports this as cost, not spend).' },
   { key: 'rm_sales', label: 'Attributed sales', category: 'retail', unit: 'usd', tier: 'base', inputs: ['attributed_sales'], formula: 'attributed sales', compute: (r) => n(r.attributed_sales), def: 'Revenue attributed to the ad inside the attribution window.' },
   { key: 'rm_orders', label: 'Attributed orders', category: 'retail', unit: 'int', tier: 'base', inputs: ['attributed_orders'], formula: 'attributed orders', compute: (r) => n(r.attributed_orders), def: 'Orders attributed to the ad.' },
