@@ -29,6 +29,7 @@ const CATEGORIES = [
   { key: 'conversion', label: 'Conversion & Value', aspect: 'Purchases, revenue and return.' },
   { key: 'landing', label: 'Landing Page', aspect: 'What happens after the click, on the page.' },
   { key: 'experiment', label: 'Experiment (A/B)', aspect: 'Variant lift, confidence and significance.' },
+  { key: 'retail', label: 'Retail Media (Amazon / marketplace)', aspect: 'Marketplace ad efficiency: ACOS, TACOS, units and basket economics.' },
 ];
 
 // Safe helpers — every ratio guards its denominator and returns null (not 0/NaN)
@@ -123,6 +124,32 @@ const METRICS = [
   // ── Experiment (A/B — PageDeck) ──
   { key: 'variant_lift', label: 'Variant lift', category: 'experiment', unit: 'pct', tier: 'derived', inputs: ['variant_rate', 'control_rate'], formula: '(variant − control) / control × 100', compute: (r) => { const v = n(r.variant_rate), c = n(r.control_rate); return (v == null || !c) ? null : (v - c) / c * 100; }, def: 'Relative lift of the variant over control.' },
   { key: 'confidence', label: 'Confidence', category: 'experiment', unit: 'pct', tier: 'base', inputs: ['confidence'], formula: 'statistical confidence (PageDeck)', compute: (r) => n(r.confidence), def: 'Probability the lift is real (>=95% to call).' },
+  // ── Retail Media (Amazon Ads / marketplace) ────────────────────────────────
+  // Base metrics as the Sponsored Products / Brands / Display report streams
+  // deliver them. `cost` is Amazon's spend column; `attributed_*` are the
+  // attribution windows Amazon reports against the click. Inputs use the REAL
+  // report column names, so a metric whose column is absent renders
+  // "unavailable — needs: X" instead of a fabricated figure.
+  { key: 'rm_impressions', label: 'Impressions (retail)', category: 'retail', unit: 'int', tier: 'base', inputs: ['impressions'], formula: 'impressions', compute: (r) => n(r.impressions), def: 'Times the marketplace ad was shown.' },
+  { key: 'rm_clicks', label: 'Clicks (retail)', category: 'retail', unit: 'int', tier: 'base', inputs: ['clicks'], formula: 'clicks', compute: (r) => n(r.clicks), def: 'Clicks on the marketplace ad.' },
+  { key: 'rm_cost', label: 'Ad cost (retail spend)', category: 'retail', unit: 'usd', tier: 'base', inputs: ['cost'], formula: 'cost', compute: (r) => n(r.cost), def: 'Marketplace ad spend (Amazon reports this as cost, not spend).' },
+  { key: 'rm_sales', label: 'Attributed sales', category: 'retail', unit: 'usd', tier: 'base', inputs: ['attributed_sales'], formula: 'attributed sales', compute: (r) => n(r.attributed_sales), def: 'Revenue attributed to the ad inside the attribution window.' },
+  { key: 'rm_orders', label: 'Attributed orders', category: 'retail', unit: 'int', tier: 'base', inputs: ['attributed_orders'], formula: 'attributed orders', compute: (r) => n(r.attributed_orders), def: 'Orders attributed to the ad.' },
+  { key: 'rm_units', label: 'Attributed units', category: 'retail', unit: 'int', tier: 'base', inputs: ['attributed_units'], formula: 'attributed units', compute: (r) => n(r.attributed_units), def: 'Units sold, attributed to the ad.' },
+  { key: 'rm_ctr', label: 'CTR (retail)', category: 'retail', unit: 'pct', tier: 'derived', inputs: ['clicks', 'impressions'], formula: 'clicks / impressions x 100', compute: (r) => pct(r.clicks, r.impressions), def: 'Click-through rate on the marketplace placement.' },
+  { key: 'rm_cpc', label: 'CPC (retail)', category: 'retail', unit: 'usd', tier: 'derived', inputs: ['cost', 'clicks'], formula: 'cost / clicks', compute: (r) => div(r.cost, r.clicks), def: 'Cost per marketplace click.' },
+  { key: 'rm_cpm', label: 'CPM (retail)', category: 'retail', unit: 'usd', tier: 'derived', inputs: ['cost', 'impressions'], formula: 'cost / impressions x 1000', compute: (r) => { const d = div(r.cost, r.impressions); return d == null ? null : d * 1000; }, def: 'Cost per thousand marketplace impressions.' },
+  { key: 'acos', label: 'ACOS (advertising cost of sales)', category: 'retail', unit: 'pct', tier: 'derived', inputs: ['cost', 'attributed_sales'], formula: 'ad cost / attributed sales x 100', compute: (r) => pct(r.cost, r.attributed_sales), def: 'The defining retail-media efficiency metric: share of attributed revenue consumed by ad spend. LOWER is better - the inverse of ROAS.' },
+  { key: 'rm_roas', label: 'ROAS (retail)', category: 'retail', unit: 'ratio', tier: 'derived', inputs: ['attributed_sales', 'cost'], formula: 'attributed sales / ad cost', compute: (r) => div(r.attributed_sales, r.cost), def: 'Attributed revenue per unit of marketplace ad spend (the inverse of ACOS).' },
+  { key: 'tacos', label: 'TACOS (total advertising cost of sales)', category: 'retail', unit: 'pct', tier: 'derived', inputs: ['cost', 'total_revenue'], formula: 'ad cost / TOTAL revenue x 100', compute: (r) => pct(r.cost, r.total_revenue), def: 'Ad cost against TOTAL (organic + paid) marketplace revenue - the health metric ACOS cannot show. Needs total revenue joined in.' },
+  { key: 'rm_cvr', label: 'Conversion rate (retail)', category: 'retail', unit: 'pct', tier: 'derived', inputs: ['attributed_orders', 'clicks'], formula: 'attributed orders / clicks x 100', compute: (r) => pct(r.attributed_orders, r.clicks), def: 'Orders per marketplace click - the listing closing rate.' },
+  { key: 'rm_cpa', label: 'Cost per order (retail)', category: 'retail', unit: 'usd', tier: 'derived', inputs: ['cost', 'attributed_orders'], formula: 'ad cost / attributed orders', compute: (r) => div(r.cost, r.attributed_orders), def: 'Acquisition cost per attributed marketplace order.' },
+  { key: 'rm_aov', label: 'AOV (retail, attributed)', category: 'retail', unit: 'usd', tier: 'derived', inputs: ['attributed_sales', 'attributed_orders'], formula: 'attributed sales / attributed orders', compute: (r) => div(r.attributed_sales, r.attributed_orders), def: 'Average value of an attributed marketplace order.' },
+  { key: 'rm_units_per_order', label: 'Units per order', category: 'retail', unit: 'ratio', tier: 'derived', inputs: ['attributed_units', 'attributed_orders'], formula: 'attributed units / attributed orders', compute: (r) => div(r.attributed_units, r.attributed_orders), def: 'Basket depth: how many units an attributed order carries. Above 1 means bundling is working.' },
+  { key: 'rm_asp', label: 'Average selling price', category: 'retail', unit: 'usd', tier: 'derived', inputs: ['attributed_sales', 'attributed_units'], formula: 'attributed sales / attributed units', compute: (r) => div(r.attributed_sales, r.attributed_units), def: 'Revenue per unit sold - catches discount-driven volume.' },
+  { key: 'rm_cost_per_unit', label: 'Ad cost per unit sold', category: 'retail', unit: 'usd', tier: 'derived', inputs: ['cost', 'attributed_units'], formula: 'ad cost / attributed units', compute: (r) => div(r.cost, r.attributed_units), def: 'What advertising adds to the cost of each unit moved.' },
+  { key: 'breakeven_acos', label: 'Break-even ACOS', category: 'retail', unit: 'pct', tier: 'derived', inputs: ['gross_margin_pct'], formula: 'gross margin % (ACOS above this loses money)', compute: (r) => n(r.gross_margin_pct), def: 'The ACOS ceiling before a sale stops being profitable. Needs the product gross margin - never assumed.' },
+  { key: 'acos_headroom', label: 'ACOS headroom vs break-even', category: 'retail', unit: 'pct', tier: 'derived', inputs: ['cost', 'attributed_sales', 'gross_margin_pct'], formula: 'break-even ACOS - actual ACOS', compute: (r) => { const a = pct(r.cost, r.attributed_sales), b = n(r.gross_margin_pct); return (a == null || b == null) ? null : b - a; }, def: 'Positive = room to bid up; negative = the campaign is buying unprofitable sales.' },
 ];
 
 const BY_KEY = Object.fromEntries(METRICS.map((m) => [m.key, m]));
