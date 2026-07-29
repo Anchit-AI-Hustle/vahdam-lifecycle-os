@@ -647,7 +647,7 @@ footer{background:var(--ink);color:rgba(251,245,234,.6);text-align:center;paddin
   <p>${esc(L.hero_sub || entry.rationale || '')}</p>
   <a class="btn" href="${esc(shopUrl)}">${cta}</a>
 </section>
-${creativeUrl ? `<img src="${esc(creativeUrl)}" alt="${esc(L.hero_headline || entry.heroProduct?.title || 'VAHDAM')}" style="width:100%;display:block;max-height:520px;object-fit:cover"/>` : ''}
+${creativeUrl ? `<figure style="margin:0;background:var(--cream,#FBF5EA);display:flex;align-items:center;justify-content:center;padding:18px 16px"><img src="${esc(creativeUrl)}" alt="${esc(L.hero_headline || entry.heroProduct?.title || 'VAHDAM')}" loading="lazy" style="display:block;width:auto;height:auto;max-width:min(100%,520px);max-height:460px;object-fit:contain;border-radius:12px"/></figure>` : ''}
 <div class="trust">${trustStars}<span>Single-estate origin</span><span>Hand-picked &amp; fresh</span><span>Ships in days</span></div>
 <div class="wrap">
   <section class="sec why">
