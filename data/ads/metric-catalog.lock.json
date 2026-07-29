@@ -478,7 +478,7 @@
         "landing_page_views",
         "inline_link_clicks"
       ],
-      "formula": "100 − LP-view rate"
+      "formula": "100 - LP-view rate"
     },
     {
       "key": "lp_bounce_rate",
@@ -542,7 +542,7 @@
         "variant_rate",
         "control_rate"
       ],
-      "formula": "(variant − control) / control × 100"
+      "formula": "(variant - control) / control × 100"
     },
     {
       "key": "confidence",
