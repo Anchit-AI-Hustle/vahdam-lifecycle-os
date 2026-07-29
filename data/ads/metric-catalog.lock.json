@@ -623,7 +623,7 @@
         "clicks",
         "impressions"
       ],
-      "formula": "clicks / impressions x 100"
+      "formula": "clicks / impressions × 100 (marketplace report)"
     },
     {
       "key": "rm_cpc",
@@ -645,7 +645,7 @@
         "cost",
         "impressions"
       ],
-      "formula": "cost / impressions x 1000"
+      "formula": "cost / impressions × 1000"
     },
     {
       "key": "acos",
@@ -656,7 +656,7 @@
         "cost",
         "attributed_sales"
       ],
-      "formula": "ad cost / attributed sales x 100"
+      "formula": "ad cost / attributed sales × 100"
     },
     {
       "key": "rm_roas",
@@ -678,7 +678,7 @@
         "cost",
         "total_revenue"
       ],
-      "formula": "ad cost / TOTAL revenue x 100"
+      "formula": "ad cost / TOTAL revenue × 100"
     },
     {
       "key": "rm_cvr",
@@ -689,7 +689,7 @@
         "attributed_orders",
         "clicks"
       ],
-      "formula": "attributed orders / clicks x 100"
+      "formula": "attributed orders / clicks × 100"
     },
     {
       "key": "rm_cpa",
