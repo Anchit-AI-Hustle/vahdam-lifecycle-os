@@ -30,12 +30,23 @@ function connection() {
     file = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', 'linked-db.json'), 'utf8'));
   } catch (_) { file = {}; }
   const clean = (s) => (s || '').replace(/[﻿​]/g, '').trim();
-  _conn = {
-    url: (clean(process.env.SMART_BRAIN_SUPABASE_URL) || file.url || '').replace(/\/$/, ''),
-    key: clean(process.env.SMART_BRAIN_SUPABASE_KEY)
-      || clean(process.env.SMART_BRAIN_SUPABASE_SERVICE_ROLE_KEY)
-      || file.anonKey || '',
-  };
+  // Use a MATCHED (url, key) pair from ONE Supabase project. The previous code
+  // took the URL from SMART_BRAIN_SUPABASE_URL but could fall back to the linked
+  // project's anon key — a Smart-Brain URL + main-project key yields a 401
+  // "Invalid API key". Pick a pair that belongs together.
+  const smartUrl = clean(process.env.SMART_BRAIN_SUPABASE_URL);
+  const smartKey = clean(process.env.SMART_BRAIN_SUPABASE_KEY)
+    || clean(process.env.SMART_BRAIN_SUPABASE_SERVICE_ROLE_KEY)
+    || clean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+    || clean(process.env.SUPABASE_SERVICE_KEY);
+  let url, key;
+  if (smartUrl && smartKey) { url = smartUrl; key = smartKey; }            // Smart Brain project w/ a real key
+  else if (file.url && file.anonKey) { url = file.url; key = file.anonKey; } // linked project (analytics tables)
+  else {
+    url = clean(process.env.SUPABASE_URL) || clean(process.env.NEXT_PUBLIC_SUPABASE_URL) || smartUrl || file.url || '';
+    key = clean(process.env.SUPABASE_ANON_KEY) || clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) || file.anonKey || '';
+  }
+  _conn = { url: url.replace(/\/$/, ''), key };
   return _conn;
 }
 
@@ -120,7 +131,7 @@ const DEFAULT_CONFIG = {
     landing_page: { cvr: 0.018 },
   },
   capacity: { email_per_market_per_week: 4, paid_campaigns_per_market_per_week: 5, landing_pages_per_week: 4 },
-  calendar: { days: 15, markets: ['US', 'UK'], channels: ['email', 'google', 'meta', 'tiktok'], min_gap_days_same_cohort: 2 },
+  calendar: { days: 90, markets: ['US', 'UK'], channels: ['email', 'google', 'meta', 'tiktok'], min_gap_days_same_cohort: 2 },
   review_policy: {
     launch_mode: true,
     auto_approve_min_confidence: 0.85,

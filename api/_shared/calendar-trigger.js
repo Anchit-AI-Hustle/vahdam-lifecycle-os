@@ -17,6 +17,7 @@
 
 const llm = require('../_shared/llm.js');
 const { buildMasterPrompt } = require('../_shared/master-prompt.js');
+const CF = require('../_shared/copy-frameworks.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -90,7 +91,8 @@ function ctaUrlForEntry(entry, market) {
   return base;
 }
 
-function buildBriefFromEntry(entry) {
+function buildBriefFromEntry(entry, fw) {
+  const framework = fw || CF.pickCopyFrameworkForCalendar({ framework: entry.framework, content_type: entry.content_type, segment: entry.segment, seed: `${entry.date}_${entry.segment}` });
   const parts = [
     `Campaign date: ${entry.date}`,
     `Market: ${entry.market}`,
@@ -100,15 +102,40 @@ function buildBriefFromEntry(entry) {
     `Hero product: ${entry.hero_product || entry.hero_sku}`,
     entry.festival ? `Cultural moment: ${entry.festival} (weight ${entry.festival_weight}/10)` : null,
     `Subject-line direction: ${entry.subject_hint}`,
+    (entry.feedback && String(entry.feedback).trim()) ? `\nREVIEWER FEEDBACK to incorporate on this regeneration (highest priority, override earlier guidance where it conflicts): ${String(entry.feedback).trim()}` : null,
     '',
     'Strategist guidance:',
     `- Stay strictly on VAHDAM brand voice: warm, sensory, story-driven. No "transform", no "wellness journey", no all-caps urgency.`,
     `- Match the archetype layout convention (see project brand spec).`,
     `- One CTA, one hero product, optional 2-3 supporting products.`,
     `- For ${entry.segment}: ${segmentVoiceGuide(entry.segment, entry.content_type)}`,
+    '',
+    CF.copyFrameworkBriefBlock(framework),
   ].filter(Boolean).join('\n');
 
   return parts;
+}
+
+// Derive on-brand copy from a calendar entry when the LLM strategy stage cannot
+// return parseable JSON. Keeps the mailer build alive instead of 503-ing.
+function heuristicStrategy(entry, market, framework) {
+  const hero = entry.hero_product || entry.hero_sku || 'our single-estate edit';
+  const seg = entry.segment || 'you';
+  const type = String(entry.content_type || '').toLowerCase();
+  const subjectHint = entry.subject_hint || '';
+  const subject = (subjectHint || `A quieter morning with ${hero}`).toString().slice(0, 60);
+  const preview = (`Single-estate, hand-picked, and steeped for the ${seg} ritual.`).slice(0, 90);
+  const headline = (subjectHint ? subjectHint.split(/[.!?]/)[0] : `The ${hero} ritual`).toString().split(/\s+/).slice(0, 8).join(' ');
+  const subline = `Origin-first tea, crafted to restore balance to your day.`;
+  const ctaText = type === 'promo' ? 'Shop the edit'
+    : type === 'launch' ? 'Discover it'
+    : type === 'winback' ? 'Come back' : 'Steep now';
+  const body_blocks = [
+    { heading: 'Where it begins', body: `Every leaf in ${hero} is hand-picked at origin and shipped garden-fresh, so what reaches your cup is the way it was meant to taste.` },
+    { heading: 'Made for your ritual', body: `Whether it opens your morning or closes your evening, this is tea built to be returned to, one unhurried cup at a time.` },
+    { heading: 'Why it matters', body: `Single-estate sourcing, heritage craft, and a story you can trace back to the hillside it grew on.` },
+  ];
+  return { subject_line: subject, preview_text: preview, hero_headline: headline, hero_subline: subline, body_blocks, cta_text: ctaText };
 }
 
 function segmentVoiceGuide(segment, contentType) {
@@ -120,7 +147,7 @@ function segmentVoiceGuide(segment, contentType) {
     'Need-Attention': 'soft re-engagement, no aggressive discount yet.',
     'About-to-Sleep': 'gentle reminder + curated 3-pick. Question-based subject.',
     'At-Risk':        'one personal note, one fair offer, single CTA.',
-    Hibernating:      'short founder\'s note, no discount, link to one curated read.',
+    Hibernating:      'short brand note from the team (never a founder or personal voice), no discount, link to one curated read.',
     Lost:             'do not send.',
   };
   return map[segment] || 'professional, warm, on-brand.';
@@ -155,7 +182,8 @@ module.exports = async function handler(req, res) {
 
   const market = body.market_override || entry.market;
 
-  const brief = buildBriefFromEntry(entry);
+  const framework = CF.pickCopyFrameworkForCalendar({ framework: entry.framework, content_type: entry.content_type, segment: entry.segment, seed: `${entry.date}_${entry.segment}` });
+  const brief = buildBriefFromEntry(entry, framework);
   const runs  = [];
 
   // ── Stage 1: Strategy (subject + headline + bullets + CTA) ──
@@ -166,22 +194,52 @@ module.exports = async function handler(req, res) {
         'subject_line (string, ≤ 60 chars), preview_text (string, ≤ 90 chars), ' +
         'hero_headline (string, ≤ 8 words), hero_subline (string, ≤ 18 words), ' +
         'body_blocks (array of {heading, body}), cta_text (string, ≤ 4 words). ' +
-        'Use VAHDAM brand voice (warm, sensory, story-driven). No banned phrases.',
+        'Use VAHDAM brand voice (warm, sensory, story-driven). ' +
+        CF.copyFrameworkSystemLine(framework) + ' No banned phrases.',
       userMessage: brief,
       responseFormat: { type: 'json_object' },
-      maxTokens: 1200,
+      maxTokens: 3000,
       temperature: 0.75,
       stage: 'strategy',
+      tier: 'premium',
     });
-    return JSON.parse(out.text);
+    return (llm.parseJSON ? llm.parseJSON(out.text) : JSON.parse(out.text));
   }, 'strategy');
-  runs.push({ stage: 'strategy', ok: strategy.ok, error: strategy.ok ? null : strategy.error });
 
-  if (!strategy.ok) {
-    return res.status(503).json({ ok: false, message: 'Strategy stage failed', runs });
+  // Graceful fallback: a parse/provider failure on the copy JSON must NOT dead-end
+  // the whole mailer build. Derive on-brand copy from the calendar entry itself so
+  // the mailer still renders (mirrors the heuristic fallback in ai/pipeline/strategy.js).
+  let S, strategyHeuristic = false;
+  if (strategy.ok && strategy.data && strategy.data.subject_line) {
+    S = strategy.data;
+    runs.push({ stage: 'strategy', ok: true, error: null });
+  } else {
+    strategyHeuristic = true;
+    S = heuristicStrategy(entry, market, framework);
+    runs.push({ stage: 'strategy', ok: true, error: null, heuristic: true, llm_error: strategy.ok ? 'empty_or_invalid_copy_json' : strategy.error });
   }
 
-  const S = strategy.data;
+  // Brand scrub — every LLM copy string passes sanitizeBrand (CLAUDE.md banned
+  // phrases → preferred lexicon) before it reaches a rendered mailer. Failure
+  // to load the scrubber never blocks the request.
+  try {
+    const { sanitizeBrand } = require('../_shared/scenario-model.js');
+    S.subject_line  = sanitizeBrand(S.subject_line);
+    S.preview_text  = sanitizeBrand(S.preview_text);
+    S.hero_headline = sanitizeBrand(S.hero_headline);
+    S.hero_subline  = sanitizeBrand(S.hero_subline);
+    S.cta_text      = sanitizeBrand(S.cta_text);
+    if (Array.isArray(S.body_blocks)) {
+      S.body_blocks = S.body_blocks.map((b) => ({
+        ...b,
+        heading: sanitizeBrand(b && b.heading),
+        body: sanitizeBrand(b && b.body),
+      }));
+    }
+  } catch (e) {
+    console.warn('[calendar-trigger] sanitizeBrand unavailable: ' + String(e && e.message || e).slice(0, 120));
+  }
+
   const ctaUrl = ctaUrlForEntry(entry, market);
 
   // ── Stage 2: EXACTLY 2 variants per region ───────────────────────────────
@@ -191,6 +249,12 @@ module.exports = async function handler(req, res) {
   //          from product image frames → (3) AI-generated video (last resort).
   // Each variant carries the same strategy so they read as a coherent campaign,
   // plus a portable `master_prompt` (built from the shared master-prompt module).
+  // Products in scope for the master prompt (hero + any supporting picks on entry).
+  const promptProducts = [
+    { title: entry.hero_product || entry.hero_sku, handle: entry.hero_handle, sku: entry.hero_sku, price: entry.hero_price },
+    ...((Array.isArray(entry.supporting_products) ? entry.supporting_products : [])),
+  ].filter((p) => p && (p.title || p.handle || p.sku));
+
   const sharedText = {
     subject: S.subject_line,
     hero_headline: S.hero_headline,
@@ -199,13 +263,10 @@ module.exports = async function handler(req, res) {
     cta_text: S.cta_text || 'Shop the edit',
     cta_url: ctaUrl,
     market,
+    // Flagship-parity: real inline product grid + derived collection CTA.
+    products: promptProducts,
+    collection_url: `${regionBase(market)}/collections/${collectionForEntry(entry)}`,
   };
-
-  // Products in scope for the master prompt (hero + any supporting picks on entry).
-  const promptProducts = [
-    { title: entry.hero_product || entry.hero_sku, handle: entry.hero_handle, sku: entry.hero_sku },
-    ...((Array.isArray(entry.supporting_products) ? entry.supporting_products : [])),
-  ].filter((p) => p && (p.title || p.handle || p.sku));
 
   const variants = {
     V1: {
@@ -245,25 +306,194 @@ module.exports = async function handler(req, res) {
     },
   };
 
+  // ── OPTIONAL real hero image for the V2 visual variant ────────────────────
+  // Runs the existing image cascade in-process (creative-image.js mock-req/res
+  // shim), hard time-boxed at 30s. Failure-silent by design: any error, timeout,
+  // or missing provider keeps V2 exactly as rendered above (brand-palette hero
+  // block, no imagery). A provided hosted media URL always wins over generation.
+  if (!variants.V2.hosted_media_url) {
+    let timer = null;
+    try {
+      const { generateCreativeImage, uploadCreative } = require('../_shared/creative-image.js');
+      const gen = await Promise.race([
+        generateCreativeImage(variants.V2.hero_image_brief, { size: '1536x1024' }),
+        new Promise((resolve) => { timer = setTimeout(() => resolve(null), 30000); }),
+      ]);
+      // image.js never 502s — on total failure it returns an on-brand SVG
+      // placeholder (provider 'placeholder'). Only a REAL generated photo may
+      // upgrade the variant; placeholders keep the current no-image render.
+      const isReal = gen && gen.image &&
+        gen.provider !== 'placeholder' &&
+        String(gen.image).indexOf('data:image/svg') !== 0;
+      if (isReal) {
+        // Prefer a small hosted URL (Supabase Storage) over a multi-MB data-URL.
+        const hosted = await uploadCreative(gen.image, `calendar-v2-${slugify(entry.date || entry.segment || 'hero')}`).catch(() => null);
+        const heroImageUrl = hosted || gen.image;
+        variants.V2.hero_image_url = heroImageUrl;
+        variants.V2.hero_image_provider = gen.provider || null;
+        variants.V2.html = renderTextVariant({
+          ...sharedText, style: 'visual',
+          hero_product: entry.hero_product, hero_sku: entry.hero_sku,
+          hero_image_url: heroImageUrl,
+        });
+        runs.push({ stage: 'hero-image', ok: true, error: null });
+      } else {
+        runs.push({ stage: 'hero-image', ok: false, error: 'skipped_or_unavailable' });
+      }
+    } catch (e) {
+      runs.push({ stage: 'hero-image', ok: false, error: String(e && e.message || e).slice(0, 160) });
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  // ── Expose the 4-variant grid the calendar modal + Studio handoff expect ──
+  // Type A (image-led) and Type B (text-led), two each. B1/B2 reuse the built
+  // text mailers so they render as full HTML previews; A1/A2 are image-led
+  // variants carrying an editorial hero brief (and the generated hero image when
+  // available) so every tab loads real content instead of "Variant unavailable".
+  const heroBriefBase = variants.V2.hero_image_brief;
+  variants.A1 = {
+    kind: 'image', type: 'A1', label: 'A1 · Image · Hero close-up',
+    cta_url: ctaUrl, preview_text: S.preview_text,
+    hero_image_url: variants.V2.hero_image_url || null,
+    hero_image_provider: variants.V2.hero_image_provider || null,
+    hero_image_brief: `${heroBriefBase} Composition: tight hero close-up of ${entry.hero_product || entry.hero_sku} on a cream linen surface, shallow depth of field, warm morning light.`,
+    master_prompt: variants.V2.master_prompt,
+  };
+  variants.A2 = {
+    kind: 'image', type: 'A2', label: 'A2 · Image · Lifestyle wide',
+    cta_url: ctaUrl, preview_text: S.preview_text,
+    hero_image_url: variants.V2.hero_image_url || null,
+    hero_image_provider: variants.V2.hero_image_provider || null,
+    hero_image_brief: `${heroBriefBase} Composition: wide lifestyle scene, the cup in a real ritual moment (kitchen window or single-estate hillside table), generous negative space, atmospheric dusk light.`,
+    master_prompt: variants.V2.master_prompt,
+  };
+  variants.B1 = { ...variants.V2, kind: 'text', type: 'B1', label: 'B1 · Text + Visual' };
+  variants.B2 = { ...variants.V1, kind: 'text', type: 'B2', label: 'B2 · Complete Text' };
+
   return res.status(200).json({
     ok: true,
     entry,
     strategy: S,
+    framework: framework.key,
+    framework_name: `${framework.name} (${framework.full})`,
     cta_url: ctaUrl,
     variants,
     runs,
+    ...(strategyHeuristic ? { strategy_heuristic: true } : {}),
   });
 };
 
-// ─── Text-variant renderer (no images, brand-compliant) ─────────────────────
-function renderTextVariant({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku }) {
+// ─── Text-variant renderer (brand-compliant) ───────────────────────────────
+// Public wrapper: renders the variant body, then stamps the gold-standard
+// subject-metadata header (mailer-format.js) so every mailer path is uniform.
+const MF = require('./mailer-format.js');
+function renderTextVariant(opts) {
+  const html = _renderVariantBody(opts || {});
+  return MF.withSubjectMeta(html, {
+    subject: opts && opts.subject,
+    alts: (opts && opts.subject_alts) || [],
+    preheader: (opts && opts.preheader) || (opts && opts.preview_text) || '',
+  });
+}
+// Legal sender identity for email footers (CAN-SPAM: a real physical mailing
+// address is required in every commercial email). SAME constants the flagship
+// engine (brain-generate.js) uses, so every mailer path carries an identical
+// compliant footer.
+const ORG_NAME = 'Vahdam Teas Global, Inc';
+const ORG_ADDRESS = '440 N Barranca Ave #2812, Covina, CA 91723, United States';
+// Real hosted product photos (Shopify CDN) resolved by handle/title, the SAME
+// source the flagship mailer uses, so a product tile never renders imageless.
+let _catImg = null;
+try { _catImg = require('./catalog-image.js'); } catch (_) {}
+function _productImg(p, market) {
+  if (!p) return null;
+  const hd = (u) => (_catImg && _catImg.hd ? (_catImg.hd(u, 600) || u) : u);
+  const d = p.image || p.image_url || p.i;
+  if (typeof d === 'string' && /^https?:\/\//.test(d)) return hd(d);
+  if (_catImg && _catImg.imageFor) {
+    return _catImg.imageFor({ handle: p.handle || p.h, title: p.title || p.n }, market, { width: 600 }) || null;
+  }
+  return null;
+}
+// Real per-product copy pulled from the catalog (the same content the PDP
+// carries): a short subtitle or tasting-note line. Used to enrich grid cards so
+// each section shows genuine product content, never invented blurbs.
+function _productNote(p, market) {
+  if (!p) return '';
+  let s = p.note || p.subtitle || p.tasting_notes || '';
+  if (!s && _catImg && _catImg.match) {
+    const row = _catImg.match({ handle: p.handle || p.h, title: p.title || p.n }, market);
+    if (row) s = row.subtitle || row.tasting_notes || '';
+  }
+  return s ? String(s) : '';
+}
+
+function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku, hero_image_url, hero_prompt, products, offer_bar, collection_url }) {
   // CTA points at the resolved product/collection page; the brand domain still
   // falls back per-market if no specific destination was provided.
   const baseUrl = cta_url || regionBase(market);
+  const store = regionBase(market);
+  const cur = String(market || '').toUpperCase() === 'UK' ? '£' : '$';
+  const HEAD = "'Lao MN','Cormorant Garamond',Georgia,serif";
+  const BODY = "'Proxima Nova','Helvetica Neue',Arial,sans-serif";
 
   const palette = {
     green: '#004A2B', gold: '#AB8743', ink: '#171717', cream: '#FBF5EA',
   };
+
+  // ── Flagship-parity shared fragments (identical logic to brain-generate.js) ──
+  // Brand header: VAHDAM wordmark linking to the market store (the ONLY header
+  // link, matching the flagship's logo→store rule).
+  const brandHeader = `
+      <tr><td align="center" style="padding:18px 0 6px;">
+        <a href="${store}" target="_blank" style="text-decoration:none;display:inline-block;">
+          <div style="font-family:${HEAD};font-size:22px;letter-spacing:0.28em;color:${palette.green};font-weight:700;">VAHDAM</div>
+          <div style="font-family:${BODY};font-size:10px;letter-spacing:0.22em;color:${palette.gold};text-transform:uppercase;margin-top:4px;">${esc(market)} · Single-Estate Tea</div>
+        </a>
+      </td></tr>`;
+  // Optional gold offer bar (only when an offer string is supplied).
+  const offerBarRow = offer_bar ? `
+      <tr><td align="center" style="background:${palette.gold};padding:9px 14px;font-family:${BODY};font-size:12px;font-weight:700;color:${palette.ink};">${esc(offer_bar)}</td></tr>` : '';
+  // Compact product grid: real inline images + PDP links, up to 3 across one row
+  // (never one-product-per-vertical-section). Matches the flagship grid exactly.
+  const gridProducts = Array.isArray(products) ? products.filter(Boolean).slice(0, 3) : [];
+  const productGrid = gridProducts.length ? `
+      <tr><td style="padding:16px 20px 4px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        ${gridProducts.map((p) => {
+    const img = _productImg(p, market);
+    const note = _productNote(p, market);
+    const pdp = p.url || ((p.handle || p.h) ? `${store}/products/${p.handle || p.h}` : baseUrl);
+    const price = (p.price != null && p.price !== '') ? `${cur}${p.price}` : '';
+    return `<td align="center" valign="top" style="width:33%;padding:8px;">
+          <a href="${pdp}" target="_blank" style="text-decoration:none;">
+            <div style="background:${palette.cream};border:1px solid ${palette.gold}33;border-radius:10px;padding:12px 8px 16px;">
+              ${img ? `<img src="${esc(img)}" alt="${esc(p.title || p.n || '')}" width="140" style="width:100%;max-width:140px;height:auto;border-radius:8px;display:block;margin:0 auto 10px;" />` : ''}
+              <div style="font-family:${HEAD};font-size:14px;color:${palette.ink};line-height:1.35;">${esc(p.title || p.n || '')}</div>
+              ${note ? `<div style="font-family:${BODY};font-size:11px;color:#7a6e5a;margin-top:4px;line-height:1.4;">${esc(note)}</div>` : ''}
+              ${price ? `<div style="font-family:${BODY};font-size:13px;color:${palette.gold};margin-top:6px;font-weight:600;">${price}</div>` : ''}
+            </div>
+          </a></td>`;
+  }).join('')}
+        </tr></table>
+      </td></tr>` : '';
+  // Secondary outline CTA → collection page (derived, or provided).
+  const collectionHref = collection_url || `${store}/collections/bestsellers`;
+  const secondaryCta = `
+      <tr><td align="center" style="padding:6px 24px 6px;">
+        <a href="${collectionHref}" target="_blank" style="display:inline-block;font-family:${BODY};font-size:13px;font-weight:700;color:${palette.green};border:1.5px solid ${palette.gold};border-radius:8px;padding:11px 24px;text-decoration:none;">Explore the collection</a>
+      </td></tr>`;
+  // CAN-SPAM footer — nothing clickable except the brand mark (in the header).
+  // Brand HARD rule: NEVER a black / near-black section background. The footer
+  // sits on forest green (#004A2B); cream + gold text stay high-contrast on it.
+  const brandFooter = `
+      <tr><td align="center" style="background:${palette.green};padding:22px 20px 28px;">
+        <div style="font-family:${HEAD};font-size:14px;letter-spacing:0.24em;color:${palette.cream};">VAHDAM</div>
+        <div style="font-family:${BODY};font-size:10.5px;letter-spacing:0.05em;color:${palette.gold};margin:8px 0;">Single-estate · Hand-picked · Shipped fresh from origin</div>
+        <div style="font-family:${BODY};font-size:11px;color:${palette.cream}99;line-height:1.7;">${ORG_NAME} &middot; ${ORG_ADDRESS}<br>You are receiving this as a valued VAHDAM ${esc(market)} customer. Carbon &amp; plastic neutral.<br>Manage preferences or unsubscribe from your account settings.</div>
+      </td></tr>`;
 
   const blocks = (body_blocks || []).map((b) => `
     <tr><td style="padding:18px 32px 0;">
@@ -275,14 +505,23 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
   //    and a brand palette hero block. Visual elements stay light and on-brand.
   if (style === 'visual') {
     const heroLabel = hero_product ? esc(hero_product) : 'Today on the cupping table';
+    // Real hero photograph if we have one; otherwise, when a generation prompt
+    // is supplied, emit the gold-standard IMAGE GENERATION PROMPT comment + a
+    // PASTE_IMAGE_URL_HERE slot the asset agent fills. With neither, the
+    // variant renders as before (brand-palette hero block only).
+    const heroImgRow = hero_image_url ? `
+      <tr><td style="padding:20px 32px 0;">
+        <img src="${esc(hero_image_url)}" width="536" alt="${heroLabel}" style="display:block;width:100%;height:auto;border-radius:6px;" />
+      </td></tr>` : (hero_prompt ? `
+      <tr><td style="padding:20px 32px 0;">
+        ${MF.assetSlot({ kind: 'image', slot: 'hero', displayW: 536, displayH: 340, prompt: hero_prompt, alt: hero_product || 'hero' })}
+      </td></tr>` : '');
     return `<!doctype html>
 <html><body style="margin:0;padding:0;background:${palette.cream};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.cream};">
   <tr><td align="center" style="padding:36px 16px;">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #ece4d2;">
-      <tr><td style="padding:24px 32px 0;text-align:center;">
-        <div style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:13px;letter-spacing:3px;color:${palette.gold};text-transform:uppercase;">VAHDAM · ${esc(market)}</div>
-      </td></tr>
+      ${offerBarRow}${brandHeader}${heroImgRow}
       <tr><td style="padding:20px 32px 0;">
         <!-- Brand-palette hero block (no external image needed) -->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.green};border-radius:6px;">
@@ -302,10 +541,12 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
         <div style="display:inline-block;height:1px;width:38%;background:${palette.gold};vertical-align:middle;"></div>
       </td></tr>
       ${blocks}
-      <tr><td style="padding:28px 32px 36px;text-align:center;border-top:1px solid #ece4d2;">
+      ${productGrid}
+      <tr><td style="padding:26px 32px 8px;text-align:center;border-top:1px solid #ece4d2;">
         <a href="${baseUrl}" style="display:inline-block;background:${palette.green};color:${palette.cream};text-decoration:none;padding:14px 30px;font-family:'Proxima Nova',sans-serif;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;">${esc(cta_text)}</a>
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:18px 0 0;">Single-estate. Hand-picked. Brewed at origin.</p>
       </td></tr>
+      ${secondaryCta}
+      ${brandFooter}
     </table>
   </td></tr>
 </table>
@@ -331,7 +572,8 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
         <p style="font-family:'Proxima Nova',sans-serif;font-size:14px;line-height:1.6;color:${palette.ink};margin:24px 0 6px;">
           <a href="${baseUrl}" style="color:${palette.green};text-decoration:underline;font-weight:600;">${esc(cta_text)} →</a>
         </p>
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:18px 0 0;">— the VAHDAM team</p>
+        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:18px 0 0;">The VAHDAM team</p>
+        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;line-height:1.7;color:#9a8f7c;margin:20px 0 0;border-top:1px solid #ece4d2;padding-top:16px;">${ORG_NAME}, ${ORG_ADDRESS}<br>You are receiving this as a valued VAHDAM ${esc(market)} customer. Manage preferences or unsubscribe from your account settings.</p>
       </td></tr>
     </table>
   </td></tr>
@@ -345,21 +587,19 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.cream};">
   <tr><td align="center" style="padding:36px 16px;">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #ece4d2;">
-      <tr><td style="padding:36px 32px 0;text-align:center;">
-        <div style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:13px;letter-spacing:3px;color:${palette.gold};text-transform:uppercase;">VAHDAM</div>
-      </td></tr>
+      ${offerBarRow}${brandHeader}
       <tr><td style="padding:24px 32px 0;">
         <p style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:30px;line-height:1.25;color:${palette.green};margin:0 0 10px;font-weight:500;">${esc(hero_headline)}</p>
         <p style="font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.6;color:${palette.ink};margin:0 0 8px;">${esc(hero_subline)}</p>
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:13px;color:#7a6e5a;margin:0;">— a note from the cupping table</p>
+        <p style="font-family:'Proxima Nova',sans-serif;font-size:13px;color:#7a6e5a;margin:0;">A note from the cupping table</p>
       </td></tr>
       ${blocks}
-      <tr><td style="padding:28px 32px 36px;text-align:center;">
+      ${productGrid}
+      <tr><td style="padding:26px 32px 8px;text-align:center;">
         <a href="${baseUrl}" style="display:inline-block;background:${palette.green};color:${palette.cream};text-decoration:none;padding:14px 30px;font-family:'Proxima Nova',sans-serif;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;">${esc(cta_text)}</a>
       </td></tr>
-      <tr><td style="padding:14px 32px 30px;border-top:1px solid #ece4d2;text-align:center;">
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:0;">Brewed at origin. Shipped within days, not seasons.</p>
-      </td></tr>
+      ${secondaryCta}
+      ${brandFooter}
     </table>
   </td></tr>
 </table>
@@ -372,18 +612,18 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.cream};">
   <tr><td align="center" style="padding:36px 16px;">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #ece4d2;">
-      <tr><td style="padding:24px 32px 0;text-align:center;">
-        <div style="font-family:'Lao MN',Georgia,serif;font-size:13px;letter-spacing:3px;color:${palette.gold};text-transform:uppercase;">VAHDAM · ${esc(market)}</div>
-      </td></tr>
-      <tr><td style="padding:24px 32px 0;border-bottom:1px solid #ece4d2;">
+      ${offerBarRow}${brandHeader}
+      <tr><td style="padding:20px 32px 0;border-bottom:1px solid #ece4d2;">
         <h1 style="font-family:'Lao MN','Cormorant Garamond',Georgia,serif;font-size:34px;line-height:1.18;color:${palette.green};margin:0 0 8px;font-weight:500;letter-spacing:-0.3px;">${esc(hero_headline)}</h1>
         <p style="font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.55;color:${palette.ink};margin:0 0 24px;">${esc(hero_subline)}</p>
       </td></tr>
       ${blocks}
-      <tr><td style="padding:28px 32px 36px;text-align:center;border-top:1px solid #ece4d2;">
+      ${productGrid}
+      <tr><td style="padding:26px 32px 8px;text-align:center;border-top:1px solid #ece4d2;">
         <a href="${baseUrl}" style="display:inline-block;background:${palette.green};color:${palette.cream};text-decoration:none;padding:14px 30px;font-family:'Proxima Nova',sans-serif;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;">${esc(cta_text)}</a>
-        <p style="font-family:'Proxima Nova',sans-serif;font-size:11px;color:#7a6e5a;margin:18px 0 0;">No flash sales. No fillers. Just tea, picked at the source.</p>
       </td></tr>
+      ${secondaryCta}
+      ${brandFooter}
     </table>
   </td></tr>
 </table>
@@ -393,3 +633,9 @@ function renderTextVariant({ style, subject, hero_headline, hero_subline, body_b
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
 }
+
+// ─── Named helper exports (additive — zero behavior change) ─────────────────
+// module.exports stays the HTTP handler above; these let sibling _shared
+// modules (lifecycle-mailer-build.js) reuse the exact same brand-compliant
+// renderer instead of copying it.
+module.exports.helpers = { renderTextVariant, regionBase, lookupHandle, esc };

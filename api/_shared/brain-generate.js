@@ -22,6 +22,10 @@ const analysis = require('./brain-analysis.js');
 
 let callLLM = null;
 try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
+// No em/en dashes in generated copy (matches the lifecycle builder). Safe no-op
+// if scenario-model is unavailable.
+let dashScrub = (s) => s;
+try { const sm = require('./scenario-model.js'); if (sm && sm.scrubDashes) dashScrub = sm.scrubDashes; } catch (_) {}
 
 // Vahdam Campaign Hub compiler (ported from marketing_automation/) — premium,
 // curated themed landing pages for the wellness/ashwagandha-coffee campaigns it
@@ -29,6 +33,44 @@ try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 // the LLM long-form landing builder below.
 let lpCompiler = null;
 try { lpCompiler = require('./lp-compiler.js'); } catch (_) { lpCompiler = null; }
+// Shared mailer renderer, the SAME one the Mailer Calendar / lifecycle builder
+// uses, so Smart Brain mailers come out as the same two named types.
+let renderTextVariant = null;
+try { renderTextVariant = require('./calendar-trigger.js').helpers.renderTextVariant; } catch (_) { renderTextVariant = null; }
+// Real hosted product photos (Shopify CDN) from the built catalog, so a mailer
+// never renders with a missing image when the smart_products row has no image.
+let catalogImage = { imageFor: () => null };
+try { catalogImage = require('./catalog-image.js'); } catch (_) {}
+// B1 real-only gate (env REAL_FACTS_ONLY). When ON, the flagship mailer + LP show
+// ONLY approved testimonials/reviews for the SKU and DROP the fabricated
+// competitor comparison; when OFF (default) behaviour is unchanged.
+let brandFacts = { enabled: () => false, approvedReviews: () => [] };
+try { brandFacts = require('./brand-facts.js'); } catch (_) {}
+// Resolve testimonials for a slot under the gate: OFF => the given fallback
+// (LLM/template testimonials); ON => approved reviews for the SKU, else [].
+function gateTestis(fallbackTestis, slot, product) {
+  if (!brandFacts.enabled()) return fallbackTestis;
+  const sku = (product && (product.sku || product.id || product.handle || product.title)) || null;
+  return brandFacts.approvedReviews(sku, slot && slot.market).map((r) => ({ quote: r.quote || '', name: r.author || 'Verified reviewer', location: '' }));
+}
+// Per-slot design strategy: gives each mailer its own influencer-informed
+// archetype (layout order + copy angle) instead of one repeated template.
+let designStrategy = { strategyFor: () => ({ key: 'hero-spotlight', hero: 'green', order: [], influencerAngle: '' }) };
+try { designStrategy = require('./mailer-design-strategy.js'); } catch (_) {}
+// Legal sender identity for email footers (CAN-SPAM: a real physical mailing
+// address is required in every commercial email). Replaces the old
+// {{ organization_address }} placeholder.
+const ORG_NAME = 'Vahdam Teas Global, Inc';
+const ORG_ADDRESS = '440 N Barranca Ave #2812, Covina, CA 91723, United States';
+
+// Resolve the best real image URL for a product: its own row image, else the
+// catalog photo by handle/title. Returns an https URL or null.
+function productImage(p, market) {
+  if (!p) return null;
+  const direct = p.image || p.image_url || p.i;
+  if (typeof direct === 'string' && /^https?:\/\//.test(direct)) return direct;
+  return catalogImage.imageFor({ handle: p.handle || p.h, title: p.title || p.n }, market) || null;
+}
 
 // Match a calendar slot to a Campaign-Hub theme by keyword overlap. Returns
 // { theme, variant } only on a real match, so a Darjeeling slot never gets a
@@ -56,7 +98,7 @@ function pickCampaignHubLP(slot, products) {
 async function llmJson(system, user, maxTokens = 1800) {
   if (!callLLM) return null;
   try {
-    const out = await callLLM({ systemPrompt: system, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens, temperature: 0.7, timeoutMs: 40000, stage: 'brain-generate' });
+    const out = await callLLM({ systemPrompt: system, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens, temperature: 0.7, timeoutMs: 40000, stage: 'brain-generate', tier: 'premium' });
     const text = typeof out === 'string' ? out : (out.text || '');
     return JSON.parse(text.replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1'));
   } catch (_) { return null; }
@@ -69,31 +111,68 @@ async function generateCopy(slot, products, brand, library) {
   const sys = `You are the lifecycle copy chief for VAHDAM India, a premium single-estate tea & wellness brand.
 Voice: ${brand.voice}. Use this lexicon where natural: ${(brand.preferred_lexicon || []).join(', ')}.
 NEVER use: ${(brand.banned_phrases || []).join(', ')}.
+QUALITY BAR — before you return, silently score every field 1-10 on: Clarity, Conversion pull, Brand-voice fit, Concrete proof (a specific detail/number, never a vague claim), and Format/character-limits. If any field scores below 8, rewrite it. Prefer a specific, sensory, benefit-led line over a generic category claim: a reason tied to THIS cohort/angle beats "origin-fresh tea" every time. Each headline/description must read better than the obvious generic version.
 Return STRICT JSON only.`;
+  const strat = designStrategy.strategyFor(slot);
   const user = `Create campaign copy for:
 Channel: ${slot.channel} · Market: ${slot.market} · Cohort: ${slot.cohort_id || 'general'}
 Theme: ${slot.theme} · Angle: ${slot.angle} · Festival: ${slot.festival || 'none'}
 Reference hooks that worked before: ${ref || 'n/a'}
+Design format for THIS mailer: ${strat.label}. ${strat.influencerAngle}
+Write the copy so it fits that format specifically (this send must not read like a generic template).
 Featured products:\n${productLines}
+
+AD-COPY RULES (apply to google, meta and tiktok blocks):
+- Make every headline and DESCRIPTION specific to this cohort (${slot.cohort_id || 'general'}) and angle (${slot.angle}). No generic "origin-fresh tea" filler that could belong to any send.
+- Lead each ad description with the angle's benefit, then a concrete proof or offer, then a light CTA. It must read as a finished ad, never a label or the schema hint.
+- Respect platform limits EXACTLY (count characters): Google headlines <=30, Google descriptions <=90, Meta headline <=40, Meta description <=30. If it does not fit, rewrite shorter — do not exceed.
+- Use ONLY the product names/prices given above. Invent no discounts, promo codes, ratings, review counts, claims, or URLs. If an offer is not supplied, do not state one.
 
 JSON shape:
 {"subject":"","preheader":"","headline":"","subheadline":"","body_intro":"2-3 sentence sensory opening","story":"4-5 sentence narrative for the angle","cta_primary":"","cta_secondary":"","testimonial":{"quote":"tiny personal story, 2 sentences","name":"first name + city"},"google":{"headlines":["12 short headlines ≤30 chars"],"descriptions":["4 descriptions ≤90 chars"],"callouts":["4 callouts ≤25 chars e.g. Free shipping over $35"],"sitelinks":[{"text":"≤25 chars","desc":"≤35 chars"},{"text":"","desc":""},{"text":"","desc":""},{"text":"","desc":""}]},"meta":{"primary_text":"best single primary text","primary_text_variants":["unaware-stage hook","problem-aware angle","solution-aware/offer angle"],"headline":"≤40 chars","headlines":["3 headline options ≤40 chars"],"description":"≤30 chars","creative_concept":"one-line art direction for the hero image"},"tiktok":{"hook_line":"first 2s spoken hook","script":"15s spoken script, conversational","shot_list":["4 beats: 0-2s hook / 3-6s problem / 7-11s product+proof / 12-15s CTA"],"captions":["3 on-screen caption lines"]},"landing":{"hero_eyebrow":"3-5 word kicker","hero_headline":"big emotional promise","hero_sub":"1-2 sentence support","offer_bar":"short sticky offer line e.g. Free sampler + free shipping over $35","trust_badges":["4 very short proof points"],"problem":{"headline":"name the pain","body":"3-4 sentences on what they settle for today"},"mechanism":{"headline":"why origin-fresh changes it","steps":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}]},"benefits":[{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"},{"title":"","desc":"1 sentence"}],"comparison":{"us_label":"VAHDAM","them_label":"Supermarket tea","rows":[{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""},{"feature":"","us":"","them":""}]},"testimonials":[{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"},{"quote":"2 sentence story","name":"first name","location":"city"}],"offer_stack":{"headline":"what you get","items":["3-5 included lines, each with a small value note"],"price_note":"value framing e.g. about 40c a cup","cta":"buy CTA"},"faq":[{"q":"","a":""},{"q":"","a":""},{"q":"","a":""},{"q":"","a":""}],"guarantee":{"headline":"risk reversal","body":"1-2 sentences"}}}`;
   let copy = await llmJson(sys, user, 3400);
   if (!copy || !copy.headline) copy = fallbackCopy(slot, products);
-  // brand-compliance scrub on every string
+  // brand-compliance scrub on every string: banned phrases + no em/en dashes
+  // (same no-dash rule the lifecycle builder enforces, for consistency).
   const walk = (o) => {
-    if (typeof o === 'string') return scrubBannedPhrases(o, brand);
+    if (typeof o === 'string') return dashScrub(scrubBannedPhrases(o, brand));
     if (Array.isArray(o)) return o.map(walk);
     if (o && typeof o === 'object') return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, walk(v)]));
     return o;
   };
-  return walk(copy);
+  return clampAds(walk(copy));
+}
+
+// Enforce ad-platform character limits on every ad field, whatever the source
+// (LLM or fallback), so a description is never rejected/truncated for being too
+// long. Trims at a word boundary and strips trailing punctuation.
+function clampStr(s, n) {
+  s = String(s == null ? '' : s).trim();
+  if (s.length <= n) return s;
+  const cut = s.slice(0, n);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > n * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:.\-]+$/, '');
+}
+function clampAds(copy) {
+  if (!copy) return copy;
+  if (copy.meta) {
+    if (copy.meta.headline) copy.meta.headline = clampStr(copy.meta.headline, 40);
+    if (copy.meta.description) copy.meta.description = clampStr(copy.meta.description, 30);
+    if (Array.isArray(copy.meta.headlines)) copy.meta.headlines = copy.meta.headlines.map((h) => clampStr(h, 40));
+  }
+  if (copy.google) {
+    if (Array.isArray(copy.google.headlines)) copy.google.headlines = copy.google.headlines.map((h) => clampStr(h, 30));
+    if (Array.isArray(copy.google.descriptions)) copy.google.descriptions = copy.google.descriptions.map((d) => clampStr(d, 90));
+    if (Array.isArray(copy.google.callouts)) copy.google.callouts = copy.google.callouts.map((c) => clampStr(c, 25));
+  }
+  return copy;
 }
 
 function fallbackCopy(slot, products) {
   const p = products[0] || { title: 'Original Masala Chai', price: 19.99, category: 'Chai' };
   const theme = slot.theme || 'Morning Ritual';
   const fest = slot.festival;
+  const angle = slot.angle || theme;   // weave the slot's angle into ad copy so fallback is not identical per slot
   return {
     subject: fest ? `${fest}: a gift they will steep all season` : `There is a moment the right cup restores`,
     preheader: `${p.title}, hand-picked at origin — crafted for your ${String(theme).toLowerCase()}`,
@@ -106,7 +185,7 @@ function fallbackCopy(slot, products) {
     testimonial: { quote: `I started with one tin in January. My kitchen now has a shelf my family calls the apothecary.`, name: `Sarah, Austin` },
     google: {
       headlines: ['Single-Estate Indian Teas', 'Garden-Fresh, Origin Packed', `${p.category} From India`, 'Hand-Picked At Origin', 'Steep A Better Morning', 'Heritage Teas, Crafted', 'From Estate To Cup', 'The Daily Ritual Upgrade', 'Award-Winning Teas', 'Fresh Harvest Teas', 'Balance In Every Steep', 'Origin-Direct Teas'],
-      descriptions: ['Hand-picked, single-estate teas shipped garden-fresh from India. Crafted for your daily ritual.', 'From estate to cup in days, not years. Taste the difference origin-fresh makes.', 'Premium teas and wellness blends, packed at source. Free shipping over $35.', 'A ritual worth keeping: heritage teas, hand-picked and crafted at origin.'],
+      descriptions: [`${angle}: hand-picked single-estate teas, shipped garden-fresh from India.`, 'From estate to cup in days, not years. Taste the difference origin-fresh makes.', 'Premium teas and wellness blends, packed at source. Free shipping over $35.', 'A ritual worth keeping: heritage teas, hand-picked and crafted at origin.'],
       callouts: ['Free shipping over $35', 'Packed at origin', 'Carbon & plastic neutral', 'Single-estate'],
       sitelinks: [
         { text: 'Best-Selling Teas', desc: 'Start where most people begin' },
@@ -124,8 +203,8 @@ function fallbackCopy(slot, products) {
       ],
       headline: `The ritual, restored`,
       headlines: ['The ritual, restored', 'Origin-fresh, in days', 'Tea worth slowing down for'],
-      description: `Origin-fresh, crafted for balance`,
-      creative_concept: `Hero close-up of ${p.title} on cream linen, steam visible, gold props, soft dawn light. No text overlay.`,
+      description: `Origin-fresh single-estate`,
+      creative_concept: `Calm morning cup of ${p.title} on cream linen, steam visible, gold props, soft dawn light — emotional, premium (headline + offer baked in for the ad creative).`,
     },
     tiktok: {
       hook_line: `This tea was on a bush in Assam eleven days ago.`,
@@ -196,12 +275,20 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   const body = brand.typography.body.fallback;
   const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
   const cur = slot.market === 'UK' ? '£' : '$';
+  // Collection CTA target, derived from the hero product's category so the
+  // secondary CTA lands on the right collection (falls back to all-teas).
+  const heroType = ((products[0] && products[0].type) || '').toLowerCase();
+  const collectionUrl = /chai/.test(heroType) ? `${store}/collections/chai-tea`
+    : /green/.test(heroType) ? `${store}/collections/green-tea`
+    : /black/.test(heroType) ? `${store}/collections/black-tea`
+    : /herbal|turmeric|wellness|supplement|tisane/.test(heroType) ? `${store}/collections/wellness-tea`
+    : `${store}/collections/all`;
   const esc = (s) => String(s == null ? '' : s).replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'));
   const L = copy.landing || {};
   const offerBar = L.offer_bar || `Welcome gift: free sampler + free shipping over ${cur}${slot.market === 'UK' ? '30' : '35'}`;
   const badges = (L.trust_badges && L.trust_badges.length ? L.trust_badges : ['Single-estate', 'Origin-packed', 'Carbon neutral', '1M+ cups']).slice(0, 4);
   const steps = ((L.mechanism || {}).steps || []).slice(0, 3);
-  const testis = (L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' }))).slice(0, 2);
+  const testis = gateTestis((L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' }))), slot, p).slice(0, 2);
   const guarantee = L.guarantee || null;
 
   const badgeRow = badges.map((b) => `<td align="center" style="font-family:${body};font-size:11px;color:${P.forest_green};padding:4px 6px"><span style="color:${P.gold}">✦</span> ${esc(b)}</td>`).join('');
@@ -217,57 +304,154 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   const testiBlocks = testis.map((t) => `
     <div style="background:${P.cream};border-left:3px solid ${P.gold};padding:16px 18px;text-align:left;margin-bottom:10px">
       <div style="font-family:${heads};font-size:14px;font-style:italic;color:${P.near_black};line-height:1.6">“${esc(t.quote)}”</div>
-      <div style="font-family:${body};font-size:12px;color:${P.gold};margin-top:8px">— ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''} &nbsp;★★★★★</div>
+      <div style="font-family:${body};font-size:12px;color:${P.gold};margin-top:8px">- ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''} &nbsp;★★★★★</div>
     </div>`).join('');
-  const prods = products.slice(0, 3).map((p) => `
+  const prods = products.slice(0, 3).map((p) => {
+    const img = productImage(p, slot.market);
+    // Always resolve a real PDP: explicit url, else build from the handle.
+    const pdp = p.url || ((p.handle || p.h) ? `${store}/products/${p.handle || p.h}` : store);
+    return `
     <td align="center" style="padding:10px;width:33%">
-      <a href="${p.url || store}" style="text-decoration:none">
-        <div style="background:${P.cream};border:1px solid ${P.gold}33;border-radius:10px;padding:18px 10px">
+      <a href="${pdp}" target="_blank" style="text-decoration:none">
+        <div style="background:${P.cream};border:1px solid ${P.gold}33;border-radius:10px;padding:14px 10px 18px">
+          ${img ? `<img src="${img}" alt="${esc(p.title)}" width="150" style="width:100%;max-width:150px;height:auto;border-radius:8px;display:block;margin:0 auto 12px"/>` : ''}
           <div style="font-family:${heads};font-size:15px;color:${P.near_black};line-height:1.35">${esc(p.title)}</div>
           <div style="font-family:${body};font-size:13px;color:${P.gold};margin-top:8px;font-weight:600">${cur}${p.price}</div>
         </div>
       </a>
-    </td>`).join('');
+    </td>`;
+  }).join('');
+  const heroPhoto = productImage(products[0] || {}, slot.market);
+  const p0title = esc((products[0] || {}).title || 'VAHDAM');
+  const ctaBtn = (bg, fg) => `<a href="${store}" style="display:inline-block;margin-top:24px;background:${bg};color:${fg};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>`;
+
+  // ── Named sections — assembled per the archetype's order below ────────────
+  const strat = designStrategy.strategyFor(slot);
+  const kicker = esc(slot.festival || slot.theme || 'The Collection');
+  const SEC = {
+    // Green centred hero (bold, offer-forward).
+    heroGreen: `<tr><td style="background:${P.forest_green};border-radius:14px;padding:46px 36px" align="center">
+      <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:14px">${kicker}</div>
+      <div style="font-family:${heads};font-size:34px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
+      ${ctaBtn(P.gold, P.near_black)}
+    </td></tr>`,
+    // Editorial photo-led hero (aspirational, image first, light copy). Falls
+    // back to the green hero when no photo is available.
+    heroEditorial: heroPhoto
+      ? `<tr><td style="padding:0">
+      <img src="${heroPhoto}" alt="${p0title}" width="620" style="width:100%;max-width:620px;height:auto;border-radius:14px 14px 0 0;display:block"/>
+      <div style="background:${P.cream};border:1px solid ${P.gold}33;border-top:0;border-radius:0 0 14px 14px;padding:30px 34px" align="center">
+        <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:12px">${kicker}</div>
+        <div style="font-family:${heads};font-size:30px;line-height:1.22;color:${P.forest_green};font-weight:700">${esc(copy.headline)}</div>
+        <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.near_black}CC;margin-top:12px">${esc(copy.subheadline)}</div>
+        ${ctaBtn(P.forest_green, P.cream)}
+      </div></td></tr>`
+      : `<tr><td style="background:${P.forest_green};border-radius:14px;padding:46px 36px" align="center">
+      <div style="font-family:${heads};font-size:32px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
+      ${ctaBtn(P.gold, P.near_black)}</td></tr>`,
+    // Founder letter (personal, cream, signed).
+    founderNote: `<tr><td style="background:${P.cream};border:1px solid ${P.gold}44;border-radius:14px;padding:34px 34px 28px">
+      <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:12px">A note from our founder</div>
+      <div style="font-family:${heads};font-size:26px;line-height:1.25;color:${P.forest_green};font-weight:700">${esc(copy.headline)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.8;color:${P.near_black};margin-top:16px">${esc(copy.body_intro)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.8;color:${P.near_black};margin-top:12px">${esc(copy.story)}</div>
+      <div style="font-family:${heads};font-size:16px;color:${P.forest_green};margin-top:18px">Warmly,<br>The VAHDAM family</div>
+      ${ctaBtn(P.forest_green, P.cream)}
+    </td></tr>`,
+    photoBand: heroPhoto
+      ? `<tr><td style="padding:16px 0 0"><img src="${heroPhoto}" alt="${p0title}" width="620" style="width:100%;max-width:620px;height:auto;border-radius:14px;display:block"/></td></tr>`
+      : '',
+    badges: `<tr><td style="padding:14px 16px 2px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${badgeRow}</tr></table></td></tr>`,
+    bodyStory: `<tr><td style="padding:22px 26px 6px">
+      <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black}">${esc(copy.body_intro)}</div>
+      <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black};margin-top:14px">${esc(copy.story)}</div>
+    </td></tr>`,
+    steps: stepRow,
+    productGrid: `<tr><td style="padding:14px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${prods}</tr></table></td></tr>`,
+    testimonials: testiBlocks ? `<tr><td style="padding:8px 26px 6px">${testiBlocks}</td></tr>` : '',
+    guarantee: guarantee ? `<tr><td align="center" style="padding:6px 26px"><div style="border:1px dashed ${P.gold};border-radius:10px;padding:14px 18px"><span style="font-family:${heads};font-size:14px;color:${P.forest_green};font-weight:700">${esc(guarantee.headline)}</span> <span style="font-family:${body};font-size:12.5px;color:${P.near_black}AA">${esc(guarantee.body)}</span></div></td></tr>` : '',
+    agentCta: `<tr><td align="center" style="padding:18px 26px 8px">
+      <div style="border:1px solid ${P.gold}55;border-radius:12px;padding:20px 22px;background:#ffffff">
+        <div style="font-family:${heads};font-size:17px;color:${P.forest_green}">Not sure where to begin?</div>
+        <div style="font-family:${body};font-size:13px;color:${P.near_black}AA;line-height:1.6;margin-top:6px">Talk to our tea expert, ask about benefits, brewing, and which blend fits your ritual. It answers, out loud, like a call.</div>
+        <a href="${agentUrl}" style="display:inline-block;margin-top:12px;background:${P.forest_green};color:${P.cream};font-family:${body};font-size:13px;font-weight:700;padding:11px 26px;border-radius:8px;text-decoration:none">Talk to the Vahdam expert →</a>
+      </div>
+    </td></tr>`,
+  };
+  // Assemble the body in the archetype's order; badges always follow the hero
+  // (first section). Unknown/empty keys are skipped. Fallback to a sane order.
+  const order = (strat.order && strat.order.length) ? strat.order : ['heroGreen', 'photoBand', 'bodyStory', 'steps', 'productGrid', 'testimonials', 'guarantee', 'agentCta'];
+  const bodyRows = order.map((k, i) => (SEC[k] || '') + (i === 0 ? SEC.badges : '')).join('\n  ');
+
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(copy.subject)}</title></head>
 <body style="margin:0;padding:0;background:${P.cream}">
 <div style="display:none;max-height:0;overflow:hidden">${esc(copy.preheader)}</div>
+<div style="display:none;max-height:0;overflow:hidden">Design: ${esc(strat.label)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${P.cream}">
 <tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%">
   <tr><td align="center" style="background:${P.gold};border-radius:8px;padding:8px 14px;font-family:${body};font-size:12px;font-weight:700;color:${P.near_black}">${esc(offerBar)}</td></tr>
   <tr><td align="center" style="padding:18px 0 8px">
-    <div style="font-family:${heads};font-size:22px;letter-spacing:0.28em;color:${P.forest_green};font-weight:700">VAHDAM</div>
-    <div style="font-family:${body};font-size:10px;letter-spacing:0.22em;color:${P.gold};text-transform:uppercase;margin-top:4px">India · Est. at origin</div>
+    <a href="${store}" target="_blank" style="text-decoration:none;display:inline-block">
+      <div style="font-family:${heads};font-size:22px;letter-spacing:0.28em;color:${P.forest_green};font-weight:700">VAHDAM</div>
+      <div style="font-family:${body};font-size:10px;letter-spacing:0.22em;color:${P.gold};text-transform:uppercase;margin-top:4px">USA · Single-Estate Tea</div>
+    </a>
   </td></tr>
-  <tr><td style="background:${P.forest_green};border-radius:14px;padding:46px 36px" align="center">
-    <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:14px">${esc(slot.festival || slot.theme || 'The Collection')}</div>
-    <div style="font-family:${heads};font-size:34px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
-    <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
-    <a href="${store}" style="display:inline-block;margin-top:26px;background:${P.gold};color:${P.near_black};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>
+  ${bodyRows}
+  <tr><td align="center" style="padding:8px 20px 26px">
+    <a href="${collectionUrl}" target="_blank" style="display:inline-block;font-family:${body};font-size:13px;font-weight:700;color:${P.forest_green};border:1.5px solid ${P.gold};border-radius:8px;padding:11px 24px;text-decoration:none">${esc(copy.cta_secondary || 'Explore the collection')}</a>
   </td></tr>
-  <tr><td style="padding:14px 16px 2px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${badgeRow}</tr></table></td></tr>
-  <tr><td style="padding:22px 26px 6px">
-    <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black}">${esc(copy.body_intro)}</div>
-    <div style="font-family:${body};font-size:15px;line-height:1.75;color:${P.near_black};margin-top:14px">${esc(copy.story)}</div>
-  </td></tr>
-  ${stepRow}
-  <tr><td style="padding:14px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${prods}</tr></table></td></tr>
-  <tr><td style="padding:8px 26px 6px">${testiBlocks}</td></tr>
-  ${guarantee ? `<tr><td align="center" style="padding:6px 26px"><div style="border:1px dashed ${P.gold};border-radius:10px;padding:14px 18px"><span style="font-family:${heads};font-size:14px;color:${P.forest_green};font-weight:700">${esc(guarantee.headline)}</span> <span style="font-family:${body};font-size:12.5px;color:${P.near_black}AA">${esc(guarantee.body)}</span></div></td></tr>` : ''}
-  <tr><td align="center" style="padding:18px 26px 8px">
-    <div style="border:1px solid ${P.gold}55;border-radius:12px;padding:20px 22px;background:#ffffff">
-      <div style="font-family:${heads};font-size:17px;color:${P.forest_green}">Not sure where to begin?</div>
-      <div style="font-family:${body};font-size:13px;color:${P.near_black}AA;line-height:1.6;margin-top:6px">Talk to our tea expert — ask about benefits, brewing, and which blend fits your ritual. It answers, out loud, like a call.</div>
-      <a href="${agentUrl}" style="display:inline-block;margin-top:12px;background:${P.forest_green};color:${P.cream};font-family:${body};font-size:13px;font-weight:700;padding:11px 26px;border-radius:8px;text-decoration:none">Talk to the Vahdam expert →</a>
-    </div>
-  </td></tr>
-  <tr><td align="center" style="padding:20px 20px 36px">
-    <a href="${store}" style="font-family:${body};font-size:13px;color:${P.forest_green};text-decoration:underline">${esc(copy.cta_secondary)}</a>
-    <div style="font-family:${body};font-size:11px;color:${P.near_black}77;margin-top:16px;line-height:1.6">VAHDAM India · Crafted at origin · Carbon &amp; plastic neutral<br>You receive this because you joined the ritual. <a href="#" style="color:${P.gold}">Preferences</a> · <a href="#" style="color:${P.gold}">Unsubscribe</a></div>
+  <tr><td align="center" style="background:${P.near_black};padding:24px 22px 30px">
+    <div style="font-family:${heads};font-size:14px;letter-spacing:0.24em;color:${P.cream}">VAHDAM</div>
+    <div style="font-family:${body};font-size:10.5px;letter-spacing:0.05em;color:${P.gold};margin:9px 0">Single-estate · Hand-picked · Shipped fresh from origin</div>
+    <div style="font-family:${body};font-size:11px;color:${P.cream}99;line-height:1.7">${ORG_NAME} &middot; ${ORG_ADDRESS}<br>You are receiving this as a valued VAHDAM ${esc(slot.market)} customer. Carbon &amp; plastic neutral.<br>Manage preferences or unsubscribe from your account settings.</div>
   </td></tr>
 </table></td></tr></table></body></html>`;
+}
+
+// Build the same mailer taxonomy as the Mailer Studio / Mailer Calendar:
+// two named types, two variants each: 2 Text (colour + type + structural
+// elements, no media) and 2 Text + Visual (with a real product image). Uses the
+// shared renderTextVariant so the look + quality match across features. The
+// rich brand mailer becomes one of the Text + Visual variants. Falls back to
+// just the rich mailer if the shared renderer is unavailable.
+function mailerVariants(slot, copy, products, brand, agentUrl, richHtml) {
+  if (!renderTextVariant) return null;
+  const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+  const p0 = products[0] || {};
+  const heroImg = productImage(p0, slot.market) || '';
+  const S = {
+    hero_headline: copy.headline,
+    hero_subline: copy.subheadline,
+    body_blocks: [
+      copy.body_intro ? { heading: '', body: copy.body_intro } : null,
+      copy.story ? { heading: '', body: copy.story } : null,
+      (copy.testimonial && copy.testimonial.quote) ? { heading: '', body: `"${copy.testimonial.quote}" - ${copy.testimonial.name || ''}` } : null,
+    ].filter(Boolean),
+    cta_text: copy.cta_primary || 'Shop the edit',
+  };
+  const collectionUrl = /chai/.test(((p0.type) || '').toLowerCase()) ? `${store}/collections/chai-tea`
+    : /green/.test(((p0.type) || '').toLowerCase()) ? `${store}/collections/green-tea`
+    : `${store}/collections/all`;
+  // `withGrid` gates the real product-image grid + collection CTA to the
+  // Text + Visual variants; pure "Text" variants stay graphics-free per taxonomy.
+  const mk = (style, img, withGrid) => renderTextVariant({
+    style, subject: copy.subject, hero_headline: S.hero_headline, hero_subline: S.hero_subline,
+    body_blocks: S.body_blocks, cta_text: S.cta_text, cta_url: store, market: slot.market,
+    hero_product: p0.title || slot.theme || '', hero_image_url: img || undefined,
+    // Flagship-parity: real inline product grid + derived collection CTA + offer bar.
+    ...(withGrid ? { products, collection_url: collectionUrl, offer_bar: (copy.landing && copy.landing.offer_bar) || undefined } : {}),
+  });
+  return [
+    { key: 'text_a', type: 'Text', label: 'Text · Concise', html: mk('pure') },
+    { key: 'text_b', type: 'Text', label: 'Text · Editorial', html: mk('editorial') },
+    { key: 'visual_a', type: 'Text + Visual', label: 'Text + Visual · Hero', html: mk('visual', heroImg, true) },
+    { key: 'visual_b', type: 'Text + Visual', label: 'Text + Visual · Rich brand', html: richHtml },
+  ];
 }
 
 function landingHtml(slot, copy, products, brand, agentUrl) {
@@ -287,8 +471,10 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
   const problem = L.problem || { headline: 'Most tea is older than you think', body: copy.body_intro };
   const mech = L.mechanism || { headline: 'Why origin-fresh tastes different', steps: [] };
   const benefits = (L.benefits && L.benefits.length ? L.benefits : (L.benefit_bullets || []).map((b) => ({ title: b, desc: '' })));
-  const comp = L.comparison || null;
-  const testis = (L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' })));
+  // Real-only gate: drop the fabricated "vs Supermarket tea" comparison (its
+  // disparaging claims are unverified), and show only approved testimonials.
+  const comp = brandFacts.enabled() ? null : (L.comparison || null);
+  const testis = gateTestis((L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' }))), slot, products[0]);
   const stack = L.offer_stack || { headline: 'What is in your first order', items: [], price_note: '', cta: copy.cta_primary };
   const faqList = L.faq || [];
   const guarantee = L.guarantee || { headline: 'Steep it risk-free', body: 'Love the leaf or we will make it right.' };
@@ -335,7 +521,7 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
     <div class="card" style="animation-delay:${i * 80}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:24px">
       <div style="color:${P.gold};letter-spacing:2px">★★★★★</div>
       <div style="font-family:${heads};font-style:italic;font-size:16px;line-height:1.6;margin:10px 0;color:${P.near_black}">“${esc(t.quote)}”</div>
-      <div style="font-size:12.5px;color:${P.gold};font-weight:600">— ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''}</div>
+      <div style="font-size:12.5px;color:${P.gold};font-weight:600">- ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''}</div>
     </div>`).join('');
   const stackItems = (stack.items || []).map((it) => `<li style="margin:10px 0;padding-left:28px;position:relative;line-height:1.6"><span style="position:absolute;left:0;color:${P.gold}">✓</span>${esc(it)}</li>`).join('');
   const faq = faqList.map((f) => `<details style="border-bottom:1px solid ${P.gold}33;padding:16px 0"><summary style="font-family:${heads};font-size:17px;color:${P.near_black};cursor:pointer;list-style:none">${esc(f.q)}</summary><p style="color:${P.near_black}BB;line-height:1.7;margin:10px 0 0">${esc(f.a)}</p></details>`).join('');
@@ -424,7 +610,7 @@ ${compTable}
   <div style="margin-top:14px"><a href="${agentUrl}" style="color:${P.forest_green};font-weight:700;text-decoration:none;font-size:14px">🎙 Or ask our tea expert anything →</a></div>
 </div></section>
 
-<footer style="background:${P.near_black};color:${P.cream}99;text-align:center;padding:30px;font-size:12px">VAHDAM India · Single-estate · Carbon &amp; plastic neutral</footer>
+<footer style="background:${P.near_black};color:${P.cream}99;text-align:center;padding:30px;font-size:12px">${ORG_NAME} &middot; ${ORG_ADDRESS}<br>Single-estate &middot; Carbon &amp; plastic neutral</footer>
 
 <div class="stickb">
   <div class="p"><b>${esc(offerBar)}</b></div>
@@ -466,7 +652,7 @@ function campaignObjects(slot, copy, cohort, products, brand) {
         type: 'campaign', name: `${slot.theme} · ${slot.market} · ${slot.slot_date}`,
         audience: aud, send_time_local: '09:30',
         message: { subject: copy.subject, preheader: copy.preheader, from_name: 'VAHDAM India', from_email: 'hello@vahdam.com', template_ref: `asset:mailer_html:${slot.id}` },
-        ab_test: { dimension: 'subject', variants: [copy.subject, `${copy.headline} — inside`], split: 0.5, metric: 'open_rate' },
+        ab_test: { dimension: 'subject', variants: [copy.subject, `${copy.headline}, inside`], split: 0.5, metric: 'open_rate' },
         followup: { trigger: 'no_open_48h', action: 'resend_new_subject' },
         utm,
       },
@@ -490,7 +676,7 @@ function campaignObjects(slot, copy, cohort, products, brand) {
       campaign_object: {
         campaign: { name: `M·${slot.market}·${slot.slot_date}·${slot.theme}`, objective: 'OUTCOME_SALES', budget_daily_usd: 70 },
         ad_set: { optimization: 'OFFSITE_CONVERSIONS', audience: aud, placements: ['feed', 'stories', 'reels'] },
-        creative: { primary_text: copy.meta.primary_text, primary_text_variants: copy.meta.primary_text_variants || [], headline: copy.meta.headline, headlines: copy.meta.headlines || [copy.meta.headline], description: copy.meta.description, cta: 'SHOP_NOW', link: `${store}?${utm.replace('{platform}', 'meta').replace('{medium}', 'paid_social')}`, brief: copy.meta.creative_concept || `Hero close-up of ${products[0] ? products[0].title : 'tea'} on ${brand.palette.cream} linen, steam visible, gold accent props, soft dawn light. NO text overlay. Palette: forest green ${brand.palette.forest_green} / gold ${brand.palette.gold} / cream ${brand.palette.cream}.`, formats: ['1:1 static hero', '4:5 feed', '9:16 story/reel', '3-card carousel (estate → leaf → cup)'] },
+        creative: { primary_text: copy.meta.primary_text, primary_text_variants: copy.meta.primary_text_variants || [], headline: copy.meta.headline, headlines: copy.meta.headlines || [copy.meta.headline], description: copy.meta.description, cta: 'SHOP_NOW', link: `${store}?${utm.replace('{platform}', 'meta').replace('{medium}', 'paid_social')}`, brief: `${copy.meta.creative_concept || `1-second emotional scroll-stop — the calm of a quiet morning cup of ${products[0] ? products[0].title : 'tea'}, soft dawn light, steam, gold props on ${brand.palette.cream} linen`}. Paid Meta creative for P01 (women 45+/busy mums): sell the HAPPINESS end-state (calmer mornings, steady energy, "like myself again"), NOT ingredients. BAKE the headline "${copy.meta.headline || ''}" + the offer INTO the creative as legible on-palette text overlay (Lao MN headline, Proxima Nova offer) in the safe zone. Palette: forest green ${brand.palette.forest_green} / gold ${brand.palette.gold} / cream ${brand.palette.cream}.`, formats: ['1:1 static hero', '4:5 feed', '9:16 story/reel', '3-card carousel (estate → leaf → cup)'] },
         ab_test: { dimension: 'primary_text', variants: copy.meta.primary_text_variants || ['static_hero', 'carousel_3p'], metric: 'roas' },
       },
     });
@@ -553,7 +739,10 @@ async function generateForSlot(slotId, { persist = true } = {}) {
   const picked = products
     .map((p) => ({ p, rel: (p.tags || []).reduce((s, t) => s + (wantTags.includes(t) ? 1 : 0), 0) + ((slot.festival && (p.tags || []).includes('gift')) ? 2 : 0) }))
     .sort((a, b) => b.rel - a.rel || (b.p.tags || []).includes('bestseller') - (a.p.tags || []).includes('bestseller'))
-    .slice(0, 3).map((x) => x.p);
+    .slice(0, 3).map((x) => x.p)
+    // Guarantee a real hosted photo on each product so the Text + Visual mailer
+    // variants always render an image (the smart_products rows often lack one).
+    .map((p) => ({ ...p, image: productImage(p, slot.market) }));
 
   const copy = await generateCopy(slot, picked, brand, lib.items);
   const agentUrl = `/agent?ctx=${encodeURIComponent(slot.market)}&from=${encodeURIComponent(slot.id)}`;
@@ -565,7 +754,9 @@ async function generateForSlot(slotId, { persist = true } = {}) {
   const push = (type, name, content, meta = {}) => assets.push({ id: idFor('ast', { slot: slot.id, type, name }), slot_id: slot.id, type, name, content, meta, created_at: new Date().toISOString() });
 
   if (slot.channel === 'email') {
-    push('mailer_html', `Mailer · ${slot.theme} · ${slot.market}`, mailerHtml(slot, copy, picked, brand, agentUrl), { subject: copy.subject, preheader: copy.preheader, variants: ['A: image hero', 'B: text editorial (same copy, no hero block)'] });
+    const richHtml = mailerHtml(slot, copy, picked, brand, agentUrl);
+    const variants = mailerVariants(slot, copy, picked, brand, agentUrl, richHtml);
+    push('mailer_html', `Mailer · ${slot.theme} · ${slot.market}`, richHtml, { subject: copy.subject, preheader: copy.preheader, variants: variants || ['A: image hero', 'B: text editorial'] });
   }
   if (slot.channel.startsWith('landing')) {
     const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
@@ -587,10 +778,16 @@ async function generateForSlot(slotId, { persist = true } = {}) {
   push('audience_spec', `Audiences · ${slot.market}`, JSON.stringify(audienceSpec(slot, cohort), null, 2));
   push('funnel_spec', funnel.name, JSON.stringify(funnel, null, 2));
 
+  // Carry the slot's real confidence onto every generated campaign (was a
+  // hardcoded confidence:0). The planning analysis was stashed in the slot's
+  // source column by brain-calendar.slotRow().
+  const slotAnalysis = (slot.source && slot.source.analysis) || null;
+  const slotConfidence = (typeof slot.confidence === 'number' && slot.confidence > 0) ? slot.confidence : (slotAnalysis && slotAnalysis.confidence && slotAnalysis.confidence.score) || 0;
   const genCampaigns = objects.map((o) => ({
     id: idFor('gen', { slot: slot.id, platform: o.platform }),
     slot_id: slot.id, funnel_id: funnel.id, platform: o.platform,
-    campaign_object: o.campaign_object, status: 'pending_review', confidence: 0,
+    campaign_object: o.campaign_object, status: 'pending_review',
+    confidence: slotConfidence,
     created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   }));
 
@@ -603,7 +800,10 @@ async function generateForSlot(slotId, { persist = true } = {}) {
     // every campaign enters the human review queue (launch state: ALWAYS)
     await d.insert('smart_review_queue', genCampaigns.map((g) => ({ item_type: 'generated_campaign', item_id: g.id, state: 'pending' })));
   }
-  return { ok: true, slot_id: slot.id, funnel, campaigns: genCampaigns, assets: assets.map((a) => ({ id: a.id, type: a.type, name: a.name, bytes: (a.content || '').length })), copy };
+  // Surface the planning reasoning on the returned campaigns so the UI/API can
+  // show WHY each was generated (kept off the persisted rows to stay schema-safe).
+  const campaignsOut = genCampaigns.map((g) => ({ ...g, rationale: slot.rationale || (slotAnalysis && slotAnalysis.summary) || null, analysis: slotAnalysis }));
+  return { ok: true, slot_id: slot.id, funnel, campaigns: campaignsOut, analysis: slotAnalysis, assets: assets.map((a) => ({ id: a.id, type: a.type, name: a.name, bytes: (a.content || '').length })), copy };
 }
 
 module.exports = { generateForSlot, mailerHtml, landingHtml, campaignObjects, audienceSpec, fallbackCopy, pickCampaignHubLP };

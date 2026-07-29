@@ -18,6 +18,7 @@
 const { db, getConfig, setConfig, todayIso, addDays, round, groupBy, sum, idFor } = require('./brain-core.js');
 const analysis = require('./brain-analysis.js');
 const competitor = require('./brain-competitor.js');
+const { buildEntryAnalysis, explainConfidence } = require('./output-reasoning.js');
 
 // ── Festival / seasonal-peak auto-extraction ────────────────────────────────
 async function extractFestivals({ persist = true } = {}) {
@@ -223,6 +224,34 @@ async function generate({ startDate, days, persist = true, regenerate = false } 
 
 function slotRow({ date, market, channel, slot_type, cohort, angle, hook, theme, archRef, fest, rationale, source, config }) {
   const id = idFor('slot', { date, market, channel, slot_type, cohort: cohort && cohort.id });
+  const src = source || {};
+  // Explainable confidence from the evidence this slot actually stands on,
+  // replacing the previous hardcoded confidence:0.
+  const conf = explainConfidence([
+    { when: !!src.own_library, label: 'Seeded by a passing own campaign', delta: 0.18, detail: src.own_library && src.own_library.campaign ? `Reuses winner ${src.own_library.campaign}${src.own_library.revenue != null ? ` (rev ${src.own_library.revenue})` : ''}.` : 'Reuses a prior own-library winner.' },
+    { when: (fest && (fest.weight || 0) >= 8), label: 'Major festival window', delta: 0.10, detail: fest ? `${fest.name} (weight ${fest.weight}).` : '' },
+    { when: (fest && (fest.weight || 0) >= 5 && (fest.weight || 0) < 8), label: 'Festival window', delta: 0.05, detail: fest ? `${fest.name} (weight ${fest.weight}).` : '' },
+    { when: !!src.learned_weights_applied, label: 'Learned angle weights applied', delta: 0.06, detail: 'Angle weighting reflects learned performance boosts.' },
+    { when: !!(cohort && (cohort.value_score || 0) >= 3), label: 'High-value cohort', delta: 0.06, detail: cohort ? `${cohort.name} value score ${cohort.value_score}.` : '' },
+  ], 0.5);
+  // Complete analysis, reusing the shared shape and this slot's own evidence.
+  const a = buildEntryAnalysis({
+    cohort: cohort ? { name: cohort.name, size: cohort.size, value_rank: cohort.value_score } : {},
+    product: { title: theme || angle || 'brand hero' },
+    festival: fest ? { name: fest.name, weight: fest.weight } : null,
+    ownCampaign: src.own_library ? { name: src.own_library.campaign, performance: src.own_library.revenue != null ? { revenue: src.own_library.revenue } : null } : null,
+    competitor: src.competitor_advisory ? { trendingHooks: (Array.isArray(src.competitor_advisory) ? src.competitor_advisory : []).map((h) => ({ hook: h })) } : null,
+    channels: [channel === 'landing_email' ? 'landing_page' : channel],
+    objective: slot_type === 'campaign' ? (angle || 'conversion') : slot_type,
+    market,
+    confidence: conf,
+    dataSource: 'smart-brain',
+  });
+  if (rationale) a.evidence.slot_rationale = rationale;
+  // The smart_calendar table has no dedicated analysis column, so the full
+  // analysis lives inside the existing `source` JSONB (audit) column. Consumers
+  // read slot.source.analysis; persistence stays schema-compatible.
+  src.analysis = a;
   return {
     id, slot_date: date, market, channel, slot_type,
     cohort_id: cohort ? cohort.id : null,
@@ -231,8 +260,8 @@ function slotRow({ date, market, channel, slot_type, cohort, angle, hook, theme,
     festival: fest ? fest.name : null,
     rationale, mvt: { dimensions: ['hook', 'cta'], variants: 2 },
     status: 'tentative',
-    confidence: 0,
-    source: source || {},
+    confidence: conf.score,
+    source: src,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

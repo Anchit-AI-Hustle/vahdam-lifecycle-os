@@ -12,7 +12,9 @@
 //   - Only products with Status=active are included
 //
 // Output JSON per product:
-//   { n, i, t, h, price, compare_at, category, subtitle, caffeine, tasting_notes, type }
+//   { n, i, imgs, t, h, price, compare_at, category, subtitle, caffeine, tasting_notes, type }
+//   i    = primary image (Image Position 1)
+//   imgs = full real-image gallery (position-ordered, de-duplicated, capped 10)
 //
 // Run: node scripts/build-catalog.js
 // ════════════════════════════════════════════════════════════════════════════
@@ -185,20 +187,22 @@ function processCSV(filePath, market) {
     const price = iPrice >= 0 ? (first[iPrice] || '').trim() : '';
     const compareAt = iCompareAt >= 0 ? (first[iCompareAt] || '').trim() : '';
 
-    // Find primary image (Image Position = 1)
-    let image = '';
+    // Collect ALL real product images (Shopify CDN), ordered by Image Position
+    // and de-duplicated. `i` stays the primary (position 1) for single-image
+    // callers; `imgs` is the full gallery so mailer / ad / landing builders can
+    // pull DISTINCT real photos per section instead of repeating one hero shot.
+    // These are the actual PDP gallery photos — real packets, tins and packs,
+    // never fabricated.
+    const imgPairs = [];
     for (const row of prodRows) {
-      const pos = iImagePos >= 0 ? (row[iImagePos] || '').trim() : '';
       const src = iImageSrc >= 0 ? (row[iImageSrc] || '').trim() : '';
-      if (pos === '1' && src) { image = src; break; }
+      if (!src) continue;
+      const posN = parseInt(iImagePos >= 0 ? (row[iImagePos] || '') : '', 10);
+      imgPairs.push({ src, pos: isFinite(posN) ? posN : 9999 });
     }
-    // Fallback: first non-empty image
-    if (!image) {
-      for (const row of prodRows) {
-        const src = iImageSrc >= 0 ? (row[iImageSrc] || '').trim() : '';
-        if (src) { image = src; break; }
-      }
-    }
+    imgPairs.sort((a, b) => a.pos - b.pos);
+    const imgs = [...new Set(imgPairs.map((x) => x.src))].slice(0, 10);
+    const image = imgs[0] || '';
 
     // Extract metafields from first row
     const subtitle   = iSubtitle >= 0 ? (first[iSubtitle] || '').trim() : '';
@@ -217,6 +221,8 @@ function processCSV(filePath, market) {
       t: derivedTags,
       h: handle
     };
+    // Full real-image gallery (only when there is more than the primary).
+    if (imgs.length > 1) product.imgs = imgs;
     // Only include price fields if they have values
     if (price) product.price = price;
     if (compareAt && compareAt !== price) product.compare_at = compareAt;
@@ -260,4 +266,11 @@ function main() {
   console.log(`\n✓ Build complete: ${totalProducts} total products across ${REGIONS.length} regions`);
 }
 
-main();
+// Export shared helpers so the live storefront scraper reuses identical
+// categorization (scripts/scrape-catalog.js). Only run the CSV build when this
+// file is executed directly, not when required.
+module.exports = { deriveTags };
+
+if (require.main === module) {
+  main();
+}

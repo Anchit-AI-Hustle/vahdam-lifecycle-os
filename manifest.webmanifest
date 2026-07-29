@@ -8,7 +8,7 @@
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "any",
-  "background_color": "#0a1410",
+  "background_color": "#FBF5EA",
   "theme_color": "#004A2B",
   "categories": ["business", "productivity", "marketing"],
   "lang": "en",

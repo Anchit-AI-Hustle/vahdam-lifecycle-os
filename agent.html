@@ -3,17 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/favicon.png">
-<link rel="icon" type="image/png" href="/favicon.png">
-<meta name="theme-color" content="#004A2B">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Vahdam Agent">
 <title>Vahdam Agent — talk to our tea &amp; wellness expert</title>
 <style>
-  :root { --green:#004A2B; --gold:#AB8743; --ink:#171717; --cream:#FBF5EA; }
+  /* This page is an intentionally LIGHT surface (dark ink on cream). auth.js
+     injects theme.css AFTER this inline style, and theme.css redefines :root
+     tokens for the dark green shell (--ink:#171717 light). Without !important
+     that override wins by load order, flipping every var(--ink) to light and
+     making dark-on-cream text render light-on-light (unreadable). !important on
+     a custom property wins the cascade regardless of order, so the page keeps
+     its own readable, WCAG-AA palette. */
+  :root { --green:#004A2B !important; --gold:#AB8743 !important; --gold-ink:#8a6a2f !important; --ink:#171717 !important; --cream:#FBF5EA !important; }
+  /* readable gold for TEXT on light backgrounds (brand gold #AB8743 fails contrast as small text on cream) */
+  input::placeholder, textarea::placeholder { color:#6f6f6f; opacity:1; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--cream); font-family:'Proxima Nova','Helvetica Neue',Arial,sans-serif; color:var(--ink); }
   .shell { max-width:880px; margin:0 auto; padding:26px 18px 120px; }
@@ -27,8 +28,21 @@
   .msg { max-width:78%; padding:13px 17px; border-radius:16px; font-size:14.5px; line-height:1.6; animation:pop .35s ease; white-space:pre-wrap; }
   @keyframes pop { from{opacity:0;transform:translateY(10px) scale(.98)} to{opacity:1;transform:none} }
   .msg.user { align-self:flex-end; background:var(--green); color:var(--cream); border-bottom-right-radius:4px; }
-  .msg.agent { align-self:flex-start; background:var(--cream); border:1px solid rgba(171,135,67,.3); border-bottom-left-radius:4px; }
+  .msg.agent { align-self:flex-start; background:var(--cream); color:var(--ink); border:1px solid rgba(171,135,67,.3); border-bottom-left-radius:4px; }
   .msg.agent a { color:var(--green); font-weight:600; }
+  /* Agent replies are rendered from markdown → real HTML, so switch off the
+     pre-wrap (block elements handle spacing) and style each element for
+     readability. */
+  .msg.agent { white-space:normal; }
+  .msg.agent > :first-child { margin-top:0; }
+  .msg.agent > :last-child { margin-bottom:0; }
+  .msg.agent p { margin:0 0 8px; }
+  .msg.agent ul, .msg.agent ol { margin:6px 0 8px; padding-left:20px; }
+  .msg.agent li { margin:3px 0; }
+  .msg.agent h3, .msg.agent h4, .msg.agent h5 { margin:10px 0 5px; font-size:15px; line-height:1.3; color:var(--green); }
+  .msg.agent strong { font-weight:700; }
+  .msg.agent em { font-style:italic; }
+  .msg.agent code { background:rgba(23,23,23,.08); padding:1px 5px; border-radius:4px; font-size:13px; font-family:ui-monospace,Menlo,Consolas,monospace; }
   .speaking { box-shadow:0 0 0 2px var(--gold); }
   .inputrow { position:fixed; bottom:0; left:0; right:0; background:linear-gradient(transparent, var(--cream) 30%); padding:18px; }
   @media (min-width:961px){ .inputrow{ left:var(--lsb-w,248px); } }
@@ -42,15 +56,67 @@
   @keyframes pulse { 50%{opacity:.6} }
   .toggles { display:flex; gap:14px; align-items:center; max-width:860px; margin:8px auto 0; font-size:12px; color:#6b6b6b; justify-content:flex-end; }
   .toggles label { cursor:pointer; display:flex; gap:5px; align-items:center; }
-  .typing { align-self:flex-start; color:#999; font-size:13px; font-style:italic; }
+  .typing { align-self:flex-start; color:#5f5f5f; font-size:13px; font-style:italic; }
+  .agent-admin { margin:2px 0 20px; }
+  .agent-admin-toggle { background:none; border:1.5px dashed var(--gold); color:var(--green); padding:8px 15px; border-radius:999px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .agent-admin-toggle:hover { background:rgba(171,135,67,.1); }
+  .agent-form { display:none; margin-top:14px; background:#fff; border:1px solid rgba(171,135,67,.35); border-radius:14px; padding:18px; gap:14px; }
+  .agent-form.open { display:grid; grid-template-columns:1fr 1fr; }
+  .agent-form .full { grid-column:1 / -1; }
+  .agent-form label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:#6b6b6b; margin-bottom:5px; font-weight:700; }
+  .agent-form input, .agent-form select { width:100%; border:1px solid rgba(171,135,67,.45); border-radius:10px; padding:10px 12px; font-size:14px; font-family:inherit; background:var(--cream); color:var(--ink); }
+  .agent-form .row-actions { grid-column:1 / -1; display:flex; gap:12px; align-items:center; }
+  .agent-form .save { background:var(--green); color:var(--cream); border:none; border-radius:10px; padding:11px 20px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .agent-form .save:hover { transform:translateY(-1px); }
+  .agent-form .formnote { font-size:12.5px; color:#6b6b6b; }
+  @media (max-width:560px){ .agent-form.open{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 <div class="shell">
-  <div style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);font-weight:700">VAHDAM · Voice &amp; Chat Concierge</div>
+  <div style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-ink);font-weight:700">VAHDAM · Voice &amp; Chat Concierge <span style="background:#14532d;color:#bbf7d0;border-radius:999px;padding:2px 9px;font-size:10px;letter-spacing:.08em;margin-left:8px;vertical-align:middle">CUSTOMER-FACING</span></div>
   <h1>Talk to a Vahdam expert</h1>
-  <div class="sub">Ask about benefits, brewing, how long results take, or whether a blend is worth it — by voice or text. Honest answers, zero pressure. Pick a specialist:</div>
+  <div class="sub">This is the customer-facing concierge, the tool your customers talk to. Ask about benefits, brewing, how long results take, or whether a blend is worth it, by voice or text. Honest answers, zero pressure. Pick a specialist:</div>
   <div class="agentbar" id="agentbar"></div>
+
+  <div class="agent-admin">
+    <button class="agent-admin-toggle" id="agentAdminToggle" type="button">＋ Create an agent</button>
+    <form class="agent-form" id="agentForm">
+      <div>
+        <label for="afName">Agent name</label>
+        <input id="afName" placeholder="e.g. Ashwagandha Coffee Expert" autocomplete="off">
+      </div>
+      <div>
+        <label for="afType">Agent type</label>
+        <select id="afType">
+          <option value="brand">Brand — whole catalogue</option>
+          <option value="collection" selected>Collection — a category</option>
+          <option value="product">Product — one product</option>
+          <option value="persona">Persona — custom role</option>
+        </select>
+      </div>
+      <div>
+        <label for="afMarket">Market</label>
+        <select id="afMarket">
+          <option>US</option><option>UK</option><option>IN</option>
+          <option>EU</option><option>AU</option><option>Global</option>
+        </select>
+      </div>
+      <div>
+        <label for="afScope">Focus — categories (optional)</label>
+        <input id="afScope" placeholder="comma-separated, e.g. Coffee, Adaptogens" autocomplete="off">
+      </div>
+      <div class="full">
+        <label for="afGreeting">Greeting (optional)</label>
+        <input id="afGreeting" placeholder="Namaste! Ask me anything about…" autocomplete="off">
+      </div>
+      <div class="row-actions">
+        <button class="save" id="afSave" type="submit">Save agent</button>
+        <span class="formnote" id="afNote"></span>
+      </div>
+    </form>
+  </div>
+
   <div class="chat" id="chat"></div>
 </div>
 <div class="inputrow">
@@ -59,39 +125,129 @@
     <input id="q" placeholder="Ask anything — “does ashwagandha actually work?”" autocomplete="off">
     <button class="btn send" id="send">Ask</button>
   </div>
-  <div class="toggles">
-    <label><input type="checkbox" id="speak" checked> Speak replies aloud</label>
-    <label><input type="checkbox" id="auto"> Hands-free conversation</label>
+  <div class="toggles" id="modeRow" role="group" aria-label="Interaction mode">
+    <span style="color:var(--gold-ink);font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:10px;margin-right:2px">Mode</span>
+    <button type="button" class="modebtn" data-mode="chat" title="Text only, no audio">💬 Chat only</button>
+    <button type="button" class="modebtn" data-mode="narration" title="Types the reply and reads it aloud">🔊 Narration</button>
+    <button type="button" class="modebtn" data-mode="conversation" title="Hands-free: it speaks, then listens for your reply">🎧 Conversation</button>
+    <button type="button" class="modebtn" id="muteBtn" title="Silence audio instantly">🔇 Mute</button>
   </div>
+  <style>
+    #modeRow .modebtn{font:inherit;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(171,135,67,.35);background:transparent;color:var(--gold-ink);border-radius:999px;padding:5px 11px;}
+    #modeRow .modebtn:hover{border-color:var(--gold);}
+    #modeRow .modebtn.active{background:var(--gold);color:#ffffff;border-color:var(--gold);}
+    #modeRow #muteBtn.on{background:#7f1d1d;color:#fff;border-color:#7f1d1d;}
+  </style>
 </div>
 
-<script src="/auth.js" defer></script>
+<script src="/auth.js?v=20260718light" defer></script>
+<script src="/chat-history.js"></script>
+<style>
+  .convobar{display:flex;gap:8px;align-items:center;margin:0 0 12px;position:relative;flex-wrap:wrap}
+  .cbtn{font:inherit;font-size:12px;font-weight:700;padding:7px 12px;border-radius:10px;border:1px solid rgba(171,135,67,.5);background:rgba(171,135,67,.14);color:#7a5f28;cursor:pointer}
+  .cbtn:hover{background:rgba(171,135,67,.24)}
+  .histpanel{position:absolute;top:40px;left:0;z-index:20;min-width:280px;max-width:420px;max-height:340px;overflow:auto;background:#fff;border:1px solid rgba(171,135,67,.5);border-radius:12px;padding:6px;box-shadow:0 16px 40px rgba(0,0,0,.18)}
+  .hitem{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer;color:#2a2a2a}
+  .hitem:hover{background:rgba(171,135,67,.12)} .hitem.on{background:rgba(171,135,67,.2)}
+  .htitle{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hdel{background:none;border:0;color:#9a8a5f;cursor:pointer;font-size:12px} .hdel:hover{color:#c0392b}
+  .hempty{padding:14px;color:#9a8a5f;font-size:12px;text-align:center}
+</style>
 <script>
 (function(){
   'use strict';
   var API = '/api/brain';
-  var agents = [], current = null, sessionId = null, history = [], sessionReady = false;
+  var agents = [], current = null, sessionId = null, history = [];
+  var CH = (typeof VHChat === 'function') ? VHChat('agent') : null;
   var chatEl = document.getElementById('chat');
   var qEl = document.getElementById('q');
   var micBtn = document.getElementById('mic');
+  // Interaction mode: 'chat' (text only) · 'narration' (speaks replies) ·
+  // 'conversation' (hands-free: speaks, then listens). Mute silences audio in
+  // any mode without losing the mode. Persisted per browser.
+  var MODE = (function(){ try { return localStorage.getItem('vhdAgentMode') || 'narration'; } catch(_) { return 'narration'; } })();
+  var muted = false;
 
-  function el(cls, text){ var d=document.createElement('div'); d.className='msg '+cls; d.innerHTML=linkify(text); chatEl.appendChild(d); chatEl.scrollTop=chatEl.scrollHeight; return d; }
-  function linkify(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/(https?:\/\/[^\s)]+)/g, function(u){ return '<a href="'+u+'" target="_blank" rel="noopener">'+u.replace(/^https?:\/\/(www\.)?/,'').slice(0,42)+'</a>'; }); }
+  // Agent replies come back as markdown; render them to real, readable HTML.
+  // User messages are shown as plain text (pre-wrap keeps their line breaks).
+  function el(cls, text){
+    var d=document.createElement('div'); d.className='msg '+cls;
+    if(cls==='agent'){ d.innerHTML = mdToHtml(text); }
+    else { d.textContent = String(text==null?'':text); }
+    chatEl.appendChild(d); chatEl.scrollTop=chatEl.scrollHeight; return d;
+  }
+  function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // Inline markdown on already-escaped text: links, bold, italic, inline code.
+  function mdInline(s){
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function(_,t,u){ return '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>'; });
+    s = s.replace(/(^|[^"\/])(https?:\/\/[^\s<)]+)/g, function(_,pre,u){ return pre+'<a href="'+u+'" target="_blank" rel="noopener">'+u.replace(/^https?:\/\/(www\.)?/,'').slice(0,48)+'</a>'; });
+    s = s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_]+)__/g,'<strong>$1</strong>');
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<em>$2</em>');
+    s = s.replace(/`([^`]+)`/g,'<code>$1</code>');
+    return s;
+  }
+  // Block-level markdown: headings, bullet + numbered lists, paragraphs. Safe
+  // (HTML is escaped first), and renders the WHOLE reply (no truncation).
+  function mdToHtml(text){
+    var lines = escHtml(text).split(/\r?\n/), html='', list=null;
+    function closeList(){ if(list){ html+='</'+list+'>'; list=null; } }
+    for(var i=0;i<lines.length;i++){
+      var t=lines[i].trim();
+      if(!t){ closeList(); continue; }
+      var h=t.match(/^(#{1,4})\s+(.*)$/);
+      if(h){ closeList(); var lvl=Math.min(h[1].length+2,5); html+='<h'+lvl+'>'+mdInline(h[2])+'</h'+lvl+'>'; continue; }
+      var ol=t.match(/^\d+[.)]\s+(.*)$/), ul=t.match(/^[-*•]\s+(.*)$/);
+      if(ol){ if(list!=='ol'){ closeList(); html+='<ol>'; list='ol'; } html+='<li>'+mdInline(ol[1])+'</li>'; continue; }
+      if(ul){ if(list!=='ul'){ closeList(); html+='<ul>'; list='ul'; } html+='<li>'+mdInline(ul[1])+'</li>'; continue; }
+      closeList(); html+='<p>'+mdInline(t)+'</p>';
+    }
+    closeList();
+    return html || '<p></p>';
+  }
 
   function renderAgents(){
     var bar = document.getElementById('agentbar'); bar.innerHTML='';
     agents.forEach(function(a){
       var b=document.createElement('button'); b.className='agentchip'+(current&&current.id===a.id?' active':''); b.textContent=a.name+(a.level==='product'?' · product':a.level==='collection'?' · collection':'');
-      b.onclick=function(){ current=a; sessionId=null; history=[]; sessionReady=false; chatEl.innerHTML=''; renderAgents(); greet(); };
+      b.onclick=function(){ current=a; sessionId=null; history=[]; chatEl.innerHTML=''; if(CH) CH.create(); renderAgents(); greet(); renderHist(); };
       bar.appendChild(b);
     });
   }
-  function greet(){ if(current && current.greeting){ sessionReady=true; el('agent', current.greeting); maybeSpeak(current.greeting); } }
+  function greet(){ if(current && current.greeting){ el('agent', current.greeting); maybeSpeak(current.greeting); } }
+
+  // ── Conversation history (saved locally; new / switch / continue) ──────────
+  function buildConvoBar(){
+    if(!CH || !chatEl || !chatEl.parentNode || document.querySelector('.convobar')) return;
+    var bar=document.createElement('div'); bar.className='convobar';
+    bar.innerHTML='<button id="newChat" class="cbtn">＋ New chat</button><button id="histToggle" class="cbtn">🕘 History</button><div id="histPanel" class="histpanel" style="display:none"></div>';
+    chatEl.parentNode.insertBefore(bar, chatEl);
+    document.getElementById('newChat').onclick=function(){ if(CH) CH.create(); sessionId=null; history=[]; chatEl.innerHTML=''; greet(); renderHist(); };
+    document.getElementById('histToggle').onclick=function(){ var p=document.getElementById('histPanel'); p.style.display=(p.style.display==='none'?'block':'none'); renderHist(); };
+    document.addEventListener('click',function(e){ var p=document.getElementById('histPanel'); if(p&&p.style.display==='block'&&!e.target.closest('.convobar')) p.style.display='none'; });
+  }
+  function renderHist(){
+    var p=document.getElementById('histPanel'); if(!p||!CH) return;
+    var items=CH.list();
+    if(!items.length){ p.innerHTML='<div class="hempty">No saved conversations yet.</div>'; return; }
+    p.innerHTML=items.map(function(c){ return '<div class="hitem'+(c.id===CH.currentId()?' on':'')+'" data-id="'+c.id+'"><span class="htitle">'+escHtml(c.title||'New chat')+'</span><button class="hdel" data-del="'+c.id+'" title="Delete">✕</button></div>'; }).join('');
+    p.querySelectorAll('.hitem').forEach(function(el2){ el2.addEventListener('click',function(e){ if(e.target.closest('[data-del]'))return; loadConvo(el2.getAttribute('data-id')); }); });
+    p.querySelectorAll('[data-del]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); CH.remove(b.getAttribute('data-del')); if(!CH.current()){ CH.create(); chatEl.innerHTML=''; history=[]; greet(); } renderHist(); }); });
+  }
+  function replay(convo){
+    chatEl.innerHTML=''; history=[]; sessionId=null;
+    var msgs=(convo&&convo.messages)||[];
+    // restore the agent this conversation used, if we can find it
+    var aid=null; for(var i=msgs.length-1;i>=0;i--){ if(msgs[i].agentId){ aid=msgs[i].agentId; break; } }
+    if(aid){ var found=agents.filter(function(a){return a.id===aid;})[0]; if(found){ current=found; renderAgents(); } }
+    if(!msgs.length){ greet(); return; }
+    msgs.forEach(function(m){ if(m.role==='user'){ el('user', m.text); history.push({role:'user',content:m.text}); } else { el('agent', m.text); history.push({role:'agent',content:m.text}); } });
+  }
+  function loadConvo(id){ var c=CH.setCurrent(id); if(c){ replay(c); var p=document.getElementById('histPanel'); if(p)p.style.display='none'; } }
 
   // ── Voice output: ElevenLabs via /api/brain?action=tts, fallback browser TTS
   var audioEl = null;
   async function maybeSpeak(text){
-    if(!document.getElementById('speak').checked) return;
+    if(muted || MODE==='chat') return;
     var clean = text.replace(/https?:\/\/\S+/g,'the product page').replace(/[*_#`]/g,'');
     try{
       var r = await fetch(API+'?action=tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:clean})});
@@ -113,15 +269,11 @@
       window.speechSynthesis.speak(u);
     }
   }
-  // Voice resume only fires once a chat session is active (greeting shown or a
-  // reply received). Before that it no-ops, so we never drive mic/auto-listen
-  // off an uninitialized session.
-  function maybeAutoListen(){ if(!sessionReady) return; if(document.getElementById('auto').checked) startListening(); }
+  function maybeAutoListen(){ if(MODE==='conversation' && !muted) startListening(); }
 
   // ── Voice input: Web Speech API
   var rec=null, listening=false;
   function startListening(){
-    if(!sessionReady||!current) return; // no voice actions until the session is established
     var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR){ el('agent','Voice input is not supported in this browser — Chrome or Edge work best. Text works everywhere.'); return; }
     if(listening){ rec && rec.stop(); return; }
@@ -138,14 +290,15 @@
     var msg=qEl.value.trim(); if(!msg||!current) return;
     qEl.value=''; el('user', msg);
     history.push({role:'user',content:msg});
+    if(CH) CH.append('user', msg, current?{agentId:current.id, agentName:current.name}:null);
     var t=document.createElement('div'); t.className='typing'; t.textContent=current.name+' is thinking…'; chatEl.appendChild(t); chatEl.scrollTop=chatEl.scrollHeight;
     try{
       var r=await fetch(API+'?action=agent-chat',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({agent_id:current.id, session_id:sessionId, message:msg, history:history.slice(-10), context:{page:location.href, ctx:new URLSearchParams(location.search).get('ctx')}})});
       var j=await r.json();
       t.remove();
-      if(j.ok){ sessionReady=true; sessionId=j.session_id; history.push({role:'agent',content:j.reply}); var m=el('agent', j.reply); m.classList.add('speaking'); setTimeout(function(){m.classList.remove('speaking');},1200); maybeSpeak(j.speak||j.reply); }
-      else el('agent','Hmm, something went wrong: '+(j.error||'unknown')+'. Try again?');
+      if(j.ok){ sessionId=j.session_id; history.push({role:'agent',content:j.reply}); var m=el('agent', j.reply); m.classList.add('speaking'); setTimeout(function(){m.classList.remove('speaking');},1200); maybeSpeak(j.speak||j.reply); if(CH) CH.append('agent', j.reply, current?{agentId:current.id}:null); }
+      else { var em='Hmm, something went wrong: '+(j.error||'unknown')+'. Try again?'; el('agent',em); if(CH) CH.append('agent', em); }
     }catch(e){ t.remove(); el('agent','I could not reach the brain just now — please try again in a moment.'); }
   }
 
@@ -153,12 +306,74 @@
   qEl.addEventListener('keydown',function(e){ if(e.key==='Enter') ask(); });
   micBtn.onclick=startListening;
 
-  fetch(API+'?action=agents').then(function(r){return r.json();}).then(function(j){
-    agents=(j.agents&&j.agents.length)?j.agents:[{id:'agent_vahdam',name:'Vahdam',level:'brand',greeting:'Namaste! Ask me anything about our teas.',voice:{}}];
-    var want=new URLSearchParams(location.search).get('agent');
-    current=agents.find(function(a){return a.id===want;})||agents[0];
-    renderAgents(); greet();
-  }).catch(function(){ agents=[{id:'agent_vahdam',name:'Vahdam',level:'brand',greeting:'Namaste! Ask me anything about our teas.',voice:{}}]; current=agents[0]; renderAgents(); greet(); });
+  // ── Mode selector + mute ──────────────────────────────────────────────────
+  function stopAudio(){ try{ if(audioEl) audioEl.pause(); }catch(_){} try{ if('speechSynthesis' in window) window.speechSynthesis.cancel(); }catch(_){} }
+  function setMode(m){
+    MODE = (m==='chat'||m==='narration'||m==='conversation') ? m : 'narration';
+    try{ localStorage.setItem('vhdAgentMode', MODE); }catch(_){}
+    Array.prototype.forEach.call(document.querySelectorAll('#modeRow [data-mode]'), function(b){ b.classList.toggle('active', b.dataset.mode===MODE); });
+    if(MODE==='chat'){ stopAudio(); }
+    // Leaving conversation mode: stop listening.
+    if(MODE!=='conversation' && listening && rec){ try{ rec.stop(); }catch(_){} }
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#modeRow [data-mode]'), function(b){ b.addEventListener('click', function(){ setMode(b.dataset.mode); }); });
+  var muteBtn=document.getElementById('muteBtn');
+  muteBtn.addEventListener('click', function(){
+    muted=!muted; muteBtn.classList.toggle('on', muted);
+    muteBtn.textContent = muted ? '🔈 Unmute' : '🔇 Mute';
+    if(muted) stopAudio();
+  });
+  setMode(MODE); // apply persisted/default mode on load
+
+  var FALLBACK=[{id:'agent_vahdam',name:'Vahdam',level:'brand',greeting:'Namaste! Ask me anything about our teas.',voice:{}}];
+  function loadAgents(selectId){
+    return fetch(API+'?action=agents').then(function(r){return r.json();}).then(function(j){
+      agents=(j.agents&&j.agents.length)?j.agents:FALLBACK;
+      var want=selectId||new URLSearchParams(location.search).get('agent');
+      current=agents.find(function(a){return a.id===want;})||current||agents[0];
+      renderAgents();
+    }).catch(function(){ if(!agents.length){ agents=FALLBACK; current=agents[0]; renderAgents(); } });
+  }
+
+  // ── Agent creation + type selection (POST agent-upsert) ──
+  var adminToggle=document.getElementById('agentAdminToggle');
+  var agentForm=document.getElementById('agentForm');
+  if(adminToggle && agentForm){
+    adminToggle.onclick=function(){ agentForm.classList.toggle('open'); };
+    agentForm.addEventListener('submit', async function(e){
+      e.preventDefault();
+      var note=document.getElementById('afNote');
+      var name=document.getElementById('afName').value.trim();
+      if(!name){ note.textContent='Give the agent a name.'; return; }
+      var body={ name:name, level:document.getElementById('afType').value, market:document.getElementById('afMarket').value };
+      var scopeRaw=document.getElementById('afScope').value.trim();
+      if(scopeRaw){ body.catalog_scope={ categories: scopeRaw.split(',').map(function(s){return s.trim();}).filter(Boolean) }; }
+      var greeting=document.getElementById('afGreeting').value.trim();
+      if(greeting){ body.greeting=greeting; }
+      note.textContent='Saving…';
+      try{
+        var r=await fetch(API+'?action=agent-upsert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        var j=await r.json();
+        if(j.ok && j.agent){
+          note.textContent='Created “'+j.agent.name+'”. Building its knowledge…';
+          fetch(API+'?action=agent-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent_id:j.agent.id})}).catch(function(){});
+          await loadAgents(j.agent.id);
+          agentForm.reset(); agentForm.classList.remove('open');
+          chatEl.innerHTML=''; sessionId=null; history=[]; greet();
+          note.textContent='';
+        } else { note.textContent='Could not save: '+(j.error||'unknown error'); }
+      }catch(err){ note.textContent='Network error — please try again.'; }
+    });
+  }
+
+  loadAgents().then(function(){
+    if(CH){
+      buildConvoBar();
+      var lastC = CH.current() || CH.last();
+      if(lastC && lastC.messages && lastC.messages.length){ CH.setCurrent(lastC.id); replay(lastC); }
+      else { if(!CH.current()) CH.create(); greet(); }
+    } else { greet(); }
+  });
 })();
 </script>
 </body>

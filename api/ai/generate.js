@@ -1,27 +1,73 @@
 // ════════════════════════════════════════════════════════════════════════════
 // /api/ai/generate — Vercel serverless function
-// Server-side OpenAI text generation. Browser never sees OPENAI_API_KEY.
+// Server-side text generation. Browser never sees provider API keys.
 //
 // MODES:
 //   mode: 'concepts'      → returns 3 strategic concepts (replaces Claude path)
 //   mode: 'create_brief'  → returns 180-280-word director brief from minimal inputs
 //   mode: 'mailer_full'   → returns {strategy, creative_spec, html_plan} for variant A or B
+//   (+ suggested_prompts, audience_segment, chat, autofill)
 //
-// Env vars (set via `vercel env add`):
-//   OPENAI_API_KEY      — required
-//   OPENAI_TEXT_MODEL   — default 'gpt-4o-mini'
+// All provider calls go through the shared tier-routed 6-provider waterfall in
+// api/_shared/llm.js (premium/standard/fast — July 2026 model tables). Tier per
+// mode: mailer_full+concepts → premium · create_brief+audience_segment+autofill
+// → standard · chat+suggested_prompts → fast. An explicit body.tier overrides
+// (legacy 'maxpower'/'budget' values are normalized inside llm.js).
 // ════════════════════════════════════════════════════════════════════════════
 
-const OPENAI_BASE = 'https://api.openai.com/v1';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const callLLM = require('../_shared/llm.js');
+
+// Single source of truth for the portable master prompt + brand block.
 const { buildMasterPrompt } = require('../_shared/master-prompt.js');
+
+// Product-owner rule (2026-07-04): no em/en dashes in any generated output.
+const SMscen = require('../_shared/scenario-model.js');
+const scrubDashes = SMscen.scrubDashes;
+// sanitizeBrand does both: banned-phrase rewrite (transform, liquid gold, last
+// chance, …) AND em/en-dash scrub. Fall back to dash-only if unavailable.
+const brandScrub = (s) => { try { return SMscen.sanitizeBrand ? SMscen.sanitizeBrand(String(s)) : scrubDashes(s); } catch (_) { return scrubDashes(s); } };
+const CF = require('../_shared/copy-frameworks.js');
+
+// Walk a parsed LLM JSON payload and brand-scrub (banned phrases + em/en dashes)
+// every generated STRING value. Object keys are never touched; URL-like values
+// are skipped so links/handles stay byte-identical.
+function deepScrubDashes(v) {
+  if (typeof v === 'string') {
+    return /^(https?:\/\/|\/)/i.test(v.trim()) ? v : brandScrub(v);
+  }
+  if (Array.isArray(v)) return v.map(deepScrubDashes);
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const k of Object.keys(v)) out[k] = deepScrubDashes(v[k]);
+    return out;
+  }
+  return v;
+}
+
+// Static creative sizes the compositor actually renders, per surface. Mirrors CRE_CFG
+// in the Creative Studio tab of ad-campaigns-master.html (moved there when the
+// standalone /ads page was retired) — used to build creative_spec
+// so the autofill response describes exactly the assets that get produced.
+const AD_FORMATS = {
+  google: [
+    { format: 'Google · Landscape 1.91:1', size: '1200x628',  ar: '1.91:1' },
+    { format: 'Google · Square 1:1',       size: '1200x1200', ar: '1:1' },
+  ],
+  meta: [
+    { format: 'Meta/IG · Feed 1:1',        size: '1080x1080', ar: '1:1' },
+    { format: 'Meta/IG · Story/Reel 9:16', size: '1080x1920', ar: '9:16' },
+  ],
+  tiktok: [
+    { format: 'TikTok · Vertical 9:16', size: '1080x1920', ar: '9:16' },
+  ],
+};
 
 // ────────────────────────────────────────────────────────────────────────────
 // MASTER PROMPTS (production-grade, embedded server-side so they cannot be
 // tampered with by browser-side edits)
 // ────────────────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT_CONCEPTS = `You are a D2C growth director for VAHDAM India — premium Indian heritage tea brand. Output STRICT JSON ONLY: {"concepts":[3 concepts]}. Each concept has: id, name (2-5w), hook (≤80ch), emotional_driver, visual_direction, tone, layout_archetype (one of: hero-led-editorial|product-grid-conversion|storytelling-narrative|single-product-spotlight|gift-bundle-showcase|ritual-journey|comparison-discovery|founder-note|editorial-trend-roundup|limited-drop-countdown|subscription-anchor), hero_focus, risk_profile (safe|balanced|bold), hero_concept (2-3 sentences), section_flow (array of 5 mod sections), visual_prompt_extension (120-200ch), subject_lines [3 ≤60ch each], preheader (≤90ch no terminal period), copy {eyebrow, headline:[2 lines], sub_copy ≤200ch, cta ≤3w, section_title, ann_bar}, cta_options [3 ≤3w each], product_handles [3-5 from AVAILABLE_PRODUCTS], scores {brand_fit:1-10, conversion_potential:1-10, novelty:1-10}, performance_notes {recommended_subject_index, swap_if_low_open, personalization_token}, primary_hook (offer|benefit|origin-freshness), secondary_hook, user_emotional_state (curiosity-trust|reward-upgrade|reactivation-incentive), internal_critique {strongest_subject_index, strongest_subject_reason, weakest_section, weakest_reason, open_rate_lever, ctr_lever}, rationale.
+const SYSTEM_PROMPT_CONCEPTS = `You are a D2C growth director for VAHDAM India — premium Indian heritage tea brand. Output STRICT JSON ONLY: {"concepts":[3 concepts]}. Each concept has: id, name (2-5w), hook (≤80ch), emotional_driver, visual_direction, tone, layout_archetype (one of: hero-led-editorial|product-grid-conversion|storytelling-narrative|single-product-spotlight|gift-bundle-showcase|ritual-journey|comparison-discovery|editorial-trend-roundup|limited-drop-countdown|subscription-anchor), hero_focus, risk_profile (safe|balanced|bold), hero_concept (2-3 sentences), section_flow (array of 5 mod sections), visual_prompt_extension (120-200ch), subject_lines [3 ≤60ch each], preheader (≤90ch no terminal period), copy {eyebrow, headline:[2 lines], sub_copy ≤200ch, cta ≤3w, section_title, ann_bar}, cta_options [3 ≤3w each], product_handles [3-5 from AVAILABLE_PRODUCTS], scores {brand_fit:1-10, conversion_potential:1-10, novelty:1-10}, performance_notes {recommended_subject_index, swap_if_low_open, personalization_token}, primary_hook (offer|benefit|origin-freshness), secondary_hook, user_emotional_state (curiosity-trust|reward-upgrade|reactivation-incentive), internal_critique {strongest_subject_index, strongest_subject_reason, weakest_section, weakest_reason, open_rate_lever, ctr_lever}, rationale.
 
 MANDATORY: exactly 3 concepts; risk distribution = exactly one safe + one balanced + one bold; all 3 layout_archetype unique; products ONLY from AVAILABLE_PRODUCTS handles.
 
@@ -272,6 +318,12 @@ First char { · last char }. No markdown. No commentary.`;
 // ────────────────────────────────────────────────────────────────────────────
 
 module.exports = async function handler(req, res) {
+  // Landing-page generation is hosted here (via /api/ai/landing-page rewrite →
+  // ?action=landing-page) so it does NOT add a 13th serverless function past the
+  // Hobby 12-cap. The core handles its own CORS/method/body.
+  if (req.query && req.query.action === 'landing-page') {
+    return require('../_shared/landing-page-core.js')(req, res);
+  }
   // CORS — allow same-origin + preview deploys
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -279,43 +331,18 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
-  // PROVIDER WATERFALL: OpenAI → Anthropic → Gemini → Grok → Groq → Cerebras
-  // Strip BOM and non-ASCII from all API keys (Vercel env via PowerShell can inject invisible chars)
+  // Provider waterfall + tier routing live in api/_shared/llm.js. Here we only
+  // check that at least one key exists so misconfiguration stays a clean 500
+  // (same legacy response shape), and extract the optional per-user Gemini key.
+  // Strip BOM and non-ASCII (Vercel env via PowerShell can inject invisible chars).
   const _ck = s => { if (!s) return ''; return s.split('').filter(c => c.charCodeAt(0) < 128).join('').trim(); };
-  const openaiKey    = _ck(process.env.OPENAI_API_KEY);
-  const anthropicKey = _ck(process.env.ANTHROPIC_API_KEY);
   const userGeminiKey = _ck(req.headers['x-user-gemini-key']);
-  const geminiKey    = userGeminiKey || _ck(process.env.GEMINI_API_KEY);
-  const grokKey      = _ck(process.env.XAI_API_KEY);
-  const groqKey      = _ck(process.env.GROQ_API_KEY);
-  const cerebrasKey  = _ck(process.env.CEREBRAS_API_KEY);
-  if (!openaiKey && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey) {
+  const anyKey = userGeminiKey ||
+    ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'XAI_API_KEY', 'GROQ_API_KEY', 'CEREBRAS_API_KEY']
+      .some(k => _ck(process.env[k]));
+  if (!anyKey) {
     return res.status(500).json({ error: 'server_misconfigured', detail: 'No AI provider configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, or CEREBRAS_API_KEY.' });
   }
-  // APP_AI_PROVIDER: skip dead providers (e.g. 'gemini' skips OpenAI/Anthropic/Grok)
-  // 'gemini+' = Gemini first, then Groq+Cerebras as backup (skip paid providers)
-  const preferredProvider = (process.env.APP_AI_PROVIDER || '').toLowerCase().trim();
-  const isGeminiPlus = preferredProvider === 'gemini+';
-  // 'gemini+' = use Gemini + Groq + Cerebras only (skip paid providers with dead credits)
-  const skipOpenai    = isGeminiPlus ? true  : (preferredProvider && preferredProvider !== 'openai');
-  const skipAnthropic = isGeminiPlus ? true  : (preferredProvider && preferredProvider !== 'anthropic');
-  const skipGemini    = isGeminiPlus ? false : (preferredProvider && preferredProvider !== 'gemini');
-  const skipGrok      = isGeminiPlus ? true  : (preferredProvider && preferredProvider !== 'grok');
-  const skipGroq      = isGeminiPlus ? false : (preferredProvider && preferredProvider !== 'groq');
-  const skipCerebras  = isGeminiPlus ? false : (preferredProvider && preferredProvider !== 'cerebras');
-
-  const provider  = (!skipOpenai && openaiKey) ? 'openai'
-                  : (!skipAnthropic && anthropicKey) ? 'anthropic'
-                  : (!skipGemini && geminiKey) ? 'gemini'
-                  : (!skipGrok && grokKey) ? 'grok'
-                  : (!skipGroq && groqKey) ? 'groq'
-                  : 'cerebras';
-  const textModel = (!skipOpenai && openaiKey)        ? (process.env.OPENAI_TEXT_MODEL    || 'gpt-4o-mini')
-                  : (!skipAnthropic && anthropicKey)   ? (process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022')
-                  : (!skipGemini && geminiKey)          ? (process.env.GEMINI_TEXT_MODEL    || 'gemini-2.0-flash')
-                  : (!skipGrok && grokKey)              ? (process.env.GROK_TEXT_MODEL      || 'grok-3-mini-fast')
-                  : (!skipGroq && groqKey)              ? (process.env.GROQ_TEXT_MODEL      || 'llama-3.3-70b-versatile')
-                  :                                      (process.env.CEREBRAS_TEXT_MODEL   || 'llama-3.3-70b');
 
   let body = req.body;
   if (typeof body === 'string') {
@@ -333,6 +360,12 @@ module.exports = async function handler(req, res) {
   const regenerate_counter = Number(body.regenerate_counter || 0);
   const previous_outputs_summary = body.previous_outputs_summary || '';
   const season = body.season || '';
+  // Single mode: premium is the only tier. This is the user-facing content
+  // generator (Studio, ads, landing pages), so every mode runs on the highest-
+  // accuracy cascade. The Budget / Max Power picker was removed; an incoming
+  // body.tier can no longer downgrade. (Background/bulk classifiers live in
+  // other files and keep their own cost-appropriate tiers.)
+  const tier = 'premium';
 
   let systemPrompt = SYSTEM_PROMPT_CREATE_BRIEF;
   let userMessage = '';
@@ -359,7 +392,7 @@ module.exports = async function handler(req, res) {
     const productsBlock = selected_products.slice(0, 30).map(p => `- handle:${p.handle||p.id||''} | name:${p.name||p.n||''} | category:${p.category||''} | price:${p.price||''} | compare_at:${p.compare_at||''} | image:${p.image_url||p.i||''}`).join('\n');
     userMessage = `BRIEF: ${campaign_brief.substring(0, 800)}\nMARKET: ${market}\nTYPE: ${theme}\nVARIANT: ${variant}\nREGENERATE_COUNTER: ${regenerate_counter}\n${previous_outputs_summary ? 'PREVIOUS_OUTPUT_HASH: ' + previous_outputs_summary + '\n' : ''}\nAVAILABLE_PRODUCTS:\n${productsBlock || '(none provided — use category defaults)'}\n\nGenerate the JSON now.`;
   } else if (mode === 'mailer_full') {
-    systemPrompt = SYSTEM_PROMPT_MAILER_FULL;
+    systemPrompt = SYSTEM_PROMPT_MAILER_FULL + '\n\n' + CF.frameworkMenuDirective();
     response_format = { type: 'json_object' };
     const productsBlock = selected_products.slice(0, 5).map(p => `- name:"${p.name||p.n||''}" | url:"${p.url||p.pdp_url||''}" | price:"${p.price||''}" | compare_price:"${p.compare_at||p.compare_price||''}" | image:"${p.image_url||p.i||''}"`).join('\n');
     userMessage = `INPUTS:\nmarket: ${market}\ntheme: ${theme}\ncampaign_brief: ${campaign_brief.substring(0, 1000)}\nvariant: ${variant}\nregenerate_counter: ${regenerate_counter}\n${previous_outputs_summary ? 'previous_outputs_summary: ' + previous_outputs_summary + '\n' : ''}selected_products:\n${productsBlock || '(none)'}\n\nReturn the strict JSON now.`;
@@ -392,18 +425,14 @@ Return ONLY the segment text. No preamble, no quotes around it, no JSON.`;
     const histArr = Array.isArray(body.history) ? body.history.slice(-8) : [];
     const userMsg = String(body.message || body.prompt || '').slice(0, 2000);
     systemPrompt = [
-      'You are the VAHDAM AI Agent — a sharp, warm, knowledgeable marketing copilot for VAHDAM India (premium Indian heritage tea & wellness) inside the VAHDAM Lifecycle OS app.',
-      'You help across the whole app: brainstorm campaigns, recommend which products to feature, sharpen subject lines and copy, critique mailers/ads/landing pages, build cohort/offer ideas, and explain what each tool does.',
-      'GROUND every answer in the VAHDAM KNOWLEDGE BASE provided below (product catalog + brand kit). When you recommend products, name REAL products from the catalog. If the knowledge base does not cover something, say so briefly rather than inventing facts.',
+      'You are VAHDAM Studio Assistant — a sharp, warm marketing copilot inside the VAHDAM India (premium Indian heritage tea) email Mailer Studio.',
+      'Help the user brainstorm campaigns, sharpen subject lines and copy, critique the current mailer, and answer marketing questions.',
       'VOICE: warm, sensory, story-driven, premium. PREFER words like ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
       "NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
       'Brand palette is forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA. Headings Lao MN, body Proxima Nova.',
-      'BE SUBSTANTIVE AND GENUINELY USEFUL: give a complete, specific answer — typically 2–5 short paragraphs or a tight list with brief rationale. Do not reply with a single vague sentence. When asked for copy, give 2–3 ready-to-paste options. Plain conversational text only — no markdown headers, no asterisks.',
-      'Your reply will be read aloud by text-to-speech, so write in clean, natural prose.'
+      'Be concise and practical. Short paragraphs or tight lists. When asked for copy, give ready-to-paste options. Plain text only — no markdown headers.'
     ].join('\n');
     const ctxLines = [
-      ctx.kb ? 'VAHDAM KNOWLEDGE BASE:\n' + String(ctx.kb).slice(0, 2000) : '',
-      ctx.page ? 'USER IS ON APP PAGE: ' + String(ctx.page).slice(0, 60) + ' (tailor help to this tool when relevant)' : '',
       ctx.brief ? 'CURRENT CAMPAIGN BRIEF: ' + String(ctx.brief).slice(0, 800) : '',
       ctx.type ? 'CAMPAIGN TYPE: ' + ctx.type : '',
       ctx.markets ? 'MARKETS: ' + (Array.isArray(ctx.markets) ? ctx.markets.join(', ') : ctx.markets) : '',
@@ -419,7 +448,8 @@ Return ONLY the segment text. No preamble, no quotes around it, no JSON.`;
   } else if (mode === 'autofill') {
     // ─────────────────────────────────────────────────────────────────
     // AUTOFILL — single-prompt → all form fields for the chosen surface.
-    // Used by ad-campaigns.html (google/meta/tiktok) and landing-pages.html
+    // Used by the Creative Studio tab of ad-campaigns-master.html (google/meta/tiktok)
+    // and landing-pages.html
     // (lp-mailer/lp-meta/lp-google/lp-tiktok).
     //
     // Input  : { mode:'autofill', surface:'<surface>', prompt:'<plain text>', market?, region? }
@@ -483,7 +513,10 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
   "url": "<final landing URL — start with /, never absolute>",
   "keywords": "<comma-separated 6-12 keywords, lowercase, no quotes>",
   "headlines": "<3-5 headlines, one per line, each ≤30 chars>",
-  "desc": "<2 descriptions, one per line, each ≤90 chars>"
+  "desc": "<2 descriptions, one per line, each ≤90 chars>",
+  "overlay_headline": "<headline BAKED onto the creative image — ≤6 words, sells the calm/happy end-state (P01), never an ingredient or feature>",
+  "overlay_sub": "<supporting line baked under the headline — ≤8 words, sensory + concrete>",
+  "offer": "<the EXACT on-creative offer baked into the image — the real P01 offer, e.g. 'Starter Pack · 65% OFF + free gifts'. Concise, ≤40 chars, fits an offer pill.>"
 }`,
       },
       meta: {
@@ -496,7 +529,10 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
   "place": "<Advantage+ (all)|Feed|Stories/Reels|Manual>",
   "aud": "<one-sentence audience targeting — interests + lookalike if relevant>",
   "primary": "<primary text, 60-180 chars, emotional + concrete + ends with implicit CTA>",
-  "headline": "<≤40 chars headline>"
+  "headline": "<≤40 chars headline>",
+  "overlay_headline": "<headline BAKED onto the creative image — ≤6 words, sells the calm/happy end-state (P01), never an ingredient or feature>",
+  "overlay_sub": "<supporting line baked under the headline — ≤8 words, sensory + concrete>",
+  "offer": "<the EXACT on-creative offer baked into the image — the real P01 offer, e.g. 'Starter Pack · 65% OFF + free gifts'. Concise, ≤40 chars, fits an offer pill.>"
 }`,
       },
       tiktok: {
@@ -511,7 +547,10 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
   "hook": "<≤80 chars opener — conversational, sounds native to TikTok, not marketing speak>",
   "caption": "<≤140 chars on-screen text — short phrases separated by · or , >",
   "creator": "<@handle if relevant, else empty string>",
-  "hashtags": "<3-6 hashtags space-separated, lowercase, no marketing-speak>"
+  "hashtags": "<3-6 hashtags space-separated, lowercase, no marketing-speak>",
+  "overlay_headline": "<headline BAKED onto the static 9:16 key-frame — ≤6 words, sells the calm/happy end-state (P01), never an ingredient or feature>",
+  "overlay_sub": "<supporting line baked under the headline — ≤8 words, sensory + concrete>",
+  "offer": "<the EXACT on-creative offer baked into the image — the real P01 offer, e.g. 'Starter Pack · 65% OFF + free gifts'. Concise, ≤40 chars, fits an offer pill.>"
 }`,
       },
       'lp-mailer': {
@@ -577,8 +616,53 @@ RULES:
 Target market for this autofill: ${targetMarket}.`;
 
     userMessage = `USER PROMPT:\n"""\n${userPrompt}\n"""\n\n${referenceSnippet ? `REFERENCE PAGE (mirror the structure, voice, length, conversion logic — but rewrite for VAHDAM and the prompt above):\n"""\n${referenceSnippet}\n"""\n\n` : ''}Return the JSON object now. Do not include any text outside the JSON.`;
+  } else if (mode === 'landing_page') {
+    // FULL AI-written landing page — returns ONE complete, mobile-first HTML
+    // document (no JSON). The client previews it in the inline modal and falls
+    // back to its deterministic template if this fails. response_format stays
+    // null so the model returns raw HTML; scrubDashes runs on the way out.
+    const LP_STORE = { US:'https://vahdam.com', UK:'https://vahdam.co.uk', IN:'https://vahdam.in', Global:'https://vahdam.global', EU:'https://vahdam.global', AU:'https://vahdam.global', ME:'https://vahdam.global' };
+    const lpRegion = (body.region || body.market || market || 'US');
+    const lpBase = LP_STORE[lpRegion] || LP_STORE.US;
+    const lpChannel = String(body.channel || 'landing');
+    response_format = undefined;
+    systemPrompt = [
+      'You are a senior D2C conversion copywriter AND front-end developer for VAHDAM India, premium Indian heritage tea (B-Corp, single-estate, garden-fresh within 72 hours of harvest).',
+      'Output ONE complete, production-ready, single-file HTML document, from <!doctype html> to </html>, with ALL CSS inline in a <style> block and NO external dependencies (no CDNs, no web fonts, no <script>). Return ONLY the HTML, no commentary before or after, no markdown fences.',
+      '',
+      'MOBILE-FIRST (hard requirement): design for a 360px phone first, then enhance up.',
+      '- Include <meta name="viewport" content="width=device-width, initial-scale=1">.',
+      '- Fluid type with clamp(); max-width containers centered; flex/grid that WRAPS on small screens (never fixed multi-column that overflows).',
+      '- Tap targets at least 44px tall; body text at least 16px; comfortable line-height.',
+      '- A STICKY bottom CTA bar on mobile (position:fixed; bottom:0) with the primary action; hide it on wide screens if it would duplicate.',
+      '- Images use max-width:100%; height:auto. No horizontal scroll at any width.',
+      '',
+      'BRAND RULES (strict):',
+      '- Colour palette ONLY: forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA. No other colours.',
+      "- Headings in a serif stack: 'Lao MN','Cormorant Garamond',Georgia,serif. Body in a sans stack: 'Proxima Nova','Helvetica Neue',Arial,sans-serif.",
+      '- Voice: warm, sensory, story-driven, premium. Prefer: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
+      "- NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
+      '- NO founder voice or personal-name sign-offs; the brand speaks as "we". NO medical claims. NO em or en dashes anywhere (use commas, colons or plain hyphens).',
+      `- Currency and store links must match the ${lpRegion} market. Primary CTA links point to ${lpBase}/collections/best-sellers (or a more specific collection if the brief implies one). Only use offers/prices given in the brief; invent no discount codes.`,
+      '- Do NOT invent specific product names, prices, or product-page (/products/...) URLs. Unless the brief names a product, refer to offerings at category level ("single-estate Darjeeling", "ashwagandha coffee") and link only to collection pages on the store base above.',
+      '',
+      CF.frameworkMenuDirective(),
+      '',
+      'REQUIRED SECTIONS in order: announcement bar (only if an offer exists); header wordmark "V A H D A M"; hero (headline + sub + primary CTA + a product-image placeholder box labelled so the user can drop an image URL); trust strip (single-estate, garden-fresh 72h, B-Corp); 3 benefit blocks; product/offer block with the exact price/mechanic from the brief; social proof as 2 to 3 tiny personal-story testimonials (not star reviews); a short FAQ (3 Qs); final CTA; footer; and the sticky mobile CTA bar.',
+    ].join('\n');
+    userMessage = [
+      `Channel intent: ${lpChannel} (write for how this channel's visitors arrive). Market: ${lpRegion}. Store base: ${lpBase}.`,
+      `Hero headline: ${body.hero || '(write a strong, specific one)'}`,
+      `Sub-headline: ${body.sub || '(write a supporting sensory line)'}`,
+      `Offer / mechanic: ${body.offer || '(no explicit discount, sell on quality, provenance and ritual)'}`,
+      body.notes ? `Extra notes / story / audience: ${body.notes}` : '',
+      body.prompt ? `Free-text brief: ${body.prompt}` : '',
+      '',
+      'Return the complete HTML document now.',
+    ].filter(Boolean).join('\n');
   } else {
     // create_brief mode (default)
+    systemPrompt = SYSTEM_PROMPT_CREATE_BRIEF + '\n\n' + CF.frameworkMenuDirective();
     // Market context — informs audience psychology and visual direction
     const mktContext = {
       US:     'Urban US professionals 30-55. Value origin story + morning ritual. $55+ AOV. Expect premium provenance, not discounts.',
@@ -631,7 +715,7 @@ Target market for this autofill: ${targetMarket}.`;
       userAudience ? `TARGET AUDIENCE (already set by user — the brief MUST speak to this segment):\n${userAudience}` : '',
       productsBlock
         ? `PRODUCTS FROM THE LIVE VAHDAM CATALOG (use EXACT names and prices verbatim — do NOT invent SKUs or prices):\n${productsBlock}`
-        : `PRODUCTS: (none provided — infer 2-3 best-fit VAHDAM products for this market + campaign type, with realistic prices in the market currency)`,
+        : `PRODUCTS: (none provided). Do NOT invent specific product names, prices, or URLs. Refer to VAHDAM offerings at CATEGORY level only (for example "our single-estate Darjeeling", "an ashwagandha coffee", "a turmeric herbal tea") — no fabricated SKU names, no made-up prices, no product links.`,
       ``,
       `THIS GENERATION'S CREATIVE ANGLE: ${angle}.`,
       `CREATIVITY SEED: ${creativitySeed} — use this to deliberately diverge from any previous brief you've drafted for VAHDAM. Different headline phrasing, different hero pick when sensible, different subject-line angles, different opening sentence.`,
@@ -651,6 +735,14 @@ Target market for this autofill: ${targetMarket}.`;
     ].filter(Boolean).join('\n');
   }
 
+  // ── Portable prompt ─────────────────────────────────────────────────────
+  // The exact, self-contained instructions this tool used. Returned with EVERY
+  // creation so the user can paste it into ChatGPT / Gemini / Claude and get the
+  // same on-brand output externally. (The app itself generates on free tiers.)
+  const _sp = Array.isArray(systemPrompt) ? systemPrompt.join('\n') : String(systemPrompt || '');
+  const _um = Array.isArray(userMessage) ? userMessage.join('\n') : String(userMessage || '');
+  const portable_prompt = (_sp + (_um ? '\n\n———\n\n' + _um : '')).trim();
+
   // ── Provider-specific call ──
   // Higher base temperature for create_brief + a per-regen bump so consecutive
   // briefs explore different copy territory (different hooks, different headline
@@ -658,238 +750,44 @@ Target market for this autofill: ${targetMarket}.`;
   const baseTemp = mode === 'create_brief' ? 0.85 : 0.7;
   const temperature = Math.min(1.1, baseTemp + Math.min(0.25, (regenerate_counter || 0) * 0.08));
   // create_brief: 4000 tokens for 450-600 word detailed production brief with full structure
-  const max_tokens = mode === 'mailer_full' ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1800 : 4000)));
+  const max_tokens = (mode === 'mailer_full' || mode === 'landing_page') ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1200 : 4000)));
 
-  function isRetryable(s) { return s === 429 || s === 503 || s === 404 || s === 400 || s === 529 || s === 403 || s === 402; }
-
-  // ── Provider helpers ───────────────────────────────────────────────────────
-  async function callOpenAI(model, key) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch(OPENAI_BASE + '/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          max_tokens, temperature,
-          ...(response_format ? { response_format } : {})
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) {
-        const err = await r.text().catch(() => '');
-        const isQuota = (r.status === 429 || r.status === 402 || r.status === 400) && (err.includes('insufficient_quota') || err.includes('quota') || err.includes('billing') || err.includes('billing_hard_limit') || err.includes('billing_limit') || err.includes('credit'));
-        return { ok: false, status: r.status, error: 'openai_error', detail: err.substring(0, 400), provider: 'openai', model, quotaExhausted: isQuota };
-      }
-      const data = await r.json();
-      const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-      return { ok: true, text, provider: 'openai', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'openai_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'openai', model }; }
-  }
-
-  async function callAnthropic(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    const claudeSys = response_format
-      ? systemPrompt + '\n\nCRITICAL: Return ONLY valid JSON. First char { last char }. No markdown, no commentary.'
-      : systemPrompt;
-    try {
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model, max_tokens, temperature, system: claudeSys, messages: [{ role: 'user', content: userMessage }] }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) { const err = await r.text().catch(()=>''); console.warn('[generate] Anthropic ' + r.status + ' on ' + model + ': ' + err.substring(0,200)); return { ok: false, status: r.status, error: 'anthropic_error', detail: err.substring(0,400), provider: 'anthropic', model }; }
-      const data = await r.json();
-      const text = (data.content && data.content[0] && data.content[0].text) || '';
-      return { ok: true, text, provider: 'anthropic', model };
-    } catch (e) { clearTimeout(t); console.error('[generate] Anthropic fetch exception on ' + model + ':', String(e.message||e).substring(0,200)); return { ok: false, status: 0, error: 'anthropic_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'anthropic', model }; }
-  }
-
-  async function callGemini(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch(
-        GEMINI_BASE + '/models/' + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(geminiKey),
-        {
-          method: 'POST', cache: 'no-store',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: systemPrompt + '\n\n---\nUSER REQUEST:\n' + userMessage }] }],
-            generationConfig: {
-              temperature, maxOutputTokens: max_tokens,
-              ...(response_format ? { responseMimeType: 'application/json' } : {}),
-              ...(response_format && model.includes('2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {})
-            }
-          }),
-          signal: ctrl.signal
-        }
-      );
-      clearTimeout(t);
-      if (!r.ok) {
-        const err = await r.text().catch(()=>'');
-        const retryMatch = err.match(/retry in ([\d.]+)s/i);
-        return { ok: false, status: r.status, error: 'gemini_error', detail: err.substring(0,400), provider: 'gemini', model, retry_after: retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 30 };
-      }
-      const data = await r.json();
-      const text = (data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text)||'';
-      return { ok: true, text, provider: 'gemini', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'gemini_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'gemini', model }; }
-  }
-
-  async function callGrok(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + grokKey },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          max_tokens, temperature,
-          ...(response_format ? { response_format } : {})
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) { const err = await r.text().catch(()=>''); return { ok: false, status: r.status, error: 'grok_error', detail: err.substring(0,400), provider: 'grok', model }; }
-      const data = await r.json();
-      const text = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-      return { ok: true, text, provider: 'grok', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'grok_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'grok', model }; }
-  }
-
-  // ── Groq (OpenAI-compatible, free 30 RPM) ──────────────────────────────────
-  async function callGroq(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + groqKey },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          max_tokens, temperature,
-          ...(response_format ? { response_format } : {})
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) { const err = await r.text().catch(()=>''); return { ok: false, status: r.status, error: 'groq_error', detail: err.substring(0,400), provider: 'groq', model }; }
-      const data = await r.json();
-      const text = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-      return { ok: true, text, provider: 'groq', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'groq_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'groq', model }; }
-  }
-
-  // ── Cerebras (OpenAI-compatible, free 30 RPM, ultra-fast) ─────────────────
-  async function callCerebras(model) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cerebrasKey },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          max_tokens: Math.min(max_tokens, 8192), temperature
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!r.ok) { const err = await r.text().catch(()=>''); return { ok: false, status: r.status, error: 'cerebras_error', detail: err.substring(0,400), provider: 'cerebras', model }; }
-      const data = await r.json();
-      const text = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-      return { ok: true, text, provider: 'cerebras', model };
-    } catch (e) { clearTimeout(t); return { ok: false, status: 0, error: 'cerebras_fetch_error', detail: String(e.message||e).substring(0,200), provider: 'cerebras', model }; }
-  }
-
-  // ── 6-provider cascade: OpenAI → Claude → Gemini → Grok → Groq → Cerebras ─
+  // ── Shared tier-routed cascade (api/_shared/llm.js) ────────────────────────
+  // The 6-provider waterfall (OpenAI/Anthropic/Gemini/Grok/Groq/Cerebras),
+  // key rotation, demotion rules, and APP_AI_PROVIDER preference all live in
+  // llm.js now. We map its result/throw back onto the legacy `result` shape so
+  // every downstream branch (heuristic fallback, error mapping, JSON parse,
+  // autofill creative_spec) is preserved exactly.
   let result = null;
 
   try {
-    // 1. OpenAI (multi-key rotation on quota exhaustion)
-    if (openaiKey && !skipOpenai) {
-      const openaiKeys = [openaiKey, process.env.OPENAI_API_KEY_2, process.env.OPENAI_API_KEY_3].filter(Boolean);
-      const model = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
-      for (const key of openaiKeys) {
-        result = await callOpenAI(model, key);
-        if (result.ok) break;
-        if (result.quotaExhausted) { console.warn('[generate] OpenAI key quota exhausted — rotating'); continue; }
-        console.warn('[generate] OpenAI ' + result.status + ' — falling through to Claude');
-        break;
-      }
-    }
-
-    // 2. Anthropic (Claude) — if OpenAI unavailable or failed
-    if (anthropicKey && (!result || !result.ok) && !skipAnthropic) {
-      console.warn('[generate] Trying Anthropic (Claude)');
-      for (const model of [process.env.ANTHROPIC_TEXT_MODEL || 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022']) {
-        result = await callAnthropic(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Anthropic ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
-    }
-
-    // 3. Gemini — if Claude unavailable or failed
-    //    De-duplicate models: env var might equal a hardcoded fallback
-    if (geminiKey && (!result || !result.ok) && !skipGemini) {
-      console.warn('[generate] Trying Gemini');
-      const geminiModels = [];
-      const seen = new Set();
-      for (const m of [process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']) {
-        if (!seen.has(m)) { seen.add(m); geminiModels.push(m); }
-      }
-      for (const model of geminiModels) {
-        console.log('[generate] Trying Gemini model:', model);
-        result = await callGemini(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Gemini ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
-    }
-
-    // 4. Grok (xAI)
-    if (grokKey && (!result || !result.ok) && !skipGrok) {
-      console.warn('[generate] Trying Grok (xAI)');
-      for (const model of [process.env.GROK_TEXT_MODEL || 'grok-3-mini-fast', 'grok-3-mini']) {
-        result = await callGrok(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Grok ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
-    }
-
-    // 5. Groq (free tier — Llama 3.3 70B, 30 RPM)
-    if (groqKey && (!result || !result.ok) && !skipGroq) {
-      console.warn('[generate] Trying Groq (free tier)');
-      for (const model of [process.env.GROQ_TEXT_MODEL || 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) {
-        result = await callGroq(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Groq ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
-    }
-
-    // 6. Cerebras (free tier — Llama 3.3 70B, 30 RPM, ultra-fast)
-    if (cerebrasKey && (!result || !result.ok) && !skipCerebras) {
-      console.warn('[generate] Trying Cerebras (free tier)');
-      for (const model of [process.env.CEREBRAS_TEXT_MODEL || 'llama-3.3-70b', 'llama-3.1-8b']) {
-        result = await callCerebras(model);
-        if (result.ok) break;
-        if (isRetryable(result.status)) { console.warn('[generate] Cerebras ' + result.status + ' on ' + model + ' — next model'); continue; }
-        break;
-      }
+    try {
+      const out = await callLLM({
+        systemPrompt,
+        userMessage,
+        responseFormat: response_format || null,
+        maxTokens: max_tokens,
+        temperature,
+        timeoutMs: 30000,
+        stage: 'generate:' + mode,
+        tier,
+        userGeminiKey,
+      });
+      result = { ok: true, text: out.text, provider: out.provider, model: out.model };
+    } catch (llmErr) {
+      // All providers failed (or a plain-400 bad request aborted the cascade).
+      // Reconstruct the legacy failure result from the last provider error.
+      const perr = Array.isArray(llmErr && llmErr._providerErrors) ? llmErr._providerErrors : [];
+      const last = perr[perr.length - 1] || null;
+      result = {
+        ok: false,
+        status: last ? (last.status || 0) : 0,
+        error: last && last.provider ? (last.provider + '_error') : 'no_provider',
+        detail: String((last && last.err) || (llmErr && llmErr.message) || 'All providers failed').substring(0, 400),
+        provider: last ? last.provider : null,
+        model: null,
+        ...(last && last.status === 429 ? { retry_after: 30 } : {}),
+      };
     }
 
     if (!result || !result.ok) {
@@ -911,10 +809,11 @@ Target market for this autofill: ${targetMarket}.`;
         const codeMatch = campaign_brief.match(/(?:code|coupon)\s+([A-Z0-9]{4,15})/i);
         const promoCode = codeMatch ? codeMatch[1].toUpperCase() : 'VAHDAM' + offerPct;
 
-        const heuristicBrief = `Our next ${typeDesc} targets ${audience}, aiming for an AOV exceeding $55 by leveraging the unmatched premium provenance of our single-estate teas. We're leading with a compelling offer: experience the crisp clarity of our finest teas with up to ${offerPct}% off for a limited time using code ${promoCode}. This isn't just a discount — it's an invitation to elevate your daily ritual with garden-fresh teas, picked and packed within 72 hours of harvest.\n\nOur hero product anchoring this campaign is ${heroProduct}, a single-estate jewel perfect for a discerning morning ritual. To build a richer basket we'll feature ${supportProducts} as supporting products. These selections offer variety and cater to both the ritualistic black tea drinker and the health-conscious individual.\n\nOur audience craves moments of calm and intentionality — they're seeking authenticity and connection, a premium experience that integrates into their demanding lives. A truly authentic tea with a clear origin story tips them towards purchase.\n\nFor subject lines, test these: Your Morning Ritual, Elevated. | ${offerPct}% Off — Premium Teas, Limited Time. | Freshness From The Himalayas Awaits.`;
+        const heuristicBrief = `Our next ${typeDesc} targets ${audience}, aiming for an AOV exceeding $55 by leveraging the unmatched premium provenance of our single-estate teas. We're leading with a compelling offer: experience the crisp clarity of our finest teas with up to ${offerPct}% off for a limited time using code ${promoCode}. This isn't just a discount: it's an invitation to elevate your daily ritual with garden-fresh teas, picked and packed within 72 hours of harvest.\n\nOur hero product anchoring this campaign is ${heroProduct}, a single-estate jewel perfect for a discerning morning ritual. To build a richer basket we'll feature ${supportProducts} as supporting products. These selections offer variety and cater to both the ritualistic black tea drinker and the health-conscious individual.\n\nOur audience craves moments of calm and intentionality. They're seeking authenticity and connection, a premium experience that integrates into their demanding lives. A truly authentic tea with a clear origin story tips them towards purchase.\n\nFor subject lines, test these: Your Morning Ritual, Elevated. | ${offerPct}% Off Premium Teas, Limited Time. | Freshness From The Himalayas Awaits.`;
 
         return res.status(200).json({
-          ok: true, mode, provider: 'heuristic', model: 'fallback-v1', text: heuristicBrief,
+          ok: true, mode, provider: 'heuristic', model: 'fallback-v1', text: brandScrub(heuristicBrief),
+          portable_prompt,
           _heuristic: true,
           _llm_error: String((result && result.detail) || 'All providers failed').substring(0, 200)
         });
@@ -929,33 +828,14 @@ Target market for this autofill: ${targetMarket}.`;
       return res.status(clientStatus).json({
         error: result ? result.error : 'no_provider',
         detail: result ? result.detail : 'All providers failed',
-        provider: result ? result.provider : provider,
-        model: result ? result.model : textModel,
+        provider: result ? result.provider : null,
+        model: result ? result.model : null,
         // Include retry_after so the frontend can show a countdown and auto-retry
         ...(is429 ? { retry_after: result.retry_after || 30, rate_limited: true } : {})
       });
     }
 
     const text = result.text || '';
-
-    // Portable master prompt(s): one self-contained block per asset the caller
-    // can paste into a blank ChatGPT/Claude/Gemini to reproduce/upgrade output.
-    let masterPromptFields = {};
-    try {
-      const mpProducts = selected_products.map((p) => ({ title: p.name || p.n, price: p.price, handle: p.handle || p.id, category: p.category }));
-      const mpBase = { market, brief: campaign_brief, products: mpProducts };
-      const sfc = String(body.surface || '').toLowerCase();
-      if (mode === 'autofill' && sfc.startsWith('lp')) {
-        masterPromptFields = { master_prompt: buildMasterPrompt({ ...mpBase, assetType: 'landing_page' }) };
-      } else if (mode === 'autofill') {
-        masterPromptFields = { master_prompt: buildMasterPrompt({ ...mpBase, assetType: 'ad', platform: sfc }) };
-      } else if (mode === 'create_brief' || mode === 'mailer_full' || mode === 'concepts') {
-        const v1 = buildMasterPrompt({ ...mpBase, assetType: 'mailer', variant: 'V1' });
-        const v2 = buildMasterPrompt({ ...mpBase, assetType: 'mailer', variant: 'V2' });
-        masterPromptFields = { master_prompt: v2, master_prompt_v1: v1, master_prompt_v2: v2 };
-      }
-    } catch (_) { /* master prompt is best-effort; never block generation */ }
-
     if (mode === 'concepts' || mode === 'mailer_full' || mode === 'suggested_prompts') {
       let parsed;
       // Robust JSON extraction: handles markdown fences, prose prefix/suffix (Gemini habit)
@@ -974,11 +854,61 @@ Target market for this autofill: ${targetMarket}.`;
       if (!parsed) {
         return res.status(502).json({ error: 'json_parse_failed', provider: result.provider, raw: text.substring(0, 600) });
       }
-      return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: parsed, ...masterPromptFields });
+
+      // ── Quality loop (mailer_full only, additive) ─────────────────────────
+      // Bounded critique→revise pass (score on 'fast'; one 'premium' revision
+      // if overall < 7; 25s hard time-box). Skip-on-error by design — the
+      // response shape only GAINS a `quality` field, it never fails or changes.
+      if (mode === 'mailer_full') {
+        let data = parsed;
+        let quality = null;
+        try {
+          const ql = require('../_shared/quality-loop.js');
+          const out = await ql.runQualityLoop({ spec: parsed, brief: userMessage, userGeminiKey });
+          data = out.spec || parsed;
+          quality = out.quality || null;
+        } catch (qe) {
+          console.warn('[generate] quality loop unavailable: ' + String(qe && qe.message || qe).slice(0, 120));
+        }
+        return res.status(200).json({
+          ok: true, mode, provider: result.provider, model: result.model, data: deepScrubDashes(data), portable_prompt,
+          ...(quality ? { quality } : {})
+        });
+      }
+
+      return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, data: deepScrubDashes(parsed), portable_prompt });
     }
-    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text, ...masterPromptFields });
+
+    // ── Autofill on an ad surface: also return the portable master_prompt and a
+    //    structured creative_spec the compositor can render. creative_spec lists
+    //    the EXACT static sizes the Creative Studio compositor composites, each carrying the
+    //    LLM-authored overlay copy (headline/sub) + the real P01 offer — so the
+    //    canvas stops hardcoding 'Shop now'. Non-ad surfaces are unaffected.
+    if (mode === 'autofill') {
+      const surf = String(body.surface || '').toLowerCase();
+      if (AD_FORMATS[surf]) {
+        let fields = {};
+        try { fields = JSON.parse(text); } catch (_) {
+          const a = text.indexOf('{'), b = text.lastIndexOf('}');
+          if (a !== -1 && b > a) { try { fields = JSON.parse(text.slice(a, b + 1)); } catch (_) {} }
+        }
+        fields = deepScrubDashes(fields);
+        const overlay = {
+          headline: fields.overlay_headline || '',
+          sub: fields.overlay_sub || '',
+          offer: fields.offer || '',
+        };
+        const creative_spec = AD_FORMATS[surf].map((f) => ({ size: f.size, format: f.format, ar: f.ar, overlay }));
+        const targetMarket = body.market || body.region || market || 'US';
+        const userPrompt = String(body.prompt || campaign_brief || '').trim().slice(0, 1600);
+        const master_prompt = buildMasterPrompt({ assetType: 'ad', platform: surf, market: targetMarket, brief: userPrompt });
+        return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: brandScrub(text), creative_spec, master_prompt, portable_prompt });
+      }
+    }
+
+    return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: brandScrub(text), portable_prompt });
 
   } catch (e) {
-    return res.status(500).json({ error: 'server_error', provider, detail: String(e && e.message || e).substring(0, 300) });
+    return res.status(500).json({ error: 'server_error', provider: 'cascade', detail: String(e && e.message || e).substring(0, 300) });
   }
 };

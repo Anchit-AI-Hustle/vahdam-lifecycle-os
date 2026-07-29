@@ -47,19 +47,19 @@
         display: inline-flex; align-items: center; justify-content: center;
         width: 26px; height: 26px; border-radius: 6px;
         background: rgba(20,40,34,0.85); border: 1px solid rgba(171,135,67,0.25);
-        color: #9aaaa1; cursor: pointer; transition: all .15s;
+        color: #556059; cursor: pointer; transition: all .15s;
         font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 0;
       }
       .ce-btn:hover { color: #FBF5EA; border-color: #AB8743; background: rgba(20,40,34,0.95); }
-      .ce-btn.active { background: #AB8743; color: #0a1410; border-color: #AB8743; }
+      .ce-btn.active { background: #AB8743; color: #ffffff; border-color: #AB8743; }
       .ce-btn svg { width: 13px; height: 13px; }
       [data-chart-host] { position: relative; }
       [data-chart-host][data-ce-mode="table"] > :not(.ce-tools):not(.ce-table) { display: none !important; }
 
       .ce-table { width: 100%; max-height: 280px; overflow: auto; font-size: 11.5px; }
       .ce-table table { width: 100%; border-collapse: collapse; }
-      .ce-table th { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: #5d6e64; font-weight: 500; padding: 8px 6px; border-bottom: 1px solid rgba(171,135,67,0.15); background: #0a1410; position: sticky; top: 0; }
-      .ce-table td { padding: 7px 6px; border-bottom: 1px solid rgba(171,135,67,0.05); color: #e8ede9; }
+      .ce-table th { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: #48524c; font-weight: 500; padding: 8px 6px; border-bottom: 1px solid rgba(171,135,67,0.15); background: #ffffff; position: sticky; top: 0; }
+      .ce-table td { padding: 7px 6px; border-bottom: 1px solid rgba(171,135,67,0.05); color: #171717; }
       .ce-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
       .ce-table tr:hover td { background: rgba(171,135,67,0.04); }
 
@@ -72,7 +72,7 @@
       }
       #ce-modal-backdrop.open { display: flex; }
       #ce-modal {
-        background: #0f1d18; border: 1px solid rgba(171,135,67,0.25);
+        background: #ffffff; border: 1px solid rgba(171,135,67,0.25);
         border-radius: 14px; box-shadow: 0 40px 100px rgba(0,0,0,0.7);
         width: 100%; max-width: 1200px; max-height: 92vh;
         display: flex; flex-direction: column; overflow: hidden;
@@ -98,7 +98,7 @@
         #ce-summary    { grid-row: 2 / 3; }
       }
       #ce-chart-zone {
-        background: #0a1410; border: 1px solid rgba(171,135,67,0.12);
+        background: #ffffff; border: 1px solid rgba(171,135,67,0.12);
         border-radius: 10px; padding: 14px; min-height: 380px;
       }
       #ce-chart-canvas { min-height: 350px; }
@@ -109,19 +109,19 @@
       }
       .ce-insight {
         padding: 12px 14px; border-radius: 8px;
-        background: #142822; border: 1px solid rgba(171,135,67,0.18);
+        background: #eef3f0; border: 1px solid rgba(171,135,67,0.18);
       }
       .ce-insight-title { font-size: 12.5px; font-weight: 600; color: #FBF5EA; margin: 0 0 4px; }
-      .ce-insight-body  { font-size: 12px; line-height: 1.55; color: #9aaaa1; margin: 0; }
+      .ce-insight-body  { font-size: 12px; line-height: 1.55; color: #556059; margin: 0; }
       #ce-summary {
         padding: 14px 16px; border-radius: 10px;
         background: rgba(171,135,67,0.06); border: 1px solid rgba(171,135,67,0.18);
-        font-size: 12.5px; line-height: 1.6; color: #e8ede9;
+        font-size: 12.5px; line-height: 1.6; color: #171717;
       }
       #ce-summary p { margin: 0; }
       .ce-modal-close {
         background: transparent; border: 1px solid rgba(171,135,67,0.25);
-        color: #9aaaa1; cursor: pointer; padding: 6px 10px; border-radius: 6px;
+        color: #556059; cursor: pointer; padding: 6px 10px; border-radius: 6px;
         font-family: inherit; font-size: 11px; text-transform: uppercase;
         letter-spacing: 0.06em; font-weight: 600;
       }
@@ -199,15 +199,15 @@
 
   function buildTableHtml(id) {
     const def = registry[id] || autoExtract(id);
-    if (!def?.getData) return '<div style="color:#5d6e64;padding:14px">No data registered for this chart.</div>';
+    if (!def?.getData) return '<div style="color:#48524c;padding:14px">No data registered for this chart.</div>';
     const { rows = [], columns = [] } = def.getData() || {};
-    if (!rows.length) return '<div style="color:#5d6e64;padding:14px">No rows yet.</div>';
+    if (!rows.length) return '<div style="color:#48524c;padding:14px">No rows yet.</div>';
     const head = columns.map((c) => `<th class="${c.num ? 'num' : ''}">${escapeHtml(c.label)}</th>`).join('');
     const body = rows.slice(0, 250).map((r) =>
       '<tr>' + columns.map((c) => `<td class="${c.num ? 'num' : ''}">${formatCell(r[c.key], c)}</td>`).join('') + '</tr>',
     ).join('');
     return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`
-      + (rows.length > 250 ? `<div style="padding:8px;color:#5d6e64;font-size:10px">+ ${rows.length - 250} more rows (export to see all)</div>` : '');
+      + (rows.length > 250 ? `<div style="padding:8px;color:#48524c;font-size:10px">+ ${rows.length - 250} more rows (export to see all)</div>` : '');
   }
 
   // ─── Auto-extract chart data from a global window.charts[key] ApexCharts instance ─
@@ -278,7 +278,7 @@
   }
 
   function formatCell(v, col) {
-    if (v == null || v === '') return '<span style="color:#5d6e64">—</span>';
+    if (v == null || v === '') return '<span style="color:#48524c">—</span>';
     if (col.url && typeof v === 'object' && v.label && v.url) {
       return `<a href="${escapeAttr(v.url)}" target="_blank" rel="noopener" style="color:#AB8743;text-decoration:underline">${escapeHtml(v.label)} ↗</a>`;
     }
@@ -356,7 +356,7 @@
         <h4 class="ce-insight-title">${escapeHtml(i.title)}</h4>
         <p class="ce-insight-body">${i.body}</p>
       </div>
-    `).join('') || '<div style="color:#5d6e64;font-size:12px">No insights yet — feed more data.</div>';
+    `).join('') || '<div style="color:#48524c;font-size:12px">No insights yet — feed more data.</div>';
 
     // Summary
     const summary = (def.getSummary && def.getSummary()) || autoSummaryFromData(def);
@@ -392,10 +392,10 @@
     if (modalChart) { try { modalChart.destroy(); } catch {} modalChart = null; }
     const cfg = def.getApexConfig ? def.getApexConfig() : null;
     if (!cfg) {
-      canvas.innerHTML = '<div style="color:#5d6e64;padding:20px;text-align:center">Chart preview not available for this view — switch to Table.</div>';
+      canvas.innerHTML = '<div style="color:#48524c;padding:20px;text-align:center">Chart preview not available for this view — switch to Table.</div>';
       return;
     }
-    cfg.chart = Object.assign({}, cfg.chart || {}, { height: 460, background: 'transparent', foreColor: '#9aaaa1', toolbar: { show: true, tools: { download: true, selection: false, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } } });
+    cfg.chart = Object.assign({}, cfg.chart || {}, { height: 460, background: 'transparent', foreColor: '#556059', toolbar: { show: true, tools: { download: true, selection: false, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } } });
     modalChart = new ApexCharts(canvas, cfg);
     modalChart.render();
   }

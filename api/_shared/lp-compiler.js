@@ -564,13 +564,30 @@ function compileHTML(theme, variant, baseOrigin) {
   ${baseOrigin ? `<base href="${baseOrigin}/" />` : ''}
   <title>VAHDAM India Ashwagandha Coffee - ${theme.name}</title>
   <style>
-    /* Premium Brand Colors & CSS Properties */
+    /* VAHDAM brand fonts (exact assets) */
+    @font-face {
+      font-family: "LAO MN";
+      src: url("https://cdn.nector.io/nector-static/fonts/LaoMN-01.ttf") format("truetype");
+    }
+    @font-face {
+      font-family: "Proxima Nova";
+      src: url("https://cdn-widgetsrepository.yotpo.com/brandkit/custom-fonts/nULz3c4cbjU7NEqLKreeoyIyIP4L5pnrZ53k1952/proximanova-regular/proximanova-regular.woff2") format("woff2");
+    }
+
+    /* VAHDAM Design System — tokens are the source of truth; the legacy
+       --color-* names alias them so existing markup inherits the correct palette. */
     :root {
-      --color-brand: #004B49;
-      --color-gold: #D4A373;
-      --color-cream: #FDFBF7;
-      --color-offset: #FBF5EA;
-      --color-charcoal: #222222;
+      --vahdam-green: #004A2B;
+      --vahdam-gold:  #AB8743;
+      --vahdam-ink:   #171717;
+      --vahdam-cream: #FBF5EA;
+      --font-head: "LAO MN", Georgia, "Times New Roman", serif;
+      --font-body: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
+      --color-brand: var(--vahdam-green);
+      --color-gold: var(--vahdam-gold);
+      --color-cream: var(--vahdam-cream);
+      --color-offset: var(--vahdam-cream);
+      --color-charcoal: var(--vahdam-ink);
       --color-white: #FFFFFF;
     }
 
@@ -581,7 +598,7 @@ function compileHTML(theme, variant, baseOrigin) {
     }
 
     body {
-      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      font-family: var(--font-body);
       background-color: var(--color-cream);
       color: var(--color-charcoal);
       line-height: 1.6;
@@ -651,13 +668,18 @@ function compileHTML(theme, variant, baseOrigin) {
     }
 
     .logo {
-      font-family: "Georgia", serif;
+      font-family: var(--font-head);
       font-weight: bold;
       font-size: 24px;
       letter-spacing: 0.1em;
       color: var(--color-brand);
       text-transform: uppercase;
       text-decoration: none;
+    }
+    .logo img {
+      height: 30px;
+      width: auto;
+      display: block;
     }
 
     /* Buttons with high touch target */
@@ -709,18 +731,19 @@ function compileHTML(theme, variant, baseOrigin) {
 
     /* Responsive Typography Customizations */
     .font-serif {
-      font-family: "Playfair Display", Georgia, serif;
+      font-family: var(--font-head);
     }
 
     .font-sans {
-      font-family: "Inter", system-ui, sans-serif;
+      font-family: var(--font-body);
     }
 
     .font-mono {
-      font-family: "Fira Code", "JetBrains Mono", monospace;
+      font-family: var(--font-body);
     }
 
-    h1, h2, h3 {
+    h1, h2, h3, h4, .heading, .title {
+      font-family: var(--font-head);
       font-weight: 600;
       line-height: 1.25;
       color: var(--color-brand);
@@ -773,7 +796,7 @@ function compileHTML(theme, variant, baseOrigin) {
   <!-- Premium Main Header Section -->
   <header>
     <div class="container logo-container">
-      <a href="#" class="logo">VAHDAM</a>
+      <a href="#" class="logo"><img src="https://www.vahdam.co.uk/cdn/shop/files/logo-website_3.png?v=1756808809&width=310" alt="VAHDAM India" /></a>
     </div>
   </header>
 
@@ -879,10 +902,10 @@ function compileHTML(theme, variant, baseOrigin) {
   <footer style="background-color: var(--color-brand); color: var(--color-cream); padding: 3rem 0; text-align: center;">
     <div class="container container-sm">
       <h3 class="font-serif text-lg text-gold uppercase tracking-widest mb-4">VAHDAM India</h3>
-      <p class="text-xs text-gray-300 leading-relaxed max-w-md mx-auto" style="opacity: 0.8;">
+      <p class="text-xs leading-relaxed max-w-md mx-auto" style="color: var(--color-cream); opacity: 0.85;">
         Distributing standard high quality organic products directly from source holdings to UK homes since 2015. Over 2 million customers served globally. Dedicated support: support@vahdam.co.uk
       </p>
-      <p class="text-xs text-gray-400 mt-6 font-mono" style="opacity: 0.6;">&copy; 2026 Vahdam India. All Rights Reserved.</p>
+      <p class="text-xs mt-6" style="color: var(--color-cream); font-family: var(--font-body); opacity: 0.7;">&copy; 2026 Vahdam India. All Rights Reserved.</p>
     </div>
   </footer>
 

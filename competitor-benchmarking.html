@@ -9,11 +9,11 @@
   <meta name="theme-color" content="#004A2B">
   <meta name="apple-mobile-web-app-title" content="Lifecycle OS">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <script src="/auth.js?v=20260617" defer></script>
+  <script src="/auth.js?v=20260718light" defer></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, sans-serif; background: #0a1410; color: #e8ede9; min-height: 100vh; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #ffffff; color: #171717; min-height: 100vh; }
     .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 32px 60px; }
     @media (max-width: 620px) { .wrap { padding: 20px 16px 50px; } }
 
@@ -21,71 +21,71 @@
     .eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; }
     h1 { font-family: 'Lora', serif; font-size: 30px; font-weight: 600; letter-spacing: -0.01em; }
     h1 em { font-style: italic; color: #AB8743; }
-    .sub { color: #9aaaa1; font-size: 13.5px; margin-top: 6px; }
+    .sub { color: #556059; font-size: 13.5px; margin-top: 6px; }
 
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 22px 0; }
     @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
-    .stat { background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px 18px; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .stat { background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px 18px; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     .stat:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(171,135,67,0.12); border-color: rgba(171,135,67,0.4); }
-    .stat .v { font-family: 'Lora', serif; font-size: 26px; font-weight: 600; color: #FBF5EA; }
-    .stat .l { font-size: 11px; color: #9aaaa1; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+    .stat .v { font-family: 'Lora', serif; font-size: 26px; font-weight: 600; color: #171717; }
+    .stat .l { font-size: 11px; color: #556059; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
 
     .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
     .search { position: relative; flex: 1; min-width: 220px; max-width: 420px; }
-    .search input { width: 100%; background: #0a1410; border: 1px solid rgba(171,135,67,0.2); border-radius: 9px; color: #e8ede9; padding: 9px 11px 9px 34px; font-size: 13px; font-family: inherit; }
+    .search input { width: 100%; background: #ffffff; border: 1px solid rgba(171,135,67,0.2); border-radius: 9px; color: #171717; padding: 9px 11px 9px 34px; font-size: 13px; font-family: inherit; }
     .search input:focus { outline: none; border-color: #AB8743; }
-    .search svg { position: absolute; left: 10px; top: 9px; width: 16px; height: 16px; color: #5d6e64; }
+    .search svg { position: absolute; left: 10px; top: 9px; width: 16px; height: 16px; color: #48524c; }
     .toolbar { row-gap: 14px; column-gap: 18px; }
     .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
     .filters .live { margin-left: 4px; padding-left: 14px; border-left: 1px solid rgba(171,135,67,0.18); }
-    select, .chk { background: #0a1410; border: 1px solid rgba(171,135,67,0.2); border-radius: 9px; color: #e8ede9; padding: 8px 11px; font-size: 12.5px; font-family: inherit; }
-    .chk { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #cdd8d2; }
+    select, .chk { background: #ffffff; border: 1px solid rgba(171,135,67,0.2); border-radius: 9px; color: #171717; padding: 8px 11px; font-size: 12.5px; font-family: inherit; }
+    .chk { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #556059; }
     .chk input { accent-color: #AB8743; }
-    .btn-ghost { background: transparent; border: 1px solid rgba(171,135,67,0.3); color: #cdd8d2; border-radius: 9px; padding: 8px 11px; cursor: pointer; font-family: inherit; }
-    .btn-ghost:hover { border-color: #AB8743; color: #FBF5EA; }
+    .btn-ghost { background: transparent; border: 1px solid rgba(171,135,67,0.3); color: #556059; border-radius: 9px; padding: 8px 11px; cursor: pointer; font-family: inherit; }
+    .btn-ghost:hover { border-color: #AB8743; color: #171717; }
     .live { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #16a34a; font-weight: 600; }
-    .live.stale { color: #5d6e64; }
+    .live.stale { color: #48524c; }
     .live .pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: lp 1.8s ease-in-out infinite; }
     @keyframes lp { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-    .table-wrap { background: rgba(15, 29, 24, 0.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+    .table-wrap { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
     table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13px; }
-    thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #5d6e64; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #0c1813; }
+    thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #48524c; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #eef3f0; }
     thead th.sortable { cursor: pointer; }
-    thead th.sortable:hover { color: #cdd8d2; }
+    thead th.sortable:hover { color: #171717; }
     tbody td { padding: 12px 14px; border-bottom: 1px solid rgba(171,135,67,0.08); vertical-align: middle; }
     tbody tr:hover { background: rgba(171,135,67,0.05); }
-    .brand { font-weight: 600; color: #FBF5EA; }
-    .subj { color: #9aaaa1; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .brand { font-weight: 600; color: #171717; }
+    .subj { color: #556059; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Touch-friendly tap targets on mobile + swipe hint that there's more table to the right. */
     @media (max-width: 620px) {
       .table-wrap { position: relative; }
       .table-wrap::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 24px;
-        background: linear-gradient(to right, transparent, #0f1d18); pointer-events: none; border-radius: 0 14px 14px 0; }
+        background: linear-gradient(to right, transparent, #ffffff); pointer-events: none; border-radius: 0 14px 14px 0; }
       .subj { max-width: 200px; }
       tbody td, thead th { padding: 10px 11px; }
       .a-btn { padding: 8px 10px; font-size: 12px; }
     }
-    .date { color: #5d6e64; white-space: nowrap; font-size: 12px; }
-    .code { display: inline-block; background: rgba(34,197,94,0.14); color: #86efac; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 2px 7px; border-radius: 99px; margin: 1px; }
-    .files { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #cdd8d2; background: rgba(171,135,67,0.12); padding: 2px 8px; border-radius: 99px; }
+    .date { color: #48524c; white-space: nowrap; font-size: 12px; }
+    .code { display: inline-block; background: rgba(34,197,94,0.14); color: #0a7d33; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 2px 7px; border-radius: 99px; margin: 1px; }
+    .files { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #556059; background: rgba(171,135,67,0.12); padding: 2px 8px; border-radius: 99px; }
     .muted { color: #3f4d45; }
     .actions { display: flex; gap: 6px; justify-content: flex-end; }
     .a-btn { font-size: 11.5px; font-weight: 600; padding: 6px 10px; border-radius: 7px; cursor: pointer; border: 1px solid transparent; font-family: inherit; text-decoration: none; }
-    .a-prev { background: transparent; border-color: rgba(171,135,67,0.3); color: #cdd8d2; }
-    .a-prev:hover { border-color: #AB8743; color: #FBF5EA; }
-    .a-detail { background: #AB8743; color: #0a1410; }
+    .a-prev { background: transparent; border-color: rgba(171,135,67,0.3); color: #556059; }
+    .a-prev:hover { border-color: #AB8743; color: #171717; }
+    .a-detail { background: #AB8743; color: #ffffff; }
     .a-detail:hover { opacity: 0.92; }
-    .empty { padding: 40px; text-align: center; color: #5d6e64; }
-    .count { margin-top: 12px; font-size: 11.5px; color: #5d6e64; }
+    .empty { padding: 40px; text-align: center; color: #48524c; }
+    .count { margin-top: 12px; font-size: 11.5px; color: #48524c; }
 
     /* ── Detail / Preview shared content ── */
     .d-meta { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-bottom: 16px; }
-    .d-meta div { font-size: 12.5px; color: #cdd8d2; }
-    .d-meta .k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #5d6e64; display: block; }
+    .d-meta div { font-size: 12.5px; color: #556059; }
+    .d-meta .k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #48524c; display: block; }
     .d-section { margin-bottom: 18px; }
     .d-section .sh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .d-section .sh h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #5d6e64; font-weight: 600; }
+    .d-section .sh h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #48524c; font-weight: 600; }
     .d-section .sh .ops { display: flex; gap: 6px; }
     /* Email HTML is usually authored at 600–640px. On narrow screens we let
        the user pinch + horizontally swipe inside the rendered frame rather
@@ -97,24 +97,43 @@
     @media (max-width: 620px) {
       .frame-wrap iframe { min-width: 100%; }
     }
-    .ph { padding: 30px; text-align: center; color: #5d6e64; font-size: 12.5px; background: #0c1813; border: 1px dashed rgba(171,135,67,0.2); border-radius: 10px; }
-    pre.body { max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; background: #0c1813; border: 1px solid rgba(171,135,67,0.14); border-radius: 10px; padding: 14px; font-family: inherit; font-size: 12.5px; line-height: 1.6; color: #cdd8d2; }
+    .ph { padding: 30px; text-align: center; color: #48524c; font-size: 12.5px; background: #eef3f0; border: 1px dashed rgba(171,135,67,0.2); border-radius: 10px; }
+    pre.body { max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; background: #eef3f0; border: 1px solid rgba(171,135,67,0.14); border-radius: 10px; padding: 14px; font-family: inherit; font-size: 12.5px; line-height: 1.6; color: #171717; }
 
     /* ── Preview modal ── */
     #pm, #jm, #fcm { position: fixed; inset: 0; z-index: 9500; display: none; }
     #pm.open, #jm.open, #fcm.open { display: block; }
     #pm .bk, #jm .bk, #fcm .bk { position: absolute; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(6px); }
-    #pm .mc, #jm .mc, #fcm .mc { position: absolute; inset: 4vh 4vw; background: #0b1813; border: 1px solid rgba(171,135,67,0.3); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+    #pm .mc, #jm .mc, #fcm .mc { position: absolute; inset: 4vh 4vw; background: #f4f2ec; border: 1px solid rgba(171,135,67,0.3); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
     #jm .mc, #fcm .mc { inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 480px; height: auto; max-height: 90vh; }
-    #pm .mh, #jm .mh, #fcm .mh { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #0a1410; }
+    #pm .mh, #jm .mh, #fcm .mh { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #ffffff; }
     #pm .mh .badge, #jm .mh .badge, #fcm .mh .badge { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #AB8743; border: 1px solid rgba(171,135,67,0.3); padding: 3px 8px; border-radius: 99px; }
-    #pm .mh .t, #jm .mh .t, #fcm .mh .t { font-family: 'Lora', serif; font-size: 16px; color: #FBF5EA; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #pm .mh .t, #jm .mh .t, #fcm .mh .t { font-family: 'Lora', serif; font-size: 16px; color: #171717; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #pm .mh .sp, #jm .mh .sp, #fcm .mh .sp { flex: 1; }
     #pm .mb, #jm .mb, #fcm .mb { flex: 1; overflow-y: auto; padding: 18px; }
     .form-grp { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-    .form-grp label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #5d6e64; font-weight: 600; }
-    .form-grp input, .form-grp select { background: #0a1410; border: 1px solid rgba(171,135,67,0.2); border-radius: 8px; color: #e8ede9; padding: 10px 12px; font-size: 13px; font-family: inherit; width: 100%; }
+    .form-grp label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #48524c; font-weight: 600; }
+    .form-grp input, .form-grp select { background: #ffffff; border: 1px solid rgba(171,135,67,0.2); border-radius: 8px; color: #171717; padding: 10px 12px; font-size: 13px; font-family: inherit; width: 100%; }
     .form-grp input:focus, .form-grp select:focus { outline: none; border-color: #AB8743; }
+    /* Brand-detail modal — mirrors the #pm preview modal chrome. */
+    #bm { position: fixed; inset: 0; z-index: 9500; display: none; }
+    #bm.open { display: block; }
+    #bm .bk { position: absolute; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(6px); }
+    #bm .mc { position: absolute; inset: 4vh 4vw; background: #f4f2ec; border: 1px solid rgba(171,135,67,0.3); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+    #bm .mh { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(171,135,67,0.18); background: #ffffff; }
+    #bm .mh .badge { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #AB8743; border: 1px solid rgba(171,135,67,0.3); padding: 3px 8px; border-radius: 99px; }
+    #bm .mh .t { font-family: 'Lora', serif; font-size: 16px; color: #171717; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #bm .mh .sp { flex: 1; }
+    #bm .mb { flex: 1; overflow-y: auto; padding: 18px; }
+    /* Landing sub-tabs, groups, and follow chips */
+    .lp-subtab.active { background: #004A2B; color: #FBF5EA; border-color: #004A2B; }
+    .lp-group { margin-top: 20px; }
+    .lp-group-h { font-family: 'Lora', serif; color: #004A2B; font-size: 17px; margin: 0 0 10px; }
+    .follow-wrap { display: inline-flex; gap: 6px; }
+    .follow-chip { font: inherit; font-size: 11px; font-weight: 700; border: 1px solid rgba(171,135,67,0.4); background: #fff; color: #7a5f28; border-radius: 99px; padding: 3px 9px; cursor: pointer; }
+    .follow-chip.on { background: #004A2B; color: #FBF5EA; border-color: #004A2B; }
+    .follow-chip:disabled { opacity: 0.5; cursor: default; }
+    .brand-link { cursor: pointer; }
     /* On a phone, use the entire screen so the email render gets every pixel. */
     @media (max-width: 620px) {
       #pm .mc { inset: 0; border-radius: 0; border: none; }
@@ -126,43 +145,43 @@
       .pm-close { width: 32px; height: 32px; }
     }
     .pm-act { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; text-decoration: none; cursor: pointer; border: none; font-family: inherit; }
-    .pm-detail { background: #AB8743; color: #0a1410; }
-    .pm-close { background: transparent; border: 1px solid rgba(171,135,67,0.3); color: #cdd8d2; width: 34px; height: 34px; border-radius: 8px; font-size: 18px; }
+    .pm-detail { background: #AB8743; color: #ffffff; }
+    .pm-close { background: transparent; border: 1px solid rgba(171,135,67,0.3); color: #556059; width: 34px; height: 34px; border-radius: 8px; font-size: 18px; }
 
     /* ── Section sub-nav (Mailers | Ads) + header CTAs ── */
     .cb-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px 20px; margin-top: 22px; }
-    .subnav { display: inline-flex; gap: 4px; padding: 4px; background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
-    .snav { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; color: #9aaaa1; background: transparent; border: none; cursor: pointer; font-family: inherit; transition: all .14s; }
-    .snav:hover { color: #e8ede9; }
-    .snav.active { color: #FBF5EA; background: rgba(171,135,67,0.16); }
+    .subnav { display: inline-flex; gap: 4px; padding: 4px; background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .snav { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; color: #556059; background: transparent; border: none; cursor: pointer; font-family: inherit; transition: all .14s; }
+    .snav:hover { color: #171717; }
+    .snav.active { color: #171717; background: rgba(171,135,67,0.16); }
     .cb-cta-group { display: flex; flex-wrap: wrap; gap: 10px; }
     .cb-cta { padding: 9px 18px; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; border: 1px solid transparent; transition: all .14s; white-space: nowrap; }
     .cb-cta-ghost { background: transparent; border-color: rgba(171,135,67,0.3); color: #AB8743; }
-    .cb-cta-ghost:hover { border-color: #AB8743; color: #FBF5EA; }
-    .cb-cta-solid { background: #AB8743; color: #0a1410; }
+    .cb-cta-ghost:hover { border-color: #AB8743; color: #7a5f28; }
+    .cb-cta-solid { background: #AB8743; color: #ffffff; }
     .cb-cta-solid:hover { opacity: 0.92; }
     @media (max-width: 620px) { .cb-actions { gap: 12px; } .cb-cta-group { width: 100%; } .cb-cta { flex: 1; text-align: center; } }
 
     /* ── Ads view ── */
     #ads-view { display: none; margin-top: 22px; }
-    .ads-note { background: rgba(171,135,67,0.06); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: #cdd8d2; line-height: 1.55; margin-bottom: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .ads-note { background: rgba(171,135,67,0.06); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: #556059; line-height: 1.55; margin-bottom: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .ad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-    .ad-card { background: rgba(15, 29, 24, 0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px; position: relative; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .ad-card { background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(171,135,67,0.18); border-radius: 12px; padding: 16px; position: relative; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
     .ad-card:hover { transform: translateY(-4px); border-color: rgba(171,135,67,0.45); box-shadow: 0 12px 32px rgba(171,135,67,0.15); }
-    .ad-card h4 { font-family: 'Lora', serif; font-size: 16px; font-weight: 600; color: #FBF5EA; margin-bottom: 12px; }
-    .ad-card .ad-x { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #5d6e64; cursor: pointer; font-size: 15px; }
+    .ad-card h4 { font-family: 'Lora', serif; font-size: 16px; font-weight: 600; color: #171717; margin-bottom: 12px; }
+    .ad-card .ad-x { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #48524c; cursor: pointer; font-size: 15px; }
     .ad-card .ad-x:hover { color: #ef4444; }
-    .ad-src { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(171,135,67,0.2); color: #cdd8d2; text-decoration: none; font-size: 12.5px; margin-bottom: 7px; transition: all .14s; }
-    .ad-src:hover { border-color: #AB8743; color: #FBF5EA; background: rgba(171,135,67,0.06); }
+    .ad-src { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(171,135,67,0.2); color: #556059; text-decoration: none; font-size: 12.5px; margin-bottom: 7px; transition: all .14s; }
+    .ad-src:hover { border-color: #AB8743; color: #171717; background: rgba(171,135,67,0.06); }
     .ad-src .src-ic { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
     .src-meta { background: rgba(59,130,246,0.2); color: #93c5fd; }
     .src-google { background: rgba(234,179,8,0.18); color: #fde047; }
     .src-tiktok { background: rgba(236,72,153,0.18); color: #f9a8d4; }
     .ad-thumbs { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-bottom:8px; }
-    .ad-thumb { display:block; border:1px solid rgba(171,135,67,0.18); border-radius:8px; overflow:hidden; text-decoration:none; background:#0a1410; }
-    .ad-thumb img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:#0a1410; }
-    .ad-thumb .ad-cap { font-size:10.5px; color:#9aaaa1; padding:5px 7px; line-height:1.35; }
-    .ad-loading { font-size:12px; color:#9aaaa1; }
+    .ad-thumb { display:block; border:1px solid rgba(171,135,67,0.18); border-radius:8px; overflow:hidden; text-decoration:none; background:#ffffff; }
+    .ad-thumb img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:#ffffff; }
+    .ad-thumb .ad-cap { font-size:10.5px; color:#556059; padding:5px 7px; line-height:1.35; }
+    .ad-loading { font-size:12px; color:#556059; }
 
     /* ── Full detail view (?id=) ── */
     #detail { display: none; }
@@ -252,7 +271,7 @@
     </div>
     <div id="dv-shot"></div>
     <div class="d-section">
-      <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#5d6e64;font-weight:600;margin-bottom:8px">Body (plain text)</h4>
+      <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#48524c;font-weight:600;margin-bottom:8px">Body (plain text)</h4>
       <pre class="body" id="dv-body"></pre>
     </div>
     <div class="d-section" id="dv-assets"></div>
@@ -266,7 +285,7 @@
 
     <div class="toolbar">
       <div class="filters">
-        <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#5d6e64;font-weight:600">Region</span>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#48524c;font-weight:600">Region</span>
         <select id="adRegion">
           <option value="US">United States</option>
           <option value="GB">United Kingdom</option>
@@ -300,22 +319,22 @@
 
   <!-- Two clearly-labelled action cards explaining exactly what each button does -->
   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:16px">
-    <div style="background:#0f1d18; border:1px solid rgba(171,135,67,0.18); border-radius:12px; padding:14px 16px">
-      <div style="font-weight:700; color:#FBF5EA; font-size:14px; margin-bottom:4px">✨ Find &amp; add new brands with AI</div>
-      <div style="color:#9aaaa1; font-size:12px; line-height:1.5; margin-bottom:10px">
+    <div style="background:#ffffff; border:1px solid rgba(171,135,67,0.18); border-radius:12px; padding:14px 16px">
+      <div style="font-weight:700; color:#171717; font-size:14px; margin-bottom:4px">✨ Find &amp; add new brands with AI</div>
+      <div style="color:#556059; font-size:12px; line-height:1.5; margin-bottom:10px">
         Runs an AI research pass to find DTC wellness brands you don't already track (excludes VAHDAM + brands already in your universe). Adds them to the list with category, country, positioning, signup URL. ~20 seconds per run.
       </div>
       <button id="bd-discover" class="cb-cta cb-cta-solid" style="width:100%">✨ Find &amp; add new brands</button>
     </div>
-    <div style="background:#0f1d18; border:1px solid rgba(171,135,67,0.18); border-radius:12px; padding:14px 16px">
-      <div style="font-weight:700; color:#FBF5EA; font-size:14px; margin-bottom:4px">⬇ Seed 60 known DTC brands</div>
-      <div style="color:#9aaaa1; font-size:12px; line-height:1.5; margin-bottom:10px">
-        One-click bulk-add of the 60 priority brands across Tea, Coffee &amp; Supplements (US + UK Top 10 each). Skips any that are already in the list. Run once when starting.
+    <div style="background:#ffffff; border:1px solid rgba(171,135,67,0.18); border-radius:12px; padding:14px 16px">
+      <div style="font-weight:700; color:#171717; font-size:14px; margin-bottom:4px">⬇ Seed the priority DTC brand list</div>
+      <div style="color:#556059; font-size:12px; line-height:1.5; margin-bottom:10px">
+        One-click bulk-add of the curated priority brands across Tea, Coffee &amp; Supplements (US + UK). Skips any already in your universe — so it's safe to re-run. Best run once when starting.
       </div>
-      <button id="bd-seed" class="cb-cta cb-cta-ghost" style="width:100%">⬇ Add 60 priority brands</button>
+      <button id="bd-seed" class="cb-cta cb-cta-ghost" style="width:100%">⬇ Add priority brands</button>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:#9aaaa1">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:#556059">
     <span id="bd-status"></span>
     <span class="sp" style="flex:1"></span>
     <button id="bd-refresh" class="cb-cta cb-cta-ghost" style="padding:4px 12px; font-size:11px" title="Reload the brand universe from the database">↻ Refresh list</button>
@@ -323,42 +342,50 @@
   </div>
 
   <!-- Column legend so the Newsletter / Subscription columns are self-explanatory -->
-  <div style="background:rgba(171,135,67,0.04); border:1px solid rgba(171,135,67,0.15); border-radius:10px; padding:10px 14px; margin-bottom:10px; font-size:12px; color:#cdd8d2; line-height:1.6">
+  <div style="background:rgba(171,135,67,0.04); border:1px solid rgba(171,135,67,0.15); border-radius:10px; padding:10px 14px; margin-bottom:10px; font-size:12px; color:#556059; line-height:1.6">
     <b style="color:#AB8743">Column key:</b>
     <span style="margin:0 14px 0 6px"><b>Newsletter</b> — direct signup link for this brand's mailing list (opens in new tab).</span>
-    <span style="margin-right:14px"><b>Subscription</b> — whether <i>your</i> capture inbox is subscribed to this brand. Click <b>Subscribe</b> to add it to the capture pipeline once newsletter sign-up automation lands.</span>
+    <span style="margin-right:14px"><b>Follow (real-time)</b> — toggle <b>Mailers</b> and/or <b>Ads</b> to get a real-time email to your logged-in address for every new mailer or ad captured for that brand. <b>Newsletter</b> is a direct signup link for the brand's own list (opens a new tab).</span>
   </div>
 
   <div style="overflow-x:auto;border:1px solid rgba(171,135,67,0.18);border-radius:12px">
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead>
-        <tr style="text-align:left;color:#5d6e64;text-transform:uppercase;font-size:10px;letter-spacing:.08em">
+        <tr style="text-align:left;color:#48524c;text-transform:uppercase;font-size:10px;letter-spacing:.08em">
           <th style="padding:10px 12px">Brand</th><th style="padding:10px 12px">Category</th>
           <th style="padding:10px 12px">Country</th><th style="padding:10px 12px">Positioning</th>
-          <th style="padding:10px 12px">Newsletter</th><th style="padding:10px 12px">Capture status</th>
+          <th style="padding:10px 12px">Newsletter</th><th style="padding:10px 12px">Follow (real-time)</th>
         </tr>
       </thead>
       <tbody id="bd-rows"></tbody>
     </table>
   </div>
-  <div id="bd-empty" class="empty" style="display:none">No brands tracked yet. Click <b>⬇ Add 60 priority brands</b> for the curated list, or <b>✨ Find &amp; add new brands</b> to let AI discover fresh ones.</div>
+  <div id="bd-empty" class="empty" style="display:none">No brands tracked yet. Click <b>⬇ Add priority brands</b> for the curated list, or <b>✨ Find &amp; add new brands</b> to let AI discover fresh ones.</div>
 </div>
 
 <!-- ════ LANDING PAGES VIEW ════ -->
 <div id="landing-view" style="display:none">
   <div class="ads-note">
-    Open any tracked competitor's <b>live landing &amp; product pages</b> to benchmark structure, offers, and CRO patterns. Deep-links go straight to each brand's site — automated capture (storing snapshots like we do for mailers) is on the roadmap.
+    Two distinct things: <b>Website</b> = each brand's homepage / storefront. <b>Landing Pages</b> = the actual destination pages behind their ads and mailers (Meta / Google / TikTok / email), shown with the driving asset. Landing pages populate as ads and mailers are captured; nothing is ever fabricated.
   </div>
   <div class="toolbar">
+    <div class="filters" id="lp-subtabs">
+      <button class="btn-ghost lp-subtab active" data-lp="website">🏠 Website (homepages)</button>
+      <button class="btn-ghost lp-subtab" data-lp="landing">🎯 Landing Pages (from ads &amp; mailers)</button>
+    </div>
     <div class="filters">
       <a class="btn-ghost" href="#discover" style="text-decoration:none">＋ Manage brands in Discover →</a>
       <a class="btn-ghost" href="https://pagedeck.com/" target="_blank" rel="noopener" title="Search PageDeck for landing pages">PageDeck ↗</a>
       <a class="btn-ghost" href="https://land-book.com/" target="_blank" rel="noopener" title="Search Land-book">Land-book ↗</a>
-      <a class="btn-ghost" href="https://lapaninja.com/" target="_blank" rel="noopener" title="Search Lapa Ninja">Lapa Ninja ↗</a>
     </div>
   </div>
-  <div id="lpBrands" class="ad-grid"></div>
-  <p class="count" style="margin-top:14px">Landing pages resolve from each brand's known domain — all brands sync from your <b>Discover Brands</b> universe.</p>
+  <!-- WEBSITE sub-view (homepages) -->
+  <div id="lp-website">
+    <div id="lpBrands" class="ad-grid"></div>
+    <p class="count" style="margin-top:14px">Homepages resolve from each brand's known domain — all brands sync from your <b>Discover Brands</b> universe.</p>
+  </div>
+  <!-- LANDING PAGES sub-view (real destinations behind ads/mailers) -->
+  <div id="lp-landing" style="display:none"></div>
 </div>
 
 <!-- ════ INSIGHTS VIEW ════ -->
@@ -370,15 +397,15 @@
   
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px;">
     <!-- Active Brands -->
-    <div style="background:#0f1d18;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
-      <div style="font-weight:700;color:#FBF5EA;font-size:14px;margin-bottom:10px">Most active brands (by captured mailers)</div>
-      <div id="cb-insights-top" style="font-size:13px;color:#cdd8d2"></div>
+    <div style="background:#ffffff;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
+      <div style="font-weight:700;color:#171717;font-size:14px;margin-bottom:10px">Most active brands (by captured mailers)</div>
+      <div id="cb-insights-top" style="font-size:13px;color:#556059"></div>
     </div>
     
     <!-- Trending Offers -->
-    <div style="background:#0f1d18;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
-      <div style="font-weight:700;color:#FBF5EA;font-size:14px;margin-bottom:10px">Trending Promotions</div>
-      <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: #cdd8d2; line-height: 1.8;">
+    <div style="background:#ffffff;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
+      <div style="font-weight:700;color:#171717;font-size:14px;margin-bottom:10px">Trending Promotions</div>
+      <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: #556059; line-height: 1.8;">
         <li><span style="color:#AB8743; font-weight: 600;">Bundling (BOGO)</span> is up <b>18%</b> MoM across Tea &amp; Coffee brands.</li>
         <li><span style="color:#AB8743; font-weight: 600;">Free Shipping thresholds</span> lowered by an average of $5 in the last 14 days among top competitors.</li>
         <li><span style="color:#AB8743; font-weight: 600;">Early VIP Access</span> is the most used subject-line hook for new product drops.</li>
@@ -388,18 +415,18 @@
 
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
     <!-- PageDeck Insights -->
-    <div style="background:#0f1d18;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
-      <div style="font-weight:700;color:#FBF5EA;font-size:14px;margin-bottom:10px">PageDeck: Landing Page Trends</div>
-      <div style="font-size: 13px; color: #9aaaa1;">
+    <div style="background:#ffffff;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
+      <div style="font-weight:700;color:#171717;font-size:14px;margin-bottom:10px">PageDeck: Landing Page Trends</div>
+      <div style="font-size: 13px; color: #556059;">
         <p>Recent data indicates a <b>14% lift</b> in CVR when placing the "Us vs Them" comparison table above the fold on mobile.</p>
         <p style="margin-top: 8px;"><b>Format Trend:</b> "Listicle" style advertorials are dominating Meta traffic.</p>
       </div>
     </div>
 
     <!-- Discover Insights -->
-    <div style="background:#0f1d18;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
-      <div style="font-weight:700;color:#FBF5EA;font-size:14px;margin-bottom:10px">Discover: Emerging Mechanics</div>
-      <div style="font-size: 13px; color: #9aaaa1;">
+    <div style="background:#ffffff;border:1px solid rgba(171,135,67,0.18);border-radius:12px;padding:16px 18px">
+      <div style="font-weight:700;color:#171717;font-size:14px;margin-bottom:10px">Discover: Emerging Mechanics</div>
+      <div style="font-size: 13px; color: #556059;">
         <p>• <b>Micro-animations</b> on Add-to-Cart buttons increase engagement by 4.2%.</p>
         <p>• <b>Interactive pricing sliders</b> for subscription tiers.</p>
         <p>• <b>Video-first hero sections</b> specifically shot natively on iPhone for TikTok traffic.</p>
@@ -452,13 +479,13 @@
     </div>
     <div class="mb" style="display:flex; flex-direction: column; gap: 20px;">
       <div class="d-section" style="background: rgba(171,135,67,0.05); padding: 16px; border-radius: 12px; border: 1px solid rgba(171,135,67,0.2);">
-        <h4 style="color:#FBF5EA; margin-bottom: 8px;">1. Subscribe to Asset Brands</h4>
-        <p style="font-size: 13px; color: #9aaaa1; margin-bottom: 14px;">Automatically subscribe to competitor email lists to capture their assets and marketing sequences.</p>
-        <button class="pm-act" style="background: transparent; border: 1px solid rgba(171,135,67,0.5); color: #cdd8d2; width: 100%; justify-content: center;" onclick="alert('Subscribing...');">Explore more Competitors</button>
+        <h4 style="color:#171717; margin-bottom: 8px;">1. Subscribe to Asset Brands</h4>
+        <p style="font-size: 13px; color: #556059; margin-bottom: 14px;">Automatically subscribe to competitor email lists to capture their assets and marketing sequences.</p>
+        <button class="pm-act" style="background: transparent; border: 1px solid rgba(171,135,67,0.5); color: #556059; width: 100%; justify-content: center;" onclick="alert('Subscribing...');">Explore more Competitors</button>
       </div>
       <div class="d-section" style="background: rgba(171,135,67,0.05); padding: 16px; border-radius: 12px; border: 1px solid rgba(171,135,67,0.2);">
-        <h4 style="color:#FBF5EA; margin-bottom: 8px;">2. Simulate Customer Actions</h4>
-        <p style="font-size: 13px; color: #9aaaa1; margin-bottom: 14px;">Visit, add/remove products from cart, and perform actions for real-time segmentation to capture conditional campaigns.</p>
+        <h4 style="color:#171717; margin-bottom: 8px;">2. Simulate Customer Actions</h4>
+        <p style="font-size: 13px; color: #556059; margin-bottom: 14px;">Visit, add/remove products from cart, and perform actions for real-time segmentation to capture conditional campaigns.</p>
         <button class="pm-act pm-detail" style="width: 100%; justify-content: center;" onclick="alert('Starting journey simulation...');">Become a part of their journey</button>
       </div>
     </div>
@@ -477,6 +504,21 @@
       <button class="pm-act pm-close" data-close aria-label="Close">×</button>
     </div>
     <div class="mb" id="pm-body"></div>
+  </div>
+</div>
+
+<!-- ════ BRAND DETAIL MODAL — all assets of one brand ════ -->
+<div id="bm" aria-hidden="true">
+  <div class="bk" data-bclose></div>
+  <div class="mc" role="dialog" aria-modal="true">
+    <div class="mh">
+      <span class="badge">Brand</span>
+      <span class="t" id="bm-title"></span>
+      <span class="sp"></span>
+      <a class="pm-act" id="bm-site" href="#" target="_blank" rel="noopener" style="display:none">Website ↗</a>
+      <button class="pm-act pm-close" data-bclose aria-label="Close">×</button>
+    </div>
+    <div class="mb" id="bm-body"></div>
   </div>
 </div>
 
@@ -604,7 +646,7 @@
       ['Promo', codes.length ? codes.map((c) => `<span class="code">${esc(c)}</span>`).join('') : '<span class="muted">None</span>']]
       .map(([k, v]) => `<div><span class="k">${k}</span>${v}</div>`).join('');
     const assets = (att.length || inl.length)
-      ? `${att.length ? `<h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#5d6e64;margin-bottom:6px">📎 Attachments</h4><div style="margin-bottom:10px">${linkBtns(att)}</div>` : ''}${inl.length ? `<h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#5d6e64;margin-bottom:6px">🖼 Inline images</h4><div>${linkBtns(inl)}</div>` : ''}`
+      ? `${att.length ? `<h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#48524c;margin-bottom:6px">📎 Attachments</h4><div style="margin-bottom:10px">${linkBtns(att)}</div>` : ''}${inl.length ? `<h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#48524c;margin-bottom:6px">🖼 Inline images</h4><div>${linkBtns(inl)}</div>` : ''}`
       : '';
     return { meta, htmlBlock, shotBlock, assets, body: e.bodyText || '—' };
   }
@@ -677,7 +719,7 @@
     $('insights-view').style.display = name === 'insights' ? 'block' : 'none';
     if (isAd) { state.adPlatform = name; renderAds(); }
     if (name === 'discover') renderBrands();
-    if (name === 'landing') renderLanding();
+    if (name === 'landing') setLpMode(lpMode);
     if (name === 'insights') renderInsights();
     if (window.triggerMotionAnimations) setTimeout(() => window.triggerMotionAnimations(), 10);
     const want = '#' + name;
@@ -777,21 +819,32 @@
     // so region= only accepts those country codes (or "all"). Passing US/IN/AU/AE
     // produced a URL the SPA rejects → empty results page. Map unsupported
     // markets to "all" (worldwide name search) and keep real codes for GB/DE.
-    // Window = last ~2 years → now.
+    // Window = last ~30 days → now. TikTok's SPA rejects very wide windows
+    // (a 2-year span silently returned nothing), so keep it recent.
     const ttEnd = Date.now();
-    const ttStart = ttEnd - 1000 * 60 * 60 * 24 * 365 * 2;
+    const ttStart = ttEnd - 1000 * 60 * 60 * 24 * 30;
     const TT_SUPPORTED = ['GB','DE','FR','IT','ES','NL','IE','SE','DK','FI','NO','PL','AT','BE','PT','GR','CZ','RO','HU','CH'];
     const ttRegion = hasRegion && TT_SUPPORTED.includes(String(region).toUpperCase())
       ? String(region).toUpperCase() : 'all';
+    // adv_name must be LOWERCASE, and TikTok wants this exact param order
+    // (adv_name, adv_biz_ids, query_type, then sort_type).
+    const ttName = String(name).toLowerCase();
     const tiktokUrl = `https://library.tiktok.com/ads?region=${ttRegion}` +
       `&start_time=${ttStart}&end_time=${ttEnd}` +
-      `&sort_type=last_shown_date,desc&adv_name=${encodeURIComponent(name)}` +
-      `&adv_biz_ids=&query_type=1`;
+      `&adv_name=${encodeURIComponent(ttName)}&adv_biz_ids=&query_type=1` +
+      `&sort_type=last_shown_date,desc`;
+    // PiPiADS covers TikTok ads WORLDWIDE (incl. US/IN/Global), unlike the
+    // official library (EEA/UK/CH only) — better for our key markets. Keyword
+    // search via the encoded extend_keywords JSON.
+    const pipiadsUrl = `https://www.pipiads.com/ad-search?is_participle=false&plat_type=1&search_type=1` +
+      `&extend_keywords=${encodeURIComponent(JSON.stringify([{ type: 1, keyword: ttName }]))}` +
+      `&sort=2&sort_type=desc&current_page=1`;
 
     return [
       { label: 'Meta Ad Library',         cls: 'src-meta',   ic: 'f', url: metaUrl,   hint: 'name: ' + name },
       { label: 'Google Ads Transparency', cls: 'src-google', ic: 'G', url: googleUrl, hint: domain ? 'domain: ' + domain : 'name: ' + name },
-      { label: 'TikTok Content Library',  cls: 'src-tiktok', ic: 'T', url: tiktokUrl, hint: 'name: ' + name + ' · ' + (ttRegion === 'all' ? 'worldwide (library covers EEA/UK only)' : 'region: ' + ttRegion) },
+      { label: 'TikTok Content Library',  cls: 'src-tiktok', ic: 'T', url: tiktokUrl, hint: 'name: ' + ttName + ' · ' + (ttRegion === 'all' ? 'worldwide name search (official library = EEA/UK only)' : 'region: ' + ttRegion) },
+      { label: 'TikTok via PiPiADS',      cls: 'src-tiktok', ic: 'T', url: pipiadsUrl, hint: 'keyword: ' + ttName + ' · worldwide TikTok ad index' },
     ];
   }
   // Per-platform copy + which adSources entry to keep.
@@ -826,10 +879,10 @@
       $('btnGoogleAds').style.display = platform === 'google' ? '' : 'none';
     }
     if ($('btnTikTokAds')) {
-      const ttEnd = Date.now(), ttStart = ttEnd - 1000 * 60 * 60 * 24 * 365 * 2;
+      const ttEnd = Date.now(), ttStart = ttEnd - 1000 * 60 * 60 * 24 * 30;
       const TT_SUPPORTED = ['GB','DE','FR','IT','ES','NL','IE','SE','DK','FI','NO','PL','AT','BE','PT','GR','CZ','RO','HU','CH'];
       const ttRegion = hasRegion && TT_SUPPORTED.includes(String(region).toUpperCase()) ? String(region).toUpperCase() : 'all';
-      $('btnTikTokAds').href = `https://library.tiktok.com/ads?region=${ttRegion}&start_time=${ttStart}&end_time=${ttEnd}&sort_type=last_shown_date,desc`;
+      $('btnTikTokAds').href = `https://library.tiktok.com/ads?region=${ttRegion}&start_time=${ttStart}&end_time=${ttEnd}&query_type=1&sort_type=last_shown_date,desc`;
       $('btnTikTokAds').style.display = platform === 'tiktok' ? '' : 'none';
     }
 
@@ -841,7 +894,7 @@
         <h4>${esc(o.name)}</h4>
         <div class="adc-body">${platform === 'meta' ? '<div class="ad-loading">Loading live ads…</div>' :
           `<a class="ad-src" href="${s.url}" target="_blank" rel="noopener"><span class="src-ic ${s.cls}">${s.ic}</span>${s.label} ↗</a>
-           <div style="font-size:11px;color:#5d6e64;margin-top:6px">${esc(s.hint)}</div>`}</div>
+           <div style="font-size:11px;color:#48524c;margin-top:6px">${esc(s.hint)}</div>`}</div>
       </div>`;
     }).join('') + (all.length > MAX_TILES ? `<div class="count" style="grid-column:1/-1">Showing first ${MAX_TILES} of ${all.length} tracked brands — narrow the universe in Discover.</div>` : '');
     // For Meta, fetch real creatives per brand (sequential to respect free credits).
@@ -862,7 +915,7 @@
               <a class="ad-src" href="${s.url}" target="_blank" rel="noopener">All ${esc(o.name)} ads ↗</a>`;
           } else {
             body.innerHTML = `<a class="ad-src" href="${s.url}" target="_blank" rel="noopener"><span class="src-ic ${s.cls}">${s.ic}</span>${s.label} ↗</a>
-              <div style="font-size:11px;color:#5d6e64;margin-top:6px">${d.source === 'deep_link' ? 'No API token — opening the free library. ' : ''}${esc(s.hint)}</div>`;
+              <div style="font-size:11px;color:#48524c;margin-top:6px">${d.source === 'deep_link' ? 'No API token — opening the free library. ' : ''}${esc(s.hint)}</div>`;
           }
         } catch (e) {
           body.innerHTML = `<a class="ad-src" href="${s.url}" target="_blank" rel="noopener"><span class="src-ic ${s.cls}">${s.ic}</span>${s.label} ↗</a>`;
@@ -887,19 +940,165 @@
       <div class="ad-card" style="padding:0;overflow:hidden">
         <a href="${home}" target="_blank" rel="noopener" style="display:block;text-decoration:none">
           <img src="${shot(home, 600)}" alt="${esc(o.name)} homepage" loading="lazy"
-               style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;background:#0a1410;display:block"
+               style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;background:#ffffff;display:block"
                onerror="this.style.display='none'">
         </a>
         <div style="padding:12px 14px">
-          <h4 style="margin:0 0 6px">${esc(o.name)}</h4>
+          <h4 style="margin:0 0 6px" class="brand-link" data-brand="${esc(o.name)}" data-domain="${esc(o.domain)}">${esc(o.name)}</h4>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a class="ad-src" style="margin:0;flex:1" href="${home}" target="_blank" rel="noopener">Home ↗</a>
+            <a class="ad-src" style="margin:0;flex:1" href="${home}" target="_blank" rel="noopener">Website ↗</a>
             <a class="ad-src" style="margin:0;flex:1" href="${home}/collections" target="_blank" rel="noopener">Collections ↗</a>
           </div>
-          <div style="font-size:11px;color:#5d6e64;margin-top:8px">${esc(o.domain)}</div>
+          <button class="ad-src brand-link" style="width:100%;margin-top:8px;border:none;cursor:pointer;background:#004A2B;color:#FBF5EA" data-brand="${esc(o.name)}" data-domain="${esc(o.domain)}">View all assets →</button>
+          <div style="font-size:11px;color:#48524c;margin-top:8px">${esc(o.domain)}</div>
         </div>
       </div>`; }).join('') + (withDomain.length > MAX_TILES ? `<div class="count" style="grid-column:1/-1">Showing first ${MAX_TILES} of ${withDomain.length} brands — narrow the universe in Discover.</div>` : '') : '<div class="empty">No brands with a known domain yet — add some under <b>Discover Brands</b> (the brand DB stores each domain).</div>';
   }
+
+  // ── Logged-in user (for real-time follow/subscribe) ─────────────────
+  function currentUserEmail() {
+    try {
+      const s = window.LifecycleAuth && window.LifecycleAuth.session;
+      return (s && s.user && s.user.email) || '';
+    } catch (_) { return ''; }
+  }
+  // Client mirror of the server brandKey() so follow-state matches.
+  function brandKeyOf(name, domain) {
+    const base = String(name || domain || '').toLowerCase().trim();
+    return base.replace(/^www\./, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  // ── Follow state (which brands the user follows for mailers/ads) ────
+  const followState = {};  // brand_key -> {mailers, ads}
+  async function loadFollows() {
+    const user = currentUserEmail();
+    if (!user) return;
+    try {
+      const r = await fetch(API + '?action=sub-list&user=' + encodeURIComponent(user));
+      const d = await r.json();
+      (d.subscriptions || []).forEach((s) => { followState[s.brand_key] = { mailers: s.mailers !== false, ads: s.ads !== false, active: s.active !== false }; });
+    } catch (_) {}
+  }
+  async function toggleFollow(name, domain, channel, on) {
+    const user = currentUserEmail();
+    if (!user) { alert('Sign in to receive real-time updates.'); return false; }
+    const key = brandKeyOf(name, domain);
+    const cur = followState[key] || { mailers: false, ads: false };
+    const next = { mailers: cur.mailers, ads: cur.ads, active: true };
+    next[channel] = on;
+    try {
+      const r = await fetch(API + '?action=sub-set', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user, brand_name: name, domain: domain || '', mailers: next.mailers, ads: next.ads, active: true }) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || 'failed');
+      followState[key] = next;
+      return true;
+    } catch (e) { alert('Could not update: ' + (e.message || e)); return false; }
+  }
+  // Renders the two follow chips for a brand (mailers + ads).
+  function followChips(name, domain) {
+    const key = brandKeyOf(name, domain);
+    const st = followState[key] || { mailers: false, ads: false };
+    const chip = (ch, label) => {
+      const on = !!st[ch];
+      return `<button class="follow-chip${on ? ' on' : ''}" data-follow="${ch}" data-name="${esc(name)}" data-domain="${esc(domain || '')}" title="${on ? 'Following — real-time email on each new ' + label : 'Follow to get a real-time email on each new ' + label}">${on ? '✓ ' : '+ '}${label}</button>`;
+    };
+    return `<span class="follow-wrap">${chip('mailers', 'Mailers')}${chip('ads', 'Ads')}</span>`;
+  }
+  // Delegated handler for all follow chips.
+  document.addEventListener('click', async function (ev) {
+    const btn = ev.target.closest && ev.target.closest('.follow-chip');
+    if (!btn) return;
+    ev.preventDefault(); ev.stopPropagation();
+    const ch = btn.dataset.follow, name = btn.dataset.name, domain = btn.dataset.domain;
+    const key = brandKeyOf(name, domain);
+    const on = !(followState[key] && followState[key][ch]);
+    btn.disabled = true;
+    const okd = await toggleFollow(name, domain, ch, on);
+    btn.disabled = false;
+    if (okd) {
+      btn.classList.toggle('on', on);
+      btn.textContent = (on ? '✓ ' : '+ ') + (ch === 'mailers' ? 'Mailers' : 'Ads');
+    }
+  });
+
+  // Delegated brand-detail opener. Uses data-attributes (HTML-escaped via esc())
+  // instead of inline onclick with JS-string interpolation, so brand names
+  // containing quotes OR backslashes can never break out of the handler.
+  document.addEventListener('click', function (ev) {
+    const el = ev.target.closest && ev.target.closest('.brand-link[data-brand]');
+    if (!el) return;
+    ev.preventDefault();
+    window.openBrandDetail(el.dataset.brand || '', el.dataset.domain || '');
+  });
+
+  // ── Landing view: Website (homepages) vs Landing Pages (real) ───────
+  let lpMode = 'website';
+  function setLpMode(mode) {
+    lpMode = mode === 'landing' ? 'landing' : 'website';
+    document.querySelectorAll('.lp-subtab').forEach((b) => b.classList.toggle('active', b.dataset.lp === lpMode));
+    $('lp-website').style.display = lpMode === 'website' ? '' : 'none';
+    $('lp-landing').style.display = lpMode === 'landing' ? 'block' : 'none';
+    if (lpMode === 'website') renderLanding();
+    else renderLandingReal();
+  }
+  document.querySelectorAll('.lp-subtab').forEach((b) => b.addEventListener('click', () => setLpMode(b.dataset.lp)));
+
+  // Real landing pages behind ads/mailers, grouped by platform, with the asset.
+  async function renderLandingReal() {
+    const host = $('lp-landing');
+    host.innerHTML = '<div class="empty">Loading captured landing pages…</div>';
+    let groups = [];
+    try { const r = await fetch(API + '?action=landing-real'); const d = await r.json(); groups = d.groups || []; } catch (_) {}
+    const total = groups.reduce((n, g) => n + g.items.length, 0);
+    if (!total) {
+      host.innerHTML = '<div class="empty">No landing pages captured yet. These populate automatically as this brand set\'s <b>ads</b> and <b>mailers</b> are captured — each ad/mailer\'s real destination page is linked here with its creative. Nothing is fabricated.</div>';
+      return;
+    }
+    host.innerHTML = groups.map((g) => {
+      if (!g.items.length) return `<div class="lp-group"><h3 class="lp-group-h">${esc(g.platform)}</h3><div class="empty" style="margin:0">No captured ${esc(g.platform)} landing pages yet.</div></div>`;
+      const cards = g.items.map((it) => `
+        <div class="ad-card" style="padding:0;overflow:hidden">
+          ${it.asset_url ? `<a href="${esc(it.landing_url)}" target="_blank" rel="noopener"><img src="${esc(it.asset_url)}" alt="${esc(it.brand || '')} ${esc(g.platform)} creative" loading="lazy" style="width:100%;aspect-ratio:1/1;object-fit:cover;background:#fff;display:block" onerror="this.style.display='none'"></a>` : '<div style="aspect-ratio:1/1;background:#f3eee1;display:flex;align-items:center;justify-content:center;color:#8a8a80;font-size:12px">creative pending</div>'}
+          <div style="padding:12px 14px">
+            <div style="font-weight:700;font-size:13px">${esc(it.brand || 'Unknown')}</div>
+            ${it.headline ? `<div style="font-size:12px;color:#556059;margin:4px 0">${esc(String(it.headline).slice(0, 90))}</div>` : ''}
+            <a class="ad-src" style="margin-top:6px" href="${esc(it.landing_url)}" target="_blank" rel="noopener">Open landing page ↗</a>
+            <div style="font-size:11px;color:#8a8a80;margin-top:6px">${it.captured_lp ? '📸 snapshot captured' : 'live destination'}${it.source_link ? ` · <a href="${esc(it.source_link)}" target="_blank" rel="noopener" style="color:#AB8743">source</a>` : ''}</div>
+          </div>
+        </div>`).join('');
+      return `<div class="lp-group"><h3 class="lp-group-h">${esc(g.platform)} <span style="color:#8a8a80;font-weight:400;font-size:13px">${g.items.length}</span></h3><div class="ad-grid">${cards}</div></div>`;
+    }).join('');
+  }
+
+  // ── Brand detail modal: ALL assets of one brand ─────────────────────
+  const bm = $('bm');
+  function closeBrandDetail() { bm.classList.remove('open'); bm.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
+  bm.querySelectorAll('[data-bclose]').forEach((el) => el.addEventListener('click', closeBrandDetail));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && bm.classList.contains('open')) closeBrandDetail(); });
+  window.openBrandDetail = async function (name, domain) {
+    $('bm-title').textContent = name || 'Brand';
+    const site = $('bm-site');
+    if (domain) { site.href = 'https://' + domain; site.style.display = ''; } else { site.style.display = 'none'; }
+    $('bm-body').innerHTML = '<div class="ph" style="padding:24px">Loading all assets…</div>';
+    bm.classList.add('open'); bm.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
+    let d = {};
+    try { const r = await fetch(API + '?action=brand-detail&brand=' + encodeURIComponent(name)); d = await r.json(); } catch (_) { d = {}; }
+    const c = d.counts || { mailers: 0, ads: 0, landing: 0 };
+    const adsAll = d.ads ? [].concat(d.ads.meta || [], d.ads.google || [], d.ads.tiktok || [], d.ads.other || []) : [];
+    const mailers = d.emails || [], landing = d.landing || [];
+    const assetCard = (img, title, sub, href) => `
+      <div class="ad-card" style="padding:0;overflow:hidden">
+        ${img ? `<a href="${esc(href || '#')}" target="_blank" rel="noopener"><img src="${esc(img)}" loading="lazy" style="width:100%;aspect-ratio:1/1;object-fit:cover;background:#fff;display:block" onerror="this.style.display='none'"></a>` : '<div style="aspect-ratio:1/1;background:#f3eee1"></div>'}
+        <div style="padding:10px 12px"><div style="font-weight:600;font-size:12px">${esc(String(title || '').slice(0, 80))}</div>${sub ? `<div style="font-size:11px;color:#8a8a80;margin-top:3px">${esc(sub)}</div>` : ''}</div>
+      </div>`;
+    const section = (label, count, inner) => `<div class="d-section"><div class="sh"><h4>${label} <span style="color:#8a8a80">${count}</span></h4></div>${count ? inner : '<div class="empty" style="margin:0">None captured yet.</div>'}</div>`;
+    $('bm-body').innerHTML =
+      `<div class="d-meta" style="margin-bottom:12px">${followChips(name, domain)}<span style="font-size:12px;color:#556059;margin-left:10px">Follow to get a real-time email on each new mailer or ad.</span></div>` +
+      section('Mailers', c.mailers, '<div class="ad-grid">' + mailers.map((e) => assetCard((e.images && e.images[0]) || '', e.subject, e.send_date ? new Date(e.send_date).toLocaleDateString() : '', (e.ctas && e.ctas[0] && e.ctas[0].href) || e.source_link)).join('') + '</div>') +
+      section('Ads (Meta / Google / TikTok)', c.ads, '<div class="ad-grid">' + adsAll.map((a) => assetCard((a.image_urls && a.image_urls[0]) || (a.video_urls && a.video_urls[0]) || '', (a.headline || a.source || 'Ad'), a.source, a.landing_url || a.source_link)).join('') + '</div>') +
+      section('Landing pages', c.landing, '<div class="ad-grid">' + landing.map((l) => assetCard('', l.url, l.captured_at ? new Date(l.captured_at).toLocaleDateString() : '', l.url)).join('') + '</div>');
+  };
 
   // ── Insights: quick rollup over the captured competitor mailers ─────
   function renderInsights() {
@@ -917,7 +1116,7 @@
     const el = $('cb-insights-top');
     if (el) el.innerHTML = top.length
       ? top.map(([b, n]) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(171,135,67,0.08)"><span>${esc(b)}</span><b style="color:#AB8743">${n}</b></div>`).join('')
-      : '<div style="color:#5d6e64">No mailers captured yet. Subscribe brands under Discover to start the feed.</div>';
+      : '<div style="color:#48524c">No mailers captured yet. Subscribe brands under Discover to start the feed.</div>';
   }
   $('adRegion').addEventListener('change', renderAds);
 
@@ -926,24 +1125,25 @@
   let brandsLoaded = false;
   async function renderBrands(force) {
     if (brandsLoaded && !force) return;
-    $('bd-rows').innerHTML = '<tr><td colspan="6" style="padding:16px;color:#9aaaa1">Loading…</td></tr>';
+    $('bd-rows').innerHTML = '<tr><td colspan="6" style="padding:16px;color:#556059">Loading…</td></tr>';
     let brands = [];
     try { const r = await fetch(API + '?action=brands'); const d = await r.json(); brands = d.brands || []; } catch {}
     brandsLoaded = true;
+    await loadFollows();
     // Refresh the shared universe so Mailers/Meta/Google/TikTok/Landing tabs
     // all track the SAME brands as this Discover tab.
     await fetchBrandUniverse(true);
     $('bd-count').textContent = `${brands.length} brands · target ~${BRAND_TARGET}`;
     $('bd-empty').style.display = brands.length ? 'none' : 'block';
-    const pill = (s) => { const ok = /subscribed/i.test(s) && !/not/i.test(s); return `<span style="font-size:11px;padding:2px 8px;border-radius:99px;background:${ok ? 'rgba(34,197,94,.15)' : 'rgba(171,135,67,.12)'};color:${ok ? '#86efac' : '#cdb98a'}">${esc(s || 'Not subscribed')}</span>`; };
+    const pill = (s) => { const ok = /subscribed/i.test(s) && !/not/i.test(s); return `<span style="font-size:11px;padding:2px 8px;border-radius:99px;background:${ok ? 'rgba(34,197,94,.15)' : 'rgba(171,135,67,.12)'};color:${ok ? '#0a7d33' : '#7a5f28'}">${esc(s || 'Not subscribed')}</span>`; };
     $('bd-rows').innerHTML = brands.map((b) => `
       <tr style="border-top:1px solid rgba(171,135,67,0.1)">
-        <td style="padding:9px 12px"><a href="${esc(b.websiteUrl)}" target="_blank" rel="noopener" style="color:#FBF5EA;font-weight:600;text-decoration:none">${esc(b.brandName)}</a><div style="font-size:11px;color:#5d6e64">${esc(b.domain)}</div></td>
-        <td style="padding:9px 12px;color:#cdd8d2">${esc(b.category)}</td>
-        <td style="padding:9px 12px;color:#9aaaa1">${esc(b.country)}</td>
-        <td style="padding:9px 12px;color:#9aaaa1">${esc(b.positioning)}</td>
-        <td style="padding:9px 12px">${(b.newsletterSignupUrl || b.websiteUrl) ? `<a href="${esc(b.newsletterSignupUrl || b.websiteUrl)}" target="_blank" rel="noopener" style="color:#AB8743">Signup ↗</a>` : '<span style="color:#5d6e64">—</span>'}</td>
-        <td style="padding:9px 12px;white-space:nowrap">${pill(b.subscriptionStatus)}${(b.newsletterSignupUrl || b.websiteUrl) && !(/subscribed/i.test(b.subscriptionStatus) && !/not/i.test(b.subscriptionStatus)) ? ` <a href="${esc(b.newsletterSignupUrl || b.websiteUrl)}" target="_blank" rel="noopener" style="color:#AB8743;font-size:11px;margin-left:6px">Subscribe ↗</a>` : ''}</td>
+        <td style="padding:9px 12px"><span class="brand-link" data-brand="${esc(b.brandName)}" data-domain="${esc(b.domain || '')}" style="color:#171717;font-weight:600">${esc(b.brandName)}</span><div style="font-size:11px;color:#48524c">${esc(b.domain)}</div></td>
+        <td style="padding:9px 12px;color:#556059">${esc(b.category)}</td>
+        <td style="padding:9px 12px;color:#556059">${esc(b.country)}</td>
+        <td style="padding:9px 12px;color:#556059">${esc(b.positioning)}</td>
+        <td style="padding:9px 12px">${(b.newsletterSignupUrl || b.websiteUrl) ? `<a href="${esc(b.newsletterSignupUrl || b.websiteUrl)}" target="_blank" rel="noopener" style="color:#AB8743">Signup ↗</a>` : '<span style="color:#48524c">—</span>'}</td>
+        <td style="padding:9px 12px;white-space:nowrap">${followChips(b.brandName, b.domain || '')}</td>
       </tr>`).join('');
   }
   async function runBrandAction(btn, action, busyText) {
@@ -955,7 +1155,9 @@
       if (!d.ok) throw new Error(d.error || 'failed');
       $('bd-status').textContent = action === 'discover'
         ? `+${d.added} new (${d.skipped} dupes) · ${d.total} total${d.provider ? ' · via ' + d.provider : ''}`
-        : `+${d.added} added · ${d.total} total`;
+        : d.added
+          ? `+${d.added} added · ${d.total} total`
+          : `All ${d.skipped} priority brands already in your universe · ${d.total} total`;
       await renderBrands(true);
     } catch (e) {
       $('bd-status').textContent = 'Error: ' + (e.message || e);

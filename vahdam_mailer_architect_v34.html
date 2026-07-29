@@ -16,7 +16,7 @@
 <!-- Supabase JS SDK (used for cross-device dashboard storage) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- Lifecycle OS shared auth + cross-step nav -->
-<script src="/auth.js?v=20260617" defer></script>
+<script src="/auth.js?v=20260718light" defer></script>
 <style id="lifecycle-os-overrides">
   /* When this Studio is rendered inside the Lifecycle OS shell (auth.js
      injects body.lifecycle-os-mode), suppress the Studio's own duplicate
@@ -42,10 +42,10 @@
   --gold:#AB8743;--gold2:#c9a05a;
   --cream:#FBF5EA;--cream2:#f5efe0;
   --dark:#0f1923;--body-txt:#2d3748;
-  --muted:#6b7280;--subtle:#9ca3af;
+  --muted:#48524c;--subtle:#556059;
   --border:#e8e3da;--border2:#d6cfc4;
   --bg:#f5f0e8;--panel:#ffffff;
-  --lightg:#e8f5ee;--lightgold:#FBF5EA;
+  --lightg:#0a3d24;--lightgold:#FBF5EA;
   --shadow-xs:0 1px 2px rgba(0,0,0,0.06);
   --shadow-sm:0 2px 6px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);
   --shadow-md:0 6px 18px rgba(0,0,0,0.09),0 2px 6px rgba(0,0,0,0.05);
@@ -137,12 +137,12 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
   width:30px;height:30px;border-radius:50%;
   border:2px solid var(--border2);
   display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:700;color:#9ca3af;background:#fff;
+  font-size:12px;font-weight:700;color:#556059;background:#fff;
   transition:all .3s;position:relative;z-index:1
 }
 .step-n.active{border-color:var(--g);color:#fff;background:var(--g);box-shadow:0 0 0 4px rgba(0,74,43,0.12)}
 .step-n.done{border-color:var(--g);background:var(--g);color:#fff}
-.step-l{font-size:9px;font-weight:600;letter-spacing:0.04em;color:#9ca3af;text-align:center;margin-top:2px}
+.step-l{font-size:9px;font-weight:600;letter-spacing:0.04em;color:#556059;text-align:center;margin-top:2px}
 .step-l.active{color:var(--g);font-weight:700}
 .step-l.done{color:var(--g)}
 .step-line{height:2px;flex:1;background:var(--border2);margin-bottom:22px;transition:background .4s;border-radius:2px}
@@ -150,7 +150,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 
 /* ── Form controls ─────────────────────────────────────────────────────────── */
 .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
-.field label{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280}
+.field label{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c}
 .req{color:#dc2626;margin-left:2px}
 .field input,.field select,.field textarea{
   padding:10px 13px;border:1.5px solid var(--border2);border-radius:var(--r);
@@ -177,7 +177,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .btn-gold:hover{background:#9a7639;box-shadow:0 4px 12px rgba(171,135,67,0.35)}
 .btn-outline{background:#fff;color:var(--g);border:1.5px solid var(--g)}
 .btn-outline:hover{background:var(--lightg)}
-.btn-ghost{background:transparent;color:#6b7280;border:1.5px solid var(--border2)}
+.btn-ghost{background:transparent;color:#48524c;border:1.5px solid var(--border2)}
 .btn-ghost:hover{border-color:var(--g);color:var(--g);background:var(--lightg)}
 .btn-sm{padding:7px 14px;font-size:11px}
 .btn-lg{padding:13px 28px;font-size:14px;font-weight:700}
@@ -194,7 +194,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .cat-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .cfbtn{
   padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;
-  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#6b7280;transition:all .15s
+  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#48524c;transition:all .15s
 }
 .cfbtn.on{background:var(--g);color:#FBF5EA;border-color:var(--g)}
 .cfbtn:hover:not(.on){border-color:var(--g);color:var(--g)}
@@ -228,11 +228,11 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
   border-radius:var(--r);background:#f9fafb;border:1.5px solid transparent;transition:all .3s
 }
 .stage.active{background:var(--lightg);border-color:rgba(0,74,43,0.25)}
-.stage.done{background:#f0fdf4;border-color:#86efac}
+.stage.done{background:#f0fdf4;border-color:#0a7d33}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--border2);flex-shrink:0;transition:all .3s}
 .dot.active{background:var(--g);box-shadow:0 0 0 3px rgba(0,74,43,0.18)}
 .dot.done{background:#22c55e}
-.stage-txt{font-size:13px;color:#6b7280;flex:1}
+.stage-txt{font-size:13px;color:#48524c;flex:1}
 .stage.active .stage-txt{color:var(--g);font-weight:600}
 .stage.done .stage-txt{color:#166534}
 .stage-check{color:#22c55e;font-weight:700;font-size:14px}
@@ -241,7 +241,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .p4tabs{display:flex;gap:6px;margin-bottom:18px;padding:4px;background:#f3f4f6;border-radius:var(--r2);width:fit-content}
 .p4tab{
   padding:7px 16px;font-size:12px;font-weight:600;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;
-  background:transparent;color:#6b7280;border:none;border-radius:8px;cursor:pointer;transition:all .2s
+  background:transparent;color:#48524c;border:none;border-radius:8px;cursor:pointer;transition:all .2s
 }
 .p4tab.on{background:#fff;color:var(--g);box-shadow:var(--shadow-sm)}
 .p4tab:hover:not(.on){color:var(--g)}
@@ -252,7 +252,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .canvas-area canvas{width:100%;display:block}
 .canvas-label{
   font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
-  color:#6b7280;text-align:center;padding:8px;background:#f9fafb;
+  color:#48524c;text-align:center;padding:8px;background:#f9fafb;
   border-top:1px solid var(--border)
 }
 .img-side-panel{min-width:0}
@@ -262,7 +262,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
   transition:border-color .15s
 }
 .fb-area textarea:focus{outline:none;border-color:var(--g);box-shadow:0 0 0 3px rgba(0,74,43,0.08)}
-.regen-count{font-size:11px;color:#9ca3af;margin-top:5px;text-align:right}
+.regen-count{font-size:11px;color:#556059;margin-top:5px;text-align:right}
 
 /* ── Info boxes ─────────────────────────────────────────────────────────────── */
 .strat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
@@ -278,7 +278,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .tab-bar{display:flex;gap:4px;margin-bottom:14px;padding:4px;background:#f3f4f6;border-radius:var(--r2);width:fit-content;max-width:100%}
 .tab{
   padding:6px 14px;font-size:12px;font-weight:600;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;
-  background:transparent;color:#6b7280;border:none;border-radius:8px;cursor:pointer;transition:all .2s
+  background:transparent;color:#48524c;border:none;border-radius:8px;cursor:pointer;transition:all .2s
 }
 .tab.on{background:#fff;color:var(--g);box-shadow:var(--shadow-sm)}
 .preview-wrap{border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;height:600px;box-shadow:var(--shadow-sm);background:#fff}
@@ -287,7 +287,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .html-raw{font-family:monospace;font-size:11px;color:#e6edf3;padding:16px;white-space:pre-wrap;word-break:break-all;min-height:60px}
 .copy-row{display:flex;gap:10px;justify-content:flex-end}
 /* The "HTML Source Code" panel inside Step 5 — hidden empty state */
-.empty-state-html{padding:18px 16px;text-align:center;color:#6b7280;font-size:11.5px;font-style:italic;background:#fff;border-radius:8px;border:1px dashed #d6cfc4}
+.empty-state-html{padding:18px 16px;text-align:center;color:#48524c;font-size:11.5px;font-style:italic;background:#fff;border-radius:8px;border:1px dashed #d6cfc4}
 .prompt-mono{
   background:#0d1117;color:#e6edf3;font-family:monospace;font-size:11px;
   padding:14px;border-radius:var(--r);overflow:auto;white-space:pre-wrap;
@@ -304,7 +304,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 .mkt-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}
 .mkt-chip{
   padding:7px 15px;border-radius:20px;font-size:11px;font-weight:700;
-  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#6b7280;
+  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#48524c;
   transition:all .2s;user-select:none;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif
 }
 .mkt-chip.on{background:var(--g);color:#FBF5EA;border-color:var(--g);box-shadow:0 2px 8px rgba(0,74,43,0.2)}
@@ -312,15 +312,15 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 /* Campaign type chips */
 .type-chip{
   padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600;
-  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#6b7280;
+  border:1.5px solid var(--border2);background:#fff;cursor:pointer;color:#48524c;
   transition:all .2s;user-select:none;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif
 }
-.type-chip.on{background:var(--gold);color:#fff;border-color:var(--gold);box-shadow:0 2px 8px rgba(171,135,67,0.25)}
+.type-chip.on{background:var(--gold);color:#171717;border-color:var(--gold);box-shadow:0 2px 8px rgba(171,135,67,0.25)}
 .type-chip:hover:not(.on){border-color:var(--gold);color:var(--gold);background:var(--lightgold)}
 .mkt-tab-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;padding:12px 0 4px;border-bottom:1px solid var(--border)}
 .mkt-tab-btn{
   padding:7px 16px;font-size:12px;font-weight:700;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;
-  background:#fff;color:#6b7280;border:1.5px solid var(--border2);border-radius:20px;cursor:pointer;transition:all .2s
+  background:#fff;color:#48524c;border:1.5px solid var(--border2);border-radius:20px;cursor:pointer;transition:all .2s
 }
 .mkt-tab-btn.on{background:var(--g);color:var(--cream);border-color:var(--g)}
 .mkt-tab-btn:hover:not(.on){border-color:var(--g);color:var(--g);background:var(--lightg)}
@@ -336,7 +336,7 @@ body{font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;background:var(--b
 }
 .sugg-hdr:hover{background:linear-gradient(90deg,#eeeae2 0%,#f5f1ea 100%)}
 .sugg-hdr-lbl{font-size:11px;font-weight:700;color:var(--g);letter-spacing:0.05em}
-.sugg-hdr-sub{font-size:10px;color:#9ca3af;font-style:italic}
+.sugg-hdr-sub{font-size:10px;color:#556059;font-style:italic}
 .sugg-arrow{font-size:10px;color:var(--gold);transition:transform .22s cubic-bezier(.4,0,.2,1);display:inline-block}
 .sugg-grid{
   display:grid;grid-template-columns:repeat(2,1fr);gap:10px;
@@ -496,75 +496,89 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .panel{animation:fadeUp .25s ease both}
 
 /* ════════════════════════════════════════════════════════════════════════════
-   DARK THEME — UI chrome only. Toggled via <html data-theme="dark">.
+   DARK THEME — UI chrome only. Toggled via <html data-theme="green">.
    Generated mailer output & the email preview stay on-brand (cream/forest/gold);
    .preview-wrap/iframe keep #fff so emails render true, and the HTML/prompt code
    blocks are already dark. Palette mirrors vahdam_mailer_studio_v2_dark.html.
    ════════════════════════════════════════════════════════════════════════════ */
-html[data-theme="dark"]{
-  --body-txt:#e8ede9; --dark:#e8ede9;
-  --muted:#9aaaa1; --subtle:#7d8e84;
+html[data-theme="green"]{
+  --body-txt:#F5EFE0; --dark:#171717;
+  --muted:#cfe0d5; --subtle:#9fb8ab;
   --border:rgba(171,135,67,.18); --border2:rgba(171,135,67,.32);
-  --bg:#0a1410; --panel:#0f1d18;
+  --bg:#004A2B; --panel:#075C39;
   --lightg:rgba(0,74,43,.28); --lightgold:rgba(171,135,67,.16);
   --shadow-xs:0 1px 2px rgba(0,0,0,.4);
   --shadow-sm:0 2px 6px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.3);
   --shadow-md:0 6px 18px rgba(0,0,0,.5),0 2px 6px rgba(0,0,0,.35);
   --shadow-lg:0 16px 40px rgba(0,0,0,.55),0 4px 12px rgba(0,0,0,.4);
 }
-html[data-theme="dark"] body{
-  background:#0a1410;
+/* Restore the studio's dark-green surface tokens: theme.css (light) targets
+   :root[data-theme="green"] (spec 0,2,0) and would otherwise force --panel/--bg
+   light while this UI's chrome + text are built dark. html[data-theme]:root wins
+   (0,2,1) so the dark studio stays coherent (light text on dark surfaces). */
+html[data-theme="green"]:root{ --panel:#075C39; --bg:#004A2B; --muted:#cfe0d5; }
+html[data-theme="green"] body{
+  background:#004A2B;
   background-image:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(0,74,43,.18) 0%,transparent 70%);
 }
-html[data-theme="dark"] .steps{background:linear-gradient(135deg,#0f1d18 0%,#0b1813 100%)}
-html[data-theme="dark"] .step-n{background:var(--panel);color:var(--subtle)}
-html[data-theme="dark"] .step-l{color:var(--muted)}
-html[data-theme="dark"] .field label{color:var(--muted)}
-html[data-theme="dark"] .field input,
-html[data-theme="dark"] .field select,
-html[data-theme="dark"] .field textarea,
-html[data-theme="dark"] .fb-area textarea{background:#0b1813;color:var(--body-txt)}
-html[data-theme="dark"] .btn-outline{background:var(--panel)}
-html[data-theme="dark"] .btn-ghost{color:var(--muted)}
-html[data-theme="dark"] .cfbtn{background:var(--panel);color:var(--muted)}
-html[data-theme="dark"] .cat-card{background:var(--panel)}
-html[data-theme="dark"] .cat-card img{background:#0b1813}
-html[data-theme="dark"] .cat-card .cn{color:var(--body-txt)}
-html[data-theme="dark"] .pchip{background:#0b1813}
-html[data-theme="dark"] .pchip-name{color:var(--body-txt)}
-html[data-theme="dark"] .stage{background:#0b1813}
-html[data-theme="dark"] .stage.done{background:rgba(0,74,43,.25);border-color:rgba(34,197,94,.4)}
-html[data-theme="dark"] .stage-txt{color:var(--muted)}
-html[data-theme="dark"] .stage.done .stage-txt{color:#4ade80}
-html[data-theme="dark"] .p4tabs,
-html[data-theme="dark"] .tab-bar{background:#0b1813}
-html[data-theme="dark"] .p4tab,
-html[data-theme="dark"] .tab{color:var(--muted)}
-html[data-theme="dark"] .p4tab.on,
-html[data-theme="dark"] .tab.on{background:var(--panel)}
-html[data-theme="dark"] .canvas-area{background:#0b1813}
-html[data-theme="dark"] .canvas-label{color:var(--muted);background:#0b1813}
-html[data-theme="dark"] .regen-count{color:var(--subtle)}
-html[data-theme="dark"] .sbox{background:#0b1813}
-html[data-theme="dark"] .sval{color:var(--body-txt)}
-html[data-theme="dark"] .copy-preview-hl{color:#7cc49b}
-html[data-theme="dark"] .copy-preview-sub{color:var(--muted)}
-html[data-theme="dark"] .empty-state-html{color:var(--muted);background:var(--panel);border-color:var(--border2)}
-html[data-theme="dark"] .subj-box{background:rgba(0,74,43,.22);border-color:rgba(110,231,183,.3)}
-html[data-theme="dark"] .subj-line{color:#6ee7b7}
-html[data-theme="dark"] .subj-line:hover{background:rgba(0,74,43,.4)}
-html[data-theme="dark"] #analyzeStatus{border-color:rgba(110,231,183,.3);color:#6ee7b7}
-html[data-theme="dark"] .mkt-chip,
-html[data-theme="dark"] .type-chip,
-html[data-theme="dark"] .mkt-tab-btn{background:var(--panel);color:var(--muted)}
-html[data-theme="dark"] .sugg-hdr{background:linear-gradient(90deg,#0f1d18 0%,#0b1813 100%)}
-html[data-theme="dark"] .sugg-hdr:hover{background:linear-gradient(90deg,#12241d 0%,#0e1f18 100%)}
-html[data-theme="dark"] .sugg-hdr-sub{color:var(--subtle)}
-html[data-theme="dark"] .sugg-grid{background:var(--panel)}
-html[data-theme="dark"] .sugg-card{background:#0b1813}
-html[data-theme="dark"] .sugg-text{color:var(--muted)}
-html[data-theme="dark"] .dash-card{background:var(--panel)}
-html[data-theme="dark"] .vhd-skel{background:linear-gradient(90deg,#0f1d18 0%,#162a22 50%,#0f1d18 100%);background-size:200% 100%}
+html[data-theme="green"] .steps{background:linear-gradient(135deg,#075C39 0%,#003D24 100%)}
+html[data-theme="green"] .step-n{background:var(--panel);color:var(--subtle)}
+html[data-theme="green"] .step-l{color:var(--muted)}
+html[data-theme="green"] .field label{color:var(--muted)}
+html[data-theme="green"] .field input,
+html[data-theme="green"] .field select,
+html[data-theme="green"] .field textarea,
+html[data-theme="green"] .fb-area textarea{background:#003D24;color:var(--body-txt)}
+html[data-theme="green"] .btn-outline{background:var(--panel)}
+html[data-theme="green"] .btn-ghost{color:var(--muted)}
+html[data-theme="green"] .cfbtn{background:var(--panel);color:var(--muted)}
+html[data-theme="green"] .cat-card{background:var(--panel)}
+html[data-theme="green"] .cat-card img{background:#003D24}
+html[data-theme="green"] .cat-card .cn{color:var(--body-txt)}
+html[data-theme="green"] .pchip{background:#003D24}
+html[data-theme="green"] .pchip-name{color:var(--body-txt)}
+html[data-theme="green"] .stage{background:#003D24}
+html[data-theme="green"] .stage.done{background:rgba(0,74,43,.25);border-color:rgba(34,197,94,.4)}
+html[data-theme="green"] .stage-txt{color:var(--muted)}
+html[data-theme="green"] .stage.done .stage-txt{color:#4ade80}
+html[data-theme="green"] .p4tabs,
+html[data-theme="green"] .tab-bar{background:#003D24}
+html[data-theme="green"] .p4tab,
+html[data-theme="green"] .tab{color:var(--muted)}
+html[data-theme="green"] .p4tab.on,
+html[data-theme="green"] .tab.on{background:var(--panel)}
+html[data-theme="green"] .canvas-area{background:#003D24}
+html[data-theme="green"] .canvas-label{color:var(--muted);background:#003D24}
+html[data-theme="green"] .regen-count{color:var(--subtle)}
+html[data-theme="green"] .sbox{background:#003D24}
+html[data-theme="green"] .sval{color:var(--body-txt)}
+html[data-theme="green"] .copy-preview-hl{color:#7cc49b}
+html[data-theme="green"] .copy-preview-sub{color:var(--muted)}
+html[data-theme="green"] .empty-state-html{color:var(--muted);background:var(--panel);border-color:var(--border2)}
+html[data-theme="green"] .subj-box{background:rgba(0,74,43,.22);border-color:rgba(110,231,183,.3)}
+html[data-theme="green"] .subj-line{color:#6ee7b7}
+html[data-theme="green"] .subj-line:hover{background:rgba(0,74,43,.4)}
+html[data-theme="green"] #analyzeStatus{border-color:rgba(110,231,183,.3);color:#6ee7b7}
+html[data-theme="green"] .mkt-chip,
+html[data-theme="green"] .type-chip,
+html[data-theme="green"] .mkt-tab-btn{background:var(--panel);color:var(--muted)}
+/* Selected chips in the green theme: green-on-green is invisible, so the selected
+   state gets a bright gold ring + cream text so it always pops from the panel. */
+html[data-theme="green"] .mkt-chip.on,
+html[data-theme="green"] .mkt-tab-btn.on{background:#0C6B41;color:var(--cream);border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 2px 10px rgba(0,0,0,.35)}
+html[data-theme="green"] .type-chip.on{background:var(--gold);color:#171717;border-color:var(--gold);box-shadow:0 0 0 2px rgba(251,245,234,.35),0 2px 10px rgba(0,0,0,.35)}
+html[data-theme="green"] .mkt-chip:hover:not(.on),
+html[data-theme="green"] .type-chip:hover:not(.on),
+html[data-theme="green"] .mkt-tab-btn:hover:not(.on){border-color:var(--gold);color:var(--cream);background:#0A5A37}
+html[data-theme="green"] .sugg-hdr{background:linear-gradient(90deg,#075C39 0%,#003D24 100%)}
+html[data-theme="green"] .sugg-hdr:hover{background:linear-gradient(90deg,#12241d 0%,#0e1f18 100%)}
+html[data-theme="green"] .sugg-hdr-sub{color:var(--subtle)}
+html[data-theme="green"] .sugg-hdr-lbl{color:#FBF5EA}
+html[data-theme="green"] .sugg-grid{background:var(--panel)}
+html[data-theme="green"] .sugg-card{background:#003D24}
+html[data-theme="green"] .sugg-text{color:var(--muted)}
+html[data-theme="green"] .dash-card{background:var(--panel)}
+html[data-theme="green"] .vhd-skel{background:linear-gradient(90deg,#075C39 0%,#162a22 50%,#075C39 100%);background-size:200% 100%}
 /* Header theme toggle button */
 .app-hdr-theme{
   display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
@@ -585,7 +599,7 @@ html[data-theme="dark"] .vhd-skel{background:linear-gradient(90deg,#0f1d18 0%,#1
   background:rgba(251,245,234,.85);backdrop-filter:blur(14px) saturate(1.25);-webkit-backdrop-filter:blur(14px) saturate(1.25);
   border-top:1px solid var(--border);box-shadow:0 -6px 24px rgba(0,0,0,.08)
 }
-html[data-theme="dark"] .copilot-dock{background:rgba(10,20,16,.78);border-top:1px solid var(--border2);box-shadow:0 -6px 28px rgba(0,0,0,.5)}
+html[data-theme="green"] .copilot-dock{background:rgba(10,20,16,.78);border-top:1px solid var(--border2);box-shadow:0 -6px 28px rgba(0,0,0,.5)}
 /* ── expandable history (hidden when collapsed) ── */
 .copilot-history{
   display:flex;flex-direction:column;max-height:0;overflow:hidden;opacity:0;
@@ -617,7 +631,7 @@ html[data-theme="dark"] .copilot-dock{background:rgba(10,20,16,.78);border-top:1
 }
 .copilot-btn .ci{font-size:15px;line-height:1}
 .copilot-btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--g)}
-html[data-theme="dark"] .copilot-btn{color:#e8ede9}
+html[data-theme="green"] .copilot-btn{color:#FBF5EA}
 .copilot-btn.cb-listen.playing{color:var(--gold);border-color:var(--gold)}
 .copilot-btn.cb-listen.playing .ci{animation:listenPulse 1s ease-in-out infinite}
 @keyframes listenPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.18)}}
@@ -637,7 +651,7 @@ html[data-theme="dark"] .copilot-btn{color:#e8ede9}
 .copilot-exp{border:1px solid var(--border2);background:var(--panel);color:var(--muted);width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:12px;flex-shrink:0;transition:var(--transition);display:inline-flex;align-items:center;justify-content:center}
 .copilot-exp:hover{border-color:var(--g);color:var(--g)}
 .copilot-dock.open .copilot-exp{transform:rotate(180deg)}
-html[data-theme="dark"] .copilot-input,html[data-theme="dark"] .copilot-exp{background:#0b1813}
+html[data-theme="green"] .copilot-input,html[data-theme="green"] .copilot-exp{background:#003D24}
 @media(max-width:600px){.copilot-bar{gap:7px;padding:9px 10px}.copilot-btn{padding:9px 12px}.copilot-btn .lbl{display:none}}
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -655,45 +669,20 @@ html[data-theme="dark"] .copilot-input,html[data-theme="dark"] .copilot-exp{back
   .step-n.active{animation:stepPop .42s cubic-bezier(.34,1.56,.64,1)}
   @keyframes stepPop{0%{transform:scale(.82)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
 }
-html[data-theme="dark"] .panel{background:rgba(15,29,24,.72);backdrop-filter:blur(10px) saturate(1.1);-webkit-backdrop-filter:blur(10px) saturate(1.1)}
-html[data-theme="dark"] .btn-primary{box-shadow:0 0 0 1px rgba(171,135,67,.25),0 4px 18px rgba(0,74,43,.5)}
-html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,.4),0 6px 26px rgba(0,74,43,.65),0 0 22px rgba(0,74,43,.4)}
+html[data-theme="green"] .panel{background:rgba(15,29,24,.72);backdrop-filter:blur(10px) saturate(1.1);-webkit-backdrop-filter:blur(10px) saturate(1.1)}
+html[data-theme="green"] .btn-primary{box-shadow:0 0 0 1px rgba(171,135,67,.25),0 4px 18px rgba(0,74,43,.5)}
+html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,.4),0 6px 26px rgba(0,74,43,.65),0 0 22px rgba(0,74,43,.4)}
 </style>
 <script>
-/* Theme: apply before first paint to avoid flash. Persisted in localStorage;
-   first visit follows the OS preference. ☀ in dark mode (click → light),
-   ☾ in light mode (click → dark). */
+/* Theme is LOCKED to the single green surface (gold/cream text) — no toggle.
+   Force the attribute before first paint and clear any old saved preference so
+   a stale localStorage value can't resurface the old light/dark themes. */
 (function(){
-  function resolve(){
-    // 1. ?theme=dark|light in the URL wins and persists — used by the
-    //    /studio-v2 → /studio?theme=dark redirect (replaces the old stub).
-    try{
-      var p=new URLSearchParams(location.search).get('theme');
-      if(p==='dark'||p==='light'){
-        try{ localStorage.setItem('vahdam-theme', p); }catch(e){}
-        return p;
-      }
-    }catch(e){}
-    // 2. Saved preference.
-    try{ var s=localStorage.getItem('vahdam-theme'); if(s==='dark'||s==='light') return s; }catch(e){}
-    // 3. OS preference.
-    return (window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
-  }
-  function syncIcon(t){
-    var b=document.getElementById('themeToggle');
-    if(b) b.innerHTML = (t==='dark') ? '☀' : '☾'; // ☀ : ☾
-  }
-  window.applyTheme=function(t){
-    document.documentElement.setAttribute('data-theme', t);
-    try{ localStorage.setItem('vahdam-theme', t); }catch(e){}
-    syncIcon(t);
-  };
-  window.toggleTheme=function(){
-    var cur=document.documentElement.getAttribute('data-theme')||'light';
-    window.applyTheme(cur==='dark'?'light':'dark');
-  };
-  document.documentElement.setAttribute('data-theme', resolve());
-  document.addEventListener('DOMContentLoaded', function(){ syncIcon(document.documentElement.getAttribute('data-theme')); });
+  document.documentElement.setAttribute('data-theme', 'green');
+  try{ localStorage.removeItem('vahdam-theme'); }catch(e){}
+  // Back-compat no-ops in case any inline handler still calls these.
+  window.applyTheme=function(){ document.documentElement.setAttribute('data-theme','green'); };
+  window.toggleTheme=function(){};
 })();
 </script>
 </head>
@@ -762,7 +751,6 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
     <button class="app-hdr-tab" id="tabDashBtn" onclick="switchMainTab('dashboard')">&#128202;&nbsp; Dashboard</button>
   </nav>
   <div class="app-hdr-user">
-    <button id="themeToggle" class="app-hdr-theme" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light / dark theme">&#9790;</button>
     <span id="userGreet" class="app-hdr-greet"></span>
     <button id="logoutBtn" class="app-hdr-logout" onclick="logout()">Sign Out</button>
   </div>
@@ -838,7 +826,7 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
         <button id="smartAIBtn" onclick="smartAIBrief(event)" style="background:linear-gradient(135deg,#004A2B,#006b3e);color:#FBF5EA;font-weight:700;padding:9px 18px;border:none;border-radius:8px;cursor:pointer;font-size:12px;letter-spacing:0.02em;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,74,43,0.25);transition:all 0.2s">&#127775; Create Brief with AI</button>
         <!-- Secondary: "Start New" — only visible after brief exists -->
         <button id="newBriefBtn" onclick="clearAndCreate()" style="display:none;background:#fff;color:#004A2B;border:1.5px solid #004A2B;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;letter-spacing:0.02em;transition:all 0.2s">&#128260; New Brief</button>
-        <span id="smartAIHint" style="font-size:10.5px;color:#9ca3af;flex:1;line-height:1.5">AI creates a director-grade brief from scratch using your market, campaign type, and product picks. Or type any seed idea first.</span>
+        <span id="smartAIHint" style="font-size:10.5px;color:#556059;flex:1;line-height:1.5">AI creates a director-grade brief from scratch using your market, campaign type, and product picks. Or type any seed idea first.</span>
       </div>
       <!-- Brief creation progress panel -->
       <div id="briefProgressPanel" style="display:none;margin-top:14px;background:linear-gradient(135deg,#f8faf9,#f0f4f2);border:1.5px solid #d4e5dc;border-radius:12px;padding:16px 18px;overflow:hidden">
@@ -869,14 +857,14 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
 
     <!-- Divider -->
     <div style="height:1px;background:var(--border);margin-bottom:22px;position:relative">
-      <span style="position:absolute;top:-8px;left:0;background:#fff;padding:0 10px 0 0;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#d1d5db">Targeting</span>
+      <span style="position:absolute;top:-8px;left:0;background:transparent;padding:0 10px 0 0;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#cfe0d5">Targeting</span>
     </div>
 
     <!-- Target Market -->
     <div style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin:0">Target Market <span class="req">*</span></label>
-        <span style="font-size:10px;color:#9ca3af;font-weight:400">Multi-select — each market gets its own tailored mailer</span>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#cfe0d5;margin:0">Target Market <span class="req">*</span></label>
+        <span style="font-size:10px;color:#556059;font-weight:400">Multi-select — each market gets its own tailored mailer</span>
       </div>
       <div class="mkt-chips" id="mktChips">
         <button class="mkt-chip on" data-mkt="US" onclick="toggleMarket('US',this)">&#127482;&#127480; United States</button>
@@ -892,8 +880,8 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
     <!-- Target User Segment -->
     <div class="field" style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin:0">Target User Segment</label>
-        <span style="font-size:10px;color:#9ca3af;font-weight:400">Who is this mailer for? — drives copy, imagery, and tone</span>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#cfe0d5;margin:0">Target User Segment</label>
+        <span style="font-size:10px;color:#556059;font-weight:400">Who is this mailer for? — drives copy, imagery, and tone</span>
       </div>
       <textarea id="audienceIn"
         style="min-height:64px;font-size:13px;line-height:1.65;width:100%;padding:11px 13px;border:1.5px solid #e0d8cc;border-radius:9px;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;outline:none;resize:vertical"
@@ -902,15 +890,15 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
         placeholder="e.g. Urban wellness-curious professionals, 28-42, in NYC/LA. Buy premium grocery, drink 1-2 cups daily, trust farm-direct origin. Lapsed buyers in last 90 days who tried our chai but didn't repeat."></textarea>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button id="audienceAIBtn" type="button" onclick="generateAudienceWithAI(event)" style="background:#fff;color:#004A2B;border:1.5px solid #004A2B;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;letter-spacing:0.02em;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s">&#129504; Generate with AI</button>
-        <span style="font-size:10.5px;color:#9ca3af;flex:1;line-height:1.5">AI infers a precise segment from your brief, market, and campaign type — refine if needed.</span>
+        <span style="font-size:10.5px;color:#556059;flex:1;line-height:1.5">AI infers a precise segment from your brief, market, and campaign type — refine if needed.</span>
       </div>
     </div>
 
     <!-- Campaign Type -->
     <div style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin:0">Campaign Type</label>
-        <span style="font-size:10px;color:#9ca3af;font-weight:400">Multi-select — pick 1-3 to blend the vibe (e.g. Gift + Sale, Routine + Story)</span>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#cfe0d5;margin:0">Campaign Type</label>
+        <span style="font-size:10px;color:#556059;font-weight:400">Multi-select — pick 1-3 to blend the vibe (e.g. Gift + Sale, Routine + Story)</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap" id="typeChips">
         <button class="type-chip on" data-type="" onclick="selectType('',this)">&#x1F916; Auto</button>
@@ -1029,15 +1017,15 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
       </div>
       <!-- Side panel: products + feedback + actions -->
       <div class="img-side-panel">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin-bottom:10px">Selected Products</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin-bottom:10px">Selected Products</div>
         <div class="prod-chips" id="prodChipsReview" style="flex-direction:column;gap:6px;margin-bottom:16px"></div>
         <div style="background:#f8f6f2;border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;margin-bottom:14px">
           <div style="font-size:10px;font-weight:700;color:#374151;margin-bottom:4px">&#x1F5BC; Add a hero image</div>
-          <p style="font-size:11px;color:#6b7280;line-height:1.5;margin-bottom:8px">Generate one with ChatGPT, Claude or Gemini — then upload it below.</p>
+          <p style="font-size:11px;color:#48524c;line-height:1.5;margin-bottom:8px">Generate one with ChatGPT, Claude or Gemini — then upload it below.</p>
           <button onclick="switchP4Tab('chatgpt',document.getElementById('tab-chatgpt'))" style="width:100%;padding:9px;background:#004A2B;color:#FBF5EA;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">Open AI Image Tools &#8599;</button>
         </div>
         <div class="fb-area">
-          <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">Regenerate with feedback</div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#48524c;margin-bottom:6px">Regenerate with feedback</div>
           <textarea id="fbIn" rows="3" placeholder="e.g. Stronger headline, warmer palette, move offer banner higher..."></textarea>
           <div class="regen-count" id="regenCt"></div>
         </div>
@@ -1050,7 +1038,7 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
     </div>
     <!-- Action row at bottom for quick access -->
     <div class="btn-row" style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-      <span style="font-size:11px;color:#9ca3af;flex:1">Happy with the layout?</span>
+      <span style="font-size:11px;color:#556059;flex:1">Happy with the layout?</span>
       <button class="btn btn-ghost btn-sm" onclick="goBack(2)">&larr; Back</button>
       <button class="btn btn-outline btn-sm" onclick="regenFeedback()">&#8635; Regenerate</button>
       <button class="btn btn-gold" onclick="approveAndBuild()">&#10003; Build HTML Mailer &rarr;</button>
@@ -1061,19 +1049,19 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
   <div id="p4-content" style="display:none">
     <div style="background:linear-gradient(135deg,#004A2B,#004A2B);border-radius:12px;padding:16px 20px;margin-bottom:16px;color:#FBF5EA">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#9fd6b5">Structured Content Preview</span>
+        <span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#FBF5EA">Structured Content Preview</span>
         <span style="font-size:10.5px;color:#fff;font-weight:600">Review exact copy before generating HTML</span>
         <span style="flex:1"></span>
-        <span id="contentPreviewVariantLabel" style="font-size:10px;color:#c9e8d5;font-style:italic"></span>
+        <span id="contentPreviewVariantLabel" style="font-size:10px;color:#FBF5EA;font-style:italic"></span>
       </div>
-      <p style="font-size:11px;color:#c9e8d5;margin:8px 0 0;line-height:1.5">This is the exact content that will go into your final HTML mailer. Review headlines, subcopy, offer text, product cards, and CTAs. Use the feedback box to request changes, then regenerate.</p>
+      <p style="font-size:11px;color:#FBF5EA;margin:8px 0 0;line-height:1.5">This is the exact content that will go into your final HTML mailer. Review headlines, subcopy, offer text, product cards, and CTAs. Use the feedback box to request changes, then regenerate.</p>
     </div>
     <div id="contentPreviewBody" style="border:1.5px solid #ede5d8;border-radius:12px;overflow:hidden;background:#fff">
       <!-- Populated by renderContentPreview() -->
       <div style="padding:40px;text-align:center;color:#aaa;font-size:13px">Generating content preview...</div>
     </div>
     <div class="btn-row" style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-      <span style="font-size:11px;color:#9ca3af;flex:1">Happy with the content?</span>
+      <span style="font-size:11px;color:#556059;flex:1">Happy with the content?</span>
       <button class="btn btn-ghost btn-sm" onclick="goBack(2)">&larr; Back</button>
       <button class="btn btn-outline btn-sm" onclick="switchP4Tab('claude',document.getElementById('tab-claude'))">&#128065; Canvas View</button>
       <button class="btn btn-gold" onclick="approveAndBuild()">&#10003; Build HTML Mailer &rarr;</button>
@@ -1081,7 +1069,7 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
   </div>
 
   <div id="p4-chatgpt" style="display:none">
-    <p style="font-size:12px;color:#6b7280;margin-bottom:16px;line-height:1.6">Choose an AI image generation tool below. The full campaign prompt is <strong>auto-copied</strong> to your clipboard when you click Open. Paste it into the tool, generate your image, download it, then come back and upload it in the <strong>Upload Design File</strong> tab.</p>
+    <p style="font-size:12px;color:#48524c;margin-bottom:16px;line-height:1.6">Choose an AI image generation tool below. The full campaign prompt is <strong>auto-copied</strong> to your clipboard when you click Open. Paste it into the tool, generate your image, download it, then come back and upload it in the <strong>Upload Design File</strong> tab.</p>
 
     <!-- Three tool cards -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
@@ -1167,9 +1155,9 @@ html[data-theme="dark"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67,
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
         <span style="font-size:18px">&#9889;</span>
         <span style="font-size:13px;font-weight:700">Generate Mailer Design with AI</span>
-        <span style="font-size:10px;color:#9fd6b5;margin-left:auto">gpt-image-2 &rarr; Gemini &rarr; Pollinations</span>
+        <span style="font-size:10px;color:#FBF5EA;margin-left:auto">gpt-image-2 &rarr; Gemini &rarr; Pollinations</span>
       </div>
-      <p style="font-size:11px;color:#c9e8d5;line-height:1.5;margin:0 0 12px">Creates a complete mailer creative from your campaign brief + real product data. One click &mdash; the AI builds the full design with your products, prices, and brand palette.</p>
+      <p style="font-size:11px;color:#FBF5EA;line-height:1.5;margin:0 0 12px">Creates a complete mailer creative from your campaign brief + real product data. One click &mdash; the AI builds the full design with your products, prices, and brand palette.</p>
       <div style="display:flex;gap:8px">
         <button id="serverGenBtn" onclick="generateServerImage('A')" style="flex:1;padding:10px;background:#AB8743;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">&#9889; Generate Variant A</button>
         <button onclick="generateServerImage('B')" style="flex:1;padding:10px;background:#AB8743;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">&#9889; Generate Variant B</button>
@@ -1317,8 +1305,11 @@ console.log('%c[VAHDAM Mailer] Build:','color:#004A2B;font-weight:bold','supabas
 // 3. Run the SQL in the comment block below to create the required tables
 // ═══════════════════════════════════════════════════════════════════════════
 const SUPABASE_CONFIG={
-  url:'https://ozlmmiyyjmmfdvvrtgdp.supabase.co',
-  anonKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96bG1taXl5am1tZmR2dnJ0Z2RwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NTY4MzksImV4cCI6MjA5MzAzMjgzOX0.UnGsjz8zVTzma5Klumj21pRSPCU_kD1Re-kK1WSYwMM',
+  // Unified to the real vahdam-lifecycle-os project (gubbckgjujwqodghcavv) — the
+  // same project auth.js + data/linked-db.json use. Was pointed at a stale third
+  // project (ozlmmiyyjmmfdvvrtgdp). anon key only (public/publishable).
+  url:'https://gubbckgjujwqodghcavv.supabase.co',
+  anonKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1YmJja2dqdWp3cW9kZ2hjYXZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTk3MzksImV4cCI6MjA5Njc3NTczOX0.mJikSp_K1j7kV3THCYq8Z8PNf2Q7eJMwsY9iphRZWFg',
   enabled:true
 };
 /* ═══ REQUIRED SQL — paste into Supabase SQL Editor ══════════════════════════
@@ -2251,9 +2242,19 @@ function validateMailerCreative(){
   function brandPaletteCheck(html,label){
     if(!html||html.length<2000){err(label+' HTML is empty or truncated.');return;}
     if(!/<\/html>/i.test(html)){err(label+' HTML missing closing </html> tag.');}
-    // Off-palette hex codes that should never appear in mailer output
-    var bad=html.match(/#(0f2a1c|d4873a|fdf6e8|1a3a28|1a1a1a|faf8f4)/gi);
-    if(bad && bad.length){err(label+' contains off-brand hex codes: '+Array.from(new Set(bad.map(function(s){return s.toLowerCase();}))).join(', '));}
+    // Palette ALLOWLIST (brand HARD rule: only the four brand colours; pure
+    // black/white pass as structural neutrals). Every other hex is surfaced, so
+    // off-palette drift is caught by what IS allowed, not just a fixed denylist
+    // of six known-bad tints.
+    var ALLOWED={'#004a2b':1,'#ab8743':1,'#171717':1,'#fbf5ea':1,'#ffffff':1,'#fff':1,'#ffffff':1,'#000':1};
+    var hexes=html.match(/#[0-9a-fA-F]{3,6}\b/g)||[];
+    var off=Array.from(new Set(hexes.map(function(s){return s.toLowerCase();}))).filter(function(h){return !ALLOWED[h];});
+    // The six known legacy drift tints stay a hard error; any other off-palette
+    // hex is a warning the reviewer can weigh (structural greys etc.).
+    var hardBad=off.filter(function(h){return /^#(0f2a1c|d4873a|fdf6e8|1a3a28|1a1a1a|faf8f4)$/.test(h);});
+    if(hardBad.length){err(label+' contains off-brand hex codes: '+hardBad.join(', '));}
+    var softBad=off.filter(function(h){return hardBad.indexOf(h)<0;});
+    if(softBad.length){warn(label+' uses '+softBad.length+' off-palette hex code(s) — brand allows only #004A2B / #AB8743 / #171717 / #FBF5EA (+ white/black): '+softBad.slice(0,8).join(', ')+(softBad.length>8?' …':''));}
     if(!/Lao MN/i.test(html)){warn(label+': LAO MN headline font not declared.');}
     if(!/Proxima Nova/i.test(html)){warn(label+': Proxima Nova body font not declared.');}
     // CTAs
@@ -2352,7 +2353,7 @@ async function generateAudienceWithAI(e){
     var res=await fetch('/api/ai/generate',{
       method:'POST',cache:'no-store',
       headers:_getApiHeaders(),
-      body:JSON.stringify({mode:'audience_segment',market:primaryMkt,theme:type,campaign_brief:brief,seed_segment:(aud?aud.value:'')||''})
+      body:JSON.stringify({mode:'audience_segment',market:primaryMkt,theme:type,campaign_brief:brief,seed_segment:(aud?aud.value:'')||'',tier:(window.__VAHDAM_TIER||'maxpower')})
     });
     var data=await res.json().catch(function(){return {};});
     var text=(data&&data.text||'').trim();
@@ -2444,7 +2445,7 @@ async function createPromptWithAI(){
         return '<div style="display:flex;align-items:flex-start;gap:10px;padding:6px 0;opacity:0.4;transition:opacity 0.4s" id="bpstep-'+i+'">'
           +'<div style="width:22px;height:22px;border-radius:50%;background:#004A2B;color:#FBF5EA;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">'+(i+1)+'</div>'
           +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:#004A2B">'+s.label+'</div>'
-          +'<div style="font-size:10px;color:#6b7280;margin-top:2px">'+s.detail+'</div></div></div>';
+          +'<div style="font-size:10px;color:#48524c;margin-top:2px">'+s.detail+'</div></div></div>';
       }).join('');
     }
     if(_briefFill) _briefFill.style.width='10%';
@@ -2495,6 +2496,7 @@ async function createPromptWithAI(){
         campaign_brief:seed,
         selected_products:prods,
         regenerate_counter: window._briefGenCount,
+        tier:(window.__VAHDAM_TIER||'maxpower'),
         creativity_seed: creativitySeed,
         target_audience: userAudience
       })
@@ -2862,7 +2864,7 @@ window.viewMarketHtml=function(mkt){
   modal.innerHTML=
     '<div style="background:#fff;border-radius:14px;max-width:1100px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.3);display:flex;flex-direction:column;max-height:calc(100vh - 40px)">'+
       '<div style="background:linear-gradient(135deg,#004A2B,#004A2B);padding:14px 20px;display:flex;align-items:center;gap:10px;color:#FBF5EA">'+
-        '<span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#9fd6b5">HTML Source</span>'+
+        '<span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#FBF5EA">HTML Source</span>'+
         '<span style="font-family:\'Lao MN\',Georgia,serif;font-size:18px;font-weight:600">'+(({US:'🇺🇸 US',UK:'🇬🇧 UK',IN:'🇮🇳 IN',Global:'🌍 Global',ME:'🇦🇪 ME',AU:'🇦🇺 AU',EU:'🇪🇺 EU'})[mkt]||mkt)+' · Variant '+v+'</span>'+
         '<span style="flex:1"></span>'+
         '<button onclick="(function(){navigator.clipboard&&navigator.clipboard.writeText(window.__vhdViewerHtml||\'\').then(function(){statusPill&&statusPill(\'ok\',\'HTML copied to clipboard\');});})()" style="padding:7px 14px;background:rgba(255,255,255,0.14);color:#FBF5EA;border:1px solid rgba(255,255,255,0.3);border-radius:7px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.04em">📋 Copy</button>'+
@@ -2904,10 +2906,10 @@ function buildCampaignCtxBanner(){
   var html='';
   html+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">';
   html+='<span style="background:'+(typeBadge[S.type]||'#004A2B')+';color:#fff;font-size:9px;font-weight:700;letter-spacing:0.14em;padding:3px 10px;border-radius:20px;text-transform:uppercase">'+typeLabel+'</span>';
-  html+='<span style="font-size:12px;color:#9fd6b5">'+markets+'</span>';
+  html+='<span style="font-size:12px;color:#FBF5EA">'+markets+'</span>';
   if(oc)html+='<span style="background:#AB8743;color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;letter-spacing:0.08em">'+oc+'</span>';
   html+='</div>';
-  html+='<div style="font-size:10px;color:#c9e8d5;font-style:italic;line-height:1.5">&ldquo;'+brief+'&rdquo;</div>';
+  html+='<div style="font-size:10px;color:#FBF5EA;font-style:italic;line-height:1.5">&ldquo;'+brief+'&rdquo;</div>';
   if(S.audience){
     var aud=(S.audience||'').substring(0,180)+((S.audience||'').length>180?'…':'');
     html+='<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(159,214,181,0.25);font-size:10px;color:#FBF5EA;line-height:1.5"><span style="color:#AB8743;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;font-size:9px">Target segment:</span> '+aud+'</div>';
@@ -3017,7 +3019,13 @@ var _REVIEWER_NAMES={
   EU:[['Marie L.','Paris'],['Thomas B.','Berlin'],['Anna S.','Amsterdam'],['Lucas M.','Vienna'],['Elena K.','Milan'],['Henrik J.','Stockholm']],
   Global:[['Sarah M.','New York'],['Charlotte W.','London'],['Priya S.','Mumbai'],['Emma L.','Sydney'],['Marie L.','Paris'],['Fatima A.','Dubai']]
 };
+// B1 real-only flag for the client. Fetched once from /api/public-config; until
+// it resolves it stays false, so default behaviour is unchanged. When true, the
+// studio stops emitting invented reviewer names, review quotes and guessed prices.
+window.__REAL_FACTS_ONLY = window.__REAL_FACTS_ONLY || false;
+(function(){ try { fetch('/api/public-config').then(function(r){return r.json();}).then(function(c){ if(c&&c.flags&&c.flags.real_facts_only) window.__REAL_FACTS_ONLY=true; }).catch(function(){}); } catch(e){} })();
 function _getReviewerName(mkt,idx){
+  if(window.__REAL_FACTS_ONLY) return '';   // no fabricated reviewer identities
   var pool=_REVIEWER_NAMES[mkt]||_REVIEWER_NAMES.US;
   var r=pool[idx%pool.length];
   return r[0]+', '+r[1];
@@ -3041,6 +3049,7 @@ var _REVIEW_QUOTES={
   ]
 };
 function _getReviewList(mkt,type){
+  if(window.__REAL_FACTS_ONLY) return [];   // no fabricated review quotes
   var pool=_REVIEW_QUOTES[type]||_REVIEW_QUOTES.default;
   var quotes=pool[Math.floor(Math.random()*pool.length)]||pool[0];
   var names=_REVIEWER_NAMES[mkt]||_REVIEWER_NAMES.US;
@@ -3518,8 +3527,12 @@ function offerText(p){
   return '';
 }
 function offerCode(p){
-  const m=p.match(/(?:code|coupon|use)\s+([A-Z0-9]{4,15})/i)||p.match(/\b([A-Z]{2,8}\d{1,4})\b/);
-  return m?m[1].toUpperCase():'';
+  // Filler words that look like a code but aren't — never render these as a promo code.
+  var STOP={NEEDED:1,NONE:1,TBD:1,HERE:1,YOUR:1,CODE:1,ABOVE:1,BELOW:1,REQUIRED:1,PLACEHOLDER:1,CHECKOUT:1,ORDERS:1,TODAY:1,OFFER:1,SALE:1,SHIPPING:1,FREE:1,LIMITED:1,DETOX:1,TEAS:1};
+  const m=p.match(/(?:code|coupon)[:\s]+([A-Z0-9]{4,15})/i)||p.match(/\b([A-Z]{2,8}\d{1,4})\b/);
+  if(!m)return '';
+  const c=m[1].toUpperCase();
+  return STOP[c]?'':c;
 }
 function offerSub(p){
   if(has(p.toLowerCase(),'free shipping'))return 'FREE SHIPPING ON ALL ORDERS';
@@ -3781,6 +3794,10 @@ function prodPrice(n,market){
       }
     }
   }
+  // B1 real-only: never GUESS a price. With no real catalog price and the flag
+  // on, return an unpriced object so the price/SAVE block renders empty instead
+  // of a fabricated number.
+  if(window.__REAL_FACTS_ONLY){ return {regular:0,currency:cur,currencySymbol:sym,display:'',raw:0,unpriced:true}; }
   // ── FALLBACK: Estimate from product name (legacy behavior) ──
   var l=(prodName||'').toLowerCase();
   // Detect product format/size from name
@@ -4236,6 +4253,28 @@ function buildEffectivePrompt(p,prods){
   }
   return p+'\n\n[HERO CATEGORY: '+heroKeyword+']\n[FEATURED PRODUCTS: '+prodNames+']';
 }
+// Text-free hero PHOTOGRAPH brief (B1 anti-fabrication). The design-image mode
+// must never bake a full email — with invented reviews, ratings, prices, promo
+// codes — into a single generated image (image models render those as garbled,
+// fabricated text). All copy/offers/social-proof are composed by the HTML
+// renderer from real data; the generated image is ONLY a clean product photo.
+function _textFreeHeroPrompt(o){
+  var o2=o||{};
+  var shot=o2.variant==='B'
+    ? 'Wide editorial lifestyle photograph: the product staged in a real-life scene with generous negative space.'
+    : 'Tight hero close-up photograph: the product filling most of the frame, shallow depth of field.';
+  return [
+    'Premium, photorealistic PRODUCT PHOTOGRAPH for VAHDAM tea. Magazine-quality, editorial, natural light. Aesop / Kinfolk / Glossier aesthetic. Never cartoonish, never illustrated, never AI-uncanny.',
+    shot,
+    'Hero product: '+(o2.heroDesc||'premium VAHDAM forest-green tea tin with gold lettering')+'.',
+    'Scene and styling: '+(o2.lifestyleNote||'tin on cream linen with fresh botanicals, warm studio light')+'.',
+    (o2.mood?('Mood: '+o2.mood):''),
+    'Show the real VAHDAM tin (forest-green base, gold lettering, botanical illustration); never generic packaging.',
+    'Colour world (do NOT print as text): deep forest green, antique gold, cream, near-black.',
+    'ABSOLUTE RULES: this is a PHOTOGRAPH, not an email or a graphic. NO text of any kind in the image, NO words, letters, numbers, captions, headlines, logos-as-text, buttons, badges, price tags, discount codes, star ratings, review counts or testimonials. NO UI, NO email layout, NO sections, NO device frames. Just a clean, real photograph.',
+    (o2.feedbackText?('Art-direction feedback to apply: '+o2.feedbackText):'')
+  ].filter(Boolean).join('\n');
+}
 function buildImagePrompt(prompt,market,type,prods,variant){
   variant=variant||'A';
   const moodMap={Sale:'Urgent and bold. Deep forest green and antique gold dominate. Strong contrast. High-energy urgency with offer-forward hierarchy.',Launch:'Sophisticated and fresh. Clean cream whites and deep greens. Editorial luxury. New arrival excitement.',Seasonal:'Warm and festive. Rich botanical textures. Celebratory warmth. Seasonal colour palette.',Bestseller:'Confident and aspirational. Social proof-forward. Premium minimalism. Trust-building aesthetic.',Gift:'Elegant gifting aesthetic. Soft cream, gold-foil feel. Occasion luxury. Ribbon and box photography.',Discovery:'Curious and inviting. Warm variety palette. Sampler spread. Multiple tins displayed together.',Routine:'Calm and ritualistic. Morning window light, steam rising, slow-living. Meditative quiet.',Story:'Deep and narrative. Earthy, authentic, artisanal. Tea estate photography. Heritage and origin.'};
@@ -4338,7 +4377,11 @@ function buildImagePrompt(prompt,market,type,prods,variant){
     feedbackText=colonIdx>=0?rest.substring(colonIdx+1).replace(/\]/g,'').trim():'';
   }
   var basePromptForBrief=basePrompt.substring(0,500); // increased from 300 to capture full intent
-  return 'You are the lead creative director and senior email designer at the world\'s top D2C agency, with 20 years of experience producing flagship campaign visuals for premium brands. This is a PRODUCTION-READY email hero visual for VAHDAM(R) India -- India\'s #1 direct-to-consumer premium tea brand.\n\nAESTHETIC REFERENCE: Aesop product launches. Kinfolk magazine editorial. Glossier campaign emails. AG1 wellness emails. ChatGPT 4o native image rendering quality. Every pixel must feel intentional, premium, and earned. Photorealistic. Magazine-quality. NEVER cartoonish, never illustrated, never AI-uncanny.\n\n====================================================\nCAMPAIGN BRIEF (READ CAREFULLY -- EVERY ELEMENT MUST REFLECT THIS)\n====================================================\nBrand: VAHDAM(R) India\nCampaign Description: '+basePromptForBrief+'\nTarget Market: '+mkt+(campaignSeason?' | Season: '+campaignSeason:'')+(code?' | Promo Code: '+code+' (MUST appear prominently)':(offer?' | Offer: '+offer:' | No promo code'))+'\nCampaign Type: '+detectedType+'\nCreative Mood: '+mood+'\nHero Products: '+mentionedProds+'\nLayout Variant: '+variantLabel+'\n===================================================='+variantInstructions+(feedbackText?'\n\n★★★ REGENERATION FEEDBACK — APPLY THESE CHANGES (HIGHEST PRIORITY) ★★★\n'+feedbackText+'\nThe previous render did NOT satisfy the user. The above changes are MANDATORY in this version.\n★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★\n':'')+'\n\nOUTPUT SPECIFICATION:\n- Standalone tall vertical email column, EXACTLY 600px wide\n- Centred on warm parchment #f0ebe0 outer background\n- ZERO device frames. ZERO browser chrome. ZERO inbox UI. Just the email column.\n- Total height: 2400-2800px\n- Every section flush against the next -- zero unintended gaps\n\nBRAND PALETTE (OFFICIAL VAHDAM STYLE GUIDE -- use ONLY these):\n- #004A2B deep forest green -- primary backgrounds, CTA buttons, headlines on light\n- #AB8743 antique gold -- accents, offer callouts, star ratings, borders\n- #FBF5EA warm parchment cream -- section backgrounds, body text on dark\n- #171717 near-black -- body text on light backgrounds\n- #f8f4ee light cream -- alternating section background\n- #004A2B deep forest -- social proof bar, dark accents\n\nBRAND TYPOGRAPHY (OFFICIAL VAHDAM STYLE GUIDE -- MANDATORY -- NO EXCEPTIONS):\n- PRIMARY FONT "Lao MN" (serif): EVERY heading, title, sub-heading, hero headline, section label\n  Font stack: Lao MN, Georgia, Times New Roman, serif\n- SECONDARY FONT "Proxima Nova" (sans-serif): ALL body copy, labels, captions, buttons, nav\n  Font stack: Proxima Nova, Helvetica Neue, Arial, sans-serif\n- NEVER use Georgia alone (must be Lao MN first) | NEVER use Arial alone (must be Proxima Nova first)\n- Hero headline: 42-48px Lao MN bold -- large, impactful, luxury editorial\n- Section headings: 18-22px Lao MN bold\n- Body copy: 12-13px Proxima Nova 400-500 weight\n- CTA buttons: 12-13px Proxima Nova 700 bold\n\nPRODUCT PHOTOGRAPHY STYLE:\n- Photorealistic studio photography (NOT clipart, NOT flat icons, NOT illustrations for products)\n- Hero product: '+heroDesc+'\n- Lifestyle setting: '+lifestyleNote+'\n- Tins: warm directional side-lighting, subtle drop-shadow, cream/white surface, natural depth-of-field\n- SHOW the actual VAHDAM tin labels clearly -- do NOT render generic or placeholder packaging\n\nPRODUCTS TO FEATURE (render EXACTLY these, in this order):\n'+prodDescriptions+'\n\nEMAIL SECTIONS (render EXACTLY in this sequence):\n\n[S1] ANNOUNCEMENT BAR [34px, #004A2B background]\n  Proxima Nova 10px bold cream uppercase centred: "'+annBarLine(prompt,market)+'"\n\n[S2] BRAND HEADER [90px, white background]\n  EST. 2015 · NEW DELHI, INDIA -- Proxima Nova 9px gold #AB8743, centred\n  VAHDAM(R) -- Lao MN 36px bold #004A2B, letter-spacing 0.18em\n  PREMIUM INDIAN TEAS · DIRECT FROM SOURCE -- Proxima Nova 9px gold\n  3-column trust bar (1px gold hairline separator top): 🌿 100% PURE INDIAN TEA | 🤝 ETHICALLY SOURCED | 🌿 DIRECT FROM FARMS\n\n[S3] HERO SPLIT [310px, #FBF5EA parchment]\n  LEFT 300px (padding 32px 28px):\n    Offer label: "'+( offer||detectedType.toUpperCase())+'" -- Proxima Nova 9px bold gold uppercase + 1px gold hairline\n    HEADLINE LINE 1: "'+hl[0]+'" -- Lao MN 44px bold #004A2B, line-height 1.06\n    HEADLINE LINE 2: "'+( hl[1]||'')+'" -- Lao MN 44px bold #004A2B\n    Sub-copy: "'+sc.substring(0,110)+'" -- Proxima Nova 12px #555 line-height 1.6\n    CTA button: "'+cta+'" -- 44px tall pill, #004A2B bg, Proxima Nova 12px bold cream\n    '+(code?'Promo code label: "USE CODE: '+code+'" -- Proxima Nova 10px gold below button\n    ':'')+'\n    Feature strip (hairline top separator, 4 equal cols): '+feats.join(' | ')+'\n    (each col: emoji 14px above, Proxima Nova 7.5px bold uppercase label)\n  RIGHT 300px: full-bleed lifestyle photography\n    '+lifestyleNote+'\n    Bottom overlay bar #004A2B: "'+heroProductName+'" italic Lao MN 10px cream + "★★★★★ 4.8 / 1,000+ reviews"\n\n[S4] FEATURE BAR [48px, #004A2B]\n  4 equal cols, 1px white separator lines:\n  '+feats.join(' | ')+'\n  Each col: emoji 16px above, Proxima Nova 8px bold pale-green #9fd6b5\n\n[S5] SOCIAL PROOF BAR [36px, #004A2B]\n  Centred Proxima Nova 10px pale-green: "★★★★★  Rated 4.8/5 by 50,000+ tea lovers  |  100% Natural  |  Ships to 100+ Countries"\n\n[S6] CAMPAIGN HIGHLIGHT [160px, #f8f4ee]\n  Section label: "-- '+detectedType.toUpperCase()+' --" Proxima Nova 9px bold gold\n  Title: "'+sectionTitle(prompt)+'" -- Lao MN 20px bold #004A2B\n  4 botanical watercolour tiles (130px wide × 120px tall each):\n    '+ings[0].n+': '+ings[0].d+'\n    '+ings[1].n+': '+ings[1].d+'\n    '+ings[2].n+': '+ings[2].d+'\n    '+ings[3].n+': '+ings[3].d+'\n  WATERCOLOUR: delicate ink-washed botanical art on cream paper -- NOT photographs\n\n[S7] PRODUCT GRID [260px, white]\n  Title: "-- '+productSectionTitle(prompt)+' --" Lao MN 20px bold #004A2B\n  '+prods.length+' equal product cards:\n'+prodGridCards+'\n  EACH CARD: studio product photo 160px | Lao MN 11px bold name | ★★★★★ 4.8 gold | Proxima Nova "SHOP NOW" #004A2B button\n  Card: 1px #ede5d8 border, 8px radius, subtle shadow\n\n[S8] TESTIMONIALS [160px, white]\n  Label: "-- CUSTOMER REVIEWS --" Proxima Nova 9px bold gold\n  Title: "What Tea Lovers Are Saying" -- Lao MN 20px bold\n  3 cards equal-width:\n    Card 1: "'+( detectedType==='Sale'?'I keep coming back because no other tea makes my morning feel this good.':detectedType==='Gift'?'She opened the box and paused. The aroma, the tins — she said it was the most beautiful gift in years.':'There is a moment every morning when I hold the warm cup and the world goes quiet. VAHDAM gave me that.')+'" -- '+_getReviewerName(market,0)+'\n    Card 2: "Every sip reminds me that the small things matter. The steam, the scent, the quiet five minutes." -- '+_getReviewerName(market,1)+'\n    Card 3: "A friend brought a tin to my house. I ordered my own that same night. Some things you just know." -- '+_getReviewerName(market,2)+'\n\n[S9] OFFER BANNER [180px, #004A2B]\n  LEFT 210px: lifestyle product photo (matches S3 right)\n  RIGHT (padding 28px, centred):\n    "LIMITED TIME OFFER" -- Proxima Nova 9px bold gold uppercase wide-tracking\n    "'+(offer||'EXCLUSIVE OFFER')+'" -- Lao MN 32px bold cream #FBF5EA\n    '+(code?'"'+code+'" -- 2px solid gold bordered pill, Lao MN 26px bold gold\n    ':'')+'"'+offerCta(prompt)+'" button -- #AB8743 bg, Proxima Nova 12px bold cream\n    "'+os+'" -- Proxima Nova 9px pale-green #9fd6b5\n\n[S10] TRUST BADGES [70px, #FBF5EA]\n  5 equal cols with dividers:\n  🌱 SUSTAINABLE | 💚 WOMEN-LED | 🤝 ETHICAL | 👥 COMMUNITY | ❤️ LOVED\n  Each: 36px circle badge #e6f0ea bg | Proxima Nova 8px bold uppercase label\n\n[S11] FOOTER [80px, #004A2B]\n  "MAKE EVERY CUP COUNT" -- Lao MN 13px bold cream, wide-tracking\n  4 social badges (30px #333): IG | f | YT | P\n  Proxima Nova 9px #666: About Us | Shop | Blog | Contact\n  Proxima Nova 8.5px #444: Unsubscribe | Privacy Policy\n\nCRITICAL NON-NEGOTIABLES:\n1. PALETTE: ONLY #004A2B / #AB8743 / #FBF5EA / #f8f4ee / #004A2B / #171717\n2. FONTS: Lao MN ALL headings. Proxima Nova ALL body/labels/buttons. Exactly as specified.\n3. CAMPAIGN: Every headline, offer, product, and message MUST reflect the campaign description above.\n4. HERO HEADLINE: 42-48px Lao MN bold -- the most important visual element\n5. PRODUCTS: Show ONLY the specified products -- no generic or substituted tins\n6. OFFER CODE: '+( code?'"'+code+'" MUST be prominently displayed':'No promo code for this campaign')+'\n7. QUALITY: Klaviyo hero-template quality. Glossier. Aesop. AG1. Nothing less.\n8. IMAGE FIDELITY: Photorealistic studio photography (NOT vector, NOT cartoon, NOT illustrated). The output should look like ChatGPT 4o native image generation -- crisp typography rendered as real text (no garbled letters), actual readable copy at every size, accurate product packaging, professional product photography lighting, magazine-print sharpness. If product images are referenced, replicate the actual VAHDAM tin design (forest-green base, gold lettering, botanical illustrations) -- NEVER substitute generic packaging.\n9. TYPOGRAPHY RENDERING: Render ALL text as crisp, readable, correctly-spelled text. NO gibberish letterforms, NO smeared characters, NO fake-Latin. Every word must be legible at output resolution.'+(feedbackText?'\n10. FEEDBACK COMPLIANCE: The user explicitly requested the changes listed in the REGENERATION FEEDBACK section above. THIS REGENERATION MUST VISIBLY DIFFER from the previous render in the ways the user described. Do NOT produce a near-identical output.':'');
+  // B1 anti-fabrication: return a TEXT-FREE product photograph brief. The legacy
+  // full-email image prompt below is retained (unreachable) for reference only —
+  // it baked invented reviews/ratings/prices into the hero and must not ship.
+  return _textFreeHeroPrompt({ heroDesc: heroDesc, lifestyleNote: lifestyleNote, mood: mood, mkt: mkt, mentionedProds: mentionedProds, variant: variant, detectedType: detectedType, feedbackText: feedbackText });
+  return 'You are the lead creative director and senior email designer at the world\'s top D2C agency, with 20 years of experience producing flagship campaign visuals for premium brands. This is a PRODUCTION-READY email hero visual for VAHDAM(R) India -- India\'s #1 direct-to-consumer premium tea brand.\n\nAESTHETIC REFERENCE: Aesop product launches. Kinfolk magazine editorial. Glossier campaign emails. AG1 wellness emails. ChatGPT 4o native image rendering quality. Every pixel must feel intentional, premium, and earned. Photorealistic. Magazine-quality. NEVER cartoonish, never illustrated, never AI-uncanny.\n\n====================================================\nCAMPAIGN BRIEF (READ CAREFULLY -- EVERY ELEMENT MUST REFLECT THIS)\n====================================================\nBrand: VAHDAM(R) India\nCampaign Description: '+basePromptForBrief+'\nTarget Market: '+mkt+(campaignSeason?' | Season: '+campaignSeason:'')+(code?' | Promo Code: '+code+' (MUST appear prominently)':(offer?' | Offer: '+offer:' | No promo code'))+'\nCampaign Type: '+detectedType+'\nCreative Mood: '+mood+'\nHero Products: '+mentionedProds+'\nLayout Variant: '+variantLabel+'\n===================================================='+variantInstructions+(feedbackText?'\n\n★★★ REGENERATION FEEDBACK — APPLY THESE CHANGES (HIGHEST PRIORITY) ★★★\n'+feedbackText+'\nThe previous render did NOT satisfy the user. The above changes are MANDATORY in this version.\n★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★\n':'')+'\n\nOUTPUT SPECIFICATION:\n- Standalone tall vertical email column, EXACTLY 600px wide\n- Centred on warm parchment #f0ebe0 outer background\n- ZERO device frames. ZERO browser chrome. ZERO inbox UI. Just the email column.\n- Total height: 2400-2800px\n- Every section flush against the next -- zero unintended gaps\n\nBRAND PALETTE (OFFICIAL VAHDAM STYLE GUIDE -- use ONLY these):\n- #004A2B deep forest green -- primary backgrounds, CTA buttons, headlines on light\n- #AB8743 antique gold -- accents, offer callouts, star ratings, borders\n- #FBF5EA warm parchment cream -- section backgrounds, body text on dark\n- #171717 near-black -- body text on light backgrounds\n- #f8f4ee light cream -- alternating section background\n- #004A2B deep forest -- social proof bar, dark accents\n\nBRAND TYPOGRAPHY (OFFICIAL VAHDAM STYLE GUIDE -- MANDATORY -- NO EXCEPTIONS):\n- PRIMARY FONT "Lao MN" (serif): EVERY heading, title, sub-heading, hero headline, section label\n  Font stack: Lao MN, Georgia, Times New Roman, serif\n- SECONDARY FONT "Proxima Nova" (sans-serif): ALL body copy, labels, captions, buttons, nav\n  Font stack: Proxima Nova, Helvetica Neue, Arial, sans-serif\n- NEVER use Georgia alone (must be Lao MN first) | NEVER use Arial alone (must be Proxima Nova first)\n- Hero headline: 42-48px Lao MN bold -- large, impactful, luxury editorial\n- Section headings: 18-22px Lao MN bold\n- Body copy: 12-13px Proxima Nova 400-500 weight\n- CTA buttons: 12-13px Proxima Nova 700 bold\n\nPRODUCT PHOTOGRAPHY STYLE:\n- Photorealistic studio photography (NOT clipart, NOT flat icons, NOT illustrations for products)\n- Hero product: '+heroDesc+'\n- Lifestyle setting: '+lifestyleNote+'\n- Tins: warm directional side-lighting, subtle drop-shadow, cream/white surface, natural depth-of-field\n- SHOW the actual VAHDAM tin labels clearly -- do NOT render generic or placeholder packaging\n\nPRODUCTS TO FEATURE (render EXACTLY these, in this order):\n'+prodDescriptions+'\n\nEMAIL SECTIONS (render EXACTLY in this sequence):\n\n[S1] ANNOUNCEMENT BAR [34px, #004A2B background]\n  Proxima Nova 10px bold cream uppercase centred: "'+annBarLine(prompt,market)+'"\n\n[S2] BRAND HEADER [90px, white background]\n  EST. 2015 · NEW DELHI, INDIA -- Proxima Nova 9px gold #AB8743, centred\n  VAHDAM(R) -- Lao MN 36px bold #004A2B, letter-spacing 0.18em\n  PREMIUM INDIAN TEAS · DIRECT FROM SOURCE -- Proxima Nova 9px gold\n  3-column trust bar (1px gold hairline separator top): 🌿 100% PURE INDIAN TEA | 🤝 ETHICALLY SOURCED | 🌿 DIRECT FROM FARMS\n\n[S3] HERO SPLIT [310px, #FBF5EA parchment]\n  LEFT 300px (padding 32px 28px):\n    Offer label: "'+( offer||detectedType.toUpperCase())+'" -- Proxima Nova 9px bold gold uppercase + 1px gold hairline\n    HEADLINE LINE 1: "'+hl[0]+'" -- Lao MN 44px bold #004A2B, line-height 1.06\n    HEADLINE LINE 2: "'+( hl[1]||'')+'" -- Lao MN 44px bold #004A2B\n    Sub-copy: "'+sc.substring(0,110)+'" -- Proxima Nova 12px #555 line-height 1.6\n    CTA button: "'+cta+'" -- 44px tall pill, #004A2B bg, Proxima Nova 12px bold cream\n    '+(code?'Promo code label: "USE CODE: '+code+'" -- Proxima Nova 10px gold below button\n    ':'')+'\n    Feature strip (hairline top separator, 4 equal cols): '+feats.join(' | ')+'\n    (each col: emoji 14px above, Proxima Nova 7.5px bold uppercase label)\n  RIGHT 300px: full-bleed lifestyle photography\n    '+lifestyleNote+'\n    Bottom overlay bar #004A2B: "'+heroProductName+'" italic Lao MN 10px cream + "★★★★★ 4.8 / 1,000+ reviews"\n\n[S4] FEATURE BAR [48px, #004A2B]\n  4 equal cols, 1px white separator lines:\n  '+feats.join(' | ')+'\n  Each col: emoji 16px above, Proxima Nova 8px bold pale-green #FBF5EA\n\n[S5] SOCIAL PROOF BAR [36px, #004A2B]\n  Centred Proxima Nova 10px pale-green: "★★★★★  Rated 4.8/5 by 50,000+ tea lovers  |  100% Natural  |  Ships to 100+ Countries"\n\n[S6] CAMPAIGN HIGHLIGHT [160px, #f8f4ee]\n  Section label: "-- '+detectedType.toUpperCase()+' --" Proxima Nova 9px bold gold\n  Title: "'+sectionTitle(prompt)+'" -- Lao MN 20px bold #004A2B\n  4 botanical watercolour tiles (130px wide × 120px tall each):\n    '+ings[0].n+': '+ings[0].d+'\n    '+ings[1].n+': '+ings[1].d+'\n    '+ings[2].n+': '+ings[2].d+'\n    '+ings[3].n+': '+ings[3].d+'\n  WATERCOLOUR: delicate ink-washed botanical art on cream paper -- NOT photographs\n\n[S7] PRODUCT GRID [260px, white]\n  Title: "-- '+productSectionTitle(prompt)+' --" Lao MN 20px bold #004A2B\n  '+prods.length+' equal product cards:\n'+prodGridCards+'\n  EACH CARD: studio product photo 160px | Lao MN 11px bold name | ★★★★★ 4.8 gold | Proxima Nova "SHOP NOW" #004A2B button\n  Card: 1px #ede5d8 border, 8px radius, subtle shadow\n\n[S8] TESTIMONIALS [160px, white]\n  Label: "-- CUSTOMER REVIEWS --" Proxima Nova 9px bold gold\n  Title: "What Tea Lovers Are Saying" -- Lao MN 20px bold\n  3 cards equal-width:\n    Card 1: "'+( detectedType==='Sale'?'I keep coming back because no other tea makes my morning feel this good.':detectedType==='Gift'?'She opened the box and paused. The aroma, the tins — she said it was the most beautiful gift in years.':'There is a moment every morning when I hold the warm cup and the world goes quiet. VAHDAM gave me that.')+'" -- '+_getReviewerName(market,0)+'\n    Card 2: "Every sip reminds me that the small things matter. The steam, the scent, the quiet five minutes." -- '+_getReviewerName(market,1)+'\n    Card 3: "A friend brought a tin to my house. I ordered my own that same night. Some things you just know." -- '+_getReviewerName(market,2)+'\n\n[S9] OFFER BANNER [180px, #004A2B]\n  LEFT 210px: lifestyle product photo (matches S3 right)\n  RIGHT (padding 28px, centred):\n    "LIMITED TIME OFFER" -- Proxima Nova 9px bold gold uppercase wide-tracking\n    "'+(offer||'EXCLUSIVE OFFER')+'" -- Lao MN 32px bold cream #FBF5EA\n    '+(code?'"'+code+'" -- 2px solid gold bordered pill, Lao MN 26px bold gold\n    ':'')+'"'+offerCta(prompt)+'" button -- #AB8743 bg, Proxima Nova 12px bold cream\n    "'+os+'" -- Proxima Nova 9px pale-green #FBF5EA\n\n[S10] TRUST BADGES [70px, #FBF5EA]\n  5 equal cols with dividers:\n  🌱 SUSTAINABLE | 💚 WOMEN-LED | 🤝 ETHICAL | 👥 COMMUNITY | ❤️ LOVED\n  Each: 36px circle badge #e6f0ea bg | Proxima Nova 8px bold uppercase label\n\n[S11] FOOTER [80px, #004A2B]\n  "MAKE EVERY CUP COUNT" -- Lao MN 13px bold cream, wide-tracking\n  4 social badges (30px #333): IG | f | YT | P\n  Proxima Nova 9px #666: About Us | Shop | Blog | Contact\n  Proxima Nova 8.5px #444: Unsubscribe | Privacy Policy\n\nCRITICAL NON-NEGOTIABLES:\n1. PALETTE: ONLY #004A2B / #AB8743 / #FBF5EA / #f8f4ee / #004A2B / #171717\n2. FONTS: Lao MN ALL headings. Proxima Nova ALL body/labels/buttons. Exactly as specified.\n3. CAMPAIGN: Every headline, offer, product, and message MUST reflect the campaign description above.\n4. HERO HEADLINE: 42-48px Lao MN bold -- the most important visual element\n5. PRODUCTS: Show ONLY the specified products -- no generic or substituted tins\n6. OFFER CODE: '+( code?'"'+code+'" MUST be prominently displayed':'No promo code for this campaign')+'\n7. QUALITY: Klaviyo hero-template quality. Glossier. Aesop. AG1. Nothing less.\n8. IMAGE FIDELITY: Photorealistic studio photography (NOT vector, NOT cartoon, NOT illustrated). The output should look like ChatGPT 4o native image generation -- crisp typography rendered as real text (no garbled letters), actual readable copy at every size, accurate product packaging, professional product photography lighting, magazine-print sharpness. If product images are referenced, replicate the actual VAHDAM tin design (forest-green base, gold lettering, botanical illustrations) -- NEVER substitute generic packaging.\n9. TYPOGRAPHY RENDERING: Render ALL text as crisp, readable, correctly-spelled text. NO gibberish letterforms, NO smeared characters, NO fake-Latin. Every word must be legible at output resolution.'+(feedbackText?'\n10. FEEDBACK COMPLIANCE: The user explicitly requested the changes listed in the REGENERATION FEEDBACK section above. THIS REGENERATION MUST VISIBLY DIFFER from the previous render in the ways the user described. Do NOT produce a near-identical output.':'');
 }
 
 function getCanvasTheme(p){
@@ -5026,13 +5069,13 @@ function switchPromptTab(which){
   var layoutPane=document.getElementById('promptMono');
   var visualPane=document.getElementById('fluxPromptMono');
   if(which==='visual'){
-    if(layoutBtn){layoutBtn.style.background='transparent';layoutBtn.style.color='#6b7280';layoutBtn.style.fontWeight='600';}
+    if(layoutBtn){layoutBtn.style.background='transparent';layoutBtn.style.color='#48524c';layoutBtn.style.fontWeight='600';}
     if(visualBtn){visualBtn.style.background='#004A2B';visualBtn.style.color='#FBF5EA';visualBtn.style.fontWeight='700';}
     if(layoutPane)layoutPane.style.display='none';
     if(visualPane)visualPane.style.display='block';
   } else {
     if(layoutBtn){layoutBtn.style.background='#004A2B';layoutBtn.style.color='#FBF5EA';layoutBtn.style.fontWeight='700';}
-    if(visualBtn){visualBtn.style.background='transparent';visualBtn.style.color='#6b7280';visualBtn.style.fontWeight='600';}
+    if(visualBtn){visualBtn.style.background='transparent';visualBtn.style.color='#48524c';visualBtn.style.fontWeight='600';}
     if(layoutPane)layoutPane.style.display='block';
     if(visualPane)visualPane.style.display='none';
   }
@@ -5099,7 +5142,7 @@ function renderContentPreview(){
   h+='</div>';
 
   // ── S1: ANNOUNCEMENT BAR ──
-  h+='<div style="background:linear-gradient(90deg,#003d24,#004A2B,#003d24);padding:12px 20px;text-align:center">';
+  h+='<div style="background:linear-gradient(90deg,#004A2B,#004A2B,#004A2B);padding:12px 20px;text-align:center">';
   h+='<div style="font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#FBF5EA">'+ann+'</div>';
   h+='</div>';
 
@@ -5123,33 +5166,23 @@ function renderContentPreview(){
   h+='<div style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#AB8743;margin-bottom:6px">HERO SECTION &middot; VARIANT '+variant+'</div>';
   h+='</div>';
   if(variant==='A'){
-    // Split hero — image + copy side by side
-    h+='<div style="display:flex;gap:0;min-height:200px">';
-    // Image side
-    h+='<div style="flex:1;min-width:200px;background:#e8f0e8;position:relative">';
-    var heroImg=(prods[0]&&prods[0].i)?prods[0].i:'';
-    if(heroImg){
-      h+='<img src="'+heroImg+'" alt="Hero" style="width:100%;height:100%;object-fit:cover;display:block;min-height:200px">';
-    } else {
-      h+='<div style="width:100%;height:200px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px;background:linear-gradient(135deg,#d8ede2,#e8f0e8)">Hero image (from catalog or upload)</div>';
-    }
-    h+='</div>';
-    // Copy side
-    h+='<div style="flex:1;min-width:200px;padding:28px 24px;background:#fff">';
-    h+='<div style="font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#AB8743;margin-bottom:8px">'+(secTitle||'NEW ARRIVAL')+'</div>';
-    h+='<div style="font-family:Georgia,serif;font-size:22px;font-weight:bold;color:#004A2B;line-height:1.2;margin-bottom:4px">'+(typeof hl==='object'?hl[0]:hl)+'</div>';
-    if(typeof hl==='object'&&hl[1]) h+='<div style="font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#AB8743;line-height:1.2;margin-bottom:10px">'+hl[1]+'</div>';
-    h+='<div style="font-size:13px;color:#4a4540;line-height:1.6;margin-bottom:18px">'+sc+'</div>';
+    // V1 — Complete Text: centered editorial hero, ZERO imagery (pure copy).
+    h+='<div style="padding:34px 32px;background:#fff;text-align:center">';
+    h+='<div style="font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#AB8743;margin-bottom:10px">'+(secTitle||'NEW ARRIVAL')+'</div>';
+    h+='<div style="font-family:Georgia,serif;font-size:26px;font-weight:bold;color:#004A2B;line-height:1.2;margin-bottom:4px">'+(typeof hl==='object'?hl[0]:hl)+'</div>';
+    if(typeof hl==='object'&&hl[1]) h+='<div style="font-family:Georgia,serif;font-size:19px;font-weight:bold;color:#AB8743;line-height:1.2;margin-bottom:12px">'+hl[1]+'</div>';
+    h+='<div style="width:40px;height:2px;background:#AB8743;margin:14px auto 16px"></div>';
+    h+='<div style="font-size:13px;color:#4a4540;line-height:1.7;margin-bottom:20px;max-width:440px;margin-left:auto;margin-right:auto">'+sc+'</div>';
     h+='<div style="display:inline-block;background:#AB8743;color:#fff;padding:11px 26px;font-size:12px;font-weight:700;letter-spacing:0.1em;border-radius:4px">'+cta+'</div>';
-    h+='</div>';
     h+='</div>';
   } else {
     // Variant B — full-width hero + centered copy below
     var heroImg=(prods[0]&&prods[0].i)?prods[0].i:'';
+    var heroFallback='<div style=&quot;width:100%;height:220px;display:flex;align-items:center;justify-content:center;background:#004A2B;color:#FBF5EA;font-family:Georgia,serif;font-size:20px;letter-spacing:0.2em&quot;>VAHDAM</div>';
     if(heroImg){
-      h+='<img src="'+heroImg+'" alt="Hero" style="width:100%;height:auto;display:block;max-height:280px;object-fit:cover">';
+      h+='<img src="'+heroImg+'" alt="Hero" onerror="this.onerror=null;this.outerHTML=\''+heroFallback+'\'" style="width:100%;height:auto;display:block;max-height:280px;object-fit:cover">';
     } else {
-      h+='<div style="width:100%;height:220px;display:flex;align-items:center;justify-content:center;color:#c9bfb0;font-size:12px;background:linear-gradient(135deg,#004A2B,#004A2B)">Full-width hero image</div>';
+      h+='<div style="width:100%;height:220px;display:flex;align-items:center;justify-content:center;color:#FBF5EA;font-family:Georgia,serif;font-size:20px;letter-spacing:0.2em;background:#004A2B">VAHDAM</div>';
     }
     h+='<div style="background:#004A2B;padding:32px 28px;text-align:center">';
     h+='<div style="font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#AB8743;margin-bottom:8px">'+(secTitle||'A STORY IN EVERY STEEP')+'</div>';
@@ -5162,7 +5195,7 @@ function renderContentPreview(){
   h+='</div>';
 
   // ── S5: BENEFIT STRIP ──
-  h+='<div style="padding:16px 20px;background:'+(variant==='B'?'#0a1f13':'#fff')+';display:flex;justify-content:space-around;flex-wrap:wrap;gap:8px;border-bottom:1px solid #ede5d8">';
+  h+='<div style="padding:16px 20px;background:'+(variant==='B'?'#004A2B':'#fff')+';display:flex;justify-content:space-around;flex-wrap:wrap;gap:8px;border-bottom:1px solid #ede5d8">';
   feats.forEach(function(f){
     h+='<div style="text-align:center;padding:4px 8px;font-size:11px;font-weight:600;color:'+(variant==='B'?'#c9bfb0':'#6b6255')+'">'+f+'</div>';
   });
@@ -5181,7 +5214,7 @@ function renderContentPreview(){
     if(prod.i){
       h+='<img src="'+prod.i+'" alt="'+prod.n.split(',')[0]+'" style="width:100%;height:140px;object-fit:cover;display:block">';
     } else {
-      h+='<div style="width:100%;height:140px;background:#e8f0e8;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aaa">No image</div>';
+      h+='<div style="width:100%;height:140px;background:#FBF5EA;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aaa">No image</div>';
     }
     // Hero badge
     if(isHero) h+='<div style="background:#AB8743;color:#fff;padding:3px 8px;font-size:8px;font-weight:800;letter-spacing:0.16em;text-align:center">★ HERO PICK</div>';
@@ -5213,8 +5246,8 @@ function renderContentPreview(){
   h+='</div>';
 
   // ── S7: SOCIAL PROOF ──
-  h+='<div style="padding:20px;background:'+(variant==='B'?'#0a1f13':'#FBF5EA')+';text-align:center;border-bottom:1px solid #ede5d8">';
-  h+='<div style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:'+(variant==='B'?'#9fd6b5':'#888')+';margin-bottom:8px">SOCIAL PROOF</div>';
+  h+='<div style="padding:20px;background:'+(variant==='B'?'#004A2B':'#FBF5EA')+';text-align:center;border-bottom:1px solid #ede5d8">';
+  h+='<div style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:'+(variant==='B'?'#FBF5EA':'#888')+';margin-bottom:8px">SOCIAL PROOF</div>';
   h+='<div style="color:#AB8743;font-size:14px;margin-bottom:6px">★★★★★</div>';
   // Pick testimonial based on type + market-specific reviewer name
   var testimonials={
@@ -5230,7 +5263,7 @@ function renderContentPreview(){
   var testimonial=testimonials[type]||'Pure, floral, impossibly fresh. The finest Indian tea I have ever tasted.';
   var _reviewerName=_getReviewerName(market,0);
   h+='<div style="font-family:Georgia,serif;font-size:15px;font-style:italic;color:'+(variant==='B'?'#FBF5EA':'#171717')+';line-height:1.5;margin-bottom:6px">&ldquo;'+testimonial+'&rdquo; &mdash; '+_reviewerName+'</div>';
-  h+='<div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:'+(variant==='B'?'#c9e8d5':'#888')+'">50,000+ 5-STAR REVIEWS</div>';
+  h+='<div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:'+(variant==='B'?'#FBF5EA':'#888')+'">50,000+ 5-STAR REVIEWS</div>';
   h+='</div>';
 
   // ── S9: OFFER BAR ──
@@ -5245,18 +5278,18 @@ function renderContentPreview(){
 
   // ── S10: FINAL CTA ──
   h+='<div style="padding:24px 20px;background:'+(variant==='B'?'#004A2B':'#FBF5EA')+';text-align:center;border-bottom:1px solid #ede5d8">';
-  h+='<div style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:'+(variant==='B'?'#9fd6b5':'#888')+';margin-bottom:8px">FINAL CTA</div>';
+  h+='<div style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:'+(variant==='B'?'#FBF5EA':'#888')+';margin-bottom:8px">FINAL CTA</div>';
   h+='<div style="font-family:Georgia,serif;font-size:20px;font-weight:bold;color:'+(variant==='B'?'#FBF5EA':'#004A2B')+';margin-bottom:12px">'+(variant==='B'?'Begin Your Ritual':'Shop VAHDAM Today')+'</div>';
   h+='<div style="display:inline-block;background:'+(variant==='B'?'transparent':'#AB8743')+';color:'+(variant==='B'?'#FBF5EA':'#fff')+';border:'+(variant==='B'?'1px solid #FBF5EA':'none')+';padding:13px 32px;font-size:13px;font-weight:700;letter-spacing:0.08em;border-radius:4px">Explore the Collection &rarr;</div>';
   h+='</div>';
 
   // ── S11: FOOTER ──
   h+='<div style="background:#004A2B;padding:18px 20px;text-align:center">';
-  h+='<div style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#9fd6b5;margin-bottom:6px">FOOTER</div>';
+  h+='<div style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#FBF5EA;margin-bottom:6px">FOOTER</div>';
   h+='<div style="margin-bottom:6px"><img src="'+VAHDAM_LOGO_URL+'" alt="VAHDAM" width="120" style="display:inline-block;filter:brightness(0) invert(1)"></div>';
-  h+='<div style="font-size:10px;color:#9fd6b5;margin-bottom:4px">Shop All &middot; Our Story &middot; Gifting &middot; Contact</div>';
-  h+='<div style="font-size:10px;color:#9fd6b5;margin-bottom:4px">Instagram &middot; Facebook &middot; YouTube &middot; Pinterest</div>';
-  h+='<div style="font-size:9px;color:#7ab89a">Unsubscribe &middot; Privacy Policy &middot; '+(mktLabels[mkt]||mkt)+' store: '+base+'</div>';
+  h+='<div style="font-size:10px;color:#FBF5EA;margin-bottom:4px">Shop All &middot; Our Story &middot; Gifting &middot; Contact</div>';
+  h+='<div style="font-size:10px;color:#FBF5EA;margin-bottom:4px">Instagram &middot; Facebook &middot; YouTube &middot; Pinterest</div>';
+  h+='<div style="font-size:9px;color:#FBF5EA">Unsubscribe &middot; Privacy Policy &middot; '+(mktLabels[mkt]||mkt)+' store: '+base+'</div>';
   h+='</div>';
 
   // ── CONTENT AUDIT SUMMARY ──
@@ -5422,7 +5455,7 @@ async function generateServerImage(variant){
     var res=await fetch('/api/ai/image',{
       method:'POST',
       headers:_getApiHeaders(),
-      body:JSON.stringify({prompt:prompt,size:'1024x1536',quality:'high',mode:'design'})
+      body:JSON.stringify({prompt:prompt,size:'1024x1536',quality:'high',mode:'design',tier:(window.__VAHDAM_TIER||'maxpower')})
     });
     if(!res.ok){var err=await res.json().catch(function(){return {};});throw new Error((err.error||'Server error')+' '+res.status);}
     var data=await res.json();
@@ -5483,9 +5516,11 @@ async function approveWithUpload(){
   var rawEl=document.getElementById('htmlRaw');
   if(rawEl)rawEl.textContent='';
   S.marketMailers={};
-  // Variant A — Claude-vision (uses uploaded design as visual fidelity reference)
-  var primaryA=await analyzeImageAndBuildEmail(S.uploadedDesignUrl,S.finalProds,S.activePrompt||S.prompt,S.activeMarket);
-  if(!primaryA)primaryA=buildEmail(S.uploadedDesignUrl,S.activeMarket);
+  // Variant A — V1 "Complete Text": ALWAYS via buildEmail → _arch_renderEmail('A')
+  // → _arch_stripImagery, so V1 is guaranteed pure copy with zero imagery. (The
+  // old Claude-vision path injected the uploaded design's imagery into V1,
+  // breaking the text-only contract — removed.)
+  var primaryA=buildEmail(S.uploadedDesignUrl,S.activeMarket);
   // Variant B — rule-based "Narrative Story" layout (always available locally)
   var primaryB=buildEmailVariantB(S.uploadedDesignUrl,S.activeMarket);
   S.marketMailers[S.activeMarket]={A:primaryA,B:primaryB};
@@ -5571,13 +5606,13 @@ function renderVariantSwitcher(){
   var regionVariantNav=
     '<div style="background:linear-gradient(135deg,#004A2B,#004A2B);border-radius:10px;padding:14px 16px;margin-bottom:14px;color:#FBF5EA">'+
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">'+
-        '<span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#9fd6b5">Final Mailer Output</span>'+
+        '<span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#FBF5EA">Final Mailer Output</span>'+
         '<span style="font-size:10.5px;color:#fff;font-weight:600">'+(mkts.length||1)+' region'+(mkts.length===1?'':'s')+' × 2 variants</span>'+
         '<span style="flex:1"></span>'+
-        '<span style="font-size:10px;color:#c9e8d5;font-style:italic">Suggested: <strong style="color:#fff">Variant '+st.primaryVariant+'</strong></span>'+
+        '<span style="font-size:10px;color:#FBF5EA;font-style:italic">Suggested: <strong style="color:#fff">Variant '+st.primaryVariant+'</strong></span>'+
       '</div>'+
       // Layer 1: region tabs
-      (mkts.length>1?'<div style="margin-bottom:10px"><div style="font-size:8.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#9fd6b5;margin-bottom:6px">1. Region</div>'+
+      (mkts.length>1?'<div style="margin-bottom:10px"><div style="font-size:8.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#FBF5EA;margin-bottom:6px">1. Region</div>'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
           mkts.map(function(m){
             var act=m===aMkt;
@@ -5585,7 +5620,7 @@ function renderVariantSwitcher(){
           }).join('')+
         '</div></div>':'')+
       // Layer 2: variant tabs
-      '<div><div style="font-size:8.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#9fd6b5;margin-bottom:6px">'+(mkts.length>1?'2. ':'')+'Variant for '+(mktLabels[aMkt]||aMkt)+'</div>';
+      '<div><div style="font-size:8.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#FBF5EA;margin-bottom:6px">'+(mkts.length>1?'2. ':'')+'Variant for '+(mktLabels[aMkt]||aMkt)+'</div>';
   // Close the regionVariantNav opener (region tabs row + variant heading) — variant cards come next
   regionVariantNav+='</div></div>';
   var actA=S.activeVariant==='A';
@@ -5595,9 +5630,9 @@ function renderVariantSwitcher(){
     '<div style="background:linear-gradient(90deg,#004A2B,#004A2B);border-radius:10px;padding:16px 18px;margin-bottom:14px;color:#FBF5EA">'+
       // Header row
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+
-        '<span style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#9fd6b5">Variant Detail · '+(mktLabels[aMkt]||aMkt)+'</span>'+
+        '<span style="font-size:9px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#FBF5EA">Variant Detail · '+(mktLabels[aMkt]||aMkt)+'</span>'+
         '<span style="flex:1"></span>'+
-        '<span style="font-size:10px;color:#c9e8d5;font-style:italic">Suggested: <strong style="color:#fff">Variant '+st.primaryVariant+'</strong></span>'+
+        '<span style="font-size:10px;color:#FBF5EA;font-style:italic">Suggested: <strong style="color:#fff">Variant '+st.primaryVariant+'</strong></span>'+
       '</div>'+
       // Two variant cards side-by-side
       '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
@@ -5608,7 +5643,7 @@ function renderVariantSwitcher(){
             (actA?'<span style="font-size:9px;color:#AB8743;font-weight:700">● PREVIEWING</span>':'')+
           '</div>'+
           '<div style="font-size:13px;font-weight:700;margin-bottom:3px;color:#fff">Complete Text</div>'+
-          '<div style="font-size:10px;font-weight:400;color:#c9e8d5;line-height:1.5;margin-bottom:10px">'+rationale.A+'</div>'+
+          '<div style="font-size:10px;font-weight:400;color:#FBF5EA;line-height:1.5;margin-bottom:10px">'+rationale.A+'</div>'+
           '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
             '<button onclick="switchVariant(\'A\')" style="flex:1;min-width:90px;padding:7px 10px;background:'+(actA?'#AB8743':'transparent')+';color:#fff;border:1.5px solid '+(actA?'#AB8743':'rgba(255,255,255,0.3)')+';border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.04em">'+(actA?'● Previewing':'👁 Preview A')+'</button>'+
             '<button onclick="downloadVariant(\'A\')" style="flex:1;min-width:90px;padding:7px 10px;background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.3);border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.04em">⬇ Download A</button>'+
@@ -5621,7 +5656,7 @@ function renderVariantSwitcher(){
             (actB?'<span style="font-size:9px;color:#AB8743;font-weight:700">● PREVIEWING</span>':'')+
           '</div>'+
           '<div style="font-size:13px;font-weight:700;margin-bottom:3px;color:#fff">Text + Visual</div>'+
-          '<div style="font-size:10px;font-weight:400;color:#c9e8d5;line-height:1.5;margin-bottom:10px">'+rationale.B+'</div>'+
+          '<div style="font-size:10px;font-weight:400;color:#FBF5EA;line-height:1.5;margin-bottom:10px">'+rationale.B+'</div>'+
           '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
             '<button onclick="switchVariant(\'B\')" style="flex:1;min-width:90px;padding:7px 10px;background:'+(actB?'#AB8743':'transparent')+';color:#fff;border:1.5px solid '+(actB?'#AB8743':'rgba(255,255,255,0.3)')+';border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.04em">'+(actB?'● Previewing':'👁 Preview B')+'</button>'+
             '<button onclick="downloadVariant(\'B\')" style="flex:1;min-width:90px;padding:7px 10px;background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.3);border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.04em">⬇ Download B</button>'+
@@ -5633,7 +5668,7 @@ function renderVariantSwitcher(){
         '<button onclick="downloadBothVariants()" style="padding:8px 14px;background:#AB8743;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:0.06em">⬇ Download Both Variants (.zip-friendly)</button>'+
         '<button onclick="previewBothSideBySide()" style="padding:8px 14px;background:transparent;color:#FBF5EA;border:1.5px solid rgba(255,255,255,0.3);border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:0.06em">⊞ Side-by-Side Preview</button>'+
         '<span style="flex:1"></span>'+
-        '<span style="font-size:9px;color:#9fd6b5;font-style:italic">Active variant downloads as the main email file</span>'+
+        '<span style="font-size:9px;color:#FBF5EA;font-style:italic">Active variant downloads as the main email file</span>'+
       '</div>'+
     '</div>';
 }
@@ -5680,10 +5715,10 @@ function renderCanvasFilterPanel(){
   box.innerHTML=
     '<div style="border:1.5px solid #ede5d8;border-radius:12px;overflow:hidden;background:#fff">'+
       '<div style="background:linear-gradient(135deg,#004A2B,#004A2B);padding:12px 16px;display:flex;align-items:center;gap:10px;color:#FBF5EA;flex-wrap:wrap">'+
-        '<span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9fd6b5">Region &amp; Variant Filter</span>'+
+        '<span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#FBF5EA">Region &amp; Variant Filter</span>'+
         '<span style="font-size:10.5px;color:#fff;font-weight:600">'+(mktLabels[aMkt]||aMkt)+' · Variant '+aVar+' · '+variantMeta[aVar].name+'</span>'+
         '<span style="flex:1"></span>'+
-        '<span style="font-size:9px;color:#9fd6b5;font-style:italic">Applies to: 👁 Canvas · 🌟 Prompts · 📤 Upload</span>'+
+        '<span style="font-size:9px;color:#FBF5EA;font-style:italic">Applies to: 👁 Canvas · 🌟 Prompts · 📤 Upload</span>'+
       '</div>'+
       // Region tabs
       (mkts.length>1?'<div style="padding:12px 16px;border-bottom:1px solid #ede5d8;background:#fafaf6">'+
@@ -5870,7 +5905,7 @@ function renderRegionVariantPanel(config){
   if(config.regions.indexOf(aMkt)<0)aMkt=config.regions[0];
   var aVar=config.activeVariant||'A';
   var mktLabels={US:'🇺🇸 US',UK:'🇬🇧 UK',IN:'🇮🇳 IN',Global:'🌍 Global',ME:'🇦🇪 ME',AU:'🇦🇺 AU',EU:'🇪🇺 EU'};
-  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#e8f5ee'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
+  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#0a3d24'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
   var content=config.getContentHTML?config.getContentHTML(aMkt,aVar):'';
   var extraTopHTML=(config.extraTopActions||[]).map(function(a){
     return '<button onclick="'+a.onclick+'" style="'+(a.style||'padding:6px 12px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.04em')+'">'+a.label+'</button>';
@@ -5879,7 +5914,7 @@ function renderRegionVariantPanel(config){
     '<div style="border:1.5px solid #ede5d8;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.06)">'+
       // ── HEADER ──
       '<div style="background:linear-gradient(135deg,#004A2B,#004A2B);padding:14px 18px;display:flex;align-items:center;gap:10px;color:#FBF5EA;flex-wrap:wrap">'+
-        '<span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9fd6b5">'+(config.title||'Output')+'</span>'+
+        '<span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#FBF5EA">'+(config.title||'Output')+'</span>'+
         (config.subtitle?'<span style="font-size:10.5px;color:#fff;font-weight:600">'+config.subtitle+'</span>':'')+
         '<span style="flex:1"></span>'+
         extraTopHTML+
@@ -5941,7 +5976,7 @@ function renderGeneratedImagesMatrix(){
     '<div style="border:1.5px solid #ede5d8;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.06)">'+
       // Header
       '<div style="background:linear-gradient(135deg,#004A2B,#004A2B);padding:14px 18px;display:flex;align-items:center;gap:10px;color:#FBF5EA;flex-wrap:wrap">'+
-        '<span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9fd6b5">Auto-Generated Hero Image</span>'+
+        '<span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#FBF5EA">Auto-Generated Hero Image</span>'+
         '<span style="font-size:10.5px;color:#fff;font-weight:600">FLUX · '+mkts.length+' region'+(mkts.length===1?'':'s')+'</span>'+
         feedbackBadge+
         '<span style="flex:1"></span>'+
@@ -6048,7 +6083,7 @@ function renderStrategicBrief(){
         '<div style="font-family:\'Lao MN\',Georgia,serif;font-size:18px;font-weight:600;color:#004A2B;line-height:1.3;margin-bottom:4px">'+(seg.primary||'')+'</div>'+
         (seg.sub?'<div style="font-size:11.5px;color:#444;margin-bottom:6px">'+seg.sub+'</div>':'')+
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">'+
-          (seg.size?'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#e8f5ee;color:#004A2B;border-radius:10px;border:1px solid #b7e3c9">Audience: '+seg.size+'</span>':'')+
+          (seg.size?'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#0a3d24;color:#004A2B;border-radius:10px;border:1px solid #b7e3c9">Audience: '+seg.size+'</span>':'')+
           '<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#FBF5EA;color:#AB8743;border-radius:10px;border:1px solid #ecd9a8">Send: '+(d.send_window||'')+'</span>'+
           (d.primary_market?'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#fff;color:#374151;border-radius:10px;border:1px solid #d1d5db">'+(mktFlag[d.primary_market]||'')+' '+d.primary_market+'</span>':'')+
           (d.layout_variant?'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#fff;color:#374151;border-radius:10px;border:1px solid #d1d5db">Layout '+d.layout_variant+'</span>':'')+
@@ -6223,7 +6258,7 @@ window.__step5Download=function(m,v){
 function _legacyImagesGrid_unused(){
   var mkts=Object.keys(S.imagePrompts);
   var mktLabels={US:'🇺🇸 United States',UK:'🇬🇧 United Kingdom',IN:'🇮🇳 India',Global:'🌍 Global',ME:'🇦🇪 Middle East',AU:'🇦🇺 Australia',EU:'🇪🇺 Europe'};
-  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#e8f5ee'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
+  var variantMeta={A:{name:'V1 · Complete Text',accent:'#004A2B',bg:'#0a3d24'},B:{name:'V2 · Text + Visual',accent:'#AB8743',bg:'#FBF5EA'}};
   var feedbackBadge=(S.feedbackHistory&&S.feedbackHistory.length)?
     '<span style="font-size:9px;font-weight:700;color:#fff;background:#AB8743;padding:3px 8px;border-radius:12px;letter-spacing:0.06em">REGEN ×'+S.feedbackHistory.length+'</span>':'';
   var totalCells=mkts.length*2;
@@ -6231,7 +6266,7 @@ function _legacyImagesGrid_unused(){
     '<div style="border:1.5px solid #ede5d8;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.06)">'+
       // Header
       '<div style="background:linear-gradient(135deg,#004A2B,#004A2B);padding:14px 18px;display:flex;align-items:center;gap:10px;color:#FBF5EA;flex-wrap:wrap">'+
-        '<span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9fd6b5">Auto-Generated Hero Images</span>'+
+        '<span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#FBF5EA">Auto-Generated Hero Images</span>'+
         '<span style="font-size:10.5px;color:#fff;font-weight:600">FLUX · '+totalCells+' renders ('+mkts.length+' region'+(mkts.length===1?'':'s')+' × 2 variants)</span>'+
         feedbackBadge+
         '<span style="flex:1"></span>'+
@@ -6376,7 +6411,7 @@ function renderImageVariantSwitcher(){
   var st=S.strategy||{};
   var mktLabels={US:'🇺🇸 United States',UK:'🇬🇧 United Kingdom',IN:'🇮🇳 India',Global:'🌍 Global',ME:'🇦🇪 Middle East',AU:'🇦🇺 Australia',EU:'🇪🇺 Europe'};
   var rationale={
-    A:{title:'V1 · Complete Text',sub:'Pure copy · no imagery · stands alone · highest deliverability',accent:'#004A2B',bg:'#e8f5ee'},
+    A:{title:'V1 · Complete Text',sub:'Pure copy · no imagery · stands alone · highest deliverability',accent:'#004A2B',bg:'#0a3d24'},
     B:{title:'V2 · Text + Visual',sub:'Same copy + imagery/GIF/video (hosted media → auto GIF → AI video)',accent:'#AB8743',bg:'#FBF5EA'}
   };
   var totalCount=mkts.length*2;
@@ -6384,13 +6419,13 @@ function renderImageVariantSwitcher(){
     '<div style="background:linear-gradient(135deg,#004A2B,#004A2B);border-radius:12px;padding:14px 16px;color:#FBF5EA">'+
       // Header
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'+
-        '<span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#9fd6b5">'+totalCount+' Image Prompts Generated</span>'+
+        '<span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#FBF5EA">'+totalCount+' Image Prompts Generated</span>'+
         '<span style="font-size:10.5px;color:#fff;font-weight:600">'+mkts.length+' region'+(mkts.length===1?'':'s')+' × 2 variants each</span>'+
         '<span style="flex:1"></span>'+
-        '<span style="font-size:10px;color:#c9e8d5;font-style:italic">Suggested: <strong style="color:#fff">Variant '+(st.primaryVariant||'A')+'</strong></span>'+
+        '<span style="font-size:10px;color:#FBF5EA;font-style:italic">Suggested: <strong style="color:#fff">Variant '+(st.primaryVariant||'A')+'</strong></span>'+
       '</div>'+
       // ── LAYER 1: Region tabs ──
-      '<div style="margin-bottom:8px"><div style="font-size:8.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#9fd6b5;margin-bottom:6px">1. Choose Region</div>'+
+      '<div style="margin-bottom:8px"><div style="font-size:8.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#FBF5EA;margin-bottom:6px">1. Choose Region</div>'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
           mkts.map(function(m){
             var act=m===aMkt;
@@ -6399,7 +6434,7 @@ function renderImageVariantSwitcher(){
         '</div>'+
       '</div>'+
       // ── LAYER 2: Variant tabs (within active region) ──
-      '<div style="margin-top:10px"><div style="font-size:8.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#9fd6b5;margin-bottom:6px">2. Choose Variant for '+(mktLabels[aMkt]||aMkt)+'</div>'+
+      '<div style="margin-top:10px"><div style="font-size:8.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#FBF5EA;margin-bottom:6px">2. Choose Variant for '+(mktLabels[aMkt]||aMkt)+'</div>'+
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
           ['A','B'].map(function(v){
             var meta=rationale[v];
@@ -6407,16 +6442,16 @@ function renderImageVariantSwitcher(){
             return '<button onclick="switchImagePrompt(\''+aMkt+'\',\''+v+'\')" style="text-align:left;padding:10px 12px;background:'+(act?meta.bg:'rgba(255,255,255,0.06)')+';color:'+(act?meta.accent:'#fff')+';border:1.5px solid '+(act?meta.accent:'rgba(255,255,255,0.18)')+';border-radius:8px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">'+
               '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">'+
                 '<span style="font-size:9px;font-weight:800;color:#fff;background:'+meta.accent+';padding:2px 7px;border-radius:3px;letter-spacing:0.16em">VARIANT '+v+'</span>'+
-                (act?'<span style="font-size:9px;color:'+meta.accent+';font-weight:700">● ACTIVE</span>':'<span style="font-size:9px;'+(act?'color:'+meta.accent:'color:#9fd6b5')+';opacity:0.85">Tap to load</span>')+
+                (act?'<span style="font-size:9px;color:'+meta.accent+';font-weight:700">● ACTIVE</span>':'<span style="font-size:9px;'+(act?'color:'+meta.accent:'color:#FBF5EA')+';opacity:0.85">Tap to load</span>')+
               '</div>'+
               '<div style="font-size:12.5px;font-weight:700;margin-bottom:2px">'+meta.title+'</div>'+
-              '<div style="font-size:10px;font-weight:400;line-height:1.5;'+(act?'color:#004A2B':'color:#c9e8d5')+'">'+meta.sub+'</div>'+
+              '<div style="font-size:10px;font-weight:400;line-height:1.5;'+(act?'color:#004A2B':'color:#FBF5EA')+'">'+meta.sub+'</div>'+
             '</button>';
           }).join('')+
         '</div>'+
       '</div>'+
       // Footer hint
-      '<div style="margin-top:10px;font-size:9.5px;color:#9fd6b5;font-style:italic;line-height:1.5">'+
+      '<div style="margin-top:10px;font-size:9.5px;color:#FBF5EA;font-style:italic;line-height:1.5">'+
         'All '+totalCount+' prompts are ready — copy any combination into ChatGPT / Claude / Gemini. The active selection is shown below.'+
       '</div>'+
     '</div>';
@@ -6462,7 +6497,7 @@ function renderAllMailersMatrix(){
   var html=
     '<div style="border:1.5px solid var(--border);border-radius:12px;background:#fafaf6;overflow:hidden">'+
       '<div style="background:linear-gradient(135deg,#004A2B,#004A2B);padding:12px 16px;display:flex;align-items:center;gap:10px;color:#FBF5EA;flex-wrap:wrap">'+
-        '<span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#9fd6b5">Generated Mailers Matrix</span>'+
+        '<span style="font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#FBF5EA">Generated Mailers Matrix</span>'+
         '<span style="font-size:10.5px;color:#fff;font-weight:600">'+totalFiles+' files · '+mkts.length+' market'+(mkts.length===1?'':'s')+' × up to 2 variants each</span>'+
         '<span style="flex:1"></span>'+
         '<button onclick="downloadAllMatrix()" style="font-size:10px;font-weight:700;padding:6px 12px;background:#AB8743;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;letter-spacing:0.05em">⬇ Download Everything ('+totalFiles+')</button>'+
@@ -6570,7 +6605,7 @@ function previewBothSideBySide(){
     '.navbar{background:#171717;color:#FBF5EA;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}'+
     '.navbar button{background:transparent;color:#FBF5EA;border:1px solid rgba(251,245,234,0.25);padding:6px 12px;border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.04em;display:inline-flex;align-items:center;gap:5px}'+
     '.navbar button:hover{background:rgba(251,245,234,0.08);border-color:#AB8743}'+
-    '.navbar .nav-title{font-family:Lao MN,Georgia,serif;font-size:12px;color:#9fd6b5;letter-spacing:0.08em;margin-left:auto}'+
+    '.navbar .nav-title{font-family:Lao MN,Georgia,serif;font-size:12px;color:#FBF5EA;letter-spacing:0.08em;margin-left:auto}'+
     '.bar{background:linear-gradient(180deg,#004A2B,#003d23);color:#FBF5EA;padding:14px 22px;display:flex;align-items:center;gap:18px;border-bottom:2px solid #AB8743;flex-shrink:0;flex-wrap:wrap}'+
     '.bar .brand{font-family:Lao MN,Georgia,serif;font-size:22px;font-weight:bold;letter-spacing:0.16em;color:#FBF5EA}'+
     '.bar .mkt{display:flex;align-items:center;gap:10px;background:rgba(171,135,67,0.18);border:1.5px solid #AB8743;border-radius:8px;padding:8px 14px}'+
@@ -6578,7 +6613,7 @@ function previewBothSideBySide(){
     '.bar .mkt-meta{display:flex;flex-direction:column;gap:1px}'+
     '.bar .mkt-name{font-size:13px;font-weight:800;color:#FBF5EA;letter-spacing:0.04em;line-height:1.2}'+
     '.bar .mkt-sub{font-size:10px;color:#AB8743;font-weight:700;letter-spacing:0.08em;text-transform:uppercase}'+
-    '.bar .ttl{font-size:12px;color:#9fd6b5;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-left:auto}'+
+    '.bar .ttl{font-size:12px;color:#FBF5EA;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-left:auto}'+
     '.split{display:flex;flex:1;overflow:hidden}'+
     '.col{flex:1;border-right:1px solid #004A2B;display:flex;flex-direction:column;background:#f0ebe0}'+
     '.col:last-child{border-right:0}'+
@@ -6694,7 +6729,7 @@ const _ARCH_MAP={
   Sale:       {A:'product-grid-conversion',  B:'hero-led-editorial'},
   Launch:     {A:'single-product-spotlight', B:'storytelling-narrative'},
   Bestseller: {A:'product-grid-conversion',  B:'hero-led-editorial'},
-  Story:      {A:'founder-note',             B:'storytelling-narrative'},
+  Story:      {A:'hero-led-editorial',       B:'storytelling-narrative'},
   Routine:    {A:'ritual-journey',           B:'subscription-anchor'},
   Gift:       {A:'gift-bundle-showcase',     B:'storytelling-narrative'},
   Discovery:  {A:'comparison-discovery',     B:'editorial-trend-roundup'},
@@ -6758,7 +6793,7 @@ function _arch_pickArchetype(st,variant){
   if(/countdown|ends in|hours left|today only|while.{0,8}last|last.{0,8}chance/.test(p))
     return pick({conversion:'limited-drop-countdown', narrative:'storytelling-narrative'});
   if(/founder|behind the brand|our story|the people behind/.test(p))
-    return pick({conversion:'single-product-spotlight', narrative:'founder-note'});
+    return pick({conversion:'single-product-spotlight', narrative:'storytelling-narrative'});
   if(/subscri|every month|loyalty|monthly box/.test(p))
     return pick({conversion:'subscription-anchor', narrative:'ritual-journey'});
   if(/compar|\bvs\.?\s|which.{0,12}choose|side by side/.test(p))
@@ -6902,11 +6937,11 @@ function _sec_annBarUrgent(s,c){
 }
 function _sec_logo(s,c){
   var base=c.base, sub=c.subline||'PREMIUM INDIAN TEAS · DIRECT FROM SOURCE';
-  // Wordmark rendered as text — guaranteed visible even if remote logo image
-  // is blocked by the email client (Outlook / Gmail "show images" rule).
+  // Official VAHDAM India logo (brand asset, exact). alt text shows if a mail
+  // client blocks remote images before "show images" is clicked.
   return '<tr><td style="background:'+_ARCH_PAPER+';padding:20px 22px 14px;text-align:center;border-left:1px solid '+_ARCH_BORDER+';border-right:1px solid '+_ARCH_BORDER+'">'+
     '<a href="'+base+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block">'+
-      '<span style="font-family:'+_ARCH_FH+';font-size:32px;font-weight:bold;color:'+_ARCH_GREEN+';letter-spacing:0.18em;line-height:1;display:inline-block">VAHDAM<span style="font-size:15px;vertical-align:super;letter-spacing:0;margin-left:2px">&reg;</span></span>'+
+      '<img class="vah-logo" src="https://www.vahdam.co.uk/cdn/shop/files/logo-website_3.png?v=1756808809&width=310" alt="VAHDAM India" height="30" style="display:block;border:0;height:30px;width:auto;margin:0 auto">'+
     '</a>'+
     '<p style="font-family:'+_ARCH_FB+';font-size:9px;color:'+_ARCH_GOLD+';letter-spacing:0.22em;margin:8px 0 0;text-transform:uppercase;font-weight:700">'+sub+'</p>'+
   '</td></tr>';
@@ -7288,7 +7323,12 @@ function _arch_renderEmail(strategy,archetype,variant,uploadedDesignImg,mt){
   var html='<!DOCTYPE html>\n<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">\n<head>\n'+
     '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge">\n'+
     '<title>VAHDAM&reg; — '+(s.rawPrompt||'').substring(0,60).replace(/[<>"]/g,'')+'</title>\n'+msoHead+'\n'+
-    '<style>@media only screen and (max-width:600px){'+
+    '<style>'+
+      '@font-face{font-family:"LAO MN";src:url("https://cdn.nector.io/nector-static/fonts/LaoMN-01.ttf") format("truetype");}'+
+      '@font-face{font-family:"Proxima Nova";src:url("https://cdn-widgetsrepository.yotpo.com/brandkit/custom-fonts/nULz3c4cbjU7NEqLKreeoyIyIP4L5pnrZ53k1952/proximanova-regular/proximanova-regular.woff2") format("woff2");}'+
+      'body,table,td,p,span,div,a{font-family:"Proxima Nova","Helvetica Neue",Arial,sans-serif}'+
+      'h1,h2,h3,h4{font-family:"LAO MN",Georgia,"Times New Roman",serif}'+
+      '@media only screen and (max-width:600px){'+
       '.email-wrap{width:100%!important}'+
       '.hero-left,.hero-right{display:block!important;width:100%!important}'+
       '.hero-right img{height:auto!important;max-height:280px!important;padding:8px 0!important}'+
@@ -7315,7 +7355,7 @@ function _arch_renderEmail(strategy,archetype,variant,uploadedDesignImg,mt){
   // ── V1 (slot A) = COMPLETE TEXTUAL content only: strip every image so the
   // mailer stands alone as pure copy. V2 (slot B) keeps its visuals.
   if(variant==='A'){ try{ html=_arch_stripImagery(html); }catch(_){} }
-  return html;
+  return _scrubBrandClient(html);
 }
 
 // ── Remove all imagery from a rendered mailer (used for V1 / text-only). ────
@@ -7323,13 +7363,41 @@ function _arch_renderEmail(strategy,archetype,variant,uploadedDesignImg,mt){
 // tables, links and brand styling intact.
 function _arch_stripImagery(html){
   if(!html) return html;
-  // 1. Strip <img ...> tags entirely.
-  html=html.replace(/<img\b[^>]*>/gi,'');
+  // 1. Strip <img ...> tags — EXCEPT the brand logo (class="vah-logo"), which
+  //    V1 (complete-text) must still show per the brand contract.
+  html=html.replace(/<img\b[^>]*>/gi,function(tag){ return /vah-logo/.test(tag)?tag:''; });
   // 2. Strip CSS background-image declarations (keep any solid background color).
   html=html.replace(/background-image\s*:\s*url\([^)]*\)\s*;?/gi,'');
   // 3. Remove gradient "image placeholder" divs that only existed to hold a photo.
-  html=html.replace(/<div[^>]*background:linear-gradient\(135deg,#d8ede2,#e8f0e8\)[^>]*><\/div>/gi,'');
+  html=html.replace(/<div[^>]*background:linear-gradient\(135deg,#FBF5EA,#FBF5EA\)[^>]*><\/div>/gi,'');
   return html;
+}
+
+// ── Client-side brand gate on the deterministic render path. The server
+//    sanitizeBrand/scrubDashes (api/_shared/scenario-model.js) only ever ran on
+//    LLM copy; template-built strings ("LIMITED TIME ONLY", hardcoded ratings)
+//    were injected straight into the HTML and bypassed it. This runs on the
+//    FINAL rendered mailer so no banned phrase or em/en dash can ship, whatever
+//    the source. It deliberately does NOT touch the banned word "transform"
+//    here (it is valid CSS — transform:translate/rotate — and scrubbing it in
+//    raw HTML would corrupt animations); that word stays gated on the copy path.
+//    When REAL_FACTS_ONLY is on it also strips unsourced rating / review-count
+//    proof from the render (the B1 zero-fabrication contract).
+function _scrubBrandClient(html){
+  if(!html) return html;
+  var out=String(html)
+    .replace(/LIMITED TIME/g,'time-bound')
+    .replace(/wellness journey|liquid gold|game[\s-]?changer|hurry|don'?t miss out|last chance|while supplies last/gi,'premium daily ritual')
+    .replace(/&mdash;|&#8212;/g,' - ').replace(/&ndash;|&#8211;/g,' - ')
+    .replace(/\s[—–]\s/g,' - ').replace(/[—–]/g,' - ');
+  if(window.__REAL_FACTS_ONLY){
+    out=out
+      .replace(/Rated\s*\d(?:\.\d)?\s*\/\s*5(?:\s+by)?/gi,'Rated by our community')
+      .replace(/\b\d(?:\.\d)?\s*out of\s*5\b/gi,'')
+      .replace(/[★]{2,}\s*\d(?:\.\d)?/g,'')
+      .replace(/\b\d[\d,]*\+?\s*(?:5[\s-]?star\s+|five[\s-]?star\s+)?(?:reviews|ratings|tea lovers|customers|verified buyers|buyers)\b/gi,'our community');
+  }
+  return out;
 }
 
 // ── Variant B: archetype-driven, narrative family ──────────────────────────
@@ -7365,8 +7433,8 @@ function _legacy_buildEmailVariantB_replaced(uploadedDesignImg,mktOverride){
     return '<tr><td style="padding:0 32px 18px;background:#fff;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8">'+
       '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:#fafaf6;border-radius:10px;overflow:hidden;border:1px solid #ede5d8">'+
       '<tr>'+
-        '<td width="160" style="padding:0;line-height:0;font-size:0;background:#e8f0e8" valign="middle">'+
-          (prod.i?'<img src="'+prod.i+'" alt="'+prod.n.replace(/"/g,'&quot;')+'" width="160" border="0" style="width:160px;height:200px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none">':'<div style="width:160px;height:200px;background:linear-gradient(135deg,#d8ede2,#e8f0e8)"></div>')+
+        '<td width="160" style="padding:0;line-height:0;font-size:0;background:#FBF5EA" valign="middle">'+
+          (prod.i?'<img src="'+prod.i+'" alt="'+prod.n.replace(/"/g,'&quot;')+'" width="160" border="0" style="width:160px;height:200px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none">':'<div style="width:160px;height:200px;background:linear-gradient(135deg,#FBF5EA,#FBF5EA)"></div>')+
         '</td>'+
         '<td style="padding:18px 22px;vertical-align:middle">'+
           // Pick / Featured label
@@ -7413,7 +7481,7 @@ function _legacy_buildEmailVariantB_replaced(uploadedDesignImg,mktOverride){
     '</td></tr>\n'+
     // S3 — Full-width editorial hero IMAGE — taller, more cinematic
     (uploadedDesignImg?'<tr><td style="padding:0;line-height:0;font-size:0;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><img src="'+uploadedDesignImg+'" alt="'+(hero.n||'').replace(/"/g,'&quot;')+'" width="598" border="0" style="width:100%;max-width:598px;height:auto;display:block;border:0;outline:none;text-decoration:none"></td></tr>\n'
-    :'<tr><td style="padding:0;line-height:0;font-size:0;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><img src="'+heroVisualPath+'" alt="'+(hero.n||'').replace(/"/g,'&quot;')+'" width="598" border="0" style="width:100%;max-width:598px;height:460px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;background:#e8f0e8"></td></tr>\n')+
+    :'<tr><td style="padding:0;line-height:0;font-size:0;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><img src="'+heroVisualPath+'" alt="'+(hero.n||'').replace(/"/g,'&quot;')+'" width="598" border="0" style="width:100%;max-width:598px;height:460px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;background:#FBF5EA"></td></tr>\n')+
     // S4 — Compact centered headline + sub + CTA
     '<tr><td class="pd20" style="background:#FBF5EA;padding:32px 36px 24px;text-align:center;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8">'+
       (ot?'<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;font-weight:800;letter-spacing:0.28em;color:#AB8743;margin:0 0 12px;text-transform:uppercase">'+ot+'</p>':'')+
@@ -7433,7 +7501,7 @@ function _legacy_buildEmailVariantB_replaced(uploadedDesignImg,mktOverride){
     '<tr><td style="background:#004A2B;padding:20px 28px;text-align:center;border-left:1px solid #004A2B;border-right:1px solid #004A2B">'+
       '<p style="font-family:Lao MN,Georgia,serif;font-size:32px;color:#AB8743;margin:0;line-height:1">&ldquo;</p>'+
       '<p style="font-family:Lao MN,Georgia,serif;font-size:13px;color:#FBF5EA;margin:0 0 8px;line-height:1.5;font-style:italic;max-width:420px;display:inline-block">'+pullQuote+'</p>'+
-      '<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#9fd6b5;margin:0;letter-spacing:0.12em;text-transform:uppercase;font-weight:700">&ndash; '+_getReviewerName(mt,0)+' &middot; <span style="color:#AB8743">&#9733;&#9733;&#9733;&#9733;&#9733;</span></p>'+
+      '<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#FBF5EA;margin:0;letter-spacing:0.12em;text-transform:uppercase;font-weight:700">&ndash; '+_getReviewerName(mt,0)+' &middot; <span style="color:#AB8743">&#9733;&#9733;&#9733;&#9733;&#9733;</span></p>'+
     '</td></tr>\n'+
     // S7 — Offer banner (if applicable)
     (oc||ot?'<tr><td style="background:#AB8743;padding:18px 24px;text-align:center">'+
@@ -7443,15 +7511,15 @@ function _legacy_buildEmailVariantB_replaced(uploadedDesignImg,mktOverride){
       '<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:rgba(255,255,255,0.85);margin:8px 0 0">'+os+' &middot; '+mktIntel.shippingNote+'</p>'+
     '</td></tr>\n':'')+
     // S8 — Trust + social proof bar
-    '<tr><td style="background:#004A2B;padding:10px 20px;text-align:center"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#9fd6b5;margin:0;letter-spacing:0.04em"><span style="color:#AB8743">&#9733;&#9733;&#9733;&#9733;&#9733;</span> &nbsp;Rated 4.8/5 by 50,000+ tea lovers &middot; 100% Natural &middot; Ships to 100+ Countries</p></td></tr>\n'+
+    '<tr><td style="background:#004A2B;padding:10px 20px;text-align:center"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#FBF5EA;margin:0;letter-spacing:0.04em"><span style="color:#AB8743">&#9733;&#9733;&#9733;&#9733;&#9733;</span> &nbsp;Rated 4.8/5 by 50,000+ tea lovers &middot; 100% Natural &middot; Ships to 100+ Countries</p></td></tr>\n'+
     // S9 — Compact footer (brand green)
     '<tr><td style="background:#004A2B;padding:18px 20px;text-align:center;border-radius:0 0 6px 6px">'+
       '<a href="'+base+'" target="_blank" rel="noopener noreferrer"><img src="'+VAHDAM_LOGO_URL+'" alt="VAHDAM" width="120" border="0" style="width:120px;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;margin-bottom:8px"></a>'+
-      '<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#9fd6b5;margin:0 0 6px"><a href="https://www.instagram.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#9fd6b5;text-decoration:none">Instagram</a> &middot; <a href="https://www.facebook.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#9fd6b5;text-decoration:none">Facebook</a> &middot; <a href="https://www.youtube.com/@vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#9fd6b5;text-decoration:none">YouTube</a></p>'+
-      '<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8px;color:#7ab89a;margin:0;line-height:1.7">VAHDAM India Pvt. Ltd. &middot; New Delhi<br><a href="'+base+'/pages/unsubscribe" style="color:#9fd6b5">Unsubscribe</a> &middot; <a href="'+base+'/pages/privacy-policy" style="color:#9fd6b5">Privacy Policy</a></p>'+
+      '<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#FBF5EA;margin:0 0 6px"><a href="https://www.instagram.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#FBF5EA;text-decoration:none">Instagram</a> &middot; <a href="https://www.facebook.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#FBF5EA;text-decoration:none">Facebook</a> &middot; <a href="https://www.youtube.com/@vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#FBF5EA;text-decoration:none">YouTube</a></p>'+
+      '<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8px;color:#FBF5EA;margin:0;line-height:1.7">VAHDAM India Pvt. Ltd. &middot; New Delhi<br><a href="'+base+'/pages/unsubscribe" style="color:#FBF5EA">Unsubscribe</a> &middot; <a href="'+base+'/pages/privacy-policy" style="color:#FBF5EA">Privacy Policy</a></p>'+
     '</td></tr>\n'+
     '</table></td></tr></table>\n</body></html>';
-  return html;
+  return _scrubBrandClient(html);
 }
 
 // Variant A: archetype-driven. The old fixed skeleton has been replaced by
@@ -7495,13 +7563,13 @@ function _legacy_buildEmail_replaced(uploadedDesignImg,mktOverride){
     return '<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="'+href+'" style="height:40px;v-text-anchor:middle;width:180px" arcsize="10%" stroke="f" fillcolor="'+bg+'"><w:anchorlock/><center style="color:'+fg+';font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:12px;font-weight:bold;letter-spacing:0.1em;">'+label+'</center></v:roundrect><![endif]--><!--[if !mso]><!--><a href="'+href+'" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:'+bg+';color:'+fg+';padding:11px 26px;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:12px;font-weight:bold;letter-spacing:0.1em;text-decoration:none;border-radius:4px">'+label+'</a><!--<![endif]-->';
   }
   function prodCard(prod){
-    return '<td width="'+colW+'" valign="top" style="width:'+colW+'px;padding:0 4px 16px;vertical-align:top"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr><td style="padding:0;line-height:0;font-size:0">'+(prod.i?'<img src="'+prod.i+'" alt="'+prod.n+'" width="'+(colW-8)+'" border="0" style="width:100%;height:150px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;border-radius:6px 6px 0 0;background:#e8f0e8">':'<div style="width:100%;height:150px;background:#e8f0e8;border-radius:6px 6px 0 0"></div>')+'</td></tr><tr><td style="background:#fff;padding:10px 8px 4px;border:1px solid #ede5d8;border-top:0"><p style="font-family:Lao MN,Georgia,serif;font-size:11px;font-weight:bold;color:#171717;margin:0 0 4px;line-height:1.35">'+prod.n.split(',')[0]+'</p></td></tr><tr><td style="background:#fff;padding:0 8px 6px;border:1px solid #ede5d8;border-top:0"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#888;margin:0;line-height:1.5">'+prodShortDesc(prod.n)+'</p></td></tr><tr><td style="background:#fff;padding:4px 8px;border:1px solid #ede5d8;border-top:0"><span style="color:#AB8743;font-size:12px">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#aaa;margin-left:4px">4.8</span></td></tr><tr><td style="background:#fff;padding:4px 8px 10px;border:1px solid #ede5d8;border-top:0;border-radius:0 0 6px 6px"><a href="'+pdpUrl(prod,mt)+'" target="_blank" rel="noopener noreferrer" border="0" style="display:block;text-align:center;background:#004A2B;color:#FBF5EA;padding:8px;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;text-decoration:none;border-radius:4px">SHOP NOW</a></td></tr></table></td>';
+    return '<td width="'+colW+'" valign="top" style="width:'+colW+'px;padding:0 4px 16px;vertical-align:top"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr><td style="padding:0;line-height:0;font-size:0">'+(prod.i?'<img src="'+prod.i+'" alt="'+prod.n+'" width="'+(colW-8)+'" border="0" style="width:100%;height:150px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;border-radius:6px 6px 0 0;background:#FBF5EA">':'<div style="width:100%;height:150px;background:#FBF5EA;border-radius:6px 6px 0 0"></div>')+'</td></tr><tr><td style="background:#fff;padding:10px 8px 4px;border:1px solid #ede5d8;border-top:0"><p style="font-family:Lao MN,Georgia,serif;font-size:11px;font-weight:bold;color:#171717;margin:0 0 4px;line-height:1.35">'+prod.n.split(',')[0]+'</p></td></tr><tr><td style="background:#fff;padding:0 8px 6px;border:1px solid #ede5d8;border-top:0"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#888;margin:0;line-height:1.5">'+prodShortDesc(prod.n)+'</p></td></tr><tr><td style="background:#fff;padding:4px 8px;border:1px solid #ede5d8;border-top:0"><span style="color:#AB8743;font-size:12px">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#aaa;margin-left:4px">4.8</span></td></tr><tr><td style="background:#fff;padding:4px 8px 10px;border:1px solid #ede5d8;border-top:0;border-radius:0 0 6px 6px"><a href="'+pdpUrl(prod,mt)+'" target="_blank" rel="noopener noreferrer" border="0" style="display:block;text-align:center;background:#004A2B;color:#FBF5EA;padding:8px;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;text-decoration:none;border-radius:4px">SHOP NOW</a></td></tr></table></td>';
   }
   if(uploadedDesignImg){
     const prodRows=prods.map(function(prod){
-      return '<tr><td style="padding:0 20px 10px"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr><td width="80" style="padding:0;vertical-align:top;background:#fff;border:1px solid #ede5d8;border-right:0;border-radius:6px 0 0 6px">'+(prod.i?'<img src="'+prod.i+'" alt="'+prod.n+'" width="80" border="0" style="width:80px;height:80px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;border-radius:6px 0 0 6px">':'<div style="width:80px;height:80px;background:#e8f0e8;border-radius:6px 0 0 6px"></div>')+'</td><td style="background:#fff;padding:10px 12px;vertical-align:top;border:1px solid #ede5d8;border-left:0;border-right:0"><p style="font-family:Lao MN,Georgia,serif;font-size:12px;font-weight:bold;color:#171717;margin:0 0 3px;line-height:1.3">'+prod.n.split(',')[0]+'</p><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:11px;color:#888;margin:0 0 6px">'+prodShortDesc(prod.n)+'</p><span style="color:#AB8743;font-size:12px">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#aaa;margin-left:4px">4.8 &middot; 1,000+ reviews</span></td><td width="110" style="background:#fff;padding:10px;vertical-align:middle;text-align:center;border:1px solid #ede5d8;border-left:0;border-radius:0 6px 6px 0"><a href="'+pdpUrl(prod,mt)+'" target="_blank" rel="noopener noreferrer" border="0" style="display:inline-block;background:#004A2B;color:#FBF5EA;padding:9px 14px;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:0.08em;text-decoration:none;border-radius:4px;white-space:nowrap">SHOP NOW</a></td></tr></table></td></tr>';
+      return '<tr><td style="padding:0 20px 10px"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr><td width="80" style="padding:0;vertical-align:top;background:#fff;border:1px solid #ede5d8;border-right:0;border-radius:6px 0 0 6px">'+(prod.i?'<img src="'+prod.i+'" alt="'+prod.n+'" width="80" border="0" style="width:80px;height:80px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;border-radius:6px 0 0 6px">':'<div style="width:80px;height:80px;background:#FBF5EA;border-radius:6px 0 0 6px"></div>')+'</td><td style="background:#fff;padding:10px 12px;vertical-align:top;border:1px solid #ede5d8;border-left:0;border-right:0"><p style="font-family:Lao MN,Georgia,serif;font-size:12px;font-weight:bold;color:#171717;margin:0 0 3px;line-height:1.3">'+prod.n.split(',')[0]+'</p><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:11px;color:#888;margin:0 0 6px">'+prodShortDesc(prod.n)+'</p><span style="color:#AB8743;font-size:12px">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#aaa;margin-left:4px">4.8 &middot; 1,000+ reviews</span></td><td width="110" style="background:#fff;padding:10px;vertical-align:middle;text-align:center;border:1px solid #ede5d8;border-left:0;border-radius:0 6px 6px 0"><a href="'+pdpUrl(prod,mt)+'" target="_blank" rel="noopener noreferrer" border="0" style="display:inline-block;background:#004A2B;color:#FBF5EA;padding:9px 14px;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:bold;letter-spacing:0.08em;text-decoration:none;border-radius:4px;white-space:nowrap">SHOP NOW</a></td></tr></table></td></tr>';
     }).join('');
-    const html='<!DOCTYPE html>\n<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<meta http-equiv="X-UA-Compatible" content="IE=edge">\n<title>VAHDAM® -- '+p.substring(0,60)+'</title>\n'+msoHead+'\n<style>@media only screen and (max-width:600px){.email-wrap{width:100%!important}.pcol{display:block!important;width:100%!important}}</style>\n</head>\n<body style="margin:0;padding:0;background:#f0ebe0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">\n<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#f0ebe0">'+sc.substring(0,100)+' -- VAHDAM® '+( ot||cta)+' today. Farm direct Indian teas.</div>\n<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0ebe0;border-collapse:collapse"><tr><td align="center" style="padding:20px 10px">\n<table class="email-wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;border-collapse:collapse">\n<tr><td style="background:#004A2B;padding:8px 20px;text-align:center;border-radius:6px 6px 0 0"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#FBF5EA;margin:0">'+annBarLine(p,mt)+'</p></td></tr>\n<tr><td style="background:#ffffff;padding:18px 30px 14px;text-align:center;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><a href="'+base+'" target="_blank" rel="noopener noreferrer"><img src="'+VAHDAM_LOGO_URL+'" alt="VAHDAM" width="180" border="0" style="width:180px;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;margin-bottom:6px"></a><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-top:1px solid #ede5d8"><tr><td width="33%" style="text-align:center;padding:8px 0;border-right:1px solid #ede5d8"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#888;margin:0;letter-spacing:0.05em">🌿 100% PURE INDIAN TEA</p></td><td width="34%" style="text-align:center;padding:8px 0;border-right:1px solid #ede5d8"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#888;margin:0;letter-spacing:0.05em">🤝 ETHICALLY SOURCED</p></td><td width="33%" style="text-align:center;padding:8px 0"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#888;margin:0;letter-spacing:0.05em">🌱 DIRECT FROM FARMS</p></td></tr></table></td></tr>\n<tr><td style="padding:0;line-height:0;font-size:0;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><img src="'+uploadedDesignImg+'" alt="'+hero.n+' -- VAHDAM® Campaign" width="598" border="0" style="width:100%;max-width:598px;height:auto;display:block;border:0;outline:none;text-decoration:none"></td></tr>\n<tr><td style="background:#004A2B;padding:20px 30px;text-align:center;border-left:1px solid #004A2B;border-right:1px solid #004A2B"><p style="font-family:Lao MN,Georgia,serif;font-size:20px;font-weight:bold;color:#FBF5EA;margin:0 0 8px;line-height:1.3">'+(ot||hl[0])+'</p>'+(oc?'<p style="font-family:Lao MN,Georgia,serif;font-size:26px;font-weight:bold;color:#AB8743;letter-spacing:0.2em;margin:0 0 14px;border:2px solid #AB8743;display:inline-block;padding:4px 20px">'+oc+'</p><br>':'')+bulletBtn(collectionUrl(p,mt),oct,'#AB8743','#ffffff')+'<br><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#9fd6b5;margin:10px 0 0;letter-spacing:0.05em">🚚 FREE SHIPPING ON ORDERS $49+ &middot; '+os+'</p></td></tr>\n<tr><td style="background:#ffffff;padding:20px 20px 8px;text-align:center;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><p style="font-family:Lao MN,Georgia,serif;font-size:15px;font-weight:bold;color:#171717;margin:0;letter-spacing:0.05em">-- '+prodSecTitle+' --</p></td></tr>\n<tr><td style="background:#ffffff;padding-bottom:8px;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">'+prodRows+'</table></td></tr>\n<tr><td style="background:#004A2B;padding:12px 24px;text-align:center"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:11px;color:#9fd6b5;margin:0;letter-spacing:0.04em">&#9733;&#9733;&#9733;&#9733;&#9733;&nbsp;&nbsp;Rated 4.8/5 by 50,000+ customers&nbsp;|&nbsp;🌿 100% Natural&nbsp;|&nbsp;🤝 Ethically Sourced</p></td></tr>\n<tr><td style="background:#FBF5EA;padding:16px 10px;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr>'+['🌿 SUSTAINABLE','💚 WOMEN-LED','🤝 ETHICAL','👥 COMMUNITY','❤ LOVED'].map(function(b){return '<td style="text-align:center;padding:0 4px"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8.5px;font-weight:bold;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin:0;line-height:1.6">'+b+'</p></td>';}).join('')+'</tr></table></td></tr>\n<tr><td style="background:#004A2B;padding:20px 24px;text-align:center;border-radius:0 0 6px 6px"><a href="'+base+'" target="_blank" rel="noopener noreferrer"><img src="'+VAHDAM_LOGO_URL+'" alt="VAHDAM" width="120" border="0" style="width:120px;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;margin-bottom:8px"></a><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#9fd6b5;margin:0 0 8px"><a href="https://www.instagram.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#9fd6b5;text-decoration:none">Instagram</a>&nbsp;&middot;&nbsp;<a href="https://www.facebook.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#9fd6b5;text-decoration:none">Facebook</a>&nbsp;&middot;&nbsp;<a href="https://www.youtube.com/@vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#9fd6b5;text-decoration:none">YouTube</a></p><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8px;color:#7ab89a;margin:0;line-height:1.7">VAHDAM India Pvt. Ltd.&nbsp;&middot;&nbsp;New Delhi, India<br><a href="'+base+'/pages/unsubscribe" style="color:#9fd6b5">Unsubscribe</a>&nbsp;&middot;&nbsp;<a href="'+base+'/pages/privacy-policy" style="color:#9fd6b5">Privacy Policy</a></p></td></tr>\n</table></td></tr></table>\n</body></html>';
+    const html='<!DOCTYPE html>\n<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<meta http-equiv="X-UA-Compatible" content="IE=edge">\n<title>VAHDAM® -- '+p.substring(0,60)+'</title>\n'+msoHead+'\n<style>@media only screen and (max-width:600px){.email-wrap{width:100%!important}.pcol{display:block!important;width:100%!important}}</style>\n</head>\n<body style="margin:0;padding:0;background:#f0ebe0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">\n<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#f0ebe0">'+sc.substring(0,100)+' -- VAHDAM® '+( ot||cta)+' today. Farm direct Indian teas.</div>\n<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0ebe0;border-collapse:collapse"><tr><td align="center" style="padding:20px 10px">\n<table class="email-wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;border-collapse:collapse">\n<tr><td style="background:#004A2B;padding:8px 20px;text-align:center;border-radius:6px 6px 0 0"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#FBF5EA;margin:0">'+annBarLine(p,mt)+'</p></td></tr>\n<tr><td style="background:#ffffff;padding:18px 30px 14px;text-align:center;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><a href="'+base+'" target="_blank" rel="noopener noreferrer"><img src="'+VAHDAM_LOGO_URL+'" alt="VAHDAM" width="180" border="0" style="width:180px;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;margin-bottom:6px"></a><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-top:1px solid #ede5d8"><tr><td width="33%" style="text-align:center;padding:8px 0;border-right:1px solid #ede5d8"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#888;margin:0;letter-spacing:0.05em">🌿 100% PURE INDIAN TEA</p></td><td width="34%" style="text-align:center;padding:8px 0;border-right:1px solid #ede5d8"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#888;margin:0;letter-spacing:0.05em">🤝 ETHICALLY SOURCED</p></td><td width="33%" style="text-align:center;padding:8px 0"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#888;margin:0;letter-spacing:0.05em">🌱 DIRECT FROM FARMS</p></td></tr></table></td></tr>\n<tr><td style="padding:0;line-height:0;font-size:0;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><img src="'+uploadedDesignImg+'" alt="'+hero.n+' -- VAHDAM® Campaign" width="598" border="0" style="width:100%;max-width:598px;height:auto;display:block;border:0;outline:none;text-decoration:none"></td></tr>\n<tr><td style="background:#004A2B;padding:20px 30px;text-align:center;border-left:1px solid #004A2B;border-right:1px solid #004A2B"><p style="font-family:Lao MN,Georgia,serif;font-size:20px;font-weight:bold;color:#FBF5EA;margin:0 0 8px;line-height:1.3">'+(ot||hl[0])+'</p>'+(oc?'<p style="font-family:Lao MN,Georgia,serif;font-size:26px;font-weight:bold;color:#AB8743;letter-spacing:0.2em;margin:0 0 14px;border:2px solid #AB8743;display:inline-block;padding:4px 20px">'+oc+'</p><br>':'')+bulletBtn(collectionUrl(p,mt),oct,'#AB8743','#ffffff')+'<br><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#FBF5EA;margin:10px 0 0;letter-spacing:0.05em">🚚 FREE SHIPPING ON ORDERS $49+ &middot; '+os+'</p></td></tr>\n<tr><td style="background:#ffffff;padding:20px 20px 8px;text-align:center;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><p style="font-family:Lao MN,Georgia,serif;font-size:15px;font-weight:bold;color:#171717;margin:0;letter-spacing:0.05em">-- '+prodSecTitle+' --</p></td></tr>\n<tr><td style="background:#ffffff;padding-bottom:8px;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">'+prodRows+'</table></td></tr>\n<tr><td style="background:#004A2B;padding:12px 24px;text-align:center"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:11px;color:#FBF5EA;margin:0;letter-spacing:0.04em">&#9733;&#9733;&#9733;&#9733;&#9733;&nbsp;&nbsp;Rated 4.8/5 by 50,000+ customers&nbsp;|&nbsp;🌿 100% Natural&nbsp;|&nbsp;🤝 Ethically Sourced</p></td></tr>\n<tr><td style="background:#FBF5EA;padding:16px 10px;border-left:1px solid #ede5d8;border-right:1px solid #ede5d8"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr>'+['🌿 SUSTAINABLE','💚 WOMEN-LED','🤝 ETHICAL','👥 COMMUNITY','❤ LOVED'].map(function(b){return '<td style="text-align:center;padding:0 4px"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8.5px;font-weight:bold;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin:0;line-height:1.6">'+b+'</p></td>';}).join('')+'</tr></table></td></tr>\n<tr><td style="background:#004A2B;padding:20px 24px;text-align:center;border-radius:0 0 6px 6px"><a href="'+base+'" target="_blank" rel="noopener noreferrer"><img src="'+VAHDAM_LOGO_URL+'" alt="VAHDAM" width="120" border="0" style="width:120px;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;margin-bottom:8px"></a><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#FBF5EA;margin:0 0 8px"><a href="https://www.instagram.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#FBF5EA;text-decoration:none">Instagram</a>&nbsp;&middot;&nbsp;<a href="https://www.facebook.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#FBF5EA;text-decoration:none">Facebook</a>&nbsp;&middot;&nbsp;<a href="https://www.youtube.com/@vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#FBF5EA;text-decoration:none">YouTube</a></p><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8px;color:#FBF5EA;margin:0;line-height:1.7">VAHDAM India Pvt. Ltd.&nbsp;&middot;&nbsp;New Delhi, India<br><a href="'+base+'/pages/unsubscribe" style="color:#FBF5EA">Unsubscribe</a>&nbsp;&middot;&nbsp;<a href="'+base+'/pages/privacy-policy" style="color:#FBF5EA">Privacy Policy</a></p></td></tr>\n</table></td></tr></table>\n</body></html>';
     if(!mktOverride){S.finalHTML=html;document.getElementById('emailFr').srcdoc=html;document.getElementById('htmlRaw').textContent=html;buildStep5UI(p,prods,mt);}
     return html;
   }
@@ -7514,7 +7582,7 @@ function _legacy_buildEmail_replaced(uploadedDesignImg,mktOverride){
     var isHero=idx===0;
     return '<td width="'+gcW+'" valign="top" style="width:'+gcW+'px;padding:0 4px 12px;vertical-align:top">'+
       '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-radius:8px;border:1px solid #ede5d8'+(isHero?';border-top:2px solid #AB8743':'')+'">'+
-      '<tr><td style="padding:0;line-height:0;font-size:0">'+(prod.i?'<img src="'+prod.i+'" alt="'+prod.n.replace(/"/g,'&quot;')+'" width="'+(gcW-8)+'" border="0" style="width:100%;height:140px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;background:#e8f0e8;border-radius:7px 7px 0 0">':'<div style="width:100%;height:140px;background:linear-gradient(135deg,#d8ede2,#e8f0e8);border-radius:7px 7px 0 0"></div>')+'</td></tr>'+
+      '<tr><td style="padding:0;line-height:0;font-size:0">'+(prod.i?'<img src="'+prod.i+'" alt="'+prod.n.replace(/"/g,'&quot;')+'" width="'+(gcW-8)+'" border="0" style="width:100%;height:140px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;background:#FBF5EA;border-radius:7px 7px 0 0">':'<div style="width:100%;height:140px;background:linear-gradient(135deg,#FBF5EA,#FBF5EA);border-radius:7px 7px 0 0"></div>')+'</td></tr>'+
       '<tr><td style="background:#fff;padding:8px 10px 4px"><p style="font-family:Lao MN,Georgia,serif;font-size:11px;font-weight:bold;color:#171717;margin:0;line-height:1.3">'+prod.n.split(',')[0]+'</p></td></tr>'+
       '<tr><td style="background:#fff;padding:2px 10px 4px">'+prodPriceBlockHTML(prod,p,mt)+'</td></tr>'+
       '<tr><td style="background:#fff;padding:2px 10px"><span style="color:#AB8743;font-size:11px">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#aaa;margin-left:3px">4.8</span></td></tr>'+
@@ -7553,12 +7621,12 @@ function _legacy_buildEmail_replaced(uploadedDesignImg,mktOverride){
   if(valueLine)html+='<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;font-weight:700;color:#c0392b;margin:10px 0 0;line-height:1.4">&#9889; '+valueLine+'</p>\n';
   html+='</td>\n';
   // Hero right — product image
-  html+='<td class="hero-right" width="300" valign="top" style="width:300px;padding:0;vertical-align:top;overflow:hidden;background:#c8ddd1">\n';
+  html+='<td class="hero-right" width="300" valign="top" style="width:300px;padding:0;vertical-align:top;overflow:hidden;background:#FBF5EA">\n';
   if(hero.i){
-    html+='<img src="'+hero.i+'" alt="'+hero.n.split(',')[0].replace(/"/g,'&quot;')+'" width="300" border="0" style="width:300px;height:280px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;background:#c8ddd1">\n';
+    html+='<img src="'+hero.i+'" alt="'+hero.n.split(',')[0].replace(/"/g,'&quot;')+'" width="300" border="0" style="width:300px;height:280px;object-fit:cover;display:block;border:0;outline:none;text-decoration:none;background:#FBF5EA">\n';
     html+='<div style="background:rgba(0,74,43,0.92);padding:8px 14px;text-align:center"><p style="font-family:Lao MN,Georgia,serif;font-size:11px;color:#FBF5EA;margin:0;font-style:italic">'+hero.n.split(',')[0]+'</p><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8px;color:#AB8743;margin:2px 0 0;letter-spacing:0.08em;font-weight:700">&#9733;&#9733;&#9733;&#9733;&#9733; 4.8</p></div>\n';
   } else {
-    html+='<div style="background:#004A2B;width:300px;height:280px;padding:40px 20px;box-sizing:border-box;text-align:center"><p style="font-family:Lao MN,Georgia,serif;font-size:14px;font-style:italic;color:#9fd6b5;margin:0;line-height:1.6">&ldquo;From the misty slopes of Darjeeling to your morning cup.&rdquo;</p></div>\n';
+    html+='<div style="background:#004A2B;width:300px;height:280px;padding:40px 20px;box-sizing:border-box;text-align:center"><p style="font-family:Lao MN,Georgia,serif;font-size:14px;font-style:italic;color:#FBF5EA;margin:0;line-height:1.6">&ldquo;From the misty slopes of Darjeeling to your morning cup.&rdquo;</p></div>\n';
   }
   html+='</td>\n</tr></table>\n</td></tr>\n';
   // S4 — Compact product grid (max 4 products, single row)
@@ -7574,7 +7642,7 @@ function _legacy_buildEmail_replaced(uploadedDesignImg,mktOverride){
   html+='<tr><td style="background:#004A2B;padding:20px 28px;text-align:center;border-left:1px solid #004A2B;border-right:1px solid #004A2B">\n';
   html+='<p style="font-family:Lao MN,Georgia,serif;font-size:32px;color:#AB8743;margin:0;line-height:1">&ldquo;</p>\n';
   html+='<p style="font-family:Lao MN,Georgia,serif;font-size:13px;color:#FBF5EA;margin:0 0 10px;line-height:1.55;font-style:italic;max-width:440px;display:inline-block">'+rev0[0]+'</p>\n';
-  html+='<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#9fd6b5;margin:0;letter-spacing:0.12em;text-transform:uppercase;font-weight:700">&ndash; '+rev0[1]+', '+rev0[2]+' &middot; <span style="color:#AB8743">&#9733;&#9733;&#9733;&#9733;&#9733;</span></p>\n';
+  html+='<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#FBF5EA;margin:0;letter-spacing:0.12em;text-transform:uppercase;font-weight:700">&ndash; '+rev0[1]+', '+rev0[2]+' &middot; <span style="color:#AB8743">&#9733;&#9733;&#9733;&#9733;&#9733;</span></p>\n';
   html+='</td></tr>\n';
   // S6 — Offer banner (compact, only if offer exists)
   // S6 — Offer banner (compact, only if offer exists)
@@ -7585,12 +7653,12 @@ function _legacy_buildEmail_replaced(uploadedDesignImg,mktOverride){
     html+='<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:rgba(255,255,255,0.85);margin:8px 0 0;letter-spacing:0.06em">'+os+' &middot; '+mktIntel.shippingNote+'</p></td></tr>\n';
   }
   // S7 — Trust bar + social proof (single line)
-  html+='<tr><td style="background:#004A2B;padding:10px 20px;text-align:center"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#9fd6b5;margin:0;letter-spacing:0.04em"><span style="color:#AB8743">&#9733;&#9733;&#9733;&#9733;&#9733;</span> &nbsp;'+mktIntel.social+' &middot; &#127807; 100% Natural &middot; '+mktIntel.shippingNote+'</p></td></tr>\n';
+  html+='<tr><td style="background:#004A2B;padding:10px 20px;text-align:center"><p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#FBF5EA;margin:0;letter-spacing:0.04em"><span style="color:#AB8743">&#9733;&#9733;&#9733;&#9733;&#9733;</span> &nbsp;'+mktIntel.social+' &middot; &#127807; 100% Natural &middot; '+mktIntel.shippingNote+'</p></td></tr>\n';
   // S8 — Compact footer (brand green)
   html+='<tr><td style="background:#004A2B;padding:18px 20px;text-align:center;border-radius:0 0 6px 6px">';
   html+='<a href="'+base+'" target="_blank" rel="noopener noreferrer"><img src="'+VAHDAM_LOGO_URL+'" alt="VAHDAM" width="120" border="0" style="width:120px;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;margin-bottom:8px"></a>';
-  html+='<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#9fd6b5;margin:0 0 6px"><a href="https://www.instagram.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#9fd6b5;text-decoration:none">Instagram</a> &middot; <a href="https://www.facebook.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#9fd6b5;text-decoration:none">Facebook</a> &middot; <a href="https://www.youtube.com/@vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#9fd6b5;text-decoration:none">YouTube</a></p>';
-  html+='<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8px;color:#7ab89a;margin:0;line-height:1.7">VAHDAM India Pvt. Ltd. &middot; New Delhi<br><a href="'+base+'/pages/unsubscribe" style="color:#9fd6b5">Unsubscribe</a> &middot; <a href="'+base+'/pages/privacy-policy" style="color:#9fd6b5">Privacy Policy</a></p>';
+  html+='<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:9px;color:#FBF5EA;margin:0 0 6px"><a href="https://www.instagram.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#FBF5EA;text-decoration:none">Instagram</a> &middot; <a href="https://www.facebook.com/vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#FBF5EA;text-decoration:none">Facebook</a> &middot; <a href="https://www.youtube.com/@vahdamteas" target="_blank" rel="noopener noreferrer" style="color:#FBF5EA;text-decoration:none">YouTube</a></p>';
+  html+='<p style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8px;color:#FBF5EA;margin:0;line-height:1.7">VAHDAM India Pvt. Ltd. &middot; New Delhi<br><a href="'+base+'/pages/unsubscribe" style="color:#FBF5EA">Unsubscribe</a> &middot; <a href="'+base+'/pages/privacy-policy" style="color:#FBF5EA">Privacy Policy</a></p>';
   html+='</td></tr>\n';
   // Close outer wrapper
   html+='</table>\n</td></tr></table>\n</body></html>';
@@ -7680,11 +7748,11 @@ function buildStep5UI(prompt,prods,market){
     gridHtml+='<div class="sbox sbox-wide" style="background:linear-gradient(135deg,#004A2B 0%,#004A2B 100%);border-color:#004A2B;padding:18px 20px">';
     gridHtml+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">';
     gridHtml+='<span style="background:'+(typeBadgeColor[type]||'#004A2B')+';color:#fff;font-size:9px;font-weight:700;letter-spacing:0.16em;padding:4px 12px;border-radius:20px;text-transform:uppercase;white-space:nowrap">'+type+' Campaign</span>';
-    gridHtml+='<span style="font-size:11px;color:#9fd6b5">'+(mktLabels[market]||market)+'</span>';
+    gridHtml+='<span style="font-size:11px;color:#FBF5EA">'+(mktLabels[market]||market)+'</span>';
     if(_oc)gridHtml+='<span style="background:#AB8743;color:#fff;font-size:9px;font-weight:700;letter-spacing:0.1em;padding:3px 10px;border-radius:12px">CODE: '+_oc+'</span>';
     gridHtml+='</div>';
     gridHtml+='<div class="slbl" style="color:#AB8743;margin-bottom:6px">Campaign Brief</div>';
-    gridHtml+='<div style="font-size:11px;color:#c9e8d5;line-height:1.6;font-style:italic">&ldquo;'+((prompt||'').substring(0,220)+((prompt||'').length>220?'&hellip;':''))+'&rdquo;</div>';
+    gridHtml+='<div style="font-size:11px;color:#FBF5EA;line-height:1.6;font-style:italic">&ldquo;'+((prompt||'').substring(0,220)+((prompt||'').length>220?'&hellip;':''))+'&rdquo;</div>';
     gridHtml+='</div>';
     // ── Row 2: Mailer copy preview (full-width) ──────────────────────────
     gridHtml+='<div class="sbox sbox-wide" style="background:#f8f4ee;border:1.5px solid #d6c9a8;padding:18px 22px">';
@@ -9003,7 +9071,7 @@ async function renderDashboard(page){
     var mktFlags={US:'🇺🇸',UK:'🇬🇧',IN:'🇮🇳',Global:'🌍',ME:'🇦🇪',AU:'🇦🇺',EU:'🇪🇺'};
     var mktNames={US:'United States',UK:'United Kingdom',IN:'India',Global:'Global',ME:'Middle East',AU:'Australia',EU:'Europe'};
     var variantMeta={
-      A:{name:'V1 · Complete Text',sub:'Pure copy, no imagery',accent:'#004A2B',accentBg:'#e8f5ee'},
+      A:{name:'V1 · Complete Text',sub:'Pure copy, no imagery',accent:'#004A2B',accentBg:'#0a3d24'},
       B:{name:'V2 · Text + Visual',sub:'Copy + imagery/GIF/video',accent:'#AB8743',accentBg:'#FBF5EA'}
     };
     var mailerMatrix='';
@@ -9063,7 +9131,7 @@ async function renderDashboard(page){
       +'<div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start">'
         +'<div>'
         +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
-        +'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#e8f5ee;color:#004A2B;border-radius:10px;border:1px solid #b7e3c9">'+mkts+'</span>'
+        +'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#0a3d24;color:#004A2B;border-radius:10px;border:1px solid #b7e3c9">'+mkts+'</span>'
         +'<span style="font-size:10px;font-weight:700;padding:3px 10px;background:#FBF5EA;color:#AB8743;border-radius:10px;border:1px solid #ecd9a8">'+(e.type||'Campaign')+'</span>'
         +'</div>'
         +'<div style="font-family:\'Lao MN\',Georgia,serif;font-size:18px;color:#004A2B;font-weight:600;line-height:1.3;margin-bottom:4px">'+(e.title||generateCampaignTitle(e.fullPrompt||e.prompt||'',e.type,e.products,(e.markets||['US'])[0]))+'</div>'
@@ -9137,7 +9205,7 @@ function viewDashRecord(logIdx){
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">';
     html+='<div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Target Markets</div><div style="font-size:12px;font-weight:600;color:#004A2B;line-height:1.5">'+mkts.map(function(m){return mktLabels[m]||m;}).join('<br>')+'</div></div>';
     html+='<div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Products Featured</div>';
-    if(e.products&&e.products.length){html+='<div style="display:flex;flex-wrap:wrap;gap:4px">'+(e.products||[]).map(function(pr){return '<span style="font-size:9px;font-weight:600;padding:2px 8px;background:#e8f5ee;color:#004A2B;border-radius:12px;border:1px solid #b7e3c9">'+pr+'</span>';}).join('')+'</div>';}
+    if(e.products&&e.products.length){html+='<div style="display:flex;flex-wrap:wrap;gap:4px">'+(e.products||[]).map(function(pr){return '<span style="font-size:9px;font-weight:600;padding:2px 8px;background:#0a3d24;color:#004A2B;border-radius:12px;border:1px solid #b7e3c9">'+pr+'</span>';}).join('')+'</div>';}
     else{html+='<span style="font-size:11px;color:#bbb">Not recorded</span>';}
     html+='</div></div>';
     html+='</div>';
@@ -9177,7 +9245,7 @@ function viewDashRecord(logIdx){
     html+='<div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#AB8743;margin-bottom:12px">&#127919; Strategic Brief</div>';
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
     // Target segment (full width)
-    html+='<div style="grid-column:1 / -1;background:#fff;border:1.5px solid #d6cdb8;border-radius:8px;padding:12px 14px"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:#AB8743;margin-bottom:4px">&#128100; Target Segment</div><div style="font-family:\'Lao MN\',Georgia,serif;font-size:16px;font-weight:600;color:#004A2B;line-height:1.3">'+(seg.primary||'')+'</div>'+(seg.sub?'<div style="font-size:11px;color:#444;margin-top:4px">'+seg.sub+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+(seg.size?'<span style="font-size:9.5px;font-weight:700;padding:2px 8px;background:#e8f5ee;color:#004A2B;border-radius:9px;border:1px solid #b7e3c9">Audience: '+seg.size+'</span>':'')+(dep.send_window?'<span style="font-size:9.5px;font-weight:700;padding:2px 8px;background:#FBF5EA;color:#AB8743;border-radius:9px;border:1px solid #ecd9a8">Send: '+dep.send_window+'</span>':'')+'</div>'+(seg.rationale?'<div style="font-size:11px;color:#555;font-style:italic;margin-top:6px;line-height:1.5">'+seg.rationale+'</div>':'')+'</div>';
+    html+='<div style="grid-column:1 / -1;background:#fff;border:1.5px solid #d6cdb8;border-radius:8px;padding:12px 14px"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:#AB8743;margin-bottom:4px">&#128100; Target Segment</div><div style="font-family:\'Lao MN\',Georgia,serif;font-size:16px;font-weight:600;color:#004A2B;line-height:1.3">'+(seg.primary||'')+'</div>'+(seg.sub?'<div style="font-size:11px;color:#444;margin-top:4px">'+seg.sub+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+(seg.size?'<span style="font-size:9.5px;font-weight:700;padding:2px 8px;background:#0a3d24;color:#004A2B;border-radius:9px;border:1px solid #b7e3c9">Audience: '+seg.size+'</span>':'')+(dep.send_window?'<span style="font-size:9.5px;font-weight:700;padding:2px 8px;background:#FBF5EA;color:#AB8743;border-radius:9px;border:1px solid #ecd9a8">Send: '+dep.send_window+'</span>':'')+'</div>'+(seg.rationale?'<div style="font-size:11px;color:#555;font-style:italic;margin-top:6px;line-height:1.5">'+seg.rationale+'</div>':'')+'</div>';
     // Intent
     html+='<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#AB8743;margin-bottom:4px">Campaign Intent</div><div style="font-size:11.5px;color:#171717;line-height:1.55;font-weight:500">'+(dep.intent||'')+'</div></div>';
     // Expected impact
@@ -9209,7 +9277,7 @@ function viewDashRecord(logIdx){
         var entry=imgPrompts[mkt]||{};
         ['A','B'].forEach(function(v){
           if(!entry[v])return;
-          html+='<div style="margin-bottom:6px"><span style="font-size:9px;font-weight:700;color:#004A2B;background:#e8f5ee;padding:2px 8px;border-radius:9px;border:1px solid #b7e3c9">'+mkt+' · '+v+'</span><div style="font-size:10.5px;color:#444;font-family:ui-monospace,Menlo,monospace;background:#fafaf6;padding:6px 8px;border-radius:6px;margin-top:3px;line-height:1.5;max-height:60px;overflow:auto">'+entry[v]+'</div></div>';
+          html+='<div style="margin-bottom:6px"><span style="font-size:9px;font-weight:700;color:#004A2B;background:#0a3d24;padding:2px 8px;border-radius:9px;border:1px solid #b7e3c9">'+mkt+' · '+v+'</span><div style="font-size:10.5px;color:#444;font-family:ui-monospace,Menlo,monospace;background:#fafaf6;padding:6px 8px;border-radius:6px;margin-top:3px;line-height:1.5;max-height:60px;overflow:auto">'+entry[v]+'</div></div>';
         });
       });
       html+='</div>';
@@ -9712,7 +9780,7 @@ document.addEventListener('DOMContentLoaded',function(){
       try{
         var headers=(typeof _getApiHeaders==='function')?_getApiHeaders():{'Content-Type':'application/json'};
         var res=await fetch('/api/ai/generate',{ method:'POST', cache:'no-store', headers:headers,
-          body:JSON.stringify({ mode:'chat', message:msg, history:history.slice(-8), chat_context:buildCtx() }) });
+          body:JSON.stringify({ mode:'chat', message:msg, history:history.slice(-8), chat_context:buildCtx(), tier:(window.__VAHDAM_TIER||'maxpower') }) });
         var data=await res.json().catch(function(){ return {}; });
         if(t&&t.remove)t.remove();
         var reply=((data&&data.text)||'').trim() || "Sorry — I couldn't generate a reply just now. Try again?";
@@ -9720,6 +9788,21 @@ document.addEventListener('DOMContentLoaded',function(){
       }catch(e){ if(t&&t.remove)t.remove(); addMsg('bot','Network hiccup — please try again.'); }
     }
   };
+})();
+</script>
+<!-- Single generation mode: Premium + Agentic (the only mode). The tier picker
+     was removed; every /api/ai/generate + image call runs on the premium model
+     cascade, and "Agentic" opens the full 8-stage flow at /brain. -->
+<div id="vhdMode" style="position:fixed;top:10px;right:12px;z-index:9000;display:flex;gap:8px;align-items:center;background:rgba(251,245,234,0.97);border:1px solid #004A2B;border-radius:999px;padding:5px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.12);font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">
+  <a href="/brain" title="The single mode: an agentic pipeline powered by the premium (highest-accuracy) model cascade" style="font-size:11px;font-weight:700;text-decoration:none;border-radius:999px;padding:4px 10px;background:#AB8743;color:#FBF5EA">🤖 Agentic ↗</a>
+</div>
+<script>
+(function(){
+  // Single mode: premium is the only tier. Kept as a global so every caller that
+  // reads window.__VAHDAM_TIER gets premium; __setVhdTier is a no-op that can
+  // never downgrade (back-compat for any legacy call site).
+  window.__VAHDAM_TIER = 'maxpower';
+  window.__setVhdTier = function(){ window.__VAHDAM_TIER = 'maxpower'; };
 })();
 </script>
 </body>

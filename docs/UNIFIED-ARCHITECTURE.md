@@ -65,7 +65,7 @@ HOME            /                     Super-app hub
    Automation   /automation           NEW: run granularity + campaign-type matrix
 ─ CREATE (manual studio)
    Mailers      /studio               vahdam_mailer_architect_v34.html
-   Ads          /ads                  ad-campaigns.html
+   Ads          /ads-master           ad-campaigns-master.html
    Landing Pages/landing-pages        landing-pages.html
    Knowledge    /kb                   knowledge-base.html
 ─ AGENTS

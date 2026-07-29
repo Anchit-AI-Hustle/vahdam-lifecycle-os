@@ -43,7 +43,9 @@ let lastResult = null;
 
 function authorized(req) {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // unprotected if not configured (dev)
+  // No secret: open in dev/preview, FAIL CLOSED in production (sync drives IMAP
+  // + Google Sheet writes; never leave it open to anyone).
+  if (!secret) return String(process.env.VERCEL_ENV) !== 'production';
   const auth = req.headers && req.headers.authorization;
   if (auth === `Bearer ${secret}`) return true;
   const url = new URL(req.url, 'http://x');
@@ -295,6 +297,91 @@ module.exports = async function handler(req, res) {
       const enrichEmails = await getEnrich().enrichBatch('email', { limit: 15 });
       const enrichAds = await getEnrich().enrichBatch('ad', { limit: 15 });
       res.status(200).json({ ok: true, emailSync, enrichEmails: { processed: enrichEmails.processed }, enrichAds: { processed: enrichAds.processed } });
+      return;
+    }
+
+    // ── USER subscriptions (real-time mailer/ad follow) ──────────────────────
+    // sub-list?user=  → this user's followed brands
+    // sub-set (POST {user, brand_name, domain?, brand_id?, mailers, ads, active})
+    if (action === 'sub-list') {
+      const subsCore = require('./_shared/ci-subscriptions-core');
+      const user = url.searchParams.get('user') || '';
+      const subs = await subsCore.listForUser(user);
+      res.status(200).json({ ok: true, subscriptions: subs });
+      return;
+    }
+    if (action === 'sub-set') {
+      const subsCore = require('./_shared/ci-subscriptions-core');
+      const b = await readBody(req);
+      const out = await subsCore.setSub({
+        userEmail: b.user || b.userEmail || '', brand_id: b.brand_id || null,
+        brand_name: b.brand_name || b.brand || '', domain: b.domain || '',
+        mailers: b.mailers !== false, ads: b.ads !== false, active: b.active !== false,
+      });
+      res.status(out.ok ? 200 : 400).json(out);
+      return;
+    }
+
+    // ── item 1: REAL landing pages per platform (not homepages) ──────────────
+    // Homepages are served separately as "Website". This returns the actual
+    // landing pages captured behind ads/mailers, each WITH its driving asset,
+    // grouped by platform. Honest empty groups when nothing is captured yet.
+    if (action === 'landing-real') {
+      const brandId = url.searchParams.get('brand_id');
+      const limit = Number(url.searchParams.get('limit') || 200);
+      const filt = brandId ? { brand_id: `eq.${brandId}` } : {};
+      let ads = [], emails = [], landing = [];
+      try { ads = await supa.select('ci_ads', { filters: { ...filt }, order: 'last_seen.desc', limit }); } catch (_) {}
+      try { emails = await supa.select('ci_emails', { filters: { ...filt }, order: 'send_date.desc', limit }); } catch (_) {}
+      try { landing = await supa.select('ci_landing_pages', { filters: { ...filt }, order: 'captured_at.desc', limit }); } catch (_) {}
+      const lpByHash = {}; landing.forEach(l => { if (l.url) lpByHash[l.url] = l; });
+      const platforms = { meta: [], google: [], tiktok: [], mailers: [] };
+      ads.forEach(a => {
+        if (!a.landing_url) return;
+        const key = (a.source || '').toLowerCase();
+        const bucket = platforms[key] ? key : (key.includes('tik') ? 'tiktok' : key.includes('goog') ? 'google' : key.includes('meta') || key.includes('face') ? 'meta' : null);
+        if (!bucket) return;
+        platforms[bucket].push({
+          brand: a.brand_name, landing_url: a.landing_url, asset_type: a.creative_type || 'image',
+          asset_url: (a.image_urls && a.image_urls[0]) || (a.video_urls && a.video_urls[0]) || '',
+          headline: a.headline || null, source_link: a.source_link || null,
+          captured_lp: !!lpByHash[a.landing_url], captured_at: a.last_seen,
+        });
+      });
+      emails.forEach(e => {
+        const dest = (e.ctas && e.ctas.find(c => c.href) || {}).href || '';
+        if (!dest) return;
+        platforms.mailers.push({
+          brand: e.brand_name, landing_url: dest, asset_type: 'mailer',
+          asset_url: (e.images && e.images[0]) || '', headline: e.subject || null,
+          source_link: e.source_link || null, captured_lp: !!lpByHash[dest], captured_at: e.send_date,
+        });
+      });
+      const groups = [
+        { platform: 'Meta Ads', key: 'meta', items: platforms.meta },
+        { platform: 'Google Ads', key: 'google', items: platforms.google },
+        { platform: 'TikTok Ads', key: 'tiktok', items: platforms.tiktok },
+        { platform: 'Mailers', key: 'mailers', items: platforms.mailers },
+      ];
+      res.status(200).json({ ok: true, groups, captured_landing_count: landing.length });
+      return;
+    }
+
+    // ── item 3: brand detail — ALL assets of one brand ───────────────────────
+    if (action === 'brand-detail') {
+      const brandId = url.searchParams.get('brand_id');
+      const name = url.searchParams.get('brand') || '';
+      const filt = brandId ? { brand_id: `eq.${brandId}` } : (name ? { brand_name: `eq.${name}` } : {});
+      let brand = null, emails = [], ads = [], landing = [];
+      try { if (brandId) { const b = await supa.select('brands', { filters: { id: `eq.${brandId}` }, limit: 1 }); brand = b[0] || null; } } catch (_) {}
+      try { emails = await supa.select('ci_emails', { filters: { ...filt }, order: 'send_date.desc', limit: 200 }); } catch (_) {}
+      try { ads = await supa.select('ci_ads', { filters: { ...filt }, order: 'last_seen.desc', limit: 200 }); } catch (_) {}
+      try { landing = await supa.select('ci_landing_pages', { filters: { ...filt }, order: 'captured_at.desc', limit: 200 }); } catch (_) {}
+      const adsByPlatform = { meta: [], google: [], tiktok: [], other: [] };
+      ads.forEach(a => { const k = (a.source || '').toLowerCase(); (adsByPlatform[k] || adsByPlatform.other).push(a); });
+      res.status(200).json({ ok: true, brand, brand_name: brand?.name || name, website: brand?.domain ? 'https://' + brand.domain : null,
+        counts: { mailers: emails.length, ads: ads.length, landing: landing.length },
+        emails, ads: adsByPlatform, landing });
       return;
     }
 

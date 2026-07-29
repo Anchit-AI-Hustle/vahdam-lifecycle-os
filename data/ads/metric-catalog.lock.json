@@ -1,0 +1,772 @@
+{
+  "_comment": "Lockfile for the shared ad metric catalog. Both surfaces must match this EXACTLY: api/_shared/ad-metrics-catalog.js (web) and streamlit_app.py METRICS (Snowflake, branch snowflake-streamlit-app). Formulas are locked too, not just keys -- hold_rate once meant thruplays/impressions here and thruplays/video_3s there, so the same label reported different numbers on the two dashboards. Changing a metric means changing this file in the same commit, on both branches.",
+  "count": 72,
+  "metrics": [
+    {
+      "key": "impressions",
+      "category": "delivery",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "impressions"
+      ],
+      "formula": "impressions (as served)"
+    },
+    {
+      "key": "reach",
+      "category": "delivery",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "reach"
+      ],
+      "formula": "reach (unique people)"
+    },
+    {
+      "key": "frequency",
+      "category": "delivery",
+      "unit": "ratio",
+      "tier": "derived",
+      "inputs": [
+        "impressions",
+        "reach"
+      ],
+      "formula": "impressions / reach"
+    },
+    {
+      "key": "spend",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "base",
+      "inputs": [
+        "spend"
+      ],
+      "formula": "spend"
+    },
+    {
+      "key": "cpm",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "impressions"
+      ],
+      "formula": "spend / impressions × 1000"
+    },
+    {
+      "key": "cpc",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "inline_link_clicks"
+      ],
+      "formula": "spend / link clicks"
+    },
+    {
+      "key": "cpp",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "reach"
+      ],
+      "formula": "spend / reach × 1000"
+    },
+    {
+      "key": "cost_per_reach",
+      "category": "cost",
+      "unit": "usd4",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "reach"
+      ],
+      "formula": "spend / reach"
+    },
+    {
+      "key": "cost_per_3s",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "video_3s"
+      ],
+      "formula": "spend / 3-sec plays"
+    },
+    {
+      "key": "cost_per_thruplay",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "thruplays"
+      ],
+      "formula": "spend / thruplays"
+    },
+    {
+      "key": "cost_per_purchase",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "purchases"
+      ],
+      "formula": "spend / purchases"
+    },
+    {
+      "key": "cost_per_result",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "results"
+      ],
+      "formula": "spend / results"
+    },
+    {
+      "key": "cost_per_unique_outbound_click",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "unique_outbound_clicks"
+      ],
+      "formula": "spend / unique outbound clicks"
+    },
+    {
+      "key": "cost_per_lpv",
+      "category": "cost",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "landing_page_views"
+      ],
+      "formula": "spend / landing-page views"
+    },
+    {
+      "key": "clicks",
+      "category": "click",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "clicks"
+      ],
+      "formula": "clicks"
+    },
+    {
+      "key": "link_clicks",
+      "category": "click",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "inline_link_clicks"
+      ],
+      "formula": "inline_link_clicks"
+    },
+    {
+      "key": "ctr",
+      "category": "click",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "clicks",
+        "impressions"
+      ],
+      "formula": "clicks / impressions × 100"
+    },
+    {
+      "key": "link_ctr",
+      "category": "click",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "inline_link_clicks",
+        "impressions"
+      ],
+      "formula": "link clicks / impressions × 100"
+    },
+    {
+      "key": "outbound_ctr",
+      "category": "click",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "outbound_clicks",
+        "impressions"
+      ],
+      "formula": "outbound clicks / impressions × 100"
+    },
+    {
+      "key": "unique_ctr",
+      "category": "click",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "inline_link_clicks",
+        "reach"
+      ],
+      "formula": "link clicks / reach × 100"
+    },
+    {
+      "key": "unique_outbound_clicks",
+      "category": "click",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "unique_outbound_clicks"
+      ],
+      "formula": "unique_outbound_clicks"
+    },
+    {
+      "key": "video_3s",
+      "category": "video",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "video_3s"
+      ],
+      "formula": "3-sec plays"
+    },
+    {
+      "key": "thruplays",
+      "category": "video",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "thruplays"
+      ],
+      "formula": "thruplays"
+    },
+    {
+      "key": "video_p25",
+      "category": "video",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "video_p25"
+      ],
+      "formula": "p25 watched"
+    },
+    {
+      "key": "video_p50",
+      "category": "video",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "video_p50"
+      ],
+      "formula": "p50 watched"
+    },
+    {
+      "key": "video_p75",
+      "category": "video",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "video_p75"
+      ],
+      "formula": "p75 watched"
+    },
+    {
+      "key": "video_p100",
+      "category": "video",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "video_p100"
+      ],
+      "formula": "p100 watched"
+    },
+    {
+      "key": "hook_rate",
+      "category": "video",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "video_3s",
+        "impressions"
+      ],
+      "formula": "3-sec plays / impressions × 100"
+    },
+    {
+      "key": "hold_rate",
+      "category": "video",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "thruplays",
+        "video_3s"
+      ],
+      "formula": "thruplays / 3-sec plays × 100"
+    },
+    {
+      "key": "thruplay_rate",
+      "category": "video",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "thruplays",
+        "impressions"
+      ],
+      "formula": "thruplays / impressions × 100"
+    },
+    {
+      "key": "through_rate",
+      "category": "video",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "video_p100",
+        "impressions"
+      ],
+      "formula": "100% plays / impressions × 100"
+    },
+    {
+      "key": "completion_of_starts",
+      "category": "video",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "video_p100",
+        "video_3s"
+      ],
+      "formula": "100% plays / 3-sec plays × 100"
+    },
+    {
+      "key": "purchases",
+      "category": "conversion",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "purchases"
+      ],
+      "formula": "purchases"
+    },
+    {
+      "key": "purchase_value",
+      "category": "conversion",
+      "unit": "usd",
+      "tier": "base",
+      "inputs": [
+        "purchase_value"
+      ],
+      "formula": "conversion value"
+    },
+    {
+      "key": "roas",
+      "category": "conversion",
+      "unit": "ratio",
+      "tier": "derived",
+      "inputs": [
+        "purchase_value",
+        "spend"
+      ],
+      "formula": "purchase value / spend"
+    },
+    {
+      "key": "cvr",
+      "category": "conversion",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "purchases",
+        "inline_link_clicks"
+      ],
+      "formula": "purchases / link clicks × 100"
+    },
+    {
+      "key": "aov",
+      "category": "conversion",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "purchase_value",
+        "purchases"
+      ],
+      "formula": "purchase value / purchases"
+    },
+    {
+      "key": "results",
+      "category": "conversion",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "results"
+      ],
+      "formula": "results (per objective)"
+    },
+    {
+      "key": "add_to_cart",
+      "category": "conversion",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "add_to_cart"
+      ],
+      "formula": "add_to_cart"
+    },
+    {
+      "key": "cart_abandonment",
+      "category": "conversion",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "purchases",
+        "add_to_cart"
+      ],
+      "formula": "(1 - purchases / adds to cart) × 100"
+    },
+    {
+      "key": "mer",
+      "category": "conversion",
+      "unit": "ratio",
+      "tier": "derived",
+      "inputs": [
+        "total_revenue",
+        "spend"
+      ],
+      "formula": "total revenue / total ad spend"
+    },
+    {
+      "key": "ncac",
+      "category": "conversion",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "spend",
+        "net_new_customers"
+      ],
+      "formula": "spend / net new customers"
+    },
+    {
+      "key": "landing_page_views",
+      "category": "landing",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "landing_page_views"
+      ],
+      "formula": "landing_page_view actions"
+    },
+    {
+      "key": "lpv_rate",
+      "category": "landing",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "landing_page_views",
+        "inline_link_clicks"
+      ],
+      "formula": "landing-page views / link clicks × 100"
+    },
+    {
+      "key": "click_to_lpv_dropoff",
+      "category": "landing",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "landing_page_views",
+        "inline_link_clicks"
+      ],
+      "formula": "100 - LP-view rate"
+    },
+    {
+      "key": "lp_bounce_rate",
+      "category": "landing",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "bounces",
+        "sessions"
+      ],
+      "formula": "bounces / sessions × 100  (PageDeck)"
+    },
+    {
+      "key": "lp_conversion_rate",
+      "category": "landing",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "lp_conversions",
+        "sessions"
+      ],
+      "formula": "LP conversions / sessions × 100  (PageDeck)"
+    },
+    {
+      "key": "ga4_sessions",
+      "category": "landing",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "ga4_sessions"
+      ],
+      "formula": "ga4 sessions"
+    },
+    {
+      "key": "click_to_session_yield",
+      "category": "landing",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "ga4_sessions",
+        "outbound_clicks"
+      ],
+      "formula": "GA4 sessions / outbound clicks × 100"
+    },
+    {
+      "key": "avg_time_on_page",
+      "category": "landing",
+      "unit": "sec",
+      "tier": "base",
+      "inputs": [
+        "time_on_page"
+      ],
+      "formula": "avg session duration (PageDeck)"
+    },
+    {
+      "key": "variant_lift",
+      "category": "experiment",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "variant_rate",
+        "control_rate"
+      ],
+      "formula": "(variant - control) / control × 100"
+    },
+    {
+      "key": "confidence",
+      "category": "experiment",
+      "unit": "pct",
+      "tier": "base",
+      "inputs": [
+        "confidence"
+      ],
+      "formula": "statistical confidence (PageDeck)"
+    },
+    {
+      "key": "rm_impressions",
+      "category": "retail",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "impressions"
+      ],
+      "formula": "impressions (marketplace report)"
+    },
+    {
+      "key": "rm_clicks",
+      "category": "retail",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "clicks"
+      ],
+      "formula": "clicks (marketplace report)"
+    },
+    {
+      "key": "rm_cost",
+      "category": "retail",
+      "unit": "usd",
+      "tier": "base",
+      "inputs": [
+        "cost"
+      ],
+      "formula": "cost"
+    },
+    {
+      "key": "rm_sales",
+      "category": "retail",
+      "unit": "usd",
+      "tier": "base",
+      "inputs": [
+        "attributed_sales"
+      ],
+      "formula": "attributed sales"
+    },
+    {
+      "key": "rm_orders",
+      "category": "retail",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "attributed_orders"
+      ],
+      "formula": "attributed orders"
+    },
+    {
+      "key": "rm_units",
+      "category": "retail",
+      "unit": "int",
+      "tier": "base",
+      "inputs": [
+        "attributed_units"
+      ],
+      "formula": "attributed units"
+    },
+    {
+      "key": "rm_ctr",
+      "category": "retail",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "clicks",
+        "impressions"
+      ],
+      "formula": "clicks / impressions × 100 (marketplace report)"
+    },
+    {
+      "key": "rm_cpc",
+      "category": "retail",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "cost",
+        "clicks"
+      ],
+      "formula": "cost / clicks"
+    },
+    {
+      "key": "rm_cpm",
+      "category": "retail",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "cost",
+        "impressions"
+      ],
+      "formula": "cost / impressions × 1000"
+    },
+    {
+      "key": "acos",
+      "category": "retail",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "cost",
+        "attributed_sales"
+      ],
+      "formula": "ad cost / attributed sales × 100"
+    },
+    {
+      "key": "rm_roas",
+      "category": "retail",
+      "unit": "ratio",
+      "tier": "derived",
+      "inputs": [
+        "attributed_sales",
+        "cost"
+      ],
+      "formula": "attributed sales / ad cost"
+    },
+    {
+      "key": "tacos",
+      "category": "retail",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "cost",
+        "total_revenue"
+      ],
+      "formula": "ad cost / TOTAL revenue × 100"
+    },
+    {
+      "key": "rm_cvr",
+      "category": "retail",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "attributed_orders",
+        "clicks"
+      ],
+      "formula": "attributed orders / clicks × 100"
+    },
+    {
+      "key": "rm_cpa",
+      "category": "retail",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "cost",
+        "attributed_orders"
+      ],
+      "formula": "ad cost / attributed orders"
+    },
+    {
+      "key": "rm_aov",
+      "category": "retail",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "attributed_sales",
+        "attributed_orders"
+      ],
+      "formula": "attributed sales / attributed orders"
+    },
+    {
+      "key": "rm_units_per_order",
+      "category": "retail",
+      "unit": "ratio",
+      "tier": "derived",
+      "inputs": [
+        "attributed_units",
+        "attributed_orders"
+      ],
+      "formula": "attributed units / attributed orders"
+    },
+    {
+      "key": "rm_asp",
+      "category": "retail",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "attributed_sales",
+        "attributed_units"
+      ],
+      "formula": "attributed sales / attributed units"
+    },
+    {
+      "key": "rm_cost_per_unit",
+      "category": "retail",
+      "unit": "usd",
+      "tier": "derived",
+      "inputs": [
+        "cost",
+        "attributed_units"
+      ],
+      "formula": "ad cost / attributed units"
+    },
+    {
+      "key": "breakeven_acos",
+      "category": "retail",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "gross_margin_pct"
+      ],
+      "formula": "gross margin % (ACOS above this loses money)"
+    },
+    {
+      "key": "acos_headroom",
+      "category": "retail",
+      "unit": "pct",
+      "tier": "derived",
+      "inputs": [
+        "cost",
+        "attributed_sales",
+        "gross_margin_pct"
+      ],
+      "formula": "break-even ACOS - actual ACOS"
+    }
+  ]
+}

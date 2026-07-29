@@ -16,6 +16,7 @@
 
 const { db, getConfig, round, pct, sum, groupBy, idFor } = require('./brain-core.js');
 const kb = require('./brain-kb.js');
+const rfm = require('./rfm-core.js');
 
 // ── Threshold scoring ────────────────────────────────────────────────────────
 function scoreCampaign(c, thresholds) {
@@ -39,7 +40,29 @@ function scoreCampaign(c, thresholds) {
 }
 
 // ── Cohort builder (user-level data) ────────────────────────────────────────
+// Primary path: statistically-grounded RFM quintile segmentation (rfm-core.js) —
+// data-relative cutoffs, mutually-exclusive segments (no double-counting), with
+// behavioural interests as overlays. Falls back to the legacy absolute-threshold
+// definitions only if RFM produces nothing (e.g. no order/recency fields).
 function defineCohorts(users) {
+  try {
+    const cohorts = rfm.buildRfmCohorts(users || [], { now: Date.now() });
+    if (cohorts.length) {
+      return cohorts.map((c) => ({
+        id: c.id, name: c.name, market: c.market,
+        definition: { rule: `RFM quintile segment "${c.segment}" (data-relative, mutually exclusive)`, intent: c.segment },
+        size: c.size,
+        value_score: round((c.metrics.avg_spent || 0) / 100, 4),
+        metrics: c.metrics,
+        overlays: c.overlays,
+        source: 'rfm', active: true, updated_at: new Date().toISOString(),
+      }));
+    }
+  } catch (e) { console.warn('[brain-analysis] RFM segmentation failed, using legacy thresholds:', e.message); }
+  return legacyDefineCohorts(users);
+}
+
+function legacyDefineCohorts(users) {
   const now = Date.now(), day = 86400000;
   const daysSince = (ts) => (ts ? Math.floor((now - new Date(ts).getTime()) / day) : 9999);
   const defs = [
@@ -82,7 +105,12 @@ function defineCohorts(users) {
 }
 
 async function buildCohorts({ persist = true } = {}) {
-  const users = await db().select('smart_users', { limit: 20000 });
+  // Degrade gracefully: if the analytics table is unavailable (missing in this
+  // project, or a transient DB error), return no cohorts rather than throwing
+  // and blanking the whole calendar. The rest of planning still runs.
+  let users = [];
+  try { users = await db().select('smart_users', { limit: 20000 }); }
+  catch (e) { console.warn('[brain-analysis] smart_users unavailable, continuing without cohort data:', e.message); return []; }
   const cohorts = defineCohorts(users);
   if (persist && cohorts.length) await db().upsert('smart_cohorts', cohorts, 'id');
   return cohorts;

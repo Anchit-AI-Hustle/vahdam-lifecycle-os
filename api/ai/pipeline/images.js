@@ -13,6 +13,7 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 const { corsHeaders } = require('../../_shared/llm');
+const { brandPlaceholderDataUri } = require('../../_shared/brand-placeholder.js');
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
 const POLLINATIONS_BASE = 'https://image.pollinations.ai/prompt';
@@ -35,11 +36,13 @@ SCENE:
 const VALID_SIZES = ['1024x1024', '1536x1024', '1024x1536'];
 
 // ── Single image generation (one provider attempt) ───────────────────────────
-// Model cascade: gpt-image-2 (primary, highest quality) → gpt-image-1 (fallback)
-const IMAGE_MODELS = [
+// Model cascade mirrors api/ai/image.js: gpt-image-2 (best instruction-
+// following) auto-demotes WITHIN-PROVIDER to gpt-image-1 on model-not-found
+// (404, or 400 mentioning the model) — see isModelErr below.
+const IMAGE_MODELS = [...new Set([
   process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2',
   'gpt-image-1'
-];
+])];
 
 async function generateImage(prompt, size, openaiKey, modelOverride) {
   const safeSize = VALID_SIZES.includes(size) ? size : '1024x1024';
@@ -65,9 +68,12 @@ async function generateImage(prompt, size, openaiKey, modelOverride) {
       });
       if (!r.ok) {
         const err = await r.text().catch(() => '');
-        // Model not available → try next model in cascade
+        // Model not available → demote to next model in cascade
+        // (same detection as api/ai/image.js: 404, known phrases, or a 400
+        // whose body names the model we asked for)
         const isModelErr = r.status === 404 || err.includes('model_not_found') ||
-                           err.includes('does not exist') || err.includes('not supported');
+                           err.includes('does not exist') || err.includes('not supported') ||
+                           (r.status === 400 && err.includes(imageModel));
         if (isModelErr && modelsToTry.indexOf(imageModel) < modelsToTry.length - 1) {
           console.warn('[pipeline/images] ' + imageModel + ' unavailable — trying next model');
           lastErr = new Error('OpenAI image ' + r.status + ': ' + err.substring(0, 200));
@@ -202,10 +208,15 @@ module.exports = async function handler(req, res) {
       }
     }
 
+    // Never emit a null data_url — a missing image renders as a broken tile in
+    // the mailer/LP. On total failure, fall back to an on-brand placeholder so
+    // the slot always has a valid image. `success` stays false so success_count
+    // / all_success and any downstream retry logic remain honest.
     return {
       slot,
-      data_url: dataUrl,
+      data_url: dataUrl || brandPlaceholderDataUri(size),
       success: !!dataUrl,
+      placeholder: !dataUrl,
       attempts,
       error: dataUrl ? null : lastError,
       prompt_used: fullPrompt.substring(0, 200)
@@ -214,7 +225,7 @@ module.exports = async function handler(req, res) {
 
   const images = await Promise.allSettled(imagePromises).then(results =>
     results.map(r => r.status === 'fulfilled' ? r.value : {
-      slot: '?', data_url: null, success: false, attempts: MAX_RETRIES, error: String(r.reason)
+      slot: '?', data_url: brandPlaceholderDataUri('1024x1024'), success: false, placeholder: true, attempts: MAX_RETRIES, error: String(r.reason)
     })
   );
 
