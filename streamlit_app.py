@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-26.18"
+APP_BUILD = "2026-07-27.1"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -682,6 +682,7 @@ CATEGORIES = [
     ("conversion", "Conversion & Value", "Purchases, revenue and return."),
     ("landing", "Landing Page", "What happens after the click, on the page."),
     ("experiment", "Experiment (A/B)", "Variant lift, confidence and significance."),
+    ("retail", "Retail Media (Amazon / marketplace)", "Marketplace ad efficiency: ACOS, TACOS, units and basket economics."),
 ]
 
 
@@ -765,6 +766,32 @@ METRICS = [
     # Experiment (A/B — PageDeck)
     ("variant_lift", "Variant lift", "experiment", "pct", "derived", ["variant_rate", "control_rate"], "(variant - control) / control x 100", "Relative lift of the variant over control.", lambda r: (lambda v, c: None if (v is None or not c) else (v - c) / c * 100)(_n(r.get("variant_rate")), _n(r.get("control_rate")))),
     ("confidence", "Confidence", "experiment", "pct", "base", ["confidence"], "statistical confidence (PageDeck)", "Probability the lift is real (>=95% to call).", lambda r: _n(r.get("confidence"))),
+    # ── Retail Media (Amazon Ads / marketplace) ──────────────────────────────
+    # Base metrics as the Sponsored Products / Brands / Display report streams
+    # deliver them ("cost" is Amazon's spend column; attributed_* are the
+    # attribution windows). Inputs use the REAL report column names so a metric
+    # whose column is absent reads "unavailable - needs: X", never a made-up
+    # figure. Mirrors api/_shared/ad-metrics-catalog.js field for field.
+    ("rm_impressions", "Impressions (retail)", "retail", "int", "base", ["impressions"], "impressions", "Times the marketplace ad was shown.", lambda r: _n(r.get("impressions"))),
+    ("rm_clicks", "Clicks (retail)", "retail", "int", "base", ["clicks"], "clicks", "Clicks on the marketplace ad.", lambda r: _n(r.get("clicks"))),
+    ("rm_cost", "Ad cost (retail spend)", "retail", "usd", "base", ["cost"], "cost", "Marketplace ad spend (Amazon reports this as cost, not spend).", lambda r: _n(r.get("cost"))),
+    ("rm_sales", "Attributed sales", "retail", "usd", "base", ["attributed_sales"], "attributed sales", "Revenue attributed to the ad inside the attribution window.", lambda r: _n(r.get("attributed_sales"))),
+    ("rm_orders", "Attributed orders", "retail", "int", "base", ["attributed_orders"], "attributed orders", "Orders attributed to the ad.", lambda r: _n(r.get("attributed_orders"))),
+    ("rm_units", "Attributed units", "retail", "int", "base", ["attributed_units"], "attributed units", "Units sold, attributed to the ad.", lambda r: _n(r.get("attributed_units"))),
+    ("rm_ctr", "CTR (retail)", "retail", "pct", "derived", ["clicks", "impressions"], "clicks / impressions x 100", "Click-through rate on the marketplace placement.", lambda r: _pct(r.get("clicks"), r.get("impressions"))),
+    ("rm_cpc", "CPC (retail)", "retail", "usd", "derived", ["cost", "clicks"], "cost / clicks", "Cost per marketplace click.", lambda r: _div(r.get("cost"), r.get("clicks"))),
+    ("rm_cpm", "CPM (retail)", "retail", "usd", "derived", ["cost", "impressions"], "cost / impressions x 1000", "Cost per thousand marketplace impressions.", lambda r: (lambda d: None if d is None else d * 1000)(_div(r.get("cost"), r.get("impressions")))),
+    ("acos", "ACOS (advertising cost of sales)", "retail", "pct", "derived", ["cost", "attributed_sales"], "ad cost / attributed sales x 100", "The defining retail-media efficiency metric: share of attributed revenue eaten by ad spend. LOWER is better - the inverse of ROAS.", lambda r: _pct(r.get("cost"), r.get("attributed_sales"))),
+    ("rm_roas", "ROAS (retail)", "retail", "ratio", "derived", ["attributed_sales", "cost"], "attributed sales / ad cost", "Attributed revenue per unit of marketplace ad spend.", lambda r: _div(r.get("attributed_sales"), r.get("cost"))),
+    ("tacos", "TACOS (total advertising cost of sales)", "retail", "pct", "derived", ["cost", "total_revenue"], "ad cost / TOTAL revenue x 100", "Ad cost against TOTAL (organic + paid) marketplace revenue - the health metric ACOS cannot show. Needs total revenue joined in.", lambda r: _pct(r.get("cost"), r.get("total_revenue"))),
+    ("rm_cvr", "Conversion rate (retail)", "retail", "pct", "derived", ["attributed_orders", "clicks"], "attributed orders / clicks x 100", "Orders per marketplace click - the listing closing rate.", lambda r: _pct(r.get("attributed_orders"), r.get("clicks"))),
+    ("rm_cpa", "Cost per order (retail)", "retail", "usd", "derived", ["cost", "attributed_orders"], "ad cost / attributed orders", "Acquisition cost per attributed marketplace order.", lambda r: _div(r.get("cost"), r.get("attributed_orders"))),
+    ("rm_aov", "AOV (retail, attributed)", "retail", "usd", "derived", ["attributed_sales", "attributed_orders"], "attributed sales / attributed orders", "Average value of an attributed marketplace order.", lambda r: _div(r.get("attributed_sales"), r.get("attributed_orders"))),
+    ("rm_units_per_order", "Units per order", "retail", "ratio", "derived", ["attributed_units", "attributed_orders"], "attributed units / attributed orders", "Basket depth: units per attributed order. Above 1 means bundling is working.", lambda r: _div(r.get("attributed_units"), r.get("attributed_orders"))),
+    ("rm_asp", "Average selling price", "retail", "usd", "derived", ["attributed_sales", "attributed_units"], "attributed sales / attributed units", "Revenue per unit sold - catches discount-driven volume.", lambda r: _div(r.get("attributed_sales"), r.get("attributed_units"))),
+    ("rm_cost_per_unit", "Ad cost per unit sold", "retail", "usd", "derived", ["cost", "attributed_units"], "ad cost / attributed units", "What advertising adds to the cost of each unit moved.", lambda r: _div(r.get("cost"), r.get("attributed_units"))),
+    ("breakeven_acos", "Break-even ACOS", "retail", "pct", "derived", ["gross_margin_pct"], "gross margin % (ACOS above this loses money)", "The ACOS ceiling before a sale stops being profitable. Needs the product gross margin - never assumed.", lambda r: _n(r.get("gross_margin_pct"))),
+    ("acos_headroom", "ACOS headroom vs break-even", "retail", "pct", "derived", ["cost", "attributed_sales", "gross_margin_pct"], "break-even ACOS - actual ACOS", "Positive = room to bid up; negative = the campaign is buying unprofitable sales.", lambda r: (lambda a, b: None if (a is None or b is None) else b - a)(_pct(r.get("cost"), r.get("attributed_sales")), _n(r.get("gross_margin_pct")))),
 ]
 CAT_LABEL = {k: lbl for k, lbl, _ in CATEGORIES}
 # derived key -> platform-reported field to cross-check for the accuracy drift test
