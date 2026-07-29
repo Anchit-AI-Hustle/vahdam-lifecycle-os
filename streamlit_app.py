@@ -410,8 +410,14 @@ PARITY = [
     ("Meta", "Estimated ad recall lift, rate and confidence bounds", META_ADS, ""),
     ("Meta", "Outbound clicks, unique clicks, landing page views per link click", META_ADS, ""),
     ("Meta", "Instant Experience / canvas engagement", META_ADS, ""),
-    ("Meta", "Auction: bid, competitiveness, max competitor bid", META_ADS,
-     "Not exposed in the Ads Manager UI at all — an addition, not a parity item."),
+    # Measured over the 24,912 rows that actually spent: AUCTION_BID,
+    # AUCTION_COMPETITIVENESS and AUCTION_MAX_COMPETITOR_BID are ALL 0.0% populated.
+    # The columns exist, the data never arrives. This was listed as an available
+    # "addition, not a parity item", i.e. the dashboard advertised a capability with
+    # nothing behind it.
+    ("Meta", "Auction: bid, competitiveness, max competitor bid", None,
+     "GAP: the three columns exist but are 0.0% populated on every spending row — "
+     "Meta does not return them on this account. Nothing is computed from them."),
     ("Meta", "Breakdown by age and gender (incl. results per action type within each)",
      META_AGE_GENDER, "Carries its own full set of action sidecars."),
     ("Meta", "Breakdown by publisher platform, placement position and device",
@@ -3777,7 +3783,13 @@ def render_parity():
         st.caption(
             f"{len(a)} distinct action types in window. Blank windows mean Meta returned no value "
             "for that window, not zero. **Cost / result is derived as window spend over results** "
-            "because Meta's COST_PER_ACTION_TYPE sidecar is empty (0 rows) in this warehouse. "
+            "because the AD-LEVEL COST_PER_ACTION_TYPE column is 0.0% populated. Meta does report "
+            "it here, just not at ad level: "
+            "`META_USA_ADS_INSIGHTS_PLATFORM_AND_DEVICE_COST_PER_ACTION_TYPE` carries 831,221 rows "
+            "with real values (link click $1.00, landing-page view $1.13, initiate checkout $4.34). "
+            "So the platform-reported figure is available per publisher platform and device, and a "
+            "cross-check against the derived one is a real option — this caption used to say the "
+            "sidecar was empty in this warehouse, which was wrong. "
             "The sidecars are deduped to the newest Airbyte emission per logical key before "
             "joining: Airbyte appends on every sync, and joining the raw children overstated July "
             "DTC purchases by 194x.")
@@ -5729,6 +5741,97 @@ def ensure_feedback_table():
     ).collect()
 
 
+# ── FILL AUDIT ────────────────────────────────────────────────────────────────
+# "Is every metric filled?" is a question the dashboard should ANSWER from the data,
+# not a promise in a caption. Fill is measured over rows that actually SPENT: of
+# META_USA_ADS_INSIGHTS's 129,951 rows only 24,912 spent, and the other 81,085 are
+# ad x day combinations that never delivered. Measured over all rows, IMPRESSIONS
+# looks 37.6% "missing" when in truth every spending row has it -- 100%, no
+# exceptions. Denominator choice is the whole difference between a data-quality
+# alarm and the ordinary shape of a daily table.
+CATALOG_INPUT_FIELDS = sorted({i for m in METRICS for i in m[5]})
+
+
+@st.cache_data(ttl=900, show_spinner="Measuring column fill…")
+def fill_audit(table: str, spend_col: str = "SPEND"):
+    """Per-column fill over spending rows, with whether the catalog consumes it."""
+    cols = table_columns(table)
+    cols = [(c, t) for c, t in cols if not str(c).upper().startswith("_AIRBYTE")]
+    if not cols:
+        return pd.DataFrame(), 0
+    have_spend = any(c.upper() == spend_col for c, _ in cols)
+    scope = (f'select * from {table} where "{spend_col}" > 0' if have_spend
+             else f"select * from {table}")
+    sel = []
+    for c, t in cols:
+        u, tu = c.upper(), str(t).upper()
+        if tu.startswith("VARIANT") or tu.startswith("ARRAY") or tu.startswith("OBJECT"):
+            # A VARIANT holding [] or {} is non-null but carries nothing, and count()
+            # would score it as present.
+            e = (f'count_if("{u}" is not null and '
+                 f"to_varchar(\"{u}\") not in ('[]', '{{}}', 'null', ''))")
+        else:
+            e = f'count("{u}")'
+        sel.append(f'{e} as "{u}"')
+    try:
+        tot = int(q(f"select count(*) as n from ({scope})").iloc[0]["n"] or 0)
+        if not tot:
+            return pd.DataFrame(), 0
+        row = q(f"select {', '.join(sel)} from ({scope})").iloc[0]
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame(), 0
+    used = {f.lower() for f in CATALOG_INPUT_FIELDS}
+    out = []
+    for c, t in cols:
+        n = _n(row.get(c.lower()))
+        n = 0 if n is None else int(n)
+        pct = n / tot * 100
+        out.append({
+            "Column": c.upper(), "Type": str(t).split("(")[0],
+            "Filled": n, "Fill %": round(pct, 2),
+            "Catalog uses it": "yes" if c.lower() in used else "no",
+            "Verdict": ("BLANK — never populated" if n == 0
+                        else "thin (<5%)" if pct < 5
+                        else "partial (<50%)" if pct < 50 else "usable"),
+        })
+    return pd.DataFrame(out).sort_values(["Fill %", "Column"]), tot
+
+
+def render_fill_audit(table: str):
+    st.subheader("Fill audit — what is actually populated")
+    df, tot = fill_audit(table)
+    if df.empty:
+        st.info(f"Could not measure fill on {table}.")
+        return
+    blank = df[df["Filled"] == 0]
+    unused_ok = df[(df["Catalog uses it"] == "no") & (df["Fill %"] >= 50)]
+    used_blank = df[(df["Catalog uses it"] == "yes") & (df["Filled"] == 0)]
+    st.caption(
+        f"Measured live over the **{tot:,} rows that actually spent** in `{table}` — not all "
+        f"rows. Non-delivering ad-days carry nulls by nature, so an all-rows denominator "
+        f"understates fill and reads as a data fault where there is none."
+    )
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Columns measured", f"{len(df):,}")
+    c2.metric("Never populated", f"{len(blank):,}")
+    c3.metric("Populated but unused", f"{len(unused_ok):,}")
+    c4.metric("Catalog input, blank", f"{len(used_blank):,}")
+    if not used_blank.empty:
+        st.error("**These are catalog inputs with NO data** — any metric depending on them "
+                 "can only ever read unavailable: "
+                 + ", ".join(f"`{c}`" for c in used_blank["Column"]))
+    if not unused_ok.empty:
+        st.warning("**Populated and ≥50% filled, but no catalog metric consumes them** — "
+                   "available analysis that is currently unused: "
+                   + ", ".join(f"`{c}`" for c in unused_ok["Column"].head(20)))
+    st.dataframe(df, use_container_width=True, hide_index=True, height=560)
+    st.download_button("Download fill audit CSV", df.to_csv(index=False).encode(),
+                       "fill_audit.csv", "text/csv", key="fa_dl")
+    st.caption("A column that is 0% is a pipeline or account fact, not something the app can "
+               "fix: the field exists in the schema and Meta never sends a value. Reported as "
+               "a gap so nothing downstream implies coverage it does not have.")
+
+
 def render_ads_intelligence():
     st.title("Ads Intelligence")
     st.caption(
@@ -5739,9 +5842,10 @@ def render_ads_intelligence():
         "read-only; only the feedback tab writes, to its own dedicated table."
     )
     (tab_tables, tab_creatives, tab_trackers, tab_catalog, tab_accuracy,
-     tab_insights, tab_feedback) = st.tabs(
+     tab_insights, tab_fill, tab_feedback) = st.tabs(
         ["Ad platform tables", "Creatives & assets", "Trackers (UGC / retail / sales)",
-         "Metric catalog", "Accuracy calculator", "Insights generated", "Feedback"])
+         "Metric catalog", "Accuracy calculator", "Insights generated", "Fill audit",
+         "Feedback"])
     with tab_tables:
         table_explorer(
             "ai_tables", ["meta", "google", "tiktok", "ads", "insights"],
@@ -5851,6 +5955,12 @@ def render_ads_intelligence():
                             _cx_err = e
                     if _cx_err is not None:
                         st.info(f"Snowflake Cortex is not available for this account/role: {_cx_err}")
+
+    with tab_fill:
+        if META_SRC:
+            render_fill_audit(META_SRC if not str(META_SRC).startswith("(") else META_ADS)
+        else:
+            st.info(f"No Meta insights feed for {region}, so there is nothing to audit here.")
 
     with tab_feedback:
         st.subheader("Feedback")
