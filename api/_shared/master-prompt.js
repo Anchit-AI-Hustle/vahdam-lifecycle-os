@@ -86,15 +86,12 @@ Deliver, in order:
 ${VISUAL_CASCADE}`;
 }
 
-<<<<<<< Updated upstream
-// The studio compositor (Creative Studio tab of ad-campaigns-master.html) renders ONE
-// still PNG per size with
-// the text overlay baked in. Be honest about that: list the exact static sizes
-// it produces and treat motion as an OPTIONAL hand-off brief, never a delivered
-// asset. The text fields (headlines/captions/scripts) are still authored as copy.
-=======
 // ── PAID AD CONTRACT (per platform) ─────────────────────────────────────────
->>>>>>> Stashed changes
+// The studio compositor (Creative Studio tab of ad-campaigns-master.html) renders ONE
+// still PNG per size with the text overlay baked in. Be honest about that: list
+// the exact static sizes it produces and treat motion as an OPTIONAL hand-off
+// brief, never a delivered asset. The text fields (headlines/captions/scripts)
+// are still authored as copy.
 function adContract(platform) {
   const copyGuide = {
     google: 'Google (Responsive Search + Performance Max): 15 headlines (≤30 chars), 4 descriptions (≤90 chars), long headline (≤90), business name.',
