@@ -424,7 +424,7 @@ function renderAd(ad){
     } else if(shots.length || still){
       // Word-staggered captions over a slow zoom: real motion, no API, no fake affordance.
       const dur = Math.max(6, Number(ad.duration_s)||15);
-      const uid = 'vb'+Math.random().toString(36).slice(2,9);
+      const uid = 'vb'+window.crypto.getRandomValues(new Uint32Array(1))[0].toString(36).padStart(7,'0').slice(0,7);
       const frames = (shots.length?shots:[{t:'',scene:ad.hook||''}]).map((sh,i,arr)=>{
         const from = (i/arr.length*100).toFixed(2), to = ((i+1)/arr.length*100).toFixed(2);
         const mid = Math.min(100, +from + (to-from)*0.18).toFixed(2);
