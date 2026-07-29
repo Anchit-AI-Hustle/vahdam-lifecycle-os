@@ -407,11 +407,45 @@ function renderAd(ad){
     // Video ad: a shot-by-shot storyboard strip + hook — not a wall of text.
     const board = (ad.storyboard||[]).map(s=>`<div style="flex:0 0 128px;border:1px solid rgba(171,135,67,.3);border-radius:8px;overflow:hidden;background:#0c1c14"><div style="background:#004A2B;color:#AB8743;font-size:10px;font-weight:800;padding:3px 7px">${esc(s.t||'')}</div><div style="color:#e9efe9;font-size:11px;line-height:1.4;padding:7px 8px">${esc(s.scene||s.shot||'')}</div></div>`).join('');
     add('Hook', ad.hook); add('Caption', ad.caption); if(!ad.storyboard) add('Script', ad.script);
+    // The stage must never fake a play button over nothing. Three honest states:
+    //   1. a real rendered MP4 -> play it;
+    //   2. no MP4 but shots + a still -> an ANIMATING preview (Ken Burns across
+    //      the shots) that is clearly labelled a preview, not the deliverable;
+    //   3. neither -> say plainly that the MP4 is not rendered yet.
+    const vurl = ad.video_url || (ad.creative && (ad.creative.video || ad.creative.video_url)) || '';
+    const still = (ad.creative && ad.creative.image) || ad.image || '';
+    const shots = ad.storyboard || [];
+    const meta = `<span style="position:absolute;top:8px;left:10px;z-index:3;font-size:10px;font-weight:800;letter-spacing:.08em;color:#AB8743">VIDEO · ${esc(ad.placement||'9:16')} · ${esc(String(ad.duration_s||15))}s</span>`;
+    let stage;
+    if(vurl){
+      stage = `<div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(171,135,67,.3);background:#04120b">
+        ${meta}<video src="${esc(vurl)}"${still?` poster="${esc(still)}"`:''} controls playsinline preload="metadata"
+          style="display:block;width:100%;max-height:280px;background:#04120b"></video></div>`;
+    } else if(shots.length || still){
+      // Word-staggered captions over a slow zoom: real motion, no API, no fake affordance.
+      const dur = Math.max(6, Number(ad.duration_s)||15);
+      const uid = 'vb'+Math.random().toString(36).slice(2,9);
+      const frames = (shots.length?shots:[{t:'',scene:ad.hook||''}]).map((sh,i,arr)=>{
+        const from = (i/arr.length*100).toFixed(2), to = ((i+1)/arr.length*100).toFixed(2);
+        const mid = Math.min(100, +from + (to-from)*0.18).toFixed(2);
+        const out = Math.max(0, +to - (to-from)*0.18).toFixed(2);
+        return {i, from, to, mid, out, sh};
+      });
+      const css = frames.map(f=>`#${uid} .f${f.i}{animation:${uid}a${f.i} ${dur}s infinite linear}
+        @keyframes ${uid}a${f.i}{0%,${f.from}%{opacity:0;transform:scale(1.02) translateY(6px)}${f.mid}%,${f.out}%{opacity:1;transform:scale(1.09) translateY(0)}${f.to}%,100%{opacity:0;transform:scale(1.12) translateY(-4px)}}`).join('');
+      const layers = frames.map(f=>`<div class="f${f.i}" style="position:absolute;inset:0;opacity:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 14%">
+        ${f.sh.t?`<div style="font-size:10px;font-weight:800;color:#AB8743;letter-spacing:.1em;margin-bottom:6px">${esc(f.sh.t)}</div>`:''}
+        <div style="color:#FBF5EA;font-family:'Lora',Georgia,serif;font-size:15px;line-height:1.3;text-shadow:0 2px 14px rgba(0,0,0,.55)">${esc(f.sh.scene||f.sh.shot||'')}</div></div>`).join('');
+      stage = `<style>${css}</style><div id="${uid}" style="position:relative;border-radius:12px;overflow:hidden;height:220px;border:1px solid rgba(171,135,67,.3);${still?`background-image:linear-gradient(180deg,rgba(4,18,11,.35),rgba(4,18,11,.72)),url('${esc(still)}');background-size:cover;background-position:center`:'background:radial-gradient(circle at 50% 35%,#0f2a1c,#04120b)'}">
+        ${meta}${layers}
+        <span style="position:absolute;bottom:7px;right:10px;z-index:3;font-size:9px;font-weight:800;letter-spacing:.06em;color:#AB8743;background:rgba(4,18,11,.7);padding:3px 7px;border-radius:6px">ANIMATED PREVIEW · MP4 NOT RENDERED YET</span>
+      </div>`;
+    } else {
+      stage = `<div style="position:relative;border-radius:12px;height:120px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#0f2a1c,#04120b);border:1px solid rgba(171,135,67,.3)">
+        ${meta}<span style="color:#cdd8d2;font-size:12px;text-align:center;padding:0 16px">No MP4 and no storyboard yet. Generate the video to preview it here.</span></div>`;
+    }
     return `<div class="adcard"><h4>${esc(platform)} · Video ad ${vtag} ${qa}</h4>
-      <div style="position:relative;border-radius:12px;height:150px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#0f2a1c,#04120b);border:1px solid rgba(171,135,67,.3)">
-        <span style="width:0;height:0;border-left:22px solid #FBF5EA;border-top:14px solid transparent;border-bottom:14px solid transparent;margin-left:6px"></span>
-        <span style="position:absolute;top:8px;left:10px;font-size:10px;font-weight:800;letter-spacing:.08em;color:#AB8743">VIDEO · ${esc(ad.placement||'9:16')} · ${esc(String(ad.duration_s||15))}s</span>
-      </div>
+      ${stage}
       ${board?`<div style="display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px">${board}</div>`:''}
       <div style="display:inline-block;background:#AB8743;color:#171717;font-weight:800;font-size:12px;padding:8px 16px;border-radius:8px;margin:4px 0 8px">${cta} &rarr;</div>
       ${rows.join('')}</div>`;
