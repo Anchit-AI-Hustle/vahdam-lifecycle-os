@@ -49,7 +49,7 @@ st.set_page_config(page_title="VAHDAM Analytics", layout="wide")
 # Bumped on every code change — the sidebar shows it, so a stale deployment is
 # instantly recognisable (if the running app shows an older build id, the
 # workspace was not redeployed after the last pull).
-APP_BUILD = "2026-07-27.1"
+APP_BUILD = "2026-07-29.1"
 
 # Layout hygiene: Streamlit columns overflow instead of shrinking by default,
 # so long metric values / widget labels / headings visually overlap their
@@ -713,9 +713,9 @@ METRICS = [
     ("frequency", "Frequency", "delivery", "ratio", "derived", ["impressions", "reach"], "impressions / reach", "Average times each person saw the ad. Watch for fatigue above ~2-3.", lambda r: _div(r.get("impressions"), r.get("reach"))),
     # Cost & Efficiency
     ("spend", "Amount spent", "cost", "usd", "base", ["spend"], "spend", "Total amount spent.", lambda r: _n(r.get("spend"))),
-    ("cpm", "CPM (cost / 1,000 impressions)", "cost", "usd", "derived", ["spend", "impressions"], "spend / impressions x 1000", "Cost to reach a thousand impressions.", lambda r: (lambda d: None if d is None else d * 1000)(_div(r.get("spend"), r.get("impressions")))),
+    ("cpm", "CPM (cost / 1,000 impressions)", "cost", "usd", "derived", ["spend", "impressions"], "spend / impressions × 1000", "Cost to reach a thousand impressions.", lambda r: (lambda d: None if d is None else d * 1000)(_div(r.get("spend"), r.get("impressions")))),
     ("cpc", "CPC (cost / link click)", "cost", "usd", "derived", ["spend", "inline_link_clicks"], "spend / link clicks", "Cost per link click.", lambda r: _div(r.get("spend"), r.get("inline_link_clicks"))),
-    ("cpp", "Cost per 1,000 reached (CPP)", "cost", "usd", "derived", ["spend", "reach"], "spend / reach x 1000", "Cost to reach a thousand unique people.", lambda r: (lambda d: None if d is None else d * 1000)(_div(r.get("spend"), r.get("reach")))),
+    ("cpp", "Cost per 1,000 reached (CPP)", "cost", "usd", "derived", ["spend", "reach"], "spend / reach × 1000", "Cost to reach a thousand unique people.", lambda r: (lambda d: None if d is None else d * 1000)(_div(r.get("spend"), r.get("reach")))),
     ("cost_per_reach", "Cost per reach", "cost", "usd4", "derived", ["spend", "reach"], "spend / reach", "Cost per unique person reached.", lambda r: _div(r.get("spend"), r.get("reach"))),
     ("cost_per_3s", "Cost per 3-sec video play", "cost", "usd", "derived", ["spend", "video_3s"], "spend / 3-sec plays", "Cost per 3-second (hook) view.", lambda r: _div(r.get("spend"), r.get("video_3s"))),
     ("cost_per_thruplay", "Cost per ThruPlay", "cost", "usd", "derived", ["spend", "thruplays"], "spend / thruplays", "Cost per ThruPlay (15s or complete).", lambda r: _div(r.get("spend"), r.get("thruplays"))),
@@ -724,10 +724,10 @@ METRICS = [
     # Click Engagement
     ("clicks", "Clicks (all)", "click", "int", "base", ["clicks"], "clicks", "All clicks (incl. non-link).", lambda r: _n(r.get("clicks"))),
     ("link_clicks", "Link clicks", "click", "int", "base", ["inline_link_clicks"], "inline_link_clicks", "Clicks on the ad link.", lambda r: _n(r.get("inline_link_clicks"))),
-    ("ctr", "CTR (all clicks)", "click", "pct", "derived", ["clicks", "impressions"], "clicks / impressions x 100", "Click-through rate on all clicks.", lambda r: _pct(r.get("clicks"), r.get("impressions"))),
-    ("link_ctr", "Link CTR", "click", "pct", "derived", ["inline_link_clicks", "impressions"], "link clicks / impressions x 100", "Click-through rate on link clicks (the honest CTR).", lambda r: _pct(r.get("inline_link_clicks"), r.get("impressions"))),
-    ("outbound_ctr", "Outbound CTR", "click", "pct", "derived", ["outbound_clicks", "impressions"], "outbound clicks / impressions x 100", "Clicks that left the platform, per impression.", lambda r: _pct(r.get("outbound_clicks"), r.get("impressions"))),
-    ("unique_ctr", "Unique link CTR", "click", "pct", "derived", ["inline_link_clicks", "reach"], "link clicks / reach x 100", "Link clicks per unique person reached.", lambda r: _pct(r.get("inline_link_clicks"), r.get("reach"))),
+    ("ctr", "CTR (all clicks)", "click", "pct", "derived", ["clicks", "impressions"], "clicks / impressions × 100", "Click-through rate on all clicks.", lambda r: _pct(r.get("clicks"), r.get("impressions"))),
+    ("link_ctr", "Link CTR", "click", "pct", "derived", ["inline_link_clicks", "impressions"], "link clicks / impressions × 100", "Click-through rate on link clicks (the honest CTR).", lambda r: _pct(r.get("inline_link_clicks"), r.get("impressions"))),
+    ("outbound_ctr", "Outbound CTR", "click", "pct", "derived", ["outbound_clicks", "impressions"], "outbound clicks / impressions × 100", "Clicks that left the platform, per impression.", lambda r: _pct(r.get("outbound_clicks"), r.get("impressions"))),
+    ("unique_ctr", "Unique link CTR", "click", "pct", "derived", ["inline_link_clicks", "reach"], "link clicks / reach × 100", "Link clicks per unique person reached.", lambda r: _pct(r.get("inline_link_clicks"), r.get("reach"))),
     # Video Engagement (hook -> hold -> through funnel)
     ("video_3s", "3-second video plays", "video", "int", "base", ["video_3s"], "3-sec plays", "Plays of at least 3 seconds (the hook).", lambda r: _n(r.get("video_3s"))),
     ("thruplays", "ThruPlays", "video", "int", "base", ["thruplays"], "thruplays", "Plays to completion or 15s.", lambda r: _n(r.get("thruplays"))),
@@ -735,36 +735,36 @@ METRICS = [
     ("video_p50", "Video plays 50%", "video", "int", "base", ["video_p50"], "p50 watched", "Reached 50%.", lambda r: _n(r.get("video_p50"))),
     ("video_p75", "Video plays 75%", "video", "int", "base", ["video_p75"], "p75 watched", "Reached 75%.", lambda r: _n(r.get("video_p75"))),
     ("video_p100", "Video plays 100%", "video", "int", "base", ["video_p100"], "p100 watched", "Watched to the end.", lambda r: _n(r.get("video_p100"))),
-    ("hook_rate", "Hook Rate", "video", "pct", "derived", ["video_3s", "impressions"], "3-sec plays / impressions x 100", "Share of impressions that stopped to watch 3s. Creative-hook strength.", lambda r: _pct(r.get("video_3s"), r.get("impressions"))),
-    ("hold_rate", "Hold Rate", "video", "pct", "derived", ["thruplays", "video_3s"], "thruplays / 3-sec plays x 100", "Of those hooked (3-sec), how many held to ThruPlay. Mid-video retention.", lambda r: _pct(r.get("thruplays"), r.get("video_3s"))),
-    ("thruplay_rate", "ThruPlay Rate", "video", "pct", "derived", ["thruplays", "impressions"], "thruplays / impressions x 100", "Share of impressions that reached ThruPlay (15s/complete).", lambda r: _pct(r.get("thruplays"), r.get("impressions"))),
-    ("through_rate", "Completion Rate", "video", "pct", "derived", ["video_p100", "impressions"], "100% plays / impressions x 100", "Share of impressions that watched to the end.", lambda r: _pct(r.get("video_p100"), r.get("impressions"))),
-    ("completion_of_starts", "Completion of starts", "video", "pct", "derived", ["video_p100", "video_3s"], "100% plays / 3-sec plays x 100", "Of viewers who started, how many finished.", lambda r: _pct(r.get("video_p100"), r.get("video_3s"))),
+    ("hook_rate", "Hook Rate", "video", "pct", "derived", ["video_3s", "impressions"], "3-sec plays / impressions × 100", "Share of impressions that stopped to watch 3s. Creative-hook strength.", lambda r: _pct(r.get("video_3s"), r.get("impressions"))),
+    ("hold_rate", "Hold Rate", "video", "pct", "derived", ["thruplays", "video_3s"], "thruplays / 3-sec plays × 100", "Of those hooked (3-sec), how many held to ThruPlay. Mid-video retention.", lambda r: _pct(r.get("thruplays"), r.get("video_3s"))),
+    ("thruplay_rate", "ThruPlay Rate", "video", "pct", "derived", ["thruplays", "impressions"], "thruplays / impressions × 100", "Share of impressions that reached ThruPlay (15s/complete).", lambda r: _pct(r.get("thruplays"), r.get("impressions"))),
+    ("through_rate", "Completion Rate", "video", "pct", "derived", ["video_p100", "impressions"], "100% plays / impressions × 100", "Share of impressions that watched to the end.", lambda r: _pct(r.get("video_p100"), r.get("impressions"))),
+    ("completion_of_starts", "Completion of starts", "video", "pct", "derived", ["video_p100", "video_3s"], "100% plays / 3-sec plays × 100", "Of viewers who started, how many finished.", lambda r: _pct(r.get("video_p100"), r.get("video_3s"))),
     # Conversion & Value
     ("purchases", "Purchases", "conversion", "int", "base", ["purchases"], "purchases", "Attributed purchases.", lambda r: _n(r.get("purchases"))),
     ("purchase_value", "Purchase value", "conversion", "usd", "base", ["purchase_value"], "conversion value", "Attributed revenue.", lambda r: _n(r.get("purchase_value"))),
     ("roas", "ROAS", "conversion", "ratio", "derived", ["purchase_value", "spend"], "purchase value / spend", "Return on ad spend.", lambda r: _div(r.get("purchase_value"), r.get("spend"))),
-    ("cvr", "Conversion rate (CVR)", "conversion", "pct", "derived", ["purchases", "inline_link_clicks"], "purchases / link clicks x 100", "Purchases per link click.", lambda r: _pct(r.get("purchases"), r.get("inline_link_clicks"))),
+    ("cvr", "Conversion rate (CVR)", "conversion", "pct", "derived", ["purchases", "inline_link_clicks"], "purchases / link clicks × 100", "Purchases per link click.", lambda r: _pct(r.get("purchases"), r.get("inline_link_clicks"))),
     ("aov", "AOV (attributed)", "conversion", "usd", "derived", ["purchase_value", "purchases"], "purchase value / purchases", "Average order value of attributed purchases.", lambda r: _div(r.get("purchase_value"), r.get("purchases"))),
     ("results", "Results", "conversion", "int", "base", ["results"], "results (per objective)", "Result events as configured by the campaign objective.", lambda r: _n(r.get("results"))),
     ("cost_per_result", "Cost per Result", "cost", "usd", "derived", ["spend", "results"], "spend / results", "Cost per objective result.", lambda r: _div(r.get("spend"), r.get("results"))),
     ("unique_outbound_clicks", "Unique outbound clicks", "click", "int", "base", ["unique_outbound_clicks"], "unique_outbound_clicks", "Unique people who clicked out.", lambda r: _n(r.get("unique_outbound_clicks"))),
     ("cost_per_unique_outbound_click", "Cost per unique outbound click", "cost", "usd", "derived", ["spend", "unique_outbound_clicks"], "spend / unique outbound clicks", "Cost per unique outbound clicker.", lambda r: _div(r.get("spend"), r.get("unique_outbound_clicks"))),
     ("add_to_cart", "Adds to Cart", "conversion", "int", "base", ["add_to_cart"], "add_to_cart", "Attributed add-to-cart events.", lambda r: _n(r.get("add_to_cart"))),
-    ("cart_abandonment", "Cart Abandonment Rate", "conversion", "pct", "derived", ["purchases", "add_to_cart"], "(1 - purchases / adds to cart) x 100", "Share of carts that never purchased.", lambda r: (lambda p: None if p is None else 100 - p)(_pct(r.get("purchases"), r.get("add_to_cart")))),
+    ("cart_abandonment", "Cart Abandonment Rate", "conversion", "pct", "derived", ["purchases", "add_to_cart"], "(1 - purchases / adds to cart) × 100", "Share of carts that never purchased.", lambda r: (lambda p: None if p is None else 100 - p)(_pct(r.get("purchases"), r.get("add_to_cart")))),
     ("mer", "MER (Marketing Efficiency Ratio)", "conversion", "ratio", "derived", ["total_revenue", "spend"], "total revenue / total ad spend", "Blended, attribution-proof media efficiency. Needs realized revenue joined in.", lambda r: _div(r.get("total_revenue"), r.get("spend"))),
     ("ncac", "nCAC (New-Customer CAC)", "conversion", "usd", "derived", ["spend", "net_new_customers"], "spend / net new customers", "Acquisition cost counting NEW customers only. Needs a new-customer feed.", lambda r: _div(r.get("spend"), r.get("net_new_customers"))),
     ("ga4_sessions", "GA4 Sessions", "landing", "int", "base", ["ga4_sessions"], "ga4 sessions", "Sessions landed (GA4).", lambda r: _n(r.get("ga4_sessions"))),
-    ("click_to_session_yield", "Click-to-Session Yield", "landing", "pct", "derived", ["ga4_sessions", "outbound_clicks"], "GA4 sessions / outbound clicks x 100", "Share of outbound clicks that became real sessions.", lambda r: _pct(r.get("ga4_sessions"), r.get("outbound_clicks"))),
+    ("click_to_session_yield", "Click-to-Session Yield", "landing", "pct", "derived", ["ga4_sessions", "outbound_clicks"], "GA4 sessions / outbound clicks × 100", "Share of outbound clicks that became real sessions.", lambda r: _pct(r.get("ga4_sessions"), r.get("outbound_clicks"))),
     # Landing Page
     ("landing_page_views", "Landing-page views", "landing", "int", "base", ["landing_page_views"], "landing_page_view actions", "Fully-loaded landing-page views after the click.", lambda r: _n(r.get("landing_page_views"))),
-    ("lpv_rate", "LP-view rate (load quality)", "landing", "pct", "derived", ["landing_page_views", "inline_link_clicks"], "landing-page views / link clicks x 100", "Share of clicks that actually loaded the page. Low = slow page / drop-off.", lambda r: _pct(r.get("landing_page_views"), r.get("inline_link_clicks"))),
+    ("lpv_rate", "LP-view rate (load quality)", "landing", "pct", "derived", ["landing_page_views", "inline_link_clicks"], "landing-page views / link clicks × 100", "Share of clicks that actually loaded the page. Low = slow page / drop-off.", lambda r: _pct(r.get("landing_page_views"), r.get("inline_link_clicks"))),
     ("click_to_lpv_dropoff", "Click->LPV drop-off", "landing", "pct", "derived", ["landing_page_views", "inline_link_clicks"], "100 - LP-view rate", "Clicks lost before the page loaded.", lambda r: (lambda p: None if p is None else 100 - p)(_pct(r.get("landing_page_views"), r.get("inline_link_clicks")))),
-    ("lp_bounce_rate", "LP bounce rate", "landing", "pct", "derived", ["bounces", "sessions"], "bounces / sessions x 100  (PageDeck)", "Single-page sessions on the landing page.", lambda r: _pct(r.get("bounces"), r.get("sessions"))),
-    ("lp_conversion_rate", "LP conversion rate", "landing", "pct", "derived", ["lp_conversions", "sessions"], "LP conversions / sessions x 100  (PageDeck)", "Conversions per landing-page session.", lambda r: _pct(r.get("lp_conversions"), r.get("sessions"))),
+    ("lp_bounce_rate", "LP bounce rate", "landing", "pct", "derived", ["bounces", "sessions"], "bounces / sessions × 100  (PageDeck)", "Single-page sessions on the landing page.", lambda r: _pct(r.get("bounces"), r.get("sessions"))),
+    ("lp_conversion_rate", "LP conversion rate", "landing", "pct", "derived", ["lp_conversions", "sessions"], "LP conversions / sessions × 100  (PageDeck)", "Conversions per landing-page session.", lambda r: _pct(r.get("lp_conversions"), r.get("sessions"))),
     ("avg_time_on_page", "Avg time on page", "landing", "sec", "base", ["time_on_page"], "avg session duration (PageDeck)", "Average time on the landing page.", lambda r: _n(r.get("time_on_page"))),
     # Experiment (A/B — PageDeck)
-    ("variant_lift", "Variant lift", "experiment", "pct", "derived", ["variant_rate", "control_rate"], "(variant - control) / control x 100", "Relative lift of the variant over control.", lambda r: (lambda v, c: None if (v is None or not c) else (v - c) / c * 100)(_n(r.get("variant_rate")), _n(r.get("control_rate")))),
+    ("variant_lift", "Variant lift", "experiment", "pct", "derived", ["variant_rate", "control_rate"], "(variant - control) / control × 100", "Relative lift of the variant over control.", lambda r: (lambda v, c: None if (v is None or not c) else (v - c) / c * 100)(_n(r.get("variant_rate")), _n(r.get("control_rate")))),
     ("confidence", "Confidence", "experiment", "pct", "base", ["confidence"], "statistical confidence (PageDeck)", "Probability the lift is real (>=95% to call).", lambda r: _n(r.get("confidence"))),
     # ── Retail Media (Amazon Ads / marketplace) ──────────────────────────────
     # Base metrics as the Sponsored Products / Brands / Display report streams
@@ -772,19 +772,19 @@ METRICS = [
     # attribution windows). Inputs use the REAL report column names so a metric
     # whose column is absent reads "unavailable - needs: X", never a made-up
     # figure. Mirrors api/_shared/ad-metrics-catalog.js field for field.
-    ("rm_impressions", "Impressions (retail)", "retail", "int", "base", ["impressions"], "impressions", "Times the marketplace ad was shown.", lambda r: _n(r.get("impressions"))),
-    ("rm_clicks", "Clicks (retail)", "retail", "int", "base", ["clicks"], "clicks", "Clicks on the marketplace ad.", lambda r: _n(r.get("clicks"))),
+    ("rm_impressions", "Impressions (retail)", "retail", "int", "base", ["impressions"], "impressions (marketplace report)", "Times the marketplace ad was shown.", lambda r: _n(r.get("impressions"))),
+    ("rm_clicks", "Clicks (retail)", "retail", "int", "base", ["clicks"], "clicks (marketplace report)", "Clicks on the marketplace ad.", lambda r: _n(r.get("clicks"))),
     ("rm_cost", "Ad cost (retail spend)", "retail", "usd", "base", ["cost"], "cost", "Marketplace ad spend (Amazon reports this as cost, not spend).", lambda r: _n(r.get("cost"))),
     ("rm_sales", "Attributed sales", "retail", "usd", "base", ["attributed_sales"], "attributed sales", "Revenue attributed to the ad inside the attribution window.", lambda r: _n(r.get("attributed_sales"))),
     ("rm_orders", "Attributed orders", "retail", "int", "base", ["attributed_orders"], "attributed orders", "Orders attributed to the ad.", lambda r: _n(r.get("attributed_orders"))),
     ("rm_units", "Attributed units", "retail", "int", "base", ["attributed_units"], "attributed units", "Units sold, attributed to the ad.", lambda r: _n(r.get("attributed_units"))),
-    ("rm_ctr", "CTR (retail)", "retail", "pct", "derived", ["clicks", "impressions"], "clicks / impressions x 100", "Click-through rate on the marketplace placement.", lambda r: _pct(r.get("clicks"), r.get("impressions"))),
+    ("rm_ctr", "CTR (retail)", "retail", "pct", "derived", ["clicks", "impressions"], "clicks / impressions × 100 (marketplace report)", "Click-through rate on the marketplace placement.", lambda r: _pct(r.get("clicks"), r.get("impressions"))),
     ("rm_cpc", "CPC (retail)", "retail", "usd", "derived", ["cost", "clicks"], "cost / clicks", "Cost per marketplace click.", lambda r: _div(r.get("cost"), r.get("clicks"))),
-    ("rm_cpm", "CPM (retail)", "retail", "usd", "derived", ["cost", "impressions"], "cost / impressions x 1000", "Cost per thousand marketplace impressions.", lambda r: (lambda d: None if d is None else d * 1000)(_div(r.get("cost"), r.get("impressions")))),
-    ("acos", "ACOS (advertising cost of sales)", "retail", "pct", "derived", ["cost", "attributed_sales"], "ad cost / attributed sales x 100", "The defining retail-media efficiency metric: share of attributed revenue eaten by ad spend. LOWER is better - the inverse of ROAS.", lambda r: _pct(r.get("cost"), r.get("attributed_sales"))),
+    ("rm_cpm", "CPM (retail)", "retail", "usd", "derived", ["cost", "impressions"], "cost / impressions × 1000", "Cost per thousand marketplace impressions.", lambda r: (lambda d: None if d is None else d * 1000)(_div(r.get("cost"), r.get("impressions")))),
+    ("acos", "ACOS (advertising cost of sales)", "retail", "pct", "derived", ["cost", "attributed_sales"], "ad cost / attributed sales × 100", "The defining retail-media efficiency metric: share of attributed revenue eaten by ad spend. LOWER is better - the inverse of ROAS.", lambda r: _pct(r.get("cost"), r.get("attributed_sales"))),
     ("rm_roas", "ROAS (retail)", "retail", "ratio", "derived", ["attributed_sales", "cost"], "attributed sales / ad cost", "Attributed revenue per unit of marketplace ad spend.", lambda r: _div(r.get("attributed_sales"), r.get("cost"))),
-    ("tacos", "TACOS (total advertising cost of sales)", "retail", "pct", "derived", ["cost", "total_revenue"], "ad cost / TOTAL revenue x 100", "Ad cost against TOTAL (organic + paid) marketplace revenue - the health metric ACOS cannot show. Needs total revenue joined in.", lambda r: _pct(r.get("cost"), r.get("total_revenue"))),
-    ("rm_cvr", "Conversion rate (retail)", "retail", "pct", "derived", ["attributed_orders", "clicks"], "attributed orders / clicks x 100", "Orders per marketplace click - the listing closing rate.", lambda r: _pct(r.get("attributed_orders"), r.get("clicks"))),
+    ("tacos", "TACOS (total advertising cost of sales)", "retail", "pct", "derived", ["cost", "total_revenue"], "ad cost / TOTAL revenue × 100", "Ad cost against TOTAL (organic + paid) marketplace revenue - the health metric ACOS cannot show. Needs total revenue joined in.", lambda r: _pct(r.get("cost"), r.get("total_revenue"))),
+    ("rm_cvr", "Conversion rate (retail)", "retail", "pct", "derived", ["attributed_orders", "clicks"], "attributed orders / clicks × 100", "Orders per marketplace click - the listing closing rate.", lambda r: _pct(r.get("attributed_orders"), r.get("clicks"))),
     ("rm_cpa", "Cost per order (retail)", "retail", "usd", "derived", ["cost", "attributed_orders"], "ad cost / attributed orders", "Acquisition cost per attributed marketplace order.", lambda r: _div(r.get("cost"), r.get("attributed_orders"))),
     ("rm_aov", "AOV (retail, attributed)", "retail", "usd", "derived", ["attributed_sales", "attributed_orders"], "attributed sales / attributed orders", "Average value of an attributed marketplace order.", lambda r: _div(r.get("attributed_sales"), r.get("attributed_orders"))),
     ("rm_units_per_order", "Units per order", "retail", "ratio", "derived", ["attributed_units", "attributed_orders"], "attributed units / attributed orders", "Basket depth: units per attributed order. Above 1 means bundling is working.", lambda r: _div(r.get("attributed_units"), r.get("attributed_orders"))),
