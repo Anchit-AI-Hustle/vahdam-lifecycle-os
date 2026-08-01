@@ -21,10 +21,12 @@ const path = require('path');
 // endpoint (what gets POSTed, what gets done with the reply), not the LLM.
 
 const ROOT = path.join(__dirname, '..');
-const PORT = 8912;
-const BASE = `http://127.0.0.1:${PORT}`;
 
+// Port 0, not a fixed number: the suite runs six device projects, each in its
+// own worker, and every worker executes this beforeAll. A hardcoded port makes
+// the second worker die with EADDRINUSE.
 let server;
+let BASE = '';
 let lastReq = null;
 
 test.beforeAll(async () => {
@@ -68,7 +70,8 @@ test.beforeAll(async () => {
     res.writeHead(404);
     res.end('not found');
   });
-  await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  BASE = `http://127.0.0.1:${server.address().port}`;
 });
 
 test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });

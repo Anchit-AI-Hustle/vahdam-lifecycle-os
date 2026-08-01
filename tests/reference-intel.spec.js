@@ -17,9 +17,10 @@ const path = require('path');
 
 const RI = require(path.join(__dirname, '..', 'api', '_shared', 'reference-intel.js'));
 
-const PORT = 8913;
-const BASE = `http://127.0.0.1:${PORT}`;
+// Port 0, not a fixed number: six device projects each run this beforeAll in
+// their own worker, and a hardcoded port collides between them.
 let server;
+let BASE = '';
 
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
@@ -34,6 +35,16 @@ test.beforeAll(async () => {
         <a class="btn">Shop the roast</a><button class="cta">Start a subscription</button>
         <p>Body copy about the beans and the farm.</p>
         <script>var tracking = "should not survive";</script>
+        </body></html>`);
+    }
+    if (req.url === '/entities') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      return res.end(`<!doctype html><html><head>
+        <title>Tea &amp;lt;3 &amp;amp; coffee</title>
+        <meta name="description" content="Ros&#233; &#x2014; 5 star">
+        </head><body>
+        <script>var x = "leaked_from_script";</script >
+        <p>Real body copy.</p>
         </body></html>`);
     }
     if (req.url === '/not-an-image') {
@@ -51,7 +62,8 @@ test.beforeAll(async () => {
     res.writeHead(404);
     res.end('nope');
   });
-  await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  BASE = `http://127.0.0.1:${server.address().port}`;
 });
 
 test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
@@ -66,6 +78,20 @@ test.describe('reference-intel', () => {
     expect(p.ctas).toEqual(expect.arrayContaining(['Shop the roast', 'Start a subscription']));
     // Scripts must not leak into the brief as if they were copy.
     expect(p.text).not.toContain('should not survive');
+  });
+
+  test('entities are decoded exactly once, and script bodies never leak as copy', async () => {
+    const p = await RI.fetchPageBrief(`${BASE}/entities`);
+    expect(p.ok).toBe(true);
+    // "&amp;lt;" is a literal "&lt;" on the page. Chained per-entity replaces
+    // would decode it twice and invent a "<" the page never showed.
+    expect(p.title).toBe('Tea &lt;3 &amp; coffee');
+    // Numeric and hex references still decode. Written as escapes so the
+    // assertion cannot drift on this file own Unicode normalisation.
+    expect(p.description).toBe("Ros\u00e9 \u2014 5 star");
+    // An end tag written as "</script >" is still an end tag.
+    expect(p.text).not.toContain('leaked_from_script');
+    expect(p.text).toContain('Real body copy');
   });
 
   test('a dead reference URL is reported, not silently ignored', async () => {

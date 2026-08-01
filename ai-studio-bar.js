@@ -540,7 +540,7 @@
 
   window.AIStudioBar = {
     register: register,
-    upgradeAll: upgrade ? upgradeAll : null,
+    upgradeAll: upgradeAll,
     landingEnabled: landingEnabled,
     lastBrief: lastBrief,
     generateLandingPage: generateLandingPage,

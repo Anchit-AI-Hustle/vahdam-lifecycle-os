@@ -115,11 +115,24 @@ async function fetchBytes(url, cap) {
 // signal (title, meta, headings, CTA labels) rather than only a flat text dump,
 // because "mirror the structure" needs the structure.
 
+const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+
+// ONE pass over the string, so each entity is decoded exactly once. Chained
+// per-entity replaces would double-unescape: "&amp;lt;" becomes "&lt;" on the
+// &amp; pass and then "<" on the &lt; pass, inventing markup the page never
+// contained. An unknown entity is left as written rather than guessed at.
 function decodeEntities(s) {
-  return String(s || '')
-    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'")
-    .replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(Number(d)); } catch (_) { return ' '; } });
+  return String(s || '').replace(
+    /&(?:#(\d{1,7})|#[xX]([0-9a-fA-F]{1,6})|([a-zA-Z][a-zA-Z0-9]{1,31}));/g,
+    (match, dec, hex, name) => {
+      try {
+        if (dec) return String.fromCodePoint(Number(dec));
+        if (hex) return String.fromCodePoint(parseInt(hex, 16));
+      } catch (_) { return ' '; }
+      const key = String(name || '').toLowerCase();
+      return Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, key) ? NAMED_ENTITIES[key] : match;
+    },
+  );
 }
 
 function metaContent(html, re) {
@@ -158,10 +171,13 @@ async function fetchPageBrief(url) {
     const headings = collectAll(raw, /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi, 18);
     const ctas = collectAll(raw, /<(?:button|a)[^>]*class=["'][^"']*(?:btn|button|cta)[^"']*["'][^>]*>([\s\S]*?)<\/(?:button|a)>/gi, 12);
 
+    // `</script >` with whitespace before the bracket is a valid end tag, so the
+    // close patterns allow it -- otherwise a page written that way would drop
+    // its entire script body into the brief as if it were copy.
     const text = raw
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<head[\s\S]*?<\/head>/gi, ' ')
+      .replace(/<script\b[\s\S]*?<\/script\s*>/gi, ' ')
+      .replace(/<style\b[\s\S]*?<\/style\s*>/gi, ' ')
+      .replace(/<head\b[\s\S]*?<\/head\s*>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
