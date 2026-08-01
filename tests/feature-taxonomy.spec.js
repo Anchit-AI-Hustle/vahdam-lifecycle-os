@@ -23,6 +23,19 @@ test.describe('nav ↔ INFO integrity', () => {
     expect(missing, `gid(s) with no INFO entry: ${missing.join(', ')}`).toEqual([]);
   });
 
+  test('no NEW feature description is left rendering nowhere', () => {
+    // The other direction of the same invariant. An INFO entry reachable by no
+    // gid and no row id is dead text — that is exactly how the ad builder and
+    // the 3D storefront lost their descriptions while their code kept working.
+    // These three are known leftovers from the deliberate consolidation of the
+    // calendar features into `brain`; the point of the allowlist is that adding
+    // a fourth has to be a conscious act, not a side effect of a rename.
+    const KNOWN_DEAD = ['calendar', 'lifecycle', 'ukhub'];
+    const reachable = new Set([...gids, ...ids]);
+    const orphans = infoKeys.filter((k) => !reachable.has(k) && !KNOWN_DEAD.includes(k));
+    expect(orphans, `INFO entries no nav item can reach: ${orphans.join(', ')}`).toEqual([]);
+  });
+
   test('the two features the owner separated each have their own entry', () => {
     expect(gids).toContain('storefront3d');
     expect(gids).toContain('landing');

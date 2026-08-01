@@ -89,15 +89,43 @@ async function _fetchJson(url, { method = 'GET', headers = {}, body = null, time
 
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// Pull an init frame down as base64 for image-to-video. Bounded: an oversized or
+// non-image URL returns null and the caller degrades to text-to-video rather than
+// throwing mid-cascade.
+const INIT_IMAGE_MAX_BYTES = 6 * 1024 * 1024;
+async function _fetchImageB64(url, timeoutMs = 12000) {
+  if (!/^https?:\/\//i.test(String(url || ''))) return null;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+    if (!r.ok) return null;
+    const mime = (r.headers.get('content-type') || '').split(';')[0].trim();
+    if (!/^image\//i.test(mime)) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (!buf.length || buf.length > INIT_IMAGE_MAX_BYTES) return null;
+    return { b64: buf.toString('base64'), mime, bytes: buf.length, url };
+  } catch (_) { return null; }
+  finally { clearTimeout(t); }
+}
+
 // ── Rung request builders (also used for the { would_request } stub) ─────────
 
-function veoRequest({ prompt, aspect }) {
+// `image` ({ b64, mime }) turns this into IMAGE-TO-VIDEO, which for VAHDAM is the
+// only safe way to put a product on screen. Text-to-video invents the packaging —
+// a model asked for "a tin of VAHDAM Turmeric Ashwagandha" renders a plausible tin
+// with garbled letterforms, which is a fabricated product shot. Starting from the
+// real Shopify pack shot means the packaging in the clip IS the packaging, and the
+// model only supplies motion around it.
+function veoRequest({ prompt, aspect, image }) {
+  const instance = { prompt };
+  if (image && image.b64) instance.image = { bytesBase64Encoded: image.b64, mimeType: image.mime || 'image/jpeg' };
   return {
     provider: 'veo',
     method: 'POST',
     url: GEMINI_BASE + '/models/' + VEO_MODEL + ':predictLongRunning',
     body: {
-      instances: [{ prompt }],
+      instances: [instance],
       parameters: { aspectRatio: normAspect(aspect) },
     },
   };
@@ -132,15 +160,15 @@ function openMontageRequest({ prompt, duration_s, aspect }) {
   };
 }
 
-function runwayRequest({ prompt, duration_s, aspect }) {
+function runwayRequest({ prompt, duration_s, aspect, image }) {
   const a = normAspect(aspect);
   const ratio = a === '9:16' ? '720:1280' : a === '1:1' ? '960:960' : '1280:720';
-  return {
-    provider: 'runway',
-    method: 'POST',
-    url: RUNWAY_BASE + '/image_to_video',
-    body: { model: RUNWAY_MODEL, promptText: prompt, ratio, duration: (duration_s || 8) <= 5 ? 5 : 10 },
-  };
+  const body = { model: RUNWAY_MODEL, promptText: prompt, ratio, duration: (duration_s || 8) <= 5 ? 5 : 10 };
+  // This endpoint is image_to_video and REQUIRES promptImage; it accepts a data
+  // URI as well as an https URL.
+  if (image && image.b64) body.promptImage = `data:${image.mime || 'image/jpeg'};base64,${image.b64}`;
+  else if (image && image.url) body.promptImage = image.url;
+  return { provider: 'runway', method: 'POST', url: RUNWAY_BASE + '/image_to_video', body };
 }
 
 // ── Rung executors — each returns { ok, provider, job_id, status, video_url?, error? }
@@ -321,10 +349,16 @@ function _notConnected(wouldRequest) {
  * With NO keys at all, returns the Klaviyo-style { connected:false, would_request }
  * stub for the best rung (Veo 3.1).
  */
-async function generateVideo({ prompt, duration_s = 8, aspect = '16:9', tier = 'standard', preferProviders = null } = {}) {
+async function generateVideo({ prompt, duration_s = 8, aspect = '16:9', tier = 'standard', preferProviders = null, image_url = null } = {}) {
   const p = String(prompt || '').trim();
   if (!p) return { ok: false, error: 'prompt required' };
-  const opts = { prompt: p, duration_s, aspect };
+  // Fetch the init frame ONCE here rather than per rung, so a cascade demotion
+  // does not re-download it. A failed fetch is not fatal: the clip degrades to
+  // text-to-video, and the caller is told via `image_used` so it can decline to
+  // ship a product video whose packaging was not sourced from a real photo.
+  let image = null;
+  if (image_url) image = await _fetchImageB64(image_url);
+  const opts = { prompt: p, duration_s, aspect, image };
   const k = keys();
 
   if (!anyKey()) {
@@ -334,12 +368,18 @@ async function generateVideo({ prompt, duration_s = 8, aspect = '16:9', tier = '
     return _notConnected(shape(opts));
   }
 
+  // Sora sits LAST despite being the strongest OpenAI rung: OpenAI notified
+  // deprecation of the Videos API on 2026-03-24 and removes it on 2026-09-24, so
+  // it is a rung with a published expiry date. Ahead of that it also cannot do
+  // the image-to-video pass the product photography rule requires. Veo 3.1 is the
+  // primary for both reasons. Leaving Sora in place means an existing key still
+  // works until the endpoint goes, and the cascade demotes past it when it does.
   let rungs = [
     { name: 'veo', hasKey: !!k.gemini, run: runVeo },
-    { name: 'sora', hasKey: !!k.openai, run: runSora },
     { name: 'higgsfield', hasKey: !!k.higgsfield, run: runHiggsfield },
-    { name: 'openmontage', hasKey: !!k.openmontage, run: runOpenMontage },
     { name: 'runway', hasKey: !!k.runway, run: runRunway },
+    { name: 'openmontage', hasKey: !!k.openmontage, run: runOpenMontage },
+    { name: 'sora', hasKey: !!k.openai, run: runSora },
   ];
 
   // Caller can reorder the cascade (e.g. the mailer asset agent pins
@@ -355,7 +395,10 @@ async function generateVideo({ prompt, duration_s = 8, aspect = '16:9', tier = '
     console.log('[video] Trying ' + rung.name + ' (tier=' + tier + ')');
     try {
       const out = await rung.run(opts);
-      if (out && out.ok) return { ...out, tier, attempts };
+      // image_used tells the caller whether the real pack shot actually made it
+      // into the clip. Without it a silently-degraded text-to-video job would be
+      // indistinguishable from a real one, and its invented packaging would ship.
+      if (out && out.ok) return { ...out, tier, attempts, image_used: !!(image && image.b64), init_image_url: image ? image.url : null };
       attempts.push({ provider: rung.name, error: (out && out.error) || 'unknown failure' });
       console.warn('[video] ' + rung.name + ' failed: ' + ((out && out.error) || 'unknown') + ' — demoting');
     } catch (e) {
