@@ -378,6 +378,19 @@ async function buildLifecycleMailer({ id = null, entry = null, force = false } =
   // which the asset agent (asset-agent.js) later fills with a generated image.
   const heroImg = hero.mode === 'catalog' ? hero.url : null;
 
+  // The pack shot says what the product is; this says what it is for. Without a
+  // second register of imagery a mailer is a catalogue page, so the Text+Visual
+  // variants also carry an editorial lifestyle frame. It is a GENERATION PROMPT,
+  // not a URL we invented - asset-agent fills it from the same cascade the hero
+  // slot uses, and the prompt describes a scene only: no price, claim, rating or
+  // packaging text, so nothing unverified can be painted into an image.
+  const lifestylePrompt =
+    `On-brand VAHDAM editorial lifestyle frame accompanying "${row.hero_product || row.product_type}". ` +
+    'A steeped cup in a real moment - warm morning light, linen, a hand mid-pour, steam - shot like ' +
+    'slow-living editorial, shallow depth of field, generous negative space. Brand palette only ' +
+    '(forest #004A2B, gold #AB8743, cream #FBF5EA). No packaging text, no logos, no words rendered in ' +
+    'the image, no price or badge. Ideal size 1072 x 600.';
+
   // Exactly the two named mailer types, two variants each (mailer taxonomy):
   //   Text          = colour + type + structural elements (buttons, tables,
   //                   dividers, badges), NO images / video / gif.
@@ -385,8 +398,8 @@ async function buildLifecycleMailer({ id = null, entry = null, force = false } =
   const variants = [
     { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,          framework: fwA.key, image: null, ...meta(SA), html: render(SA, 'pure') },
     { key: 'text_b',   type: 'Text',          label: `Text · ${fwB.name}`,          framework: fwB.key, image: null, ...meta(SB), html: render(SB, 'editorial') },
-    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, image: hero, ...meta(SA), html: render(SA, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true }) },
-    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, image: hero, ...meta(SB), html: render(SB, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true }) },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, image: hero, ...meta(SA), html: render(SA, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true, lifestyle_prompt: lifestylePrompt }) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, image: hero, ...meta(SB), html: render(SB, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true, lifestyle_prompt: lifestylePrompt }) },
   ];
 
   const primary = variants[2]; // visual_a, for backward-compatible top-level fields

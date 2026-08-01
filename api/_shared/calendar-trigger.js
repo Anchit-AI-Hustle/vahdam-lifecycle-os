@@ -430,7 +430,7 @@ function _productNote(p, market) {
   return s ? String(s) : '';
 }
 
-function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku, hero_image_url, hero_prompt, products, offer_bar, collection_url }) {
+function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_blocks, cta_text, cta_url, market, hero_product, hero_sku, hero_image_url, hero_prompt, products, offer_bar, collection_url, lifestyle_image_url, lifestyle_prompt, lifestyle_caption }) {
   // CTA points at the resolved product/collection page; the brand domain still
   // falls back per-market if no specific destination was provided.
   const baseUrl = cta_url || regionBase(market);
@@ -456,28 +456,78 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
   // Optional gold offer bar (only when an offer string is supplied).
   const offerBarRow = offer_bar ? `
       <tr><td align="center" style="background:${palette.gold};padding:9px 14px;font-family:${BODY};font-size:12px;font-weight:700;color:${palette.ink};">${esc(offer_bar)}</td></tr>` : '';
-  // Compact product grid: real inline images + PDP links, up to 3 across one row
-  // (never one-product-per-vertical-section). Matches the flagship grid exactly.
+  // Product grid. The layout follows the product COUNT, because a cell sized for
+  // three products does not become a design when it holds one - it becomes a
+  // 33%-wide thumbnail floating in a full-width box, which is how a one-product
+  // slot used to render: a small pack shot marooned in cream. So:
+  //   1 product  -> horizontal feature card, photo beside the copy, width filled
+  //   2 products -> halves
+  //   3 products -> thirds
   const gridProducts = Array.isArray(products) ? products.filter(Boolean).slice(0, 3) : [];
-  const productGrid = gridProducts.length ? `
-      <tr><td style="padding:16px 20px 4px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-        ${gridProducts.map((p) => {
-    const img = _productImg(p, market);
-    const note = _productNote(p, market);
-    const pdp = p.url || ((p.handle || p.h) ? `${store}/products/${p.handle || p.h}` : baseUrl);
-    const price = (p.price != null && p.price !== '') ? `${cur}${p.price}` : '';
-    return `<td align="center" valign="top" style="width:33%;padding:8px;">
-          <a href="${pdp}" target="_blank" style="text-decoration:none;">
-            <div style="background:${palette.cream};border:1px solid ${palette.gold}33;border-radius:10px;padding:12px 8px 16px;">
-              ${img ? `<img src="${esc(img)}" alt="${esc(p.title || p.n || '')}" width="140" style="width:100%;max-width:140px;height:auto;border-radius:8px;display:block;margin:0 auto 10px;" />` : ''}
-              <div style="font-family:${HEAD};font-size:14px;color:${palette.ink};line-height:1.35;">${esc(p.title || p.n || '')}</div>
-              ${note ? `<div style="font-family:${BODY};font-size:11px;color:#7a6e5a;margin-top:4px;line-height:1.4;">${esc(note)}</div>` : ''}
-              ${price ? `<div style="font-family:${BODY};font-size:13px;color:${palette.gold};margin-top:6px;font-weight:600;">${price}</div>` : ''}
-            </div>
+  const _pFields = (p) => ({
+    img: _productImg(p, market),
+    note: _productNote(p, market),
+    pdp: p.url || ((p.handle || p.h) ? `${store}/products/${p.handle || p.h}` : baseUrl),
+    price: (p.price != null && p.price !== '') ? `${cur}${p.price}` : '',
+    title: p.title || p.n || '',
+  });
+  let productGrid = '';
+  if (gridProducts.length === 1) {
+    const { img, note, pdp, price, title } = _pFields(gridProducts[0]);
+    productGrid = `
+      <tr><td style="padding:24px 32px 0;">
+        <a href="${pdp}" target="_blank" style="text-decoration:none;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${palette.cream};border:1px solid ${palette.gold}33;border-radius:10px;">
+          <tr>
+            ${img ? `<td width="176" valign="middle" style="padding:16px 4px 16px 16px;">
+              <img src="${esc(img)}" alt="${esc(title)}" width="160" style="display:block;width:160px;max-width:160px;height:auto;border-radius:8px;" /></td>` : ''}
+            <td valign="middle" style="padding:18px 20px;">
+              <div style="font-family:${HEAD};font-size:19px;line-height:1.3;color:${palette.ink};">${esc(title)}</div>
+              ${note ? `<div style="font-family:${BODY};font-size:12.5px;color:#7a6e5a;margin-top:6px;line-height:1.5;">${esc(note)}</div>` : ''}
+              ${price ? `<div style="font-family:${BODY};font-size:15px;color:${palette.gold};margin-top:10px;font-weight:600;">${price}</div>` : ''}
+              <div style="font-family:${BODY};font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${palette.green};margin-top:12px;">Shop this &rarr;</div>
+            </td>
+          </tr>
+        </table></a>
+      </td></tr>`;
+  } else if (gridProducts.length) {
+    // The card chrome sits on the <td>, not on an inner <div>. Cells in a table
+    // row are equal height by construction, so a title that wraps to two lines
+    // cannot leave one card taller than the one beside it - which is the design
+    // rule these cards have to meet (equal-size, aligned, parallel). Fixed-width
+    // spacer cells carry the gutter, since the padding that used to do it would
+    // now be inside the card border.
+    const pct = gridProducts.length === 2 ? '49%' : '32%';
+    const cells = gridProducts.map((p) => {
+      const { img, note, pdp, price, title } = _pFields(p);
+      return `<td align="center" valign="top" width="${pct}" style="width:${pct};background:${palette.cream};border:1px solid ${palette.gold}33;border-radius:10px;padding:16px 12px 18px;">
+          <a href="${pdp}" target="_blank" style="text-decoration:none;display:block;">
+            ${img ? `<img src="${esc(img)}" alt="${esc(title)}" width="150" style="width:100%;max-width:150px;height:auto;border-radius:8px;display:block;margin:0 auto 12px;" />` : ''}
+            <div style="font-family:${HEAD};font-size:15px;color:${palette.ink};line-height:1.35;">${esc(title)}</div>
+            ${note ? `<div style="font-family:${BODY};font-size:11.5px;color:#7a6e5a;margin-top:5px;line-height:1.45;">${esc(note)}</div>` : ''}
+            ${price ? `<div style="font-family:${BODY};font-size:13.5px;color:${palette.gold};margin-top:8px;font-weight:600;">${price}</div>` : ''}
           </a></td>`;
-  }).join('')}
+    });
+    const gutter = '<td width="14" style="width:14px;font-size:0;line-height:0;">&nbsp;</td>';
+    productGrid = `
+      <tr><td style="padding:24px 32px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        ${cells.join(gutter)}
         </tr></table>
+      </td></tr>`;
+  }
+  // Editorial lifestyle band. A mailer built only from pack shots on cream reads
+  // as a catalogue page, not as something that sells - the product photo proves
+  // what it is, this proves what it is FOR. It is a real photograph or nothing:
+  // a hosted URL when one exists, otherwise a generation slot that asset-agent
+  // fills from the prompt. Never a stock-looking invention, and never emitted at
+  // all when the caller supplies neither.
+  const lifestyleBand = (lifestyle_image_url || lifestyle_prompt) ? `
+      <tr><td style="padding:26px 32px 0;">
+        ${lifestyle_image_url
+    ? `<img src="${esc(lifestyle_image_url)}" width="536" alt="${esc(lifestyle_caption || hero_product || 'lifestyle')}" style="display:block;width:100%;height:auto;border-radius:8px;" />`
+    : MF.assetSlot({ kind: 'image', slot: 'lifestyle', displayW: 536, displayH: 300, prompt: lifestyle_prompt, alt: lifestyle_caption || hero_product || 'lifestyle' })}
+        ${lifestyle_caption ? `<div style="font-family:${BODY};font-size:11.5px;line-height:1.5;color:#7a6e5a;margin-top:9px;text-align:center;font-style:italic;">${esc(lifestyle_caption)}</div>` : ''}
       </td></tr>` : '';
   // Secondary outline CTA → collection page (derived, or provided).
   const collectionHref = collection_url || `${store}/collections/bestsellers`;
@@ -541,11 +591,13 @@ function _renderVariantBody({ style, subject, hero_headline, hero_subline, body_
         <div style="display:inline-block;height:1px;width:38%;background:${palette.gold};vertical-align:middle;"></div>
       </td></tr>
       ${blocks}
+      ${lifestyleBand}
       ${productGrid}
-      <tr><td style="padding:26px 32px 8px;text-align:center;border-top:1px solid #ece4d2;">
-        <a href="${baseUrl}" style="display:inline-block;background:${palette.green};color:${palette.cream};text-decoration:none;padding:14px 30px;font-family:'Proxima Nova',sans-serif;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;">${esc(cta_text)}</a>
+      <tr><td style="padding:30px 32px 10px;text-align:center;">
+        <a href="${baseUrl}" style="display:inline-block;background:${palette.green};color:${palette.cream};text-decoration:none;padding:15px 34px;font-family:'Proxima Nova',sans-serif;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;border-radius:6px;">${esc(cta_text)}</a>
       </td></tr>
       ${secondaryCta}
+      <tr><td style="height:14px;line-height:14px;font-size:0;">&nbsp;</td></tr>
       ${brandFooter}
     </table>
   </td></tr>
