@@ -10,6 +10,7 @@
   <meta name="apple-mobile-web-app-title" content="Lifecycle OS">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="/auth.js?v=20260718light" defer></script>
+  <script src="/ai-studio-bar.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <style>
@@ -397,19 +398,6 @@
   const $$ = (sel, root) => [...(root||document).querySelectorAll(sel)];
   const $  = (sel, root) => (root||document).querySelector(sel);
   const esc = (s) => (s||'').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-  // Tolerant JSON parse — some providers wrap the JSON in ```json fences or
-  // add a prose prefix. Falls back to brace-slice extraction.
-  const safeJson = (t) => {
-    if (t && typeof t === 'object') return t;
-    const s = String(t || '');
-    try { return JSON.parse(s); } catch (_) {}
-    const stripped = s.replace(/^```(?:json)?\s*/im, '').replace(/```\s*$/m, '').trim();
-    try { return JSON.parse(stripped); } catch (_) {}
-    const a = s.indexOf('{'), b = s.lastIndexOf('}');
-    if (a !== -1 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch (_) {} }
-    return null;
-  };
 
   // ─── Supabase persistence (reuse the client auth.js booted) ─────────
   const sbClient = () => (window.LifecycleAuth && window.LifecycleAuth.client) || null;
@@ -814,42 +802,26 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
   })();
   ['mailers','meta','google','tiktok'].forEach(loadLibrary);
 
-  // ─── Autofill from prompt: POST /api/ai/generate?mode=autofill ──
-  $$('.ai-bar [data-ai-fill]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const bar = btn.closest('.ai-bar');
-      const channel = bar.dataset.channel;             // mailers | meta | google | tiktok
-      const surface = bar.dataset.surface;             // lp-mailer | lp-meta | lp-google | lp-tiktok
-      const promptEl = bar.querySelector('[data-ai-prompt]');
-      const refEl = bar.querySelector('[data-ai-ref]');
-      const status = bar.querySelector('[data-ai-status]');
-      const prompt = (promptEl.value || '').trim();
-      const reference_url = (refEl?.value || '').trim();
-      if (!prompt) { status.textContent = 'Type what you want first.'; return; }
-      const region = selectedRegion[channel] || 'US';
-      const orig = btn.textContent; btn.disabled = true; btn.textContent = '✨ Filling… (5-15s)';
-      status.textContent = '';
-      try {
-        const r = await fetch('/api/ai/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode: 'autofill', surface, prompt, reference_url, market: region, region }),
-        });
-        const d = await r.json();
-        if (!r.ok || !d) { status.textContent = 'Failed: ' + (d?.error || r.statusText); return; }
-        const fields = safeJson(typeof d === 'string' ? d : (d.text != null ? d.text : d)) || {};
-        let filled = 0;
-        ['hero','sub','offer','notes'].forEach((k) => {
-          const el = $('[data-form="' + channel + '"][name="' + k + '"]');
-          if (el && fields[k] !== undefined) { el.value = String(fields[k]); filled++; }
-        });
-        status.textContent = filled ? `Filled ${filled} fields — review and Generate landing page below.` : 'No matching fields returned. Try a more specific prompt.';
-      } catch (err) {
-        status.textContent = 'Error: ' + err.message;
-      } finally {
-        btn.disabled = false; btn.textContent = orig;
-      }
-    });
+  // ─── The five AI operations (Fill · Suggest · New · Enhance · Clear) ──
+  // Owned by the shared /ai-studio-bar.js, so this page and the Creative
+  // Studio ad builders behave identically. Here we only declare how to reach
+  // the four landing-page fields for each channel. A page can be written from
+  // a prompt, from a reference URL, or from an image or video of the ad it
+  // has to match — the bar handles all three.
+  //
+  // No `landing:` config: this page IS the landing-page builder, so an
+  // "also build the landing page" toggle would be circular.
+  ['mailers', 'meta', 'google', 'tiktok'].forEach((channel) => {
+    const surface = 'lp-' + (channel === 'mailers' ? 'mailer' : channel);
+    const wait = setInterval(() => {
+      if (!window.AIStudioBar) return;
+      clearInterval(wait);
+      window.AIStudioBar.register(surface, {
+        keys: ['hero', 'sub', 'offer', 'notes'],
+        resolve: (key) => $('[data-form="' + channel + '"][name="' + key + '"]'),
+        market: () => selectedRegion[channel] || 'US',
+      });
+    }, 100);
   });
 
   // Initial tab from hash

@@ -287,7 +287,14 @@
     // metric-catalog panels were folded into the master's SOP and Ops tabs, and their
     // routes now serve the master so existing links and bookmarks still land somewhere
     // correct rather than 404.
-    { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html', '/ads', '/ads-dashboard', '/ad-performance', '/ad-campaigns.html', '/ads-dashboard.html', '/ads-masterclass', '/ads-masterclass.html'] },
+    // TWO rows, one page. The master page carries both the ad ANALYSIS tabs and
+    // the ad CREATION tab (Creative Studio, merged in from the retired /ads).
+    // When creation had no row of its own it was effectively gone: the only ads
+    // entry was named "Dashboard", nothing deep-linked to #crestudio, and the
+    // one description of the builder (INFO.ads) rendered nowhere. Creating an
+    // ad is its own job, so it gets its own row and its own INFO entry.
+    { id: 'ads', label: 'Ad Creation (Creative Studio)', href: '/ads-master#crestudio', icon: 'ads', ver: 'v2', match: ['/ads', '/ad-creation', '/creative-studio', '/ad-campaigns.html'] },
+    { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html', '/ads-dashboard', '/ad-performance', '/ads-dashboard.html', '/ads-masterclass', '/ads-masterclass.html'] },
     { group: '3D Storefront & Websites', icon: 'landing', gid: 'landing', ver: 'v2', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d', '/store-3d', '/official-designs', '/official-designs.html', '/designs'], children: [
       { id: 'store3d-all', label: '3D Storefront (overview)', href: '/3d', icon: 'vahdam', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d'] },
       { id: 'web-us',     label: '🇺🇸 US Website',     href: '/3d/us',     icon: 'vahdam', match: ['/3d/us', '/store-3d-us'] },
@@ -379,7 +386,7 @@
         ["Data analysis + review + hypothesis", "KT files parsed (3 email threads, spend workbook, 28-slide social deck); rollups computed per campaign and objective; benchmarks derived from the data."],
         ["Business & strategy decisions", "Portfolio verdicts: Sales engine clears the $0.80 bench, JoinBrands UGC traffic is the cheapest click, Awareness is the drag, July TikTok reads zero. Accounts are scored on what each can actually measure - ROAS only where a pixel or Google conversion fires, CTR/CPC/CPM where checkout happens on target.com, Instacart or amazon.com and no sale can ever be attributed back to the ad."],
         ["Content", "Knowledge base compiled: 54 catalogued links (verified via the Google Drive connector where possible), people map, gaps register."],
-        ["Design + layout + structure", "Eleven tabs - Live Now, Calendar, Tracker, Accounts, SOP, Overview, Campaigns & Ads, Creative Intel, Organic & UGC, Knowledge Base, Ops & Data Sources - in the brand palette, white and green only, every table sortable and filterable and every chart carrying duration tiles."],
+        ["Design + layout + structure", "Thirteen tabs - Live Now, Calendar, Tracker, Accounts, SOP, Overview, Campaigns & Ads, Creative Intel, Organic & UGC, Knowledge Base, Creative Studio, Playbook, Ops & Data Sources - in the brand palette, white and green only, every table sortable and filterable and every chart carrying duration tiles. Creative Studio is the ad BUILDER (its own nav row, Ad Creation) and Playbook is the written paid-ads lesson; both were merged in from pages that have since been retired."],
         ["Coding", "Static page + committed JSON (no new serverless function; the Hobby 12-function limit is untouched).", "/ads-master"],
         ["Final compilation + presentation", "Live Snowflake rows read straight into this dashboard (SOP compliance, pacing and the metric catalog on its SOP and Ops tabs); Google Slides KT presentation generated from the same knowledge base.", "/ads-master"]
       ]
@@ -603,29 +610,29 @@
       ],
     },
     ads: {
-      title: 'Ad Campaigns',
-      what: "Creates paid-social and search ad creatives — Meta, Google, TikTok — copy plus generated visuals, organised on its own calendar. Approved Smart Brain slots auto-generate their full ad set, mirrored into the ads_generated store.",
+      title: 'Ad Creation (Creative Studio)',
+      what: "Builds paid-social and search ads — Meta, Google, TikTok — copy plus generated visuals, on their own calendar, and builds the landing page each ad points at in the same pass. It lives as the Creative Studio tab of the Ad Campaigns Master Dashboard, which is why this row deep-links straight to it. Approved automated-calendar slots generate their full ad set the same way, mirrored into the ads_generated store.",
       who: "Prospecting and retargeting audiences per platform. Each ad set inherits the cohort of the campaign slot it came from.",
-      how: "Per-platform tabs generate ad copy through the shared LLM waterfall and static creatives through the image cascade. Platform push is Phase 2 — assets are produced and reviewed here, not published automatically.",
-      input: "A campaign or slot (from Smart Brain or the calendar tab), or a manual brief with product, platform, and audience.",
+      how: "Start from anything: a plain-English prompt, a reference page or competitor ad URL, an image, or a video. Attached images and videos are read by a vision pass and described back in words, so the copy waterfall can work from a creative it could not otherwise see; a reference that cannot be read is reported as unread, never guessed at. Five operations sit on every form: Fill writes the empty fields, Suggest offers three alternative angles per copy field without touching the form, New writes a deliberately different creative direction, Enhance sharpens the existing draft without changing its intent, and Clear empties everything. Platform push is Phase 2 - assets are produced and reviewed here, not published automatically.",
+      input: "A prompt, a reference URL, an image, a video, or any combination - plus the campaign settings (platform, market, budget, audience). Uploads stop at 3MB because of the serverless request limit; anything larger goes in as a URL and the server fetches it.",
       pipeline: true,
       steps: [
-        ['Ideology', 'Max-ideation on hooks and angles per platform — thumb-stopping concepts before any asset exists.'],
-        ['Data analysis + review + hypothesis', 'Competitor ad benchmarks and owned KB assets define what to beat; every creative states the hypothesis it tests.'],
+        ['Ideology', 'Max-ideation on hooks and angles per platform - thumb-stopping concepts before any asset exists. Suggest and New exist to widen this deliberately.'],
+        ['Data analysis + review + hypothesis', 'Competitor ad benchmarks, owned KB assets and any reference the operator attached define what to beat; every creative states the hypothesis it tests.'],
         ['Business & strategy decisions', 'Platform, audience, funnel stage, and offer mechanic are locked per ad set.'],
-        ['Content', 'Platform-native copy — primary text, headlines, descriptions — in brand voice with banned phrases blocked.', '/api/ai/generate'],
-        ['Design + layout + structure', 'Static creatives generate through the image cascade with catalog-aware prompts.', '/api/ai/image'],
+        ['Content', 'Platform-native copy - primary text, headlines, descriptions - in brand voice with banned phrases blocked, and never a price, discount, rating or claim that was not supplied.', '/api/ai/generate'],
+        ['Design + layout + structure', 'Static creatives generate through the image cascade with catalog-aware prompts, carrying the LLM-authored on-creative overlay.', '/api/ai/image'],
         ['Audio/Video', 'Video ads: scripts and scene plans; video generation rungs are scaffolded to stub gracefully until keys exist.'],
-        ['Coding', 'Assets are packaged to correct per-placement specs — ratios, durations, character limits.'],
-        ['Final compilation + presentation', 'Everything mirrors into ads_generated for review; platform push remains Phase 2.', '/api/calendar?action=smart-brain-approve'],
+        ['Coding', 'Assets are packaged to correct per-placement specs - ratios, durations, character limits.'],
+        ['Final compilation + presentation', "Saving a campaign also builds its landing page by default, from a brief derived from that ad's own copy so the page cannot promise what the ad did not say. Everything mirrors into ads_generated for review; platform push remains Phase 2.", '/api/ai/generate?action=landing-page'],
       ],
     },
     landing: {
       title: 'Landing Pages',
       what: "Generates and serves brand-compliant HTML landing pages — presell and editorial pages matched to mailers and ads — including the live agent-embedded pages at /lp/best and /lp/agent.",
       who: "Traffic from each channel: pages exist for Mailers, for Meta, for Google, and for TikTok, inheriting the cohort of the campaign that links to them.",
-      how: "Pages are LLM-generated to the /lp/:id serving contract, compiled by the LP compiler, stored in landing_pages_generated, and served live from the calendar router. Smart Brain approvals generate one automatically per campaign.",
-      input: "A campaign or slot, or a manual brief: product, angle, source channel, and market.",
+      how: "Pages are LLM-generated to the /lp/:id serving contract, compiled by the LP compiler, stored in landing_pages_generated, and served live from the calendar router. Pages are never a separate exercise: saving an ad in Creative Studio builds its page in the same pass, and automated-calendar approvals generate one per campaign. Built by hand here, the same five operations apply - Fill, Suggest, New, Enhance, Clear - and the brief can start from a prompt, a reference URL, an image, or a video of the ad the page has to match.",
+      input: "A campaign or slot, or a manual brief: product, angle, source channel, and market. A reference page, image or video can stand in for the brief.",
       pipeline: true,
       steps: [
         ['Ideology', 'Max-creativity page concepts: the presell narrative, the promise above the fold, the proof structure.'],

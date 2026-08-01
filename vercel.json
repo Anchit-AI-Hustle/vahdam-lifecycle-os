@@ -46,8 +46,23 @@
   },
   "redirects": [
     {
+      "source": "/ads",
+      "destination": "/ads-master#crestudio",
+      "permanent": false
+    },
+    {
+      "source": "/ad-creation",
+      "destination": "/ads-master#crestudio",
+      "permanent": false
+    },
+    {
+      "source": "/creative-studio",
+      "destination": "/ads-master#crestudio",
+      "permanent": false
+    },
+    {
       "source": "/ad-campaigns.html",
-      "destination": "/ads-master",
+      "destination": "/ads-master#crestudio",
       "permanent": true
     },
     {
@@ -432,10 +447,6 @@
     {
       "source": "/design-intelligence",
       "destination": "/design-intelligence.html"
-    },
-    {
-      "source": "/ads",
-      "destination": "/ad-campaigns-master.html"
     },
     {
       "source": "/ads-masterclass",
