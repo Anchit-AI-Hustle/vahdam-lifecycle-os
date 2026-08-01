@@ -176,6 +176,23 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // ── Platform-sourced competitive benchmarking ──────────────────────────
+    // Our side from our connected platforms; their side from PUBLIC sources
+    // only. See competitive-benchmark-core.js for why the two never merge.
+    if (action === 'benchmark' || action === 'benchmark-set') {
+      const bench = require('./_shared/competitive-benchmark-core.js');
+      const p = url.searchParams;
+      const result = action === 'benchmark-set'
+        ? await bench.benchmarkSet({ market: p.get('market') || 'US', category: p.get('category'), days: parseInt(p.get('days'), 10) || 30, max: p.get('max') })
+        : await bench.benchmark({
+          brand: p.get('brand') || '', domain: p.get('domain') || '',
+          market: p.get('market') || 'US', country: p.get('country'),
+          days: parseInt(p.get('days'), 10) || 30, limit: p.get('limit'),
+        });
+      res.status(result.ok === false ? 400 : 200).json(result);
+      return;
+    }
+
     if (action === 'discover') {
       // Accept optional categories[]/geographies[]/limit via query (?categories=Tea,Coffee&limit=30).
       const csv = (k) => { const v = url.searchParams.get(k); return v ? v.split(',').map((s) => s.trim()).filter(Boolean) : []; };

@@ -41,6 +41,7 @@ const calendarScenarios = require('./_shared/calendar-scenarios.js');
 const smartbrain = require('../lib/smart-brain/services.js');
 const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
+const shopify = require('./_shared/shopify-core.js');
 const adInsights = require('./_shared/ad-insights-core.js');
 const adsSnowflake = require('./_shared/ads-snowflake-core.js');
 const adsLive = require('./_shared/ads-live-core.js');
@@ -386,6 +387,13 @@ module.exports = async function handler(req, res) {
         return res.json(out);
       }
 
+      // ── SHOPIFY (live, read-only Admin reads; never mutates the store) ──
+      case 'shopify': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const out = await shopify.dispatch(p.op || 'summary', p);
+        return res.json(out);
+      }
+
       // ── AD INSIGHTS (real Meta/Google/TikTok reporting; priority metrics first) ──
       case 'ad-insights': {
         const p = req.method === 'POST' ? b : Object.assign({}, req.query);
@@ -473,10 +481,11 @@ module.exports = async function handler(req, res) {
         return res.json(out);
       }
       case 'connectors-health': {
-        // REAL live probe of every data platform (Shopify/Klaviyo/WebEngage/
-        // Supabase) — actual round-trips, honest live/blocked + the exact blocker.
+        // REAL live probe of every data platform — Shopify, Klaviyo, WebEngage,
+        // Supabase, Meta Ads, Google Ads and TikTok Ads. Actual round-trips,
+        // honest live/blocked + the exact blocker.
         const health = require('./_shared/connectors-health.js');
-        return res.json(await health.health());
+        return res.json(await health.health({ market: req.query.market || 'US' }));
       }
       case 'webengage-report': {
         const op = (req.query.op || 'campaigns').toLowerCase();

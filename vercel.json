@@ -349,6 +349,10 @@
       "destination": "/api/brain?action=webengage-report"
     },
     {
+      "source": "/api/shopify",
+      "destination": "/api/brain?action=shopify"
+    },
+    {
       "source": "/api/connectors-health",
       "destination": "/api/brain?action=connectors-health"
     },
