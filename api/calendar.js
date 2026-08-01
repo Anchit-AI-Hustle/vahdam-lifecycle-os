@@ -201,7 +201,7 @@ async function smartBrain(req, res, smartAction) {
       // persisting or approving — reviewers see the mailer/ads/LP before sign-off.
       if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
       if (!body.id && !body.entry) return res.status(400).json({ ok: false, error: 'id (calendar entry) or entry is required' });
-      const result = await plan.previewEntry({ id: body.id, entry: body.entry || null, reviewer: body.reviewer || null, config: body.config || {} });
+      const result = await plan.previewEntry({ id: body.id, entry: body.entry || null, reviewer: body.reviewer || null, config: body.config || {}, force: !!body.force });
       return res.status(200).json(result);
     }
 

@@ -292,6 +292,25 @@ This repo ships project slash commands in `.claude/commands/` that operate the b
 These are not in `.mcp.json` (hosted OAuth servers, account-scoped). Connect via each server's `authenticate` → `complete_authentication` tool, or in the Claude **Connectors** UI:
 - **Shopify** — ⚠️ Admin connector NOT authorized; use public storefront scraping via `/shopify` (US/UK/Global) instead. **Klaviyo** — `mcp__plugin_marketing_klaviyo__authenticate`. **Canva** — `mcp__plugin_marketing_canva__authenticate`. **Figma** — `mcp__plugin_marketing_figma__authenticate`. **Ahrefs / SimilarWeb / Supermetrics / Amplitude** — `mcp__plugin_marketing_<name>__authenticate`. **Higgsfield** — connected (generation MCP). Commands degrade gracefully and tell you what to connect if a tool is missing.
 
+## Two features that are NOT one (product owner, 2026-08-01)
+- **3D Website & Storefront** (`gid: storefront3d`, `/3d`, `/3d/{us,uk,global,in}`, `/website-designs`) is a
+  **website revamp** — the Vahdam store itself, rebuilt in WebGL per region, plus the official website clones.
+- **Landing Pages** (`gid: landing`, `/landing-pages`, `/landing-page-templates`, `/lp/*`) is **campaign
+  destinations** — pages built for mailers, ads and every other marketing channel.
+They were one nav group titled "3D Storefront & Websites" carrying `gid:'landing'`, so the `?` popup described
+landing pages under a 3D heading, `INFO.officialdesigns` rendered nowhere (orphaned exactly like `INFO.ads` had
+been), and the landing-page **builder** had no nav entrance at all. Keep them as two groups with two INFO entries.
+**Invariant worth re-checking after any nav edit:** every `gid`/`id` must resolve to an `INFO` key and vice versa —
+a renamed key silently removes a feature's entire description (this is how both `INFO.ads` and
+`INFO.officialdesigns` disappeared; the Data Analysis group had the same defect, `gid:'dataanalysis'` vs
+`INFO.analysis`). `tests/feature-taxonomy.spec.js` enforces it.
+**Landing-page brief = message match.** A page is the destination of an ad or mailer, so it opens on the promise
+that click was made on, in the ad's own language, and introduces no price, discount, rating, review count,
+guarantee or claim the ad did not state. Enforced in `api/ai/generate.js` (`buildLandingBriefFromAd`) and in the
+calendar copy prompt in `api/_shared/smart-brain-plan.js`. The proven page corpus to build from lives in
+`landing-pages/final/` (cortisol presell v1/v2/v3, agent-best, all-in-one agent), `landing-pages/usa-july/` and
+`landing-pages/ashwagandha-matrix/`, with per-slot generation prompts in `landing-pages/final/lp-cortisol-asset-prompts.md`.
+
 ## LHS navigation IA rule
 The shared LHS menu (`auth.js`, element `#lifecycle-nav`; model exposed as `window.__LC_NAV` / `window.__LC_NAV_INFO`) follows a standing IA rule:
 - **Every feature carries the SAME five "know about this feature" questions, in this exact order:** 1. What does it do? · 2. Who is it for? (cohort / cohort definition) · 3. How does it work? (modes/steps/logic) · 4. Input · 5. Step-by-Step Working. Because they are identical in shape for every feature, they do NOT live inline in the rail — a quiet `?` chip beside each feature/group label opens a popup that presents all five as headings with their content. The rail itself shows only the real feature links and their group sub-sections.
