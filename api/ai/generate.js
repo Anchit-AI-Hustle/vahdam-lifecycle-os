@@ -62,6 +62,51 @@ const AD_FORMATS = {
   ],
 };
 
+/**
+ * Every ad ships with the page it points at (product-owner rule: asset
+ * generation always produces its landing page too). This turns a just-generated
+ * ad's OWN fields into the brief for that page, so message match is structural
+ * rather than something the operator has to retype.
+ *
+ * Purely derived — it copies the ad's wording and adds nothing. No invented
+ * offer, no invented proof: if the ad did not say it, the brief does not
+ * either, and the page generator is told so explicitly.
+ */
+function buildLandingBriefFromAd(input) {
+  const o = input || {};
+  const f = o.fields || {};
+  const overlay = o.overlay || {};
+  const platformName = { google: 'Google Search / PMax', meta: 'Meta (Facebook + Instagram)', tiktok: 'TikTok' }[o.platform] || o.platform;
+  const val = (v) => { const s = String(v == null ? '' : v).trim(); return s || ''; };
+
+  const adCopy = [
+    val(f.headlines) && `Ad headlines:\n${val(f.headlines)}`,
+    val(f.desc) && `Ad descriptions:\n${val(f.desc)}`,
+    val(f.primary) && `Ad primary text: ${val(f.primary)}`,
+    val(f.headline) && `Ad headline: ${val(f.headline)}`,
+    val(f.hook) && `Video hook: ${val(f.hook)}`,
+    val(f.caption) && `On-screen caption: ${val(f.caption)}`,
+    val(f.keywords) && `Target keywords (must appear verbatim on the page): ${val(f.keywords)}`,
+    val(f.aud) && `Audience the click comes from: ${val(f.aud)}`,
+    val(overlay.headline) && `Headline baked onto the creative: ${val(overlay.headline)}`,
+    val(overlay.sub) && `Sub-line baked onto the creative: ${val(overlay.sub)}`,
+  ].filter(Boolean).join('\n');
+
+  const offer = val(overlay.offer) || val(f.offer);
+
+  return [
+    `Build the landing page that this ${platformName} ad clicks through to.`,
+    `Campaign: ${val(f.name) || 'untitled campaign'}`,
+    `Market: ${val(f.market) || o.market || 'US'}`,
+    o.prompt ? `Original campaign brief from the operator:\n"""\n${o.prompt}\n"""` : '',
+    adCopy ? `THE AD THIS PAGE MUST MATCH:\n${adCopy}` : '',
+    offer ? `Offer, stated on the ad and therefore required above the fold, verbatim: ${offer}` : 'No offer was stated on the ad, so the page must not introduce one.',
+    `MESSAGE MATCH IS THE JOB: the hero must deliver the exact promise the ad made, in the ad's own language. A visitor who clicked that ad has to see the same words in the first screen.`,
+    `Do not add any price, discount, rating, review count, guarantee or claim that is not written above. If a fact is missing, leave it out rather than inventing it.`,
+    `One primary call to action, repeated. Mobile-first.`,
+  ].filter(Boolean).join('\n\n');
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // MASTER PROMPTS (production-grade, embedded server-side so they cannot be
 // tampered with by browser-side edits)
@@ -371,6 +416,14 @@ module.exports = async function handler(req, res) {
   let userMessage = '';
   let response_format = undefined;
 
+  // Autofill bookkeeping, read again by the response handler at the bottom:
+  // which of the four ops ran, plus every reference we could and could not read
+  // (surfaced in the UI so an ignored attachment is never silently ignored).
+  let autofillOp = 'fill';
+  let autofillWarnings = [];
+  let autofillSources = [];
+  let autofill_temperature = null;
+
   if (mode === 'suggested_prompts') {
     systemPrompt = SYSTEM_PROMPT_SUGGESTED_PROMPTS;
     response_format = { type: 'json_object' };
@@ -452,10 +505,13 @@ Return ONLY the segment text. No preamble, no quotes around it, no JSON.`;
     // and landing-pages.html
     // (lp-mailer/lp-meta/lp-google/lp-tiktok).
     //
-    // Input  : { mode:'autofill', surface:'<surface>', prompt:'<plain text>', market?, region? }
+    // Input  : { mode:'autofill', surface:'<surface>', prompt:'<plain text>', market?, region?,
+    //            op?:'fill'|'suggest'|'new'|'enhance', current?:{field:value},
+    //            reference_url?, media?:[{kind:'image'|'video', url|data_uri, label}] }
     // Output : STRICT JSON object whose keys match the form-field names for
     //          that surface. The frontend reads each key into its corresponding
-    //          <input> / <textarea> / <select>.
+    //          <input> / <textarea> / <select>. `op:'suggest'` instead returns
+    //          { suggestions: { field: [option, option, option] } }.
     //
     // The system prompt is surface-specific because the field schema differs
     // per channel (Google needs keywords + URL, Meta needs audience + primary
@@ -468,33 +524,35 @@ Return ONLY the segment text. No preamble, no quotes around it, no JSON.`;
     const targetMarket = body.market || body.region || market || 'US';
     const referenceUrl = String(body.reference_url || '').trim();
 
-    // Optional: fetch the reference URL + a tiny snippet of its text so the
-    // LLM can mirror the structure/voice. Bounded fetch (5s timeout, 8KB cap).
-    let referenceSnippet = '';
-    if (referenceUrl && /^https?:\/\//i.test(referenceUrl)) {
-      try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 5000);
-        const rr = await fetch(referenceUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 VahdamRef/1.0' },
-          signal: ctrl.signal,
-          redirect: 'follow',
-        }).catch(() => null);
-        clearTimeout(t);
-        if (rr && rr.ok) {
-          const html = (await rr.text()).slice(0, 60000);
-          // Strip tags + collapse whitespace
-          referenceSnippet = html
-            .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-            .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-            .replace(/<head[\s\S]*?<\/head>/gi, ' ')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 8000);
-        }
-      } catch { /* ignore — reference is optional */ }
-    }
+    // The four AI operations the studio bar exposes. 'clear' is purely a
+    // client-side field reset and never reaches the server.
+    const AUTOFILL_OPS = ['fill', 'suggest', 'new', 'enhance'];
+    const op = AUTOFILL_OPS.includes(String(body.op || '').toLowerCase())
+      ? String(body.op).toLowerCase()
+      : 'fill';
+
+    // What the operator currently has in the form. 'enhance' rewrites it and
+    // 'new' deliberately diverges from it, so both are useless without it.
+    const currentValues = (body.current && typeof body.current === 'object' && !Array.isArray(body.current))
+      ? body.current
+      : {};
+    const currentBlock = Object.entries(currentValues)
+      .filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+      .map(([k, v]) => `${k}: ${String(v).slice(0, 600)}`)
+      .join('\n');
+
+    // Reference intel: a page/ad URL, plus any images or videos the operator
+    // attached. _shared/reference-intel.js runs the vision pass and returns
+    // prose, so the text-only provider waterfall can work from a creative it
+    // could not otherwise see. Unreadable references come back as explicit
+    // warnings, never as invented descriptions.
+    const refIntel = await require('../_shared/reference-intel.js').buildReferenceBrief({
+      reference_url: referenceUrl,
+      media: Array.isArray(body.media) ? body.media : [],
+    });
+    const referenceSnippet = refIntel.text;
+    autofillWarnings = refIntel.warnings;
+    autofillSources = refIntel.sources;
 
     const BRAND_GUARDRAILS = `BRAND: VAHDAM India — premium D2C tea, single-estate, garden-fresh in 72h, B-Corp.
 PALETTE: forest green #004A2B / amber gold #AB8743 / cream #FBF5EA / black #171717.
@@ -596,26 +654,107 @@ COUNTRY-LEVEL geo only. No cities. Currency: $ for US/Global, £ for UK, ₹ for
       return res.status(400).json({ ok: false, error: `Unknown surface "${surface}". Use one of: ${Object.keys(SURFACE_SCHEMAS).join(', ')}` });
     }
 
-    systemPrompt = `You autofill ${schema.what} from a single user prompt.
+    autofillOp = op;
+
+    // A prompt is only mandatory for the two ops that write from nothing.
+    // 'enhance' and 'suggest' work off the current form values, and 'new' can
+    // diverge from those values, so an empty prompt is legitimate there — as
+    // long as SOMETHING grounds the call.
+    const hasGround = !!(userPrompt || currentBlock || referenceSnippet);
+    if (!hasGround) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Nothing to work from. Type a prompt, fill in a field, or attach a reference page, image or video.',
+      });
+    }
+
+    // Per-op behaviour. Each op keeps the SAME field schema (so the frontend
+    // applies results identically) except 'suggest', which returns options
+    // rather than a filled form.
+    const OP_SPEC = {
+      fill: {
+        verb: `You autofill ${schema.what} from the operator's prompt and references.`,
+        shape: schema.fields,
+        rules: [
+          '- Fill EVERY field with a concrete, on-brand value.',
+          '- Where the prompt is silent, infer a sensible default from the brand, the references and the target market.',
+          '- Keep any CURRENT VALUE that is already correct; only replace what is empty, weak or off-brief.',
+        ],
+        temperature: 0.7,
+      },
+      new: {
+        verb: `You write a COMPLETELY NEW creative direction for ${schema.what}.`,
+        shape: schema.fields,
+        rules: [
+          '- Fill EVERY field. This is a fresh direction, not an edit.',
+          '- The CURRENT VALUES below are what the operator already has and does NOT want repeated. Change the ANGLE, not just the wording: a different hook, a different emotional driver, a different proof, a different structure.',
+          '- It must still be the same product, offer and market. Only the creative approach changes.',
+        ],
+        temperature: 1,
+      },
+      enhance: {
+        verb: `You sharpen an EXISTING draft of ${schema.what}.`,
+        shape: schema.fields,
+        rules: [
+          '- Return EVERY field, including the ones you left alone.',
+          '- Keep the operator\'s intent, angle, product and offer exactly as they are. This is a rewrite for quality, NOT a new direction.',
+          '- Make it concrete: cut hedging and filler, lead with the strongest words, respect every character limit, fix anything that breaks the brand rules.',
+          '- If a field is already strong, return it unchanged rather than churning it.',
+          '- If a field is empty, write it.',
+        ],
+        temperature: 0.5,
+      },
+      suggest: {
+        verb: `You propose ALTERNATIVE options for the copy fields of ${schema.what}, without committing to any of them.`,
+        shape: `{
+  "suggestions": {
+    "<field name from the schema below>": ["<option 1>", "<option 2>", "<option 3>"]
+  }
+}
+
+The field names MUST come from this schema, and each option must satisfy that field's stated limit:
+
+${schema.fields}`,
+        rules: [
+          '- Cover the COPY fields only (names, headlines, hooks, captions, audiences, offers, descriptions). Skip pure settings such as budget, market, type, objective and placement.',
+          '- Exactly 3 options per field, each a genuinely different angle — not three rewordings of one idea.',
+          '- Every option must be usable verbatim, with no placeholders.',
+        ],
+        temperature: 0.9,
+      },
+    };
+    const spec = OP_SPEC[op];
+    autofill_temperature = spec.temperature;
+
+    systemPrompt = `${spec.verb}
 
 ${BRAND_GUARDRAILS}
 
 OUTPUT FORMAT — return STRICT JSON ONLY, matching this exact shape (no markdown, no commentary, first character {, last character }):
 
-${schema.fields}
+${spec.shape}
 
 RULES:
-- Fill EVERY field with a concrete, on-brand value derived from the prompt.
-- If the prompt doesn't specify a value, infer a sensible default from VAHDAM's brand + the target market.
+${spec.rules.join('\n')}
 - Numbers (budget) must be plain integers, not strings.
 - Strings must obey the character limits inside <…>.
 - Never use the banned phrases.
 - COUNTRY-LEVEL geography only.
 - Currency in copy must match the market.
+- Never state a price, discount, rating, review count or claim that is not in the prompt, the current values or the references. If one is needed and you do not have it, leave that part out rather than inventing a figure.
 
-Target market for this autofill: ${targetMarket}.`;
+Target market: ${targetMarket}.`;
 
-    userMessage = `USER PROMPT:\n"""\n${userPrompt}\n"""\n\n${referenceSnippet ? `REFERENCE PAGE (mirror the structure, voice, length, conversion logic — but rewrite for VAHDAM and the prompt above):\n"""\n${referenceSnippet}\n"""\n\n` : ''}Return the JSON object now. Do not include any text outside the JSON.`;
+    userMessage = [
+      userPrompt ? `USER PROMPT:\n"""\n${userPrompt}\n"""` : 'USER PROMPT: (none given — work from the current values and references below.)',
+      currentBlock
+        ? `CURRENT VALUES in the operator's form:\n"""\n${currentBlock}\n"""`
+        : 'CURRENT VALUES: (the form is empty.)',
+      referenceSnippet
+        ? `REFERENCES the operator attached. Mirror their structure, pacing and persuasion mechanics, and rewrite everything for VAHDAM. Never reuse a competitor's wording, brand or factual claims:\n\n${referenceSnippet}`
+        : '',
+      'Return the JSON object now. Do not include any text outside the JSON.',
+    ].filter(Boolean).join('\n\n');
   } else if (mode === 'landing_page') {
     // FULL AI-written landing page — returns ONE complete, mobile-first HTML
     // document (no JSON). The client previews it in the inline modal and falls
@@ -747,7 +886,9 @@ Target market for this autofill: ${targetMarket}.`;
   // Higher base temperature for create_brief + a per-regen bump so consecutive
   // briefs explore different copy territory (different hooks, different headline
   // phrasing). Caps at 1.1 to stay coherent.
-  const baseTemp = mode === 'create_brief' ? 0.85 : 0.7;
+  // Autofill sets its own temperature per op: 'enhance' must stay faithful to
+  // the draft, 'new' must actually diverge from it.
+  const baseTemp = autofill_temperature != null ? autofill_temperature : (mode === 'create_brief' ? 0.85 : 0.7);
   const temperature = Math.min(1.1, baseTemp + Math.min(0.25, (regenerate_counter || 0) * 0.08));
   // create_brief: 4000 tokens for 450-600 word detailed production brief with full structure
   const max_tokens = (mode === 'mailer_full' || mode === 'landing_page') ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1200 : 4000)));
@@ -886,6 +1027,23 @@ Target market for this autofill: ${targetMarket}.`;
     //    canvas stops hardcoding 'Shop now'. Non-ad surfaces are unaffected.
     if (mode === 'autofill') {
       const surf = String(body.surface || '').toLowerCase();
+
+      // 'suggest' returns options, not a filled form: there is no single value
+      // per field, so a creative_spec built from it would be meaningless.
+      if (autofillOp === 'suggest') {
+        let parsedSuggest = {};
+        try { parsedSuggest = JSON.parse(text); } catch (_) {
+          const a = text.indexOf('{'), b = text.lastIndexOf('}');
+          if (a !== -1 && b > a) { try { parsedSuggest = JSON.parse(text.slice(a, b + 1)); } catch (_) {} }
+        }
+        parsedSuggest = deepScrubDashes(parsedSuggest);
+        const suggestions = (parsedSuggest && parsedSuggest.suggestions) || parsedSuggest || {};
+        return res.status(200).json({
+          ok: true, mode, op: autofillOp, provider: result.provider, model: result.model,
+          suggestions, reference_warnings: autofillWarnings, reference_sources: autofillSources,
+        });
+      }
+
       if (AD_FORMATS[surf]) {
         let fields = {};
         try { fields = JSON.parse(text); } catch (_) {
@@ -902,8 +1060,26 @@ Target market for this autofill: ${targetMarket}.`;
         const targetMarket = body.market || body.region || market || 'US';
         const userPrompt = String(body.prompt || campaign_brief || '').trim().slice(0, 1600);
         const master_prompt = buildMasterPrompt({ assetType: 'ad', platform: surf, market: targetMarket, brief: userPrompt });
-        return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: brandScrub(text), creative_spec, master_prompt, portable_prompt });
+        // Every ad ships with the page it points at, so hand back a landing-page
+        // brief built from THIS ad's own copy. Derived from the fields we just
+        // returned — no second LLM call, and no chance of the page promising
+        // something the ad did not say.
+        const landing_page_brief = buildLandingBriefFromAd({
+          platform: surf, market: targetMarket, prompt: userPrompt, fields, overlay,
+        });
+        return res.status(200).json({
+          ok: true, mode, op: autofillOp, provider: result.provider, model: result.model,
+          text: brandScrub(text), creative_spec, master_prompt, portable_prompt, landing_page_brief,
+          reference_warnings: autofillWarnings, reference_sources: autofillSources,
+        });
       }
+
+      // Non-ad autofill surfaces (the lp-* set) still report their references.
+      return res.status(200).json({
+        ok: true, mode, op: autofillOp, provider: result.provider, model: result.model,
+        text: brandScrub(text), portable_prompt,
+        reference_warnings: autofillWarnings, reference_sources: autofillSources,
+      });
     }
 
     return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: brandScrub(text), portable_prompt });

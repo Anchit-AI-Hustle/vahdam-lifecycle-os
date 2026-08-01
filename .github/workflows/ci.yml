@@ -21,7 +21,7 @@ jobs:
         run: |
           set -e
           for f in $(find api lib workers scripts -name '*.js'); do node --check "$f"; done
-          for f in auth.js sw.js chart-enhance.js table-sort.js; do [ -f "$f" ] && node --check "$f"; done
+          for f in auth.js sw.js chart-enhance.js table-sort.js ai-studio-bar.js; do [ -f "$f" ] && node --check "$f"; done
           echo "All JS parses cleanly"
       - name: Function-count guard (Hobby cap = 12)
         # Vercel counts every non-_shared file under api/ as a Serverless Function.

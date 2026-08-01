@@ -1526,6 +1526,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
 
 <script src="/auth.js"></script>
 <script src="/table-sort.js"></script>
+<script src="/ai-studio-bar.js"></script>
 <script>
 (function(){
   var $=function(s){return document.querySelector(s);};
@@ -3440,6 +3441,129 @@ try{
     const md = document.getElementById(ch + '-media'); if (md) md.value = '';
   }
 
+  // ── Every ad ships with the page it points at ─────────────────────────
+  // Product-owner rule: generating an asset generates its landing page too, by
+  // default. Saving a campaign therefore also builds the page that campaign
+  // clicks through to, from a brief derived from THIS ad's own copy, so the
+  // page cannot promise something the ad did not say. The toggle in the studio
+  // bar (checked by default) turns it off for a one-off.
+  //
+  // Runs AFTER the campaign is saved and rendered, never blocking it: a page
+  // that fails to build leaves a saved campaign plus a visible reason, not a
+  // lost campaign.
+  const LP_CHANNEL_LABEL = { google: 'Google', meta: 'Meta', tiktok: 'TikTok' };
+  function landingBriefFor(surface, rec) {
+    const fromServer = (window.AIStudioBar && window.AIStudioBar.lastBrief(surface)) || lastLandingBrief[surface];
+    if (fromServer) return fromServer;
+    // No AI generation ran for this campaign (the operator typed it by hand),
+    // so build the brief from exactly what they typed. Nothing is added.
+    const copy = [
+      rec.name && `Campaign: ${rec.name}`,
+      rec.market && `Market: ${rec.market}`,
+      (rec.type || rec.obj) && `Objective: ${rec.type || rec.obj}`,
+      rec.aud && `Audience the click comes from: ${rec.aud}`,
+      Array.isArray(rec.headlines) && rec.headlines.length && `Ad headlines:\n${rec.headlines.join('\n')}`,
+      Array.isArray(rec.descriptions) && rec.descriptions.length && `Ad descriptions:\n${rec.descriptions.join('\n')}`,
+      rec.primary && `Ad primary text: ${rec.primary}`,
+      rec.headline && `Ad headline: ${rec.headline}`,
+      rec.hook && `Video hook: ${rec.hook}`,
+      rec.caption && `On-screen caption: ${rec.caption}`,
+      Array.isArray(rec.keywords) && rec.keywords.length && `Target keywords, which must appear verbatim on the page: ${rec.keywords.join(', ')}`,
+    ].filter(Boolean).join('\n');
+    return [
+      `Build the landing page that this ${LP_CHANNEL_LABEL[surface] || surface} ad clicks through to.`,
+      copy,
+      'MESSAGE MATCH IS THE JOB: the hero must deliver the exact promise the ad made, in the ad\'s own language.',
+      'Do not add any price, discount, rating, review count, guarantee or claim that is not written above. If a fact is missing, leave it out rather than inventing it.',
+      'One primary call to action, repeated. Mobile-first.',
+    ].filter(Boolean).join('\n\n');
+  }
+
+  async function buildLandingForCampaign(surface, rec, rerender, force) {
+    if (!window.AIStudioBar) return;
+    // The toggle governs the automatic build on save; an explicit Retry click
+    // always runs.
+    if (!force && !window.AIStudioBar.landingEnabled(surface)) return;
+    rec.landing = { status: 'building', channel: surface };
+    save(); rerender();
+    const out = await window.AIStudioBar.generateLandingPage({
+      brief: landingBriefFor(surface, rec),
+      market: rec.market || 'US',
+      channel: surface,
+    });
+    if (out.ok) {
+      rec.landing = { status: 'ready', channel: surface, html: out.html, built_at: new Date().toISOString() };
+      store.landing = store.landing.filter((l) => l.campaign_id !== rec.id);
+      store.landing.unshift({ id: uid(), campaign_id: rec.id, channel: surface, name: rec.name, market: rec.market || 'US', html: out.html });
+      toast('Landing page built for ' + (rec.name || 'campaign'));
+    } else {
+      rec.landing = { status: 'failed', channel: surface, error: out.error };
+      toast('Campaign saved. Landing page failed: ' + out.error);
+    }
+    save(); rerender();
+    // Clear the brief so the next campaign on this surface cannot inherit it.
+    lastLandingBrief[surface] = '';
+  }
+
+  // Preview / copy / download for a built page.
+  function landingHtmlFor(campaignId) {
+    const hit = store.landing.filter((l) => l.campaign_id === campaignId)[0];
+    return hit ? hit.html : '';
+  }
+  function landingBlockHtml(c) {
+    const lp = c.landing;
+    if (!lp) return '';
+    if (lp.status === 'building') return '<div class="item-copy"><span class="h">Landing page:</span> building…</div>';
+    if (lp.status === 'failed') {
+      return '<div class="item-copy"><span class="h">Landing page:</span> failed — ' + esc(lp.error || 'unknown error')
+        + ' <button class="abtn" type="button" data-lp-retry="' + esc(c.id) + '">↻ Retry</button></div>';
+    }
+    return '<div class="item-copy"><span class="h">Landing page:</span> ready'
+      + ' <button class="abtn" type="button" data-lp-view="' + esc(c.id) + '">👁 Preview</button>'
+      + ' <button class="abtn" type="button" data-lp-copy="' + esc(c.id) + '">⧉ Copy HTML</button>'
+      + ' <button class="abtn" type="button" data-lp-dl="' + esc(c.id) + '">⬇ Download</button></div>';
+  }
+  document.addEventListener('click', (e) => {
+    const view = e.target.closest('[data-lp-view]');
+    if (view) {
+      const html = landingHtmlFor(view.dataset.lpView);
+      if (!html) { toast('That page is no longer stored'); return; }
+      // Blob URL, not srcdoc: the preview must be byte-identical to the file
+      // that gets downloaded.
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      return;
+    }
+    const copy = e.target.closest('[data-lp-copy]');
+    if (copy) {
+      const html = landingHtmlFor(copy.dataset.lpCopy);
+      if (!html) { toast('That page is no longer stored'); return; }
+      navigator.clipboard.writeText(html).then(() => toast('Landing page HTML copied'), () => toast('Copy failed'));
+      return;
+    }
+    const dl = e.target.closest('[data-lp-dl]');
+    if (dl) {
+      const html = landingHtmlFor(dl.dataset.lpDl);
+      if (!html) { toast('That page is no longer stored'); return; }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      a.download = 'landing-' + dl.dataset.lpDl + '.html';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      return;
+    }
+    const retry = e.target.closest('[data-lp-retry]');
+    if (retry) {
+      const id = retry.dataset.lpRetry;
+      const CH = [['google', renderGoogle], ['meta', renderMeta], ['tiktok', renderTikTok]];
+      for (const [surface, rerender] of CH) {
+        const rec = store[surface].filter((x) => x.id === id)[0];
+        if (rec) { buildLandingForCampaign(surface, rec, rerender, true); return; }
+      }
+    }
+  });
+
   // ── Master prompt (copy anywhere) ─────────────────────────────────────
   // The single portable prompt for this ad. The /api/ai/generate autofill
   // response now returns `master_prompt`; we cache it per channel and let the
@@ -3722,6 +3846,7 @@ try{
         ${(c.headlines || []).length ? `<div class="item-copy"><span class="h">Headlines:</span> ${c.headlines.map(esc).join(' · ')}</div>` : ''}
         ${(c.descriptions || []).length ? `<div class="item-copy">${c.descriptions.map(esc).join('<br>')}</div>` : ''}
         ${creativeThumbs(c)}
+        ${landingBlockHtml(c)}
         ${adActionsHtml('google', c)}
       </div>`).join('') : '<div class="empty">No Google campaigns yet.</div>';
     $('#g-list').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { store.google = store.google.filter((x) => x.id !== b.dataset.rm); save(); renderGoogle(); }));
@@ -3733,6 +3858,7 @@ try{
       headlines: lines($('#g-headlines').value).map((h) => clampLen(h, 30)), descriptions: lines($('#g-desc').value).map((d) => clampLen(d, 90)) };
     attachCreative('g', rec); store.google.unshift(rec);
     save(); renderGoogle(); persistAd('google', rec); ['g-name', 'g-budget', 'g-url', 'g-keywords', 'g-headlines', 'g-desc'].forEach((id) => $('#' + id).value = ''); toast('Campaign saved');
+    buildLandingForCampaign('google', rec, renderGoogle);
   };
 
   // ── Meta list ──────────────────────────────────────────────────────
@@ -3746,6 +3872,7 @@ try{
         ${c.primary ? `<div class="item-copy">${esc(c.primary)}</div>` : ''}
         ${c.headline ? `<div class="item-copy"><span class="h">${esc(c.headline)}</span></div>` : ''}
         ${creativeThumbs(c)}
+        ${landingBlockHtml(c)}
         ${adActionsHtml('meta', c)}
       </div>`).join('') : '<div class="empty">No Meta campaigns yet.</div>';
     $('#m-list').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { store.meta = store.meta.filter((x) => x.id !== b.dataset.rm); save(); renderMeta(); }));
@@ -3756,6 +3883,7 @@ try{
       place: $('#m-place').value, aud: $('#m-aud').value.trim(), primary: clampLen($('#m-primary').value.trim(), 125), headline: clampLen($('#m-headline').value.trim(), 40) };
     attachCreative('m', rec); store.meta.unshift(rec);
     save(); renderMeta(); persistAd('meta', rec); ['m-name', 'm-budget', 'm-aud', 'm-primary', 'm-headline'].forEach((id) => $('#' + id).value = ''); toast('Campaign saved');
+    buildLandingForCampaign('meta', rec, renderMeta);
   };
 
   // ── TikTok Ads ─────────────────────────────────────────────────────
@@ -3768,6 +3896,7 @@ try{
         <div class="item-copy" style="margin-top:6px"><span class="h">${esc(c.hook || '')}</span><br>${esc(c.caption || '')}</div>
         ${c.hashtags ? `<div class="item-meta" style="margin-top:6px"><span>${esc(c.hashtags)}</span></div>` : ''}
         ${creativeThumbs(c)}
+        ${landingBlockHtml(c)}
         ${adActionsHtml('tiktok', c)}
       </div>`).join('') : '<div class="empty">No TikTok campaigns yet.</div>';
     $('#t-list').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { store.tiktok = store.tiktok.filter((x) => x.id !== b.dataset.rm); save(); renderTikTok(); }));
@@ -3779,6 +3908,7 @@ try{
       creator: $('#t-creator').value.trim(), hashtags: $('#t-hash').value.trim() };
     attachCreative('t', rec); store.tiktok.unshift(rec);
     save(); renderTikTok(); persistAd('tiktok', rec); ['t-name','t-budget','t-aud','t-hook','t-caption','t-creator','t-hash'].forEach((id) => $('#' + id).value = ''); toast('Campaign saved');
+    buildLandingForCampaign('tiktok', rec, renderTikTok);
   };
   $('#t-ai').onclick = async () => {
     const name = $('#t-name').value.trim() || 'TikTok campaign';
@@ -3793,90 +3923,60 @@ try{
   // ── Init ─────────────────────────────────────────────────────────────
   renderAdMkt(); loadAdPlan(); renderGoogle(); renderMeta(); renderTikTok();
 
-  // ── Single-prompt autofill ───────────────────────────────────────────
-  // The Generate-from-prompt bar at the top of each ad form. Calls
-  // /api/ai/generate with mode='autofill' + surface=<channel>, then walks
-  // the returned JSON and sets every form field by key.
-  //
-  // Surface → DOM-id-prefix map (the ad-campaigns forms use single-letter
-  // prefixes per channel: g- for Google, m- for Meta, t- for TikTok).
+  // ── AI generation across the three ad forms ──────────────────────────
+  // Surface → DOM-id map (the ad forms use single-letter prefixes per
+  // channel: g- for Google, m- for Meta, t- for TikTok). The shared studio
+  // bar reads and writes fields through this map; it owns the request shape,
+  // the media handling and the five operations.
   const AI_FIELD_MAP = {
     google: { name:'g-name', type:'g-type', budget:'g-budget', market:'g-market', url:'g-url', keywords:'g-keywords', headlines:'g-headlines', desc:'g-desc' },
     meta:   { name:'m-name', obj:'m-obj',   budget:'m-budget', market:'m-market', place:'m-place', aud:'m-aud', primary:'m-primary', headline:'m-headline' },
     tiktok: { name:'t-name', obj:'t-obj',   budget:'t-budget', market:'t-market', place:'t-place', aud:'t-aud', hook:'t-hook', caption:'t-caption', creator:'t-creator', hashtags:'t-hash' },
   };
-  function setField(id, value) {
-    const el = document.getElementById(id);
-    if (!el || value === undefined || value === null) return;
-    const v = String(value);
-    if (el.tagName === 'SELECT') {
-      // Try exact match first, then case-insensitive contains
-      const opts = [...el.options];
-      const exact = opts.find((o) => o.value === v || o.textContent.trim() === v);
-      const fuzzy = exact || opts.find((o) => o.textContent.trim().toLowerCase().includes(v.toLowerCase()));
-      if (fuzzy) el.value = fuzzy.value;
-    } else {
-      el.value = v;
-    }
-  }
-  document.querySelectorAll('.ai-bar [data-ai-fill]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const bar = btn.closest('.ai-bar');
-      const surface = bar.dataset.surface;
-      const promptEl = bar.querySelector('[data-ai-prompt]');
-      const refEl = bar.querySelector('[data-ai-ref]');
-      const status = bar.querySelector('[data-ai-status]');
-      const prompt = (promptEl.value || '').trim();
-      const reference_url = (refEl?.value || '').trim();
-      if (!prompt) { status.textContent = 'Type what you want first.'; return; }
-      const fieldMap = AI_FIELD_MAP[surface];
-      if (!fieldMap) { status.textContent = 'Unknown surface: ' + surface; return; }
-      const orig = btn.textContent; btn.disabled = true; btn.textContent = '✨ Filling… (5-15s)';
-      status.textContent = '';
-      try {
-        const r = await fetch('/api/ai/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode: 'autofill', surface, prompt, reference_url, market: document.getElementById(fieldMap.market)?.value || 'US' }),
-        });
-        const d = await r.json();
-        if (!r.ok || !d) { status.textContent = 'Failed: ' + (d?.error || r.statusText); return; }
-        // Some providers wrap the JSON in { text: '...' } or in ```json fences.
-        const safeJson = (t) => {
-          if (t && typeof t === 'object') return t;
-          const s = String(t || '');
-          try { return JSON.parse(s); } catch (_) {}
-          const stripped = s.replace(/^```(?:json)?\s*/im, '').replace(/```\s*$/m, '').trim();
-          try { return JSON.parse(stripped); } catch (_) {}
-          const a = s.indexOf('{'), b = s.lastIndexOf('}');
-          if (a !== -1 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch (_) {} }
-          return null;
-        };
-        const fields = safeJson(typeof d === 'string' ? d : (d.text != null ? d.text : d)) || {};
-        // Cache the server-returned master prompt for the "Copy master prompt"
-        // button (surface google|meta|tiktok → channel key g|m|t).
-        const mp = (d && d.master_prompt) || (fields && fields.master_prompt) || '';
-        const chKey = { google: 'g', meta: 'm', tiktok: 't' }[surface];
+  // Per-surface landing-page brief, derived server-side from the ad copy that
+  // was just generated. Consumed when the campaign is saved.
+  const lastLandingBrief = { google: '', meta: '', tiktok: '' };
+  // ── The five AI operations (Fill · Suggest · New · Enhance · Clear) ──
+  // Owned by the shared /ai-studio-bar.js so the ad builders and the landing
+  // page builder behave identically and cannot drift apart. This page only
+  // declares how to reach its own fields, and keeps the two pieces of
+  // bookkeeping that are specific to it: the portable master prompt, and the
+  // LLM-authored on-creative overlay the canvas compositor renders.
+  const AI_SURFACE_CHANNEL = { google: 'g', meta: 'm', tiktok: 't' };
+  Object.keys(AI_FIELD_MAP).forEach((surface) => {
+    const map = AI_FIELD_MAP[surface];
+    window.AIStudioBar.register(surface, {
+      keys: Object.keys(map),
+      resolve: (key) => (map[key] ? document.getElementById(map[key]) : null),
+      market: () => document.getElementById(map.market)?.value || 'US',
+      // Presence of `landing` turns on the "also build the landing page"
+      // toggle, checked by default: an ad is never shipped without the page
+      // it points at.
+      landing: { channel: surface },
+      onApply: (fields, meta) => {
+        const d = (meta && meta.response) || {};
+        const chKey = AI_SURFACE_CHANNEL[surface];
+        // Cache the server-returned master prompt for "Copy master prompt".
+        const mp = d.master_prompt || fields.master_prompt || '';
         if (mp && chKey) lastMasterPrompt[chKey] = mp;
         // Capture the LLM-authored on-creative overlay (real offer + baked-in
         // headline/sub) so the compositor renders it instead of raw form text.
-        const spec = (d && Array.isArray(d.creative_spec)) ? d.creative_spec : null;
+        const spec = Array.isArray(d.creative_spec) ? d.creative_spec : null;
         const overlay = (spec && spec[0] && spec[0].overlay)
           || { headline: fields.overlay_headline, sub: fields.overlay_sub, offer: fields.offer };
         if (chKey && overlay && (overlay.headline || overlay.sub || overlay.offer)) {
           adSpec[chKey] = { headline: overlay.headline || '', sub: overlay.sub || '', offer: overlay.offer || '' };
         }
-        let filled = 0;
-        for (const key in fieldMap) {
-          if (fields[key] !== undefined) { setField(fieldMap[key], fields[key]); filled++; }
-        }
-        status.textContent = filled ? `Filled ${filled} fields — review and save.` : 'No matching fields returned. Try a more specific prompt.';
-        toast('Form pre-filled — tweak and save');
-      } catch (err) {
-        status.textContent = 'Error: ' + err.message;
-      } finally {
-        btn.disabled = false; btn.textContent = orig;
-      }
+        // Remember the page brief the server derived from THIS ad's own copy,
+        // so the landing page built at save time matches the ad exactly.
+        if (d.landing_page_brief) lastLandingBrief[surface] = d.landing_page_brief;
+        toast(meta.op === 'new' ? 'New direction written' : (meta.op === 'enhance' ? 'Copy enhanced' : 'Form pre-filled'));
+      },
+      onClear: () => {
+        const chKey = AI_SURFACE_CHANNEL[surface];
+        if (chKey) { adSpec[chKey] = null; lastMasterPrompt[chKey] = ''; }
+        lastLandingBrief[surface] = '';
+      },
     });
   });
   // Open on the first channel. Deliberately NOT seeded from location.hash: that

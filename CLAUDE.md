@@ -86,6 +86,40 @@ Each page is a **standalone, self-contained `.html` file** (inline CSS + JS, oft
   When porting a page into another here, remember the two traps this merge hit: prefix the ported CSS with the
   host panel id (rewriting its `:root`/`html`/`body` rules), and check for a ported top-level router that assumes
   it owns `location.hash` or sweeps `.tab`/`.panel` globally — scope it to its own panel.
+  **Third trap, hit later (2026-08-01): a merge can delete the FEATURE'S ENTRANCES while keeping its code.**
+  Creating ads survived the merge as the Creative Studio tab but became unreachable — the only nav row was named
+  "…Master Dashboard", nothing deep-linked `#crestudio`, `INFO.adsmaster` listed "Eleven tabs" without it, and
+  `INFO.ads` (the one real description of the builder) was orphaned because no nav item had id `ads`. One page can
+  host two jobs; when it does, each job needs its OWN nav row, its own INFO entry, and its own route. Now:
+  `/ads`, `/ad-creation`, `/creative-studio` 307 → `/ads-master#crestudio` (a rewrite cannot carry a hash, so these
+  must be redirects), nav row `ads` "Ad Creation (Creative Studio)" sits beside `adsmaster`, and
+  `tests/ad-creation.spec.js` locks the entrances so a future consolidation fails CI instead of vanishing again.
+
+### Asset creation: five ops, any input, and the page always comes with it
+- **`ai-studio-bar.js`** (shared front-end, alongside `chart-enhance.js`/`table-sort.js`) upgrades every
+  `.ai-bar[data-surface]` into the full creation control: **Fill · Suggest · New · Enhance · Clear**, plus
+  reference inputs for a page/ad URL, images and videos (URL or upload). A host page only registers how to reach
+  its own fields (`AIStudioBar.register(surface, {keys, resolve, market, landing, onApply, onClear})`); the module
+  owns request shape, media handling, suggestion chips and error reporting. Used by the Creative Studio ad forms
+  (`google`/`meta`/`tiktok`) and `landing-pages.html` (`lp-*`), so the two cannot drift.
+  Uploads cap at **3MB** (Vercel's 4.5MB request-body limit, +33% for base64); bigger files go in as a URL and the
+  server fetches them.
+- **`api/_shared/reference-intel.js`** turns any reference into prose the text-only waterfall can read: bounded
+  page fetch (title/meta/headings/CTAs, not just a text dump) and a vision pass for media — Gemini (images **and**
+  video, incl. YouTube URLs directly) → OpenAI → Anthropic (images only). Teaching all ten `llm.js` providers a
+  multimodal message shape would have been far riskier; describe once, pass prose down. **A reference that cannot
+  be read is reported as unread** (`reference_warnings`, shown in the bar) and the prompt explicitly says not to
+  imagine it — an invented "the ad shows a 40% off badge" would otherwise be laundered into live copy as fact.
+- **`?mode=autofill` now takes `op` (`fill|suggest|new|enhance`), `current` (the form's values), and `media[]`.**
+  Temperature is per-op (enhance 0.5 stays faithful, new 1.0 actually diverges); `suggest` returns
+  `{suggestions:{field:[3 options]}}` and never writes to the form. `clear` is client-side only.
+- **Every asset generates its landing page by default** (product-owner rule, 2026-08-01). Saving a campaign in
+  Creative Studio builds its page from `landing_page_brief` — derived server-side from *that ad's own* copy, so the
+  page cannot promise what the ad did not say — and stores it in `store.landing` with Preview/Copy/Download on the
+  campaign card; the per-surface toggle is checked by default. Mailer Studio does the same at Step 5
+  (`#step5LandingPanel`, signature-guarded so market/variant switches don't re-spend a generation). In
+  `lib/smart-brain/services.js` the page is no longer gated on `landing_page` being in the slot's channel mix —
+  ads were built unconditionally, so a slot could ship an ad set whose clicks had nowhere on-brand to land.
 
 ### Backend: Vercel serverless functions under `api/`
 **Hard constraint — Hobby plan caps Serverless Functions at 12.** The app sits at that limit, which dictates the structure:

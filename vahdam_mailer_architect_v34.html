@@ -17,6 +17,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- Lifecycle OS shared auth + cross-step nav -->
 <script src="/auth.js?v=20260718light" defer></script>
+<!-- Shared landing-page helper: the Studio builds the page each mailer links to. -->
+<script src="/ai-studio-bar.js" defer></script>
 <style id="lifecycle-os-overrides">
   /* When this Studio is rendered inside the Lifecycle OS shell (auth.js
      injects body.lifecycle-os-mode), suppress the Studio's own duplicate
@@ -1245,6 +1247,8 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
     <div id="step5StrategicBrief" style="margin-top:18px"></div>
     <!-- Unified Region → Variant → Preview/Download panel (same pattern across the app) -->
     <div id="step5UnifiedPanel" style="margin-top:18px"></div>
+    <!-- The page this mailer links to, built with the mailer by default. -->
+    <div id="step5LandingPanel" style="margin-top:18px"></div>
     <!-- Legacy full grid (kept hidden by default — toggle via "Show all variants" in unified panel) -->
     <div id="allMailersMatrix" style="margin-top:18px;display:none"></div>
     <div class="btn-row" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);flex-wrap:wrap;gap:8px">
@@ -7814,6 +7818,97 @@ function buildStep5UI(prompt,prods,market){
   // Mark prompt with a "✓ Inputs applied" signal in the prompt panel label
   const genPromptLbl=document.getElementById('genPromptPanelLbl');
   if(genPromptLbl)genPromptLbl.textContent='Image Generation Prompt · '+type+' Theme';
+  buildStep5Landing(prompt,prods,market);
+}
+
+// ── The mailer ships with the page it links to ──────────────────────────────
+// Product-owner rule: generating an asset generates its landing page too, by
+// default. A mailer whose CTA lands on a generic collection page throws away
+// the promise the email just made, so the page is built here from the mailer's
+// own copy and offer, and nothing else.
+//
+// Guarded by a signature so the expensive call fires ONCE per finished mailer:
+// buildStep5UI re-runs on every market and variant switch, and each of those
+// must not spend another generation.
+var _lpSig='';
+var _lpState={status:'idle',html:'',error:''};
+function buildStep5Landing(prompt,prods,market){
+  const box=document.getElementById('step5LandingPanel');
+  if(!box)return;
+  const wanted=(function(){ try{ return localStorage.getItem('vahdam-studio-autolp')!=='0'; }catch(e){ return true; } })();
+  const html=(window.S&&S.finalHTML)||'';
+  const sig=[market,(prompt||'').slice(0,120),html.length].join('|');
+
+  function paint(){
+    const toggle='<label style="display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#171717;cursor:pointer">'
+      +'<input type="checkbox" id="lpAuto" '+(wanted?'checked':'')+' style="accent-color:#004A2B;cursor:pointer"> Build the landing page with every mailer</label>';
+    let body;
+    if(!wanted) body='<div style="font-size:11.5px;color:#666">Off — this mailer will ship without a matching page.</div>';
+    else if(_lpState.status==='building') body='<div style="font-size:11.5px;color:#666">Building the page this mailer links to…</div>';
+    else if(_lpState.status==='failed') body='<div style="font-size:11.5px;color:#a33">Could not build the page: '+String(_lpState.error||'')
+      +' <button onclick="retryStep5Landing()" style="font-size:10px;padding:3px 10px;background:transparent;border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--g);font-weight:600;font-family:inherit">Retry</button></div>';
+    else if(_lpState.status==='ready') body='<div style="font-size:11.5px;color:#004A2B;display:flex;gap:8px;align-items:center;flex-wrap:wrap">Page ready, matched to this mailer.'
+      +'<button onclick="previewStep5Landing()" style="font-size:10px;padding:3px 10px;background:transparent;border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--g);font-weight:600;font-family:inherit">Preview</button>'
+      +'<button onclick="copyStep5Landing()" style="font-size:10px;padding:3px 10px;background:transparent;border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--g);font-weight:600;font-family:inherit">Copy HTML</button>'
+      +'<button onclick="downloadStep5Landing()" style="font-size:10px;padding:3px 10px;background:transparent;border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--g);font-weight:600;font-family:inherit">Download</button></div>';
+    else body='<div style="font-size:11.5px;color:#666">Waiting for the mailer.</div>';
+    box.innerHTML='<div class="panel"><div class="plbl">Landing Page &nbsp;<span style="font-weight:400;color:#888;font-size:9px;text-transform:none;letter-spacing:0">the page this mailer links to</span></div>'
+      +body+'<div style="margin-top:9px">'+toggle+'</div></div>';
+    const cb=document.getElementById('lpAuto');
+    if(cb)cb.onchange=function(){
+      try{ localStorage.setItem('vahdam-studio-autolp',cb.checked?'1':'0'); }catch(e){}
+      _lpSig=''; buildStep5Landing(prompt,prods,market);
+    };
+  }
+
+  if(!wanted||!html){ paint(); return; }
+  if(sig===_lpSig){ paint(); return; }
+  _lpSig=sig;
+  _lpState={status:'building',html:'',error:''};
+  paint();
+
+  // The brief is derived from the mailer that was just built — its subject
+  // lines, its products, its market. Nothing is added: no offer the email did
+  // not make, no proof it did not show.
+  const subjects=Array.prototype.slice.call(document.querySelectorAll('#subjLines *'))
+    .map(function(n){return (n.textContent||'').trim();}).filter(Boolean).slice(0,3);
+  const productList=(prods||[]).map(function(p){return p&&p.n?String(p.n).split(',')[0]:'';}).filter(Boolean);
+  const brief=[
+    'Build the landing page that this VAHDAM email links to.',
+    'Market: '+market,
+    prompt?'The campaign brief the email was written from:\n"""\n'+prompt+'\n"""':'',
+    subjects.length?'Subject lines the reader already saw:\n'+subjects.join('\n'):'',
+    productList.length?'Products featured in the email, and therefore on the page: '+productList.join(', '):'',
+    'MESSAGE MATCH IS THE JOB: the hero must continue the email’s promise in the email’s own language. Someone who clicked from that email has to recognise the page instantly.',
+    'Do not add any price, discount, rating, review count, guarantee or claim that is not written above. If a fact is missing, leave it out rather than inventing it.',
+    'One primary call to action, repeated. Mobile-first.'
+  ].filter(Boolean).join('\n\n');
+
+  if(!window.AIStudioBar){ _lpState={status:'failed',html:'',error:'the landing page helper did not load'}; paint(); return; }
+  window.AIStudioBar.generateLandingPage({brief:brief,market:market,channel:'email'}).then(function(out){
+    _lpState=out.ok?{status:'ready',html:out.html,error:''}:{status:'failed',html:'',error:out.error};
+    paint();
+  });
+}
+function retryStep5Landing(){ _lpSig=''; buildStep5Landing((window.S&&S.prompt)||'',(window.S&&S.finalProds)||[],(window.S&&S.activeMarket)||'US'); }
+function previewStep5Landing(){
+  if(!_lpState.html)return;
+  // Blob URL, not srcdoc: the preview is byte-identical to the download.
+  const u=URL.createObjectURL(new Blob([_lpState.html],{type:'text/html'}));
+  window.open(u,'_blank','noopener');
+  setTimeout(function(){URL.revokeObjectURL(u);},60000);
+}
+function copyStep5Landing(){
+  if(!_lpState.html)return;
+  navigator.clipboard.writeText(_lpState.html);
+}
+function downloadStep5Landing(){
+  if(!_lpState.html)return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([_lpState.html],{type:'text/html'}));
+  a.download='landing-page.html';
+  a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},60000);
 }
 
 

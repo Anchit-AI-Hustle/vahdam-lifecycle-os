@@ -41,6 +41,8 @@ test-output/
 test-results/
 tests/report/
 playwright-report/
+# studio.spec.js writes debug screenshots here on every run.
+tests/screenshots/
 
 # Compiled analysis exports (keep the README, ignore the workbooks)
 output/*.xlsx
