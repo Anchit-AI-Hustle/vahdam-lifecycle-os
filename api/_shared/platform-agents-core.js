@@ -222,16 +222,18 @@ async function runAgent(id, opts = {}) {
     });
   }
 
-  let analysis = { insights: [], action_items: [], summary: null, grounded: false };
-  try { analysis = await analyse(agent, collected, { question, tier, timeoutMs }); }
-  catch (e) {
+  try {
+    const analysis = await analyse(agent, collected, { question, tier, timeoutMs });
+    return Object.assign(base, { analysed: analysis.grounded }, analysis, { took_ms: Date.now() - started });
+  } catch (e) {
+    // The fetch succeeded and the metrics above are real; only the
+    // interpretation failed. Say exactly that rather than dropping the data.
     return Object.assign(base, {
       analysed: false, insights: [], action_items: [],
       summary: `${agent.label} data was fetched but the analysis step failed (${String(e && e.message || e).slice(0, 120)}). The metrics above are real; no interpretation is offered.`,
       took_ms: Date.now() - started,
     });
   }
-  return Object.assign(base, { analysed: analysis.grounded }, analysis, { took_ms: Date.now() - started });
 }
 
 /**

@@ -39,7 +39,13 @@ test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)
 
 test.describe('ads render at their real aspect', () => {
   test('aspect comes from the ad, then the platform, never a fixed height', async ({ page }) => {
-    await page.goto(`${BASE}/smart-brain.html`);
+    // smart-brain.html boots auth and registers a service worker after load, so
+    // a bare goto() can still be navigating when evaluate() runs — that races to
+    // "Execution context was destroyed". Wait for the network to settle, then
+    // for the function under test to exist: waitForFunction is re-injected
+    // across navigations, so it survives the redirect that evaluate() cannot.
+    await page.goto(`${BASE}/smart-brain.html`, { waitUntil: 'networkidle' });
+    await page.waitForFunction(() => typeof window.adAspect === 'function' && typeof window.adFrameCss === 'function');
     const out = await page.evaluate(() => {
       return {
         explicit: adAspect({ aspect: '4:5' }),
