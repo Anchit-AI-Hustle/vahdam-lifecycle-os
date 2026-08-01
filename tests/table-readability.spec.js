@@ -142,14 +142,16 @@ test('long identifiers wrap instead of running off, and stay within a bounded wi
 // that a set is re-serving the same people, so their absence was not cosmetic.
 test('the ads table renders every field the ads view returns', () => {
   const js = fs.readFileSync(path.join(ROOT, 'data-analysis-extensions.js'), 'utf8');
-  const core = fs.readFileSync(path.join(ROOT, 'api', '_shared', 'data-analysis-core.js'), 'utf8');
-
-  // Fields the normaliser builds for every ad row, taken from the source rather
-  // than hardcoded here.
+  // Ask the normaliser what it actually produces rather than grepping for
+  // "field:" — shorthand properties (`spend, impressions, clicks`) never match
+  // that pattern, and the old assertion only passed because unrelated object
+  // literals elsewhere in the file happened to contain the same tokens.
+  const adRows = require(path.join(ROOT, 'api', '_shared', 'ad-rows-core.js'));
   const produced = ['platform', 'level', 'entity', 'entity_id', 'campaign', 'ad_group', 'status', 'spend',
     'impressions', 'clicks', 'ctr', 'cpc', 'cpm', 'conversions', 'conversion_rate', 'cpa', 'revenue', 'roas', 'reach', 'frequency'];
+  const sample = adRows.rowsFor({ ok: true, platform: 'meta', level: 'ad', data: [{ ad_id: 'a', spend: 1 }] })[0];
   for (const f of produced) {
-    expect(core, `data-analysis-core should still produce ${f}`).toContain(`${f}:`);
+    expect(sample, `ad-rows-core should still produce ${f}`).toHaveProperty(f);
   }
 
   const mapper = adsRowMapper(js);

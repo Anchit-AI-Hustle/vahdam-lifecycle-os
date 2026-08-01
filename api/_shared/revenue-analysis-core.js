@@ -41,6 +41,8 @@
 
 const market = require('./market-analytics.js');
 const adInsights = require('./ad-insights-core.js');
+const adRows = require('./ad-rows-core.js');
+const snow = require('./ads-snowflake-core.js');
 const klaviyo = require('./klaviyo-core.js');
 const webengage = require('./webengage-core.js');
 const pagedeck = require('./pagedeck-core.js');
@@ -59,6 +61,38 @@ const EXCLUDED_SOURCES = [{
   excluded_because: 'Seed fixtures, not real trade. Sequential ids (o_01317), placeholder SKUs (VAH-US-004), whole-dollar totals, discounts only ever 0/5/10/15, a single rfm_segment value. Reporting these as revenue would present fabricated money as real.',
   to_make_usable: 'Replace with a real order feed (Shopify Admin via /api/shopify, or a warehouse mirror of live orders).',
 }];
+
+/**
+ * The ad account connector registry, scoped to a market. Exposed alongside the
+ * cuts so a reader can see WHICH accounts the revenue figures could have come
+ * from, and how many of them are structurally incapable of reporting revenue.
+ */
+function accountRegistry(mk) {
+  let all = [];
+  try { all = snow.adAccounts().map(snow.describeAccount); }
+  catch (_) { return { accounts: [], summary: null }; }
+  const scoped = all.filter((a) => !mk || !a.region || a.region === mk);
+  const accounts = scoped.map((a) => ({
+    id: a.id, label: a.label, platform: a.platform, region: a.region, status: a.status,
+    account_id: a.account_id, kpi: a.kpi, attribution: a.attribution,
+    can_report_revenue: a.kpi === 'roas',
+    attribution_note: a.attribution_note || null,
+    fresh_to: a.fresh_to, stale_days: a.stale_days, freshness: a.freshness,
+  }));
+  const byPlatform = {};
+  accounts.forEach((a) => { byPlatform[a.platform] = (byPlatform[a.platform] || 0) + 1; });
+  return {
+    accounts,
+    summary: {
+      feeds: accounts.length,
+      live: accounts.filter((a) => a.status === 'live').length,
+      by_platform: byPlatform,
+      revenue_capable: accounts.filter((a) => a.can_report_revenue).length,
+      traffic_only: accounts.filter((a) => !a.can_report_revenue).length,
+      note: 'traffic_only accounts are retail-media feeds whose checkout happens on a third-party site, so no VAHDAM pixel fires. They report zero purchases by construction — judge them on CTR, CPC, CPM and reach, never ROAS.',
+    },
+  };
+}
 
 function cut(key, label, grain, extra) {
   return Object.assign({ key, label, grain, available: false, source: null, rows: [], blocker: null, note: null }, extra || {});
@@ -152,49 +186,50 @@ const AD_LEVELS = [
   { key: 'ad', label: 'Revenue by ad / creative', level: 'ad', grain: 'ad' },
 ];
 
-function metaRevenueRow(x, platform, level) {
-  const actions = Array.isArray(x.action_values) ? x.action_values : [];
-  // First present, never summed — Meta repeats a purchase under several types.
-  let revenue = 0;
-  for (const k of ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase']) {
-    const hit = actions.find((a) => String(a.action_type) === k);
-    if (hit) { revenue = n(hit.value); break; }
-  }
-  const spend = n(x.spend);
-  return {
-    platform, level,
-    entity: x.ad_name || x.adset_name || x.campaign_name || x.account_name || '(unnamed)',
-    entity_id: x.ad_id || x.adset_id || x.campaign_id || x.account_id || '',
-    campaign: x.campaign_name || '', adset: x.adset_name || '',
-    spend: round(spend), revenue: round(revenue),
-    roas: spend ? round(revenue / spend, 2) : null,
-    profit: round(revenue - spend),
-  };
-}
-
-async function adCut(spec, mk, since, until) {
+/**
+ * Every ad cut reads ALL THREE platforms through the shared normaliser in
+ * ad-rows-core, so Meta, Google Ads and TikTok each contribute real rows. This
+ * previously mapped Meta only and told the reader that Google and TikTok were
+ * "served by the Live Ads view", which meant a connected Google account
+ * contributed nothing to revenue by campaign.
+ */
+async function adCut(spec, mk, since, until, registry) {
   const results = await Promise.all(adInsights.PLATFORMS.map((p) =>
     adInsights.insights({ platform: p, market: mk, metricGroup: 'conversion', level: spec.level, since, until })
       .catch((e) => ({ ok: false, platform: p, error: e.message }))));
 
   const rows = [];
   const blockers = [];
+  const contributing = [];
   for (const r of results) {
     if (!r) continue;
     if (r.not_connected) { blockers.push(`${r.platform}: set ${(r.need_env || []).join(', ')}`); continue; }
     if (!r.ok) { blockers.push(`${r.platform}: ${String(r.error).slice(0, 90)}`); continue; }
-    if (r.platform === 'meta') (r.data || []).forEach((x) => rows.push(metaRevenueRow(x, 'Meta', spec.level)));
-    // Google and TikTok payload shapes differ per level; they are normalised by
-    // the existing ads view. Rather than duplicate that mapping (and risk it
-    // drifting), a connected-but-unmapped platform is reported honestly.
-    else blockers.push(`${r.platform}: connected, revenue mapping for this level is served by the Live Ads view`);
+    const mapped = adRows.rowsFor(r);
+    contributing.push(`${r.platform} (${mapped.length})`);
+    mapped.forEach((x) => rows.push({
+      platform: x.platform, level: x.level, entity: x.entity, entity_id: x.entity_id,
+      campaign: x.campaign, adset: x.ad_group, account: x.account_name || x.account_id || null,
+      spend: round(x.spend), revenue: round(x.revenue), conversions: round(x.conversions, 2),
+      // A retail-media row has no pixel, so 0 conversions is expected, not a
+      // result. Reporting ROAS 0 there would read as "sold nothing".
+      roas: x.conversions || x.revenue ? round(x.roas, 2) : null,
+      cpa: x.conversions ? round(x.cpa) : null,
+      profit: x.revenue ? round(x.revenue - x.spend) : null,
+      impressions: x.impressions, clicks: x.clicks,
+      ctr: round(x.ctr, 4), cpc: round(x.cpc, 3), cpm: round(x.cpm),
+    }));
   }
+  const totals = adRows.rollup(rows.map((x) => ({ ...x, ad_group: x.adset })));
   return cut(spec.key, spec.label, spec.grain, {
     available: rows.length > 0,
-    source: rows.length ? 'Ad platform reporting APIs (revenue = purchase action values)' : null,
-    rows: rows.sort((a, b) => b.revenue - a.revenue),
+    source: rows.length ? `Ad platform reporting APIs — ${contributing.join(', ')}` : null,
+    rows: rows.sort((a, b) => n(b.revenue) - n(a.revenue) || n(b.spend) - n(a.spend)),
+    totals: rows.length ? totals : null,
+    accounts: registry && registry.length ? registry : null,
     blocker: rows.length ? null : (blockers.join(' · ') || 'No ad platform connected.'),
-    note: 'Ad-platform revenue is platform-attributed and will not tie exactly to Shopify totals — attribution windows and view-through differ by platform.',
+    note: 'Ad-platform revenue is platform-attributed and will not tie exactly to Shopify totals — attribution windows and view-through differ by platform.'
+      + (rows.length && !totals.revenue_trustworthy ? ' ' + totals.revenue_note : ''),
   });
 }
 
@@ -257,8 +292,15 @@ async function revenue({ market: mk = 'US', since, until, days = 30, hours = 720
   const mkN = market.normMarket(mk);
   const perf = market.performance(mkN);
 
+  // The ad ACCOUNT CONNECTORS: which accounts exist, on which platform, whether
+  // the feed is live, and — the part that changes the numbers — whether the
+  // account can attribute revenue at all. Roughly half are retail-media feeds
+  // (Target, Costco, Instacart, Amazon) whose checkout happens off-site with no
+  // VAHDAM pixel, so they are kpi:'traffic' and can never produce a ROAS.
+  const registry = accountRegistry(mkN);
+
   const [platform, campaign, adset, ad, mailer, landing, live] = await Promise.all([
-    ...AD_LEVELS.map((spec) => adCut(spec, mkN, since, until)),
+    ...AD_LEVELS.map((spec) => adCut(spec, mkN, since, until, registry.accounts)),
     mailerCut(mkN, hours),
     landingCut(mkN),
     liveCommerce(mkN, days),
@@ -292,6 +334,7 @@ async function revenue({ market: mk = 'US', since, until, days = 30, hours = 720
       blocked_keys: cuts.filter((c) => !c.available).map((c) => c.key),
     },
     cuts,
+    ad_accounts: registry.summary,
     excluded_sources: EXCLUDED_SOURCES,
     note: 'Every revenue cut is listed whether or not it has data. A blocked cut names the source that would answer it — no cut is filled with zeroes or estimates.',
   };

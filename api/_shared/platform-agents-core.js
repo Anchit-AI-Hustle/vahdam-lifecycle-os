@@ -36,6 +36,8 @@ const { EVIDENCE_CONTRACT } = require('./feature-agent.js');
 
 const shopify = require('./shopify-core.js');
 const adInsights = require('./ad-insights-core.js');
+const adRows = require('./ad-rows-core.js');
+const snow = require('./ads-snowflake-core.js');
 const klaviyo = require('./klaviyo-core.js');
 const webengage = require('./webengage-core.js');
 const pagedeck = require('./pagedeck-core.js');
@@ -74,32 +76,76 @@ async function collectShopify({ market, days }) {
   };
 }
 
+/**
+ * Every ad agent reads its OWN platform at three levels and normalises through
+ * the shared mapper, so Google and TikTok get the same treatment Meta does.
+ * It also reads that platform's slice of the ad ACCOUNT CONNECTOR registry, so
+ * the agent knows which of its accounts can attribute revenue at all — half of
+ * them are retail-media feeds with no pixel, and an agent that does not know
+ * that will "discover" a collapsed ROAS every single run.
+ */
+function platformAccounts(platform, market) {
+  try {
+    return snow.adAccounts().map(snow.describeAccount)
+      .filter((a) => a.platform === platform && (!market || !a.region || a.region === market))
+      .map((a) => ({ id: a.id, label: a.label, status: a.status, account_id: a.account_id, kpi: a.kpi,
+        can_report_revenue: a.kpi === 'roas', attribution: a.attribution, fresh_to: a.fresh_to, stale_days: a.stale_days }));
+  } catch (_) { return []; }
+}
+
 async function collectAdPlatform(platform, { market, since, until }) {
+  const accounts = platformAccounts(platform, market);
   if (!adInsights.isConnected(platform, market)) {
     const probe = await adInsights.insights({ platform, market, level: 'account' }).catch(() => null);
-    return offline(`Set ${((probe && probe.need_env) || []).join(', ') || platform + ' credentials'} in Vercel env.`);
+    return Object.assign(
+      offline(`Set ${((probe && probe.need_env) || []).join(', ') || platform + ' credentials'} in Vercel env.`),
+      // Even offline the agent reports the accounts it WOULD read, so the
+      // connection step names what is actually waiting behind it.
+      { raw: { known_accounts: accounts.length }, metrics: { accounts } },
+    );
   }
-  const [acct, camp] = await Promise.all([
+  const [acct, camp, ad] = await Promise.all([
     adInsights.insights({ platform, market, metricGroup: 'all', level: 'account', since, until }).catch((e) => ({ ok: false, error: e.message })),
     adInsights.insights({ platform, market, metricGroup: 'conversion', level: 'campaign', since, until }).catch((e) => ({ ok: false, error: e.message })),
+    adInsights.insights({ platform, market, metricGroup: 'all', level: 'ad', since, until }).catch((e) => ({ ok: false, error: e.message })),
   ]);
   if (!acct.ok) return offline(String(acct.error || 'ad platform read failed'));
 
-  const rows = Array.isArray(camp.data) ? camp.data : [];
-  const spendOf = (x) => n(x.spend || (x.metrics && x.metrics.costMicros / 1e6));
-  const totalSpend = rows.reduce((a, x) => a + spendOf(x), 0);
+  const accountRows = adRows.rowsFor(acct);
+  const campaignRows = adRows.rowsFor(camp);
+  const adRowsList = adRows.rowsFor(ad);
+  const totals = adRows.rollup(accountRows.length ? accountRows : campaignRows);
+
   const caveats = [];
   if (!camp.ok) caveats.push(`Campaign-level read failed (${String(camp.error).slice(0, 80)}) — account totals only.`);
-  if (!rows.length) caveats.push('No campaign rows in the window; account figures cannot be attributed to a campaign.');
+  if (!ad.ok) caveats.push(`Ad-level read failed (${String(ad.error).slice(0, 80)}).`);
+  if (!campaignRows.length) caveats.push('No campaign rows in the window; account figures cannot be attributed to a campaign.');
+  if (!totals.revenue_trustworthy) caveats.push(totals.revenue_note);
+  if (accounts.some((a) => !a.can_report_revenue)) {
+    caveats.push(`${accounts.filter((a) => !a.can_report_revenue).length} of ${accounts.length} ${platform} accounts are traffic-KPI retail-media feeds that cannot report revenue. Do not read their zero purchases as poor performance.`);
+  }
+
+  const top = (rows, key) => rows.slice().sort((a, b) => n(b[key]) - n(a[key])).slice(0, 5)
+    .map((x) => ({ entity: x.entity, campaign: x.campaign, spend: round(x.spend), revenue: round(x.revenue), roas: x.conversions || x.revenue ? round(x.roas, 2) : null, ctr: round(x.ctr, 4), cpc: round(x.cpc, 3) }));
+
   return {
     connected: true, source: acct.source, blocker: null, caveats,
-    raw: { account_rows: (acct.data || []).length, campaign_rows: rows.length, window: acct.window },
+    raw: { account_rows: accountRows.length, campaign_rows: campaignRows.length, ad_rows: adRowsList.length, known_accounts: accounts.length, window: acct.window },
     metrics: {
-      platform, window: acct.window, campaigns: rows.length, total_spend: round(totalSpend),
-      // Deliberately not derived further here: each platform names conversions
-      // and revenue differently, and inventing a cross-platform ROAS from
-      // mismatched fields is how a wrong number gets authority.
-      account_payload_fields: Object.keys((acct.data && acct.data[0]) || {}),
+      platform, window: acct.window, accounts,
+      campaigns: campaignRows.length, ads: adRowsList.length,
+      totals: {
+        spend: round(totals.spend), impressions: totals.impressions, clicks: totals.clicks, reach: totals.reach,
+        ctr: totals.ctr == null ? null : round(totals.ctr, 4),
+        cpc: totals.cpc == null ? null : round(totals.cpc, 3),
+        cpm: totals.cpm == null ? null : round(totals.cpm),
+        conversions: round(totals.conversions, 2), revenue: round(totals.revenue),
+        roas: totals.roas == null ? null : round(totals.roas, 2),
+        cpa: totals.cpa == null ? null : round(totals.cpa),
+        revenue_trustworthy: totals.revenue_trustworthy,
+      },
+      top_campaigns_by_spend: top(campaignRows, 'spend'),
+      top_ads_by_spend: top(adRowsList, 'spend'),
     },
   };
 }
