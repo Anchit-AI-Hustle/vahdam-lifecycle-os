@@ -171,13 +171,17 @@ async function fetchPageBrief(url) {
     const headings = collectAll(raw, /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi, 18);
     const ctas = collectAll(raw, /<(?:button|a)[^>]*class=["'][^"']*(?:btn|button|cta)[^"']*["'][^>]*>([\s\S]*?)<\/(?:button|a)>/gi, 12);
 
-    // `</script >` with whitespace before the bracket is a valid end tag, so the
-    // close patterns allow it -- otherwise a page written that way would drop
-    // its entire script body into the brief as if it were copy.
+    // An end tag is `</name` followed EITHER by `>` directly, or by whitespace
+    // and then any junk up to the `>` -- so `</script>`, `</script >` and
+    // `</script\t\n bar>` are all the same end tag to a browser, while
+    // `</scriptfoo>` is not one at all. Matching only `</script>` meant a page
+    // written either of the looser ways dropped its whole script body into the
+    // brief as if it were page copy.
+    const endTag = (name) => new RegExp(`<${name}\\b[\\s\\S]*?<\\/${name}(?:\\s[^>]*)?>`, 'gi');
     const text = raw
-      .replace(/<script\b[\s\S]*?<\/script\s*>/gi, ' ')
-      .replace(/<style\b[\s\S]*?<\/style\s*>/gi, ' ')
-      .replace(/<head\b[\s\S]*?<\/head\s*>/gi, ' ')
+      .replace(endTag('script'), ' ')
+      .replace(endTag('style'), ' ')
+      .replace(endTag('head'), ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()

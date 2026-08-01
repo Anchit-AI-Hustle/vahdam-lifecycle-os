@@ -43,8 +43,12 @@ test.beforeAll(async () => {
         <title>Tea &amp;lt;3 &amp;amp; coffee</title>
         <meta name="description" content="Ros&#233; &#x2014; 5 star">
         </head><body>
-        <script>var x = "leaked_from_script";</script >
+        <script>var x = "leaked_one";</script >
+        <script>var y = "leaked_two";</script\t
+ bar>
+        <style>.c{content:"leaked_three"}</style>
         <p>Real body copy.</p>
+        <p>Not a tag: &lt;/scriptfoo&gt; stays visible.</p>
         </body></html>`);
     }
     if (req.url === '/not-an-image') {
@@ -89,9 +93,15 @@ test.describe('reference-intel', () => {
     // Numeric and hex references still decode. Written as escapes so the
     // assertion cannot drift on this file own Unicode normalisation.
     expect(p.description).toBe("Ros\u00e9 \u2014 5 star");
-    // An end tag written as "</script >" is still an end tag.
-    expect(p.text).not.toContain('leaked_from_script');
+    // "</script >" and "</script\t\n bar>" are both still end tags to a
+    // browser, so neither script body may reach the brief as page copy.
+    expect(p.text).not.toContain('leaked_one');
+    expect(p.text).not.toContain('leaked_two');
+    expect(p.text).not.toContain('leaked_three');
     expect(p.text).toContain('Real body copy');
+    // "</scriptfoo>" is NOT an end tag, so the strip must not over-reach and
+    // swallow the visible copy around it.
+    expect(p.text).toContain('stays visible');
   });
 
   test('a dead reference URL is reported, not silently ignored', async () => {
