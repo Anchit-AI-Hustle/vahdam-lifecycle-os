@@ -11,6 +11,14 @@ module.exports = defineConfig({
   testMatch: /.*\.spec\.js$/,
   timeout: 60_000,
   expect: { timeout: 8_000 },
+  // Retry on CI only. These specs drive real pages that register a service
+  // worker and boot auth, so a handful of them are navigation-race prone: three
+  // separate tests (ad-creation on WebKit, social-media, ad-preview on Pixel 5)
+  // have each failed once and passed on re-run without any code change between.
+  // With no retries a single such race fails the whole suite and turns main red,
+  // which is exactly what happened. Locally retries stay off so a flake is
+  // visible while you are working on it rather than silently absorbed.
+  retries: process.env.CI ? 2 : 0,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'tests/report' }]],
   use: {
     headless: true,
