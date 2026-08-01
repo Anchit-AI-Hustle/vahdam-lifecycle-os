@@ -25,7 +25,10 @@ try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 // No em/en dashes in generated copy (matches the lifecycle builder). Safe no-op
 // if scenario-model is unavailable.
 let dashScrub = (s) => s;
-try { const sm = require('./scenario-model.js'); if (sm && sm.scrubDashes) dashScrub = sm.scrubDashes; } catch (_) {}
+let ctaGate = (s) => s;
+let ctasAgree = () => true;
+try { const sm = require('./scenario-model.js'); if (sm && sm.scrubDashes) dashScrub = sm.scrubDashes;
+  if (sm && sm.sanitizeCta) ctaGate = sm.sanitizeCta; if (sm && sm.ctasAgree) ctasAgree = sm.ctasAgree; } catch (_) {}
 
 // Vahdam Campaign Hub compiler (ported from marketing_automation/) — premium,
 // curated themed landing pages for the wellness/ashwagandha-coffee campaigns it
@@ -140,7 +143,25 @@ JSON shape:
     if (o && typeof o === 'object') return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, walk(v)]));
     return o;
   };
-  return clampAds(walk(copy));
+  const out = clampAds(walk(copy));
+  // CTA promise gate. Every CTA here links to a storefront, collection or PDP,
+  // so a CTA that promises a gated asset ("Download your personalized
+  // performance playbook") is undeliverable at its own destination — and it
+  // shipped once, sitting directly above a button reading "Explore the
+  // collection". The banned-PHRASE scrub above cannot catch it because every
+  // word is individually fine; this catches the promise.
+  if (out) {
+    out.cta_primary = ctaGate(out.cta_primary);
+    out.cta_secondary = ctaGate(out.cta_secondary);
+    // If the two now say the same thing, drop the secondary rather than print
+    // one action twice.
+    if (out.cta_secondary && out.cta_primary
+      && String(out.cta_secondary).trim().toLowerCase() === String(out.cta_primary).trim().toLowerCase()) {
+      out.cta_secondary = '';
+    }
+    if (out.landing && out.landing.offer_stack) out.landing.offer_stack.cta = ctaGate(out.landing.offer_stack.cta);
+  }
+  return out;
 }
 
 // Enforce ad-platform character limits on every ad field, whatever the source

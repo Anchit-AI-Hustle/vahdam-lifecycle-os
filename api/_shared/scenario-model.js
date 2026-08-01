@@ -411,6 +411,70 @@ function assertNoBanned(str, where = '') {
   }
 }
 
+// ── CTA promise gate ────────────────────────────────────────────────────────
+// A generated mailer shipped with the band "DOWNLOAD YOUR PERSONALIZED
+// PERFORMANCE PLAYBOOK" sitting directly above a button reading "Explore the
+// collection", and both linked to a product collection. Two faults in one:
+//
+//   1. VAHDAM has no playbook. The CTA invented a deliverable, which is a
+//      fabricated claim exactly like inventing a price or a review — and the
+//      banned-PHRASE gate above cannot catch it, because every individual word
+//      is fine.
+//   2. The promise and the button contradicted each other, so whichever the
+//      reader believed, the click was going to disappoint.
+//
+// Every mailer/ad/landing CTA in this project links to a storefront, collection
+// or product page. So a CTA may only promise a commerce action. Anything that
+// promises a gated asset (download, guide, playbook, ebook, checklist, report,
+// template, webinar, quiz, audit, consultation, demo, trial) is undeliverable
+// at that destination and is rewritten rather than shipped.
+// Two shapes, because one regex cannot cover both without over-blocking.
+//
+// (a) An ACQUISITION VERB aimed at a gated asset, with anything in between:
+//     "Get your free wellness report" must be caught, and an earlier attempt
+//     missed it because it required "report" to follow "free" immediately.
+//     Note the verb list excludes commerce verbs (shop, browse, explore, steep),
+//     so "Shop the gift guide" — a real collection — survives.
+const CTA_ASSET_GRAB_RX = /\b(download|get|claim|unlock|receive|grab|access|request)\b[\w\s'-]{0,24}?\b(playbook|e-?book|white\s?paper|webinar|checklist|worksheet|template|report|guide|audit|assessment|analysis|case\s+study|blueprint|toolkit)\b/i;
+// (b) Standalone promises that need no verb to be undeliverable here.
+const CTA_ASSET_NOUN_RX = /\b(download|playbook|e-?book|white\s?paper|webinar|checklist|worksheet|consultation|book\s+a\s+(call|demo)|schedule\s+a\s+(call|demo)|start\s+(your\s+)?(free\s+)?trial|take\s+(the|our|a)\s+quiz)\b/i;
+
+const CTA_UNDELIVERABLE_RX = new RegExp(`(${CTA_ASSET_GRAB_RX.source})|(${CTA_ASSET_NOUN_RX.source})`, 'i');
+
+// The brand's real, always-available commerce actions.
+const CTA_FALLBACK = 'Shop the collection';
+
+/**
+ * Rewrite a CTA that promises something the destination cannot deliver.
+ * Returns the CTA unchanged when it is already a commerce action.
+ */
+function sanitizeCta(str, fallback) {
+  const s = sanitizeBrand(str);
+  if (s == null || s === '') return s;
+  return CTA_UNDELIVERABLE_RX.test(s) ? (fallback || CTA_FALLBACK) : s;
+}
+
+/**
+ * Two CTAs on one asset must not promise different journeys. When the primary
+ * has been rewritten to a commerce action, a secondary that says the same thing
+ * is redundant rather than contradictory, so the caller can drop it.
+ */
+function ctasAgree(primary, secondary) {
+  const a = String(primary || '').trim().toLowerCase();
+  const b = String(secondary || '').trim().toLowerCase();
+  if (!a || !b) return true;
+  return !(CTA_UNDELIVERABLE_RX.test(a) !== CTA_UNDELIVERABLE_RX.test(b));
+}
+
+// Dev-only tripwire, matching assertNoBanned: a CTA promising an asset we do
+// not have must fail loudly in development rather than reach a send.
+function assertDeliverableCta(str, where = '') {
+  if (str == null) return;
+  if (process.env.VERCEL_ENV !== 'production' && CTA_UNDELIVERABLE_RX.test(String(str))) {
+    throw new Error(`[scenario-model] CTA promises an undeliverable asset in ${where}: ${String(str).slice(0, 120)}`);
+  }
+}
+
 // ── Internal-only key protection ────────────────────────────────────────────
 // Keys carrying revenue/spend projections or scenario plumbing. They must be
 // stripped from any object handed to a buyer-facing asset builder (lpHtml /
@@ -429,6 +493,11 @@ function stripInternal(obj) {
 
 module.exports = {
   CONSTANTS_VERSION,
+  sanitizeCta,
+  ctasAgree,
+  assertDeliverableCta,
+  CTA_UNDELIVERABLE_RX,
+  CTA_FALLBACK,
   SCENARIO_LABELS,
   PAID_CHANNELS,
   DEFAULTS,
