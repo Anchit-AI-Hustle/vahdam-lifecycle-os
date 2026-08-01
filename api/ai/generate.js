@@ -72,6 +72,22 @@ const AD_FORMATS = {
  * offer, no invented proof: if the ad did not say it, the brief does not
  * either, and the page generator is told so explicitly.
  */
+// Mirrors isCompleteHTMLDoc in landing-pages.html. A truncated document passes
+// every naive "does this look like HTML" test and then renders as an empty page,
+// because the cut lands inside <style> and the unterminated element eats the body.
+function isCompleteHtmlDocument(html) {
+  const s = String(html || '');
+  if (s.length < 200) return false;
+  if (!/<html[\s>]/i.test(s) && !/<body[\s>]/i.test(s)) return false;
+  if (!/<\/html\s*>\s*$/i.test(s.trim()) && !/<\/body\s*>/i.test(s)) return false;
+  const count = (re) => (s.match(re) || []).length;
+  if (count(/<style[\s>]/gi) !== count(/<\/style\s*>/gi)) return false;
+  if (count(/<script[\s>]/gi) !== count(/<\/script\s*>/gi)) return false;
+  const body = /<body[^>]*>([\s\S]*)<\/body\s*>/i.exec(s);
+  if (body && body[1].replace(/<[^>]+>/g, '').trim().length < 40) return false;
+  return true;
+}
+
 function buildLandingBriefFromAd(input) {
   const o = input || {};
   const f = o.fields || {};
@@ -891,7 +907,13 @@ Target market: ${targetMarket}.`;
   const baseTemp = autofill_temperature != null ? autofill_temperature : (mode === 'create_brief' ? 0.85 : 0.7);
   const temperature = Math.min(1.1, baseTemp + Math.min(0.25, (regenerate_counter || 0) * 0.08));
   // create_brief: 4000 tokens for 450-600 word detailed production brief with full structure
-  const max_tokens = (mode === 'mailer_full' || mode === 'landing_page') ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1200 : 4000)));
+  // landing_page returns ONE complete single-file HTML document with all CSS
+  // inline, which routinely runs past 7000 tokens. Truncation there is not a
+  // degraded page, it is a BLANK one: the cut usually lands inside the <style>
+  // block in the head, and an unterminated style element swallows the entire
+  // body. 16000 gives a full page room; the completeness check below catches
+  // whatever still overruns.
+  const max_tokens = mode === 'landing_page' ? 16000 : (mode === 'mailer_full') ? 7000 : (mode === 'concepts' ? 4500 : (mode === 'suggested_prompts' ? 3000 : (mode === 'chat' ? 1200 : 4000)));
 
   // ── Shared tier-routed cascade (api/_shared/llm.js) ────────────────────────
   // The 6-provider waterfall (OpenAI/Anthropic/Gemini/Grok/Groq/Cerebras),
@@ -1082,6 +1104,18 @@ Target market: ${targetMarket}.`;
       });
     }
 
+    // A landing page that did not finish is worse than no page: it still opens
+    // with <!doctype so every "is this HTML" check passes it, then renders blank.
+    // Say so explicitly rather than handing back a document that looks fine.
+    if (mode === 'landing_page') {
+      const lpHtml = brandScrub(text);
+      const complete = isCompleteHtmlDocument(lpHtml);
+      return res.status(200).json({
+        ok: true, mode, provider: result.provider, model: result.model,
+        text: lpHtml, complete, truncated: !complete, portable_prompt,
+        ...(complete ? {} : { note: 'The model stopped before closing the document. Use your local template instead of rendering this.' }),
+      });
+    }
     return res.status(200).json({ ok: true, mode, provider: result.provider, model: result.model, text: brandScrub(text), portable_prompt });
 
   } catch (e) {

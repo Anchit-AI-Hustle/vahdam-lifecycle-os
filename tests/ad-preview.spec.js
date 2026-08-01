@@ -1,0 +1,113 @@
+const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
+
+// An ad has one true shape. These stages used a FIXED height across the full
+// card width, so a 1:1 creative was cover-cropped into roughly an 8:1 band —
+// the packshot blown up past recognition while the corner badge read "1:1".
+// And there was no way to open the finished unit at a size you could judge.
+
+const ROOT = path.join(__dirname, '..');
+const HTML = fs.readFileSync(path.join(ROOT, 'smart-brain.html'), 'utf8');
+
+// The page is served for real rather than eval'd: its script bootstraps the DOM
+// on load, so running it in a bare document throws before reaching the helpers.
+let server, BASE;
+test.beforeAll(async () => {
+  server = http.createServer((req, res) => {
+    const u = req.url.split('?')[0];
+    if (u.startsWith('/api/')) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end('{"ok":false}'); }
+    const f = path.join(ROOT, u === '/' ? 'index.html' : u.replace(/^\//, ''));
+    if (fs.existsSync(f) && fs.statSync(f).isFile()) {
+      const ext = path.extname(f);
+      res.writeHead(200, { 'Content-Type': ext === '.js' ? 'text/javascript' : ext === '.css' ? 'text/css' : 'text/html' });
+      return res.end(fs.readFileSync(f));
+    }
+    res.writeHead(404); res.end('nope');
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  BASE = `http://127.0.0.1:${server.address().port}`;
+});
+test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
+
+test.describe('ads render at their real aspect', () => {
+  test('aspect comes from the ad, then the platform, never a fixed height', async ({ page }) => {
+    await page.goto(`${BASE}/smart-brain.html`);
+    const out = await page.evaluate(() => {
+      return {
+        explicit: adAspect({ aspect: '4:5' }),
+        meta: adAspect({ platform: 'meta' }),
+        tiktok: adAspect({ platform: 'tiktok' }),
+        google: adAspect({ platform: 'google' }),
+        youtube: adAspect({ platform: 'youtube' }),
+        css: adFrameCss({ platform: 'meta' }),
+        tallCss: adFrameCss({ platform: 'tiktok' }),
+      };
+    });
+    expect(out.explicit).toBe('4/5');
+    expect(out.meta).toBe('1/1');
+    expect(out.tiktok).toBe('9/16');
+    expect(out.google).toBe('16/9');
+    expect(out.youtube).toBe('16/9');
+    expect(out.css).toContain('aspect-ratio:1/1');
+    expect(out.tallCss).toContain('aspect-ratio:9/16');
+    // Portrait units are capped narrower so they do not tower over the panel.
+    expect(out.tallCss).toContain('max-width:300px');
+  });
+
+  test('no stage carries a hard-coded height any more', () => {
+    // The exact shape of the bug: height:190px on the static, 220px on the video.
+    expect(HTML).not.toContain('border-radius:12px;height:190px');
+    expect(HTML).not.toContain('overflow:hidden;height:220px');
+  });
+
+  test('the packshot is contained, not cropped to fill', () => {
+    // cover on a mismatched frame is what destroyed the product shot.
+    expect(HTML).toContain('background-size:auto 100%,contain');
+  });
+});
+
+test.describe('the complete ad can be opened', () => {
+  test('both card types offer a preview control', () => {
+    expect(HTML).toContain('\\u26f6 Preview ad');
+    // Registered once, used by the video card and the static card.
+    expect((HTML.match(/\$\{__apBtn\}/g) || []).length).toBe(2);
+  });
+
+  test('the preview is reachable from the card handler', () => {
+    expect(HTML).toContain('window.previewAd = function(key)');
+    expect(HTML).toContain("onclick=\"previewAd('${__apKey}')\"");
+  });
+
+  test('a rendered MP4 plays; an unrendered one says so instead of faking it', () => {
+    const fnSrc = HTML.slice(HTML.indexOf('window.previewAd = function(key)'), HTML.indexOf('function analysisPanelHTML'));
+    expect(fnSrc).toContain('controls autoplay playsinline');
+    expect(fnSrc).toContain('No MP4 yet');
+    // And the stage honours the aspect in the modal too.
+    expect(fnSrc).toContain("aspect-ratio:' + a + ';object-fit:contain");
+  });
+
+  test('previewAd can reach adAspect — they share a scope', async ({ page }) => {
+    // The bug this catches: the helpers were first inserted INSIDE renderAd, so
+    // previewAd (defined outside it) threw ReferenceError on every open.
+    await page.goto(`${BASE}/smart-brain.html`);
+    const ok = await page.evaluate(() => typeof adAspect === 'function' && typeof window.previewAd === 'function');
+    expect(ok).toBe(true);
+  });
+
+  test('opening a preview actually renders a stage at the right aspect', async ({ page }) => {
+    await page.goto(`${BASE}/smart-brain.html`);
+    const res = await page.evaluate(() => {
+      window.__AD_PREVIEW.t1 = { platform: 'tiktok', __ctype: 'static', headline: 'Calmer mornings', creative: {}, cta: 'Shop Now' };
+      window.previewAd('t1');
+      const m = document.getElementById('ad-preview');
+      const stage = m.querySelector('[data-apstage]').innerHTML;
+      return { open: m.classList.contains('open'), title: m.querySelector('[data-apt]').textContent, hasAspect: stage.includes('aspect-ratio:9/16'), copy: m.querySelector('[data-apcopy]').textContent };
+    });
+    expect(res.open).toBe(true);
+    expect(res.title).toContain('TIKTOK');
+    expect(res.hasAspect).toBe(true);
+    expect(res.copy).toContain('Calmer mornings');
+  });
+});

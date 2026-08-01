@@ -544,6 +544,31 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
   // Ask the server for a full, mobile-first, brand-gated AI landing page.
   // Falls back to the deterministic brand template on ANY failure so Generate
   // always produces output. Sets f._ai so the UI can say how it was made.
+  // "Looks like HTML" is NOT good enough, and this is the bug that produced a
+  // blank preview. A page cut off at max_tokens still starts with <!doctype, so
+  // the old test passed it straight through — and if the cut landed inside the
+  // <style> block (it usually does; the CSS is long and sits in the head) the
+  // browser treats the entire rest of the document as unterminated CSS and
+  // renders NOTHING. A blank cream iframe, with working Download and Copy
+  // buttons handing out the same broken file.
+  //
+  // So: require a document that actually closes, and whose style tags balance.
+  // Anything less falls back to the deterministic template, which always renders.
+  function isCompleteHTMLDoc(html) {
+    const s = String(html || '');
+    if (s.length < 200) return false;
+    if (!/<html[\s>]/i.test(s) && !/<body[\s>]/i.test(s)) return false;
+    if (!/<\/html\s*>\s*$/i.test(s.trim()) && !/<\/body\s*>/i.test(s)) return false;
+    // An unclosed <style> or <script> swallows everything after it.
+    const opens = (re) => (s.match(re) || []).length;
+    if (opens(/<style[\s>]/gi) !== opens(/<\/style\s*>/gi)) return false;
+    if (opens(/<script[\s>]/gi) !== opens(/<\/script\s*>/gi)) return false;
+    // And there has to be something between <body> and </body> to look at.
+    const m = /<body[^>]*>([\s\S]*)<\/body\s*>/i.exec(s);
+    if (m && m[1].replace(/<[^>]+>/g, '').trim().length < 40) return false;
+    return true;
+  }
+
   async function generateLandingHTML(f) {
     try {
       const r = await fetch('/api/ai/generate', {
@@ -554,7 +579,8 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
       let html = d && (d.text || d.html);
       if (r.ok && html) {
         html = String(html).replace(/^\s*```(?:html)?\s*/i, '').replace(/```\s*$/, '').trim();
-        if (/<!doctype|<\/html>|<body/i.test(html)) { f._ai = true; return html; }
+        if (isCompleteHTMLDoc(html)) { f._ai = true; return html; }
+        console.warn('[landing] AI returned an incomplete document — falling back to the brand template so the page is never blank.');
       }
     } catch (_) {}
     f._ai = false;
