@@ -18,7 +18,13 @@ test.beforeAll(async () => {
   server = http.createServer((req, res) => {
     const u = req.url.split('?')[0];
     if (u.startsWith('/api/')) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end('{"ok":false}'); }
-    const f = path.join(ROOT, u === '/' ? 'index.html' : u.replace(/^\//, ''));
+    // Confine to ROOT. Joining a request path straight onto a directory lets
+    // "/../../etc/passwd" out of the tree — harmless in a test fixture, but it
+    // is the same mistake that matters in a real handler, so do it properly.
+    let rel;
+    try { rel = decodeURIComponent(u === '/' ? 'index.html' : u); } catch (_) { rel = ''; }
+    const f = path.resolve(ROOT, '.' + path.posix.normalize('/' + rel));
+    if (!f.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('outside root'); }
     if (fs.existsSync(f) && fs.statSync(f).isFile()) {
       const ext = path.extname(f);
       res.writeHead(200, { 'Content-Type': ext === '.js' ? 'text/javascript' : ext === '.css' ? 'text/css' : 'text/html' });
@@ -109,5 +115,46 @@ test.describe('the complete ad can be opened', () => {
     expect(res.title).toContain('TIKTOK');
     expect(res.hasAspect).toBe(true);
     expect(res.copy).toContain('Calmer mornings');
+  });
+});
+
+test.describe('the master prompt ships with the asset', () => {
+  test('every asset type gets one attached server-side', () => {
+    const plan = fs.readFileSync(path.join(ROOT, 'api', '_shared', 'smart-brain-plan.js'), 'utf8');
+    const at = plan.indexOf('function attachMasterPrompts');
+    const fn = plan.slice(at, plan.indexOf('\n}', at));
+    expect(fn).toContain("assetType: 'mailer', variant: 'V1'");
+    expect(fn).toContain("assetType: 'mailer', variant: 'V2'");
+    expect(fn).toContain("assetType: 'landing_page'");
+    expect(fn).toContain("assetType: 'ad', platform: ad.platform");
+  });
+
+  test('the preview shows it and offers a one-click copy', async ({ page }) => {
+    await page.goto(`${BASE}/smart-brain.html`);
+    const r = await page.evaluate(() => {
+      window.__AD_PREVIEW.mp = {
+        platform: 'meta', __ctype: 'static', headline: 'Calmer mornings', creative: {},
+        master_prompt: 'You are a D2C creative director for VAHDAM. Produce a 1:1 Meta static ad...',
+      };
+      window.previewAd('mp');
+      const m = document.getElementById('ad-preview');
+      const ta = m.querySelector('[data-apmptext]');
+      return { shown: !!ta, value: ta ? ta.value : '', btnDisabled: m.querySelector('[data-apmp]').disabled };
+    });
+    expect(r.shown).toBe(true);
+    expect(r.value).toContain('VAHDAM');
+    expect(r.btnDisabled).toBe(false);
+  });
+
+  test('an asset without one says so rather than showing an empty box', async ({ page }) => {
+    await page.goto(`${BASE}/smart-brain.html`);
+    const r = await page.evaluate(() => {
+      window.__AD_PREVIEW.np = { platform: 'meta', __ctype: 'static', creative: {} };
+      window.previewAd('np');
+      const m = document.getElementById('ad-preview');
+      return { text: m.querySelector('[data-apcopy]').textContent, btnDisabled: m.querySelector('[data-apmp]').disabled };
+    });
+    expect(r.text).toContain('Not attached');
+    expect(r.btnDisabled).toBe(true);
   });
 });
