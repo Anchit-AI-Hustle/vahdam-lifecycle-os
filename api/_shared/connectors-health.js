@@ -7,11 +7,18 @@
  * no credential is reported live:false with the exact blocker.
  *
  * Exposed at /api/connectors-health (GET). Reused by the connectors page + the
- * dashboard so the UI shows the true state of Shopify / Klaviyo / WebEngage.
+ * dashboard so the UI shows the true state of every platform.
+ *
+ * Covers all seven: Klaviyo, Shopify, WebEngage, Supabase, Meta Ads, Google Ads
+ * and TikTok Ads. The three ad platforms used to be absent here, so the one
+ * endpoint that answers "is live data working?" was blind to the entire paid
+ * media stack — it could report 4/4 healthy while no ad platform was connected.
  */
 const klaviyo = require('./klaviyo-core.js');
 const webengage = require('./webengage-core.js');
 const market = require('./market-analytics.js');
+const shopifyCore = require('./shopify-core.js');
+const adInsights = require('./ad-insights-core.js');
 
 async function withTimeout(p, ms) { return Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error(`timeout ${ms}ms`)), ms))]); }
 
@@ -27,21 +34,58 @@ async function probeKlaviyo() {
   } catch (e) { return { ...base, live: false, latency_ms: Date.now() - t, error: e.message }; }
 }
 
-// ── Shopify: live Admin API if a token is set; else honest export fallback. ──
+// ── Shopify: live Admin API via the read-only core; else honest export fallback. ──
 async function probeShopify() {
   const base = { id: 'shopify', name: 'Shopify', kind: 'live-api' };
-  const dom = (process.env.SHOPIFY_STORE_DOMAIN || '').trim();
-  const tok = (process.env.SHOPIFY_ADMIN_TOKEN || '').trim();
   const exportsOk = market.performance('US').ok; // real CSV exports available regardless
-  if (!dom || !tok) {
-    return { ...base, live: false, source: exportsOk ? 'public storefront + CSV market exports (real, not live)' : 'none', blocker: 'Set SHOPIFY_STORE_DOMAIN (e.g. vahdam.myshopify.com) + a read-scoped SHOPIFY_ADMIN_TOKEN (read_orders, read_products, read_customers, read_inventory).' };
+  const fallback = exportsOk ? 'public storefront + CSV market exports (real, not live)' : 'none';
+  if (!shopifyCore.isConnected('US')) {
+    return { ...base, live: false, source: fallback, blocker: shopifyCore.status('US').blocker };
   }
   const t = Date.now();
   try {
-    const ver = process.env.SHOPIFY_API_VERSION || '2026-04';
-    const r = await withTimeout(fetch(`https://${dom}/admin/api/${ver}/shop.json`, { headers: { 'X-Shopify-Access-Token': tok, Accept: 'application/json' } }), 15000);
-    let name = null; if (r.ok) { try { name = (await r.json()).shop?.name; } catch (_) {} }
-    return { ...base, live: r.ok, latency_ms: Date.now() - t, sample: r.ok ? `shop: ${name}` : null, error: r.ok ? null : `HTTP ${r.status}` };
+    const r = await withTimeout(shopifyCore.shop({ market: 'US' }), 15000);
+    const name = r && r.ok && r.data && r.data.shop ? r.data.shop.name : null;
+    return {
+      ...base, live: !!(r && r.ok), latency_ms: Date.now() - t,
+      sample: r && r.ok ? `shop: ${name}` : null,
+      source: r && r.ok ? 'shopify admin api (live)' : fallback,
+      error: r && r.ok ? null : String((r && (r.error || r.status)) || 'unknown').slice(0, 140),
+    };
+  } catch (e) { return { ...base, live: false, latency_ms: Date.now() - t, source: fallback, error: e.message }; }
+}
+
+// ── Ad platforms: one real round-trip each, account level, 7-day window. ─────
+// A credential that is set but expired or wrongly scoped is the failure mode
+// that matters here, and only an actual request surfaces it.
+const AD_PLATFORMS = [
+  { id: 'meta', name: 'Meta Ads' },
+  { id: 'google', name: 'Google Ads' },
+  { id: 'tiktok', name: 'TikTok Ads' },
+];
+function isoDaysAgo(n) { return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10); }
+
+async function probeAdPlatform(p, marketCode = 'US') {
+  const base = { id: p.id, name: p.name, kind: 'live-api', market: marketCode };
+  if (!adInsights.isConnected(p.id, marketCode)) {
+    // Reuse the core's own env list so the blocker can never drift from what the
+    // code actually requires.
+    const probe = await adInsights.insights({ platform: p.id, market: marketCode, level: 'account' }).catch(() => null);
+    const need = (probe && probe.need_env) || [];
+    return { ...base, live: false, blocker: need.length ? `Set ${need.join(', ')} in Vercel env (append _${marketCode} for a market-specific account).` : `${p.name} credentials not set.` };
+  }
+  const t = Date.now();
+  try {
+    const r = await withTimeout(adInsights.insights({
+      platform: p.id, market: marketCode, level: 'account', metricGroup: 'traffic',
+      since: isoDaysAgo(7), until: isoDaysAgo(0),
+    }), 20000);
+    const live = !!(r && r.ok && r.connected);
+    return {
+      ...base, live, latency_ms: Date.now() - t,
+      sample: live ? `${p.name} reporting reachable (${r.source})` : null,
+      error: live ? null : String((r && r.error) || 'request failed').slice(0, 140),
+    };
   } catch (e) { return { ...base, live: false, latency_ms: Date.now() - t, error: e.message }; }
 }
 
@@ -54,10 +98,17 @@ async function probeWebengage() {
   try {
     const r = await withTimeout(fetch(`${e.url}/rest/v1/webengage_events?select=id&limit=1`, { headers: { apikey: e.key, Authorization: `Bearer ${e.key}`, Prefer: 'count=exact' } }), 15000);
     const total = parseInt((r.headers.get('content-range') || '').split('/')[1], 10) || 0;
+    // PostgREST answers 404 when the relation is not in its schema cache — i.e.
+    // the migration has not been applied. That is a different fix from "empty
+    // table", and reporting it as a bare "HTTP 404" with no blocker (as this
+    // did) leaves the operator with nothing to act on.
+    const missingTable = r.status === 404;
     return {
       ...base, live: r.ok && total > 0, latency_ms: Date.now() - t,
       sample: r.ok ? `${total} events stored` : null,
-      blocker: r.ok && total === 0 ? 'Table reachable but empty — set WEBENGAGE_EXPORT_URL + WEBENGAGE_API_KEY (or the webengage-dumps bucket) and run the 12h sync (/api/cron/webengage).' : null,
+      blocker: missingTable
+        ? 'Table webengage_events does not exist — apply supabase/migrations/20260713110000_polling_ingestion_tables.sql (or supabase/COMBINED_RUN_THIS.sql), then run the 12h sync (/api/cron/webengage).'
+        : (r.ok && total === 0 ? 'Table reachable but empty — set WEBENGAGE_EXPORT_URL + WEBENGAGE_API_KEY (or the webengage-dumps bucket) and run the 12h sync (/api/cron/webengage).' : null),
       error: r.ok ? null : `HTTP ${r.status}`,
     };
   } catch (e2) { return { ...base, live: false, latency_ms: Date.now() - t, error: e2.message }; }
@@ -75,15 +126,28 @@ async function probeSupabase() {
   } catch (e2) { return { ...base, live: false, latency_ms: Date.now() - t, error: e2.message }; }
 }
 
-async function health() {
-  const platforms = await Promise.all([probeKlaviyo(), probeShopify(), probeWebengage(), probeSupabase()]);
+async function health({ market: mk = 'US' } = {}) {
+  const platforms = await Promise.all([
+    probeKlaviyo(), probeShopify(), probeWebengage(), probeSupabase(),
+    ...AD_PLATFORMS.map((p) => probeAdPlatform(p, mk)),
+  ]);
   const live = platforms.filter((p) => p.live).length;
+  const byGroup = (ids) => platforms.filter((p) => ids.includes(p.id));
+  const adIds = AD_PLATFORMS.map((p) => p.id);
   return {
     ok: true,
     checked_at: new Date().toISOString(),
+    market: mk,
     summary: { live, blocked: platforms.length - live, total: platforms.length },
+    // Grouped so a dashboard can say "paid media: 0/3 live" without re-deriving
+    // which platform belongs to which side of the stack.
+    groups: {
+      paid_media: { live: byGroup(adIds).filter((p) => p.live).length, total: adIds.length },
+      lifecycle: { live: byGroup(['klaviyo', 'webengage']).filter((p) => p.live).length, total: 2 },
+      commerce: { live: byGroup(['shopify']).filter((p) => p.live).length, total: 1 },
+    },
     platforms,
   };
 }
 
-module.exports = { health, probeKlaviyo, probeShopify, probeWebengage, probeSupabase };
+module.exports = { health, probeKlaviyo, probeShopify, probeWebengage, probeSupabase, probeAdPlatform, AD_PLATFORMS };

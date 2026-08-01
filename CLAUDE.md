@@ -139,6 +139,48 @@ Each page is a **standalone, self-contained `.html` file** (inline CSS + JS, oft
 | `api/kb.js` | Knowledge Base router (Supabase-backed) |
 | `api/public-config.js` | Public config (Supabase URL + anon key) + `?health=1` health check; `/api/health` rewrites here. **Operator-only modes:** `?pipeline=1`, `?probe=1`, and the DETAILED `?health=1` payload require `Authorization: Bearer <operator Supabase token or CRON_SECRET>` (allowed domains via `ANALYTICS_ADMIN_DOMAINS`, default `vahdam.com`) and drop wildcard CORS. Anonymous `?health=1` returns liveness only (`ok/build/ts`) — never provider, key, model, region or env state. `?probe=1` also spends provider quota, so it must never be anonymous. |
 
+### Live data sources — six platforms, one contract (2026-08-01)
+Every platform has a core, every core is wired, and **none fabricates**. With no credential each
+returns `{connected:false, would_request|would_query, blocker}` naming the exact call it would have
+made — callers render an honest empty state instead of a plausible number.
+
+| Platform | Core | Reached via |
+|---|---|---|
+| Shopify (live, read-only Admin) | `_shared/shopify-core.js` | `/api/shopify?op=shop\|orders\|products\|customers\|inventory\|summary` |
+| Meta Ads | `_shared/ads-live-core.js` (dashboard) · `_shared/ad-insights-core.js` (reporting) | `?action=ads-live` · `?action=ad-insights` |
+| Google Ads · TikTok Ads | `_shared/ad-insights-core.js` | `?action=ad-insights&platform=google\|tiktok` |
+| Klaviyo · WebEngage | `_shared/klaviyo-core.js` · `_shared/webengage-core.js` | `?action=klaviyo` · `/api/webengage` |
+
+- **Direct API is PRIMARY for US; Snowflake is a fallback mirror, not a dependency.** `ads-live-core`
+  asks Meta for the FULL metric set (conversions, revenue, purchase ROAS, reach, frequency, CPM, CPC,
+  CTR), not just delivery — that widening is what removes the need to query the warehouse for anything
+  commercial. Responses carry `metrics_complete`/`complete_metrics`. The warehouse has **no conversion or
+  revenue columns**, so on that path ROAS and cost-per-conversion are `null`, never `0` (zero would read
+  as "we sold nothing" rather than "this source cannot know").
+- Meta reports purchases under several `action_type`s (`omni_purchase`, `purchase`,
+  `offsite_conversion.fb_pixel_purchase`) — take the **first present, never the sum**, or one purchase is
+  counted three times.
+- **`/api/connectors-health` probes all seven** (the four above + Supabase) with real round-trips and an
+  actionable `blocker` each, grouped `paid_media`/`lifecycle`/`commerce`. It previously covered only four
+  and was blind to the entire paid-media stack.
+- **Shopify is read-only three ways over:** only GET reaches Shopify hosts (`read-only-egress.js`), no
+  mutating op exists in the core, and the token should be read-scoped. Gated on `LIVE_CONNECTORS` like
+  every other outbound connector. ⚠️ **`ad-insights-core.js` does NOT honour that switch** (pre-existing) —
+  it will call Meta/Google/TikTok even with `LIVE_CONNECTORS` off.
+
+### Competitive benchmarking — the own/competitor boundary is load-bearing
+`_shared/competitive-benchmark-core.js` (`/api/competitor?action=benchmark|benchmark-set`) benchmarks us
+against a competitor using the same platform stack, on top of the existing Gmail→Sheet email intel.
+**Our Meta/Google/TikTok/Klaviyo/WebEngage credentials report on OUR OWN accounts and can never return a
+competitor's spend, CTR, CPM, ROAS or open rate.** So the module keeps two sides that never merge:
+- `comparable` — observable on both sides **by the same method** (catalog size + price band, read from
+  `/products.json` for them *and* for us). Emitted only when both sides actually read.
+- `own_only` — ours exists, no competitor value can, so `competitor: null` + a reason. Never estimated.
+Competitor side needs **no credentials and works today**: public `/products.json`, Meta Ad Library
+(`APIFY_TOKEN` upgrades a deep link to structured creatives), Google/TikTok transparency deep links
+(neither exposes a public reporting API). Locked by `tests/live-data-sources.spec.js` — a benchmark that
+quietly passed our own CPM off as "category CPM" would be fabrication in the most damaging place.
+
 ### Shared LLM caller — `api/_shared/llm.js`
 6-provider text waterfall, de-duplicated: **OpenAI** (`OPENAI_API_KEY`/`_2`/`_3`) → **Anthropic** (claude-3-5-haiku) → **Gemini** (free tier) → **Grok/xAI** → **Groq** (free) → **Cerebras** (free). All callers should go through this rather than calling providers directly. Per-call provider override is supported (`'gemini'|'openai'|'anthropic'|'grok'`).
 

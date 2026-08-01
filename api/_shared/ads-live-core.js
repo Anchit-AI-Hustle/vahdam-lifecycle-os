@@ -14,8 +14,13 @@
  * always named in `source`):
  *   1. Meta Marketing API (direct, minute-fresh) when META_ACCESS_TOKEN +
  *      META_AD_ACCOUNT_ID are set. This is the true real-time link to the ad
- *      account: today's insights are read with date_preset=today.
- *   2. Snowflake VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS (Maplemonk pipeline,
+ *      account: today's insights are read with date_preset=today. It is the
+ *      PRIMARY source and is asked for the FULL metric set — delivery plus
+ *      conversions, revenue, ROAS, reach, frequency, CPM and CPC — so for US it
+ *      answers everything the warehouse used to be needed for. Responses from
+ *      this path carry metrics_complete/complete_metrics = true.
+ *   2. FALLBACK MIRROR, not a dependency — Snowflake
+ *      VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS (Maplemonk pipeline,
  *      per-day rows incl. the current partial day; verified live 2026-07-25:
  *      22,620 rows since May 1 for "Vahdam India USA New EST Main Account",
  *      today's partial day present). Columns used: DATE_START, AD_ID, AD_NAME,
@@ -58,7 +63,42 @@ function actPath(id) { return String(id).startsWith('act_') ? String(id) : `act_
 function budgets() { return snow.budgets(); }
 
 // ── Meta Marketing API (read-only insights) ─────────────────────────────────
-const META_FIELDS = 'ad_id,ad_name,adset_name,campaign_name,spend,impressions,clicks,inline_link_clicks,inline_link_click_ctr,date_start,date_stop';
+/**
+ * The direct API is the PRIMARY source and is asked for the full metric set —
+ * not just delivery. It previously requested spend/impressions/clicks/link
+ * clicks only, which is why the warehouse was still needed for anything
+ * commercial (conversions, revenue, ROAS). With these fields the real-time link
+ * answers the same questions Snowflake did, so for US the warehouse is a
+ * fallback mirror rather than a dependency.
+ */
+const META_FIELDS = [
+  'ad_id', 'ad_name', 'adset_name', 'campaign_name', 'account_name',
+  'spend', 'impressions', 'clicks', 'inline_link_clicks', 'inline_link_click_ctr',
+  'reach', 'frequency', 'cpm', 'cpc', 'ctr',
+  'actions', 'action_values', 'purchase_roas', 'cost_per_action_type',
+  'date_start', 'date_stop',
+].join(',');
+
+// Meta returns actions/action_values as arrays of {action_type, value}.
+function actionsMap(arr) {
+  const m = {};
+  (Array.isArray(arr) ? arr : []).forEach((a) => { if (a && a.action_type) m[a.action_type] = num(a.value); });
+  return m;
+}
+// Purchases surface under different action_types depending on how the pixel and
+// CAPI are set up. Prefer the omni_ rollup (web + app + offline), then the plain
+// web event, then the raw pixel event — first one present wins, never summed,
+// or a single purchase would be counted two or three times.
+function pickPurchase(map) {
+  for (const k of ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase']) {
+    if (map[k] != null) return map[k];
+  }
+  return 0;
+}
+function firstActionValue(arr) {
+  const a = Array.isArray(arr) ? arr[0] : null;
+  return a && a.value != null ? num(a.value) : null;
+}
 
 function metaUrl({ level = 'ad', datePreset, since, until, limit = 500 }) {
   const c = metaCfg();
@@ -94,10 +134,24 @@ const num = (v) => (v == null || v === '' || isNaN(Number(v)) ? 0 : Number(v));
 const round = (v, n = 2) => Math.round(num(v) * 10 ** n) / 10 ** n;
 
 function normalizeMetaRow(r) {
+  const acts = actionsMap(r.actions);
+  const vals = actionsMap(r.action_values);
+  const conversions = pickPurchase(acts);
+  const revenue = pickPurchase(vals);
+  const spend = round(r.spend);
+  // Prefer Meta's own purchase_roas; derive it only when the field is absent and
+  // both inputs are real. A ROAS with no spend is undefined, not zero.
+  const roas = firstActionValue(r.purchase_roas);
   return {
     day: r.date_start, ad_id: r.ad_id, ad: r.ad_name, adset: r.adset_name, campaign: r.campaign_name,
-    spend: round(r.spend), impressions: num(r.impressions), clicks: num(r.clicks),
+    account: r.account_name || null,
+    spend, impressions: num(r.impressions), clicks: num(r.clicks),
     link_clicks: num(r.inline_link_clicks), ctr: round(r.inline_link_click_ctr, 4),
+    reach: num(r.reach), frequency: round(r.frequency, 2),
+    cpm: round(r.cpm), cpc: round(r.cpc, 3),
+    conversions, revenue: round(revenue),
+    roas: roas != null ? round(roas, 2) : (spend ? round(revenue / spend, 2) : null),
+    cost_per_conversion: conversions ? round(spend / conversions, 2) : null,
   };
 }
 function normalizeSnowRow(r) {
@@ -153,11 +207,25 @@ select day, count(distinct ad_id) as ads_live, count(distinct campaign_name) as 
       const rows = await metaFetch({ level: 'account', since: from, until: to });
       const byDay = {};
       rows.forEach((r) => {
-        const d = r.date_start; byDay[d] = byDay[d] || { day: d, spend: 0, impressions: 0, clicks: 0, link_clicks: 0 };
-        byDay[d].spend = round(byDay[d].spend + num(r.spend)); byDay[d].impressions += num(r.impressions);
-        byDay[d].clicks += num(r.clicks); byDay[d].link_clicks += num(r.inline_link_clicks);
+        const n = normalizeMetaRow(r);
+        const d = r.date_start;
+        byDay[d] = byDay[d] || { day: d, spend: 0, impressions: 0, clicks: 0, link_clicks: 0, reach: 0, conversions: 0, revenue: 0 };
+        const x = byDay[d];
+        x.spend = round(x.spend + n.spend); x.impressions += n.impressions;
+        x.clicks += n.clicks; x.link_clicks += n.link_clicks;
+        // Reach is unique-user and NOT additive across days, but this loop groups
+        // by day over one row per day, so it stays a true daily reach.
+        x.reach += n.reach;
+        x.conversions += n.conversions; x.revenue = round(x.revenue + n.revenue);
       });
-      return { ok: true, connected: true, source: 'meta-marketing-api', since: from, until: to, today: todayISO(), rows: Object.values(byDay).sort((a, c) => a.day.localeCompare(c.day)) };
+      const series = Object.values(byDay).sort((a, c) => a.day.localeCompare(c.day)).map((d) => Object.assign(d, {
+        ctr: d.impressions ? round(d.link_clicks / d.impressions * 100, 4) : null,
+        cpm: d.impressions ? round(d.spend / d.impressions * 1000, 2) : null,
+        cpc: d.link_clicks ? round(d.spend / d.link_clicks, 3) : null,
+        roas: d.spend ? round(d.revenue / d.spend, 2) : null,
+        cost_per_conversion: d.conversions ? round(d.spend / d.conversions, 2) : null,
+      }));
+      return { ok: true, connected: true, source: 'meta-marketing-api', complete_metrics: true, since: from, until: to, today: todayISO(), rows: series };
     } catch (e) { /* fall through to the warehouse */ }
   }
   if (!snow.isConfigured()) {
@@ -200,10 +268,13 @@ select source_id, account_name, ad_id, ad_name, adset_name, campaign_name, round
   // An ad counts as LIVE today once it has delivered (impressions > 0);
   // spend without impressions is still "starting". No impressions = not live yet.
   const live = rows.filter((x) => x.impressions > 0);
+  // num() on every term: the warehouse rows carry no conversion/revenue columns,
+  // so these are undefined on that path and would poison the totals with NaN.
   const totals = live.reduce((t, x) => ({
     spend: round(t.spend + x.spend), impressions: t.impressions + x.impressions,
     clicks: t.clicks + x.clicks, link_clicks: t.link_clicks + x.link_clicks,
-  }), { spend: 0, impressions: 0, clicks: 0, link_clicks: 0 });
+    conversions: t.conversions + num(x.conversions), revenue: round(t.revenue + num(x.revenue)),
+  }), { spend: 0, impressions: 0, clicks: 0, link_clicks: 0, conversions: 0, revenue: 0 });
   const b = budgets();
   const cap = account === 'costco' ? b.costco : account === 'target' ? b.target : b.target + b.costco;
   // Per-account rollup: the two US accounts are not comparable on one KPI (the
@@ -232,6 +303,12 @@ select source_id, account_name, ad_id, ad_name, adset_name, campaign_name, round
     live_count: live.length, not_live_count: rows.length - live.length, campaigns: [...new Set(live.map((x) => x.campaign))].length,
     totals, ctr: totals.impressions ? round(totals.link_clicks / totals.impressions * 100, 2) : null,
     cpc: totals.link_clicks ? round(totals.spend / totals.link_clicks, 3) : null,
+    // Commercial outcome, present only when the source actually reported it —
+    // the warehouse path has no conversion columns, so these stay null there
+    // rather than silently reading as zero sales.
+    roas: source === 'meta-marketing-api' && totals.spend ? round(totals.revenue / totals.spend, 2) : null,
+    cost_per_conversion: source === 'meta-marketing-api' && totals.conversions ? round(totals.spend / totals.conversions, 2) : null,
+    metrics_complete: source === 'meta-marketing-api',
     budget_cap: cap, pacing_pct: cap ? round(totals.spend / cap * 100, 1) : null,
     ads: rows.map((x) => Object.assign({}, x, { status: x.impressions > 0 ? 'live' : (x.spend > 0 ? 'starting' : 'not_live_yet') })),
     note: 'Today is a PARTIAL day — spend and delivery accrue through the day. Status: live = delivering (impressions today), starting = spend but no impressions yet, not_live_yet = no delivery recorded today.',
@@ -269,10 +346,13 @@ function status() {
   const c = metaCfg();
   return {
     ok: true, source: 'ads-live',
+    primary_source: metaConfigured() ? 'meta-marketing-api' : (snow.isConfigured() ? 'snowflake' : 'none'),
     meta_api: { configured: metaConfigured(), account_set: !!c.account, token_set: !!c.token, api_version: META_API_VERSION,
-      note: metaConfigured() ? 'Meta Marketing API configured — today is read minute-fresh with date_preset=today.' : 'Meta Marketing API not configured (META_ACCESS_TOKEN + META_AD_ACCOUNT_ID). Falling back to the Snowflake per-day mirror.' },
-    snowflake: { configured: snow.isConfigured(), table: META_TABLE,
-      accounts: liveSources().map(snow.describeAccount) },
+      metrics: 'delivery + conversions, revenue, ROAS, reach, frequency, CPM, CPC',
+      note: metaConfigured() ? 'Meta Marketing API configured and PRIMARY — today is read minute-fresh with date_preset=today, with the full metric set. Snowflake is not required for US.' : 'Meta Marketing API not configured (META_ACCESS_TOKEN + META_AD_ACCOUNT_ID). Falling back to the Snowflake per-day mirror, which carries delivery but NO conversion or revenue columns.' },
+    snowflake: { configured: snow.isConfigured(), table: META_TABLE, role: 'fallback mirror',
+      accounts: liveSources().map(snow.describeAccount),
+      note: 'Used only when the direct Meta link is unavailable. It has no conversion/revenue columns, so ROAS and cost-per-conversion are reported as null on this path rather than as zero.' },
     report_timezone: process.env.ADS_REPORT_TZ || 'America/New_York',
     today: todayISO(), budgets: budgets(),
   };
