@@ -462,11 +462,49 @@ function pickSources(accounts, dflt) {
   return chosen.length ? chosen : (dflt || all.filter((a) => a.status === 'live' && a.region === 'US'));
 }
 
-/** Everything a UI needs to describe an account without querying it. */
+// "Today" for ad reporting is US Eastern (the US accounts report on EST), matching
+// ads-live-core. Kept local rather than imported: ads-live-core requires THIS
+// module, so importing it back would be circular.
+function reportToday(tz) {
+  const zone = tz || process.env.ADS_REPORT_TZ || 'America/New_York';
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  catch (_) { return new Date().toISOString().slice(0, 10); }
+}
+function daysBetween(fromIso, toIso) {
+  const a = Date.parse(`${fromIso}T00:00:00Z`), b = Date.parse(`${toIso}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return Math.round((b - a) / 86400000);
+}
+
+/**
+ * Everything a UI needs to describe an account without querying it.
+ *
+ * `fresh_to` in the registry is a VERIFICATION RECORD — what the table held the
+ * day someone last checked it. `partial_day: true` alongside it meant "that day
+ * is today, still accruing", which was true on the day of verification and
+ * silently became a lie every day after: the dashboard went on rendering a
+ * week-old date as "includes the current partial day".
+ *
+ * So the live claim is derived here rather than trusted from the registry. A day
+ * is only the current partial day if it IS today in the reporting timezone;
+ * otherwise the mirror is behind and `stale_days` says by how much. The stored
+ * flag is preserved as `verified_partial_day` so the original observation is not
+ * lost, just demoted from a live assertion to a historical one.
+ */
 function describeAccount(s) {
+  const today = reportToday();
+  const stale = s.fresh_to ? daysBetween(s.fresh_to, today) : null;
+  const isToday = !!s.fresh_to && s.fresh_to === today;
   return { id: s.id, label: s.label, platform: s.platform, region: s.region, status: s.status,
     account_id: s.account_id, table: s.table, schema: s.schema, fresh_to: s.fresh_to,
-    partial_day: !!s.partial_day, purpose: s.purpose, used_for: s.used_for, kpi: s.kpi,
+    partial_day: isToday && !!s.partial_day,
+    verified_partial_day: !!s.partial_day,
+    today, stale_days: stale,
+    freshness: stale == null ? 'unknown' : (stale <= 0 ? 'current' : stale === 1 ? 'one_day_behind' : 'stale'),
+    freshness_note: stale == null ? null
+      : stale <= 0 ? 'Includes the current partial day.'
+        : `Last verified fresh to ${s.fresh_to}, which is ${stale} day${stale === 1 ? '' : 's'} before today (${today}). This registry entry is a verification record, not a live read — connect Snowflake or the platform API for the actual latest day.`,
+    purpose: s.purpose, used_for: s.used_for, kpi: s.kpi,
     attribution: s.attribution, attribution_note: s.attribution_note || null,
     currency: s.currency || 'USD', stale_note: s.stale_note || null, verified: s.verified || null };
 }
