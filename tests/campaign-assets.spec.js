@@ -36,10 +36,22 @@ test.describe('the product stays real', () => {
 
   test('video starts FROM the real photo, not from a description of it', () => {
     const kick = SRC.slice(SRC.indexOf('async function kickAdVideos'), SRC.indexOf('// ── Funnel build'));
-    expect(kick).toContain('const initUrl = c.image || null;');
     expect(kick).toContain('image_url: initUrl');
     // And the motion prompt forbids restyling what was photographed.
     expect(kick).toMatch(/do not restyle, relabel or redraw it/);
+  });
+
+  test('an ad on an unlisted platform still animates a REAL photo, or none at all', () => {
+    // The hole this closes: a channel absent from the copy JSON (YouTube ads
+    // exist in the studio) had no creatives[platform], so initUrl was null and
+    // the job silently became TEXT-to-video with the product named in the
+    // prompt — a fabricated pack shot, produced by the very guard rail meant to
+    // prevent one. Now it falls back to the hero photo, or skips outright.
+    const kick = SRC.slice(SRC.indexOf('async function kickAdVideos'), SRC.indexOf('// ── Funnel build'));
+    expect(kick).toContain('const initUrl = c.image || heroPool[0] || null;');
+    expect(kick).toMatch(/if \(!initUrl\) \{ ad\.video = \{ status: 'skipped'/);
+    // Platform keys arrive as both 'meta' and 'meta_ads' depending on the writer.
+    expect(kick).toContain("replace(/_ads?$/, '')");
   });
 
   test('a scene that fails to generate ships the real photo alone', () => {
@@ -101,7 +113,42 @@ test.describe('video is submitted, not awaited', () => {
     expect(kick).toContain("status: 'not_connected'");
   });
 
-  test('each platform gets its native aspect', () => {
-    expect(SRC).toMatch(/VIDEO_ASPECT = \{ meta: '1:1', google: '16:9', tiktok: '9:16' \}/);
+  test('each platform gets its native aspect, including the ones off the copy JSON', () => {
+    const map = SRC.slice(SRC.indexOf('const VIDEO_ASPECT ='), SRC.indexOf('const VIDEO_ASPECT =') + 200);
+    // A 9:16 default on a YouTube ad is a letterboxed clip that markets worse.
+    expect(map).toContain("youtube: '16:9'");
+    expect(map).toContain("tiktok: '9:16'");
+    expect(map).toContain("meta: '1:1'");
+    expect(map).toContain("google: '16:9'");
+  });
+
+  test('scene stills are composed in the shape they ship in', () => {
+    const map = SRC.slice(SRC.indexOf('const SCENE_SIZE ='), SRC.indexOf('const SCENE_SIZE =') + 220);
+    expect(map).toContain("tiktok: '1024x1536'");   // vertical
+    expect(map).toContain("meta: '1024x1024'");     // square
+    expect(map).toContain("youtube: '1536x1024'");  // landscape
+  });
+});
+
+test.describe('finished clips are collected, not left processing', () => {
+  test('a worker walks video_jobs and writes the finished URL onto the ad', () => {
+    const w = SRC.slice(SRC.indexOf('async function attachReadyVideos'), SRC.indexOf('async function prebuildAssets'));
+    expect(w).toContain('getVideoStatus');
+    expect(w).toMatch(/status: 'done', url: st\.video_url/);
+    // Resumable in the same shape as prebuildAssets.
+    expect(w).toContain('remaining:');
+  });
+
+  test('a quiet poll does not rewrite rows', () => {
+    const w = SRC.slice(SRC.indexOf('async function attachReadyVideos'), SRC.indexOf('async function prebuildAssets'));
+    expect(w).toContain('if (unfinished.length !== jobs.length)');
+  });
+
+  test('the queue collects before it builds more', () => {
+    const router = require('fs').readFileSync(require('path').join(__dirname, '..', 'api', 'calendar.js'), 'utf8');
+    const i = router.indexOf('attachReadyVideos');
+    const j = router.indexOf('plan.prebuildAssets({');
+    expect(i).toBeGreaterThan(-1);
+    expect(i).toBeLessThan(j);
   });
 });

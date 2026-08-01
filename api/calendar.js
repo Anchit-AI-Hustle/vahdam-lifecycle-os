@@ -154,6 +154,12 @@ async function smartBrain(req, res, smartAction) {
       const depth = Math.max(0, +((body && body._depth) || req.query?.depth || 0));
       const MAX_DEPTH = 400; // backstop against runaway self-chaining (> 90d × markets slots)
       const batchSize = Math.max(1, Math.min(3, +((body && body.batchSize) || 1)));
+      // Collect any video that finished since the last pass BEFORE building more.
+      // Veo jobs outlive the invocation that submitted them, so without this a
+      // completed clip sits at status:'processing' forever and the campaign looks
+      // like it never got one. Advisory: a failure here must not stop the queue.
+      let videos = null;
+      try { videos = await plan.attachReadyVideos({ config: body.config || {} }); } catch (_) { /* non-fatal */ }
       const result = await plan.prebuildAssets({ config: body.config || {}, batchSize });
       // Chain to the next batch only while making progress and within the backstop,
       // so a total-failure batch (e.g. LLM down) stops instead of hot-looping.
@@ -162,7 +168,7 @@ async function smartBrain(req, res, smartAction) {
         const f = await firePrebuild(depth);
         chained = f.fired;
       }
-      return res.status(200).json({ ok: true, prebuild: true, depth, chained, ...result });
+      return res.status(200).json({ ok: true, prebuild: true, depth, chained, videos, ...result });
     }
 
     if (smartAction === 'heal') {

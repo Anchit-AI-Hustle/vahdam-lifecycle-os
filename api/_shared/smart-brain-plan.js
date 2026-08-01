@@ -1010,7 +1010,9 @@ async function generateCreativeImage(prompt, { size = '1024x1024', mode = '', ti
 // is a fabricated product photograph with garbled letterforms on it.
 const SCENE_ONLY_RULE = 'SCENE ONLY, NO PRODUCT AND NO TEXT. Do not draw any product, packaging, tin, pouch, carton, box, sachet, label, logo, brand mark, letterform, word or number anywhere in the frame — the real product photograph is composited on top separately, and anything you draw would be a fake pack shot. Editorial lifestyle photography: warm natural light, real hands and real kitchens, VAHDAM palette (forest green #004A2B, gold #AB8743, cream #FBF5EA), generous negative space where copy will sit.';
 
-const SCENE_SIZE = { email: '1536x1024', landing: '1536x1024', meta: '1024x1024', google: '1536x1024', tiktok: '1024x1536' };
+// Native aspect per surface — a square scene letterboxed into a 9:16 TikTok slot
+// markets worse than one composed for it, so each gets the shape it ships in.
+const SCENE_SIZE = { email: '1536x1024', landing: '1536x1024', meta: '1024x1024', google: '1536x1024', tiktok: '1024x1536', youtube: '1536x1024' };
 
 // Upload a base64 data-URL creative to the public Supabase Storage bucket and
 // return its hosted URL (so we persist a small URL, not a multi-MB data-URL).
@@ -1103,16 +1105,23 @@ async function generateCreatives(copy, entry, { only = null, lean = false, scene
 // /api/brain?action=video-status. Deliberately NOT run for drafts — video is
 // metered per second and the calendar holds ~140 sends, so it fires only where
 // the owner has committed to the send (approve) or explicitly asked (recreate).
-const VIDEO_ASPECT = { meta: '1:1', google: '16:9', tiktok: '9:16' };
+const VIDEO_ASPECT = { meta: '1:1', google: '16:9', tiktok: '9:16', youtube: '16:9', instagram: '9:16', facebook: '1:1', pinterest: '9:16' };
 async function kickAdVideos(campaign, creatives, entry) {
   let video;
   try { video = require('./video-core.js'); } catch (_) { return []; }
   const ads = (campaign.assets && campaign.assets.ads) || [];
   const jobs = [];
+  // Fallback pack shot for any channel the copy JSON did not name — YouTube ads
+  // exist in the studio, and a platform missing from `creatives` would otherwise
+  // arrive here with initUrl null and run TEXT-to-video, which is precisely the
+  // fabricated-packaging case this whole path exists to prevent. Every ad gets a
+  // real photo or it does not get a video.
+  const heroPool = realImagePool(entry, 1600);
   await Promise.all(ads.map(async (ad) => {
-    const platform = String(ad.platform || '').toLowerCase();
+    const platform = String(ad.platform || '').replace(/_ads?$/, '').toLowerCase();
     const c = creatives[platform] || {};
-    const initUrl = c.image || null;             // the REAL catalog photo
+    const initUrl = c.image || heroPool[0] || null;    // the REAL catalog photo
+    if (!initUrl) { ad.video = { status: 'skipped', reason: 'no real product photograph available to animate' }; return; }
     const prompt = [c.brief || '', SCENE_ONLY_RULE, 'Gentle cinematic motion only: a slow push-in or a soft parallax drift. Hold the product exactly as photographed — do not restyle, relabel or redraw it.'].filter(Boolean).join('\n\n');
     try {
       const r = await video.generateVideo({
@@ -1782,6 +1791,54 @@ async function persistCampaignAssets(db, config, campaign, { status, origin, rev
   return out;
 }
 
+// Video is submitted, never awaited — Veo runs for minutes and no serverless
+// invocation lives that long. So a clip that finished has to be COLLECTED, or it
+// stays 'processing' forever and the campaign looks like it never got its video.
+// This walks campaigns holding unfinished jobs, polls each, and writes the
+// finished URL onto the matching ad. Idempotent and resumable: it returns
+// `remaining` so the caller re-invokes until 0, exactly like prebuildAssets.
+async function attachReadyVideos({ config: cfg = {}, batchSize = 8 } = {}) {
+  const config = smartConfig(cfg);
+  const db = new SmartBrainDbAdapter(config);
+  if (!db.connected) return { ok: true, skipped: true, reason: 'Supabase env not configured', attached: [], still_processing: 0, remaining: 0 };
+  let video;
+  try { video = require('./video-core.js'); } catch (_) { return { ok: false, error: 'video-core unavailable', attached: [], remaining: 0 }; }
+
+  const rows = (await db.select(config.tableNames.generatedCampaigns, { order: 'created_at.desc', limit: 200 }).catch(() => [])) || [];
+  const waiting = rows.filter((r) => Array.isArray(r.payload && r.payload.video_jobs) && r.payload.video_jobs.length);
+  const batch = waiting.slice(0, Math.max(1, batchSize));
+  const attached = [];
+  let stillProcessing = 0;
+
+  for (const row of batch) {
+    const campaign = row.payload;
+    const jobs = campaign.video_jobs || [];
+    const unfinished = [];
+    for (const job of jobs) {
+      let st = null;
+      try { st = await video.getVideoStatus({ provider: job.provider, job_id: job.job_id }); } catch (_) { st = null; }
+      const ad = (campaign.assets && campaign.assets.ads || []).find((a) => String(a.platform || '').toLowerCase() === job.platform);
+      if (st && st.status === 'completed' && st.video_url) {
+        if (ad) ad.video = { ...(ad.video || {}), status: 'done', url: st.video_url, provider: st.provider };
+        attached.push({ campaign_id: campaign.campaign_id, platform: job.platform, url: st.video_url });
+      } else if (st && st.status === 'failed') {
+        if (ad) ad.video = { ...(ad.video || {}), status: 'failed', error: (st.error || 'provider reported failure').slice(0, 200) };
+      } else {
+        unfinished.push(job); stillProcessing += 1;
+      }
+    }
+    // Only rewrite the row when something actually moved, so a quiet poll is a
+    // pure read and cannot churn updated_at across the whole table.
+    if (unfinished.length !== jobs.length) {
+      if (unfinished.length) campaign.video_jobs = unfinished; else delete campaign.video_jobs;
+      try {
+        await db.update(config.tableNames.generatedCampaigns, { id: `eq.${row.id}` }, { payload: campaign, updated_at: nowIso() });
+      } catch (_) { /* a write hiccup just means the next pass retries this campaign */ }
+    }
+  }
+  return { ok: true, attached, still_processing: stillProcessing, batch: batch.length, remaining: Math.max(0, waiting.length - batch.length) };
+}
+
 async function prebuildAssets({ config: cfg = {}, batchSize = 1, sinceDate = null } = {}) {
   const config = smartConfig(cfg);
   const db = new SmartBrainDbAdapter(config);
@@ -1871,7 +1928,7 @@ async function dbCheck({ config: cfg = {} } = {}) {
 
 module.exports = {
   syncDaily, getPlan, previewEntry, approveEntry, rejectEntry, unrejectEntry, activateScenario, landingPageHtml, landingPageResolve, buildCampaign,
-  prebuildAssets, healOrphans, dbCheck, syncStatus,
+  prebuildAssets, attachReadyVideos, healOrphans, dbCheck, syncStatus,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
 };
