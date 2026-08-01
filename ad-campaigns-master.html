@@ -1922,7 +1922,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         : {k:'CPC', v:(o&&o.link_clicks)?money(o.spend/o.link_clicks):"—"};
       return "<div class='acard"+(a.kpi==='traffic'?" traffic":"")+"'>"+
         "<h4>"+esc(a.label)+"</h4>"+
-        "<div class='id'>"+esc(a.platform.toUpperCase())+" · "+esc(a.region)+" · "+esc(a.account_id||"—")+" · fresh to "+esc(a.fresh_to)+" "+statusChip(a.status)+" "+kpiChip(a.kpi)+"</div>"+
+        "<div class='id'>"+esc(a.platform.toUpperCase())+" · "+esc(a.region)+" · "+esc(a.account_id||"—")+" · fresh to "+esc(a.fresh_to)+(a.stale_days>0?" <span class='chip warn'>+"+esc(a.stale_days)+"d behind</span>":"")+" "+statusChip(a.status)+" "+kpiChip(a.kpi)+"</div>"+
         "<div class='use'>"+esc(a.used_for)+"</div>"+
         "<p class='why'>"+esc(a.purpose)+"</p>"+
         (a.attribution_note?"<p class='why' style='color:var(--warn)'><b>Attribution.</b> "+esc(a.attribution_note)+"</p>":"")+
@@ -1980,7 +1980,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         ["Currency",esc(a.currency||'USD')],
         ["Warehouse table","<span style='font-family:var(--mono);font-size:11.5px'>"+esc(a.table)+"</span>"],
         ["Schema",esc(a.schema)],
-        ["Data fresh to",esc(a.fresh_to)+(a.partial_day?" (includes the current partial day)":"")],
+        ["Data fresh to",esc(a.fresh_to)+(a.partial_day?" (includes the current partial day)":(a.stale_days>0?" <span class='chip warn'>"+esc(a.stale_days)+" day"+(a.stale_days===1?"":"s")+" behind "+esc(a.today||"")+"</span>":""))],
         ["Attribution",esc(a.attribution)],
         ["Rows on record",v.rows!=null?intf(v.rows):"—"],
         ["Date range",(v.first_day||"—")+" → "+(v.last_day||"—")],

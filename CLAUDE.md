@@ -168,6 +168,29 @@ made — callers render an honest empty state instead of a plausible number.
   every other outbound connector. ⚠️ **`ad-insights-core.js` does NOT honour that switch** (pre-existing) —
   it will call Meta/Google/TikTok even with `LIVE_CONNECTORS` off.
 
+### Two rendering/date invariants that erode silently (2026-08-01)
+- **A stale date must never present itself as today.** `ads-snowflake-core`'s `fresh_to` is a
+  VERIFICATION RECORD (what the table held when someone last checked), and the registry's
+  `partial_day: true` beside it meant "that day is today, still accruing" — true on the day of
+  verification, a lie every day after. The dashboard was rendering `Data fresh to 2026-07-25
+  (includes the current partial day)` a week later; both dates being Saturdays made it read as
+  plausible. `describeAccount()` now DERIVES `partial_day` (`fresh_to === today` in `ADS_REPORT_TZ`)
+  and exposes `today`, `stale_days`, `freshness`, `freshness_note`, keeping the original observation
+  as `verified_partial_day`. Never re-assert a stored freshness flag as a live claim.
+- **Table columns declare their kind.** `data-analysis-extensions.js` `table()` takes `N()` numeric /
+  `W()` wide identifier / `ID()` machine id / plain string. The host page sets `table{width:100%}` +
+  `th,td{white-space:nowrap}`, so long unbroken campaign tokens used to overflow and paint over the
+  next column — the tables were literally unreadable. Text now wraps inside a `.cw` inner block
+  (**`max-width` on a `<td>` is ignored by auto table layout** — it must live on a block inside the
+  cell), numbers stay `nowrap`/right/tabular. Locked by `tests/table-readability.spec.js`, which reads
+  the real CSS out of both source files and asserts geometrically that no cell overflows and no two
+  cells in a row overlap.
+- **Render every field the view returns.** The ads table showed 14 of the 20 fields
+  `data-analysis-core` produces, dropping `level`, `entity_id`, `cpm`, `conversion_rate`, `reach` and
+  `frequency` — reach/frequency being the only way to see a set re-serving the same people. Pinned by
+  a coverage test. Do NOT invent derived columns to fill gaps: `opens/events` is not an open rate
+  (`events` is the total event count, not deliveries), so it is left out rather than shown wrong.
+
 ### Competitive benchmarking — the own/competitor boundary is load-bearing
 `_shared/competitive-benchmark-core.js` (`/api/competitor?action=benchmark|benchmark-set`) benchmarks us
 against a competitor using the same platform stack, on top of the existing Gmail→Sheet email intel.

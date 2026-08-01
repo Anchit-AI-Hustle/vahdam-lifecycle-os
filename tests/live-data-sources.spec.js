@@ -93,6 +93,35 @@ test('public storefront read returns real structure or an honest failure', async
   expect(r.products).toBeUndefined();
 });
 
+// ── Ads dashboard freshness: a stale date must never present itself as today ──
+test('an account whose fresh_to is in the past is not reported as the current partial day', () => {
+  const snow = shared('ads-snowflake-core.js');
+  const accounts = snow.pickSources('dtc,retail').map(snow.describeAccount);
+  expect(accounts.length).toBeGreaterThan(0);
+  for (const a of accounts) {
+    if (!a.fresh_to) continue;
+    if (a.fresh_to !== a.today) {
+      // This is the exact bug: the registry hardcodes partial_day:true, and the
+      // dashboard rendered "includes the current partial day" against a date a
+      // week old. The live claim must be derived, not trusted.
+      expect(a.partial_day, `${a.id} fresh_to=${a.fresh_to} today=${a.today} must not claim to be today`).toBe(false);
+      expect(a.stale_days, `${a.id} must report how far behind it is`).toBeGreaterThan(0);
+      expect(a.freshness_note, `${a.id} must explain the staleness`).toContain(a.today);
+    } else {
+      expect(a.stale_days).toBe(0);
+      expect(a.freshness).toBe('current');
+    }
+  }
+});
+
+test('the original verification observation is preserved, not silently dropped', () => {
+  const snow = shared('ads-snowflake-core.js');
+  const a = snow.pickSources('dtc').map(snow.describeAccount)[0];
+  expect(a.verified_partial_day).toBe(true); // what the registry recorded
+  expect(a).toHaveProperty('today');
+  expect(a).toHaveProperty('stale_days');
+});
+
 // ── Ad platforms ────────────────────────────────────────────────────────────
 test('unconnected ad platforms return would_request and need_env, no figures', async () => {
   for (const platform of ['meta', 'google', 'tiktok']) {

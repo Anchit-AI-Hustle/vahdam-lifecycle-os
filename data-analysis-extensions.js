@@ -59,13 +59,38 @@
       return '<div class="xkpi"><div class="xkl">' + esc(x.label) + '</div><div class="xkv">' + esc(x.value) + '</div>' + (x.sub ? '<div class="xks">' + esc(x.sub) + '</div>' : '') + '</div>';
     }).join('') + '</div>';
   }
+  // Column markers. A plain string is an ordinary text column; N() is numeric
+  // (nowrap, right-aligned, tabular), W() is a wide identifier that may wrap,
+  // ID() is a machine identifier shown small and monospaced. Declaring the kind
+  // per column is what lets the CSS above wrap prose without ever breaking a
+  // number across two lines.
+  function N(label) { return { label: label, cls: 'num' }; }
+  function W(label) { return { label: label, cls: 'wide' }; }
+  function ID(label) { return { label: label, cls: 'id' }; }
+  function colOf(h) { return (h && typeof h === 'object') ? { label: h.label, cls: h.cls || '' } : { label: h, cls: '' }; }
+
   function table(headers, rows, opts) {
     opts = opts || {};
     if (!rows || !rows.length) return '<div class="xempty">No source-backed rows are available for this view yet.</div>';
     var limit = opts.limit || rows.length;
-    return '<div class="xtable"><table><thead><tr>' + headers.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.slice(0, limit).map(function (r) {
-      return '<tr>' + r.map(function (c) { return '<td>' + (c && c.__html != null ? c.__html : esc(c == null ? '—' : c)) + '</td>'; }).join('') + '</tr>';
-    }).join('') + '</tbody></table></div>';
+    var cols = (headers || []).map(colOf);
+    var head = cols.map(function (c) { return '<th' + (c.cls ? ' class="' + c.cls + '"' : '') + '>' + esc(c.label) + '</th>'; }).join('');
+    var body = rows.slice(0, limit).map(function (r) {
+      return '<tr>' + r.map(function (cell, i) {
+        var cls = (cols[i] && cols[i].cls) || '';
+        var html = (cell && cell.__html != null) ? cell.__html : esc(cell == null || cell === '' ? '—' : cell);
+        // title= keeps the full value reachable on hover even when a long
+        // identifier wraps or is visually truncated.
+        var full = (cell && cell.__html != null) ? '' : String(cell == null ? '' : cell);
+        // Numbers are left bare so they stay on one line; everything else is
+        // bounded by an inner block, which is the only place a max-width is
+        // honoured inside an auto-layout table.
+        var inner = cls === 'num' ? html : '<div class="cw">' + html + '</div>';
+        return '<td' + (cls ? ' class="' + cls + '"' : '') + (full && full.length > 28 ? ' title="' + esc(full) + '"' : '') + '>' + inner + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+    var count = rows.length > limit ? '<div class="xtable-note">Showing ' + limit + ' of ' + rows.length + ' rows.</div>' : '';
+    return '<div class="xtable"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' + count;
   }
   function panelTitle(title, subtitle, controls) {
     return '<div class="xhead"><div><h2>' + esc(title) + '</h2><p>' + esc(subtitle || '') + '</p></div>' + (controls || '') + '</div>';
@@ -156,7 +181,29 @@
       '.xnotice{border:1px solid var(--line);border-left:4px solid var(--gold);background:var(--surface);border-radius:9px;padding:10px 12px;font-size:12.5px;color:var(--soft);line-height:1.5;margin:10px 0}',
       '.xnotice.bad{border-left-color:#a52a2a}.xnotice.good{border-left-color:#16814b}',
       '.xtable{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:560px;background:var(--surface)}',
-      '.xtable table{min-width:820px;font-size:12px}.xtable th{position:sticky;top:0;z-index:1}.xtable td,.xtable th{padding:8px 10px;white-space:nowrap}',
+      // The host page sets `table{width:100%}` and `th,td{white-space:nowrap}`. With
+      // campaign names that are long unbroken underscore tokens, nowrap content had
+      // nowhere to go and painted straight over the next column, which is why these
+      // tables became unreadable. Text cells now wrap inside a bounded width and the
+      // table is free to grow past the container and scroll horizontally instead.
+      // These selectors are element+class, so they outrank the host's bare rules.
+      '.xtable table{width:max-content;min-width:100%;font-size:12px;table-layout:auto}',
+      '.xtable th{position:sticky;top:0;z-index:1}',
+      '.xtable td,.xtable th{padding:8px 10px;white-space:normal;overflow-wrap:anywhere;word-break:break-word;vertical-align:top}',
+      // max-width on a <td> is ignored by the auto table layout algorithm, so the
+      // bound has to live on a block INSIDE the cell. Without this the column just
+      // grows to fit the longest identifier and the table becomes absurdly wide.
+      '.xtable td .cw,.xtable th .cw{max-width:240px;overflow-wrap:anywhere;word-break:break-word}',
+      '.xtable td.wide .cw,.xtable th.wide .cw{max-width:320px;min-width:150px}',
+      '.xtable td.id .cw,.xtable th.id .cw{max-width:150px}',
+      // Numbers must never wrap or left-align: a broken "$5,706.88" is unreadable and
+      // tabular figures are what make a column scannable.
+      '.xtable td.num,.xtable th.num{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;max-width:none}',
+      // Identifier columns get more room before wrapping, and a floor so they do not
+      // collapse to one character per line when the table is wide.
+      '.xtable td.wide,.xtable th.wide{max-width:320px;min-width:170px}',
+      '.xtable td.id,.xtable th.id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--soft);max-width:150px}',
+      '.xtable-note{font-size:11.5px;color:var(--soft);padding:6px 2px 0}',
       '.xempty{padding:28px 16px;text-align:center;color:var(--soft);border:1px dashed var(--line);border-radius:10px;background:var(--surface);font-size:12.5px}',
       '.xloading{display:flex;justify-content:center;gap:7px;padding:65px}.xloading span{width:9px;height:9px;border-radius:50%;background:var(--gold);animation:xblink 1.1s infinite}.xloading span:nth-child(2){animation-delay:.15s}.xloading span:nth-child(3){animation-delay:.3s}',
       '@keyframes xblink{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}',
@@ -273,13 +320,21 @@
         var platforms = (data.platforms || []).map(function (p) {
           return '<div class="xplatform"><span><b>' + esc(String(p.platform || '').toUpperCase()) + '</b><br><small>' + esc(p.rows.length + ' source rows' + (p.fetched_at ? ' · ' + dateTime(p.fetched_at) : '')) + '</small></span>' + boolBadge(p.connected && p.ok, 'Live', p.connected ? 'Error' : 'Connect') + '</div>' + (p.error ? '<div class="xnotice bad">' + esc(p.error) + '</div>' : '') + (!p.connected && p.need_env && p.need_env.length ? '<div class="xnotice">Required configuration: ' + esc(p.need_env.join(', ')) + '</div>' : '');
         }).join('');
-        var rows = (data.rows || []).map(function (r) { return [r.platform, r.entity, r.campaign || '—', r.ad_group || '—', r.status || '—', money(r.spend), fmt(r.impressions), fmt(r.clicks), percent(r.ctr, 2), money(r.cpc), fmt(r.conversions, 2), money(r.cpa), money(r.revenue), ratio(r.roas)]; });
+        // Every field the ads view actually returns is rendered. It previously
+        // dropped six of them (level, entity_id, cpm, conversion_rate, reach,
+        // frequency) — reach and frequency in particular are the only way to see
+        // that a set is burning budget on the same people.
+        var rows = (data.rows || []).map(function (r) {
+          return [r.platform, r.level || '—', r.entity, r.entity_id || '—', r.campaign || '—', r.ad_group || '—', r.status || '—',
+            money(r.spend), fmt(r.impressions), fmt(r.reach), fmt(r.frequency, 2), fmt(r.clicks), percent(r.ctr, 2),
+            money(r.cpc), money(r.cpm), fmt(r.conversions, 2), percent(r.conversion_rate, 2), money(r.cpa), money(r.revenue), ratio(r.roas)];
+        });
         body.innerHTML = kpis([
           { label: 'Spend', value: money(k.spend) }, { label: 'Revenue', value: money(k.revenue) }, { label: 'ROAS', value: ratio(k.roas) },
           { label: 'Impressions', value: fmt(k.impressions) }, { label: 'Clicks', value: fmt(k.clicks) }, { label: 'CTR', value: percent(k.ctr, 2) },
           { label: 'Conversions', value: fmt(k.conversions, 2) }, { label: 'CPA', value: money(k.cpa) }, { label: 'CVR', value: percent(k.conversion_rate, 2) },
         ]) + '<div class="xgrid"><div class="xcard span4"><h3>Connector status</h3><p>Only connected providers contribute figures.</p>' + platforms + '</div><div class="xcard span8"><h3>Reporting contract</h3><p>' + esc(data.freshness || '') + '</p>' + note(data.note || '', data.pending_platforms && data.pending_platforms.length ? '' : 'good') + '<div class="xmeta"><span>Market: <b>' + esc(data.market) + '</b></span><span>Level: <b>' + esc(data.level) + '</b></span><span>Window: <b>' + esc(data.window && data.window.since) + ' → ' + esc(data.window && data.window.until) + '</b></span><span>Generated: <b>' + esc(dateTime(data.generated_at)) + '</b></span></div></div></div>' +
-          '<div class="xcard span12"><h3>Ads ranked by spend</h3><p>Campaign, ad-group/ad-set and ad identifiers are retained where each platform returns them.</p>' + table(['Platform','Entity','Campaign','Ad group / set','Status','Spend','Impressions','Clicks','CTR','CPC','Conversions','CPA','Revenue','ROAS'], rows, { limit: 250 }) + '</div>';
+          '<div class="xcard span12"><h3>Ads ranked by spend</h3><p>Every field the platform returns for this level: delivery, cost, efficiency and outcome. Campaign, ad-group/ad-set and ad identifiers are retained where each platform provides them.</p>' + table(['Platform','Level',W('Entity'),ID('Entity ID'),W('Campaign'),W('Ad group / set'),'Status',N('Spend'),N('Impressions'),N('Reach'),N('Frequency'),N('Clicks'),N('CTR'),N('CPC'),N('CPM'),N('Conversions'),N('CVR'),N('CPA'),N('Revenue'),N('ROAS')], rows, { limit: 250 }) + '</div>';
       } catch (e) { body.innerHTML = failure('Live Ads Intelligence', e); }
       finally { refresh.disabled = false; refresh.textContent = 'Refresh now'; }
     }
@@ -306,17 +361,21 @@
         var connectBanner = (!klOn && !weOn)
           ? '<div class="xcard span12" style="border-left:4px solid var(--gold,#AB8743)"><h3>No mailer source connected</h3><p>Klaviyo and WebEngage are not connected, so every figure below is zero (nothing is estimated). To populate this tab with real data, set <code>KLAVIYO_API_KEY</code> (and the WebEngage export vars) in Vercel, then refresh. Read only, never written back.</p></div>'
           : '';
-        var campaigns = (d.campaigns || []).map(function (c) { return [c.source, c.campaign, c.status || '—', dateTime(c.sent_at), c.events == null ? '—' : fmt(c.events), c.opens == null ? '—' : fmt(c.opens), c.clicks == null ? '—' : fmt(c.clicks), c.conversions == null ? '—' : fmt(c.conversions), c.revenue == null ? '—' : money(c.revenue)]; });
-        var segments = (d.segments || []).map(function (x) { return [x.name || x.id, fmt(x.profile_count), dateTime(x.synced_at || x.klaviyo_updated)]; });
+        // unique_users is carried on WebEngage rows and was being dropped. A blank
+        // stays blank: Klaviyo rows genuinely have no unique-user count, and
+        // deriving open/click RATES here would be wrong — `events` is the total
+        // event count, not deliveries, so opens/events is not an open rate.
+        var campaigns = (d.campaigns || []).map(function (c) { return [c.source, c.campaign, c.status || '—', dateTime(c.sent_at), c.events == null ? '—' : fmt(c.events), c.unique_users == null ? '—' : fmt(c.unique_users), c.opens == null ? '—' : fmt(c.opens), c.clicks == null ? '—' : fmt(c.clicks), c.conversions == null ? '—' : fmt(c.conversions), c.revenue == null ? '—' : money(c.revenue)]; });
+        var segments = (d.segments || []).map(function (x) { return [x.name || x.id, x.id || '—', fmt(x.profile_count), dateTime(x.synced_at || x.klaviyo_updated)]; });
         var mix = (d.event_mix || []).map(function (x) { return [x.event, fmt(x.count)]; });
         body.innerHTML = connectBanner + kpis([
           { label: 'Delivered', value: fmt(k.delivered) }, { label: 'Open rate', value: percent(k.open_rate, 2) }, { label: 'Click rate', value: percent(k.click_rate, 2) },
           { label: 'Click-to-open', value: percent(k.ctor, 2) }, { label: 'Conversions', value: fmt(k.conversions) }, { label: 'Mailer revenue', value: money(k.revenue) },
           { label: 'Revenue / recipient', value: money(k.revenue_per_recipient) }, { label: 'Unsubscribe rate', value: percent(k.unsubscribe_rate, 3) }, { label: 'Bounce rate', value: percent(k.bounce_rate, 3) },
           { label: 'Known campaigns', value: fmt(k.known_campaigns) }, { label: 'Known segments', value: fmt(k.known_segments) }, { label: 'Segment profiles', value: fmt(k.segment_profiles) },
-        ]) + '<div class="xgrid"><div class="xcard"><h3>Source health</h3><div class="xplatform"><span><b>Klaviyo</b><br><small>' + esc((s.klaviyo && s.klaviyo.live_events || 0) + ' live events · ' + (s.klaviyo && s.klaviyo.mirrored_campaigns || 0) + ' mirrored campaigns') + '</small></span>' + boolBadge(s.klaviyo && s.klaviyo.connected) + '</div><div class="xplatform"><span><b>WebEngage</b><br><small>' + esc((s.webengage && s.webengage.events || 0) + ' events in window') + '</small></span>' + boolBadge(s.webengage && s.webengage.connected) + '</div>' + note(d.note || '') + '</div><div class="xcard"><h3>Event mix</h3>' + table(['Event','Count'], mix, { limit: 30 }) + '</div></div>' +
-          '<div class="xcard span12"><h3>Campaign ledger</h3><p>Unavailable fields remain blank rather than inferred.</p>' + table(['Source','Campaign','Status','Sent','Events','Opens','Clicks','Conversions','Revenue'], campaigns, { limit: 150 }) + '</div>' +
-          '<div class="xcard span12"><h3>Klaviyo audiences / segments</h3>' + table(['Segment','Profiles','Last synced'], segments, { limit: 100 }) + '</div>';
+        ]) + '<div class="xgrid"><div class="xcard"><h3>Source health</h3><div class="xplatform"><span><b>Klaviyo</b><br><small>' + esc((s.klaviyo && s.klaviyo.live_events || 0) + ' live events · ' + (s.klaviyo && s.klaviyo.mirrored_campaigns || 0) + ' mirrored campaigns') + '</small></span>' + boolBadge(s.klaviyo && s.klaviyo.connected) + '</div><div class="xplatform"><span><b>WebEngage</b><br><small>' + esc((s.webengage && s.webengage.events || 0) + ' events in window') + '</small></span>' + boolBadge(s.webengage && s.webengage.connected) + '</div>' + note(d.note || '') + '</div><div class="xcard"><h3>Event mix</h3>' + table(['Event',N('Count')], mix, { limit: 30 }) + '</div></div>' +
+          '<div class="xcard span12"><h3>Campaign ledger</h3><p>Unavailable fields remain blank rather than inferred.</p>' + table(['Source',W('Campaign'),'Status','Sent',N('Events'),N('Unique users'),N('Opens'),N('Clicks'),N('Conversions'),N('Revenue')], campaigns, { limit: 150 }) + '</div>' +
+          '<div class="xcard span12"><h3>Klaviyo audiences / segments</h3>' + table([W('Segment'),ID('Segment ID'),N('Profiles'),'Last synced'], segments, { limit: 100 }) + '</div>';
       } catch (e) { body.innerHTML = failure('Mailer Intelligence', e); }
       finally { btn.disabled = false; btn.textContent = 'Refresh now'; }
     }
@@ -342,9 +401,9 @@
           { label: 'Live experiments', value: fmt(k.live_experiments) }, { label: 'Significant winners', value: fmt(k.significant_winners) }, { label: 'SRM flags', value: fmt(k.srm_flags) },
           { label: 'Competitor pages', value: fmt(k.competitor_pages) }, { label: 'Competitor brands', value: fmt(k.competitor_brands) },
         ]) + '<div class="xgrid"><div class="xcard span12"><h3>Connector & data coverage</h3><div class="xmeta">' + boolBadge(d.connector && d.connector.connected) + '<span>Sources: <b>' + esc((d.connector && d.connector.sources || []).join(' · ')) + '</b></span></div>' + note(d.connector && d.connector.note || '') + '<div class="xmetric-list"><div class="xmetric"><b>Own pages</b><br>' + esc((av.pages && av.pages.rows || 0) + ' rows') + '</div><div class="xmetric"><b>Experiments</b><br>' + esc((av.experiments && av.experiments.rows || 0) + ' rows') + '</div><div class="xmetric"><b>Competitors</b><br>' + esc((av.competitors && av.competitors.rows || 0) + ' rows') + '</div></div></div></div>' +
-          '<div class="xcard span12"><h3>VAHDAM landing-page performance</h3>' + table(['Page','Status','Visitors','Views','Clicks','CTR','Conversions','CVR','Revenue','AOV','Avg view','Load'], pages, { limit: 200 }) + '</div>' +
-          '<div class="xcard span12"><h3>A/B experiments & result quality</h3><p>Includes lift, confidence, winner status, revenue impact and sample-ratio mismatch checks.</p>' + table(['Experiment','Status','Variants','Winner','Lift','Confidence','Significant','SRM','Revenue impact'], experiments, { limit: 150 }) + '</div>' +
-          '<div class="xcard span12"><h3>Competitor landing-page benchmark</h3><p>Competitor numbers appear only where the authorised export provides them; unavailable estimates are left blank.</p>' + table(['Brand','Page','Type','Offer','Active days','Linked ads','Est. spend','CVR','Source'], competitors, { limit: 250 }) + '</div>';
+          '<div class="xcard span12"><h3>VAHDAM landing-page performance</h3>' + table([W('Page'),'Status',N('Visitors'),N('Views'),N('Clicks'),N('CTR'),N('Conversions'),N('CVR'),N('Revenue'),N('AOV'),N('Avg view'),N('Load')], pages, { limit: 200 }) + '</div>' +
+          '<div class="xcard span12"><h3>A/B experiments & result quality</h3><p>Includes lift, confidence, winner status, revenue impact and sample-ratio mismatch checks.</p>' + table([W('Experiment'),'Status',W('Variants'),'Winner',N('Lift'),N('Confidence'),'Significant','SRM',N('Revenue impact')], experiments, { limit: 150 }) + '</div>' +
+          '<div class="xcard span12"><h3>Competitor landing-page benchmark</h3><p>Competitor numbers appear only where the authorised export provides them; unavailable estimates are left blank.</p>' + table(['Brand',W('Page'),'Type',W('Offer'),N('Active days'),N('Linked ads'),N('Est. spend'),N('CVR'),'Source'], competitors, { limit: 250 }) + '</div>';
       } catch (e) { body.innerHTML = failure('Landing Pages & Experiments', e); }
       finally { btn.disabled = false; btn.textContent = 'Refresh now'; }
     }
@@ -369,7 +428,7 @@
           { label: 'Guardrail breaches', value: fmt(k.guardrail_breaches) }, { label: 'Rollback rate', value: percent(k.rollback_rate, 1) }, { label: 'Experiment win rate', value: percent(k.experiment_win_rate, 1) },
           { label: 'Pending reviews', value: fmt(k.pending_reviews) },
         ]) + note(d.note || '') + '<div class="xcard span12"><h3>Action outcome ledger</h3><p>Populate analytics_action_outcomes for recommendation-to-impact measurement; until then, activity records are shown without fabricated outcomes.</p>' + table(['Action','ID','Channel','Status','Recommended','Launched','Baseline','Observed','Incremental revenue','ROI','Guardrail','Rolled back'], rows, { limit: 250 }) + '</div>' +
-          '<div class="xgrid"><div class="xcard"><h3>Connector runs</h3>' + table(['Connector','Trigger','Status','Records','Started','Message'], runs, { limit: 100 }) + '</div><div class="xcard"><h3>Recent system activity</h3>' + table(['Time','Actor','Action','Entity','Status','Summary'], activity, { limit: 100 }) + '</div></div>';
+          '<div class="xgrid"><div class="xcard"><h3>Connector runs</h3>' + table(['Connector','Trigger','Status',N('Records'),'Started',W('Message')], runs, { limit: 100 }) + '</div><div class="xcard"><h3>Recent system activity</h3>' + table(['Time','Actor','Action','Entity','Status','Summary'], activity, { limit: 100 }) + '</div></div>';
       } catch (e) { body.innerHTML = failure('Actions & Outcomes', e); }
       finally { btn.disabled = false; btn.textContent = 'Refresh now'; }
     }
