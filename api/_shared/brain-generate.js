@@ -26,9 +26,8 @@ try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 // if scenario-model is unavailable.
 let dashScrub = (s) => s;
 let ctaGate = (s) => s;
-let ctasAgree = () => true;
 try { const sm = require('./scenario-model.js'); if (sm && sm.scrubDashes) dashScrub = sm.scrubDashes;
-  if (sm && sm.sanitizeCta) ctaGate = sm.sanitizeCta; if (sm && sm.ctasAgree) ctasAgree = sm.ctasAgree; } catch (_) {}
+  if (sm && sm.sanitizeCta) ctaGate = sm.sanitizeCta; } catch (_) {}
 
 // Vahdam Campaign Hub compiler (ported from marketing_automation/) — premium,
 // curated themed landing pages for the wellness/ashwagandha-coffee campaigns it
