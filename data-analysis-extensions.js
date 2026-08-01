@@ -28,6 +28,8 @@
     { id: 'review-access', label: 'Access Audit', index: 9 },
   ];
   var LIVE_TABS = [
+    { id: 'revenue-analysis', label: 'Revenue Analysis' },
+    { id: 'platform-agents', label: 'Platform Agents' },
     { id: 'live-ads', label: 'Live Ads' },
     { id: 'mailer-intelligence', label: 'Mailer Intelligence' },
     { id: 'landing-intelligence', label: 'Landing Pages & Experiments' },
@@ -203,6 +205,10 @@
       // collapse to one character per line when the table is wide.
       '.xtable td.wide,.xtable th.wide{max-width:320px;min-width:170px}',
       '.xtable td.id,.xtable th.id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--soft);max-width:150px}',
+      '.xsubnav{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}',
+      '.xsub{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer}',
+      '.xsub.on{background:#004A2B;color:#fff;border-color:#004A2B}',
+      '.xsub.off{color:var(--soft);border-style:dashed}',
       '.xtable-note{font-size:11.5px;color:var(--soft);padding:6px 2px 0}',
       '.xempty{padding:28px 16px;text-align:center;color:var(--soft);border:1px dashed var(--line);border-radius:10px;background:var(--surface);font-size:12.5px}',
       '.xloading{display:flex;justify-content:center;gap:7px;padding:65px}.xloading span{width:9px;height:9px;border-radius:50%;background:var(--gold);animation:xblink 1.1s infinite}.xloading span:nth-child(2){animation-delay:.15s}.xloading span:nth-child(3){animation-delay:.3s}',
@@ -285,6 +291,8 @@
   }
   function openTab(id) {
     var panel = showExtension(id);
+    if (id === 'revenue-analysis') return renderRevenue(panel);
+    if (id === 'platform-agents') return renderAgents(panel);
     if (id === 'live-ads') return renderAds(panel);
     if (id === 'mailer-intelligence') return renderMailer(panel);
     if (id === 'landing-intelligence') return renderLanding(panel);
@@ -306,6 +314,138 @@
       '<label class="xfield">Until<input id="xAdsUntil" type="date" value="' + until + '"></label>' +
       '<button class="xbtn" id="xAdsRefresh">Refresh now</button></div>';
   }
+  // ── Revenue Analysis ──────────────────────────────────────────────────────
+  // One combined feature, one sub-tab per dimension. Every cut the backend
+  // knows about gets a sub-tab whether or not it has data — a blocked cut shows
+  // what would answer it rather than disappearing from the menu, so the scope
+  // of the analysis is always visible.
+  function cutColumns(key, rows) {
+    var keys = Object.keys(rows[0] || {});
+    var moneyK = /^(sales|net|revenue|gross_sales|net_sales|total_sales|spend|profit|aov|net_per_order|net_per_unit|revenue_per_day|revenue_per_customer|sales_per_new_customer|revenue_per_visitor)$/;
+    var pctK = /(_rate|_share|share_of_|returning_rate|conversion_rate)/;
+    return keys.map(function (k) {
+      if (moneyK.test(k) || pctK.test(k) || /^(orders|quantity|visitors|conversions|events|unique_users|impressions|clicks|base|new_customers|returning_customers|new_orders|returning_orders|campaigns|window_days|roas)$/.test(k)) return N(labelOf(k));
+      if (/^(entity_id|campaign_id)$/.test(k)) return ID(labelOf(k));
+      if (/^(product|entity|campaign|adset|page|mailer|channel|product_type)$/.test(k)) return W(labelOf(k));
+      return labelOf(k);
+    });
+  }
+  function labelOf(k) { return k.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
+  function cellFor(k, v) {
+    if (v == null) return '—';
+    if (/^(sales|net|revenue|gross_sales|net_sales|total_sales|spend|profit|aov|net_per_order|net_per_unit|revenue_per_day|revenue_per_customer|sales_per_new_customer|revenue_per_visitor)$/.test(k)) return money(v);
+    if (/(_rate|_share|share_of_|conversion_rate)/.test(k)) return percent(v, 2);
+    if (typeof v === 'number') return fmt(v, Number.isInteger(v) ? 0 : 2);
+    if (typeof v === 'object') return JSON.stringify(v).slice(0, 120);
+    return String(v);
+  }
+  function renderCut(c) {
+    if (!c.available) {
+      return '<div class="xcard span12"><h3>' + esc(c.label) + '</h3>' +
+        '<div class="xnotice bad"><b>Not available.</b> ' + esc(c.blocker || 'No source connected.') + '</div>' +
+        (c.note ? note(c.note) : '') +
+        '<p style="font-size:12px;color:var(--soft)">This analysis is in scope and will populate the moment the source above is connected. Nothing is estimated in the meantime.</p></div>';
+    }
+    var keys = Object.keys(c.rows[0] || {});
+    var rows = c.rows.map(function (r) { return keys.map(function (k) { return cellFor(k, r[k]); }); });
+    return '<div class="xcard span12"><h3>' + esc(c.label) + '</h3>' +
+      '<div class="xmeta"><span>Grain: <b>' + esc(c.grain) + '</b></span><span>Rows: <b>' + c.rows.length + '</b></span><span>Source: <b>' + esc(c.source || '—') + '</b></span></div>' +
+      (c.note ? note(c.note) : '') +
+      table(cutColumns(c.key, c.rows), rows, { limit: 300 }) + '</div>';
+  }
+
+  async function renderRevenue(panel) {
+    panel.innerHTML = panelTitle('Revenue Analysis', 'Every revenue cut in one place: region, channel, platform, campaign, ad set, ad, mailer, landing page, product, cohort and time. Each cut names its own source; a cut with no connected source says so rather than showing zeroes.',
+      '<div class="xcontrols"><button class="xbtn" id="xRevRefresh">Refresh now</button></div>') + '<div id="xRevBody">' + loader('Loading revenue analysis') + '</div>';
+    var btn = document.getElementById('xRevRefresh');
+    async function load() {
+      if (state.tab !== 'revenue-analysis') return;
+      btn.disabled = true; btn.textContent = 'Refreshing…';
+      var body = document.getElementById('xRevBody');
+      try {
+        var d = await getJson('revenue', { market: currentMarket() });
+        state.lastPayload.revenue = d;
+        var s = d.summary || {}, cov = d.coverage || {};
+        var subnav = (d.cuts || []).map(function (c, i) {
+          return '<button class="xsub' + (i === 0 ? ' on' : '') + (c.available ? '' : ' off') + '" data-cut="' + esc(c.key) + '">' + esc(c.label.replace(/^Revenue by /, '')) + (c.available ? '' : ' ·') + '</button>';
+        }).join('');
+        body.innerHTML = kpis([
+          { label: 'Orders', value: fmt(s.orders) }, { label: 'Total sales', value: money(s.total_sales) },
+          { label: 'Net sales', value: money(s.net_sales) }, { label: 'AOV', value: money(s.aov) },
+          { label: 'Customers', value: fmt(s.customers) }, { label: 'Returning rate', value: percent(s.returning_rate, 1) },
+          { label: 'TTM gross', value: money(s.ttm_gross_sales) }, { label: 'TTM orders', value: fmt(s.ttm_orders) },
+          { label: 'Cuts available', value: cov.available + ' / ' + cov.total_cuts },
+        ]) +
+          '<div class="xcard span12"><h3>Scope &amp; provenance</h3>' +
+          '<div class="xmeta"><span>Window: <b>' + esc(s.window || '—') + '</b></span><span>Summary source: <b>' + esc(d.summary_source || '—') + '</b></span><span>Currency: <b>' + esc(d.currency || '—') + '</b></span></div>' +
+          note(d.note) +
+          (d.excluded_sources || []).map(function (x) {
+            return '<div class="xnotice bad"><b>Excluded source.</b> ' + esc(x.source) + ' (' + esc(x.rows_present) + ' rows) — ' + esc(x.excluded_because) + ' <i>Fix: ' + esc(x.to_make_usable) + '</i></div>';
+          }).join('') + '</div>' +
+          '<div class="xsubnav">' + subnav + '</div><div id="xRevCut"></div>';
+
+        function show(key) {
+          var c = (d.cuts || []).find(function (x) { return x.key === key; });
+          document.getElementById('xRevCut').innerHTML = c ? '<div class="xgrid">' + renderCut(c) + '</div>' : '';
+          [].forEach.call(body.querySelectorAll('.xsub'), function (b) { b.classList.toggle('on', b.getAttribute('data-cut') === key); });
+        }
+        [].forEach.call(body.querySelectorAll('.xsub'), function (b) {
+          b.addEventListener('click', function () { show(b.getAttribute('data-cut')); });
+        });
+        show((d.cuts[0] || {}).key);
+      } catch (e) { body.innerHTML = failure('Revenue Analysis', e); }
+      finally { btn.disabled = false; btn.textContent = 'Refresh now'; }
+    }
+    btn.addEventListener('click', load); await load();
+  }
+
+  // ── Platform Agents ───────────────────────────────────────────────────────
+  async function renderAgents(panel) {
+    panel.innerHTML = panelTitle('Platform Agents', 'One analyst agent per platform. Each fetches its own raw data, collates it, analyses it and returns insights plus action items for that platform alone. An unconnected platform is never analysed — its only action item is the connection step.',
+      '<div class="xcontrols"><button class="xbtn" id="xAgRefresh">Run all agents</button></div>') + '<div id="xAgBody">' + loader('Running platform agents') + '</div>';
+    var btn = document.getElementById('xAgRefresh');
+    async function load() {
+      if (state.tab !== 'platform-agents') return;
+      btn.disabled = true; btn.textContent = 'Running…';
+      var body = document.getElementById('xAgBody');
+      try {
+        var d = await getJson('agents', { market: currentMarket() });
+        state.lastPayload.agents = d;
+        var c = d.coverage || {};
+        var queue = (d.action_queue || []).map(function (a) {
+          return [a.priority, a.platform, a.action, a.why || '—', a.target_metric || '—', a.effort || '—', a.owner || '—'];
+        });
+        var cards = (d.agents || []).map(function (a) {
+          var ins = (a.insights || []).map(function (x) {
+            return '<li><b>' + esc(x.observation || '') + '</b><br><small>Evidence: ' + esc(x.evidence || '—') + ' · Target: ' + esc(x.target_metric || '—') + ' · Impact: ' + esc(x.expected_impact || '—') + ' · Confidence: ' + esc(x.confidence || '—') + '</small></li>';
+          }).join('');
+          return '<div class="xcard"><h3>' + esc(a.label) + '</h3>' +
+            '<div class="xmeta">' + boolBadge(a.connected, 'Connected', 'Not connected') +
+            '<span>Group: <b>' + esc(a.group) + '</b></span>' +
+            '<span>Analysed: <b>' + (a.analysed ? 'yes' : 'no') + '</b></span>' +
+            (a.took_ms != null ? '<span>' + fmt(a.took_ms) + 'ms</span>' : '') + '</div>' +
+            (a.blocker ? '<div class="xnotice bad">' + esc(a.blocker) + '</div>' : '') +
+            (a.summary ? '<p style="font-size:12.5px;line-height:1.55">' + esc(a.summary) + '</p>' : '') +
+            (a.caveats && a.caveats.length ? note('Caveats: ' + a.caveats.join(' · ')) : '') +
+            (ins ? '<ul style="font-size:12.5px;line-height:1.5;padding-left:18px">' + ins + '</ul>' : '') +
+            (a.metrics && Object.keys(a.metrics).length
+              ? '<details><summary style="cursor:pointer;font-size:12px;color:var(--soft)">Raw metrics this agent fetched</summary><pre style="font-size:11px;overflow:auto;max-height:220px">' + esc(JSON.stringify(a.metrics, null, 2)) + '</pre></details>'
+              : '') + '</div>';
+        }).join('');
+        body.innerHTML = kpis([
+          { label: 'Agents', value: fmt(c.total) }, { label: 'Connected', value: fmt(c.connected) },
+          { label: 'Analysed', value: fmt(c.analysed) }, { label: 'Blocked', value: fmt(c.blocked) },
+          { label: 'Action items', value: fmt((d.action_queue || []).length) },
+        ]) + note(d.note) +
+          '<div class="xcard span12"><h3>Action queue</h3><p>Every agent\'s action items in one ranked list, most urgent first.</p>' +
+          table(['Priority', 'Platform', W('Action'), W('Why'), 'Target metric', 'Effort', 'Owner'], queue, { limit: 100 }) + '</div>' +
+          '<div class="xgrid">' + cards + '</div>';
+      } catch (e) { body.innerHTML = failure('Platform Agents', e); }
+      finally { btn.disabled = false; btn.textContent = 'Run all agents'; }
+    }
+    btn.addEventListener('click', load); await load();
+  }
+
   async function renderAds(panel) {
     panel.innerHTML = panelTitle('Live Ads Intelligence', 'Ad-level through account-level reporting across Meta, Google and TikTok. The view fetches each platform on request, disables browser caching and refreshes every 60 seconds; source-platform processing and attribution latency still apply.', adsControls()) + '<div id="xAdsBody">' + loader('Loading ads') + '</div>';
     var refresh = document.getElementById('xAdsRefresh');
