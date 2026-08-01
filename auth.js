@@ -238,7 +238,7 @@
       { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
     ]},
     { id: 'designintel', label: 'Design Intelligence', href: '/design-intel', icon: 'insights', ver: 'v2', match: ['/design-intel', '/design-intelligence', '/design-intelligence.html'] },
-    { group: 'Data Analysis', icon: 'analysis', gid: 'dataanalysis', ver: 'v2', match: ['/data-analysis', '/data-analysis.html', '/analytics', '/dashboard.html', '/rfm', '/d2c-review', '/business-review', '/usa-d2c-report', '/usa-d2c-dashboard'], children: [
+    { group: 'Data Analysis', icon: 'analysis', gid: 'analysis', ver: 'v2', match: ['/data-analysis', '/data-analysis.html', '/analytics', '/dashboard.html', '/rfm', '/d2c-review', '/business-review', '/usa-d2c-report', '/usa-d2c-dashboard'], children: [
       { id: 'da-control',  label: 'Control Room',                  href: '/data-analysis?tab=control',              icon: 'analysis' },
       { id: 'da-acq',      label: 'Acquisition · Ads + LP',        href: '/data-analysis?tab=acq',                  icon: 'insights' },
       { id: 'da-ret',      label: 'Retention · Mailer + LP',       href: '/data-analysis?tab=ret',                  icon: 'insights' },
@@ -278,7 +278,6 @@
     { id: 'frameworks', label: 'Frameworks', href: '/frameworks', icon: 'kb', ver: 'v2', match: ['/frameworks', '/frameworks.html'] },
     // Mailer Studio is an OPEN feature — works standalone without sign-in.
     { id: 'studio', label: 'Mailer Studio',   href: '/studio', open: true, icon: 'studio', ver: 'v1', draft: 'Draft 1', match: ['/studio', '/vahdam_mailer_architect_v34.html', '/app', '/mailer'] },
-    { id: 'storefront3d', label: '3D Storefront', href: '/3d', icon: 'vahdam', ver: 'v2', match: ['/3d', '/storefront-3d', '/shop-3d', '/storefront-3d.html', '/official-designs', '/official-designs.html', '/store-3d', '/designs'] },
     // Independent LHS item (product-owner request 2026-07-25): the master ads
     // knowledge base + performance dashboard compiled from the KT handover
     // (emails, spend workbook, social update deck) + live connector reads.
@@ -295,21 +294,38 @@
     // ad is its own job, so it gets its own row and its own INFO entry.
     { id: 'ads', label: 'Ad Creation (Creative Studio)', href: '/ads-master#crestudio', icon: 'ads', ver: 'v2', match: ['/ads', '/ad-creation', '/creative-studio', '/ad-campaigns.html'] },
     { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html', '/ads-dashboard', '/ad-performance', '/ads-dashboard.html', '/ads-masterclass', '/ads-masterclass.html'] },
-    { group: '3D Storefront & Websites', icon: 'landing', gid: 'landing', ver: 'v2', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d', '/store-3d', '/official-designs', '/official-designs.html', '/designs'], children: [
+    // TWO features, deliberately separate (product owner, 2026-08-01):
+    //   1. 3D Website & Storefront — the WEBSITE REVAMP. The store itself,
+    //      rebuilt: the regional 3D storefronts and the official website clones.
+    //   2. Landing Pages — CAMPAIGN DESTINATIONS, built for mailers, ads and
+    //      every other marketing channel.
+    // They used to be ONE group titled "3D Storefront & Websites" carrying
+    // gid:'landing', so its ? popup described Landing Pages under a 3D heading.
+    // That left the website revamp with no description at all (INFO.officialdesigns
+    // was orphaned, exactly like INFO.ads had been) and the landing-page BUILDER
+    // with no nav entrance whatsoever — only deep #channel links into it. Same
+    // lesson as the ads merge: one row cannot stand for two jobs.
+    { group: '3D Website & Storefront', icon: 'vahdam', gid: 'storefront3d', ver: 'v2', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d', '/store-3d', '/official-designs', '/official-designs.html', '/designs'], children: [
       { id: 'store3d-all', label: '3D Storefront (overview)', href: '/3d', icon: 'vahdam', match: ['/3d', '/storefront-3d', '/storefront-3d.html', '/shop-3d'] },
       { id: 'web-us',     label: '🇺🇸 US Website',     href: '/3d/us',     icon: 'vahdam', match: ['/3d/us', '/store-3d-us'] },
       { id: 'web-uk',     label: '🇬🇧 UK Website',     href: '/3d/uk',     icon: 'vahdam', match: ['/3d/uk', '/store-3d-uk'] },
       { id: 'web-global', label: '🌍 Global Website',  href: '/3d/global', icon: 'vahdam', match: ['/3d/global', '/store-3d-global'] },
       { id: 'web-india',  label: '🇮🇳 India Website',  href: '/3d/in',     icon: 'vahdam', match: ['/3d/in', '/3d/india', '/store-3d-in'] },
-      { id: 'lp-overview', label: 'Design References', href: '/website-designs', icon: 'landing', match: ['/website-designs', '/website-designs.html'] },
+      { id: 'web-clones', label: 'Official Website Clones', href: '/website-designs', icon: 'vahdam', match: ['/website-designs', '/website-designs.html', '/official-designs', '/official-designs.html', '/designs'] },
+    ]},
+
+    { group: 'Landing Pages', icon: 'landing', gid: 'landing', ver: 'v2', match: ['/landing', '/landing-pages', '/landing-pages.html', '/landing-page-templates', '/templates', '/template-gallery', '/template-gallery.html'], children: [
+      // The builder itself. It had NO nav row before this — the only way in was a
+      // deep #channel link, so the feature that makes landing pages was invisible.
+      { id: 'lp-build',   label: 'Landing Page Builder', href: '/landing-pages', icon: 'landing', match: ['/landing-pages', '/landing', '/landing-pages.html'] },
+      { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages#mailers',  icon: 'mailer' },
+      { id: 'lp-meta',    label: 'For Meta Ads',   href: '/landing-pages#meta',     icon: 'meta' },
+      { id: 'lp-google',  label: 'For Google Ads', href: '/landing-pages#google',   icon: 'google' },
+      { id: 'lp-tiktok',  label: 'For TikTok Ads', href: '/landing-pages#tiktok',   icon: 'tiktok' },
       { id: 'lp-templates', label: 'Landing Page Templates', href: '/landing-page-templates', icon: 'landing', match: ['/landing-page-templates', '/templates', '/template-gallery', '/template-gallery.html'] },
       { id: 'lp-best',    label: '★ Live: Agent Page', href: '/lp/best',  icon: 'vahdam', match: ['/lp/best'] },
       { id: 'lp-best-3d', label: '★ 3D Agent Page (motion)', href: '/lp/best-3d', icon: 'vahdam', match: ['/lp/best-3d'] },
       { id: 'lp-agent',   label: 'Landing Page with All-In-One Voice+Chat+Talk Agent',   href: '/lp/agent', icon: 'vahdam', match: ['/lp/agent'] },
-      { id: 'lp-mailers', label: 'For Mailers',    href: '/landing-pages.html#mailers',  icon: 'mailer' },
-      { id: 'lp-meta',    label: 'For Meta Ads',   href: '/landing-pages.html#meta',     icon: 'meta' },
-      { id: 'lp-google',  label: 'For Google Ads', href: '/landing-pages.html#google',   icon: 'google' },
-      { id: 'lp-tiktok',  label: 'For TikTok Ads', href: '/landing-pages.html#tiktok',   icon: 'tiktok' },
     ]},
 
     { id: 'music', label: 'Music (Official Songs)', href: '/music', icon: 'vahdam', ver: 'v2', match: ['/music', '/music.html'] },
@@ -629,8 +645,8 @@
     },
     landing: {
       title: 'Landing Pages',
-      what: "Generates and serves brand-compliant HTML landing pages — presell and editorial pages matched to mailers and ads — including the live agent-embedded pages at /lp/best and /lp/agent.",
-      who: "Traffic from each channel: pages exist for Mailers, for Meta, for Google, and for TikTok, inheriting the cohort of the campaign that links to them.",
+      what: "Builds the CAMPAIGN DESTINATIONS: brand-compliant HTML landing pages for mailers, for Meta, Google and TikTok ads, and for every other marketing channel that needs somewhere on-brand to send a click. Presell and editorial pages, including the live agent-embedded pages at /lp/best and /lp/agent. Distinct from the 3D Website & Storefront feature, which is the store itself.",
+      who: "Traffic from each marketing channel, inheriting the cohort of the campaign that links to it. The page is the destination of an ad or a mailer, so it opens on the promise that click was made on.",
       how: "Pages are LLM-generated to the /lp/:id serving contract, compiled by the LP compiler, stored in landing_pages_generated, and served live from the calendar router. Pages are never a separate exercise: saving an ad in Creative Studio builds its page in the same pass, and automated-calendar approvals generate one per campaign. Built by hand here, the same five operations apply - Fill, Suggest, New, Enhance, Clear - and the brief can start from a prompt, a reference URL, an image, or a video of the ad the page has to match.",
       input: "A campaign or slot, or a manual brief: product, angle, source channel, and market. A reference page, image or video can stand in for the brief.",
       pipeline: true,
@@ -644,9 +660,12 @@
         ['Final compilation + presentation', 'Stored in landing_pages_generated and served live at /lp/:campaignId.', '/api/calendar?action=lp&id=…'],
       ],
     },
-    officialdesigns: {
-      title: 'Official Website Designs',
-      what: "A true-to-brand 3D replica of the Vahdam storefront and Meta-ads landers, rendered as a continuous WebGL scene of floating product panels and glassmorphic surfaces. Live catalog and pricing come from the regional Shopify storefront; historical metrics come from the Snowflake to Supabase daily mirror. It degrades automatically to a fast 2D brand layout on low-end, mobile, reduced-motion or crawler traffic so conversion is never sacrificed.",
+    // Keyed 'storefront3d' to match the nav group's gid. It was keyed
+    // 'officialdesigns', which no nav item carried, so this entire description
+    // rendered nowhere while the 3D group showed the Landing Pages text instead.
+    storefront3d: {
+      title: '3D Website & Storefront',
+      what: "THE WEBSITE REVAMP: the Vahdam store itself, rebuilt. A true-to-brand 3D replica of the storefront and the Meta-ads landers, rendered as a continuous WebGL scene of floating product panels and glassmorphic surfaces, per region (US, UK, Global, India). Live catalog and pricing come from the regional Shopify storefront; historical metrics come from the Snowflake to Supabase daily mirror. It degrades automatically to a fast 2D brand layout on low-end, mobile, reduced-motion or crawler traffic so conversion is never sacrificed. This is the STORE — campaign destinations for mailers and ads are a separate feature, Landing Pages.",
       who: "Shoppers across the US, UK and Global regions, plus paid-social traffic landing on try.vahdam.com and try.vahdam.co.uk — where the scene collapses into a single-product spatial checkout to minimise friction.",
       how: "The Vahdam3DConnectorEngine (React context provider + data-orchestration middleware) resolves the region and lander from the hostname, connects Shopify and the Snowflake mirror, extracts the live theme colours and typography, injects them into the 3D materials and CSS custom properties, and renders the scene with three and react-three-fiber. Static pages mount the same engine through a no-build ESM bridge.",
       input: "Nothing from you at view time — the hostname decides region and lander mode. Operators can force a region or a 2D preview on the showcase page.",
