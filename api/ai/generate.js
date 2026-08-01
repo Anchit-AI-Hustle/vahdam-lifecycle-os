@@ -83,8 +83,15 @@ function isCompleteHtmlDocument(html) {
   const count = (re) => (s.match(re) || []).length;
   if (count(/<style[\s>]/gi) !== count(/<\/style\s*>/gi)) return false;
   if (count(/<script[\s>]/gi) !== count(/<\/script\s*>/gi)) return false;
+  // Look for a content element rather than stripping tags to measure text: a
+  // strip-the-tags regex is the classic incomplete-sanitisation shape, and this
+  // is a completeness check, not a sanitiser. The element test alone is too
+  // weak though - <body><div></div></body> would satisfy it, and a page that
+  // renders blank is the exact bug this gate exists to stop - so a raw-length
+  // floor restores that guarantee without measuring text.
   const body = /<body[^>]*>([\s\S]*)<\/body\s*>/i.exec(s);
-  if (body && body[1].replace(/<[^>]+>/g, '').trim().length < 40) return false;
+  if (body && !/<(?:h1|h2|h3|p|section|main|article|header|div|img|a)[\s>]/i.test(body[1])) return false;
+  if (body && body[1].length < 120) return false;
   return true;
 }
 

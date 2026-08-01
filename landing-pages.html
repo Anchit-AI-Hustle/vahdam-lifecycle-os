@@ -563,9 +563,16 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
     const opens = (re) => (s.match(re) || []).length;
     if (opens(/<style[\s>]/gi) !== opens(/<\/style\s*>/gi)) return false;
     if (opens(/<script[\s>]/gi) !== opens(/<\/script\s*>/gi)) return false;
-    // And there has to be something between <body> and </body> to look at.
+    // And there has to be real content between <body> and </body>. Tested by
+    // looking for a content element rather than by stripping tags to measure
+    // text: a strip-the-tags regex is the classic incomplete-sanitisation
+    // shape, and this function is a completeness check, not a sanitiser.
+    // A content element alone is not enough: <body><div></div></body> would
+    // pass it, and a blank page that renders is the exact bug this gate exists
+    // to stop. The raw-length floor restores that without measuring text.
     const m = /<body[^>]*>([\s\S]*)<\/body\s*>/i.exec(s);
-    if (m && m[1].replace(/<[^>]+>/g, '').trim().length < 40) return false;
+    if (m && !/<(?:h1|h2|h3|p|section|main|article|header|div|img|a)[\s>]/i.test(m[1])) return false;
+    if (m && m[1].length < 120) return false;
     return true;
   }
 
