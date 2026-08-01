@@ -567,8 +567,12 @@ ${notes ? `<p class="story">${e(notes)}</p>` : `<p class="story">There is a mome
     // looking for a content element rather than by stripping tags to measure
     // text: a strip-the-tags regex is the classic incomplete-sanitisation
     // shape, and this function is a completeness check, not a sanitiser.
+    // A content element alone is not enough: <body><div></div></body> would
+    // pass it, and a blank page that renders is the exact bug this gate exists
+    // to stop. The raw-length floor restores that without measuring text.
     const m = /<body[^>]*>([\s\S]*)<\/body\s*>/i.exec(s);
     if (m && !/<(?:h1|h2|h3|p|section|main|article|header|div|img|a)[\s>]/i.test(m[1])) return false;
+    if (m && m[1].length < 120) return false;
     return true;
   }
 
