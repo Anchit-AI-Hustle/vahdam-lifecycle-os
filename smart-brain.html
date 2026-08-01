@@ -396,12 +396,39 @@ window.pvTab = function(btn, paneId){
   const pane = root.querySelector('#' + paneId); if(pane) pane.classList.add('on');
 };
 
+// An ad has ONE true shape and the frame must honour it. These stages used a
+// FIXED height across the full card width, so a 1:1 creative was cover-cropped
+// into roughly an 8:1 band - the packshot blown up past recognition while the
+// corner badge cheerfully read "1:1". Render at the declared aspect instead, and
+// contain (never cover) so the whole creative is visible.
+function adAspect(ad){
+  const raw = String((ad && (ad.aspect || ad.placement)) || '').trim();
+  const m = /^(\d+)\s*[:x\/]\s*(\d+)$/.exec(raw);
+  if (m) return m[1] + '/' + m[2];
+  const p = String((ad && ad.platform) || '').toLowerCase();
+  if (p.indexOf('tiktok') === 0) return '9/16';
+  if (p.indexOf('google') === 0 || p.indexOf('youtube') === 0) return '16/9';
+  return '1/1';
+}
+// Portrait units must not tower over the panel, so cap by height as well.
+function adFrameCss(ad){
+  const a = adAspect(ad);
+  const tall = a === '9/16' || a === '4/5';
+  return 'aspect-ratio:' + a + ';width:100%;' + (tall ? 'max-width:300px;' : 'max-width:520px;') + 'margin:4px 0 10px;';
+}
+
 function renderAd(ad){
   const rows = [];
   const add = (k,v)=>{ if(v!=null && String(v).trim()!=='') rows.push(`<div class="k">${esc(k)}</div><div class="v">${esc(Array.isArray(v)?v.filter(Boolean).join('\n'):v)}</div>`); };
   const platform = (ad.platform||'ad').toUpperCase();
   const ctype = ad.creative_type || ((ad.storyboard||ad.script) && !ad.creative_brief ? 'video' : 'static');
   const vtag = `<span class="pill" style="font-size:10px;background:${ctype==='video'?'#7a5f28':'#004A2B'};color:#FBF5EA">${esc(ad.variant||(ctype==='video'?'Video':'Static'))}</span>`;
+
+  // Stash the ad so the full-size preview can reach it without re-serialising
+  // a large object through a DOM attribute.
+  const __apKey = 'ad' + (ad.platform||'x') + '_' + ctype + '_' + Math.abs(String(ad.id||ad.headline||ad.hook||'').split('').reduce((h,c)=>((h<<5)-h+c.charCodeAt(0))|0,0)).toString(36);
+  try { window.__AD_PREVIEW[__apKey] = Object.assign({}, ad, { __ctype: ctype }); } catch(_){}
+  const __apBtn = `<button class="btn sm secondary" style="margin:0 0 10px" onclick="previewAd('${__apKey}')" title="Open the complete ad at full size, in its real aspect ratio">\u26f6 Preview ad</button>`;
   const cta = esc(ad.cta||'Shop Now');
   const qa = ad.__qa ? `<span class="pill" title="${esc((ad.__qa.issues||[]).join(' · ')||'passed all checks')}" style="font-size:10px;background:${ad.__qa.ok?'#0a7d33':'#b45309'};color:#fff">QA ${ad.__qa.ok?'✓':'⚠'} ${ad.__qa.score}/10</span>` : '';
   if(ctype==='video'){
@@ -419,9 +446,9 @@ function renderAd(ad){
     const meta = `<span style="position:absolute;top:8px;left:10px;z-index:3;font-size:10px;font-weight:800;letter-spacing:.08em;color:#AB8743">VIDEO · ${esc(ad.placement||'9:16')} · ${esc(String(ad.duration_s||15))}s</span>`;
     let stage;
     if(vurl){
-      stage = `<div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(171,135,67,.3);background:#04120b">
+      stage = `<div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(171,135,67,.3);background:#04120b;${adFrameCss(ad)}">
         ${meta}<video src="${esc(vurl)}"${still?` poster="${esc(still)}"`:''} controls playsinline preload="metadata"
-          style="display:block;width:100%;max-height:280px;background:#04120b"></video></div>`;
+          style="display:block;width:100%;height:100%;object-fit:contain;background:#04120b"></video></div>`;
     } else if(shots.length || still){
       // Word-staggered captions over a slow zoom: real motion, no API, no fake affordance.
       const dur = Math.max(6, Number(ad.duration_s)||15);
@@ -437,7 +464,7 @@ function renderAd(ad){
       const layers = frames.map(f=>`<div class="f${f.i}" style="position:absolute;inset:0;opacity:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 14%">
         ${f.sh.t?`<div style="font-size:10px;font-weight:800;color:#AB8743;letter-spacing:.1em;margin-bottom:6px">${esc(f.sh.t)}</div>`:''}
         <div style="color:#FBF5EA;font-family:'Lora',Georgia,serif;font-size:15px;line-height:1.3;text-shadow:0 2px 14px rgba(0,0,0,.55)">${esc(f.sh.scene||f.sh.shot||'')}</div></div>`).join('');
-      stage = `<style>${css}</style><div id="${uid}" style="position:relative;border-radius:12px;overflow:hidden;height:220px;border:1px solid rgba(171,135,67,.3);${still?`background-image:linear-gradient(180deg,rgba(4,18,11,.35),rgba(4,18,11,.72)),url('${esc(still)}');background-size:cover;background-position:center`:'background:radial-gradient(circle at 50% 35%,#0f2a1c,#04120b)'}">
+      stage = `<style>${css}</style><div id="${uid}" style="position:relative;border-radius:12px;overflow:hidden;${adFrameCss(ad)}border:1px solid rgba(171,135,67,.3);${still?`background-image:linear-gradient(180deg,rgba(4,18,11,.35),rgba(4,18,11,.72)),url('${esc(still)}');background-size:cover;background-position:center`:'background:radial-gradient(circle at 50% 35%,#0f2a1c,#04120b)'}">
         ${meta}${layers}
         <span style="position:absolute;bottom:7px;right:10px;z-index:3;font-size:9px;font-weight:800;letter-spacing:.06em;color:#AB8743;background:rgba(4,18,11,.7);padding:3px 7px;border-radius:6px">ANIMATED PREVIEW · MP4 NOT RENDERED YET</span>
       </div>`;
@@ -446,6 +473,7 @@ function renderAd(ad){
         ${meta}<span style="color:#cdd8d2;font-size:12px;text-align:center;padding:0 16px">No MP4 and no storyboard yet. Generate the video to preview it here.</span></div>`;
     }
     return `<div class="adcard"><h4>${esc(platform)} · Video ad ${vtag} ${qa}</h4>
+      ${__apBtn}
       ${stage}
       ${board?`<div style="display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px">${board}</div>`:''}
       <div style="display:inline-block;background:#AB8743;color:#171717;font-weight:800;font-size:12px;padding:8px 16px;border-radius:8px;margin:4px 0 8px">${cta} &rarr;</div>
@@ -456,10 +484,16 @@ function renderAd(ad){
   add('Primary text', ad.primary_text);
   if(ad.platform==='google'){ add('Headlines', ad.headlines); add('Descriptions', ad.descriptions); }
   const cr = ad.creative||{}; const ov = ad.overlay||{};
-  const bg = cr.image ? `background-image:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.45)),url('${esc(cr.image)}');background-size:cover;background-position:center` : 'background:radial-gradient(circle at 30% 25%,#0f2a1c,#04120b)';
+  // contain, not cover: the packshot is the product we sell, and cropping it to
+  // fill the frame is what turned it into an unrecognisable band. The brand
+  // backdrop fills whatever the photo does not.
+  const bg = cr.image
+    ? `background-color:#04120b;background-image:linear-gradient(180deg,rgba(0,0,0,.10),rgba(0,0,0,.40)),url('${esc(cr.image)}');background-size:auto 100%,contain;background-position:center;background-repeat:no-repeat`
+    : 'background:radial-gradient(circle at 30% 25%,#0f2a1c,#04120b)';
   if(ad.creative_brief) add('Creative brief', ad.creative_brief);
   return `<div class="adcard"><h4>${esc(platform)} · Static ad ${vtag} ${qa}</h4>
-    <div style="position:relative;border-radius:12px;height:190px;overflow:hidden;border:1px solid rgba(171,135,67,.3);${bg}">
+    ${__apBtn}
+    <div style="position:relative;border-radius:12px;${adFrameCss(ad)}overflow:hidden;border:1px solid rgba(171,135,67,.3);${bg}">
       <span style="position:absolute;top:8px;right:10px;font-size:10px;font-weight:800;color:#FBF5EA;opacity:.85">${esc(ad.aspect||'1:1')}</span>
       <div style="position:absolute;top:12px;left:14px;right:14px;font-family:'Lora',Georgia,serif;font-size:19px;font-weight:700;color:#FBF5EA;text-shadow:0 1px 6px rgba(0,0,0,.5)">${esc(ov.headline||ad.headline||'')}</div>
       <div style="position:absolute;bottom:14px;left:14px;font-size:11px;font-weight:700;color:#FBF5EA;background:rgba(0,0,0,.35);padding:4px 9px;border-radius:99px">★ ${esc(ov.proof||'Rated 4.9/5')}</div>
@@ -471,6 +505,80 @@ function renderAd(ad){
 // Full "why this was generated" analysis panel — renders the shared analysis
 // object (summary, data drivers, hypothesis, expected impact, explainable
 // confidence, evidence) produced by api/_shared/output-reasoning.js.
+// ── Full-size ad preview ────────────────────────────────────────────────────
+// The card shows the ad at panel scale, which is fine for scanning and useless
+// for judging whether the creative actually works. This opens the COMPLETE unit
+// at its true aspect and real size: the MP4 with controls when one exists, the
+// animated preview when it does not, and the full copy block beside it.
+window.__AD_PREVIEW = {};
+function ensureAdModal(){
+  let m = document.getElementById('ad-preview');
+  if (m) return m;
+  const st = document.createElement('style');
+  st.textContent = '#ad-preview{position:fixed;inset:0;z-index:10000;display:none;background:rgba(4,18,11,.78);padding:24px}'
+    + '#ad-preview.open{display:flex}'
+    + '#ad-preview .apc{margin:auto;width:min(1000px,100%);max-height:92vh;overflow:auto;background:#0c1c14;border:1px solid rgba(171,135,67,.32);border-radius:14px;padding:18px 20px}'
+    + '#ad-preview .aph{display:flex;align-items:center;gap:12px;margin-bottom:14px}'
+    + '#ad-preview .apt{flex:1;color:#FBF5EA;font-weight:700;font-size:14px}'
+    + '#ad-preview .apx{background:transparent;border:0;color:#cdd8d2;font-size:22px;cursor:pointer;line-height:1}'
+    + '#ad-preview .apbody{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}'
+    + '#ad-preview .apstage{flex:0 1 460px;min-width:260px}'
+    + '#ad-preview .apcopy{flex:1 1 300px;min-width:260px;color:#e9efe9;font-size:13px;line-height:1.55}'
+    + '#ad-preview .apcopy h5{color:#AB8743;font-size:10px;letter-spacing:.09em;text-transform:uppercase;margin:12px 0 3px}';
+  document.head.appendChild(st);
+  m = document.createElement('div');
+  m.id = 'ad-preview';
+  m.innerHTML = '<div class="apc"><div class="aph"><span class="apt" data-apt></span>'
+    + '<button class="btn sm secondary" data-apdl>Download</button>'
+    + '<button class="apx" data-apx aria-label="Close">&times;</button></div>'
+    + '<div class="apbody"><div class="apstage" data-apstage></div><div class="apcopy" data-apcopy></div></div></div>';
+  document.body.appendChild(m);
+  const close = () => { m.classList.remove('open'); const v = m.querySelector('video'); if (v) v.pause(); m.querySelector('[data-apstage]').innerHTML = ''; };
+  m.addEventListener('click', (e) => { if (e.target === m || e.target.closest('[data-apx]')) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && m.classList.contains('open')) close(); });
+  return m;
+}
+window.previewAd = function(key){
+  const ad = window.__AD_PREVIEW[key];
+  if (!ad) return;
+  const m = ensureAdModal();
+  const isVid = String(ad.__ctype || '') === 'video';
+  const vurl = ad.video_url || (ad.creative && (ad.creative.video || ad.creative.video_url)) || '';
+  const still = (ad.creative && ad.creative.image) || ad.image || '';
+  const a = adAspect(ad);
+  let stage;
+  if (isVid && vurl) {
+    stage = '<video src="' + esc(vurl) + '"' + (still ? ' poster="' + esc(still) + '"' : '') + ' controls autoplay playsinline '
+      + 'style="width:100%;aspect-ratio:' + a + ';object-fit:contain;background:#04120b;border-radius:12px;border:1px solid rgba(171,135,67,.3)"></video>'
+      + '<p style="color:#8fb3a1;font-size:11px;margin:8px 0 0">Rendered MP4 &middot; ' + esc(String(ad.duration_s || 15)) + 's &middot; ' + esc(a.replace('/', ':')) + '</p>';
+  } else if (isVid) {
+    stage = '<div style="width:100%;aspect-ratio:' + a + ';border-radius:12px;border:1px solid rgba(171,135,67,.3);background:#04120b;'
+      + (still ? "background-image:url('" + esc(still) + "');background-size:contain;background-repeat:no-repeat;background-position:center" : '')
+      + '"></div><p style="color:#e0a06a;font-size:11px;margin:8px 0 0">No MP4 yet &mdash; this slot has not finished rendering. The storyboard below is what it will animate.</p>';
+  } else {
+    stage = '<div style="width:100%;aspect-ratio:' + a + ';border-radius:12px;border:1px solid rgba(171,135,67,.3);background:#04120b;'
+      + (still ? "background-image:url('" + esc(still) + "');background-size:contain;background-repeat:no-repeat;background-position:center" : '')
+      + '"></div><p style="color:#8fb3a1;font-size:11px;margin:8px 0 0">Static &middot; ' + esc(a.replace('/', ':')) + '</p>';
+  }
+  const F = (label, val) => val ? '<h5>' + esc(label) + '</h5><div>' + esc(String(val)) + '</div>' : '';
+  const board = (ad.storyboard || []).map((sh) => '<div style="margin:5px 0"><b style="color:#AB8743">' + esc(sh.t || '') + '</b> ' + esc(sh.scene || sh.shot || '') + '</div>').join('');
+  m.querySelector('[data-apt]').textContent = (ad.platform || 'ad').toUpperCase() + ' \u00b7 ' + (isVid ? 'Video' : 'Static') + ' ad';
+  m.querySelector('[data-apstage]').innerHTML = stage;
+  m.querySelector('[data-apcopy]').innerHTML = F('Hook', ad.hook) + F('Headline', ad.headline || (ad.overlay && ad.overlay.headline))
+    + F('Primary text', ad.primary_text) + F('Caption', ad.caption)
+    + F('Headlines', Array.isArray(ad.headlines) ? ad.headlines.join(' \u00b7 ') : ad.headlines)
+    + F('Descriptions', Array.isArray(ad.descriptions) ? ad.descriptions.join(' \u00b7 ') : ad.descriptions)
+    + F('CTA', ad.cta) + F('Creative brief', ad.creative_brief)
+    + (board ? '<h5>Storyboard</h5>' + board : '');
+  m.querySelector('[data-apdl]').onclick = () => {
+    const blob = new Blob([JSON.stringify(ad, null, 2)], { type: 'application/json' });
+    const el = document.createElement('a'); el.href = URL.createObjectURL(blob);
+    el.download = 'ad-' + (ad.platform || 'ad') + '-' + (isVid ? 'video' : 'static') + '.json';
+    document.body.appendChild(el); el.click(); el.remove();
+  };
+  m.classList.add('open');
+};
+
 function analysisPanelHTML(a){
   if(!a) return '<p class="pvnote">No structured analysis on this entry.</p>';
   const conf = a.confidence||{};
