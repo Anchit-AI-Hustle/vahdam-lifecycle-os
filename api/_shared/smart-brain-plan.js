@@ -549,6 +549,8 @@ Every asset must ship with a CREATIVE as well as copy. For each asset write an "
 - email / LP heroes: just scene, props, light, mood; aspirational hero.
 - AD creatives (meta / google / tiktok): a scroll-stopping TEXT-FREE photograph that sells the HAPPINESS end-state for P01 (women 45+/busy mums: calmer mornings, steady energy, "feeling like myself again"), NOT ingredients; open on a 1-second scroll-stop. Compose for the placement: meta = square, google = clean landscape, tiktok = vertical native hand-held. State only the scene, subject, light and mood - no words in the frame.
 
+MESSAGE MATCH IS THE JOB OF THE LANDING PAGE. The page is not a sibling of the ads, it is their destination: write the ads first, then write "landing.hero_headline" to deliver the SAME promise the ads made, in the ads own language, so a visitor who clicked sees the words they clicked on in the first screen. "landing.hero_sub" carries the specific reason to believe that promise, and "landing.why_bullets" prove it. If the ads lead on calmer mornings, the page opens on calmer mornings - never on a generic brand or origin line. Introduce no price, discount, rating, review count, guarantee or claim that the ads and email do not already state.
+
 Return JSON with exactly this shape:
 {
  "email": { "subject": "", "subject_alt1": "", "subject_alt2": "", "preheader": "", "hook": "the first-scroll pattern-interrupt line", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "benefits": ["sensory benefit 1","benefit 2","benefit 3"], "rating": {"value": 4.9, "count": "250,000+"}, "reviews": [{"quote":"short review that answers an objection","author":"first name, initial","stars":5}], "badges": ["Non-GMO","Climate Neutral",""], "guarantee": "a risk-reversal line", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
@@ -1186,11 +1188,33 @@ async function resolveEntry({ id, inlineEntry, config, db }) {
 
 // ── Preview (generate-on-demand, NO persistence, NO status change) ───────────
 
-async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inlineEntry = null } = {}) {
+// `force` = RECREATE this day from scratch: ignore every saved bundle and build
+// again from the latest data. Without it a recreate is a no-op whenever Supabase
+// is connected, because the caller can only strip the __prebuilt marker from its
+// own copy of the entry while reuseCampaignId() still finds the marker on the DB
+// ROW and hands back the identical bundle. The flag has to be honoured server
+// side, where both the row and the approved-campaign short-circuit live.
+async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inlineEntry = null, force = false } = {}) {
   const config = smartConfig(cfg);
   const db = new SmartBrainDbAdapter(config);
   const { entry, row } = await resolveEntry({ id, inlineEntry, config, db });
   if (!entry) throw new Error(`Calendar entry ${id || ''} not found — run a daily sync first or pass the entry inline.`);
+
+  // RECREATE of an already-approved day. Rebuild, then persist under the id the
+  // slot already advertises — never a fresh one. A new id would leave every
+  // /lp/<stamped> link the campaign has already shipped pointing at a 404, so the
+  // recreate would silently break live traffic. Same contract as republishOrphan.
+  if (force && db.connected && row && (row.status === 'approved' || row.status === 'final') && row.generated_campaign_id) {
+    const rebuilt = await republishOrphan(db, config, entry, row, { reviewer, withCreatives: true, noLLM: false });
+    return {
+      ok: true, preview: false, persisted: true, recreated: true, campaign: rebuilt,
+      copywriter: rebuilt.copywriter,
+      email_html: rebuilt.assets?.email?.html || null,
+      email_variants: rebuilt.assets?.email?.variants || null,
+      landing_html: rebuilt.assets?.landing_pages?.[0]?.html || null,
+      ads: rebuilt.assets?.ads || [],
+    };
+  }
 
   // Approved/final slots return the FINAL saved campaign — the reviewer sees
   // exactly what ships, never a fresh regeneration — EXCEPT when that saved
@@ -1199,7 +1223,7 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   // would replay the "template fallback" warning forever, so we skip it and fall
   // through to republishOrphan below, which rebuilds real copy now that providers
   // are healthy and re-persists under the same id (so /lp links still resolve).
-  if (db.connected && row && (row.status === 'approved' || row.status === 'final') && row.generated_campaign_id) {
+  if (!force && db.connected && row && (row.status === 'approved' || row.status === 'final') && row.generated_campaign_id) {
     const fin = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${row.generated_campaign_id}` }, limit: 1 }).catch(() => []);
     const c = fin && fin[0] && fin[0].payload;
     const cIsFallback = !!(c && c.copywriter && c.copywriter.provider === 'template-fallback');
@@ -1235,7 +1259,8 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   // by a prior on-demand preview (__preview). That makes every view after the first
   // an instant DB read, not a rebuild. Only build on demand when nothing is saved.
   let campaign = null;
-  const reuseId = reuseCampaignId(entry, row);
+  // force skips reuse entirely — that IS the recreate.
+  const reuseId = force ? null : reuseCampaignId(entry, row);
   if (db.connected && reuseId) {
     const pc = await db.select(config.tableNames.generatedCampaigns, { filters: { id: `eq.${reuseId}` }, limit: 1 }).catch(() => []);
     if (pc && pc[0] && pc[0].payload) campaign = pc[0].payload;
@@ -1259,7 +1284,9 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   // (its own per-batch budget) or Download.
   let builtFresh = false;
   if (!campaign) {
-    campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: false });
+    // A RECREATE is an explicit request for this day's assets, so it builds the
+    // full set rather than the copy-only skeleton a passive View settles for.
+    campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: force ? true : false });
     campaign.status = 'preview';
     campaign.calendar_entry_id = entry.id || id || null;
     builtFresh = true;
@@ -1273,8 +1300,13 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     try {
       await persistCampaignAssets(db, config, campaign, { status: 'preview', origin: 'smart-brain-preview', reviewer, mirror: false });
       const fresh = (await db.select(config.tableNames.calendarEntries, { filters: { id: `eq.${row.id}` }, limit: 1 }).catch(() => []))?.[0];
-      if (fresh && (fresh.status === 'tentative' || fresh.status === 'rejected') && !isPrebuilt(fresh)) {
+      // On a recreate the stale __prebuilt marker MUST be dropped as the new one
+      // is stamped. Leaving it would send the very next View back through
+      // reuseCampaignId() to the bundle we were just asked to replace, making the
+      // recreate look like it silently did nothing.
+      if (fresh && (fresh.status === 'tentative' || fresh.status === 'rejected') && (force || !isPrebuilt(fresh))) {
         const payload = { ...(fresh.payload || {}) };
+        if (force) delete payload[PREBUILD_MARKER];
         payload[PREVIEW_MARKER] = { campaign_id: campaign.campaign_id, at: nowIso() };
         await db.update(config.tableNames.calendarEntries, { id: `eq.${row.id}`, status: SYNC_WRITABLE_STATUSES }, { payload, updated_at: nowIso() });
       }

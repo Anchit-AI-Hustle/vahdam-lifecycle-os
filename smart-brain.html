@@ -374,6 +374,7 @@ function renderPlan(){
     <td>${status}</td>
     <td style="white-space:nowrap">
       <button class="btn sm secondary" id="viewbtn-${i}" onclick="viewEntry(${i})">View</button>
+      <button class="btn sm secondary" id="rebtn-${i}" onclick="recreateEntry(${i})" title="Recreate THIS day from scratch: fresh copy and assets from the latest data, replacing what is saved for this slot">↻ Recreate</button>
       <button class="btn sm ok" id="dlbtn-${i}" onclick="downloadEntry(${i})" title="Generate (if needed) and download every asset for this send as one HTML file">⬇ Download</button>
       <button class="btn sm secondary" onclick="viewDecision(${i})" title="The complete logic, analysis and reason for this send: why the slot was chosen, and why this design and content">❓ Why this mail?</button>
     </td>
@@ -839,8 +840,11 @@ async function viewEntry(i, forceRegen){
     // Regenerate = a TRUE rebuild: strip the prebuilt marker so preview does not
     // reuse the stale prebuilt bundle (it would otherwise return the exact bundle
     // that was just rejected). A normal View keeps the marker for instant reuse.
+    // force:true is what actually makes this a rebuild. Stripping the marker from
+    // our own copy is not enough — the server also reads it off the DB row, so
+    // without the flag an approved or prebuilt slot returns the identical bundle.
     const entryPayload = forceRegen ? (function(){ var c = Object.assign({}, e); delete c.__prebuilt; return c; })() : e;
-    const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: entryPayload, reviewer: reviewerEmail() })});
+    const r = await fetch(`${API}?action=smart-brain-preview`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: entryPayload, reviewer: reviewerEmail(), force: !!forceRegen })});
     const data = await safeJson(r);
     if(!data.ok) throw new Error(data.error || 'Preview failed');
     PREVIEW_CACHE[e.id] = data;
@@ -851,6 +855,23 @@ async function viewEntry(i, forceRegen){
   }catch(err){ body.innerHTML = `<p class="pvnote" style="color:#b91c1c">Preview failed: ${esc(err.message)}</p>`; }
 }
 window.viewEntry = viewEntry;
+
+// Recreate ONE day. Available on every slot whatever its status — the previous
+// build only offered it on rejected slots, so an approved day (the normal state
+// of the calendar) had no way to be rebuilt at all. An approved day confirms
+// first: its assets are what ships, and the rebuild replaces them in place under
+// the same campaign id so the /lp link it already advertises keeps resolving.
+async function recreateEntry(i){
+  const e = PLAN[i];
+  if(!e) return;
+  const live = e.status === 'approved' || e.status === 'final';
+  if(live && !confirm(`Recreate ${e.date} (${e.market})?\n\nThis rebuilds the mailer, ads and landing page for this day from the latest data and REPLACES the approved assets. The landing page keeps its current link.`)) return;
+  const btn = $('rebtn-'+i);
+  if(btn){ btn.disabled = true; btn.textContent = '↻ Recreating…'; }
+  try{ await viewEntry(i, true); }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = '↻ Recreate'; } }
+}
+window.recreateEntry = recreateEntry;
 
 async function loadPlan(){
   try{
