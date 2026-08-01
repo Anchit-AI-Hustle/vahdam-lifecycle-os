@@ -31,6 +31,17 @@ function extensionTableCss() {
   return (js.match(/'\.xtable[^']*'/g) || []).map((s) => s.slice(1, -1)).join('\n');
 }
 
+
+// Scoped to renderAds: other tab renderers also contain `var rows = ...` and
+// `body.innerHTML = kpis(`, so a file-wide indexOf breaks the moment one of
+// them is declared earlier in the file.
+function adsRowMapper(js) {
+  const fn = js.slice(js.indexOf('async function renderAds('));
+  const start = fn.indexOf('var rows = (data.rows || []).map');
+  const end = fn.indexOf('body.innerHTML = kpis(');
+  return (start >= 0 && end > start) ? fn.slice(start, end) : '';
+}
+
 const NASTY = 'Conversion_BCAP_Coffee_NewBuyers_LookalikeAudience_2025_Q3_Broad_Prospecting_v4';
 const NASTY2 = 'TOF_ASC_GIF_ThatCoffeeThatCurbsCravings_18202025_CopyTest_AllPlacements';
 
@@ -141,7 +152,7 @@ test('the ads table renders every field the ads view returns', () => {
     expect(core, `data-analysis-core should still produce ${f}`).toContain(`${f}:`);
   }
 
-  const mapper = js.slice(js.indexOf('var rows = (data.rows || []).map'), js.indexOf('body.innerHTML = kpis('));
+  const mapper = adsRowMapper(js);
   expect(mapper.length).toBeGreaterThan(0);
   for (const f of produced) {
     expect(mapper, `ads table must render r.${f}`).toContain(`r.${f}`);
@@ -152,8 +163,7 @@ test('every ads column count matches its row width', () => {
   const js = fs.readFileSync(path.join(ROOT, 'data-analysis-extensions.js'), 'utf8');
   const header = js.slice(js.indexOf("table(['Platform','Level'"));
   const cols = header.slice(0, header.indexOf('], rows')).split(',').length;
-  const mapper = js.slice(js.indexOf('var rows = (data.rows || []).map'), js.indexOf('body.innerHTML = kpis('));
-  const cells = (mapper.match(/r\.[a-z_]+/g) || []).length;
+  const cells = (adsRowMapper(js).match(/r\.[a-z_]+/g) || []).length;
   // 20 columns, and at least one field reference per column.
   expect(cols).toBe(20);
   expect(cells).toBeGreaterThanOrEqual(20);
