@@ -980,7 +980,13 @@ function attachMasterPrompts(campaign, entry) {
 
 // Invoke the existing image handler in-process via a mock res object, so we get
 // the full Gemini → OpenAI → free-Pollinations cascade without an HTTP hop.
-async function generateCreativeImage(prompt, { size = '1024x1024', mode = '' } = {}) {
+// `tier` picks which rung leads, and the right answer depends on who is waiting.
+// gpt-image-2 follows a brief better and costs less per image, but averages
+// ~112s — longer than a serverless request survives. Gemini 3 Pro Image averages
+// ~28s. So an interactive build (View, Recreate) runs standard = Gemini-first and
+// actually returns; the background prebuild queue runs premium = OpenAI-first,
+// where latency is free and the better generator wins.
+async function generateCreativeImage(prompt, { size = '1024x1024', mode = '', tier = 'standard', timeoutMs = 60000 } = {}) {
   if (!prompt || !String(prompt).trim()) return null;
   let handler;
   try { handler = require('../ai/image.js'); } catch (_) { return null; }
@@ -991,11 +997,20 @@ async function generateCreativeImage(prompt, { size = '1024x1024', mode = '' } =
       setHeader() {}, status() { return res; }, end() { done(null); return res; },
       json(obj) { done(obj && obj.image_data_url ? { image: obj.image_data_url, provider: obj.provider, model: obj.model } : null); return res; },
     };
-    const req = { method: 'POST', body: { prompt: String(prompt).slice(0, 1800), size, quality: 'high', mode } };
+    const req = { method: 'POST', body: { prompt: String(prompt).slice(0, 1800), size, quality: 'high', mode, tier } };
     Promise.resolve().then(() => handler(req, res)).catch(() => done(null));
-    setTimeout(() => done(null), 60000);
+    setTimeout(() => done(null), timeoutMs);
   });
 }
+
+// The scene brief that may NEVER contain the product. Everything the model draws
+// here is the world around the pack shot; the pack shot itself is composited from
+// the catalog. Stating the ban positively AND listing the nouns matters — a brief
+// that merely omits the product still gets one rendered, and a rendered VAHDAM tin
+// is a fabricated product photograph with garbled letterforms on it.
+const SCENE_ONLY_RULE = 'SCENE ONLY, NO PRODUCT AND NO TEXT. Do not draw any product, packaging, tin, pouch, carton, box, sachet, label, logo, brand mark, letterform, word or number anywhere in the frame — the real product photograph is composited on top separately, and anything you draw would be a fake pack shot. Editorial lifestyle photography: warm natural light, real hands and real kitchens, VAHDAM palette (forest green #004A2B, gold #AB8743, cream #FBF5EA), generous negative space where copy will sit.';
+
+const SCENE_SIZE = { email: '1536x1024', landing: '1536x1024', meta: '1024x1024', google: '1536x1024', tiktok: '1024x1536' };
 
 // Upload a base64 data-URL creative to the public Supabase Storage bucket and
 // return its hosted URL (so we persist a small URL, not a multi-MB data-URL).
@@ -1033,7 +1048,7 @@ function realImagePool(entry, width = 1600) {
   return urls;
 }
 
-async function generateCreatives(copy, entry, { only = null, lean = false } = {}) { // eslint-disable-line no-unused-vars
+async function generateCreatives(copy, entry, { only = null, lean = false, scenes = false, sceneTier = 'standard', sceneTimeoutMs = 60000 } = {}) { // eslint-disable-line no-unused-vars
   // HARD RULE (product owner): every product / brand image MUST be REAL — the
   // actual packet, tin or pack shot from the Shopify catalog (the PDP gallery),
   // in HD. Diffusion is NEVER used for product creatives: image models cannot
@@ -1059,7 +1074,65 @@ async function generateCreatives(copy, entry, { only = null, lean = false } = {}
     const image = pool.length ? pool[i % pool.length] : null;
     out[key] = { brief: b, image, provider: image ? 'catalog' : null };
   });
+
+  // SCENE BACKPLATES. This is the half of the frame a model may legitimately
+  // make: the lifestyle world the real pack shot sits in. It is the same split
+  // the cortisol prompt book uses across the pages we have already shipped —
+  // "a serene 48-year-old woman in soft morning kitchen light… No text" — with
+  // the product itself always a live Shopify CDN asset. The product rule is
+  // untouched above; nothing here replaces `image`.
+  if (scenes) {
+    await Promise.all(Object.keys(out).map(async (key) => {
+      try {
+        const gen = await generateCreativeImage(`${out[key].brief}\n\n${SCENE_ONLY_RULE}`, {
+          size: SCENE_SIZE[key] || '1024x1024', mode: 'reels', tier: sceneTier, timeoutMs: sceneTimeoutMs,
+        });
+        if (!gen || !gen.image) return;
+        const hosted = await uploadCreative(gen.image, `scene-${entry.date || 'slot'}-${key}`);
+        out[key].scene = { url: hosted || gen.image, provider: gen.provider, model: gen.model, hosted: !!hosted };
+      } catch (_) { /* a missing backplate ships the real photo alone — never fatal */ }
+    }));
+  }
   return out;
+}
+
+// Kick a real video ad per paid channel, STARTING FROM the channel's real pack
+// shot so the packaging on screen is the packaging we sell (see video-core's
+// image-to-video note). Veo takes minutes, far past any serverless budget, so
+// this submits and returns job ids: the clip is attached later by polling
+// /api/brain?action=video-status. Deliberately NOT run for drafts — video is
+// metered per second and the calendar holds ~140 sends, so it fires only where
+// the owner has committed to the send (approve) or explicitly asked (recreate).
+const VIDEO_ASPECT = { meta: '1:1', google: '16:9', tiktok: '9:16' };
+async function kickAdVideos(campaign, creatives, entry) {
+  let video;
+  try { video = require('./video-core.js'); } catch (_) { return []; }
+  const ads = (campaign.assets && campaign.assets.ads) || [];
+  const jobs = [];
+  await Promise.all(ads.map(async (ad) => {
+    const platform = String(ad.platform || '').toLowerCase();
+    const c = creatives[platform] || {};
+    const initUrl = c.image || null;             // the REAL catalog photo
+    const prompt = [c.brief || '', SCENE_ONLY_RULE, 'Gentle cinematic motion only: a slow push-in or a soft parallax drift. Hold the product exactly as photographed — do not restyle, relabel or redraw it.'].filter(Boolean).join('\n\n');
+    try {
+      const r = await video.generateVideo({
+        prompt, aspect: VIDEO_ASPECT[platform] || '9:16', duration_s: 8, image_url: initUrl,
+      });
+      if (!r || r.not_connected) { ad.video = { status: 'not_connected', hint: r && r.hint }; return; }
+      if (r.status === 'processing') {
+        ad.video = { status: 'processing', provider: r.provider, job_id: r.job_id, image_used: !!r.image_used };
+        jobs.push({ platform, provider: r.provider, job_id: r.job_id });
+        return;
+      }
+      if (r.ok && r.video_url) {
+        ad.video = { status: 'done', provider: r.provider, url: r.video_url, image_used: !!r.image_used };
+        return;
+      }
+      ad.video = { status: 'failed', error: (r && r.error) || 'unknown' };
+    } catch (e) { ad.video = { status: 'failed', error: String(e.message || e).slice(0, 200) }; }
+  }));
+  if (jobs.length) campaign.video_jobs = jobs;
+  return jobs;
 }
 
 // ── Funnel build (shared by preview + approve) ──────────────────────────────
@@ -1068,7 +1141,7 @@ async function generateCreatives(copy, entry, { only = null, lean = false } = {}
 // LLM-written copy applied to the email + landing page + ads. Pure: it does NOT
 // touch the DB or change any slot's status. Both previewEntry() and approveEntry()
 // call this so a reviewer sees EXACTLY what approving will produce.
-async function buildCampaign(entry, config, { id = null, withCreatives = true, noLLM = false } = {}) {
+async function buildCampaign(entry, config, { id = null, withCreatives = true, noLLM = false, scenes = false, sceneTier = 'standard', withVideo = false } = {}) {
   // Review-recovery slots are a review INVITATION, not a promo: email-only, no
   // offer, no ads/landing page, CTA to the product's own review section. Render
   // the dedicated brand-compliant template directly (no LLM promo pipeline).
@@ -1094,6 +1167,9 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
   // Agent pipeline trace, surfaced in the console so the reviewer sees which
   // specialist agent produced each part of the mailer.
   const trace = [];
+  // Held outside the try so the video kick below can reach the real pack shot
+  // each channel was assigned, even if a later step in the LLM path threw.
+  let lastCreatives = {};
   // noLLM: skip the whole LLM copy/creative pipeline and ship the deterministic
   // template campaign GenerationService already built (real catalog data, brand
   // palette, servable LP html). Used by the orphan-heal path so pages can be
@@ -1140,7 +1216,9 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
     const creativeOpts = withCreatives === 'hero' ? { only: ['email'] }
       : withCreatives === 'lean' ? { lean: true }
       : {};
-    const creatives = withCreatives ? await generateCreatives(copyA, entry, creativeOpts) : {};
+    // Scene backplates ride along with whichever channels this build covers.
+    const creatives = withCreatives ? await generateCreatives(copyA, entry, { ...creativeOpts, scenes, sceneTier }) : {};
+    lastCreatives = creatives;
     const imgProviders = [...new Set(Object.values(creatives).map((c) => c && c.provider).filter(Boolean))];
     if (withCreatives) trace.push({ agent: 'Asset Director', role: 'Creative / Art Direction', ok: imgProviders.length > 0, provider: imgProviders.join(',') || null, output: { assets: Object.keys(creatives).length } });
     // ── Agent 4 · Design Integrator — assembles each variant in the layout the
@@ -1160,6 +1238,16 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
     campaign.ads_qa = adsQa;
     trace.push({ agent: 'Ads QA Critic', role: 'Paid Social QA', ok: adsQa.passed, provider: 'rule-based', output: { avg_score: adsQa.avg_score, critical: adsQa.critical, ads: adsQa.count, missing: adsQa.missing } });
   } catch (_) { /* QA is advisory; never block generation */ }
+  // Real video ads. Submit-only: the job ids ride on the campaign and the clips
+  // are attached by polling video-status, because Veo runs for minutes.
+  if (withVideo) {
+    try {
+      const jobs = await kickAdVideos(campaign, lastCreatives, entry);
+      trace.push({ agent: 'Motion Director', role: 'Video Ads', ok: true, provider: 'video-cascade', output: { submitted: jobs.length, mode: 'image-to-video' } });
+    } catch (e) {
+      trace.push({ agent: 'Motion Director', role: 'Video Ads', ok: false, output: { reason: String(e && e.message || e).slice(0, 160) } });
+    }
+  }
   campaign.copywriter = copyMeta;
   campaign.agent_trace = trace;
   campaign.calendar_entry_id = entry.id || id || null;
@@ -1205,7 +1293,7 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   // /lp/<stamped> link the campaign has already shipped pointing at a 404, so the
   // recreate would silently break live traffic. Same contract as republishOrphan.
   if (force && db.connected && row && (row.status === 'approved' || row.status === 'final') && row.generated_campaign_id) {
-    const rebuilt = await republishOrphan(db, config, entry, row, { reviewer, withCreatives: true, noLLM: false });
+    const rebuilt = await republishOrphan(db, config, entry, row, { reviewer, withCreatives: true, noLLM: false, scenes: true, sceneTier: 'standard', withVideo: true });
     return {
       ok: true, preview: false, persisted: true, recreated: true, campaign: rebuilt,
       copywriter: rebuilt.copywriter,
@@ -1286,7 +1374,12 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   if (!campaign) {
     // A RECREATE is an explicit request for this day's assets, so it builds the
     // full set rather than the copy-only skeleton a passive View settles for.
-    campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: force ? true : false });
+    // A recreate is interactive and explicitly requested, so it gets the full
+    // set: scene backplates on the fast (Gemini-first) tier that returns inside a
+    // request, and real video ads. A passive View stays copy-only and cheap.
+    campaign = await buildCampaign(effectiveEntry(entry), config, force
+      ? { id, withCreatives: true, scenes: true, sceneTier: 'standard', withVideo: true }
+      : { id, withCreatives: false });
     campaign.status = 'preview';
     campaign.calendar_entry_id = entry.id || id || null;
     builtFresh = true;
@@ -1371,7 +1464,9 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   // email hero and take catalog photos for the other channels, so this on-demand
   // approve completes inside the serverless limit instead of overrunning on five
   // parallel image generations (the timeout that made "Generate" fail every time).
-  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: 'lean' });
+  // Approving is the commitment to ship, so this is where paid video is worth
+  // spending: real clips, scene backplates, everything the send needs.
+  if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: true, scenes: true, sceneTier: 'standard', withVideo: true });
   const copyMeta = campaign.copywriter || { provider: 'prebuilt', model: null };
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
@@ -1548,8 +1643,8 @@ async function landingPageHtml(id, cfg = {}, variant = null) {
 // slot reproduces the SAME id it already advertises — republishing under it makes
 // the existing /lp link resolve again. Runs offline by default (noLLM) so it works
 // even when providers are rate-limited: the template LP html is real catalog data.
-async function republishOrphan(db, config, entry, row, { reviewer = null, withCreatives = false, noLLM = true } = {}) {
-  const rebuilt = await buildCampaign(effectiveEntry(entry), config, { id: row.generated_campaign_id, withCreatives, noLLM });
+async function republishOrphan(db, config, entry, row, { reviewer = null, withCreatives = false, noLLM = true, scenes = false, sceneTier = 'standard', withVideo = false } = {}) {
+  const rebuilt = await buildCampaign(effectiveEntry(entry), config, { id: row.generated_campaign_id, withCreatives, noLLM, scenes, sceneTier, withVideo });
   // FORCE the campaign id to the id the slot already advertises. buildCampaign mints
   // its OWN deterministic id (idFor over the current entry), which no longer matches
   // the stamped generated_campaign_id once the entry has drifted since approval — so
@@ -1707,7 +1802,10 @@ async function prebuildAssets({ config: cfg = {}, batchSize = 1, sinceDate = nul
       const entry = { ...(row.payload || {}), id: row.id };
       // FULL build: LLM copy + generated images (withCreatives:true) for the
       // mailer + ads + landing page — the same output an approval produces.
-      const campaign = await buildCampaign(effectiveEntry(entry), config, { id: row.id, withCreatives: true });
+      // Background queue: nobody is waiting, so the better-but-slower generator
+      // leads (gpt-image-2, ~112s, stronger brief adherence). No video — these
+      // are unapproved drafts and video is metered per second.
+      const campaign = await buildCampaign(effectiveEntry(entry), config, { id: row.id, withCreatives: true, scenes: true, sceneTier: 'premium' });
       campaign.status = 'prebuilt';
       campaign.calendar_entry_id = row.id;
       await persistCampaignAssets(db, config, campaign, { status: 'prebuilt', origin: 'smart-brain-prebuild', mirror: false });

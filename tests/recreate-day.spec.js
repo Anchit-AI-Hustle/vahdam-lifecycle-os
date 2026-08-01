@@ -61,7 +61,11 @@ test.describe('recreate a particular day', () => {
   });
 
   test('a recreate builds the full asset set, not the copy-only skeleton', () => {
-    expect(PLAN).toContain('withCreatives: force ? true : false');
+    // force selects the whole options object, not just withCreatives: a recreate
+    // also gets scene backplates and real video, while a passive View stays cheap.
+    const site = PLAN.slice(PLAN.indexOf('campaign = await buildCampaign(effectiveEntry(entry), config, force'));
+    expect(site.slice(0, 260)).toMatch(/withCreatives: true, scenes: true, sceneTier: 'standard', withVideo: true/);
+    expect(site.slice(0, 260)).toContain('{ id, withCreatives: false }');
   });
 });
 
