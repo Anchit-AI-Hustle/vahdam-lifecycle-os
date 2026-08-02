@@ -31,18 +31,39 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
     steps:
-      - name: Trigger the daily loop (read-only pull -> analyse -> re-plan -> regenerate)
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+      # Unconfigured is not broken: a missing setup secret is reported as a skip
+      # with an actionable notice, not as a daily red failure. A configured but
+      # failing endpoint still fails hard in the step below.
+      - name: Preflight (is this integration configured?)
+        id: pre
+        shell: bash
         run: |
-          BASE="${APP_BASE_URL:-https://vahdam-lifecycle-os.anchit-tandon.com}"
-          if [ -z "$CRON_SECRET" ]; then
-            echo "CRON_SECRET repo secret is not set — add it under Settings -> Secrets and variables -> Actions." >&2
-            exit 1
+          set -uo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Daily sync not configured::CRON_SECRET repo secret is not set. Nothing ran. This is a setup gap, not a failure."
+            {
+              echo "### Daily sync: not configured yet"
+              echo
+              echo "Nothing ran, and this run is **not** counted as a failure."
+              echo "Add \`CRON_SECRET\` (same value as the \`CRON_SECRET\` env var in Vercel) under"
+              echo "Settings -> Secrets and variables -> Actions."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
-          curl --fail-with-body -sS -X POST \
-            "$BASE/api/brain?action=cron" \
+
+      - name: Trigger the daily loop (read-only pull -> analyse -> re-plan -> regenerate)
+        if: steps.pre.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="${APP_BASE_URL:-https://vahdam-lifecycle-os.anchit-tandon.com}"
+          curl --fail-with-body -sS --max-time 300 --retry 2 --retry-delay 10 --retry-connrefused \
+            -X POST "${BASE%/}/api/brain?action=cron" \
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json"

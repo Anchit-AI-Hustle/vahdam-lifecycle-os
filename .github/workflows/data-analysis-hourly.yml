@@ -32,26 +32,51 @@ jobs:
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
       APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
     steps:
+      # Unconfigured is not broken. This ran HOURLY and exited 1 on a missing
+      # setup secret, so an un-set-up integration generated 24 red runs a day
+      # indefinitely. A setup gap is reported as a skip with an actionable
+      # notice; a configured-but-failing endpoint still fails hard below.
+      - name: Preflight (is this integration configured?)
+        id: pre
+        shell: bash
+        run: |
+          set -uo pipefail
+          MISSING=""
+          [ -z "${CRON_SECRET:-}" ] && MISSING="$MISSING CRON_SECRET"
+          [ -z "${APP_BASE_URL:-}" ] && MISSING="$MISSING APP_BASE_URL"
+          if [ -n "$MISSING" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Hourly Data Analysis not configured::Missing repo secret(s):$MISSING. Nothing ran. This is a setup gap, not a failure."
+            {
+              echo "### Hourly Data Analysis: not configured yet"
+              echo
+              echo "Missing repository secret(s): **$MISSING**"
+              echo
+              echo "Nothing ran, and this run is **not** counted as a failure."
+              echo "Add them under Settings -> Secrets and variables -> Actions:"
+              echo
+              echo '| Secret | Value |'
+              echo '|---|---|'
+              echo '| `CRON_SECRET` | the same value as the `CRON_SECRET` env var in Vercel |'
+              echo '| `APP_BASE_URL` | the production origin, e.g. `https://vahdam-lifecycle-os.anchit-tandon.com` |'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run source-backed analysis and anomaly delivery
+        if: steps.pre.outputs.configured == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${APP_BASE_URL:-}" ]; then
-            echo "APP_BASE_URL repo secret is not set." >&2
-            exit 1
-          fi
           BASE="${APP_BASE_URL%/}"
-          if [ -z "${CRON_SECRET:-}" ]; then
-            echo "CRON_SECRET repo secret is not set." >&2
-            exit 1
-          fi
 
           FORCE=false
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force }}" = "true" ]; then
             FORCE=true
           fi
 
-          curl --fail-with-body --retry 2 --retry-delay 5 -sS \
+          curl --fail-with-body -sS --max-time 300 --retry 2 --retry-delay 5 --retry-connrefused \
             -X POST "$BASE/api/public-config?action=data-analysis" \
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" \
