@@ -47,7 +47,20 @@ function colorway(name) {
   }
 }
 
-function band(bg, inner) {
+// Depth + email-safe motion defined once in api/_shared/motion-design.js so the
+// flagship build, the brain-generated mailers and the ad compositor share it.
+const motion = require('../../api/_shared/motion-design.js');
+
+function band(bg, inner, opts) {
+  const x = opts || {};
+  if (x.depth) {
+    // Lit band: radial key light over the band's own colour. Same palette,
+    // dimensional read; renders as flat colour on engines without gradients.
+    return `<table role="presentation" align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;margin:0 auto;${motion.emailDepth.heroLight(bg)}"><tr><td class="p">${inner}</td></tr></table>`;
+  }
+  return bandPlain(bg, inner);
+}
+function bandPlain(bg, inner) {
   return `<table role="presentation" align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;margin:0 auto;background:${bg};"><tr><td class="p" style="padding:0;font-family:${BF};color:${PAL.ink};">${inner}</td></tr></table>`;
 }
 
@@ -55,7 +68,7 @@ function ctaButton(url, label, cw) {
   return `<div style="margin:6px 0 4px;">` +
     `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${esc(url)}" style="height:50px;v-text-anchor:middle;width:250px;" arcsize="14%" strokecolor="${cw.ctaBg}" fillcolor="${cw.ctaBg}"><w:anchorlock/><center style="color:${cw.ctaText};font-family:${BF};font-size:15px;font-weight:bold;letter-spacing:.03em;">${esc(label)}</center></v:roundrect><![endif]-->` +
     `<!--[if !mso]><!-- -->` +
-    `<a class="cta" href="${esc(url)}" style="display:inline-block;background:${cw.ctaBg};color:${cw.ctaText};font-family:${BF};font-size:15px;font-weight:700;letter-spacing:.03em;text-decoration:none;padding:15px 34px;border-radius:8px;">${esc(label)}</a>` +
+    `<a class="cta mx-shine" href="${esc(url)}" style="display:inline-block;${motion.emailDepth.ctaShineFace(cw.ctaBg, PAL.gold)}box-shadow:0 10px 24px -12px rgba(23,23,23,.35);background:${cw.ctaBg};color:${cw.ctaText};font-family:${BF};font-size:15px;font-weight:700;letter-spacing:.03em;text-decoration:none;padding:15px 34px;border-radius:8px;">${esc(label)}</a>` +
     `<!--<![endif]--></div>`;
 }
 
@@ -76,16 +89,16 @@ function renderFlagship(opts) {
   // Hero band: product name (LAO MN) + tasting line + optional image + price pill + CTA.
   const heroHeadColor = cw.headline || cw.heroText;
   const img = (o.withImage && o.heroImageUrl)
-    ? `<img src="${esc(o.heroImageUrl)}" width="190" alt="${esc(o.productName)}" style="display:inline-block;width:190px;height:auto;border:0;border-radius:10px;margin:0 0 18px;">`
+    ? `<img src="${esc(o.heroImageUrl)}" width="190" alt="${esc(o.productName)}" style="display:inline-block;width:190px;height:auto;border:0;border-radius:10px;margin:0 0 18px;${motion.emailDepth.cardLift(PAL.gold)}">`
     : '';
   const pricePill = o.price
     ? `<div style="margin:0 0 20px;"><span style="display:inline-block;font-family:${BF};font-size:14px;font-weight:700;letter-spacing:.04em;color:${cw.pill};border:1px solid ${cw.pill};border-radius:999px;padding:8px 18px;">${esc(o.price)}</span></div>`
     : '';
   const hero =
     `<div style="padding:44px 36px;text-align:center;">` +
-    `<div style="font-family:${BF};font-size:11px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:${cw.eyebrow};margin:0 0 12px;">${esc(o.eyebrow)}</div>` +
-    `<div style="font-family:${HF};font-size:44px;line-height:1.06;color:${heroHeadColor};margin:0 0 16px;">${esc(o.productName)}</div>` +
-    (o.tastingLine ? `<div style="font-family:${BF};font-size:17px;line-height:1.6;font-style:italic;color:${cw.heroText};margin:0 0 22px;">${esc(o.tastingLine)}</div>` : '') +
+    `<div class="mx-rise" style="font-family:${BF};font-size:11px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:${cw.eyebrow};margin:0 0 12px;">${esc(o.eyebrow)}</div>` +
+    `<div class="mx-rise-2" style="font-family:${HF};font-size:44px;line-height:1.06;color:${heroHeadColor};margin:0 0 16px;">${esc(o.productName)}</div>` +
+    (o.tastingLine ? `<div class="mx-rise-3" style="font-family:${BF};font-size:17px;line-height:1.6;font-style:italic;color:${cw.heroText};margin:0 0 22px;">${esc(o.tastingLine)}</div>` : '') +
     img + pricePill + ctaButton(o.ctaUrl, o.ctaText || 'Shop now', cw) +
     `</div>`;
 
@@ -112,7 +125,7 @@ function renderFlagship(opts) {
   const footer = band(PAL.green,
     `<div style="padding:28px 30px;text-align:center;font-family:${BF};font-size:12px;line-height:1.8;color:${PAL.cream};">VAHDAM&reg; USA · Vahdam Teas Global, Inc.<br>440 N Barranca Ave #2812, Covina, CA 91723, United States<br><br>You are receiving this because you shopped with VAHDAM&reg;.<br><span style="color:${PAL.gold};font-weight:700;">Unsubscribe &nbsp;·&nbsp; Email preferences &nbsp;·&nbsp; Privacy Policy &nbsp;·&nbsp; Terms of Service</span></div>`);
 
-  return `<!DOCTYPE html><html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"><!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]--><title>${esc(o.subject)}</title><style>${HEADFONTS}body{margin:0;padding:0;background:${PAL.cream};-webkit-text-size-adjust:100%;}img{-ms-interpolation-mode:bicubic;border:0;line-height:100%;}a.cta{transition:transform .15s ease,box-shadow .18s ease;}a.cta:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,74,43,.28);}@media (prefers-reduced-motion:no-preference){.fade{animation:vf .7s ease both;}}@keyframes vf{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}@media only screen and (max-width:620px){table[width="600"]{width:100%!important;}.col{display:block!important;width:100%!important;}.p{padding-left:22px!important;padding-right:22px!important;}}</style></head><body style="margin:0;padding:0;background:${PAL.cream};"><div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${esc(o.preheader)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${PAL.cream};"><tr><td>${utility}${logoRow}<div class="fade">${band(cw.heroBg, hero)}${editorial}${badges}${stats}</div>${footer}</td></tr></table></body></html>`;
+  return `<!DOCTYPE html><html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"><!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]--><title>${esc(o.subject)}</title><style>${HEADFONTS}body{margin:0;padding:0;background:${PAL.cream};-webkit-text-size-adjust:100%;}img{-ms-interpolation-mode:bicubic;border:0;line-height:100%;}a.cta{transition:transform .15s ease,box-shadow .18s ease;}a.cta:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,74,43,.28);}@media (prefers-reduced-motion:no-preference){.fade{animation:vf .7s ease both;}}@keyframes vf{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}@media only screen and (max-width:620px){table[width="600"]{width:100%!important;}.col{display:block!important;width:100%!important;}.p{padding-left:22px!important;padding-right:22px!important;}}${motion.emailMotionCss()}</style></head><body style="margin:0;padding:0;background:${PAL.cream};"><div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${esc(o.preheader)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${PAL.cream};"><tr><td>${utility}${logoRow}<div class="fade">${band(cw.heroBg, hero, { depth: true })}${editorial}${badges}${stats}</div>${footer}</td></tr></table></body></html>`;
 }
 
 module.exports = { renderFlagship, colorway, shippingLine, PAL };

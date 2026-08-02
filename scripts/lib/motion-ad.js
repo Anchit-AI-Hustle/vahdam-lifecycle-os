@@ -139,6 +139,15 @@ function renderMotionAd(spec) {
   .bar { position:absolute; left:0; bottom:0; height:4px; background:var(--gold); width:0;
          animation:bar ${total}s ${loop ? 'infinite' : '1 forwards'} linear; }
   @keyframes bar { from { width:0 } to { width:100% } }
+  /* True 3D: the stage is a perspective scene. Depth goes on the layers whose
+     transform is NOT animated (.veil back, .type front) — the Ken Burns image
+     (.ken) and kinetic type (.kin) animate their own transforms, and a class
+     transform there would be clobbered by the keyframes. The image moving in
+     the plane between two Z-separated layers is what produces the parallax. */
+  .stage{perspective:1000px;perspective-origin:50% 42%}
+  .scene{transform-style:preserve-3d}
+  .veil{transform:translateZ(-46px) scale(1.05)}
+  .type{transform:translateZ(34px) scale(.97)}
   @media (prefers-reduced-motion: reduce) {
     .ken, .kin, .cta, .bar { animation-duration: 0.01s !important; animation-iteration-count: 1 !important; }
     .kin, .cta { opacity: 1 !important; transform: none !important; }
