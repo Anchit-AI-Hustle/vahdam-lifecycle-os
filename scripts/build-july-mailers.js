@@ -423,11 +423,27 @@ function buildVariants(slot, assets) {
     headline: S.headline, subline: S.subline, bodyBlocks: S.blocks,
   });
 
+  // ── The four variants are a 2x2 FACTORIAL, not four unrelated drafts ──────
+  // Copy framework (A / B) x treatment (Text / Text + Visual). Copy is held
+  // CONSTANT down each framework column on purpose: that is what isolates the
+  // image's effect from the copy's, and it is why two variants legitimately
+  // share a subject line. Do not "fix" the duplicate subjects by writing four
+  // different ones - that collapses the factorial into four uninterpretable
+  // one-off sends.
+  //
+  // Colorway must therefore be held constant down each column too. It was not:
+  // the A column was forest/forest but the B column was midnight/DAYLIGHT, so
+  // adding the image in B also changed the palette. That confounded the two
+  // arms - the image lift measured in A (image only) was not comparable to the
+  // one measured in B (image + palette), and the interaction term was
+  // meaningless. Colorway is a property of the framework arm, so it is now
+  // pinned per column and the only thing that varies across a row is the image.
+  const arm = { a: 'forest', b: 'midnight' };
   return [
-    { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,          framework: fwA.key, copy: SA, image: null, html: flagship(SA, { colorway: 'forest',   withImage: false }) },
-    { key: 'text_b',   type: 'Text',          label: `Text · ${fwB.name}`,          framework: fwB.key, copy: SB, image: null, html: flagship(SB, { colorway: 'midnight', withImage: false }) },
-    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, copy: SA, image: hero, html: flagship(SA, { colorway: 'forest',   withImage: true }) },
-    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, copy: SB, image: hero, html: flagship(SB, { colorway: 'daylight', withImage: true }) },
+    { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,          framework: fwA.key, copy: SA, image: null, colorway: arm.a, factor: { copy: 'A', treatment: 'text' },   html: flagship(SA, { colorway: arm.a, withImage: false }) },
+    { key: 'text_b',   type: 'Text',          label: `Text · ${fwB.name}`,          framework: fwB.key, copy: SB, image: null, colorway: arm.b, factor: { copy: 'B', treatment: 'text' },   html: flagship(SB, { colorway: arm.b, withImage: false }) },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, copy: SA, image: hero, colorway: arm.a, factor: { copy: 'A', treatment: 'visual' }, html: flagship(SA, { colorway: arm.a, withImage: true }) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, copy: SB, image: hero, colorway: arm.b, factor: { copy: 'B', treatment: 'visual' }, html: flagship(SB, { colorway: arm.b, withImage: true }) },
   ];
 }
 
@@ -538,7 +554,18 @@ function main() {
       reasoning: slot.reasoning,
       collections: cols,
       collection_cta: collectionCta,
-      variants: variants.map((v) => ({ key: v.key, type: v.type, label: v.label, framework: v.framework, subject: v.copy.subject, preview: v.copy.preview, file: files[v.key], has_image: !!v.image })),
+      variants: variants.map((v) => ({ key: v.key, type: v.type, label: v.label, framework: v.framework, subject: v.copy.subject, preview: v.copy.preview, file: files[v.key], has_image: !!v.image, colorway: v.colorway, factor: v.factor })),
+      // The variant set is a 2x2, stated so a reader does not mistake the two
+      // shared subject lines for a deduplication bug and "fix" them apart.
+      variant_design: {
+        type: '2x2 factorial',
+        factors: { copy: ['A', 'B'], treatment: ['text', 'visual'] },
+        held_constant: ['copy within a framework column', 'colorway within a framework column'],
+        reads: {
+          image_effect: ['text_a vs visual_a', 'text_b vs visual_b'],
+          copy_effect: ['text_a vs text_b', 'visual_a vs visual_b'],
+        },
+      },
       ads: { file: `ads/usa-july/${adFile}`, copy: ad.copy, angles: ad.angles },
       landing: { file: `landing-pages/usa-july/${lpFile}`, title: `${prod.name} · VAHDAM USA` },
       // What is missing, named. A thin section is a data gap, not a design choice.
