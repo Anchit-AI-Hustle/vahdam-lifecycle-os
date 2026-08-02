@@ -1572,6 +1572,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   }
   var KB=null, ADS=null, SNAP=null, LIVE=null, RANGE=30, CAMPRANGE='all';
   var REG=null, ACCTLIVE=null, LVACCT='', RETAIL=null, UGCLIB=null;
+  var LIVE_ADS_MARKETS=["US","UK"], ADS_SOURCE="snapshot";
 
   // ── Charts: dependency-free inline SVG. Every chart is preceded by ALWAYS
   // visible duration tiles (7D/14D/30D/60D/All) wired through rangeTiles().
@@ -2883,6 +2884,45 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   drawSpendTiles();
   rangeTiles("#rt-camp",[{v:"all",t:"Full window"}],CAMPRANGE,function(){});
 
+  // ── Live ad details — SAME source as the Data Analysis "Live Ads" tab ─────
+  // Meta/Google/TikTok per-ad rows fetched live from the platform reporting
+  // core (/api/public-config?action=data-analysis&view=ads), mapped into the
+  // ADS shape this dashboard already renders. Live-first with the committed
+  // snapshot as fallback: if the live read returns no rows (no keys, not an
+  // operator session, or a network-policy block) the static file stays in place.
+  async function liveAdsToken(){
+    try{
+      var A=window.LifecycleAuth;
+      if(A&&A.session&&A.session.access_token) return A.session.access_token;
+      if(A&&A.client&&A.client.auth&&A.client.auth.getSession){ var o=await A.client.auth.getSession(); return (o&&o.data&&o.data.session&&o.data.session.access_token)||""; }
+    }catch(_){}
+    return "";
+  }
+  function mapLiveAdRow(r){
+    // Carry only the raw ADDITIVE fields — this dashboard recomputes every rate
+    // (ctr/cpc/cpm/cost-per-result/frequency) from the sums in drillAgg, so no
+    // pre-divided rate ever crosses the unit boundary.
+    return { ad:r.entity||r.entity_id||"(unnamed)", platform:String(r.platform||"").toLowerCase(),
+      campaign:r.campaign||"", adset:r.ad_group||"", objective:r.objective||"",
+      status:r.status||(Number(r.spend)>0?"active":""),
+      spend:Number(r.spend)||0, impressions:Number(r.impressions)||0, reach:Number(r.reach)||0,
+      clicks:Number(r.clicks)||0, results:Number(r.conversions)||0, revenue:Number(r.revenue)||0,
+      lpv:null, thumb_stop:null, created:"" };
+  }
+  async function refreshLiveAds(){
+    try{
+      var token=await liveAdsToken(), headers=token?{authorization:"Bearer "+token}:{}, out=[];
+      for(var i=0;i<LIVE_ADS_MARKETS.length;i++){
+        var res=await fetch("/api/public-config?action=data-analysis&view=ads&level=ad&market="+encodeURIComponent(LIVE_ADS_MARKETS[i]),{cache:"no-store",headers:headers});
+        if(!res.ok) continue;
+        var d=await res.json();
+        var rows=(d&&Array.isArray(d.rows))?d.rows:((d&&Array.isArray(d.platforms))?d.platforms.reduce(function(a,p){return a.concat(Array.isArray(p.rows)?p.rows:[]);},[]):[]);
+        out=out.concat(rows.map(mapLiveAdRow));
+      }
+      if(out.length){ ADS=out; ADS_SOURCE="live"; if(typeof renderOverview==="function")renderOverview(); if(typeof renderCampaigns==="function")renderCampaigns(); }
+    }catch(_){/* keep the committed snapshot already rendered */}
+  }
+
   Promise.all([
     fetch("/data/ads/master-kb.json",{cache:"no-store"}).then(function(r){return r.json();}),
     fetch("/data/ads/target-ads-meta-2026-07-20.json",{cache:"no-store"}).then(function(r){return r.json();}),
@@ -2896,6 +2936,11 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     if(REG){ renderAccounts(); loadAccountsLive(); }
     loadRetailFunnel();
     loadLive();
+    // Live-fetch Meta/Google/TikTok ad details (same source as the Data Analysis
+    // Live Ads tab); replaces the committed snapshot in the Ads/Overview views
+    // when live rows are available, and refreshes every 2 minutes.
+    refreshLiveAds();
+    setInterval(refreshLiveAds, 120000);
     // Auto-refresh the live view every 90s so "is it live yet" stays current.
     setInterval(function(){ if(document.querySelector("#tabs button[data-p='live']").classList.contains("on")) loadLive(); },90000);
     var h=(location.hash||"").replace(/[^a-z]/gi,"");
