@@ -24,6 +24,13 @@ function freshModule(env) {
   return { mod, restore: () => { for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } } };
 }
 
+// Exact-host match. Substring matching on a URL is the classic sanitization bug
+// (an attacker-controlled path or query can carry the trusted host as text), so
+// even a test stub routes on the parsed hostname.
+function hostOf(url) {
+  try { return new URL(String(url)).hostname; } catch (_) { return ''; }
+}
+
 // Records every outbound call and replies with a canned platform response.
 function stubFetch(reply) {
   const calls = [];
@@ -89,7 +96,11 @@ test.describe('Meta live path', () => {
 test('Google Ads live path exchanges the refresh token then runs GAQL', async () => {
   const { mod, restore } = freshModule(CREDS);
   const f = stubFetch((url) => {
-    if (url.includes('oauth2.googleapis.com')) return { body: { access_token: 'ya29.fresh' } };
+    // Match the HOST exactly, not a substring. `url.includes('oauth2.googleapis.com')`
+    // also matches https://evil.test/?x=oauth2.googleapis.com — harmless in a stub,
+    // but it is the same sloppy pattern that becomes a real SSRF check elsewhere,
+    // so do not model it here.
+    if (hostOf(url) === 'oauth2.googleapis.com') return { body: { access_token: 'ya29.fresh' } };
     return { body: [{ results: [{ campaign: { id: '77', name: 'Brand' }, metrics: { costMicros: '4500000', conversions: 3 } }] }] };
   });
   try {
