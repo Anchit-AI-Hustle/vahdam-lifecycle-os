@@ -54,26 +54,69 @@ jobs:
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
       APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
     steps:
-      - name: Anomaly detection (real monthly data)
-        if: github.event.schedule == '30 6,18 * * *' || github.event.inputs.kind == 'anomaly' || github.event.inputs.kind == 'all'
+      # UNCONFIGURED IS NOT BROKEN.
+      # This job used to `exit 1` when CRON_SECRET was unset, on a 2-hourly
+      # schedule, forever. With the secret never added that produced a red run
+      # and a "All jobs have failed" email every two hours (30 of 30 runs failed
+      # over three days) for a feature that was simply not set up yet. Constant
+      # false alarms are worse than no alarm: they train everyone to ignore the
+      # channel, so the day a REAL alert breaks, nobody looks.
+      # So: missing setup secret => clean skip with a loud, actionable notice.
+      # Secret present but the endpoint fails => still a hard red failure.
+      - name: Preflight (is this integration configured?)
+        id: pre
+        shell: bash
         run: |
+          set -uo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Revenue Alerts not configured::CRON_SECRET repo secret is not set, so no alert was sent. This is a setup gap, not a failure."
+            {
+              echo "### Revenue Alerts: not configured yet"
+              echo
+              echo "No alert was sent, and this run is **not** counted as a failure."
+              echo
+              echo "To turn these alerts on, add the repository secret below."
+              echo "Settings -> Secrets and variables -> Actions -> New repository secret:"
+              echo
+              echo '| Secret | Value | Required |'
+              echo '|---|---|---|'
+              echo '| `CRON_SECRET` | the same value as the `CRON_SECRET` env var in Vercel | yes |'
+              echo '| `APP_BASE_URL` | `https://vahdam-lifecycle-os.anchit-tandon.com` | no (this is the default) |'
+              echo
+              echo "Email delivery additionally needs \`RESEND_API_KEY\` (plus optional \`ALERT_EMAIL\` / \`ALERT_FROM\`) set in **Vercel**."
+              echo "Without it the endpoints still run and return a \`would_send\` stub rather than sending."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Anomaly detection (real monthly data)
+        if: steps.pre.outputs.configured == 'true' && (github.event.schedule == '30 6,18 * * *' || github.event.inputs.kind == 'anomaly' || github.event.inputs.kind == 'all')
+        shell: bash
+        run: |
+          set -euo pipefail
           BASE="${APP_BASE_URL:-https://vahdam-lifecycle-os.anchit-tandon.com}"
-          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET repo secret is not set." >&2; exit 1; fi
-          curl --fail-with-body -sS -X POST "$BASE/api/brain?action=alerts-anomaly" \
+          curl --fail-with-body -sS --max-time 120 --retry 2 --retry-delay 5 --retry-connrefused \
+            -X POST "${BASE%/}/api/brain?action=alerts-anomaly" \
             -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json"
 
       - name: 2-hour progress pulse
-        if: github.event.schedule == '0 */2 * * *' || github.event.inputs.kind == 'pulse' || github.event.inputs.kind == 'all'
+        if: steps.pre.outputs.configured == 'true' && (github.event.schedule == '0 */2 * * *' || github.event.inputs.kind == 'pulse' || github.event.inputs.kind == 'all')
+        shell: bash
         run: |
+          set -euo pipefail
           BASE="${APP_BASE_URL:-https://vahdam-lifecycle-os.anchit-tandon.com}"
-          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET repo secret is not set." >&2; exit 1; fi
-          curl --fail-with-body -sS -X POST "$BASE/api/brain?action=alerts-pulse" \
+          curl --fail-with-body -sS --max-time 120 --retry 2 --retry-delay 5 --retry-connrefused \
+            -X POST "${BASE%/}/api/brain?action=alerts-pulse" \
             -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json"
 
       - name: End-of-day forecast
-        if: github.event.schedule == '0 18 * * *' || github.event.inputs.kind == 'eod' || github.event.inputs.kind == 'all'
+        if: steps.pre.outputs.configured == 'true' && (github.event.schedule == '0 18 * * *' || github.event.inputs.kind == 'eod' || github.event.inputs.kind == 'all')
+        shell: bash
         run: |
+          set -euo pipefail
           BASE="${APP_BASE_URL:-https://vahdam-lifecycle-os.anchit-tandon.com}"
-          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET repo secret is not set." >&2; exit 1; fi
-          curl --fail-with-body -sS -X POST "$BASE/api/brain?action=alerts-eod" \
+          curl --fail-with-body -sS --max-time 120 --retry 2 --retry-delay 5 --retry-connrefused \
+            -X POST "${BASE%/}/api/brain?action=alerts-eod" \
             -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json"
