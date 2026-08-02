@@ -144,8 +144,13 @@ function landingMotionJs() {
 // Layered over the hero inside the composed unit. All static, so it survives
 // screenshotting/export to PNG unchanged. Grain is an inline SVG feTurbulence
 // data URI — no external request, keeps the unit self-contained.
+// The data URI lives inside a DOUBLE-quoted style="" attribute, so it must
+// contain no raw quote of either kind: an inner double quote terminates the
+// attribute (Codex caught exactly that — the grain never rendered), and a raw
+// single quote would collide with the url('') delimiter. Every internal quote
+// is percent-encoded (%27) instead.
 const AD_GRAIN =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E\")";
+  "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27120%27 height=%27120%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%272%27/%3E%3CfeColorMatrix values=%270 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0%27/%3E%3C/filter%3E%3Crect width=%27120%27 height=%27120%27 filter=%27url(%23n)%27/%3E%3C/svg%3E')";
 
 function adDepthLayers(gold) {
   // Order matters: light falls first, vignette frames, grain unifies, the gold

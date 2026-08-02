@@ -40,6 +40,11 @@ drop policy if exists "read all" on public.workspace_members;
 drop policy if exists "read all" on public.saved_items;
 drop policy if exists "read all" on public.uploaded_files;
 
--- webengage_events keeps its read policy: user_id there is a WebEngage-internal
--- identifier with no email or name attached, and the events feed is read by the
--- dashboards. Revisit if the payload ever starts carrying contact details.
+-- webengage_events is revoked too. An earlier version of this migration kept
+-- its read policy on the reasoning that user_id is a WebEngage-internal
+-- identifier - but that only looked at the EXTRACTED columns. formatRow stores
+-- the COMPLETE source event in raw_payload ("raw_payload: e"), and WebEngage
+-- event payloads routinely carry user attributes. Same class of exposure as
+-- klaviyo_events; every reader is server-side via the service role anyway.
+alter table if exists public.webengage_events enable row level security;
+drop policy if exists "webengage_events_read" on public.webengage_events;

@@ -179,6 +179,27 @@ test('a composed static ad carries the full depth stack', () => {
   expect((layers.match(/pointer-events:none/g) || []).length).toBe(4);
 });
 
+test('the film grain survives to the computed style', async ({ page }) => {
+  // Codex caught this: the grain data URI used url("...") inside a
+  // double-quoted style="" attribute, so the inner quote TERMINATED the
+  // attribute and the grain never rendered — while every source-presence
+  // check ('feTurbulence' in the string) still passed. Same lesson as the
+  // CTA shine: assert the COMPUTED style, because that is what the browser
+  // actually parsed.
+  const { renderAds } = lib('ad-creative.js');
+  const set = renderAds({ productName: 'Turmeric Ashwagandha', headline: 'The ritual, restored', subline: 'Hand-picked at origin', heroImageUrl: 'https://www.vahdam.com/cdn/shop/files/x.jpg', price: '$24.99', market: 'US' });
+  await page.setContent(set.html, { waitUntil: 'domcontentloaded' });
+  const grain = await page.evaluate(() => {
+    const hits = [];
+    document.querySelectorAll('div').forEach((el) => {
+      const bg = getComputedStyle(el).backgroundImage;
+      if (bg.includes('svg+xml')) hits.push(bg.slice(0, 60));
+    });
+    return hits;
+  });
+  expect(grain.length, 'no element carries the grain SVG in its COMPUTED background — the data URI broke out of the style attribute').toBeGreaterThan(0);
+});
+
 // ── Rule 3b: video unit — true 3D ───────────────────────────────────────────
 test('the animated video unit is a perspective scene with Z-separated layers', () => {
   const html = renderMotionAd({ product: 'Turmeric Ashwagandha', cta: 'Shop now', scenes: [{ headline: 'The ritual, restored', seconds: 4 }] });
