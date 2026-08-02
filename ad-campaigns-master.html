@@ -127,6 +127,11 @@
   .cal .cell.past{background:var(--surface)}
   .cal .cell.today{border:2px solid var(--live);background:var(--live-bg);box-shadow:0 0 0 3px rgba(14,92,54,.10)}
   .cal .cell.future{background:repeating-linear-gradient(135deg,var(--surface-2),var(--surface-2) 7px,#F4EDDC 7px,#F4EDDC 14px)}
+  /* A past day the source has not reported. Distinct from "future" (nothing to
+     report yet) and from a real zero (ran, spent nothing). */
+  .cal .cell.gap{border-style:dashed;background:var(--surface-2)}
+  /* Today can also be unreported, but the TODAY emphasis must still win. */
+  .cal .cell.today.gap{border-style:solid;background:var(--live-bg)}
   .cal .cell .dn{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--head)}
   .cal .cell .sp{font-family:var(--serif);font-size:16px;font-weight:700;color:var(--head);margin-top:3px}
   .cal .cell .mt{font-size:10.5px;color:var(--dim);font-weight:600;line-height:1.35}
@@ -581,6 +586,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     <div class="legend">
       <span><i style="background:var(--surface)"></i> Past day — actuals</span>
       <span><i style="background:var(--live-bg);border-color:var(--live)"></i> Today — live, partial day</span>
+      <span><i style="background:var(--surface);border-style:dashed"></i> Past day the source has not reported yet</span>
       <span><i style="background:#F4EDDC"></i> Future — planned only, no figures</span>
       <span><i style="background:var(--live);border-radius:50%"></i> ads delivering</span>
     </div>
@@ -594,7 +600,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     <p class="eyebrow">Campaign tracker — every campaign, its window, status and efficiency</p>
     <div class="cards" id="trk-cards"></div>
     <div class="bar">
-      <label>Status<select id="trk-status"><option value="">All</option><option value="live">live today</option><option value="ended">ended</option></select></label>
+      <label>Status<select id="trk-status"><option value="">All</option><option value="live">live on last data day</option><option value="ended">ended</option></select></label>
       <label>Account<select id="trk-acct"><option value="">Both accounts</option><option value="dtc">DTC — own site</option><option value="retail">Target / Costco — retail</option></select></label>
       <label>Search<input type="search" id="trk-q" placeholder="campaign…"></label>
       <label>Sort<select id="trk-sort"><option value="spend">Spend</option><option value="ctr">CTR</option><option value="cpc">CPC</option><option value="last_day">Last active day</option></select></label>
@@ -1565,7 +1571,38 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     return String(+p[2])+" "+(MON[+p[1]-1]||p[1]);
   }
   function pad(n,w){ n=String(Math.abs(Math.trunc(Number(n)||0))); while(n.length<w) n="0"+n; return n; }
-  function fallbackDay(){ return (SNAP&&SNAP.today&&SNAP.today.date)||new Date().toISOString().slice(0,10); }
+  // ── The one date contract for this page ────────────────────────────────────
+  // SNAP.today is NOT today. It is the last day the snapshot captured, and the
+  // committed snapshot goes stale the moment the clock rolls past it. Rendering
+  // it as "TODAY / partial day" was a lie every day after capture (July 25 was
+  // still labelled TODAY on August 2, and both being plausible recent dates is
+  // exactly what made it invisible). Same defect describeAccount() fixed
+  // server-side; the calendar never got it. So: reportToday() is the only
+  // source of "today", snapDay() is the only source of "last day with data",
+  // and nothing may conflate the two.
+  var AD_REPORT_TZ="America/New_York"; // the ad account reports on US Eastern
+  function reportToday(){
+    try{ return new Intl.DateTimeFormat("en-CA",{timeZone:AD_REPORT_TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); }
+    catch(_){ return new Date().toISOString().slice(0,10); }
+  }
+  function snapDay(){ return (SNAP&&SNAP.today&&SNAP.today.date)||""; }
+  function snapIsToday(){ var s=snapDay(); return !!s&&s===reportToday(); }
+  function staleDays(){
+    var s=snapDay(); if(!s) return null;
+    var a=Date.parse(s+"T00:00:00Z"), b=Date.parse(reportToday()+"T00:00:00Z");
+    if(isNaN(a)||isNaN(b)) return null;
+    return Math.round((b-a)/86400000);
+  }
+  // How to describe the snapshot's last day, in words that stay true tomorrow.
+  function snapDayNote(){
+    var s=snapDay(); if(!s) return "";
+    var n=staleDays();
+    if(n===0) return s+" · today, still accruing";
+    if(n===null) return s;
+    if(n<0) return s+" · dated ahead of today ("+reportToday()+")";
+    return s+" · "+n+" day"+(n===1?"":"s")+" before today ("+reportToday()+")";
+  }
+  function fallbackDay(){ return snapDay()||reportToday(); }
   // Rebuilds "YYYY-MM" from parsed integers — nothing from the original string
   // survives, so DOM-sourced values can never reach the markup verbatim.
   function monthKey(v){
@@ -1676,21 +1713,30 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       t.textContent=res.live_count+" ads delivering right now · "+res.campaigns+" campaigns live";
     } else {
       p.style.color="var(--warn)";
-      t.textContent="Live source not connected — showing the committed snapshot ("+((SNAP&&SNAP.captured_at)||"")+")";
+      t.textContent="Live source not connected — showing the committed snapshot ("+((SNAP&&SNAP.captured_at)||"")+
+        (snapDay()&&!snapIsToday()?", last figures "+snapDayNote():"")+")";
     }
     $("#live-src").textContent="source: "+(connected?res.source:((SNAP&&SNAP.source&&"snapshot")||"snapshot"));
     $("#live-upd").textContent="updated: "+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    var day=(connected?res.day:(SNAP&&SNAP.today&&SNAP.today.date))||"";
+    var day=(connected?res.day:snapDay())||"";
     var tot=connected?res.totals:(SNAP&&SNAP.today?{spend:SNAP.today.spend_so_far,impressions:SNAP.today.impressions,link_clicks:SNAP.today.link_clicks}:{spend:0,impressions:0,link_clicks:0});
     var liveN=connected?res.live_count:(SNAP&&SNAP.today?SNAP.today.ads_live:0);
     var ctr=tot.impressions?(tot.link_clicks/tot.impressions*100):null;
     var yest=(SNAP&&SNAP.daily&&SNAP.daily.length>1)?SNAP.daily[SNAP.daily.length-2]:null;
+    // These five cards said "today" whatever the figures actually were, so a
+    // snapshot captured a week ago reported its last day as today's partial
+    // spend. The card headings now name the day they really describe, and only
+    // a genuinely current day may claim "partial day".
+    var isNow=connected?(day===reportToday()):snapIsToday();
+    var when=isNow?" today":" on "+shortDay(day);
+    var sub=isNow?esc(day)+" · partial day":esc(day)+" · "+(connected?"latest reported day":"snapshot's last day, not today");
+    var prevLabel=isNow?"Yesterday (full day)":"Day before that (full day)";
     $("#live-cards").innerHTML=
-      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Ads delivering today</div><div class='v'>"+intf(liveN)+"</div><div class='s'>"+esc(day)+" · partial day</div></div>"+
-      "<div class='sc'><div class='k'>Spend so far today</div><div class='v'>"+money(tot.spend)+"</div><div class='s'>"+(connected&&res.pacing_pct!=null?res.pacing_pct+"% of the $"+intf(res.budget_cap)+" cap":"vs cap — set budgets in Ops")+"</div></div>"+
-      "<div class='sc'><div class='k'>Impressions today</div><div class='v'>"+intf(tot.impressions)+"</div><div class='s'>link clicks "+intf(tot.link_clicks)+"</div></div>"+
-      "<div class='sc'><div class='k'>CTR today</div><div class='v'>"+(ctr==null?"—":pct(ctr))+"</div><div class='s'>"+(connected&&res.cpc!=null?"CPC "+money(res.cpc):"")+"</div></div>"+
-      "<div class='sc'><div class='k'>Yesterday (full day)</div><div class='v'>"+(yest?money0(yest.spend):"—")+"</div><div class='s'>"+(yest?intf(yest.impressions)+" impressions":"")+"</div></div>";
+      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Ads delivering"+esc(when)+"</div><div class='v'>"+intf(liveN)+"</div><div class='s'>"+sub+"</div></div>"+
+      "<div class='sc'><div class='k'>Spend"+esc(isNow?" so far today":when)+"</div><div class='v'>"+money(tot.spend)+"</div><div class='s'>"+(connected&&res.pacing_pct!=null?res.pacing_pct+"% of the $"+intf(res.budget_cap)+" cap":"vs cap — set budgets in Ops")+"</div></div>"+
+      "<div class='sc'><div class='k'>Impressions"+esc(when)+"</div><div class='v'>"+intf(tot.impressions)+"</div><div class='s'>link clicks "+intf(tot.link_clicks)+"</div></div>"+
+      "<div class='sc'><div class='k'>CTR"+esc(when)+"</div><div class='v'>"+(ctr==null?"—":pct(ctr))+"</div><div class='s'>"+(connected&&res.cpc!=null?"CPC "+money(res.cpc):"")+"</div></div>"+
+      "<div class='sc'><div class='k'>"+esc(prevLabel)+"</div><div class='v'>"+(yest?money0(yest.spend):"—")+"</div><div class='s'>"+(yest?intf(yest.impressions)+" impressions":"")+"</div></div>";
     renderLiveAccounts(res, connected);
     if(!connected){
       $("#live-notice").innerHTML="<div class='notice'><b>Not reading the ad account live right now.</b> "+
@@ -1919,10 +1965,16 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   function loadRevenue(){
     revGet("revenue").then(function(j){
       if(j&&(j.__http===401||j.__http===403)){ revFailed("Sign in with a VAHDAM operator account to load the revenue report."); return; }
+      // Any other failure shape must ALSO un-latch: the endpoint wraps server
+      // errors as HTTP 200 {ok:false,...}, and the old path rendered those
+      // dead - message shown, REV_LOADED stuck true, no way to retry.
+      if(!j||j.ok===false||j.__http){ revFailed((j&&j.error)||("Could not load the report"+(j&&j.__http?" (HTTP "+j.__http+")":"")+".")); return; }
       REVDATA=j; renderRevenue();
     }).catch(function(e){ revFailed(String(e&&e.message||e)); });
-    revGet("agents").then(function(j){ AGENTDATA=j; renderRevAgents(); })
-      .catch(function(e){ $("#rev-agents").innerHTML="<div class='empty'>"+esc(String(e&&e.message||e))+"</div>"; });
+    revGet("agents").then(function(j){
+      if(!j||j.ok===false||j.__http){ REV_LOADED=false; } // reopening retries
+      AGENTDATA=j; renderRevAgents();
+    }).catch(function(e){ REV_LOADED=false; $("#rev-agents").innerHTML="<div class='empty'>"+esc(String(e&&e.message||e))+"</div>"; });
   }
 
   function loadLive(){
@@ -1937,8 +1989,13 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   // ── CALENDAR ───────────────────────────────────────────────────────────────
   function monthOptions(){
     var months=[]; (SNAP&&SNAP.daily||[]).forEach(function(d){var m=d.date.slice(0,7); if(months.indexOf(m)<0)months.push(m);});
-    var t=(SNAP&&SNAP.today&&SNAP.today.date)||new Date().toISOString().slice(0,10);
+    // Include BOTH the snapshot's last month and the real current month, and
+    // open on the current one. Opening on the snapshot's month is how a stale
+    // July calendar greeted someone in August.
+    var t=reportToday(), s=snapDay();
+    if(s&&months.indexOf(s.slice(0,7))<0) months.push(s.slice(0,7));
     if(months.indexOf(t.slice(0,7))<0) months.push(t.slice(0,7));
+    months.sort();
     // one month ahead so future/planned days are reachable
     var last=months[months.length-1], y=+last.slice(0,4), mo=+last.slice(5,7);
     var nx=new Date(Date.UTC(y,mo,1)).toISOString().slice(0,7);
@@ -1956,7 +2013,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     // that reaches innerHTML cannot carry any character other than digits and
     // the hyphen we add ourselves. An unparseable value falls back to today.
     var m=monthKey($("#cal-month").value);
-    var today=(SNAP&&SNAP.today&&SNAP.today.date)||"";
+    var today=reportToday(), lastData=snapDay();
     var byDay={}; (SNAP&&SNAP.daily||[]).forEach(function(d){byDay[d.date]=d;});
     if(LIVE&&LIVE.daily) LIVE.daily.forEach(function(d){ byDay[d.date]=Object.assign({},byDay[d.date]||{date:d.date},d); });
     var y=+m.slice(0,4), mo=+m.slice(5,7);
@@ -1970,11 +2027,18 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       var r=byDay[iso];
       if(r){monthSpend+=Number(r.spend)||0;monthImpr+=Number(r.impressions)||0;if((Number(r.spend)||0)>0)activeDays++;}
       var safeIso=/^\d{4}-\d{2}-\d{2}$/.test(iso)?iso:"1970-01-01";
-      html+="<div class='cell "+rel+"' data-d='"+safeIso+"' style='cursor:"+(r?"pointer":"default")+"'>"+
-        "<div class='dn'>"+d+(rel==="today"?" · TODAY":"")+"</div>"+
+      // Three labels, three different truths. TODAY is the real clock day.
+      // LAST DATA is where the source stops. A past day beyond LAST DATA is
+      // not "no data" (which reads as "nothing ran") - it is a day this source
+      // has not reported yet, so say that.
+      var badge=rel==="today"?" · TODAY":(lastData&&iso===lastData&&iso!==today?" · LAST DATA":"");
+      var gap=!r&&rel!=="future"&&lastData&&iso>lastData;
+      html+="<div class='cell "+rel+(gap?" gap":"")+"' data-d='"+safeIso+"' style='cursor:"+(r?"pointer":"default")+"'>"+
+        "<div class='dn'>"+d+badge+"</div>"+
         (r&&r.ads_live?"<span class='lv' title='ads delivering'></span>":"")+
         (r?("<div class='sp'>"+money0(r.spend)+"</div><div class='mt'>"+(r.ads_live!=null?intf(r.ads_live)+" ads · ":"")+intf(r.impressions)+" impr</div>")
-          :(rel==="future"?"<div class='fu' style='margin-top:8px'>planned<br>no figures</div>":"<div class='mt' style='margin-top:8px'>no data</div>"))+
+          :(rel==="future"?"<div class='fu' style='margin-top:8px'>planned<br>no figures</div>"
+            :(gap?"<div class='mt' style='margin-top:8px'>not yet<br>reported</div>":"<div class='mt' style='margin-top:8px'>no data</div>")))+
         "</div>";
     }
     $("#cal-grid").innerHTML=html;
@@ -1982,7 +2046,13 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       "<div class='sc'><div class='k'>Month spend</div><div class='v'>"+money0(monthSpend)+"</div><div class='s'>"+activeDays+" days with delivery</div></div>"+
       "<div class='sc'><div class='k'>Month impressions</div><div class='v'>"+intf(monthImpr)+"</div></div>"+
       "<div class='sc'><div class='k'>Avg spend / active day</div><div class='v'>"+(activeDays?money0(monthSpend/activeDays):"—")+"</div></div>";
-    $("#cal-src").textContent="source: "+((LIVE&&LIVE.daily&&LIVE.daily.length)?"live ad account":"snapshot "+((SNAP&&SNAP.captured_at)||""));
+    // Name the source AND how far behind the clock it is. "snapshot 2026-07-26"
+    // alone let a week-old file read as current.
+    var live=LIVE&&LIVE.daily&&LIVE.daily.length;
+    var n=staleDays();
+    $("#cal-src").textContent="source: "+(live?"live ad account":"snapshot "+((SNAP&&SNAP.captured_at)||""))+
+      (lastData?" · last day with figures "+snapDayNote():"")+
+      (!live&&n>0?" · not a live read":"");
   }
   function calDetail(v){
     // The day key arrives from a cell's data-d attribute (DOM text). dayKey()
@@ -1991,17 +2061,20 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     var iso=dayKey(v);
     if(!iso) return;
     var byDay={}; (SNAP&&SNAP.daily||[]).forEach(function(d){byDay[d.date]=d;});
-    var r=byDay[iso], today=(SNAP&&SNAP.today&&SNAP.today.date)||"";
+    var r=byDay[iso], today=reportToday(), lastData=snapDay();
     if(!r){
       $("#cal-detail").innerHTML="<p class='note'>"+(iso>today
         ? "<b>"+esc(iso)+"</b> is a future day. Future days carry planned campaigns only — no performance figures are shown, because none exist yet."
-        : "<b>"+esc(iso)+"</b> has no rows in the ad account for this window.")+"</p>";
+        : (lastData&&iso>lastData
+          ? "<b>"+esc(iso)+"</b> has already happened, but this source has not reported it. The loaded snapshot stops at <b>"+esc(lastData)+"</b> ("+esc(snapDayNote())+"). Connect the live ad account for days after that; nothing is estimated in the meantime."
+          : "<b>"+esc(iso)+"</b> has no rows in the ad account for this window."))+"</p>";
       return;
     }
     var camps=(SNAP&&SNAP.campaigns||[]).filter(function(c){return c.first_day<=iso&&c.last_day>=iso;})
       .sort(function(a,b){return b.spend-a.spend;});
     $("#cal-detail").innerHTML="<h3 style='margin-top:0'>"+esc(new Date(iso+"T12:00:00Z").toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:'UTC'}))+
-      (iso===today?" <span class='chip good'>live today</span>":"")+"</h3>"+
+      (iso===today?" <span class='chip good'>live today</span>"
+        :(lastData&&iso===lastData?" <span class='chip dim'>last day with figures</span>":""))+"</h3>"+
       "<div class='cards' style='margin:8px 0'>"+
         "<div class='sc'><div class='k'>Spend</div><div class='v'>"+money(r.spend)+"</div></div>"+
         "<div class='sc'><div class='k'>Ads delivering</div><div class='v'>"+intf(r.ads_live)+"</div></div>"+
@@ -2209,11 +2282,14 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   // fires). The retail rows used to be the KT workbook snapshot because the
   // account was believed to be absent from the warehouse; it is not.
   function trackerRows(){
-    var today=(SNAP&&SNAP.today&&SNAP.today.date)||"";
+    // live_today means "still running on the last day the snapshot covers" —
+    // which is only the same thing as "running today" while the snapshot is
+    // current. Keep the flag, stop the labels from over-claiming it.
+    var lastData=snapDay();
     return (SNAP&&SNAP.campaigns||[]).map(function(c){
       var a=(SNAP.accounts||[]).filter(function(x){return x.key===c.account;})[0];
       return Object.assign({},c,{
-        live_today: c.last_day===today,
+        live_today: c.last_day===lastData,
         account_label:(a&&a.account)||c.account_name||c.account,
       });
     });
@@ -2238,7 +2314,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     var rt=(SNAP&&SNAP.accounts||[]).filter(function(a){return a.key==='retail';})[0]||{};
     var win=(SNAP&&SNAP.window)||{};
     $("#trk-cards").innerHTML=
-      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Campaigns live on the last day</div><div class='v'>"+intf(live.length)+"</div><div class='s'>"+esc((SNAP&&SNAP.today&&SNAP.today.date)||"")+" · partial day</div></div>"+
+      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Campaigns live on the last day</div><div class='v'>"+intf(live.length)+"</div><div class='s'>"+esc(snapDayNote())+"</div></div>"+
       "<div class='sc'><div class='k'>Tracked campaigns</div><div class='v'>"+intf(all.length)+"</div><div class='s'>"+intf(dtc.campaigns_in_window||0)+" DTC + "+intf(rt.campaigns_in_window||0)+" retail</div></div>"+
       "<div class='sc'><div class='k'>DTC spend</div><div class='v'>"+money0(dtc.spend||0)+"</div><div class='s'>ROAS "+(dtc.roas!=null?dtc.roas+"x":"—")+" · CPA "+(dtc.cpa!=null?money(dtc.cpa):"—")+"</div></div>"+
       "<div class='sc' style='border-left-color:var(--gold-deep)'><div class='k'>Target / Costco spend</div><div class='v'>"+money0(rt.spend||0)+"</div><div class='s'>CTR "+(rt.ctr!=null?pct(rt.ctr):"—")+" · CPC "+(rt.cpc!=null?money(rt.cpc):"—")+" · no ROAS by design</div></div>"+
@@ -3026,7 +3102,19 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   document.getElementById("live-refresh").addEventListener("click",loadLive);
   document.getElementById("cal-month").addEventListener("change",renderCalendar);
   document.getElementById("cal-today").addEventListener("click",function(){
-    var t=(SNAP&&SNAP.today&&SNAP.today.date)||""; if(t){$("#cal-month").value=t.slice(0,7);renderCalendar();calDetail(t);} });
+    // "Jump to today" must land on the real today. It used to jump to the
+    // snapshot's last day, so the button silently disagreed with its own label.
+    var t=reportToday(), sel=$("#cal-month");
+    if(!t) return;
+    var mk=t.slice(0,7);
+    // monthOptions() only lists months the snapshot spans; if the real month is
+    // not there, add it so the jump can never be a no-op.
+    if(!Array.prototype.some.call(sel.options,function(o){return o.value===mk;})){
+      var d=new Date(mk+"-01T12:00:00Z"), o=document.createElement("option");
+      o.value=mk; o.textContent=d.toLocaleDateString("en-US",{month:"long",year:"numeric",timeZone:"UTC"});
+      sel.appendChild(o);
+    }
+    sel.value=mk; renderCalendar(); calDetail(t); });
   document.getElementById("cal-grid").addEventListener("click",function(e){
     var c=e.target.closest(".cell[data-d]"); if(c)calDetail(c.dataset.d); });
   ["sop-filter"].forEach(function(id){document.getElementById(id).addEventListener("change",sopRowsDraw);});
@@ -3104,7 +3192,9 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   ]).then(function(res){
     KB=res[0]; ADS=res[1]; SNAP=res[2]; REG=res[3]; UGCLIB=res[4];
     renderOverview(); renderCampaigns(); renderCreative(); renderOrganic(); renderKB(); renderOps(); renderSOP();
-    if(SNAP){ monthOptions(); renderCalendar(); renderTracker(); drawSpendChart(); if(SNAP.today&&SNAP.today.date) calDetail(SNAP.today.date); }
+    // Open on the real today so the panel agrees with the grid's TODAY cell;
+    // it explains the gap itself when the snapshot does not reach that far.
+    if(SNAP){ monthOptions(); renderCalendar(); renderTracker(); drawSpendChart(); calDetail(reportToday()); }
     if(REG){ renderAccounts(); loadAccountsLive(); }
     loadRetailFunnel();
     loadLive();
