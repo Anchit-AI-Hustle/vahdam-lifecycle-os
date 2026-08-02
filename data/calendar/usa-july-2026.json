@@ -104,13 +104,143 @@
               "Spicy, Bold & Aromatic. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "For the ones who steep with us daily. Your everyday chai, hand-picked at origin and shipped garden-fresh.",
+                "headline": "India's Original Masala Chai, 100 ct",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "For the ones who steep with us daily ($22.49)",
+                "hook": "Your everyday chai, hand-picked at origin and shipped garde…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "For the ones who steep with u…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Your everyday chai, hand-picked at origin and shipped garden-fresh.",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "For the ones who steep with us daily",
+                "body": "Your everyday chai, hand-picked at origin and shipped garden-fresh."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Spicy, Bold & Aromatic. For the ones who steep with us daily",
+                "headline": "India's Original Masala Chai, 100 ct",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Spicy, Bold & Aromatic ($22.49)",
+                "hook": "For the ones who steep with us daily",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "Spicy, Bold & Aromatic",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "For the ones who steep with us daily",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Spicy, Bold & Aromatic",
+                "body": "For the ones who steep with us daily"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Your everyday chai, hand-picked at origin and shipped garden-fresh.. Spicy, Bold & Aromatic",
+                "headline": "India's Original Masala Chai, 100 ct",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Your everyday chai, hand-picked at origin and shipped garden-fresh. ($22.49)",
+                "hook": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "Your everyday chai, hand-pick…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Spicy, Bold & Aromatic",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Your everyday chai, hand-picked at origin and shipped garden-fresh.",
+                "body": "Spicy, Bold & Aromatic"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-02_champions_indias-original-masala-chai-100-ct_lp.html",
         "title": "India's Original Masala Chai, 100 ct · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-05",
@@ -205,13 +335,143 @@
               "Crisp, Mellow & Toasty. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "The Darjeeling of high summer. Second-flush leaf from the Castleton estate, picked at its muscatel peak.",
+                "headline": "Castleton Darjeeling Second Flush",
+                "description": "Crisp, Mellow & Toasty",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "The Darjeeling of high summer ($20.99)",
+                "hook": "Second-flush leaf from the Castleton estate, picked at its…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Castleton Darjeeling Second F…",
+                  "The Darjeeling of high summer",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Second-flush leaf from the Castleton estate, picked at its muscatel peak.",
+                  "Crisp, Mellow & Toasty. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "The Darjeeling of high summer",
+                "body": "Second-flush leaf from the Castleton estate, picked at its muscatel peak."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Crisp, Mellow & Toasty. The Darjeeling of high summer",
+                "headline": "Castleton Darjeeling Second Flush",
+                "description": "Crisp, Mellow & Toasty",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Crisp, Mellow & Toasty ($20.99)",
+                "hook": "The Darjeeling of high summer",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Castleton Darjeeling Second F…",
+                  "Crisp, Mellow & Toasty",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "The Darjeeling of high summer",
+                  "Crisp, Mellow & Toasty. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Crisp, Mellow & Toasty",
+                "body": "The Darjeeling of high summer"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Second-flush leaf from the Castleton estate, picked at its muscatel peak.. Crisp, Mellow & Toasty",
+                "headline": "Castleton Darjeeling Second Flush",
+                "description": "Crisp, Mellow & Toasty",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Second-flush leaf from the Castleton estate, picked at its muscatel peak. ($20.99)",
+                "hook": "Crisp, Mellow & Toasty",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Castleton Darjeeling Second F…",
+                  "Second-flush leaf from the Ca…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Crisp, Mellow & Toasty",
+                  "Crisp, Mellow & Toasty. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Second-flush leaf from the Castleton estate, picked at its muscatel peak.",
+                "body": "Crisp, Mellow & Toasty"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-05_loyal_castleton-darjeeling-second-flush_lp.html",
         "title": "Castleton Darjeeling Second Flush · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-08",
@@ -312,13 +572,143 @@
               "20 single-estate flavors in one box. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Find your everyday cup. Twenty single-estate flavors in one sampler, so the next favorite finds you.",
+                "headline": "Assorted Tea Bags Sampler, 20 Flavors",
+                "description": "20 single-estate flavors in o…",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Find your everyday cup ($17.49)",
+                "hook": "Twenty single-estate flavors in one sampler, so the next fa…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Assorted Tea Bags Sampler, 20…",
+                  "Find your everyday cup",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Twenty single-estate flavors in one sampler, so the next favorite finds you.",
+                  "20 single-estate flavors in one box. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Find your everyday cup",
+                "body": "Twenty single-estate flavors in one sampler, so the next favorite finds you."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "20 single-estate flavors in one box. Find your everyday cup",
+                "headline": "Assorted Tea Bags Sampler, 20 Flavors",
+                "description": "20 single-estate flavors in o…",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "20 single-estate flavors in one box ($17.49)",
+                "hook": "Find your everyday cup",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Assorted Tea Bags Sampler, 20…",
+                  "20 single-estate flavors in o…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Find your everyday cup",
+                  "20 single-estate flavors in one box. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "20 single-estate flavors in one box",
+                "body": "Find your everyday cup"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Twenty single-estate flavors in one sampler, so the next favorite finds you.. 20 single-estate flavors in one box",
+                "headline": "Assorted Tea Bags Sampler, 20 Flavors",
+                "description": "20 single-estate flavors in o…",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Twenty single-estate flavors in one sampler, so the next favorite finds you. ($17.49)",
+                "hook": "20 single-estate flavors in one box",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Assorted Tea Bags Sampler, 20…",
+                  "Twenty single-estate flavors…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "20 single-estate flavors in one box",
+                  "20 single-estate flavors in one box. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Twenty single-estate flavors in one sampler, so the next favorite finds you.",
+                "body": "20 single-estate flavors in one box"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-08_new_assorted-tea-bags-sampler-20-flavors_lp.html",
         "title": "Assorted Tea Bags Sampler, 20 Flavors · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-11",
@@ -413,13 +803,143 @@
               "Earthy, Smooth & Refreshing. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "A brighter afternoon cup. High-grown Himalayan green, light-bodied and clean, for the mid-day reset.",
+                "headline": "Himalayan Green Tea, 12 oz",
+                "description": "Earthy, Smooth & Refreshing",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "A brighter afternoon cup ($27.49)",
+                "hook": "High-grown Himalayan green, light-bodied and clean, for the…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Himalayan Green Tea, 12 oz",
+                  "A brighter afternoon cup",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "High-grown Himalayan green, light-bodied and clean, for the mid-day reset.",
+                  "Earthy, Smooth & Refreshing. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "A brighter afternoon cup",
+                "body": "High-grown Himalayan green, light-bodied and clean, for the mid-day reset."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Earthy, Smooth & Refreshing. A brighter afternoon cup",
+                "headline": "Himalayan Green Tea, 12 oz",
+                "description": "Earthy, Smooth & Refreshing",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Earthy, Smooth & Refreshing ($27.49)",
+                "hook": "A brighter afternoon cup",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Himalayan Green Tea, 12 oz",
+                  "Earthy, Smooth & Refreshing",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "A brighter afternoon cup",
+                  "Earthy, Smooth & Refreshing. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Earthy, Smooth & Refreshing",
+                "body": "A brighter afternoon cup"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "High-grown Himalayan green, light-bodied and clean, for the mid-day reset.. Earthy, Smooth & Refreshing",
+                "headline": "Himalayan Green Tea, 12 oz",
+                "description": "Earthy, Smooth & Refreshing",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "High-grown Himalayan green, light-bodied and clean, for the mid-day reset. ($27.49)",
+                "hook": "Earthy, Smooth & Refreshing",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Himalayan Green Tea, 12 oz",
+                  "High-grown Himalayan green, l…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Earthy, Smooth & Refreshing",
+                  "Earthy, Smooth & Refreshing. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "High-grown Himalayan green, light-bodied and clean, for the mid-day reset.",
+                "body": "Earthy, Smooth & Refreshing"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-11_promising_himalayan-green-tea-12-oz_lp.html",
         "title": "Himalayan Green Tea, 12 oz · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-14",
@@ -514,13 +1034,183 @@
               "Spicy, Earthy & Warm. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Steady the day, one cup at a time. Turmeric and ginger, a warming, caffeine-free ritual as Wellness Month nears.",
+                "headline": "Turmeric Ginger Herbal Tea, 100 ct",
+                "description": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Steady the day, one cup at a time ($17.49)",
+                "hook": "Turmeric and ginger, a warming, caffeine-free ritual as Wel…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Turmeric Ginger Herbal Tea, 1…",
+                  "Steady the day, one cup at a…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Turmeric and ginger, a warming, caffeine-free ritual as Wellness Month nears.",
+                  "Spicy, Earthy & Warm. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Steady the day, one cup at a time",
+                "body": "Turmeric and ginger, a warming, caffeine-free ritual as Wellness Month nears."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Spicy, Earthy & Warm. Steady the day, one cup at a time",
+                "headline": "Turmeric Ginger Herbal Tea, 100 ct",
+                "description": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Spicy, Earthy & Warm ($17.49)",
+                "hook": "Steady the day, one cup at a time",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Turmeric Ginger Herbal Tea, 1…",
+                  "Spicy, Earthy & Warm",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Steady the day, one cup at a time",
+                  "Spicy, Earthy & Warm. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Spicy, Earthy & Warm",
+                "body": "Steady the day, one cup at a time"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Turmeric and ginger, a warming, caffeine-free ritual as Wellness Month nears.. Spicy, Earthy & Warm",
+                "headline": "Turmeric Ginger Herbal Tea, 100 ct",
+                "description": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Turmeric and ginger, a warming, caffeine-free ritual as Wellness Month nears. ($17.49)",
+                "hook": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Turmeric Ginger Herbal Tea, 1…",
+                  "Turmeric and ginger, a warmin…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Spicy, Earthy & Warm",
+                  "Spicy, Earthy & Warm. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Turmeric and ginger, a warming, caffeine-free ritual as Wellness Month nears.",
+                "body": "Spicy, Earthy & Warm"
+              }
+            },
+            {
+              "angle": "occasion",
+              "angle_label": "Occasion",
+              "awareness": "most-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "National Wellness Month (Aug) ramp. Turmeric and ginger, a warming, caffeine-free ritual as Wellness Month nears. · $17.49",
+                "headline": "Turmeric Ginger Herbal Tea, 100 ct",
+                "description": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "National Wellness Month (Aug) ramp ($17.49)",
+                "hook": "Turmeric and ginger, a warming, caffeine-free ritual as Wel…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Turmeric Ginger Herbal Tea, 1…",
+                  "National Wellness Month (Aug)…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Turmeric and ginger, a warming, caffeine-free ritual as Wellness Month nears. · $17.49",
+                  "Spicy, Earthy & Warm. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "National Wellness Month (Aug) ramp",
+                "body": "Turmeric and ginger, a warming, caffeine-free ritual as Wellness Month nears. · $17.49"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
+          },
+          {
+            "angle": "occasion",
+            "label": "Occasion",
+            "awareness": "most-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-14_need-attention_turmeric-ginger-herbal-tea-100-ct_lp.html",
         "title": "Turmeric Ginger Herbal Tea, 100 ct · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-16",
@@ -615,13 +1305,183 @@
               "Rich, Malty & Robust. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Brew for the final whistle. A brisk, full-bodied English Breakfast for Sunday's World Cup Final.",
+                "headline": "English Breakfast Black Tea, 12 oz",
+                "description": "Rich, Malty & Robust",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Brew for the final whistle ($17.99)",
+                "hook": "A brisk, full-bodied English Breakfast for Sunday's World C…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "English Breakfast Black Tea,…",
+                  "Brew for the final whistle",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "A brisk, full-bodied English Breakfast for Sunday's World Cup Final.",
+                  "Rich, Malty & Robust. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Brew for the final whistle",
+                "body": "A brisk, full-bodied English Breakfast for Sunday's World Cup Final."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Rich, Malty & Robust. Brew for the final whistle",
+                "headline": "English Breakfast Black Tea, 12 oz",
+                "description": "Rich, Malty & Robust",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Rich, Malty & Robust ($17.99)",
+                "hook": "Brew for the final whistle",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "English Breakfast Black Tea,…",
+                  "Rich, Malty & Robust",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Brew for the final whistle",
+                  "Rich, Malty & Robust. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Rich, Malty & Robust",
+                "body": "Brew for the final whistle"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "A brisk, full-bodied English Breakfast for Sunday's World Cup Final.. Rich, Malty & Robust",
+                "headline": "English Breakfast Black Tea, 12 oz",
+                "description": "Rich, Malty & Robust",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "A brisk, full-bodied English Breakfast for Sunday's World Cup Final. ($17.99)",
+                "hook": "Rich, Malty & Robust",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "English Breakfast Black Tea,…",
+                  "A brisk, full-bodied English…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Rich, Malty & Robust",
+                  "Rich, Malty & Robust. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "A brisk, full-bodied English Breakfast for Sunday's World Cup Final.",
+                "body": "Rich, Malty & Robust"
+              }
+            },
+            {
+              "angle": "occasion",
+              "angle_label": "Occasion",
+              "awareness": "most-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "FIFA World Cup Final, Jul 19 @ MetLife (3pm ET). A brisk, full-bodied English Breakfast for Sunday's World Cup Final. · $17.…",
+                "headline": "English Breakfast Black Tea, 12 oz",
+                "description": "Rich, Malty & Robust",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "FIFA World Cup Final, Jul 19 @ MetLife (3pm ET) ($17.99)",
+                "hook": "A brisk, full-bodied English Breakfast for Sunday's World C…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "English Breakfast Black Tea,…",
+                  "FIFA World Cup Final, Jul 19…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "A brisk, full-bodied English Breakfast for Sunday's World Cup Final. · $17.99",
+                  "Rich, Malty & Robust. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "FIFA World Cup Final, Jul 19 @ MetLife (3pm ET)",
+                "body": "A brisk, full-bodied English Breakfast for Sunday's World Cup Final. · $17.99"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
+          },
+          {
+            "angle": "occasion",
+            "label": "Occasion",
+            "awareness": "most-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-16_loyal_english-breakfast-black-tea-12-oz_lp.html",
         "title": "English Breakfast Black Tea, 12 oz · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-18",
@@ -722,13 +1582,183 @@
               "Spicy, Bold & Aromatic. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Turn your chai into dessert. Brew it strong, pour it over ice cream, this Sunday is Ice Cream Day.",
+                "headline": "India's Original Masala Chai, 12 oz",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Turn your chai into dessert ($22.49)",
+                "hook": "Brew it strong, pour it over ice cream, this Sunday is Ice…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "Turn your chai into dessert",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Brew it strong, pour it over ice cream, this Sunday is Ice Cream Day.",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Turn your chai into dessert",
+                "body": "Brew it strong, pour it over ice cream, this Sunday is Ice Cream Day."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Spicy, Bold & Aromatic. Turn your chai into dessert",
+                "headline": "India's Original Masala Chai, 12 oz",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Spicy, Bold & Aromatic ($22.49)",
+                "hook": "Turn your chai into dessert",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "Spicy, Bold & Aromatic",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Turn your chai into dessert",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Spicy, Bold & Aromatic",
+                "body": "Turn your chai into dessert"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Brew it strong, pour it over ice cream, this Sunday is Ice Cream Day.. Spicy, Bold & Aromatic",
+                "headline": "India's Original Masala Chai, 12 oz",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Brew it strong, pour it over ice cream, this Sunday is Ice Cream Day. ($22.49)",
+                "hook": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "Brew it strong, pour it over…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Spicy, Bold & Aromatic",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Brew it strong, pour it over ice cream, this Sunday is Ice Cream Day.",
+                "body": "Spicy, Bold & Aromatic"
+              }
+            },
+            {
+              "angle": "occasion",
+              "angle_label": "Occasion",
+              "awareness": "most-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "National Ice Cream Day, Jul 19. Brew it strong, pour it over ice cream, this Sunday is Ice Cream Day. · $22.49",
+                "headline": "India's Original Masala Chai, 12 oz",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "National Ice Cream Day, Jul 19 ($22.49)",
+                "hook": "Brew it strong, pour it over ice cream, this Sunday is Ice…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "National Ice Cream Day, Jul 19",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Brew it strong, pour it over ice cream, this Sunday is Ice Cream Day. · $22.49",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "National Ice Cream Day, Jul 19",
+                "body": "Brew it strong, pour it over ice cream, this Sunday is Ice Cream Day. · $22.49"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
+          },
+          {
+            "angle": "occasion",
+            "label": "Occasion",
+            "awareness": "most-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-18_champions_indias-original-masala-chai-12-oz_lp.html",
         "title": "India's Original Masala Chai, 12 oz · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-19",
@@ -829,13 +1859,183 @@
               "20 single-estate flavors in one box. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Cold-brew your way in. Twenty single-estate flavors, an easy start to summer iced tea.",
+                "headline": "Assorted Tea Bags Sampler, 20 Flavors",
+                "description": "20 single-estate flavors in o…",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Cold-brew your way in ($17.49)",
+                "hook": "Twenty single-estate flavors, an easy start to summer iced…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Assorted Tea Bags Sampler, 20…",
+                  "Cold-brew your way in",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Twenty single-estate flavors, an easy start to summer iced tea.",
+                  "20 single-estate flavors in one box. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Cold-brew your way in",
+                "body": "Twenty single-estate flavors, an easy start to summer iced tea."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "20 single-estate flavors in one box. Cold-brew your way in",
+                "headline": "Assorted Tea Bags Sampler, 20 Flavors",
+                "description": "20 single-estate flavors in o…",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "20 single-estate flavors in one box ($17.49)",
+                "hook": "Cold-brew your way in",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Assorted Tea Bags Sampler, 20…",
+                  "20 single-estate flavors in o…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Cold-brew your way in",
+                  "20 single-estate flavors in one box. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "20 single-estate flavors in one box",
+                "body": "Cold-brew your way in"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Twenty single-estate flavors, an easy start to summer iced tea.. 20 single-estate flavors in one box",
+                "headline": "Assorted Tea Bags Sampler, 20 Flavors",
+                "description": "20 single-estate flavors in o…",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Twenty single-estate flavors, an easy start to summer iced tea. ($17.49)",
+                "hook": "20 single-estate flavors in one box",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Assorted Tea Bags Sampler, 20…",
+                  "Twenty single-estate flavors,…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "20 single-estate flavors in one box",
+                  "20 single-estate flavors in one box. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Twenty single-estate flavors, an easy start to summer iced tea.",
+                "body": "20 single-estate flavors in one box"
+              }
+            },
+            {
+              "angle": "occasion",
+              "angle_label": "Occasion",
+              "awareness": "most-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "National Ice Cream Day, Jul 19. Twenty single-estate flavors, an easy start to summer iced tea. · $17.49",
+                "headline": "Assorted Tea Bags Sampler, 20 Flavors",
+                "description": "20 single-estate flavors in o…",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "National Ice Cream Day, Jul 19 ($17.49)",
+                "hook": "Twenty single-estate flavors, an easy start to summer iced…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Assorted Tea Bags Sampler, 20…",
+                  "National Ice Cream Day, Jul 19",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Twenty single-estate flavors, an easy start to summer iced tea. · $17.49",
+                  "20 single-estate flavors in one box. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "National Ice Cream Day, Jul 19",
+                "body": "Twenty single-estate flavors, an easy start to summer iced tea. · $17.49"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
+          },
+          {
+            "angle": "occasion",
+            "label": "Occasion",
+            "awareness": "most-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-19_new_assorted-tea-bags-sampler-20-flavors_lp.html",
         "title": "Assorted Tea Bags Sampler, 20 Flavors · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-22",
@@ -936,13 +2136,143 @@
               "Bold, Malty & Strong. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "A good cup is still waiting. Daily Assam and two more bestsellers, in case the pot went quiet.",
+                "headline": "Daily Assam Black Tea, 12 oz",
+                "description": "Bold, Malty & Strong",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "A good cup is still waiting ($19.49)",
+                "hook": "Daily Assam and two more bestsellers, in case the pot went…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Daily Assam Black Tea, 12 oz",
+                  "A good cup is still waiting",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Daily Assam and two more bestsellers, in case the pot went quiet.",
+                  "Bold, Malty & Strong. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "A good cup is still waiting",
+                "body": "Daily Assam and two more bestsellers, in case the pot went quiet."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Bold, Malty & Strong. A good cup is still waiting",
+                "headline": "Daily Assam Black Tea, 12 oz",
+                "description": "Bold, Malty & Strong",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Bold, Malty & Strong ($19.49)",
+                "hook": "A good cup is still waiting",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Daily Assam Black Tea, 12 oz",
+                  "Bold, Malty & Strong",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "A good cup is still waiting",
+                  "Bold, Malty & Strong. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Bold, Malty & Strong",
+                "body": "A good cup is still waiting"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Daily Assam and two more bestsellers, in case the pot went quiet.. Bold, Malty & Strong",
+                "headline": "Daily Assam Black Tea, 12 oz",
+                "description": "Bold, Malty & Strong",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Daily Assam and two more bestsellers, in case the pot went quiet. ($19.49)",
+                "hook": "Bold, Malty & Strong",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Daily Assam Black Tea, 12 oz",
+                  "Daily Assam and two more best…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Bold, Malty & Strong",
+                  "Bold, Malty & Strong. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Daily Assam and two more bestsellers, in case the pot went quiet.",
+                "body": "Bold, Malty & Strong"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-22_about-to-sleep_daily-assam-black-tea-12-oz_lp.html",
         "title": "Daily Assam Black Tea, 12 oz · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-25",
@@ -1044,13 +2374,183 @@
               "Spicy, Bold & Aromatic. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Say it with their morning cup. India's Original Masala Chai, a warm and useful Parents' Day gift.",
+                "headline": "India's Original Masala Chai, 30 ct",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Say it with their morning cup ($12.49)",
+                "hook": "India's Original Masala Chai, a warm and useful Parents' Da…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "Say it with their morning cup",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "India's Original Masala Chai, a warm and useful Parents' Day gift.",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Say it with their morning cup",
+                "body": "India's Original Masala Chai, a warm and useful Parents' Day gift."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Spicy, Bold & Aromatic. Say it with their morning cup",
+                "headline": "India's Original Masala Chai, 30 ct",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Spicy, Bold & Aromatic ($12.49)",
+                "hook": "Say it with their morning cup",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "Spicy, Bold & Aromatic",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Say it with their morning cup",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Spicy, Bold & Aromatic",
+                "body": "Say it with their morning cup"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "India's Original Masala Chai, a warm and useful Parents' Day gift.. Spicy, Bold & Aromatic",
+                "headline": "India's Original Masala Chai, 30 ct",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "India's Original Masala Chai, a warm and useful Parents' Day gift. ($12.49)",
+                "hook": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "India's Original Masala Chai,…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Spicy, Bold & Aromatic",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "India's Original Masala Chai, a warm and useful Parents' Day gift.",
+                "body": "Spicy, Bold & Aromatic"
+              }
+            },
+            {
+              "angle": "occasion",
+              "angle_label": "Occasion",
+              "awareness": "most-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Parents' Day, Jul 26. India's Original Masala Chai, a warm and useful Parents' Day gift. · $12.49",
+                "headline": "India's Original Masala Chai, 30 ct",
+                "description": "Spicy, Bold & Aromatic",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Parents' Day, Jul 26 ($12.49)",
+                "hook": "India's Original Masala Chai, a warm and useful Parents' Da…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "India's Original Masala Chai,…",
+                  "Parents' Day, Jul 26",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "India's Original Masala Chai, a warm and useful Parents' Day gift. · $12.49",
+                  "Spicy, Bold & Aromatic. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Parents' Day, Jul 26",
+                "body": "India's Original Masala Chai, a warm and useful Parents' Day gift. · $12.49"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
+          },
+          {
+            "angle": "occasion",
+            "label": "Occasion",
+            "awareness": "most-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-25_promising_indias-original-masala-chai-30-ct_lp.html",
         "title": "India's Original Masala Chai, 30 ct · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-29",
@@ -1145,13 +2645,183 @@
               "Spicy, Earthy & Warm. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "A cup is a small kindness. Turmeric ginger, the warming, caffeine-free cup worth sharing.",
+                "headline": "Turmeric Ginger Herbal Tea, 100 ct",
+                "description": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "A cup is a small kindness ($17.49)",
+                "hook": "Turmeric ginger, the warming, caffeine-free cup worth shari…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Turmeric Ginger Herbal Tea, 1…",
+                  "A cup is a small kindness",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Turmeric ginger, the warming, caffeine-free cup worth sharing.",
+                  "Spicy, Earthy & Warm. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "A cup is a small kindness",
+                "body": "Turmeric ginger, the warming, caffeine-free cup worth sharing."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Spicy, Earthy & Warm. A cup is a small kindness",
+                "headline": "Turmeric Ginger Herbal Tea, 100 ct",
+                "description": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Spicy, Earthy & Warm ($17.49)",
+                "hook": "A cup is a small kindness",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Turmeric Ginger Herbal Tea, 1…",
+                  "Spicy, Earthy & Warm",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "A cup is a small kindness",
+                  "Spicy, Earthy & Warm. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Spicy, Earthy & Warm",
+                "body": "A cup is a small kindness"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Turmeric ginger, the warming, caffeine-free cup worth sharing.. Spicy, Earthy & Warm",
+                "headline": "Turmeric Ginger Herbal Tea, 100 ct",
+                "description": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Turmeric ginger, the warming, caffeine-free cup worth sharing. ($17.49)",
+                "hook": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Turmeric Ginger Herbal Tea, 1…",
+                  "Turmeric ginger, the warming,…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Spicy, Earthy & Warm",
+                  "Spicy, Earthy & Warm. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Turmeric ginger, the warming, caffeine-free cup worth sharing.",
+                "body": "Spicy, Earthy & Warm"
+              }
+            },
+            {
+              "angle": "occasion",
+              "angle_label": "Occasion",
+              "awareness": "most-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "International Day of Friendship, Jul 30. Turmeric ginger, the warming, caffeine-free cup worth sharing. · $17.49",
+                "headline": "Turmeric Ginger Herbal Tea, 100 ct",
+                "description": "Spicy, Earthy & Warm",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "International Day of Friendship, Jul 30 ($17.49)",
+                "hook": "Turmeric ginger, the warming, caffeine-free cup worth shari…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Turmeric Ginger Herbal Tea, 1…",
+                  "International Day of Friendsh…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Turmeric ginger, the warming, caffeine-free cup worth sharing. · $17.49",
+                  "Spicy, Earthy & Warm. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "International Day of Friendship, Jul 30",
+                "body": "Turmeric ginger, the warming, caffeine-free cup worth sharing. · $17.49"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
+          },
+          {
+            "angle": "occasion",
+            "label": "Occasion",
+            "awareness": "most-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-29_at-risk_turmeric-ginger-herbal-tea-100-ct_lp.html",
         "title": "Turmeric Ginger Herbal Tea, 100 ct · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     },
     {
       "date": "2026-07-31",
@@ -1246,13 +2916,183 @@
               "Earthy, Smooth & Refreshing. FREE US shipping over $59."
             ],
             "cta": "Shop"
+          },
+          "variants": [
+            {
+              "angle": "ritual",
+              "angle_label": "Ritual",
+              "awareness": "problem-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "A calmer start to the month. High-grown Himalayan green, the clean cup to open Wellness Month.",
+                "headline": "Himalayan Green Tea, 12 oz",
+                "description": "Earthy, Smooth & Refreshing",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "A calmer start to the month ($27.49)",
+                "hook": "High-grown Himalayan green, the clean cup to open Wellness…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Himalayan Green Tea, 12 oz",
+                  "A calmer start to the month",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "High-grown Himalayan green, the clean cup to open Wellness Month.",
+                  "Earthy, Smooth & Refreshing. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "A calmer start to the month",
+                "body": "High-grown Himalayan green, the clean cup to open Wellness Month."
+              }
+            },
+            {
+              "angle": "taste",
+              "angle_label": "Taste",
+              "awareness": "product-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "Earthy, Smooth & Refreshing. A calmer start to the month",
+                "headline": "Himalayan Green Tea, 12 oz",
+                "description": "Earthy, Smooth & Refreshing",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "Earthy, Smooth & Refreshing ($27.49)",
+                "hook": "A calmer start to the month",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Himalayan Green Tea, 12 oz",
+                  "Earthy, Smooth & Refreshing",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "A calmer start to the month",
+                  "Earthy, Smooth & Refreshing. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "Earthy, Smooth & Refreshing",
+                "body": "A calmer start to the month"
+              }
+            },
+            {
+              "angle": "benefit",
+              "angle_label": "Benefit",
+              "awareness": "solution-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "High-grown Himalayan green, the clean cup to open Wellness Month.. Earthy, Smooth & Refreshing",
+                "headline": "Himalayan Green Tea, 12 oz",
+                "description": "Earthy, Smooth & Refreshing",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "High-grown Himalayan green, the clean cup to open Wellness Month. ($27.49)",
+                "hook": "Earthy, Smooth & Refreshing",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Himalayan Green Tea, 12 oz",
+                  "High-grown Himalayan green, t…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "Earthy, Smooth & Refreshing",
+                  "Earthy, Smooth & Refreshing. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "High-grown Himalayan green, the clean cup to open Wellness Month.",
+                "body": "Earthy, Smooth & Refreshing"
+              }
+            },
+            {
+              "angle": "occasion",
+              "angle_label": "Occasion",
+              "awareness": "most-aware",
+              "meta": {
+                "platform": "Meta (Instagram/Facebook) · 1:1",
+                "primary_text": "National Wellness Month (Aug) ramp. High-grown Himalayan green, the clean cup to open Wellness Month. · $27.49",
+                "headline": "Himalayan Green Tea, 12 oz",
+                "description": "Earthy, Smooth & Refreshing",
+                "cta": "Shop Now"
+              },
+              "tiktok": {
+                "platform": "TikTok / Reels · 9:16",
+                "primary_text": "National Wellness Month (Aug) ramp ($27.49)",
+                "hook": "High-grown Himalayan green, the clean cup to open Wellness…",
+                "cta": "Shop Now"
+              },
+              "google": {
+                "platform": "Google · Responsive Search",
+                "headlines": [
+                  "Himalayan Green Tea, 12 oz",
+                  "National Wellness Month (Aug)…",
+                  "Single-Estate, Hand-Picked"
+                ],
+                "descriptions": [
+                  "High-grown Himalayan green, the clean cup to open Wellness Month. · $27.49",
+                  "Earthy, Smooth & Refreshing. FREE US shipping over $59."
+                ],
+                "cta": "Shop"
+              },
+              "_creative": {
+                "hook": "National Wellness Month (Aug) ramp",
+                "body": "High-grown Himalayan green, the clean cup to open Wellness Month. · $27.49"
+              }
+            }
+          ]
+        },
+        "angles": [
+          {
+            "angle": "ritual",
+            "label": "Ritual",
+            "awareness": "problem-aware"
+          },
+          {
+            "angle": "taste",
+            "label": "Taste",
+            "awareness": "product-aware"
+          },
+          {
+            "angle": "benefit",
+            "label": "Benefit",
+            "awareness": "solution-aware"
+          },
+          {
+            "angle": "occasion",
+            "label": "Occasion",
+            "awareness": "most-aware"
           }
-        }
+        ]
       },
       "landing": {
         "file": "landing-pages/usa-july/2026-07-31_loyal_himalayan-green-tea-12-oz_lp.html",
         "title": "Himalayan Green Tea, 12 oz · VAHDAM USA"
-      }
+      },
+      "data_gaps": [
+        "approved review library (unlocks testimonials on the landing page)",
+        "per-SKU brewing spec (unlocks the steeping ritual section)",
+        "approved claims library (unlocks problem, mechanism and comparison sections)",
+        "returns/guarantee policy copy (unlocks the guarantee and objection blocks)"
+      ]
     }
   ],
   "selected_collections": [
