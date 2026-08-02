@@ -1591,7 +1591,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   }
   var KB=null, ADS=null, SNAP=null, LIVE=null, RANGE=30, CAMPRANGE='all';
   var REG=null, ACCTLIVE=null, LVACCT='', RETAIL=null, UGCLIB=null;
-  var LIVE_ADS_MARKETS=["US","UK"], ADS_SOURCE="snapshot";
+  var LIVE_ADS_MARKETS=["US","UK"], ADS_SOURCE="snapshot", LIVE_ADS_LOADED=false;
 
   // ── Charts: dependency-free inline SVG. Every chart is preceded by ALWAYS
   // visible duration tiles (7D/14D/30D/60D/All) wired through rangeTiles().
@@ -3009,6 +3009,9 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     if(history.replaceState) history.replaceState(null,"","#"+b.dataset.p);
     // Live structure is one query per level, so only fetch it once the tab is opened.
     if(b.dataset.p==="campaigns"&&!TREE_LOADED){ TREE_LOADED=true; loadTree(); }
+    // Live Meta/Google/TikTok ad details load on first open of Campaigns/Overview
+    // (never on page load — see refreshLiveAds notes above).
+    if((b.dataset.p==="campaigns"||b.dataset.p==="overview")&&!LIVE_ADS_LOADED){ LIVE_ADS_LOADED=true; refreshLiveAds(); }
     // Same deal for the revenue report: two authenticated calls, only on open.
     if(b.dataset.p==="revenue"&&!REV_LOADED){ REV_LOADED=true; loadRevenue(); }
   });
@@ -3106,10 +3109,15 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     loadRetailFunnel();
     loadLive();
     // Live-fetch Meta/Google/TikTok ad details (same source as the Data Analysis
-    // Live Ads tab); replaces the committed snapshot in the Ads/Overview views
-    // when live rows are available, and refreshes every 2 minutes.
-    refreshLiveAds();
-    setInterval(refreshLiveAds, 120000);
+    // Live Ads tab) is LAZY: it must never fetch the shared data-analysis
+    // endpoint on page load (that would break the "does not fetch until opened"
+    // invariant and race the revenue panel's auth flow). It fires when the
+    // Campaigns/Overview tab is opened (see the #tabs handler) and then only
+    // refreshes on the interval while one of those tabs is the active view.
+    setInterval(function(){
+      var t=document.querySelector("#tabs button.on");
+      if(t&&(t.dataset.p==="campaigns"||t.dataset.p==="overview")) refreshLiveAds();
+    },120000);
     // Auto-refresh the live view every 90s so "is it live yet" stays current.
     setInterval(function(){ if(document.querySelector("#tabs button[data-p='live']").classList.contains("on")) loadLive(); },90000);
     var h=(location.hash||"").replace(/[^a-z]/gi,"");
