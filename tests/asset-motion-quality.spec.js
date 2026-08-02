@@ -149,22 +149,20 @@ test('landing respects prefers-reduced-motion for parallax and tilt', () => {
 
 // ── Rule 3: static ads — 3D depth stack ─────────────────────────────────────
 test('a composed static ad carries the full depth stack', () => {
-  const { renderAdSet } = lib('ad-creative.js');
-  const set = renderAdSet
-    ? renderAdSet({ productName: 'Turmeric Ashwagandha', headline: 'The ritual, restored', subline: 'Hand-picked at origin', heroImageUrl: 'https://www.vahdam.com/cdn/shop/files/x.jpg', price: '$24.99', market: 'US' })
-    : null;
-  const html = set ? JSON.stringify(set) : lib('ad-creative.js') && '';
-  // Regardless of the exact export shape, the depth layers module itself must
-  // produce all four layers, and ad-creative must reference it.
+  // Render a real ad set and assert the depth layers landed in the OUTPUT —
+  // stronger than checking the module could produce them.
+  const { renderAds } = lib('ad-creative.js');
+  const set = renderAds({ productName: 'Turmeric Ashwagandha', headline: 'The ritual, restored', subline: 'Hand-picked at origin', heroImageUrl: 'https://www.vahdam.com/cdn/shop/files/x.jpg', price: '$24.99', market: 'US' });
+  const html = JSON.stringify(set);
+  expect(html).toContain('radial-gradient(90% 70% at 28% 8%');  // key light
+  expect(html).toContain('rgba(0,0,0,.32) 100%');               // vignette
+  expect(html).toContain('feTurbulence');                       // film grain
+  expect(html).toContain('pointer-events:none');                // layers never block the CTA
+  // The layer factory itself: four layers, gold hairline derived from brand gold.
   const layers = motion.adDepthLayers('#AB8743');
-  expect(layers).toContain('radial-gradient(90% 70% at 28% 8%');  // key light
-  expect(layers).toContain('rgba(0,0,0,.32) 100%');               // vignette
-  expect(layers).toContain('feTurbulence');                       // grain
-  expect(layers).toContain('border:1px solid #AB874359');         // gold hairline
+  expect(layers).toContain('border:1px solid #AB874359');
   expect((layers.match(/pointer-events:none/g) || []).length).toBe(4);
-  const src = require('fs').readFileSync(path.join(__dirname, '..', 'scripts', 'lib', 'ad-creative.js'), 'utf8');
-  expect(src).toContain('adDepthLayers');
-});
+})
 
 // ── Rule 3b: video unit — true 3D ───────────────────────────────────────────
 test('the animated video unit is a perspective scene with Z-separated layers', () => {

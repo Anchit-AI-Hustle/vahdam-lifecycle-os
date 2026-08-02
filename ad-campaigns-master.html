@@ -1806,13 +1806,6 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         }); });
     });
   }
-  function revNum(v,kind){
-    if(v==null) return "—";
-    if(kind==="money") return money0(v);
-    if(kind==="pct") return (Number(v)*100).toFixed(2)+"%";
-    if(kind==="x") return Number(v).toFixed(2)+"x";
-    return typeof v==="number" ? intf(v) : esc(String(v));
-  }
   var REV_MONEY=/^(sales|net|revenue|gross_sales|net_sales|total_sales|spend|profit|aov|cpa|cpc|cpm|net_per_order|net_per_unit|revenue_per_day|revenue_per_customer|sales_per_new_customer|revenue_per_visitor|estimated_spend)$/;
   var REV_PCT=/(_rate|_share|share_of_|^ctr$|^conversion_rate$)/;
   function revCell(k,v){
