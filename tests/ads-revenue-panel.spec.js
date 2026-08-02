@@ -12,7 +12,7 @@ const path = require('path');
 // creation already vanished that way once.
 
 const ROOT = path.join(__dirname, '..');
-let server; let BASE = '';
+let server; let BASE = ''; let failNext401 = 0;
 
 const REVENUE = {
   ok: true, market: 'US',
@@ -60,6 +60,9 @@ test.beforeAll(async () => {
     let p = decodeURIComponent(u.pathname);
     if (p.startsWith('/api/public-config') && u.searchParams.get('action') === 'data-analysis') {
       const view = u.searchParams.get('view');
+      // While failNext401 > 0, answer like the real endpoint does before
+      // auth.js has produced a token: HTTP 401.
+      if (failNext401 > 0) { failNext401--; res.writeHead(401, { 'Content-Type': 'application/json' }); return res.end('{"ok":false,"error":"operator_session_required"}'); }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify(view === 'agents' ? AGENTS : REVENUE));
     }
@@ -158,6 +161,22 @@ test('agents render with the ad platforms first and a ranked action queue', asyn
   const q = await page.locator('#rev-actions').textContent();
   expect(q).toContain('Connect Meta Ads');
   expect(q).toContain('P0');
+});
+
+test('a 401 does not brick the panel: it un-latches and Retry reloads', async ({ page }) => {
+  // Codex caught the race: opening #revenue before auth.js finishes yields an
+  // empty token, both calls 401, and the old latch made switching away and
+  // back a no-op — the panel stayed dead. Now a failed load un-latches and
+  // offers Retry.
+  failNext401 = 2; // both calls of the first open fail like the real race
+  await page.goto(`${BASE}/ads-master`, { waitUntil: 'domcontentloaded' });
+  await page.click('#tabs button[data-p="revenue"]');
+  await expect(page.locator('#rev-kpis')).toContainText(/sign in/i);
+  const retry = page.locator('#rev-retry');
+  await expect(retry).toHaveCount(1);
+  await retry.click(); // auth has "arrived" — the stub now answers 200
+  await expect(page.locator('#rev-kpis .card').first()).toBeVisible();
+  await expect(page.locator('#rev-kpis')).toContainText('Orders');
 });
 
 test('the panel does not fetch until it is opened', async ({ page }) => {

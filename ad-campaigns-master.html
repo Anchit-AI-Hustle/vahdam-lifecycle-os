@@ -1787,7 +1787,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   // access token is attached.
   var REVDATA=null, AGENTDATA=null, REVCUT=null, REV_LOADED=false;
 
-  function revToken(){
+  function revTokenOnce(){
     try {
       var a=window.LifecycleAuth;
       if(a&&a.session&&a.session.access_token) return Promise.resolve(a.session.access_token);
@@ -1795,6 +1795,17 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         return (o&&o.data&&o.data.session&&o.data.session.access_token)||""; }).catch(function(){return "";});
     } catch(_){}
     return Promise.resolve("");
+  }
+  // auth.js boots asynchronously (config fetch -> SDK -> session). A #revenue
+  // deep link can land before it finishes, and firing the authenticated calls
+  // with an empty token 401s. Poll briefly for the session instead of failing
+  // on the first look.
+  function revToken(waitMs){
+    var deadline=Date.now()+(waitMs==null?4000:waitMs);
+    return revTokenOnce().then(function step(tok){
+      if(tok||Date.now()>deadline) return tok;
+      return new Promise(function(r){setTimeout(r,250);}).then(revTokenOnce).then(step);
+    });
   }
   function revGet(view){
     return revToken().then(function(tok){
@@ -1895,9 +1906,20 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       : "<div class='empty'>No action items.</div>";
   }
 
+  function revFailed(msg){
+    // Un-latch so reopening the tab (or Retry) fetches again - a 401 from a
+    // race with auth.js was permanently bricking the panel otherwise.
+    REV_LOADED=false;
+    $("#rev-kpis").innerHTML="<div class='empty'>"+esc(msg)+
+      " <button type='button' id='rev-retry' class='rt'>Retry</button></div>";
+    var b=document.getElementById("rev-retry");
+    if(b) b.onclick=function(){ REV_LOADED=true; loadRevenue(); };
+  }
   function loadRevenue(){
-    revGet("revenue").then(function(j){ REVDATA=j; renderRevenue(); })
-      .catch(function(e){ $("#rev-kpis").innerHTML="<div class='empty'>"+esc(String(e&&e.message||e))+"</div>"; });
+    revGet("revenue").then(function(j){
+      if(j&&(j.__http===401||j.__http===403)){ revFailed("Sign in with a VAHDAM operator account to load the revenue report."); return; }
+      REVDATA=j; renderRevenue();
+    }).catch(function(e){ revFailed(String(e&&e.message||e)); });
     revGet("agents").then(function(j){ AGENTDATA=j; renderRevAgents(); })
       .catch(function(e){ $("#rev-agents").innerHTML="<div class='empty'>"+esc(String(e&&e.message||e))+"</div>"; });
   }

@@ -104,6 +104,21 @@ for (const [name, render] of [['flagship', flagship], ['brain-generated', brainM
   });
 }
 
+test('the CTA shine gradient survives to the computed style', async ({ page }) => {
+  // Codex caught this: a `background:` shorthand AFTER ctaShineFace reset
+  // background-image, so mx-shine animated a highlight that no longer existed.
+  // Presence-in-source was not enough — assert the COMPUTED style keeps it.
+  for (const html of [flagship(), brainMailer()]) {
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    const bg = await page.evaluate(() => {
+      const a = document.querySelector('.mx-shine');
+      return a ? getComputedStyle(a).backgroundImage : 'missing';
+    });
+    expect(bg).toContain('linear-gradient');
+    expect(bg).not.toBe('none');
+  }
+});
+
 test('mailer motion never claims scroll effects — email cannot run them', () => {
   const css = motion.emailMotionCss();
   expect(css).not.toMatch(/scroll|IntersectionObserver|addEventListener/i);

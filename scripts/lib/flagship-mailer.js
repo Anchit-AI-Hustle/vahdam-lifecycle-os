@@ -68,7 +68,7 @@ function ctaButton(url, label, cw) {
   return `<div style="margin:6px 0 4px;">` +
     `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${esc(url)}" style="height:50px;v-text-anchor:middle;width:250px;" arcsize="14%" strokecolor="${cw.ctaBg}" fillcolor="${cw.ctaBg}"><w:anchorlock/><center style="color:${cw.ctaText};font-family:${BF};font-size:15px;font-weight:bold;letter-spacing:.03em;">${esc(label)}</center></v:roundrect><![endif]-->` +
     `<!--[if !mso]><!-- -->` +
-    `<a class="cta mx-shine" href="${esc(url)}" style="display:inline-block;${motion.emailDepth.ctaShineFace(cw.ctaBg, PAL.gold)}box-shadow:0 10px 24px -12px rgba(23,23,23,.35);background:${cw.ctaBg};color:${cw.ctaText};font-family:${BF};font-size:15px;font-weight:700;letter-spacing:.03em;text-decoration:none;padding:15px 34px;border-radius:8px;">${esc(label)}</a>` +
+    `<a class="cta mx-shine" href="${esc(url)}" style="display:inline-block;${motion.emailDepth.ctaShineFace(cw.ctaBg, PAL.gold)}box-shadow:0 10px 24px -12px rgba(23,23,23,.35);color:${cw.ctaText};font-family:${BF};font-size:15px;font-weight:700;letter-spacing:.03em;text-decoration:none;padding:15px 34px;border-radius:8px;">${esc(label)}</a>` +
     `<!--<![endif]--></div>`;
 }
 

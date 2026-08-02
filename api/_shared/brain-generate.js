@@ -345,7 +345,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   }).join('');
   const heroPhoto = productImage(products[0] || {}, slot.market);
   const p0title = esc((products[0] || {}).title || 'VAHDAM');
-  const ctaBtn = (bg, fg) => `<a href="${store}" class="mx-shine" style="display:inline-block;margin-top:24px;${motion.emailDepth.ctaShineFace(bg, P.gold)}box-shadow:0 10px 24px -12px rgba(23,23,23,.35);background:${bg};color:${fg};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>`;
+  const ctaBtn = (bg, fg) => `<a href="${store}" class="mx-shine" style="display:inline-block;margin-top:24px;${motion.emailDepth.ctaShineFace(bg, P.gold)}box-shadow:0 10px 24px -12px rgba(23,23,23,.35);color:${fg};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>`;
 
   // ── Named sections — assembled per the archetype's order below ────────────
   const strat = designStrategy.strategyFor(slot);
