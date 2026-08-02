@@ -117,53 +117,81 @@ async function _fetchImageB64(url, timeoutMs = 12000) {
 // with garbled letterforms, which is a fabricated product shot. Starting from the
 // real Shopify pack shot means the packaging in the clip IS the packaging, and the
 // model only supplies motion around it.
-function veoRequest({ prompt, aspect, image }) {
-  const instance = { prompt };
+// ── Audio ────────────────────────────────────────────────────────────────────
+// Native audio is a PER-PROVIDER capability, not a universal one. Veo 3.x
+// generates a soundtrack but only when `generateAudio` is set — omit it and the
+// clip comes back silent, which is exactly how VAHDAM's video ads shipped with
+// no background music. Sora 2 scores natively with no flag. Runway `gen4_turbo`
+// has NO audio track at all, so a cascade demotion to Runway is silent whatever
+// we ask for; AUDIO_CAPABLE records that so the caller is told rather than left
+// to assume music is present.
+const AUDIO_CAPABLE = { veo: true, sora: true, higgsfield: true, openmontage: true, runway: false };
+
+// The direction itself rides in the PROMPT for every provider. These models take
+// scoring instructions as prose ("sparse warm strings, no percussion"), and there
+// is no documented body field for it on Higgsfield/OpenMontage/Sora — inventing
+// one would be silently dropped at best. Only Veo's `generateAudio` is a real,
+// documented parameter, so that is the only one set structurally.
+function withAudioDirection(prompt, audio) {
+  const a = String(audio || '').trim();
+  if (!a) return prompt;
+  return prompt + ' AUDIO: ' + a.replace(/\s+/g, ' ');
+}
+
+function veoRequest({ prompt, aspect, image, audio }) {
+  const instance = { prompt: withAudioDirection(prompt, audio) };
   if (image && image.b64) instance.image = { bytesBase64Encoded: image.b64, mimeType: image.mime || 'image/jpeg' };
+  const parameters = { aspectRatio: normAspect(aspect) };
+  // Explicit both ways: `true` asks Veo to score the clip, `false` keeps a
+  // deliberately silent render silent instead of leaving it to a model default.
+  parameters.generateAudio = !!audio;
   return {
     provider: 'veo',
     method: 'POST',
     url: GEMINI_BASE + '/models/' + VEO_MODEL + ':predictLongRunning',
     body: {
       instances: [instance],
-      parameters: { aspectRatio: normAspect(aspect) },
+      parameters,
     },
   };
 }
 
-function soraRequest({ prompt, duration_s, aspect }) {
+function soraRequest({ prompt, duration_s, aspect, audio }) {
   const a = normAspect(aspect);
   const size = a === '9:16' ? '720x1280' : a === '1:1' ? '720x720' : '1280x720';
   return {
     provider: 'sora',
     method: 'POST',
     url: OPENAI_BASE + '/videos',
-    body: { model: SORA_MODEL, prompt, seconds: String(Math.min(Math.max(Math.round(duration_s || 8), 4), 12)), size },
+    body: { model: SORA_MODEL, prompt: withAudioDirection(prompt, audio), seconds: String(Math.min(Math.max(Math.round(duration_s || 8), 4), 12)), size },
   };
 }
 
-function higgsfieldRequest({ prompt, duration_s, aspect }) {
+function higgsfieldRequest({ prompt, duration_s, aspect, audio }) {
   return {
     provider: 'higgsfield',
     method: 'POST',
     url: HIGGSFIELD_BASE + '/text2video',
-    body: { prompt, duration: Math.min(Math.max(Math.round(duration_s || 8), 3), 15), aspect_ratio: normAspect(aspect) },
+    body: { prompt: withAudioDirection(prompt, audio), duration: Math.min(Math.max(Math.round(duration_s || 8), 3), 15), aspect_ratio: normAspect(aspect) },
   };
 }
 
-function openMontageRequest({ prompt, duration_s, aspect }) {
+function openMontageRequest({ prompt, duration_s, aspect, audio }) {
   return {
     provider: 'openmontage',
     method: 'POST',
     url: OPENMONTAGE_BASE + '/text2video',
-    body: { prompt, duration_s: Math.min(Math.max(Math.round(duration_s || 8), 3), 30), aspect_ratio: normAspect(aspect) },
+    body: { prompt: withAudioDirection(prompt, audio), duration_s: Math.min(Math.max(Math.round(duration_s || 8), 3), 30), aspect_ratio: normAspect(aspect) },
   };
 }
 
-function runwayRequest({ prompt, duration_s, aspect, image }) {
+// Runway gen4_turbo renders no audio track. The direction is still passed so the
+// prompt is identical across rungs (and survives a future audio-capable model),
+// but `audio_supported:false` on the result is what callers must trust.
+function runwayRequest({ prompt, duration_s, aspect, image, audio }) {
   const a = normAspect(aspect);
   const ratio = a === '9:16' ? '720:1280' : a === '1:1' ? '960:960' : '1280:720';
-  const body = { model: RUNWAY_MODEL, promptText: prompt, ratio, duration: (duration_s || 8) <= 5 ? 5 : 10 };
+  const body = { model: RUNWAY_MODEL, promptText: withAudioDirection(prompt, audio), ratio, duration: (duration_s || 8) <= 5 ? 5 : 10 };
   // This endpoint is image_to_video and REQUIRES promptImage; it accepts a data
   // URI as well as an https URL.
   if (image && image.b64) body.promptImage = `data:${image.mime || 'image/jpeg'};base64,${image.b64}`;
@@ -344,21 +372,28 @@ function _notConnected(wouldRequest) {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * generateVideo({ prompt, duration_s?, aspect?, tier? })
+ * generateVideo({ prompt, duration_s?, aspect?, tier?, audio? })
  * Cascades Veo 3.1 → Sora 2 → Higgsfield → Runway; skips rungs without keys.
  * With NO keys at all, returns the Klaviyo-style { connected:false, would_request }
  * stub for the best rung (Veo 3.1).
+ *
+ * `audio` is the soundtrack direction in prose, e.g. 'Music: sparse, warm strings,
+ * no percussion. Natural kettle and pour foley.' Omit it and the clip is silent by
+ * design. The result carries `audio_requested` and `audio_supported` — the second
+ * is false when the winning rung has no audio track (Runway), so a caller can say
+ * the clip is silent instead of assuming the direction was honoured.
  */
-async function generateVideo({ prompt, duration_s = 8, aspect = '16:9', tier = 'standard', preferProviders = null, image_url = null } = {}) {
+async function generateVideo({ prompt, duration_s = 8, aspect = '16:9', tier = 'standard', preferProviders = null, image_url = null, audio = null } = {}) {
   const p = String(prompt || '').trim();
   if (!p) return { ok: false, error: 'prompt required' };
+  const audioDirection = String(audio || '').trim() || null;
   // Fetch the init frame ONCE here rather than per rung, so a cascade demotion
   // does not re-download it. A failed fetch is not fatal: the clip degrades to
   // text-to-video, and the caller is told via `image_used` so it can decline to
   // ship a product video whose packaging was not sourced from a real photo.
   let image = null;
   if (image_url) image = await _fetchImageB64(image_url);
-  const opts = { prompt: p, duration_s, aspect, image };
+  const opts = { prompt: p, duration_s, aspect, image, audio: audioDirection };
   const k = keys();
 
   if (!anyKey()) {
@@ -398,7 +433,24 @@ async function generateVideo({ prompt, duration_s = 8, aspect = '16:9', tier = '
       // image_used tells the caller whether the real pack shot actually made it
       // into the clip. Without it a silently-degraded text-to-video job would be
       // indistinguishable from a real one, and its invented packaging would ship.
-      if (out && out.ok) return { ...out, tier, attempts, image_used: !!(image && image.b64), init_image_url: image ? image.url : null };
+      if (out && out.ok) {
+        // audio_supported is a property of the rung that actually WON, not of the
+        // request — a demotion to Runway silently drops the soundtrack, and saying
+        // so here is what stops "music requested" being read as "music present".
+        const audioSupported = AUDIO_CAPABLE[rung.name] !== false;
+        if (audioDirection && !audioSupported) {
+          console.warn('[video] ' + rung.name + ' has no audio track — clip will be SILENT despite an audio direction');
+        }
+        return {
+          ...out, tier, attempts,
+          image_used: !!(image && image.b64), init_image_url: image ? image.url : null,
+          audio_requested: !!audioDirection,
+          audio_supported: audioSupported,
+          audio_note: audioDirection && !audioSupported
+            ? rung.name + ' renders no audio track; this clip is silent. Re-run pinned to an audio-capable provider (veo, sora, higgsfield, openmontage) for a soundtrack.'
+            : null,
+        };
+      }
       attempts.push({ provider: rung.name, error: (out && out.error) || 'unknown failure' });
       console.warn('[video] ' + rung.name + ' failed: ' + ((out && out.error) || 'unknown') + ' — demoting');
     } catch (e) {

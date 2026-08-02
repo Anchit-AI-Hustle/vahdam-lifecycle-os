@@ -1019,6 +1019,14 @@ async function generateCreativeImage(prompt, { size = '1024x1024', mode = '', ti
 // is a fabricated product photograph with garbled letterforms on it.
 const SCENE_ONLY_RULE = 'SCENE ONLY, NO PRODUCT AND NO TEXT. Do not draw any product, packaging, tin, pouch, carton, box, sachet, label, logo, brand mark, letterform, word or number anywhere in the frame — the real product photograph is composited on top separately, and anything you draw would be a fake pack shot. Editorial lifestyle photography: warm natural light, real hands and real kitchens, VAHDAM palette (forest green #004A2B, gold #AB8743, cream #FBF5EA), generous negative space where copy will sit.';
 
+// Soundtrack direction for ad video. Paid social autoplays muted, so music is not
+// what wins the first second — but a silent clip on a sound-on view reads as broken
+// and every platform's own guidance treats a soundtrack as table stakes. Ad videos
+// carried NO audio direction at all, so they rendered silent.
+// Original score only, never a recognisable or trending track: a paid ad needs
+// cleared rights, and the brand voice is warm and sparse rather than percussive.
+const AD_AUDIO_RULE = 'Original score only, no recognisable or trending music, no lyrics, no voiceover. Music: sparse and warm, low strings or soft piano, unhurried, no percussion build and no stings. Natural kitchen foley underneath — kettle, pour, the cup set down. Mix gentle enough to read as background under captions, and coherent when muted.';
+
 // Native aspect per surface — a square scene letterboxed into a 9:16 TikTok slot
 // markets worse than one composed for it, so each gets the shape it ships in.
 const SCENE_SIZE = { email: '1536x1024', landing: '1536x1024', meta: '1024x1024', google: '1536x1024', tiktok: '1024x1536', youtube: '1536x1024' };
@@ -1135,15 +1143,20 @@ async function kickAdVideos(campaign, creatives, entry) {
     try {
       const r = await video.generateVideo({
         prompt, aspect: VIDEO_ASPECT[platform] || '9:16', duration_s: 8, image_url: initUrl,
+        audio: AD_AUDIO_RULE,
       });
       if (!r || r.not_connected) { ad.video = { status: 'not_connected', hint: r && r.hint }; return; }
+      // audio_supported travels with the clip: a Runway demotion is silent, and the
+      // ad card has to show that rather than imply the soundtrack landed.
       if (r.status === 'processing') {
-        ad.video = { status: 'processing', provider: r.provider, job_id: r.job_id, image_used: !!r.image_used };
+        ad.video = { status: 'processing', provider: r.provider, job_id: r.job_id, image_used: !!r.image_used,
+          has_audio: r.audio_supported !== false, audio_note: r.audio_note || null };
         jobs.push({ platform, provider: r.provider, job_id: r.job_id });
         return;
       }
       if (r.ok && r.video_url) {
-        ad.video = { status: 'done', provider: r.provider, url: r.video_url, image_used: !!r.image_used };
+        ad.video = { status: 'done', provider: r.provider, url: r.video_url, image_used: !!r.image_used,
+          has_audio: r.audio_supported !== false, audio_note: r.audio_note || null };
         return;
       }
       ad.video = { status: 'failed', error: (r && r.error) || 'unknown' };

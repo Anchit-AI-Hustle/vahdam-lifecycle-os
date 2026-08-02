@@ -503,12 +503,16 @@ async function videoAgent(ctx, ideology, content, remainingMs) {
   if (!board) board = fallbackStoryboard(ctx, ideology);
 
   const videoPrompt = 'Cinematic 8s vertical (9:16) product film for VAHDAM. ' + board.storyboard.join(' ') + ' Palette locked to #004A2B, #AB8743, #171717, #FBF5EA. No on-screen text (added in edit), no faces, no logos.';
+  // board.audio is the soundtrack direction this agent just wrote (and the reason
+  // it is called the Audio/Video agent). It used to be returned in the storyboard
+  // and never sent to the renderer, so every clip came back silent while the brief
+  // said "Music: sparse, warm" — pass it through or the direction is decoration.
   let job = null;
   if (ctx.dry_run && video.isConnected()) {
     job = { status: 'skipped_dry_run', note: 'video keys present but dry_run — no render submitted' };
   } else {
     try {
-      job = await video.generateVideo({ prompt: videoPrompt, duration_s: 8, aspect: '9:16', tier: 'standard' });
+      job = await video.generateVideo({ prompt: videoPrompt, duration_s: 8, aspect: '9:16', tier: 'standard', audio: board.audio });
     } catch (e) {
       job = { ok: false, error: String(e.message || e).slice(0, 200) };
     }
