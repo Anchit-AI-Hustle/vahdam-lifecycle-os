@@ -17,6 +17,8 @@ const PLATFORMS = ['meta', 'google', 'tiktok'];
 const METRIC_GROUPS = ['conversion', 'traffic', 'engagement', 'all'];
 const LEVELS = ['account', 'campaign', 'adgroup', 'adset', 'ad'];
 
+const { liveConnectorsEnabled } = require('./live-connectors.js');
+
 function normMarket(m) {
   const s = String(m || 'US').trim().toUpperCase();
   if (['US', 'USA', 'UNITED STATES'].includes(s)) return 'US';
@@ -54,6 +56,18 @@ function notConnected(platform, market, wouldRequest, needEnv, level) {
     need_env: needEnv,
     hint: `Set ${needEnv.join(', ')} in Vercel env (append _${normMarket(market)} for a market-specific account) to fetch real ${platform} results. No ad figure is fabricated.`,
   };
+}
+// This module was the ONE outbound connector that ignored the global kill
+// switch: with LIVE_CONNECTORS off it still called Meta, Google and TikTok. A
+// kill switch that covers most egress is not a kill switch, so honour it here
+// too. The shape matches notConnected() (callers already render that honestly),
+// with a distinct flag + hint so "switch is off" is never confused with
+// "credentials are missing" — they need different fixes.
+function switchedOff(platform, market, wouldRequest, needEnv, level) {
+  return Object.assign(notConnected(platform, market, wouldRequest, needEnv, level), {
+    live_connectors_disabled: true,
+    hint: `Live connectors are disabled (LIVE_CONNECTORS is off), so no request was sent to ${platform}. Set LIVE_CONNECTORS=on in Vercel env (plus ${needEnv.join(', ')}) to read real results. The exact request that would be sent is shown above. No ad figure is fabricated.`,
+  });
 }
 async function fetchJson(url, opts = {}, timeoutMs = 25000) {
   const ctrl = new AbortController();
@@ -93,7 +107,9 @@ async function metaInsights({ market, metricGroup = 'conversion', since, until, 
   const path = `act_${acct || '{META_AD_ACCOUNT_ID}'}/insights`;
   const params = { level: l, fields: fields.join(','), time_range: JSON.stringify(range), limit: 5000 };
   const url = `https://graph.facebook.com/${GRAPH_VER}/${path}`;
-  if (!token || !acct) return notConnected('meta', market, { method: 'GET', url, params }, ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID'], l);
+  const metaNeed = ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID'];
+  if (!token || !acct) return notConnected('meta', market, { method: 'GET', url, params }, metaNeed, l);
+  if (!liveConnectorsEnabled()) return switchedOff('meta', market, { method: 'GET', url, params }, metaNeed, l);
   const full = `${url}?${qs({ ...params, access_token: token })}`;
   const r = await fetchJson(full);
   if (!r.ok) return { ok: false, connected: true, platform: 'meta', market: normMarket(market), level: l, status: r.status, error: (r.json && r.json.error && r.json.error.message) || 'meta insights request failed', raw: r.json };
@@ -149,6 +165,7 @@ async function googleInsights({ market, metricGroup = 'conversion', since, until
   const url = `https://googleads.googleapis.com/${GADS_VER}/customers/${cust || '{GOOGLE_ADS_CUSTOMER_ID}'}/googleAds:searchStream`;
   const need = ['GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_CLIENT_ID', 'GOOGLE_ADS_CLIENT_SECRET', 'GOOGLE_ADS_REFRESH_TOKEN', 'GOOGLE_ADS_CUSTOMER_ID'];
   if (!dev || !cust) return notConnected('google', market, { method: 'POST', url, headers: { 'developer-token': '{GOOGLE_ADS_DEVELOPER_TOKEN}', authorization: 'Bearer {oauth_access_token}' }, body: { query } }, need, l);
+  if (!liveConnectorsEnabled()) return switchedOff('google', market, { method: 'POST', url, body: { query } }, need, l);
   const token = await googleAccessToken(market);
   if (!token) return notConnected('google', market, { method: 'POST', url, body: { query } }, need, l);
   const headers = { authorization: `Bearer ${token}`, 'developer-token': dev, 'content-type': 'application/json' };
@@ -192,7 +209,9 @@ async function tiktokInsights({ market, metricGroup = 'conversion', since, until
     page_size: 1000,
   };
   const url = `${TIKTOK_BASE}/report/integrated/get/`;
-  if (!token || !adv) return notConnected('tiktok', market, { method: 'GET', url, params, headers: { 'Access-Token': '{TIKTOK_ACCESS_TOKEN}' } }, ['TIKTOK_ACCESS_TOKEN', 'TIKTOK_ADVERTISER_ID'], l);
+  const ttNeed = ['TIKTOK_ACCESS_TOKEN', 'TIKTOK_ADVERTISER_ID'];
+  if (!token || !adv) return notConnected('tiktok', market, { method: 'GET', url, params, headers: { 'Access-Token': '{TIKTOK_ACCESS_TOKEN}' } }, ttNeed, l);
+  if (!liveConnectorsEnabled()) return switchedOff('tiktok', market, { method: 'GET', url, params, headers: { 'Access-Token': '{TIKTOK_ACCESS_TOKEN}' } }, ttNeed, l);
   const r = await fetchJson(`${url}?${qs(params)}`, { headers: { 'Access-Token': token } });
   if (!r.ok || (r.json && r.json.code && r.json.code !== 0)) return { ok: false, connected: true, platform: 'tiktok', market: normMarket(market), level: l, status: r.status, error: (r.json && r.json.message) || 'tiktok report request failed', raw: r.json };
   return {
