@@ -37,7 +37,7 @@ const path = require('path');
 const { helpers } = require('../api/_shared/calendar-trigger.js');
 const SM = require('../api/_shared/scenario-model.js');
 const CF = require('../api/_shared/copy-frameworks.js');
-const { renderFlagship } = require('./lib/flagship-mailer.js');
+const { renderFlagship, CERTIFICATIONS, brandProof, registeredAddress } = require('./lib/flagship-mailer.js');
 const { renderAds } = require('./lib/ad-creative.js');
 const { renderLandingPage } = require('./lib/landing-page.js');
 
@@ -464,6 +464,10 @@ function main() {
       productName: prod.name, tastingLine: tasting, price: prod.price,
       ctaText: SA.cta, ctaUrl: url, heroImageUrl: hero, logoUrl,
       headline: SA.headline, subline: SA.subline, bodyBlocks: SA.blocks, subject: SA.subject,
+      // The slot's real calendar hook, scrubbed. This is what gives the occasion
+      // angle a source of its own; without it that angle just repeats the
+      // headline and is folded away as a duplicate rather than padded out.
+      event: slot.event ? SM.sanitizeBrand(String(slot.event)) : null,
     };
 
     // Ads (Meta/Google/TikTok).
@@ -477,16 +481,51 @@ function main() {
     const primaryCol = cols[0] || null;
     const collectionCta = primaryCol ? { slug: primaryCol, title: COLLECTION_TITLE[primaryCol], url: `${STORE}/collections/${primaryCol}` } : null;
 
-    // Landing page (flagship long-form), with a slot-relevant FAQ.
+    // ── Landing page (flagship long-form) ──────────────────────────────────
+    // FAQ answers are only the facts we can actually derive. The pack size is
+    // definitional from the SKU; the loose-leaf cup figure is a stated
+    // approximation from net weight. A SKU matching no known pack format gets NO
+    // pack-size answer rather than the old fallback, which asserted "a
+    // single-estate VAHDAM blend" for any unrecognised SKU - an invented
+    // provenance claim. The sourcing answer previously ended "single-estate
+    // wherever the leaf allows", an unfalsifiable hedge; it now states only the
+    // established brand claim.
+    const packAnswer = slot.sku.includes('12oz') ? 'loose leaf, about 170 cups (an approximation from net weight)'
+      : slot.sku.includes('100ct') ? '100 pyramid bags'
+      : slot.sku.includes('30ct') ? '30 pyramid bags'
+      : /sampler/i.test(slot.sku) ? 'an assorted sampler'
+      : null;
+    const faq = [
+      packAnswer ? { q: `How many cups is ${prod.name}?`, a: `${prod.name} is ${packAnswer}.` } : null,
+      { q: 'Where is it sourced?', a: 'Hand-picked at origin and shipped garden-fresh.' },
+      { q: 'Do you ship free?', a: 'Free US shipping over $59.' },
+    ].filter(Boolean);
+
+    // Long-form sections (problem / mechanism / steeping / comparison /
+    // objections / guarantee) and customer testimonials render only from sourced
+    // data. This build has none of those feeds yet, so they are deliberately
+    // absent instead of filled with invented copy, and the gap is recorded on
+    // the slot so it is visible rather than silently thin. The previous build
+    // shipped an authored quote attributed to "A VAHDAM customer" on all 12
+    // pages - a fabricated review, which the renderer now refuses outright.
+    const dataGaps = [
+      'approved review library (unlocks testimonials on the landing page)',
+      'per-SKU brewing spec (unlocks the steeping ritual section)',
+      'approved claims library (unlocks problem, mechanism and comparison sections)',
+      'returns/guarantee policy copy (unlocks the guarantee and objection blocks)',
+    ];
+
     const lp = renderLandingPage(Object.assign({}, shared, {
       title: `${prod.name} · VAHDAM USA`,
       collectionCta,
-      faq: [
-        { q: `How many cups is ${prod.name}?`, a: `${prod.name} is ${slot.sku.includes('12oz') ? 'loose leaf, about 170 cups' : slot.sku.includes('100ct') ? '100 pyramid bags' : slot.sku.includes('30ct') ? '30 pyramid bags' : 'a single-estate VAHDAM blend'}.` },
-        { q: 'Where is it sourced?', a: 'Hand-picked at origin and shipped garden-fresh, single-estate wherever the leaf allows.' },
-        { q: 'Do you ship free?', a: 'Free US shipping over $59.' },
-      ],
-      testimonial: { quote: 'It became the cup I reach for without thinking. Steady, clean, and it just tastes like it was made with care.', who: 'A VAHDAM customer' },
+      faq,
+      eyebrow: SA.headline,
+      metaDescription: SA.subline || tasting,
+      ogImageUrl: hero,
+      // Regional facts, passed explicitly for the market this build targets.
+      certifications: CERTIFICATIONS,
+      proof: brandProof(MARKET),
+      footerAddress: registeredAddress(MARKET),
     }));
     const lpFile = `${baseSlug}_lp.html`;
     fs.writeFileSync(path.join(lpDir, lpFile), lp);
@@ -500,8 +539,10 @@ function main() {
       collections: cols,
       collection_cta: collectionCta,
       variants: variants.map((v) => ({ key: v.key, type: v.type, label: v.label, framework: v.framework, subject: v.copy.subject, preview: v.copy.preview, file: files[v.key], has_image: !!v.image })),
-      ads: { file: `ads/usa-july/${adFile}`, copy: ad.copy },
+      ads: { file: `ads/usa-july/${adFile}`, copy: ad.copy, angles: ad.angles },
       landing: { file: `landing-pages/usa-july/${lpFile}`, title: `${prod.name} · VAHDAM USA` },
+      // What is missing, named. A thin section is a data gap, not a design choice.
+      data_gaps: dataGaps,
     });
   }
 
