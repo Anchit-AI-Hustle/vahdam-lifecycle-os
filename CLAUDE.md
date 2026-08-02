@@ -320,6 +320,21 @@ in `api/_shared/video-core.js` (Veo → Sora → Higgsfield → Runway) still ow
 Hard refusals built in: no `consent: true` on the likeness, no supplied audio, or a language outside
 the model's evaluated set (EN/ZH only — Indic languages need a different lip-sync path).
 
+**Video audio is opt-in per call, and per-provider (2026-08-02).** `generateVideo` renders **silent**
+unless passed `audio:` (a prose soundtrack direction). Video ads shipped with no background music for
+two independent reasons, both now fixed and locked by `tests/video-audio.spec.js`: (1) Veo needs
+`parameters.generateAudio` — omit it and the clip comes back silent, so it is now set explicitly
+`true`/`false` rather than left to a model default; (2) `social-core.js` asked its LLM for an `audio`
+field, returned it in the storyboard the UI renders, and **never passed it to the renderer** — the
+brief said music, the response said music, the file had none. Callers that produce ads must pass a
+direction (`AD_AUDIO_RULE` in `smart-brain-plan.js`); the mailer asset agent deliberately does not,
+because email clients do not play it. The direction rides in the **prompt** for every provider — only
+Veo's `generateAudio` is a documented body field, and inventing one for Higgsfield/OpenMontage/Sora
+would be silently dropped. **Runway `gen4_turbo` has no audio track at all**, so a cascade demotion to
+Runway is silent whatever was asked: results carry `audio_requested`/`audio_supported`/`audio_note`
+and ad cards carry `has_audio`, so "music requested" is never rendered as "music present". GIF output
+cannot carry audio by format.
+
 **Reels-grade creative standard**: stills built to animate via `api/ai/image.js`
 `mode:'reels'` (cinematic 9:16, depth layers for parallax, negative space for type, no baked
 text); real motion via Higgsfield image-to-video; instant no-API preview + generator handoff
