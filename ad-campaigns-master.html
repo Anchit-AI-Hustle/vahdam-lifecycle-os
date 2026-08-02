@@ -540,6 +540,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     <button data-p="kb">Knowledge Base</button>
     <button data-p="crestudio">Creative Studio</button>
     <button data-p="playbook">Playbook</button>
+    <button data-p="revenue">Revenue &amp; Agents</button>
     <button data-p="ops">Ops &amp; Data Sources</button>
   </div>
 
@@ -624,6 +625,24 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     <p class="note" id="rf-caveat"></p>
     <p class="eyebrow">Account detail</p>
     <div id="acct-detail"></div>
+  </div>
+
+  <!-- The combined Revenue Analysis + Platform Agents report, mounted here as
+       well as on Data Analysis. Same endpoints, no second copy of the logic:
+       paid-media cuts lead because this is the ads dashboard, but every cut the
+       report knows about is reachable so the scope stays visible. -->
+  <div class="panel" id="p-revenue">
+    <p class="eyebrow">Revenue analysis — every cut, paid media first. A cut with no connected source says so rather than showing zeroes.</p>
+    <div class="cards" id="rev-kpis"><div class="empty">Loading…</div></div>
+    <div class="notice" id="rev-accounts"></div>
+    <div class="chipbar" id="rev-cutnav"></div>
+    <div id="rev-cut"></div>
+    <p class="eyebrow">Platform agents — each ad platform read, collated and analysed by its own agent</p>
+    <div class="notice" id="rev-agent-note"></div>
+    <div class="cards" id="rev-agents"></div>
+    <p class="eyebrow">Action queue</p>
+    <div class="tbl-wrap" id="rev-actions"><div class="empty">Loading…</div></div>
+    <p class="note" id="rev-provenance"></p>
   </div>
 
   <div class="panel" id="p-sop">
@@ -1761,6 +1780,150 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       });
     });
   }
+  // ── Revenue Analysis + Platform Agents ────────────────────────────────────
+  // Reads the SAME endpoints Data Analysis uses (view=revenue / view=agents), so
+  // there is one implementation of the analysis and this page is only a second
+  // view onto it. The endpoint requires an operator session, so the Supabase
+  // access token is attached.
+  var REVDATA=null, AGENTDATA=null, REVCUT=null, REV_LOADED=false;
+
+  function revTokenOnce(){
+    try {
+      var a=window.LifecycleAuth;
+      if(a&&a.session&&a.session.access_token) return Promise.resolve(a.session.access_token);
+      if(a&&a.client) return a.client.auth.getSession().then(function(o){
+        return (o&&o.data&&o.data.session&&o.data.session.access_token)||""; }).catch(function(){return "";});
+    } catch(_){}
+    return Promise.resolve("");
+  }
+  // auth.js boots asynchronously (config fetch -> SDK -> session). A #revenue
+  // deep link can land before it finishes, and firing the authenticated calls
+  // with an empty token 401s. Poll briefly for the session instead of failing
+  // on the first look.
+  function revToken(waitMs){
+    var deadline=Date.now()+(waitMs==null?4000:waitMs);
+    return revTokenOnce().then(function step(tok){
+      if(tok||Date.now()>deadline) return tok;
+      return new Promise(function(r){setTimeout(r,250);}).then(revTokenOnce).then(step);
+    });
+  }
+  function revGet(view){
+    return revToken().then(function(tok){
+      return fetch("/api/public-config?action=data-analysis&view="+view+"&market=US",
+        { cache:"no-store", credentials:"same-origin", headers: tok?{authorization:"Bearer "+tok}:{} })
+        .then(function(r){ return r.text().then(function(t){
+          try { var j=JSON.parse(t); if(!r.ok) j.__http=r.status; return j; }
+          catch(_){ return { ok:false, __http:r.status, error:"Endpoint returned a non-JSON response ("+r.status+")." }; }
+        }); });
+    });
+  }
+  var REV_MONEY=/^(sales|net|revenue|gross_sales|net_sales|total_sales|spend|profit|aov|cpa|cpc|cpm|net_per_order|net_per_unit|revenue_per_day|revenue_per_customer|sales_per_new_customer|revenue_per_visitor|estimated_spend)$/;
+  var REV_PCT=/(_rate|_share|share_of_|^ctr$|^conversion_rate$)/;
+  function revCell(k,v){
+    if(v==null||v==="") return "—";
+    if(REV_MONEY.test(k)) return money0(v);
+    if(REV_PCT.test(k)) return (Number(v)*100).toFixed(2)+"%";
+    if(k==="roas") return Number(v).toFixed(2)+"x";
+    if(typeof v==="number") return Number.isInteger(v)?intf(v):Number(v).toFixed(2);
+    if(typeof v==="object") return esc(JSON.stringify(v).slice(0,90));
+    return esc(String(v));
+  }
+  function revLabel(k){ return k.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();}); }
+
+  function renderRevCut(key){
+    REVCUT=key;
+    var c=(REVDATA&&REVDATA.cuts||[]).filter(function(x){return x.key===key;})[0];
+    var host=$("#rev-cut"); if(!host) return;
+    $("#rev-cutnav").querySelectorAll("button[data-cut]").forEach(function(b){
+      b.classList.toggle("on", b.dataset.cut===key); });
+    if(!c){ host.innerHTML=""; return; }
+    if(!c.available){
+      host.innerHTML="<div class='notice'><b>"+esc(c.label)+" — not available.</b> "+esc(c.blocker||"No source connected.")+
+        "<br><span class='note'>This cut is in scope and will populate the moment that source is connected. Nothing is estimated meanwhile.</span></div>";
+      return;
+    }
+    var keys=Object.keys(c.rows[0]||{});
+    var head=keys.map(function(k){ return { t:revLabel(k), r: REV_MONEY.test(k)||REV_PCT.test(k)||k==="roas"||typeof (c.rows[0]||{})[k]==="number" }; });
+    var rows=c.rows.slice(0,300).map(function(r){ return keys.map(function(k){ return revCell(k,r[k]); }); });
+    host.innerHTML="<div class='notice'>Grain: <b>"+esc(c.grain)+"</b> · Rows: <b>"+c.rows.length+"</b> · Source: <b>"+esc(c.source||"—")+"</b>"+
+      (c.note?"<br><span class='note'>"+esc(c.note)+"</span>":"")+"</div>"+
+      "<div class='tbl-wrap'>"+table(head,rows)+"</div>";
+  }
+
+  function renderRevenue(){
+    var d=REVDATA||{}, s=d.summary||{}, cov=d.coverage||{};
+    if(d.ok===false||d.__http){
+      $("#rev-kpis").innerHTML="<div class='empty'>"+esc(d.error||("Could not load the report (HTTP "+d.__http+"). It needs a signed-in VAHDAM operator session."))+"</div>";
+      return;
+    }
+    $("#rev-kpis").innerHTML=[
+      ["Orders",intf(s.orders)],["Total sales",money0(s.total_sales)],["Net sales",money0(s.net_sales)],
+      ["AOV",money(s.aov)],["Returning rate",s.returning_rate!=null?(s.returning_rate*100).toFixed(1)+"%":"—"],
+      ["Cuts available",(cov.available||0)+" / "+(cov.total_cuts||0)]
+    ].map(function(k){ return "<div class='card'><h4>"+esc(k[0])+"</h4><div class='big'>"+esc(String(k[1]))+"</div></div>"; }).join("");
+
+    var acc=d.ad_accounts;
+    $("#rev-accounts").innerHTML = acc
+      ? "<b>Ad account estate.</b> "+acc.feeds+" feeds ("+acc.live+" live) · "+
+        "<b>"+acc.revenue_capable+"</b> can attribute revenue · <b>"+acc.traffic_only+"</b> are traffic-only. "+
+        "<span class='note'>"+esc(acc.note)+"</span>"
+      : "";
+
+    // Paid-media cuts first: this is the ads dashboard.
+    var order={platform:0,campaign:1,adset:2,ad:3};
+    var cuts=(d.cuts||[]).slice().sort(function(a,b){
+      return (order[a.key]==null?9:order[a.key])-(order[b.key]==null?9:order[b.key]); });
+    $("#rev-cutnav").innerHTML=cuts.map(function(c){
+      return "<button type='button' data-cut='"+esc(c.key)+"'"+(c.available?"":" title='no source connected'")+">"+
+        esc(c.label.replace(/^Revenue by /,""))+(c.available?"":" ·")+"</button>"; }).join("");
+    renderRevCut((cuts[0]||{}).key);
+    $("#rev-provenance").textContent=(d.note||"")+(d.excluded_sources&&d.excluded_sources[0]
+      ? "  Excluded source: "+d.excluded_sources[0].source+" — "+d.excluded_sources[0].excluded_because : "");
+  }
+
+  function renderRevAgents(){
+    var d=AGENTDATA||{};
+    if(d.ok===false||d.__http){ $("#rev-agents").innerHTML="<div class='empty'>"+esc(d.error||"Agents unavailable.")+"</div>"; return; }
+    var c=d.coverage||{};
+    $("#rev-agent-note").innerHTML="<b>"+(c.connected||0)+" of "+(c.total||0)+"</b> platforms connected · "+
+      (c.analysed||0)+" analysed. <span class='note'>"+esc(d.note||"")+"</span>";
+    // Ads dashboard: lead with the three ad platforms, then the rest.
+    var adFirst={meta:0,google:1,tiktok:2};
+    $("#rev-agents").innerHTML=(d.agents||[]).slice().sort(function(a,b){
+      return (adFirst[a.agent]==null?9:adFirst[a.agent])-(adFirst[b.agent]==null?9:adFirst[b.agent]); })
+      .map(function(a){
+        var ins=(a.insights||[]).map(function(x){
+          return "<li>"+esc(x.observation||"")+"<br><span class='note'>"+esc(x.evidence||"")+"</span></li>"; }).join("");
+        return "<div class='card'><h4>"+esc(a.label)+" "+statusChip(a.connected?"live":"paused")+"</h4>"+
+          (a.blocker?"<div class='note'>"+esc(a.blocker)+"</div>":"")+
+          (a.summary?"<p class='note'>"+esc(a.summary)+"</p>":"")+
+          (ins?"<ul class='note'>"+ins+"</ul>":"")+"</div>";
+      }).join("");
+    var q=(d.action_queue||[]).map(function(a){
+      return [esc(a.priority||""),esc(a.platform||""),esc(a.action||""),esc(a.why||"—"),esc(a.effort||"—"),esc(a.owner||"—")]; });
+    $("#rev-actions").innerHTML=q.length
+      ? table([{t:"Priority"},{t:"Platform"},{t:"Action"},{t:"Why"},{t:"Effort"},{t:"Owner"}],q)
+      : "<div class='empty'>No action items.</div>";
+  }
+
+  function revFailed(msg){
+    // Un-latch so reopening the tab (or Retry) fetches again - a 401 from a
+    // race with auth.js was permanently bricking the panel otherwise.
+    REV_LOADED=false;
+    $("#rev-kpis").innerHTML="<div class='empty'>"+esc(msg)+
+      " <button type='button' id='rev-retry' class='rt'>Retry</button></div>";
+    var b=document.getElementById("rev-retry");
+    if(b) b.onclick=function(){ REV_LOADED=true; loadRevenue(); };
+  }
+  function loadRevenue(){
+    revGet("revenue").then(function(j){
+      if(j&&(j.__http===401||j.__http===403)){ revFailed("Sign in with a VAHDAM operator account to load the revenue report."); return; }
+      REVDATA=j; renderRevenue();
+    }).catch(function(e){ revFailed(String(e&&e.message||e)); });
+    revGet("agents").then(function(j){ AGENTDATA=j; renderRevAgents(); })
+      .catch(function(e){ $("#rev-agents").innerHTML="<div class='empty'>"+esc(String(e&&e.message||e))+"</div>"; });
+  }
+
   function loadLive(){
     getJSON("/api/brain?action=ads-live&op=today")
       .then(function(res){ renderLive(res); })
@@ -2845,6 +3008,12 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     if(history.replaceState) history.replaceState(null,"","#"+b.dataset.p);
     // Live structure is one query per level, so only fetch it once the tab is opened.
     if(b.dataset.p==="campaigns"&&!TREE_LOADED){ TREE_LOADED=true; loadTree(); }
+    // Same deal for the revenue report: two authenticated calls, only on open.
+    if(b.dataset.p==="revenue"&&!REV_LOADED){ REV_LOADED=true; loadRevenue(); }
+  });
+  // Cut switcher for the revenue report.
+  document.getElementById("rev-cutnav").addEventListener("click",function(e){
+    var b=e.target.closest("button[data-cut]"); if(b) renderRevCut(b.dataset.cut);
   });
   ["f-obj","f-status","f-sort"].forEach(function(id){document.getElementById(id).addEventListener("change",renderAds);});
   document.getElementById("f-q").addEventListener("input",renderAds);

@@ -278,7 +278,12 @@ async function liveCommerce(mk, days) {
   return cut('live_orders', 'Live order feed (reconciliation)', 'window', {
     available: !!(s && s.ok),
     source: s && s.ok ? s.source : null,
-    rows: s && s.ok ? [{ window_days: s.window_days, orders: s.orders, revenue: s.revenue, aov: s.aov, returning_rate: s.returning_rate_pct, currency: s.currency }] : [],
+    rows: s && s.ok ? [{ window_days: s.window_days, orders: s.orders, revenue: s.revenue, aov: s.aov,
+      // shopify-core reports returning_rate_pct on a 0-100 scale; every rate in
+      // this payload is a FRACTION, and both dashboards format _rate fields by
+      // multiplying by 100 - passing the pct through rendered 54.3 as 5430%.
+      returning_rate: s.returning_rate_pct == null ? null : round(s.returning_rate_pct / 100, 4),
+      currency: s.currency }] : [],
     blocker: s && s.ok ? null : ((s && (s.blocker || s.error)) || 'Shopify not connected.'),
     note: 'The export cuts above are a point-in-time file. This is the live feed to reconcile them against.',
   });

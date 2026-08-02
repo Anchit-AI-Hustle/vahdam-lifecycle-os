@@ -26,6 +26,8 @@ try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 // if scenario-model is unavailable.
 let dashScrub = (s) => s;
 let ctaGate = (s) => s;
+// Email-safe motion + depth, shared with the flagship build and ad compositor.
+const motion = require('./motion-design.js');
 try { const sm = require('./scenario-model.js'); if (sm && sm.scrubDashes) dashScrub = sm.scrubDashes;
   if (sm && sm.sanitizeCta) ctaGate = sm.sanitizeCta; } catch (_) {}
 
@@ -308,7 +310,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   const offerBar = L.offer_bar || `Welcome gift: free sampler + free shipping over ${cur}${slot.market === 'UK' ? '30' : '35'}`;
   const badges = (L.trust_badges && L.trust_badges.length ? L.trust_badges : ['Single-estate', 'Origin-packed', 'Carbon neutral', '1M+ cups']).slice(0, 4);
   const steps = ((L.mechanism || {}).steps || []).slice(0, 3);
-  const testis = gateTestis((L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' }))), slot, p).slice(0, 2);
+  const testis = gateTestis((L.testimonials && L.testimonials.length ? L.testimonials : [copy.testimonial].filter(Boolean).map((t) => ({ quote: t.quote, name: t.name, location: '' }))), slot, products[0]).slice(0, 2);
   const guarantee = L.guarantee || null;
 
   const badgeRow = badges.map((b) => `<td align="center" style="font-family:${body};font-size:11px;color:${P.forest_green};padding:4px 6px"><span style="color:${P.gold}">✦</span> ${esc(b)}</td>`).join('');
@@ -333,7 +335,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
     return `
     <td align="center" style="padding:10px;width:33%">
       <a href="${pdp}" target="_blank" style="text-decoration:none">
-        <div style="background:${P.cream};border:1px solid ${P.gold}33;border-radius:10px;padding:14px 10px 18px">
+        <div style="background:${P.cream};${motion.emailDepth.cardLift(P.gold)}border-radius:10px;padding:14px 10px 18px">
           ${img ? `<img src="${img}" alt="${esc(p.title)}" width="150" style="width:100%;max-width:150px;height:auto;border-radius:8px;display:block;margin:0 auto 12px"/>` : ''}
           <div style="font-family:${heads};font-size:15px;color:${P.near_black};line-height:1.35">${esc(p.title)}</div>
           <div style="font-family:${body};font-size:13px;color:${P.gold};margin-top:8px;font-weight:600">${cur}${p.price}</div>
@@ -343,17 +345,17 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   }).join('');
   const heroPhoto = productImage(products[0] || {}, slot.market);
   const p0title = esc((products[0] || {}).title || 'VAHDAM');
-  const ctaBtn = (bg, fg) => `<a href="${store}" style="display:inline-block;margin-top:24px;background:${bg};color:${fg};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>`;
+  const ctaBtn = (bg, fg) => `<a href="${store}" class="mx-shine" style="display:inline-block;margin-top:24px;${motion.emailDepth.ctaShineFace(bg, P.gold)}box-shadow:0 10px 24px -12px rgba(23,23,23,.35);color:${fg};font-family:${body};font-size:14px;font-weight:700;padding:14px 34px;border-radius:8px;text-decoration:none">${esc(copy.cta_primary)}</a>`;
 
   // ── Named sections — assembled per the archetype's order below ────────────
   const strat = designStrategy.strategyFor(slot);
   const kicker = esc(slot.festival || slot.theme || 'The Collection');
   const SEC = {
     // Green centred hero (bold, offer-forward).
-    heroGreen: `<tr><td style="background:${P.forest_green};border-radius:14px;padding:46px 36px" align="center">
+    heroGreen: `<tr><td style="${motion.emailDepth.heroLight(P.forest_green)}border-radius:14px;padding:46px 36px" align="center">
       <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:14px">${kicker}</div>
-      <div style="font-family:${heads};font-size:34px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
-      <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
+      <div class="mx-rise" style="font-family:${heads};font-size:34px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
+      <div class="mx-rise-2" style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
       ${ctaBtn(P.gold, P.near_black)}
     </td></tr>`,
     // Editorial photo-led hero (aspirational, image first, light copy). Falls
@@ -361,13 +363,13 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
     heroEditorial: heroPhoto
       ? `<tr><td style="padding:0">
       <img src="${heroPhoto}" alt="${p0title}" width="620" style="width:100%;max-width:620px;height:auto;border-radius:14px 14px 0 0;display:block"/>
-      <div style="background:${P.cream};border:1px solid ${P.gold}33;border-top:0;border-radius:0 0 14px 14px;padding:30px 34px" align="center">
+      <div style="background:${P.cream};${motion.emailDepth.cardLift(P.gold)}border-top:0;border-radius:0 0 14px 14px;padding:30px 34px" align="center">
         <div style="font-family:${body};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${P.gold};margin-bottom:12px">${kicker}</div>
         <div style="font-family:${heads};font-size:30px;line-height:1.22;color:${P.forest_green};font-weight:700">${esc(copy.headline)}</div>
         <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.near_black}CC;margin-top:12px">${esc(copy.subheadline)}</div>
         ${ctaBtn(P.forest_green, P.cream)}
       </div></td></tr>`
-      : `<tr><td style="background:${P.forest_green};border-radius:14px;padding:46px 36px" align="center">
+      : `<tr><td style="${motion.emailDepth.heroLight(P.forest_green)}border-radius:14px;padding:46px 36px" align="center">
       <div style="font-family:${heads};font-size:32px;line-height:1.2;color:${P.cream};font-weight:700">${esc(copy.headline)}</div>
       <div style="font-family:${body};font-size:15px;line-height:1.6;color:${P.cream}CC;margin-top:14px">${esc(copy.subheadline)}</div>
       ${ctaBtn(P.gold, P.near_black)}</td></tr>`,
@@ -407,7 +409,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
 
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(copy.subject)}</title></head>
+<title>${esc(copy.subject)}</title><style>${motion.emailMotionCss()}</style></head>
 <body style="margin:0;padding:0;background:${P.cream}">
 <div style="display:none;max-height:0;overflow:hidden">${esc(copy.preheader)}</div>
 <div style="display:none;max-height:0;overflow:hidden">Design: ${esc(strat.label)}</div>
@@ -502,19 +504,19 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
 
   const badgeRow = badges.slice(0, 4).map((b) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:${P.cream}DD"><span style="color:${P.gold}">✦</span>${esc(b)}</span>`).join('<span style="opacity:.4">·</span>');
   const steps = (mech.steps || []).slice(0, 3).map((s, i) => `
-    <div class="card" style="animation-delay:${i * 90}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:24px">
+    <div class="card sx tilt3d" style="animation-delay:${i * 90}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:24px">
       <div style="width:34px;height:34px;border-radius:50%;background:${P.forest_green};color:${P.cream};display:flex;align-items:center;justify-content:center;font-weight:700;font-family:${heads}">${i + 1}</div>
       <div style="font-family:${heads};font-size:18px;color:${P.near_black};margin:14px 0 6px">${esc(s.title)}</div>
       <div style="font-size:14px;color:${P.near_black}AA;line-height:1.6">${esc(s.desc)}</div>
     </div>`).join('');
   const benefitCards = benefits.slice(0, 4).map((b, i) => `
-    <div class="card" style="animation-delay:${i * 70}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:22px">
+    <div class="card sx tilt3d" style="animation-delay:${i * 70}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:22px">
       <div style="color:${P.gold};font-size:20px">✦</div>
       <div style="font-family:${heads};font-size:17px;color:${P.near_black};margin:8px 0 6px">${esc(b.title)}</div>
       ${b.desc ? `<div style="font-size:14px;color:${P.near_black}AA;line-height:1.6">${esc(b.desc)}</div>` : ''}
     </div>`).join('');
   const prods = products.slice(0, 3).map((p, i) => `
-    <a href="${p.url || store}" class="card" style="animation-delay:${i * 90}ms;text-decoration:none;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:26px 20px;display:block">
+    <a href="${p.url || store}" class="card sx tilt3d" style="animation-delay:${i * 90}ms;text-decoration:none;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:26px 20px;display:block">
       <div style="font-family:${heads};font-size:18px;color:${P.near_black};line-height:1.35">${esc(p.title)}</div>
       <div style="font-size:13px;color:${P.near_black}88;margin-top:6px">${esc(p.category)}</div>
       <div style="font-size:15px;color:${P.gold};font-weight:700;margin-top:12px">${cur}${p.price}</div>
@@ -538,7 +540,7 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
     </div>
   </div></section>` : '';
   const testiCards = testis.slice(0, 3).map((t, i) => `
-    <div class="card" style="animation-delay:${i * 80}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:24px">
+    <div class="card sx tilt3d" style="animation-delay:${i * 80}ms;background:#fff;border:1px solid ${P.gold}33;border-radius:14px;padding:24px">
       <div style="color:${P.gold};letter-spacing:2px">★★★★★</div>
       <div style="font-family:${heads};font-style:italic;font-size:16px;line-height:1.6;margin:10px 0;color:${P.near_black}">“${esc(t.quote)}”</div>
       <div style="font-size:12.5px;color:${P.gold};font-weight:600">- ${esc(t.name)}${t.location ? `, ${esc(t.location)}` : ''}</div>
@@ -555,8 +557,13 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
   body{margin:0;background:${P.cream};color:${P.near_black};font-family:${body};padding-bottom:64px}
   .wrap{max-width:1040px;margin:0 auto;padding:0 22px}
   .fade{opacity:0;transform:translateY(18px);animation:up .7s ease forwards}
-  .card{opacity:0;transform:translateY(18px) scale(.98);animation:up .6s ease forwards}
+  /* Cards used to animate on page LOAD, so everything below the fold had
+     finished before the reader reached it. They are now scroll-revealed (.sx,
+     IntersectionObserver) and carry 3D pointer tilt (.tilt3d); with JS absent
+     or reduced-motion set, they are simply visible. */
+  .card{background:#fff}
   @keyframes up{to{opacity:1;transform:none}}
+${motion.landingMotionCss()}
   .cta{display:inline-block;background:${P.gold};color:${P.near_black};font-weight:700;font-size:15px;padding:16px 38px;border-radius:9px;text-decoration:none;transition:transform .2s, box-shadow .2s}
   .cta:hover{transform:translateY(-2px);box-shadow:0 14px 34px ${P.forest_green}44}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
@@ -572,8 +579,10 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
   <a href="${agentUrl}" style="color:${P.gold};font-size:13px;text-decoration:none">🎙 Talk to our tea expert</a>
 </div></header>
 
-<section style="background:${P.forest_green};padding:72px 0 64px;text-align:center">
-  <div class="wrap">
+<section style="${motion.emailDepth.heroLight(P.forest_green)}padding:72px 0 64px;text-align:center;position:relative;overflow:hidden">
+  <div class="plx" data-plx="-0.18" style="position:absolute;top:-120px;left:-80px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,${P.gold}2E 0%,transparent 70%);pointer-events:none"></div>
+  <div class="plx" data-plx="0.12" style="position:absolute;bottom:-140px;right:-60px;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,${P.gold}24 0%,transparent 70%);pointer-events:none"></div>
+  <div class="wrap" style="position:relative;z-index:1">
     <div class="fade" style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${P.gold}">${esc(eyebrow)}</div>
     <h1 class="fade" style="animation-delay:.1s;font-family:${heads};font-size:clamp(34px,5vw,56px);color:${P.cream};line-height:1.15;margin:18px auto;max-width:780px">${esc(heroH)}</h1>
     <p class="fade" style="animation-delay:.2s;color:${P.cream}CC;font-size:17px;max-width:580px;margin:0 auto 30px;line-height:1.65">${esc(heroSub)}</p>
@@ -636,6 +645,8 @@ ${compTable}
   <div class="p"><b>${esc(offerBar)}</b></div>
   <a class="cta" style="padding:11px 26px;font-size:14px" href="${store}">${esc(copy.cta_primary)}</a>
 </div>
+
+<script>${motion.landingMotionJs()}</script>
 
 <!-- Embedded all-in-one VAHDAM voice agent (chat + voice), like the reference LP -->
 <script src="/agent-widget.js" data-agent="${agentId}" data-collection="${esc(slot.market || '')}" defer></script>

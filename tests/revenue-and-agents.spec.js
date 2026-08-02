@@ -74,6 +74,20 @@ test('revenue figures come from the real export, not a rounded fixture', () => {
   expect(hasCents, 'real export revenue should not be all whole dollars').toBe(true);
 });
 
+test('every *_rate field in every cut is a fraction, never a 0-100 percent', () => {
+  // live_orders passed shopify's returning_rate_pct (54.3) straight through
+  // while both dashboards multiply _rate fields by 100 — rendering 5430%.
+  for (const c of payload.cuts.filter((x) => x.available)) {
+    for (const row of c.rows) {
+      for (const [k, v] of Object.entries(row)) {
+        if (/_rate($|_)/.test(k) && typeof v === 'number') {
+          expect(v, `${c.key}.${k}=${v} must be a fraction`).toBeLessThanOrEqual(1.5);
+        }
+      }
+    }
+  }
+});
+
 // ── Platform Agents ─────────────────────────────────────────────────────────
 test('there is one agent per platform, grouped', () => {
   const ids = agents.AGENTS.map((a) => a.id);
