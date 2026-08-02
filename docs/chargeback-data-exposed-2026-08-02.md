@@ -188,25 +188,33 @@ is the one that determines who can turn it down.
 
 ### Renewal identification via `app_name` — **CONFIRMED, and the risk is real**
 
-Segmenting the same 15,265 orders by whether the customer has *ever* placed a Loop order:
+A subscription order is identified by the **selling plan on its line items**
+(`SHOPGQL_..._ORDERS_LINEITEMS.sellingplan_sellingplanid IS NOT NULL`) — the actual
+subscription relationship, not an inference from customer history:
 
 | Segment | Orders | Disputed | Rate |
 |---|---|---|---|
 | Loop renewal (tagged `Loop Subscriptions`) | 1,212 | 22 | 1.815% |
-| Subscription customer, **not** tagged Loop | 927 | 4 | 0.431% |
-| Pure one-off, never subscribed | 13,126 | 26 | 0.198% |
+| **Subscription sign-up — has a selling plan, NOT tagged Loop** | **1,872** | **8** | **0.427%** |
+| One-off (no selling plan) | 12,181 | 22 | 0.181% |
 
-**927 orders belong to customers with demonstrable Loop subscriptions but are not tagged
-`Loop Subscriptions`.** The tag captures renewals only; sign-ups land as `Online Store`. Confirmed.
+**1,872 orders carry a subscription selling plan and are not tagged `Loop Subscriptions`.** The tag
+captures renewals only; sign-ups land as `Online Store`. Confirmed on the subscription relationship
+itself, which is what makes this decisive rather than suggestive.
 
-The cleanest single proof is customer `7410628165675` below: order #1 is `Online Store`, orders #2–11
-are all `Loop Subscriptions`.
+This reproduces the brief's segmentation almost exactly — **the dispute counts match to the unit
+(22 / 8 / 22)** and the rates to three decimals; only the denominators differ by 7–18 orders. That
+mutual agreement, reached by two independent routes, is the strongest evidence in this document.
 
-Note the brief put subscription first orders at 1,861 and I measure 927. Both are defensible — my
-definition requires the customer to have an actual Loop order in the warehouse, which misses sign-ups
-whose subscription never renewed (those fall into "pure one-off"). **The dispute rate is identical
-either way: 0.43%.** The segmentation risk the brief flagged is confirmed; the exact denominator
-depends on the definition.
+Corroborating case: customer `7410628165675` below — order #1 is `Online Store`, orders #2–11 are all
+`Loop Subscriptions`.
+
+> **Method note — a wrong approach that was tried first.** An earlier cut of this table defined the
+> middle segment as "any non-Loop order from a customer who ever placed a Loop order" and reported
+> 927 orders / 4 disputes. **That was wrong and has been replaced.** The predicate sweeps in ordinary
+> one-off purchases that a subscriber happens to make before or after a renewal, so it neither counts
+> sign-ups nor proves they are sign-ups. It also missed genuine sign-ups whose subscription never
+> renewed. Do not use association-with-a-Loop-customer as a subscription test; use the selling plan.
 
 ### Customer `7410628165675` — **CONFIRMED, and worse than described**
 
@@ -246,15 +254,19 @@ Stated explicitly rather than quietly absorbed:
 |---|---|---|---|
 | SP orders in window | 15,265 | **15,265** | exact match |
 | Disputes / value | 52 / $3,404.39 | **52 / $3,404.39** | exact match |
-| Renewals | 1,205 / 22 / 1.83% | **1,212 / 22 / 1.815%** | 7 orders apart |
-| Subscription first orders | 1,861 / 8 / 0.43% | **927 / 4 / 0.431%** | definition differs; rate identical |
-| One-off | 12,199 / 22 / 0.18% | **13,126 / 26 / 0.198%** | residual of the above |
+| Renewals | 1,205 / 22 / 1.83% | **1,212 / 22 / 1.815%** | 7 orders apart, disputes identical |
+| Subscription first orders | 1,861 / 8 / 0.43% | **1,872 / 8 / 0.427%** | 11 orders apart, disputes identical |
+| One-off | 12,199 / 22 / 0.18% | **12,181 / 22 / 0.181%** | 18 orders apart, disputes identical |
 | PayPal orders | 1,865 | 1,836 in prior analysis | not re-measured here |
 | Retry pattern | 147 orders / 590 attempts (May–Jul) | 51 / 141 (May only) | window truncated at 31 May |
 
-The three segment rows differ because the brief split subscription sign-ups out of Online Store using
-a definition I could not reproduce exactly. **The totals reconcile perfectly** (1,212 + 927 + 13,126 =
-15,265; 22 + 4 + 26 = 52), so this is a boundary-placement difference, not a counting error.
+The segmentation now **agrees with the brief on every dispute count** (22 / 8 / 22) and every rate;
+only the denominators move by 7–18 orders, consistent with minor boundary handling (Draft Orders,
+split-tender). Totals reconcile exactly: 1,212 + 1,872 + 12,181 = 15,265 and 22 + 8 + 22 = 52.
+
+Two independent methods — the brief's and this one — landing on the same dispute counts is the
+strongest single validation available here, and it is the reason the segment rates can be relied on
+even though reason codes cannot be recovered.
 
 ---
 
@@ -268,10 +280,22 @@ But the data answers a *different* and more actionable question, and the answer 
 **this is a Loop rebill problem, and the blended rate is being driven by mix, not by decay.**
 
 Loop's own rate has been roughly stable while its share of volume went 4.4% → 25.9% in ten months.
-Holding both segment rates constant, the blended rate crosses Shopify's 1.5% threshold at about **80%
-Loop mix** — so the threshold is not imminent, but it arrives through growth alone, with nothing
-getting worse. Three things are worth doing before the reason codes ever arrive, because none of them
-depend on knowing the reason:
+
+> **On the "80% Loop mix" crossover — inferred, and not directly comparable to Shopify's threshold.**
+> Holding both segment rates constant, this document's blended rate reaches 1.5% at about 80% Loop
+> mix. **That crossover must not be read as "Shopify will act at 80% mix."** These rates attribute
+> disputes to order-creation cohorts; Shopify measures by dispute date against settled transactions,
+> and §Method notes states the two do not reconcile. Comparing them directly is an apples-to-oranges
+> bridge.
+> The direction of the error is worth stating: recent cohorts are **immature** (disputes lag their
+> orders, and the sync stopped 31 May), so the observed segment rates are understated for recent
+> months. **The true crossover is therefore likely to arrive at a mix lower than 80%, not higher.**
+> The caveat cuts against safety. Treat 80% as a rough ceiling on the mix headroom, not a target, and
+> recompute on Shopify's own metric once the feed is restored and dispute periods have matured.
+
+What is *not* in doubt is the shape: the blended rate is rising because Loop's share is rising, not
+because any segment is deteriorating. Three things are worth doing before the reason codes ever
+arrive, because none of them depend on knowing the reason:
 
 1. **The 16 open "needs response" disputes** — 10 of them Loop, all still open at the 31 May snapshot.
    Check the live admin today. This is the only item with a deadline.
@@ -297,8 +321,14 @@ work.
 | **Retry ownership (Loop vs Shopify dunning)** | `attributeToApp=false` on every event; needs Loop's dashboard. |
 | **Reconciliation to Shopify's own 1.01%** | Payout reports count by settlement date; this counts by order date. They will not reconcile — do not force them. |
 
-Restoring the `vahdamusa_us` connector fixes the first four. It is the highest-leverage fix and was
-already action #3 in the prior analysis.
+**Restoring the `vahdamusa_us` connector as it stands fixes rows 2–5 only. It does NOT deliver reason
+codes.** The feed syncs `OrderDisputeSummary`, which has no `reason` field at all (§0) — so a restored
+connector will resume landing the same six columns and the reason-code gap will persist unchanged.
+
+Reason codes need a **separate ingestion change**: add the `shopifyPaymentsAccount.disputes` query
+root (fields `reasonDetails { reason networkReasonCode }`) to the sync, which is a new object and a
+new table, not a restart of the existing one. Two distinct pieces of work — do not let the connector
+restoration close out the reason-code ask.
 
 ---
 
@@ -308,7 +338,11 @@ already action #3 in the prior analysis.
 - Shopify Payments only: `paymentgatewaynames ILIKE '%shopify_payments%'`, which correctly includes
   split-tender orders (`shop_cash` + `shopify_payments`, `gift_card` + `shopify_payments`).
 - Every count deduped with `COUNT(DISTINCT "id")` — see §1.
+- Subscription orders are identified by **selling plan on the line item**
+  (`ORDERS_LINEITEMS.sellingplan_sellingplanid IS NOT NULL`), never by customer association — see the
+  method note in §5 for why the association approach is invalid.
 - Dispute attribution is by **order creation date**, not dispute date. Shopify's own metric uses
   dispute date against settled transactions. These are directionally sound but not arithmetically
-  identical to Shopify's 1.01%.
+  identical to Shopify's 1.01%, and **any figure in this document that is compared to Shopify's 1.5%
+  threshold inherits that mismatch** — see the caveat in §7.
 - Warehouse columns are lowercase and must be double-quoted in Snowflake SQL.
