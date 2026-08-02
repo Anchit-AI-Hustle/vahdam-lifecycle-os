@@ -4,6 +4,15 @@
 **Status:** **BLOCKED — Shopify connector not authorised against the store. No data pulled.**
 **Store targeted:** `vahdamusa.myshopify.com`
 
+> ⚠️ **SUPERSEDED by [`chargeback-data-exposed-2026-08-02.md`](./chargeback-data-exposed-2026-08-02.md).**
+> This document records only that the Shopify MCP connector was unauthorised, which remains true. It
+> then declined to query any other source, so it reports every figure as unmeasured — and that part is
+> now obsolete. The Snowflake warehouse holds the dispute data, and almost everything here marked
+> "not pulled" has since been measured: the segment rates, the monthly series, the retry pattern, and
+> both figures to check. **Only the reason codes are genuinely unavailable** (proven, not assumed —
+> see §0 of the successor). Read the successor for the numbers; keep this only for the connector
+> status.
+
 ---
 
 ## Step 0 result: connector capability check
