@@ -549,6 +549,8 @@ Every asset must ship with a CREATIVE as well as copy. For each asset write an "
 - email / LP heroes: just scene, props, light, mood; aspirational hero.
 - AD creatives (meta / google / tiktok): a scroll-stopping TEXT-FREE photograph that sells the HAPPINESS end-state for P01 (women 45+/busy mums: calmer mornings, steady energy, "feeling like myself again"), NOT ingredients; open on a 1-second scroll-stop. Compose for the placement: meta = square, google = clean landscape, tiktok = vertical native hand-held. State only the scene, subject, light and mood - no words in the frame.
 
+NO INVENTED OFFERS IN AD COPY. This send has no approved discount. Do NOT write any percentage off, promo code, coupon, BOGO, "money-back"/guarantee, or "lowest price" line in the meta / google / tiktok copy - there is no approved offer library to verify it against, and a fabricated offer is a hard compliance failure. Sell the product and the end-state, not a deal.
+
 MESSAGE MATCH IS THE JOB OF THE LANDING PAGE. The page is not a sibling of the ads, it is their destination: write the ads first, then write "landing.hero_headline" to deliver the SAME promise the ads made, in the ads own language, so a visitor who clicked sees the words they clicked on in the first screen. "landing.hero_sub" carries the specific reason to believe that promise, and "landing.why_bullets" prove it. If the ads lead on calmer mornings, the page opens on calmer mornings - never on a generic brand or origin line. Introduce no price, discount, rating, review count, guarantee or claim that the ads and email do not already state.
 
 Return JSON with exactly this shape:
@@ -938,7 +940,14 @@ function applyCopy(campaign, entry, copyA, copyB, fwA, fwB, creatives = {}) {
     const copy = isB ? copyB : copyA;
     if (ad.platform === 'meta' && copy.ads.meta) Object.assign(ad, { primary_text: copy.ads.meta.primary_text || ad.primary_text, headline: copy.ads.meta.headline || ad.headline, description: copy.ads.meta.description || ad.description });
     if (ad.platform === 'google' && copy.ads.google) Object.assign(ad, { headlines: copy.ads.google.headlines?.filter(Boolean) || ad.headlines, descriptions: copy.ads.google.descriptions?.filter(Boolean) || ad.descriptions });
-    if (ad.platform === 'tiktok' && copy.ads.tiktok) Object.assign(ad, { script: copy.ads.tiktok.script || ad.script, caption: copy.ads.tiktok.caption || ad.caption });
+    if (ad.platform === 'tiktok' && copy.ads.tiktok) {
+      // `script` is a VIDEO-only field. Assigning it to the static TikTok ad makes
+      // the Ads QA Critic flag "static ad carries video fields" (a critical) on
+      // every run, which turned the pipeline pill red deterministically. Caption is
+      // a plain text field and is safe on both creative types.
+      if (ad.creative_type === 'video') ad.script = copy.ads.tiktok.script || ad.script;
+      ad.caption = copy.ads.tiktok.caption || ad.caption;
+    }
     // A = the generated creative; B = the real catalog product photo (hosted) so
     // the pair is visually distinct without doubling image-generation cost.
     if (isB) {
