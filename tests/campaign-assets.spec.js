@@ -59,6 +59,28 @@ test.describe('the product stays real', () => {
   });
 });
 
+test.describe('a static ad never carries video fields', () => {
+  test('applyCopy gates the TikTok script to the video creative only', () => {
+    // The static TikTok ad shares platform 'tiktok' with the video one. Assigning
+    // `script` (a video field) to both tripped the Ads QA Critic's "static ad
+    // carries video fields" critical on every run, painting the pipeline pill red.
+    const i = SRC.indexOf("ad.platform === 'tiktok' && copy.ads.tiktok");
+    expect(i, 'tiktok copy assignment not found').toBeGreaterThan(-1);
+    const block = SRC.slice(i, i + 600);
+    expect(block).toContain("if (ad.creative_type === 'video') ad.script =");
+    // caption stays on both (a plain text field, not a video-only field).
+    expect(block).toContain('ad.caption = copy.ads.tiktok.caption');
+  });
+
+  test('the QA rule that this defends is real', () => {
+    const { qaAd } = require('../api/_shared/ads-qa.js');
+    const bad = qaAd({ platform: 'tiktok', creative_type: 'static', creative_brief: 'x', script: 'leaked video script' });
+    expect(bad.critical).toBeGreaterThan(0);
+    const good = qaAd({ platform: 'tiktok', creative_type: 'static', creative_brief: 'x', overlay: { headline: 'h' }, aspect: '9:16', cta: 'Shop' });
+    expect(good.critical).toBe(0);
+  });
+});
+
 test.describe('spend follows commitment', () => {
   test('a passive View spends nothing — no scenes, no video', () => {
     const site = callSite('campaign = await buildCampaign(effectiveEntry(entry), config, force');

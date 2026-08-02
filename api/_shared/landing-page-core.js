@@ -71,6 +71,16 @@ Warm, sensory, story-driven, premium. Prefer ritual, restore, balance, origin, s
 FRAMER AND MOTION-INSPIRED INTERACTION SYSTEM
 Treat 3D, 4D and 5D as concrete interaction layers, not labels pasted onto the page.
 
+MOTION IS SECTION-SCOPED, NEVER PAGE-WIDE. Every animation belongs to, and is confined to, the ONE section whose content it illustrates - it must not be applied to the <body>, a full-page wrapper, or any other section. Each effect matches its section's function:
+- A "bundling"/assembly effect - ingredients or components spiralling, orbiting or converging into the product - is the SIGNATURE of the ingredients / what's-inside section ONLY. It must live inside that section's container (scoped selector, its own IntersectionObserver / scroll range) and stop there. Never let a spiral, swirl, orbit or converge animation run behind the hero, benefits, proof, FAQ or footer.
+- Hero: pointer/scroll parallax and the 3D product stage only.
+- Benefits / features: staggered reveal-on-scroll (opacity + translateY).
+- Proof / testimonials: gentle fade/slide as they enter; no continuous motion.
+- Ingredients / composition: the bundling/spiral assembly, scoped to this block.
+- Offer / product: restrained hover depth on the card.
+- FAQ / footer: static, or a plain reveal - no depth effects.
+Give each animated section its own scoped CSS class or id so its keyframes and transforms cannot leak onto siblings; a shared global class that animates "every section the same way" is wrong.
+
 3D SPATIAL DEPTH
 - Build an above-the-fold product stage using CSS perspective, transform-style: preserve-3d, layered planes, a six-face or convincing multi-surface product pack, floating botanicals and a cup or liquid sphere.
 - Product responds subtly to pointer position using requestAnimationFrame and rotateX/rotateY. Touch users get a gentle automatic orbit.

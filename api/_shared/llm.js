@@ -214,8 +214,11 @@ module.exports = async function callLLM(opts) {
   const ollamaOn     = !!process.env.OLLAMA_BASE_URL;
   const sakanaKey    = _clean(process.env.SAKANA_API_KEY);
   const sakanaOn     = !!process.env.SAKANA_BASE_URL && !!sakanaKey;
-  // Debug: log key presence (not values) for cascade diagnostics
-  console.log('[llm] Keys present: groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' gemini=' + !!geminiKey + ' tier=' + tierNorm);
+  // Debug: log key presence (not values) for cascade diagnostics. `pin` surfaces
+  // WHY the cascade may collapse to one provider: a non-empty preferredProvider
+  // (from a per-call preferProvider OR the APP_AI_PROVIDER env) SKIPS every other
+  // rung, so if every asset shows the same provider, check this first.
+  console.log('[llm] Keys present: openai=' + (openaiKeys.length > 0) + ' anthropic=' + !!anthropicKey + ' gemini=' + !!geminiKey + ' grok=' + !!grokKey + ' groq=' + !!groqKey + ' cerebras=' + !!cerebrasKey + ' | pin=' + (preferredProvider || 'none') + ' tier=' + tierNorm);
 
   if (!openaiKeys.length && !anthropicKey && !geminiKey && !grokKey && !groqKey && !cerebrasKey && !openrouterKey && !githubKey && !cloudflareOn) {
     throw new Error('No AI provider configured. Set at least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, GITHUB_MODELS_TOKEN, CLOUDFLARE_API_TOKEN(+CLOUDFLARE_ACCOUNT_ID)');
