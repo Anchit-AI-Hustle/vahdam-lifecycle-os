@@ -19,7 +19,11 @@ const STORE = {
   ME: 'https://vahdam.com',
 };
 
+let runDesignLoop = null;
+try { ({ runDesignLoop } = require('./lp-design-loop.js')); } catch (_) { runDesignLoop = null; }
+
 module.exports = async function handler(req, res) {
+  const t0 = Date.now();
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -126,7 +130,21 @@ TECHNICAL QUALITY
     if (!/<!doctype/i.test(html) || !/<body/i.test(html) || !/<\/html>/i.test(html)) {
       return res.status(502).json({ error: 'invalid_html_generation' });
     }
-    return res.status(200).json({ ok: true, html });
+    // Cascaded design loop: score the generated page and, when wall-clock budget
+    // remains, apply ONE critique-driven revision to lift design quality. Budget-
+    // aware — it skips cleanly if time is short, so the base page always ships.
+    let quality = null;
+    const refine = String(process.env.LP_DESIGN_REFINE || '').toLowerCase() !== 'off' && body.refine !== false;
+    if (refine && runDesignLoop) {
+      const budget = 118000 - (Date.now() - t0); // stay under the 120s function cap
+      if (budget > 30000) {
+        try {
+          const r = await runDesignLoop({ html, brief, market, store, channel, timeBoxMs: budget, userGeminiKey: body.userGeminiKey || body.geminiKey || '', scrub });
+          html = r.html; quality = r.quality;
+        } catch (_) { /* keep the base page */ }
+      }
+    }
+    return res.status(200).json({ ok: true, html, quality });
   } catch (error) {
     const msg = error && error.message ? error.message : String(error);
     const busy = /rate limit|rate.?limit|quota|429|credit|balance|insufficient|overloaded/i.test(msg);
