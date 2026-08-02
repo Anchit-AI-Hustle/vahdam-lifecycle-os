@@ -40,6 +40,13 @@ drop policy if exists "read all" on public.workspace_members;
 drop policy if exists "read all" on public.saved_items;
 drop policy if exists "read all" on public.uploaded_files;
 
+-- activity_logs is in the same backbone "read all" loop, and its schema
+-- documents `actor` as "user email, 'system', or agent slug" with free-form
+-- jsonb metadata beside it. The only reader (os-backbone.js dashboard()) is
+-- server-side via the service role, so the anon grant is pure exposure.
+alter table if exists public.activity_logs enable row level security;
+drop policy if exists "read all" on public.activity_logs;
+
 -- webengage_events is revoked too. An earlier version of this migration kept
 -- its read policy on the reasoning that user_id is a WebEngage-internal
 -- identifier - but that only looked at the EXTRACTED columns. formatRow stores
