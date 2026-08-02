@@ -162,7 +162,7 @@ test('a composed static ad carries the full depth stack', () => {
   const layers = motion.adDepthLayers('#AB8743');
   expect(layers).toContain('border:1px solid #AB874359');
   expect((layers.match(/pointer-events:none/g) || []).length).toBe(4);
-})
+});
 
 // ── Rule 3b: video unit — true 3D ───────────────────────────────────────────
 test('the animated video unit is a perspective scene with Z-separated layers', () => {
