@@ -21,6 +21,20 @@ const PAGE_URL = 'file://' + path.join(__dirname, '..', 'dashboard.html');
 // report's sharing settings, which this repo cannot control.
 const stub = (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>stub</p>' });
 
+// Four of the six projects are <=1024px (320-810), where the sidebar is an
+// off-canvas drawer at translateX(-100%). The nav item is in the DOM but sits
+// outside the viewport, so it has to be opened the way a real user does before
+// any view is reachable. Reaching into the DOM to force the click instead would
+// pass while telling us nothing about whether the view is actually reachable.
+async function openView(page, view) {
+  const mobile = await page.evaluate(() => window.matchMedia('(max-width: 1024px)').matches);
+  if (mobile) {
+    await page.locator('#sbMobileToggle').click();
+    await expect(page.locator('aside.sidebar')).toBeInViewport();
+  }
+  await page.locator(`.nav-item[data-view="${view}"]`).click();
+}
+
 test.describe('the embedded Looker Studio report', () => {
   test('is reachable and visible with NO uploaded data', async ({ page }) => {
     const errors = [];
@@ -33,9 +47,9 @@ test.describe('the embedded Looker Studio report', () => {
     expect(await page.evaluate(() => document.body.classList.contains('no-data')),
       'precondition: dashboard should be in its empty state').toBe(true);
 
-    const nav = page.locator('.nav-item[data-view="looker"]');
-    await expect(nav, 'the view needs its own nav entrance').toHaveCount(1);
-    await nav.click();
+    await expect(page.locator('.nav-item[data-view="looker"]'),
+      'the view needs its own nav entrance').toHaveCount(1);
+    await openView(page, 'looker');
     await page.waitForTimeout(400);
 
     // The assertion the no-data exemption exists for.
@@ -50,7 +64,7 @@ test.describe('the embedded Looker Studio report', () => {
       'a private report frames a sign-in page; the reason must be stated').toBeVisible();
 
     // The exemption must be surgical: other views stay gated.
-    await page.locator('.nav-item[data-view="exec"]').click();
+    await openView(page, 'exec');
     await page.waitForTimeout(300);
     await expect(page.locator('.view[data-view="exec"]')).toBeHidden();
 
@@ -66,7 +80,7 @@ test.describe('the embedded Looker Studio report', () => {
     await page.waitForTimeout(700);
     expect(hits, 'the embed loaded before anyone opened the view').toEqual([]);
 
-    await page.locator('.nav-item[data-view="looker"]').click();
+    await openView(page, 'looker');
     await page.waitForTimeout(600);
     expect(hits.length, 'opening the view should mount the embed').toBeGreaterThan(0);
   });
@@ -74,7 +88,7 @@ test.describe('the embedded Looker Studio report', () => {
   test('does not carry the session token from a browser URL', async ({ page }) => {
     await page.route('**lookerstudio.google.com/**', stub);
     await page.goto(PAGE_URL);
-    await page.locator('.nav-item[data-view="looker"]').click();
+    await openView(page, 'looker');
     await page.waitForTimeout(400);
     // `?s=<token>` on a Looker browser URL is a session artefact. It grants no
     // access, goes stale, and pasting one into a committed page implies it does
