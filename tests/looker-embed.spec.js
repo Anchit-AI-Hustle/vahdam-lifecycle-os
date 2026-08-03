@@ -80,9 +80,19 @@ test.describe('the embedded Looker Studio report', () => {
     await page.waitForTimeout(700);
     expect(hits, 'the embed loaded before anyone opened the view').toEqual([]);
 
+    // No scrolling: opening the view must be enough on its own. The panel is
+    // tall, so on a phone the frame starts below the fold - this originally
+    // failed on iphone-se and iphone-12 because loading="lazy" deferred the load
+    // a second time, on scroll position, and the viewer saw an empty box.
     await openView(page, 'looker');
     await page.waitForTimeout(600);
-    expect(hits.length, 'opening the view should mount the embed').toBeGreaterThan(0);
+    expect(hits.length, 'opening the view should mount the embed, without scrolling').toBeGreaterThan(0);
+
+    // Guard the cause, not just the symptom: withholding the src until
+    // activation is what makes the request lazy, and it is deterministic.
+    // loading="lazy" on top of it re-introduces a scroll dependency.
+    expect(await page.locator('#lookerFrame').getAttribute('loading'),
+      'loading="lazy" defers the embed on scroll position, so a phone shows an empty panel').toBeNull();
   });
 
   test('does not carry the session token from a browser URL', async ({ page }) => {

@@ -626,7 +626,15 @@
         </div>
 
         <div class="card p-0 overflow-hidden">
-          <iframe id="lookerFrame" title="Looker Studio report" loading="lazy"
+          <!-- Deliberately NOT loading="lazy". The src is already withheld until
+               the view is activated (mountLooker), which is what keeps the
+               third-party request off an unvisited dashboard. Adding lazy on top
+               of that defers it a SECOND time, on scroll position: the panel is
+               tall, so on a phone it starts below the fold and the report would
+               not load until the user scrolled - they open the view and see an
+               empty box. Once someone has opened the view, loading is exactly
+               what we want, wherever the frame happens to sit. -->
+          <iframe id="lookerFrame" title="Looker Studio report"
                   style="width:100%;height:calc(100vh - 260px);min-height:560px;border:0;display:block;"
                   sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"
                   referrerpolicy="strict-origin-when-cross-origin"></iframe>
