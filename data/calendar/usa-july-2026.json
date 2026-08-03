@@ -43,7 +43,12 @@
           "subject": "The chai you keep coming back to",
           "preview": "A quiet thank-you, from the cupping table to your cup.",
           "file": "mailers/usa-july/2026-07-02_champions_indias-original-masala-chai-100-ct_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -53,7 +58,12 @@
           "subject": "Your morning blend, restocked",
           "preview": "The 100 count, so the pot is never empty.",
           "file": "mailers/usa-july/2026-07-02_champions_indias-original-masala-chai-100-ct_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -63,7 +73,12 @@
           "subject": "The chai you keep coming back to",
           "preview": "A quiet thank-you, from the cupping table to your cup.",
           "file": "mailers/usa-july/2026-07-02_champions_indias-original-masala-chai-100-ct_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -73,9 +88,41 @@
           "subject": "Your morning blend, restocked",
           "preview": "The 100 count, so the pot is never empty.",
           "file": "mailers/usa-july/2026-07-02_champions_indias-original-masala-chai-100-ct_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-02_champions_indias-original-masala-chai-100-ct_ads.html",
         "copy": {
@@ -274,7 +321,12 @@
           "subject": "A second flush worth slowing down for",
           "preview": "Castleton, muscatel, and the season that makes it.",
           "file": "mailers/usa-july/2026-07-05_loyal_castleton-darjeeling-second-flush_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -284,7 +336,12 @@
           "subject": "Muscatel, from one hillside",
           "preview": "The Castleton second flush is here.",
           "file": "mailers/usa-july/2026-07-05_loyal_castleton-darjeeling-second-flush_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -294,7 +351,12 @@
           "subject": "A second flush worth slowing down for",
           "preview": "Castleton, muscatel, and the season that makes it.",
           "file": "mailers/usa-july/2026-07-05_loyal_castleton-darjeeling-second-flush_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -304,9 +366,41 @@
           "subject": "Muscatel, from one hillside",
           "preview": "The Castleton second flush is here.",
           "file": "mailers/usa-july/2026-07-05_loyal_castleton-darjeeling-second-flush_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-05_loyal_castleton-darjeeling-second-flush_ads.html",
         "copy": {
@@ -511,7 +605,12 @@
           "subject": "Not sure what to steep next?",
           "preview": "Twenty flavors, one easy way to find yours.",
           "file": "mailers/usa-july/2026-07-08_new_assorted-tea-bags-sampler-20-flavors_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -521,7 +620,12 @@
           "subject": "Twenty teas, one sampler",
           "preview": "The easiest way to find your blend.",
           "file": "mailers/usa-july/2026-07-08_new_assorted-tea-bags-sampler-20-flavors_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -531,7 +635,12 @@
           "subject": "Not sure what to steep next?",
           "preview": "Twenty flavors, one easy way to find yours.",
           "file": "mailers/usa-july/2026-07-08_new_assorted-tea-bags-sampler-20-flavors_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -541,9 +650,41 @@
           "subject": "Twenty teas, one sampler",
           "preview": "The easiest way to find your blend.",
           "file": "mailers/usa-july/2026-07-08_new_assorted-tea-bags-sampler-20-flavors_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-08_new_assorted-tea-bags-sampler-20-flavors_ads.html",
         "copy": {
@@ -742,7 +883,12 @@
           "subject": "The green tea that tastes like the hills",
           "preview": "High-altitude leaf, clean and bright.",
           "file": "mailers/usa-july/2026-07-11_promising_himalayan-green-tea-12-oz_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -752,7 +898,12 @@
           "subject": "Bright, clean, high-grown green",
           "preview": "From the Himalayan gardens to your afternoon.",
           "file": "mailers/usa-july/2026-07-11_promising_himalayan-green-tea-12-oz_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -762,7 +913,12 @@
           "subject": "The green tea that tastes like the hills",
           "preview": "High-altitude leaf, clean and bright.",
           "file": "mailers/usa-july/2026-07-11_promising_himalayan-green-tea-12-oz_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -772,9 +928,41 @@
           "subject": "Bright, clean, high-grown green",
           "preview": "From the Himalayan gardens to your afternoon.",
           "file": "mailers/usa-july/2026-07-11_promising_himalayan-green-tea-12-oz_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-11_promising_himalayan-green-tea-12-oz_ads.html",
         "copy": {
@@ -973,7 +1161,12 @@
           "subject": "A warmer, steadier cup for August",
           "preview": "Turmeric and ginger, ahead of Wellness Month.",
           "file": "mailers/usa-july/2026-07-14_need-attention_turmeric-ginger-herbal-tea-100-ct_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -983,7 +1176,12 @@
           "subject": "Golden, warming, caffeine-free",
           "preview": "Turmeric ginger, for a calmer evening.",
           "file": "mailers/usa-july/2026-07-14_need-attention_turmeric-ginger-herbal-tea-100-ct_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -993,7 +1191,12 @@
           "subject": "A warmer, steadier cup for August",
           "preview": "Turmeric and ginger, ahead of Wellness Month.",
           "file": "mailers/usa-july/2026-07-14_need-attention_turmeric-ginger-herbal-tea-100-ct_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -1003,9 +1206,41 @@
           "subject": "Golden, warming, caffeine-free",
           "preview": "Turmeric ginger, for a calmer evening.",
           "file": "mailers/usa-july/2026-07-14_need-attention_turmeric-ginger-herbal-tea-100-ct_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-14_need-attention_turmeric-ginger-herbal-tea-100-ct_ads.html",
         "copy": {
@@ -1244,7 +1479,12 @@
           "subject": "A proper cup for the big final",
           "preview": "English Breakfast, brewed for Sunday's match.",
           "file": "mailers/usa-july/2026-07-16_loyal_english-breakfast-black-tea-12-oz_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -1254,7 +1494,12 @@
           "subject": "Sunday's final, one strong pot",
           "preview": "English Breakfast for the World Cup Final.",
           "file": "mailers/usa-july/2026-07-16_loyal_english-breakfast-black-tea-12-oz_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -1264,7 +1509,12 @@
           "subject": "A proper cup for the big final",
           "preview": "English Breakfast, brewed for Sunday's match.",
           "file": "mailers/usa-july/2026-07-16_loyal_english-breakfast-black-tea-12-oz_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -1274,9 +1524,41 @@
           "subject": "Sunday's final, one strong pot",
           "preview": "English Breakfast for the World Cup Final.",
           "file": "mailers/usa-july/2026-07-16_loyal_english-breakfast-black-tea-12-oz_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-16_loyal_english-breakfast-black-tea-12-oz_ads.html",
         "copy": {
@@ -1521,7 +1803,12 @@
           "subject": "Chai, over ice, with a scoop",
           "preview": "An iced-chai affogato for Ice Cream Day.",
           "file": "mailers/usa-july/2026-07-18_champions_indias-original-masala-chai-12-oz_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -1531,7 +1818,12 @@
           "subject": "An iced-chai treat for Sunday",
           "preview": "Masala chai + a scoop = Ice Cream Day, done.",
           "file": "mailers/usa-july/2026-07-18_champions_indias-original-masala-chai-12-oz_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -1541,7 +1833,12 @@
           "subject": "Chai, over ice, with a scoop",
           "preview": "An iced-chai affogato for Ice Cream Day.",
           "file": "mailers/usa-july/2026-07-18_champions_indias-original-masala-chai-12-oz_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -1551,9 +1848,41 @@
           "subject": "An iced-chai treat for Sunday",
           "preview": "Masala chai + a scoop = Ice Cream Day, done.",
           "file": "mailers/usa-july/2026-07-18_champions_indias-original-masala-chai-12-oz_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-18_champions_indias-original-masala-chai-12-oz_ads.html",
         "copy": {
@@ -1798,7 +2127,12 @@
           "subject": "Your first pitcher of iced tea",
           "preview": "Twenty flavors to brew cold this week.",
           "file": "mailers/usa-july/2026-07-19_new_assorted-tea-bags-sampler-20-flavors_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -1808,7 +2142,12 @@
           "subject": "Iced tea, twenty ways",
           "preview": "One sampler, a summer of cold brew.",
           "file": "mailers/usa-july/2026-07-19_new_assorted-tea-bags-sampler-20-flavors_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -1818,7 +2157,12 @@
           "subject": "Your first pitcher of iced tea",
           "preview": "Twenty flavors to brew cold this week.",
           "file": "mailers/usa-july/2026-07-19_new_assorted-tea-bags-sampler-20-flavors_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -1828,9 +2172,41 @@
           "subject": "Iced tea, twenty ways",
           "preview": "One sampler, a summer of cold brew.",
           "file": "mailers/usa-july/2026-07-19_new_assorted-tea-bags-sampler-20-flavors_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-19_new_assorted-tea-bags-sampler-20-flavors_ads.html",
         "copy": {
@@ -2075,7 +2451,12 @@
           "subject": "Still your kind of cup?",
           "preview": "Three easy ways back to a good brew.",
           "file": "mailers/usa-july/2026-07-22_about-to-sleep_daily-assam-black-tea-12-oz_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -2085,7 +2466,12 @@
           "subject": "The pot's been quiet lately",
           "preview": "A brisk Assam, whenever you're ready.",
           "file": "mailers/usa-july/2026-07-22_about-to-sleep_daily-assam-black-tea-12-oz_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -2095,7 +2481,12 @@
           "subject": "Still your kind of cup?",
           "preview": "Three easy ways back to a good brew.",
           "file": "mailers/usa-july/2026-07-22_about-to-sleep_daily-assam-black-tea-12-oz_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -2105,9 +2496,41 @@
           "subject": "The pot's been quiet lately",
           "preview": "A brisk Assam, whenever you're ready.",
           "file": "mailers/usa-july/2026-07-22_about-to-sleep_daily-assam-black-tea-12-oz_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-22_about-to-sleep_daily-assam-black-tea-12-oz_ads.html",
         "copy": {
@@ -2313,7 +2736,12 @@
           "subject": "A small, warm thank-you",
           "preview": "For Parents' Day, the chai they'll actually use.",
           "file": "mailers/usa-july/2026-07-25_promising_indias-original-masala-chai-30-ct_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -2323,7 +2751,12 @@
           "subject": "For the parents who steep",
           "preview": "A Parents' Day cup worth gifting.",
           "file": "mailers/usa-july/2026-07-25_promising_indias-original-masala-chai-30-ct_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -2333,7 +2766,12 @@
           "subject": "A small, warm thank-you",
           "preview": "For Parents' Day, the chai they'll actually use.",
           "file": "mailers/usa-july/2026-07-25_promising_indias-original-masala-chai-30-ct_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -2343,9 +2781,41 @@
           "subject": "For the parents who steep",
           "preview": "A Parents' Day cup worth gifting.",
           "file": "mailers/usa-july/2026-07-25_promising_indias-original-masala-chai-30-ct_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-25_promising_indias-original-masala-chai-30-ct_ads.html",
         "copy": {
@@ -2584,7 +3054,12 @@
           "subject": "Share a cup this week",
           "preview": "For Friendship Day, a warm, easy gesture.",
           "file": "mailers/usa-july/2026-07-29_at-risk_turmeric-ginger-herbal-tea-100-ct_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -2594,7 +3069,12 @@
           "subject": "One warm pot, shared",
           "preview": "Turmeric ginger for Friendship Day.",
           "file": "mailers/usa-july/2026-07-29_at-risk_turmeric-ginger-herbal-tea-100-ct_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -2604,7 +3084,12 @@
           "subject": "Share a cup this week",
           "preview": "For Friendship Day, a warm, easy gesture.",
           "file": "mailers/usa-july/2026-07-29_at-risk_turmeric-ginger-herbal-tea-100-ct_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -2614,9 +3099,41 @@
           "subject": "One warm pot, shared",
           "preview": "Turmeric ginger for Friendship Day.",
           "file": "mailers/usa-july/2026-07-29_at-risk_turmeric-ginger-herbal-tea-100-ct_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-29_at-risk_turmeric-ginger-herbal-tea-100-ct_ads.html",
         "copy": {
@@ -2855,7 +3372,12 @@
           "subject": "Begin August a little slower",
           "preview": "A clean green cup to start the month.",
           "file": "mailers/usa-july/2026-07-31_loyal_himalayan-green-tea-12-oz_text_a.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "text"
+          }
         },
         {
           "key": "text_b",
@@ -2865,7 +3387,12 @@
           "subject": "A clean cup for August",
           "preview": "Himalayan green, to open Wellness Month.",
           "file": "mailers/usa-july/2026-07-31_loyal_himalayan-green-tea-12-oz_text_b.html",
-          "has_image": false
+          "has_image": false,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "text"
+          }
         },
         {
           "key": "visual_a",
@@ -2875,7 +3402,12 @@
           "subject": "Begin August a little slower",
           "preview": "A clean green cup to start the month.",
           "file": "mailers/usa-july/2026-07-31_loyal_himalayan-green-tea-12-oz_visual_a.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "forest",
+          "factor": {
+            "copy": "A",
+            "treatment": "visual"
+          }
         },
         {
           "key": "visual_b",
@@ -2885,9 +3417,41 @@
           "subject": "A clean cup for August",
           "preview": "Himalayan green, to open Wellness Month.",
           "file": "mailers/usa-july/2026-07-31_loyal_himalayan-green-tea-12-oz_visual_b.html",
-          "has_image": true
+          "has_image": true,
+          "colorway": "midnight",
+          "factor": {
+            "copy": "B",
+            "treatment": "visual"
+          }
         }
       ],
+      "variant_design": {
+        "type": "2x2 factorial",
+        "factors": {
+          "copy": [
+            "A",
+            "B"
+          ],
+          "treatment": [
+            "text",
+            "visual"
+          ]
+        },
+        "held_constant": [
+          "copy within a framework column",
+          "colorway within a framework column"
+        ],
+        "reads": {
+          "image_effect": [
+            "text_a vs visual_a",
+            "text_b vs visual_b"
+          ],
+          "copy_effect": [
+            "text_a vs text_b",
+            "visual_a vs visual_b"
+          ]
+        }
+      },
       "ads": {
         "file": "ads/usa-july/2026-07-31_loyal_himalayan-green-tea-12-oz_ads.html",
         "copy": {
