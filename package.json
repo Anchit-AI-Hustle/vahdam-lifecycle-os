@@ -39,7 +39,7 @@
   "dependencies": {
     "@capacitor/android": "^8.4.2",
     "@capacitor/core": "^8.5.0",
-    "@capacitor/ios": "^8.4.2",
+    "@capacitor/ios": "^8.5.0",
     "@vercel/speed-insights": "^2.0.0",
     "google-auth-library": "^10.9.1",
     "googleapis": "^173.0.0",
