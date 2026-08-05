@@ -181,6 +181,11 @@
   #emptyState { display:none; }
   body.no-data #emptyState { display:block; animation: fadeIn .25s ease; }
   body.no-data .view.active { display:none; }
+  /* The Looker view is an EXTERNAL report: it carries its own data and is not
+     computed from the uploaded CSV, so the no-data gate must not hide it.
+     Without this it would be invisible until someone uploaded a dataset it
+     does not even use, and would read as a broken embed. */
+  body.no-data .view.active[data-view="looker"] { display:block; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
   .insight { padding:14px 16px; border-radius:10px; border:1px solid rgba(171,135,67,0.2); background:#ffffff; }
   .insight.crit { border-color:rgba(239,68,68,0.35); background:rgba(239,68,68,0.04); }
@@ -275,6 +280,13 @@
         <div class="nav-text">
           <span class="nav-title">Strategic Insights</span>
           <span class="nav-sub">Auto-generated · ranked by impact</span>
+        </div>
+      </div>
+      <div class="nav-item" data-view="looker" data-tip="Looker Studio" title="Embedded Google Looker Studio report (external source)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4M7 12l3-3 2.5 2.5L17 7"/></svg>
+        <div class="nav-text">
+          <span class="nav-title">Looker Studio</span>
+          <span class="nav-sub">Embedded external report</span>
         </div>
       </div>
     </nav>
@@ -576,6 +588,57 @@
           </div>
         </div>
         <div id="insightList" class="space-y-3"></div>
+      </section>
+
+      <!-- ── Embedded Looker Studio report ──────────────────────────────────
+           An EXTERNAL source: unlike every other view here, nothing on this
+           page computes it and it does not read the uploaded dataset. That is
+           why it is exempt from the no-data gate (see the CSS rule) - gating it
+           on our CSV would hide a report that has its own data entirely.
+           Looker Studio exposes no data API, so an iframe is the only way to
+           bring it in; we cannot pull its figures out and re-plot them. -->
+      <section class="view" data-view="looker">
+        <div class="flex items-end justify-between mb-5 flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Looker Studio Report</h1>
+            <p class="text-sm text-ink-dim mt-1">Embedded from Google Looker Studio. Owned and refreshed there, not by this dashboard.</p>
+          </div>
+          <div class="flex gap-2 items-center">
+            <div class="pill bg-gold/10 text-gold" title="This panel renders a third-party report; its numbers are not computed here">External source</div>
+            <a id="lookerOpen" href="#" target="_blank" rel="noopener"
+               class="text-[11px] uppercase tracking-wider font-semibold py-2 px-3 rounded border border-gold/30 text-ink-dim hover:border-gold hover:text-ink transition">
+              Open in Looker Studio ↗
+            </a>
+          </div>
+        </div>
+
+        <!-- Shown only if the embed cannot render. A private report frames a
+             Google sign-in page, which looks like a broken panel; say what is
+             actually wrong instead of leaving a blank box. -->
+        <div id="lookerHelp" class="card p-4 mb-4 text-sm" style="display:none;">
+          <div class="font-semibold text-ink mb-1">If the report below shows a Google sign-in or permission error</div>
+          <div class="text-ink-dim leading-relaxed">
+            The report is private, so it cannot be framed. In Looker Studio open the report, then
+            <span class="font-semibold">Share &rarr; Manage access</span> and allow the intended viewers, and
+            <span class="font-semibold">Share &rarr; Embed report</span> to enable embedding. Viewers still need to be
+            signed in to a Google account that has access. Nothing in this repo can grant that.
+          </div>
+        </div>
+
+        <div class="card p-0 overflow-hidden">
+          <!-- Deliberately NOT loading="lazy". The src is already withheld until
+               the view is activated (mountLooker), which is what keeps the
+               third-party request off an unvisited dashboard. Adding lazy on top
+               of that defers it a SECOND time, on scroll position: the panel is
+               tall, so on a phone it starts below the fold and the report would
+               not load until the user scrolled - they open the view and see an
+               empty box. Once someone has opened the view, loading is exactly
+               what we want, wherever the frame happens to sit. -->
+          <iframe id="lookerFrame" title="Looker Studio report"
+                  style="width:100%;height:calc(100vh - 260px);min-height:560px;border:0;display:block;"
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"
+                  referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
       </section>
 
     </div>
@@ -2110,11 +2173,46 @@ function campNameCell(c) {
 /* ╔═══════════════════════════════════════════════════════════════════════
  * ║ ROUTER + EVENTS
  * ╚═══════════════════════════════════════════════════════════════════════ */
+/* ── Embedded Looker Studio report ────────────────────────────────────────
+ * The report id is the only thing that identifies it; the `s=` token on a
+ * browser URL is a session artefact and is deliberately NOT used here (it does
+ * not grant access and would go stale). Access is governed by the report's own
+ * sharing settings in Looker Studio, which this page cannot influence.
+ * Change LOOKER_REPORT_ID to point the panel at a different report.
+ */
+const LOOKER_REPORT_ID = 'b5c3af25-b396-4daf-aede-431d0b494793';
+const LOOKER_EMBED_URL = `https://lookerstudio.google.com/embed/reporting/${LOOKER_REPORT_ID}`;
+const LOOKER_OPEN_URL  = `https://lookerstudio.google.com/reporting/${LOOKER_REPORT_ID}`;
+
+// The direct link is wired immediately, not on mount: if the embed cannot
+// render for this viewer, opening the report in Looker Studio is the way
+// through, so that escape hatch must never depend on the embed working.
+(function wireLookerLink() {
+  const a = document.getElementById('lookerOpen');
+  if (a) a.href = LOOKER_OPEN_URL;
+})();
+
+// Loaded on first visit, not on page load: it is a third-party request, so a
+// visitor who never opens this view never makes it.
+let lookerLoaded = false;
+function mountLooker() {
+  if (lookerLoaded) return;
+  const f = $('lookerFrame');
+  if (!f) return;
+  f.src = LOOKER_EMBED_URL;
+  lookerLoaded = true;
+  // We cannot read the frame's document to detect a permission error (it is
+  // cross-origin, by design), so the guidance is surfaced rather than inferred.
+  const help = $('lookerHelp');
+  if (help) help.style.display = 'block';
+}
+
 function switchView(name) {
   STATE.view = name;
   $$('.nav-item').forEach((n) => n.classList.toggle('active', n.dataset.view === name));
   $$('.view').forEach((v) => v.classList.toggle('active', v.dataset.view === name));
   destroyCharts();
+  if (name === 'looker') mountLooker();
   rerender();
 }
 function rerender() {
