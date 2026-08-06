@@ -71,7 +71,7 @@
       var d = document;
       if (d.querySelector('script[data-vh-motion]')) return;
       var s = d.createElement('script');
-      s.src = '/motion.js?v=20260719';
+      s.src = '/motion.js?v=20260806-fx2';
       s.defer = true;
       s.setAttribute('data-vh-motion', '1');
       (d.head || d.documentElement).appendChild(s);

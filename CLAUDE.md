@@ -165,8 +165,17 @@ made — callers render an honest empty state instead of a plausible number.
   and was blind to the entire paid-media stack.
 - **Shopify is read-only three ways over:** only GET reaches Shopify hosts (`read-only-egress.js`), no
   mutating op exists in the core, and the token should be read-scoped. Gated on `LIVE_CONNECTORS` like
-  every other outbound connector. ⚠️ **`ad-insights-core.js` does NOT honour that switch** (pre-existing) —
-  it will call Meta/Google/TikTok even with `LIVE_CONNECTORS` off.
+  every other outbound connector. `ad-insights-core.js` now honours it too (Meta/Google/TikTok each
+  return `switchedOff(...)` when it is off) — an earlier note here said it did not; that is no longer true.
+- **The kill switch only works if every core actually calls it (2026-08-06).** `klaviyo-core.request()`
+  gated on `KLAVIYO_API_KEY` alone, so with a key set and `LIVE_CONNECTORS` off it called Klaviyo for real
+  while `isConnected()` — and therefore `/api/connectors-health` and every caller that asks before acting —
+  reported it not connected. Two failures at once: the safety control was silently ineffective, and the
+  health endpoint told the operator to set a key that was already set and working, sending them to fix the
+  one thing that was not broken. Now: `request()` honours the switch, `hasKey()` is exported so a probe can
+  tell "no key" from "switch off", and `probeKlaviyo()` ATTEMPTS THE READ rather than predicting it from env
+  vars. `tests/kill-switch.spec.js` asserts every outbound core both imports **and calls**
+  `liveConnectorsEnabled()`.
 
 ### Two rendering/date invariants that erode silently (2026-08-01)
 - **A stale date must never present itself as today.** `ads-snowflake-core`'s `fresh_to` is a
