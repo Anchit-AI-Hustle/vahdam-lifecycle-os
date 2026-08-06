@@ -1,0 +1,374 @@
+/* motion.css — VAHDAM Motion System v2 (loaded by motion.js on every page).
+ *
+ * WHY A SEPARATE FILE FROM theme.css
+ * theme.css must stay parse-safe and render-blocking-cheap: it carries the design
+ * tokens and the fail-safe `.vh-reveal` base that keeps content VISIBLE when JS
+ * never runs. Everything here is applied only after motion.js has added
+ * `.vh-motion-ready` to <html>, so nothing in this file can hide content on a
+ * page where the script failed.
+ *
+ * THREE DEFECTS THIS FILE IS WRITTEN TO AVOID (they are not hypothetical — the
+ * landing-page motion layer shipped all three, see tests/vahdam-motion.spec.js):
+ *   1. Everything animating at once. Reveals are per-item with a stagger, and
+ *      big <section> wrappers are never the animated element.
+ *   2. clip-path cutting copy mid-word ("ooth. Rich."). NO clip/mask reveal is
+ *      ever applied to a text run — wipes are restricted to media and rules.
+ *   3. Motion pulling content out of flow so sections stacked. Only `transform`,
+ *      `opacity` and `filter` animate. Nothing here sets position/top/left/width.
+ *
+ * BRAND LOCK: the only colours in this file are the four brand constants —
+ * #004A2B forest, #AB8743 gold, #171717 near-black, #FBF5EA cream. No section
+ * background is ever painted dark-neutral (master spec HARD rule); atmosphere is
+ * green. Decorative layers are alpha-capped so WCAG-AA contrast is preserved,
+ * and tests/motion-system.spec.js measures that rather than trusting it.
+ */
+
+:root {
+  --vh-ease-out: cubic-bezier(.16, 1, .3, 1);       /* the house rise */
+  --vh-ease-spring: cubic-bezier(.34, 1.56, .64, 1); /* overshoot, for pops */
+  --vh-m-fast: .45s;
+  --vh-m-base: .78s;
+  --vh-m-slow: 1.15s;
+  --vh-forest: #004A2B;
+  --vh-gold: #AB8743;
+  --vh-cream: #FBF5EA;
+}
+
+/* Every decorative layer this system injects. Non-interactive, never selectable,
+   never announced. A decorative layer that can swallow a click is a bug, not an
+   effect — locked by test. */
+.vh-fx {
+  pointer-events: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   1. REVEALS — native scroll-driven where the browser supports it
+   ══════════════════════════════════════════════════════════════════════════
+   `animation-timeline: view()` runs the reveal on the compositor, driven by the
+   scroller itself: no IntersectionObserver callback, no main-thread work, and it
+   tracks scroll position exactly rather than firing once at a threshold. Where it
+   is unsupported the JS observer path below drives the identical transform, so
+   the two look the same and only the smoothness differs. */
+
+html.vh-motion-ready .vh-rv {
+  will-change: opacity, transform, filter;
+}
+
+/* --- Fallback path (class toggled by IntersectionObserver) ---
+   Duration, distance, arrival angle and easing all come from per-element custom
+   properties that motion.js derives from a hash of the element (see "Humanised
+   timing" there). The literals below are only the fallback for an element the
+   script has not measured. Uniform motion is what makes a page read as
+   generated; these var()s are where that is fixed. */
+html.vh-motion-ready .vh-rv {
+  opacity: 0;
+  transition:
+    opacity var(--vh-dur, var(--vh-m-base)) var(--vh-ease, var(--vh-ease-out)) var(--vh-delay, 0ms),
+    transform var(--vh-dur, var(--vh-m-base)) var(--vh-ease, var(--vh-ease-out)) var(--vh-delay, 0ms),
+    filter var(--vh-dur, var(--vh-m-base)) var(--vh-ease, var(--vh-ease-out)) var(--vh-delay, 0ms);
+}
+html.vh-motion-ready .vh-rv[data-vh-rv="rise"]  { transform: translate3d(0, var(--vh-dy, 22px), 0) rotate(var(--vh-rot, 0deg)); }
+html.vh-motion-ready .vh-rv[data-vh-rv="slide"] { transform: translate3d(calc(var(--vh-dy, 26px) * -1.2), 0, 0) rotate(var(--vh-rot, 0deg)); }
+html.vh-motion-ready .vh-rv[data-vh-rv="scale"] { transform: scale(.955) rotate(var(--vh-rot, 0deg)); }
+html.vh-motion-ready .vh-rv[data-vh-rv="blur"]  { transform: translate3d(0, var(--vh-dy, 14px), 0) rotate(var(--vh-rot, 0deg)); filter: blur(9px); }
+/* "wipe" is media-only. It is NEVER assigned to a text run — that is defect #2. */
+html.vh-motion-ready .vh-rv[data-vh-rv="wipe"] {
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--vh-m-slow) var(--vh-ease-out) var(--vh-delay, 0ms),
+              opacity var(--vh-m-fast) linear var(--vh-delay, 0ms);
+  opacity: 1;
+}
+html.vh-motion-ready .vh-rv.vh-in {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  clip-path: inset(0 0 0 0);
+  will-change: auto;
+}
+
+/* --- Native scroll-driven path (progressive enhancement) --- */
+@supports (animation-timeline: view()) {
+  html.vh-motion-ready.vh-native .vh-rv:not(.vh-in) {
+    animation: vh-rv-rise linear both;
+    animation-timeline: view();
+    /* Start as the element enters the viewport, finish a third of the way up.
+       `cover 0%` to `cover 34%` keeps the whole reveal inside the entry, so an
+       element is fully readable well before it reaches the reading zone. */
+    animation-range: entry 0% cover 34%;
+    opacity: 1; /* the keyframes own opacity from here */
+    transition: none;
+  }
+  html.vh-motion-ready.vh-native .vh-rv[data-vh-rv="slide"]:not(.vh-in) { animation-name: vh-rv-slide; }
+  html.vh-motion-ready.vh-native .vh-rv[data-vh-rv="scale"]:not(.vh-in) { animation-name: vh-rv-scale; }
+  html.vh-motion-ready.vh-native .vh-rv[data-vh-rv="blur"]:not(.vh-in)  { animation-name: vh-rv-blur; }
+  html.vh-motion-ready.vh-native .vh-rv[data-vh-rv="wipe"]:not(.vh-in)  { animation-name: vh-rv-wipe; }
+}
+@keyframes vh-rv-rise  { from { opacity: 0; transform: translate3d(0, 22px, 0); } to { opacity: 1; transform: none; } }
+@keyframes vh-rv-slide { from { opacity: 0; transform: translate3d(-26px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes vh-rv-scale { from { opacity: 0; transform: scale(.955); } to { opacity: 1; transform: none; } }
+@keyframes vh-rv-blur  { from { opacity: 0; transform: translate3d(0, 14px, 0); filter: blur(9px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes vh-rv-wipe  { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2. KINETIC TYPE — headings arrive word by word
+   ══════════════════════════════════════════════════════════════════════════
+   Split at the WORD, never the character: a character split breaks text
+   selection, screen-reader pronunciation and search-in-page. The wrapper keeps
+   the word inline-block so it can transform, and the trailing space is a real
+   text node OUTSIDE the span so copy/paste and textContent are unchanged. */
+html.vh-motion-ready .vh-kin { }
+html.vh-motion-ready .vh-kin .vh-w {
+  display: inline-block;
+  will-change: transform, opacity;
+  opacity: 0;
+  /* The arrival angle varies per word, so the line settles like set type rather
+     than like a row of identical tiles flipping. */
+  transform: translate3d(0, .55em, 0) rotate(var(--vh-rot, 1.2deg));
+  transition: opacity calc(var(--vh-dur, .7s) * .8) var(--vh-ease-out) var(--vh-wd, 0ms),
+              transform var(--vh-dur, .78s) var(--vh-ease-out) var(--vh-wd, 0ms);
+}
+html.vh-motion-ready .vh-kin.vh-in .vh-w {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3. DEPTH — pointer-reactive tilt with a specular highlight
+   ══════════════════════════════════════════════════════════════════════════
+   Coarse pointers get none of this: there is no hover on a touchscreen, and a
+   tilt that only resolves on pointerleave would leave a card stuck skewed. */
+@media (hover: hover) and (pointer: fine) {
+  /* NO transition on transform: motion.js eases --vh-tx/--vh-ty on a rAF loop so
+     the card lags the cursor slightly and settles, the way something with mass
+     does. A CSS transition on top would fight that loop and produce a double
+     easing that feels rubbery. Box-shadow, which JS does not drive, keeps its. */
+  html.vh-motion-ready .vh-tilt {
+    transform-style: preserve-3d;
+    transition: box-shadow .4s var(--vh-ease-out);
+    transform:
+      perspective(900px)
+      rotateX(calc(var(--vh-ty, 0) * -5deg))
+      rotateY(calc(var(--vh-tx, 0) * 5deg))
+      translate3d(0, 0, 0);
+  }
+  html.vh-motion-ready .vh-tilt.vh-tilting {
+    box-shadow: 0 18px 44px -18px rgba(0, 74, 43, .38);
+  }
+  /* Specular sheen that tracks the cursor. Gold at 12% over any surface keeps
+     text contrast intact; it sits under nothing but the card's own background. */
+  html.vh-motion-ready .vh-tilt::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .35s var(--vh-ease-out);
+    background: radial-gradient(
+      circle 220px at var(--vh-px, 50%) var(--vh-py, 50%),
+      rgba(171, 135, 67, .12), rgba(171, 135, 67, 0) 62%);
+  }
+  html.vh-motion-ready .vh-tilt.vh-tilting::after { opacity: 1; }
+
+  /* Magnetic CTA — the button leans toward the cursor and springs back. */
+  html.vh-motion-ready .vh-mag {
+    transform: translate3d(var(--vh-mx, 0px), var(--vh-my, 0px), 0);
+  }
+
+  /* Spotlight — a soft forest bloom follows the cursor across a panel. */
+  html.vh-motion-ready .vh-spot { position: relative; }
+  html.vh-motion-ready .vh-spot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity .45s var(--vh-ease-out);
+    background: radial-gradient(
+      circle 300px at var(--vh-px, 50%) var(--vh-py, 50%),
+      rgba(0, 74, 43, .07), rgba(0, 74, 43, 0) 70%);
+  }
+  html.vh-motion-ready .vh-spot.vh-spotting::before { opacity: 1; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   4. MICRO-INTERACTIONS
+   ══════════════════════════════════════════════════════════════════════════ */
+/* Sheen sweep across a button on hover. `overflow:hidden` is deliberately NOT
+   set here — setting it would clip focus rings and dropdown menus on buttons
+   that host them; the gradient is sized to stay inside instead. */
+html.vh-motion-ready .vh-sheen { position: relative; isolation: isolate; }
+html.vh-motion-ready .vh-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  background: linear-gradient(105deg,
+    rgba(251, 245, 234, 0) 38%,
+    rgba(251, 245, 234, .30) 50%,
+    rgba(251, 245, 234, 0) 62%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  transition: opacity .18s linear;
+}
+html.vh-motion-ready .vh-sheen:hover::after,
+html.vh-motion-ready .vh-sheen:focus-visible::after {
+  opacity: 1;
+  animation: vh-sheen-sweep .82s var(--vh-ease-out);
+}
+@keyframes vh-sheen-sweep { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+
+/* Numbers settle rather than snap. The digits are set in tabular figures so a
+   counting value cannot change the element's width mid-count and reflow a row. */
+html.vh-motion-ready .vh-count {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   5. SCROLL PROGRESS BEAM — pure CSS scroll timeline, no JS frame loop
+   ══════════════════════════════════════════════════════════════════════════ */
+.vh-beam {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  z-index: 2147482000; /* under the nav, over page content */
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, var(--vh-forest), var(--vh-gold));
+}
+@supports (animation-timeline: scroll()) {
+  .vh-beam {
+    animation: vh-beam-grow linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+@keyframes vh-beam-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   6. ATMOSPHERE — aurora bloom + film grain
+   ══════════════════════════════════════════════════════════════════════════
+   The aurora is scoped to an "atmosphere host" (a hero/banner surface) and sits
+   INSIDE that element behind its own content, so it can never drift over a data
+   table. Alpha is capped at .07: a green wash that strong over cream moves the
+   contrast ratio of #171717 body text by under 0.2:1, which keeps every AA
+   threshold. The cap is asserted, not assumed. */
+/* THE AURORA IS A BACKGROUND-IMAGE ON THE HOST, NOT AN OVERLAY ELEMENT.
+   The first cut injected a child div at z-index:-1. Inside a host with an opaque
+   background that paints BEHIND the host's own background colour, so the effect
+   was invisible on every real page — dead code that a contrast test happily
+   passed because there was nothing there to measure.
+   `background-image` is exactly the layer wanted: CSS paints it above
+   `background-color` and below content, with no z-index, no injected node, no
+   stacking context to reason about, and no way for it to cover text. */
+html.vh-motion-ready .vh-atmos {
+  background-image:
+    radial-gradient(42% 52% at 18% 22%, rgba(0, 74, 43, .07), transparent 70%),
+    radial-gradient(36% 46% at 82% 30%, rgba(171, 135, 67, .06), transparent 72%),
+    radial-gradient(52% 58% at 52% 88%, rgba(0, 74, 43, .05), transparent 74%);
+  background-repeat: no-repeat;
+  background-size: 150% 150%, 140% 140%, 160% 160%;
+  background-position: 0% 0%, 100% 0%, 50% 100%;
+  animation: vh-aurora-drift 26s ease-in-out infinite alternate;
+}
+@keyframes vh-aurora-drift {
+  0%   { background-position: 0% 0%,    100% 0%,   50% 100%; }
+  50%  { background-position: 14% 10%,  86% 12%,   40% 88%; }
+  100% { background-position: 6% 4%,    94% 4%,    58% 96%; }
+}
+
+/* Film grain over the whole page. 3.2% of a monochrome noise tile shifts no
+   contrast ratio measurably; it removes the flat-vector look that makes a
+   gradient read as cheap. */
+.vh-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 2147481000;
+  opacity: .032;
+  mix-blend-mode: multiply;
+  background-image: var(--vh-grain-src);
+  background-size: 180px 180px;
+  animation: vh-grain-shift 7s steps(6) infinite;
+}
+@keyframes vh-grain-shift {
+  0%   { transform: translate3d(0, 0, 0); }
+  20%  { transform: translate3d(-4%, 3%, 0); }
+  40%  { transform: translate3d(3%, -4%, 0); }
+  60%  { transform: translate3d(-3%, -3%, 0); }
+  80%  { transform: translate3d(4%, 2%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   7. CROSS-PAGE VIEW TRANSITIONS
+   ══════════════════════════════════════════════════════════════════════════
+   This suite is ~56 independent HTML documents that navigate by full page load.
+   A cross-document view transition is what makes that read as one application
+   instead of a series of white flashes. Browsers without support ignore the
+   at-rule entirely and navigate exactly as before. */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: vh-vt-out .26s var(--vh-ease-out) both; }
+::view-transition-new(root) { animation: vh-vt-in .34s var(--vh-ease-out) both; }
+@keyframes vh-vt-out { to { opacity: 0; transform: scale(.994); } }
+@keyframes vh-vt-in  { from { opacity: 0; transform: scale(1.006); } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   8. THE OFF SWITCHES
+   ══════════════════════════════════════════════════════════════════════════
+   Three of them, and each must independently restore a completely static,
+   fully-readable page. `prefers-reduced-motion` is a stated accessibility need,
+   not a preference to partially honour: everything stops, including the
+   infinite ambient loops, which are the ones that actually trigger vestibular
+   symptoms. */
+@media (prefers-reduced-motion: reduce) {
+  html .vh-rv,
+  html .vh-kin .vh-w {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    clip-path: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+  html .vh-tilt, html .vh-mag { transform: none !important; transition: none !important; }
+  html .vh-tilt::after, html .vh-spot::before, html .vh-sheen::after { display: none !important; }
+  .vh-grain, html.vh-motion-ready .vh-atmos { animation: none !important; }
+  .vh-beam { animation: none !important; transform: scaleX(0) !important; }
+  @view-transition { navigation: none; }
+}
+html.vh-reduce .vh-rv,
+html.vh-reduce .vh-kin .vh-w {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+  clip-path: none !important;
+  animation: none !important;
+}
+/* Page-level opt-out: <html data-motion="off">. motion.js returns before it can
+   add any class, so this only has to neutralise anything already in the markup. */
+html[data-motion="off"] .vh-rv,
+html[data-motion="off"] .vh-kin .vh-w {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+  clip-path: none !important;
+}
+html[data-motion="off"] .vh-grain,
+html[data-motion="off"] .vh-beam { display: none !important; }
+
+/* Printing is a static medium. Nothing may be mid-reveal on paper. */
+@media print {
+  .vh-rv, .vh-kin .vh-w { opacity: 1 !important; transform: none !important; filter: none !important; clip-path: none !important; }
+  .vh-grain, .vh-beam { display: none !important; }
+  .vh-atmos { background-image: none !important; }
+}
