@@ -909,8 +909,13 @@
         }
         #lifecycle-nav .lnav-mbar-spacer { display: none; }
         #lifecycle-nav .lnav-burger {
-          background: transparent; border: 1px solid rgba(171,135,67,0.25);
-          color: #171717; border-radius: 8px; width: 34px; height: 34px;
+          /* CREAM, not near-black. The mobile bar behind this button is
+             rgba(7,14,11,0.97) - almost black - so #171717 scored 1.09:1 against
+             it and the burger was invisible. That is the control that OPENS this
+             menu, so an invisible burger reads as "the LHS menu is not showing".
+             Cream on that bar is 17.97:1. Rule: dark bar gets bright text. */
+          background: transparent; border: 1px solid rgba(171,135,67,0.5);
+          color: #FBF5EA; border-radius: 8px; width: 34px; height: 34px;
           font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
         #lifecycle-nav .lnav-mbrand { display: flex; align-items: center; gap: 8px;
@@ -934,7 +939,10 @@
         }
         #lifecycle-nav .lnav-brand {
           display: flex; align-items: center; gap: 10px; text-decoration: none;
-          padding: 4px 8px 16px; color: #AB8743;
+          /* Inherited colour must be readable on its own: gold is 2.99:1 on the
+             cream rail, so anything that fell through to it was unreadable. The
+             children set their own colours; this is the safe default. */
+          padding: 4px 8px 16px; color: #2F3A34;
         }
         /* Brand mark — refreshed leaf + steam SVG with gradient depth.
            Hover uses filter brightness so it works with the gradients
@@ -944,13 +952,13 @@
         #lifecycle-nav .lnav-mbrand:hover .lnav-mark { filter: brightness(1.15) saturate(1.05); transform: translateY(-1px); }
         #lifecycle-nav .lnav-brand .lnav-bt { display: flex; flex-direction: column; line-height: 1.15; }
         #lifecycle-nav .lnav-brand .lnav-bt b { font-family: 'Lora', serif; font-size: 14px; color: #004A2B; font-weight: 600; }
-        #lifecycle-nav .lnav-brand .lnav-bt small { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #AB8743; }
+        #lifecycle-nav .lnav-brand .lnav-bt small { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #004A2B; }
         #lifecycle-nav .lnav-head { display: flex; align-items: center; gap: 6px; }
         #lifecycle-nav .lnav-head .lnav-brand { flex: 1; padding-right: 0; }
         #lifecycle-nav .lnav-collapse {
           flex-shrink: 0; width: 26px; height: 26px; margin-bottom: 16px;
           background: transparent; border: 1px solid rgba(171,135,67,0.22); border-radius: 7px;
-          color: #556059; cursor: pointer; font-size: 14px; line-height: 1;
+          color: #2F3A34; cursor: pointer; font-size: 14px; line-height: 1;
           display: flex; align-items: center; justify-content: center; transition: all .12s;
         }
         #lifecycle-nav .lnav-collapse:hover { border-color: #AB8743; color: #171717; }
@@ -983,7 +991,7 @@
         #lifecycle-nav .lnav-section {
           padding: 14px 11px 5px; margin-top: 4px;
           font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
-          color: #6f8278;
+          color: #3A453E;
         }
         html.lnav-collapsed #lifecycle-nav .lnav-section {
           text-align: center; padding: 10px 0 4px; font-size: 0;
@@ -994,7 +1002,7 @@
         #lifecycle-nav .lnav-link {
           display: flex; align-items: center; gap: 11px;
           padding: 7px 11px; margin: 1px 0; border-radius: 9px;
-          font-size: 13px; color: #556059; text-decoration: none;
+          font-size: 13px; color: #2F3A34; text-decoration: none;
           border: 1px solid transparent; transition: all .12s;
         }
         #lifecycle-nav .lnav-link:focus-visible,
@@ -1021,7 +1029,7 @@
           color: #48524c; background: rgba(139,156,147,0.08);
         }
         #lifecycle-nav .lnav-ver.v2 {
-          color: rgba(171,135,67,0.8); background: rgba(171,135,67,0.1);
+          color: #004A2B; background: rgba(171,135,67,0.16);
         }
         html.lnav-collapsed #lifecycle-nav .lnav-ver { display: none; }
         #lifecycle-nav .lnav-link:hover { color: #171717; background: rgba(171,135,67,0.08); }
@@ -1040,14 +1048,14 @@
         #lifecycle-nav .lnav-ghead {
           width: 100%; display: flex; align-items: center; gap: 11px;
           padding: 7px 11px; border: none; background: transparent; cursor: pointer;
-          font-family: inherit; font-size: 13px; color: #556059; text-align: left; border-radius: 9px;
+          font-family: inherit; font-size: 13px; color: #2F3A34; text-align: left; border-radius: 9px;
         }
         #lifecycle-nav .lnav-ghead:hover { background: rgba(171,135,67,0.06); color: #171717; }
         /* Parent of the active sub-item ALSO reads as selected, but LIGHTER than
            the sub-item: a gold-tint fill + faint gold accent, so both show and the
            sub-item stays the darker/stronger of the two. */
         #lifecycle-nav .lnav-group.active-group .lnav-ghead { color: #004A2B; background: rgba(171,135,67,0.13); box-shadow: inset 3px 0 0 rgba(171,135,67,0.55); }
-        #lifecycle-nav .lnav-group.active-group .lnav-ghead .lnav-ic { color: #AB8743; }
+        #lifecycle-nav .lnav-group.active-group .lnav-ghead .lnav-ic { color: #004A2B; }
         #lifecycle-nav .lnav-caret { width: 15px; height: 15px; color: #48524c; transition: transform .18s; }
         #lifecycle-nav .lnav-group.open .lnav-caret { transform: rotate(180deg); }
         #lifecycle-nav .lnav-gbody { display: none; padding-left: 14px; margin-left: 8px; border-left: 1px solid rgba(171,135,67,0.14); }
@@ -1061,7 +1069,7 @@
         #lifecycle-nav .lnav-i {
           flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
           background: transparent; border: 1px solid rgba(171,135,67,0.28);
-          color: #6f8278; font-family: inherit; font-size: 10.5px; font-weight: 700; line-height: 1;
+          color: #3A453E; font-family: inherit; font-size: 10.5px; font-weight: 700; line-height: 1;
           cursor: pointer; display: flex; align-items: center; justify-content: center;
           transition: all .12s; padding: 0;
         }
@@ -1072,13 +1080,13 @@
         #lifecycle-nav .lnav-info-item {
           width: 100%; display: flex; align-items: center; gap: 8px;
           background: transparent; border: none; cursor: pointer; text-align: left;
-          font-family: inherit; font-size: 11.5px; color: #8b9c93;
+          font-family: inherit; font-size: 11.5px; color: #3A453E;
           padding: 5px 8px; border-radius: 7px; transition: all .12s;
         }
         #lifecycle-nav .lnav-info-item:hover { color: #171717; background: rgba(171,135,67,0.08); }
         #lifecycle-nav .lnav-info-n {
           flex-shrink: 0; width: 15px; height: 15px; border-radius: 4px;
-          background: rgba(171,135,67,0.14); color: #AB8743;
+          background: rgba(171,135,67,0.14); color: #004A2B;
           font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;
         }
 
@@ -1104,7 +1112,7 @@
         }
         #lifecycle-nav .lnav-ipanel-eyebrow {
           font-size: 10px; font-weight: 700; letter-spacing: 0.16em;
-          text-transform: uppercase; color: #AB8743; margin-bottom: 3px;
+          text-transform: uppercase; color: #004A2B; margin-bottom: 3px;
         }
         #lifecycle-nav .lnav-ipanel-title {
           font-family: 'Lora', Georgia, serif; font-size: 18px; font-weight: 600;
@@ -1130,7 +1138,7 @@
         }
         #lifecycle-nav .lnav-ipanel-q:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
         #lifecycle-nav .lnav-ipanel-note {
-          font-size: 11.5px; color: #AB8743; background: rgba(171,135,67,0.08);
+          font-size: 11.5px; color: #004A2B; background: rgba(171,135,67,0.08);
           border: 1px solid rgba(171,135,67,0.2); border-radius: 8px;
           padding: 8px 12px; margin: 0 0 14px;
         }
@@ -1143,7 +1151,7 @@
           content: counter(lstep); position: absolute; left: 0; top: 1px;
           width: 22px; height: 22px; border-radius: 50%;
           background: rgba(171,135,67,0.16); border: 1px solid rgba(171,135,67,0.35);
-          color: #AB8743; font-size: 10.5px; font-weight: 700;
+          color: #004A2B; font-size: 10.5px; font-weight: 700;
           display: flex; align-items: center; justify-content: center;
         }
         #lifecycle-nav .lnav-steps li:not(:last-child)::after {
@@ -1154,7 +1162,7 @@
         #lifecycle-nav .lnav-steps .lnav-step-d { display: block; font-size: 12px; color: #556059; }
         #lifecycle-nav .lnav-steps .lnav-step-via {
           display: inline-block; margin-top: 4px; font-family: 'JetBrains Mono', monospace;
-          font-size: 10px; color: #6f8278; background: rgba(171,135,67,0.08);
+          font-size: 10px; color: #3A453E; background: rgba(171,135,67,0.08);
           border-radius: 5px; padding: 2px 7px;
         }
 
