@@ -42,6 +42,7 @@ const smartbrain = require('../lib/smart-brain/services.js');
 const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
 const shopify = require('./_shared/shopify-core.js');
+const agentBuilder = require('./_shared/agent-builder-core.js');
 const adInsights = require('./_shared/ad-insights-core.js');
 const adsSnowflake = require('./_shared/ads-snowflake-core.js');
 const adsLive = require('./_shared/ads-live-core.js');
@@ -375,6 +376,33 @@ module.exports = async function handler(req, res) {
         const out = await brandLlm.chat({ message: b.message, history: b.history || [], market: b.market || (b.context && b.context.market) || 'US' });
         return res.json(out);
       }
+      // ── GOOGLE VERTEX AI AGENT BUILDER BRIDGE ──────────────────────────
+      // Agent Builder imports an OpenAPI 3.0 spec and calls the operations it
+      // describes. The spec is GENERATED from the same tool registry ChaiGPT
+      // uses, so the two can never describe different capabilities.
+      case 'agent-openapi': {
+        const origin = `https://${req.headers['x-forwarded-host'] || req.headers.host || ''}`;
+        // The spec itself is not secret (it contains no data and no key) and
+        // Agent Builder must be able to fetch it while you paste it in; every
+        // operation it describes is still key-gated at call time.
+        res.setHeader('Content-Type', 'application/json');
+        return res.json(agentBuilder.openApiSpec({ origin }));
+      }
+      case 'agent-status': {
+        return res.json(agentBuilder.status());
+      }
+      case 'agent-run': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const name = String(p.tool || req.query.tool || '').trim();
+        const raw = (p && typeof p.args === 'object' && p.args) ? p.args : p;
+        // The rewrite carries the tool name in the query string, so on a GET
+        // `action` and `tool` would otherwise be handed to the tool as arguments.
+        const args = Object.assign({}, raw);
+        delete args.action; delete args.tool;
+        const out = await agentBuilder.runTool(req, name, args);
+        return res.status(out.ok ? 200 : (out.status || 400)).json(out);
+      }
+
       case 'brand-tools': {
         return res.json({ ok: true, brand: { name: brandLlm.BRAND_LLM_NAME, tagline: brandLlm.BRAND_LLM_TAGLINE }, tools: brandLlm.toolManifest(), klaviyo_connected: klaviyo.isConnected() });
       }
@@ -763,7 +791,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, ...(await osb.dashboard()) });
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'klaviyo', 'webengage-sync', 'webengage-report', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'access-narrative', 'snowflake-sync', 'snowflake-metrics', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'agent-openapi', 'agent-status', 'agent-run', 'klaviyo', 'webengage-sync', 'webengage-report', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'access-narrative', 'snowflake-sync', 'snowflake-metrics', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);
