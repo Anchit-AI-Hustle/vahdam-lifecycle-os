@@ -88,8 +88,11 @@ async function authorize(req, { cron = false } = {}) {
 const { metaRows, googleRows, tiktokRows } = require('./ad-rows-core.js');
 
 function adKpis(rows) { const x = rows.reduce((a, r) => { a.spend += r.spend; a.impressions += r.impressions; a.clicks += r.clicks; a.conversions += r.conversions; a.revenue += r.revenue; a.reach += r.reach; return a; }, { spend:0, impressions:0, clicks:0, conversions:0, revenue:0, reach:0 }); return { ...x, ctr: rate(x.clicks,x.impressions), cpc: rate(x.spend,x.clicks), cpm: rate(x.spend*1000,x.impressions), conversion_rate: rate(x.conversions,x.clicks), cpa: rate(x.spend,x.conversions), roas: rate(x.revenue,x.spend) }; }
-async function ads({ market = 'US', level = 'ad', since, until } = {}) {
-  const raw = await adsCore.summary({ market, level, metricGroup: 'all', since, until });
+async function ads({ market = 'US', level = 'ad', since, until, account } = {}) {
+  // `account` scopes the read to ONE ad account at the connector, so a picked
+  // account costs one request instead of fetching every account and discarding
+  // the rest in the browser.
+  const raw = await adsCore.summary({ market, level, metricGroup: 'all', since, until, account });
   const platforms = (raw.platforms || []).map((p) => { let rows = []; if (p.ok && p.platform === 'meta') rows = metaRows(p); if (p.ok && p.platform === 'google') rows = googleRows(p); if (p.ok && p.platform === 'tiktok') rows = tiktokRows(p); return { platform: p.platform, connected: Boolean(p.connected), ok: Boolean(p.ok), source: p.source || null, fetched_at: p.fetched_at || null, status: p.status || null, error: p.error || null, need_env: p.need_env || [], rows, kpis: adKpis(rows), raw_note: p.hint || null }; });
   const rows = platforms.flatMap((p) => p.rows).sort((a,b) => b.spend - a.spend);
   // Fallback: when the live Snowflake read yields no rows (PAT / network-policy
@@ -109,7 +112,7 @@ async function ads({ market = 'US', level = 'ad', since, until } = {}) {
       }
     } catch (e) { /* no snapshot bundled — fall through to the live (empty) shape */ }
   }
-  return { ok: true, generated_at: iso(), market: raw.market, level: raw.level, window: raw.window, freshness: 'Fetched on request with cache disabled; source-platform processing and attribution latency still applies.', connected_platforms: raw.connected_platforms || [], pending_platforms: raw.pending_platforms || [], kpis: adKpis(rows), platforms, rows, note: raw.note };
+  return { ok: true, generated_at: iso(), market: raw.market, level: raw.level, window: raw.window, freshness: 'Fetched on request with cache disabled; source-platform processing and attribution latency still applies.', connected_platforms: raw.connected_platforms || [], pending_platforms: raw.pending_platforms || [], accounts_read: raw.accounts_read || [], account_errors: raw.account_errors || [], requested_account: raw.requested_account || null, kpis: adKpis(rows), platforms, rows, note: raw.note };
 }
 
 function metricNames(resp) { const rows = resp && resp.ok && resp.data && Array.isArray(resp.data.data) ? resp.data.data : []; return Object.fromEntries(rows.map((m) => [m.id, text(m.attributes && m.attributes.name)])); }

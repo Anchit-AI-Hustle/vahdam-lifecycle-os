@@ -32,13 +32,14 @@ function extensionTableCss() {
 }
 
 
-// Scoped to renderAds: other tab renderers also contain `var rows = ...` and
-// `body.innerHTML = kpis(`, so a file-wide indexOf breaks the moment one of
-// them is declared earlier in the file.
+// The ads table moved to the Ad Campaigns Master Dashboard (its "Live Ads
+// Intelligence" tab) so ad analysis has ONE home. These assertions follow it —
+// they are about the table's data coverage, not about which file hosts it.
+const MASTER = path.join(ROOT, 'ad-campaigns-master.html');
 function adsRowMapper(js) {
-  const fn = js.slice(js.indexOf('async function renderAds('));
-  const start = fn.indexOf('var rows = (data.rows || []).map');
-  const end = fn.indexOf('body.innerHTML = kpis(');
+  const fn = js.slice(js.indexOf('async function loadLiveIntel('));
+  const start = fn.indexOf('rows.slice(0,250).map');
+  const end = fn.indexOf('$("#li-note")');
   return (start >= 0 && end > start) ? fn.slice(start, end) : '';
 }
 
@@ -141,7 +142,7 @@ test('long identifiers wrap instead of running off, and stay within a bounded wi
 // dropped the rest. reach and frequency in particular are the only way to see
 // that a set is re-serving the same people, so their absence was not cosmetic.
 test('the ads table renders every field the ads view returns', () => {
-  const js = fs.readFileSync(path.join(ROOT, 'data-analysis-extensions.js'), 'utf8');
+  const js = fs.readFileSync(MASTER, 'utf8');
   // Ask the normaliser what it actually produces rather than grepping for
   // "field:" — shorthand properties (`spend, impressions, clicks`) never match
   // that pattern, and the old assertion only passed because unrelated object
@@ -162,13 +163,31 @@ test('the ads table renders every field the ads view returns', () => {
 });
 
 test('every ads column count matches its row width', () => {
-  const js = fs.readFileSync(path.join(ROOT, 'data-analysis-extensions.js'), 'utf8');
-  const header = js.slice(js.indexOf("table(['Platform','Level'"));
-  const cols = header.slice(0, header.indexOf('], rows')).split(',').length;
+  const js = fs.readFileSync(MASTER, 'utf8');
+  const header = js.slice(js.indexOf('[{t:"Platform"},{t:"Level"}'));
+  const cols = (header.slice(0, header.indexOf('],')).match(/\{t:"/g) || []).length;
   const cells = (adsRowMapper(js).match(/r\.[a-z_]+/g) || []).length;
   // 20 columns, and at least one field reference per column.
   expect(cols).toBe(20);
   expect(cells).toBeGreaterThanOrEqual(20);
+});
+
+// ── One entrance ────────────────────────────────────────────────────────────
+// The way features die in this repo is a consolidation that keeps the code and
+// removes the entrance. This is the inverse: the entrance was deliberately
+// consolidated, so lock BOTH halves — the master must own the view, and the old
+// host must forward rather than grow a second copy that drifts.
+test('ad analysis has exactly one LHS entrance, and the old route forwards', () => {
+  const nav = fs.readFileSync(path.join(ROOT, 'auth.js'), 'utf8');
+  const ext = fs.readFileSync(path.join(ROOT, 'data-analysis-extensions.js'), 'utf8');
+  const master = fs.readFileSync(MASTER, 'utf8');
+
+  expect(nav, 'Data Analysis must not re-add a Live Ads row').not.toContain("id: 'da-liveads'");
+  expect(nav).toContain("id: 'adsmaster'");
+  expect(ext, 'the second ads renderer must stay deleted').not.toContain('async function renderAds(');
+  expect(ext, 'the retired deep link must forward to the master').toContain("location.replace('/ads-master#liveintel')");
+  expect(master).toContain('data-p="liveintel"');
+  expect(master).toContain('id="p-liveintel"');
 });
 
 // ── The regression this replaces ────────────────────────────────────────────

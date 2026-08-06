@@ -79,6 +79,8 @@ module.exports = async function handler(req, res) {
         market: req.query.market || 'US', level: req.query.level || 'ad',
         since: req.query.since, until: req.query.until,
         hours: req.query.hours ? Number(req.query.hours) : undefined,
+        // Scope a read to one ad account (a market can hold several).
+        account: req.query.account || undefined,
       };
       return res.status(200).json(await core.view(req.query.view || 'status', params));
     } catch (e) {

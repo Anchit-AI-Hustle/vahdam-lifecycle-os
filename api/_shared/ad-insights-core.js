@@ -38,6 +38,53 @@ function envFor(base, market) {
   const mk = normMarket(market);
   return String(process.env[`${base}_${mk}`] || process.env[base] || '').trim();
 }
+// A market can hold MORE THAN ONE ad account, and the US holds several: the DTC
+// storefront account and the Target/Costco retail account are both live Meta
+// accounts with completely different scorecards (one has a pixel, the other
+// cannot attribute a purchase at all). Reading a single id per platform per
+// market therefore made most of the estate invisible to live reporting - the
+// registry lists 14 accounts and this module could reach 3.
+//
+// So the account env vars accept a LIST (comma or whitespace separated) and
+// every id is queried, with each returned row stamped with the account it came
+// from. One id keeps working exactly as before.
+function envIds(base, market) {
+  return uniq(envFor(base, market).split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean));
+}
+// Narrow a queried set to one account when the caller asked for it. An id that
+// is not configured returns an empty set rather than silently falling back to
+// every account - answering a question about account B with account A's numbers
+// is worse than answering "that account is not connected".
+function selectIds(ids, wanted) {
+  if (!wanted) return ids;
+  const w = String(wanted).replace(/^act_/, '').replace(/-/g, '');
+  return ids.filter((id) => String(id).replace(/^act_/, '').replace(/-/g, '') === w);
+}
+// Merge per-account results into the single-account response shape every caller
+// already understands, so ad-rows-core and the dashboards need no changes.
+function mergeAccounts(platform, market, level, parts, base) {
+  const okParts = parts.filter((p) => p.ok);
+  const failed = parts.filter((p) => !p.ok);
+  if (!okParts.length) {
+    // Every account failed: surface the first real error, and list them all.
+    const first = failed[0] || {};
+    return Object.assign({}, first, {
+      accounts_queried: parts.map((p) => p.account_id),
+      account_errors: failed.map((p) => ({ account_id: p.account_id, status: p.status, error: p.error })),
+    });
+  }
+  return Object.assign({
+    ok: true, connected: true, platform, market: normMarket(market), level,
+    fetched_at: new Date().toISOString(),
+  }, base, {
+    data: okParts.flatMap((p) => p.data || []),
+    accounts_queried: parts.map((p) => p.account_id),
+    accounts_ok: okParts.map((p) => p.account_id),
+    // A partial failure must never read as a complete answer.
+    account_errors: failed.map((p) => ({ account_id: p.account_id, status: p.status, error: p.error })),
+    partial: failed.length > 0,
+  });
+}
 function qs(obj) {
   return Object.entries(obj || {}).filter(([, v]) => v != null && v !== '').map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
 }
@@ -98,26 +145,31 @@ function metaMetricFields(group) {
   if (group === 'all') return uniq(Object.values(META_FIELDS).flat());
   return META_FIELDS[group] || META_FIELDS.conversion;
 }
-async function metaInsights({ market, metricGroup = 'conversion', since, until, level = 'account' } = {}) {
+async function metaInsights({ market, metricGroup = 'conversion', since, until, level = 'account', account } = {}) {
   const token = envFor('META_ACCESS_TOKEN', market);
-  const acct = envFor('META_AD_ACCOUNT_ID', market);
+  const all = envIds('META_AD_ACCOUNT_ID', market);
+  const accts = selectIds(all, account);
   const l = normLevel(level) === 'adgroup' ? 'adset' : normLevel(level);
   const fields = uniq([...(META_IDENT[l] || META_IDENT.account), ...metaMetricFields(metricGroup)]);
   const range = (since && until) ? { since, until } : defaultRange();
-  const path = `act_${acct || '{META_AD_ACCOUNT_ID}'}/insights`;
   const params = { level: l, fields: fields.join(','), time_range: JSON.stringify(range), limit: 5000 };
-  const url = `https://graph.facebook.com/${GRAPH_VER}/${path}`;
+  const url = `https://graph.facebook.com/${GRAPH_VER}/act_${accts[0] || '{META_AD_ACCOUNT_ID}'}/insights`;
   const metaNeed = ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID'];
-  if (!token || !acct) return notConnected('meta', market, { method: 'GET', url, params }, metaNeed, l);
+  if (!token || !accts.length) {
+    const nc = notConnected('meta', market, { method: 'GET', url, params }, metaNeed, l);
+    if (token && account && all.length) nc.hint = `Meta account ${account} is not in META_AD_ACCOUNT_ID for ${normMarket(market)} (configured: ${all.join(', ')}). Add it to the comma-separated list to report on it. No ad figure is fabricated.`;
+    return nc;
+  }
   if (!liveConnectorsEnabled()) return switchedOff('meta', market, { method: 'GET', url, params }, metaNeed, l);
-  const full = `${url}?${qs({ ...params, access_token: token })}`;
-  const r = await fetchJson(full);
-  if (!r.ok) return { ok: false, connected: true, platform: 'meta', market: normMarket(market), level: l, status: r.status, error: (r.json && r.json.error && r.json.error.message) || 'meta insights request failed', raw: r.json };
-  return {
-    ok: true, connected: true, platform: 'meta', market: normMarket(market), level: l,
-    metric_group: metricGroup, window: range, source: `meta_graph_insights_${GRAPH_VER}`,
-    fetched_at: new Date().toISOString(), data: (r.json && r.json.data) || [], paging: r.json && r.json.paging,
-  };
+  const parts = await Promise.all(accts.map(async (acct) => {
+    const one = `https://graph.facebook.com/${GRAPH_VER}/act_${acct}/insights`;
+    const r = await fetchJson(`${one}?${qs({ ...params, access_token: token })}`);
+    if (!r.ok) return { ok: false, account_id: acct, connected: true, platform: 'meta', market: normMarket(market), level: l, status: r.status, error: (r.json && r.json.error && r.json.error.message) || 'meta insights request failed', raw: r.json };
+    // Meta already returns account_id on every row (META_IDENT carries it at
+    // every level), so no stamping is needed here.
+    return { ok: true, account_id: acct, data: (r.json && r.json.data) || [] };
+  }));
+  return mergeAccounts('meta', market, l, parts, { metric_group: metricGroup, window: range, source: `meta_graph_insights_${GRAPH_VER}` });
 }
 
 // ── Google Ads GAQL ─────────────────────────────────────────────────────────
@@ -155,28 +207,49 @@ async function googleAccessToken(market) {
   });
   return (r.json && r.json.access_token) || null;
 }
-async function googleInsights({ market, metricGroup = 'conversion', since, until, level = 'account' } = {}) {
+async function googleInsights({ market, metricGroup = 'conversion', since, until, level = 'account', account } = {}) {
   const l = normLevel(level);
   const dev = envFor('GOOGLE_ADS_DEVELOPER_TOKEN', market);
-  const cust = envFor('GOOGLE_ADS_CUSTOMER_ID', market).replace(/-/g, '');
+  const all = envIds('GOOGLE_ADS_CUSTOMER_ID', market).map((c) => c.replace(/-/g, ''));
+  const custs = selectIds(all, account);
   const login = envFor('GOOGLE_ADS_LOGIN_CUSTOMER_ID', market).replace(/-/g, '');
   const range = (since && until) ? { since, until } : defaultRange();
   const query = gaqlFor(metricGroup, range.since, range.until, l);
-  const url = `https://googleads.googleapis.com/${GADS_VER}/customers/${cust || '{GOOGLE_ADS_CUSTOMER_ID}'}/googleAds:searchStream`;
+  const url = `https://googleads.googleapis.com/${GADS_VER}/customers/${custs[0] || '{GOOGLE_ADS_CUSTOMER_ID}'}/googleAds:searchStream`;
   const need = ['GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_CLIENT_ID', 'GOOGLE_ADS_CLIENT_SECRET', 'GOOGLE_ADS_REFRESH_TOKEN', 'GOOGLE_ADS_CUSTOMER_ID'];
-  if (!dev || !cust) return notConnected('google', market, { method: 'POST', url, headers: { 'developer-token': '{GOOGLE_ADS_DEVELOPER_TOKEN}', authorization: 'Bearer {oauth_access_token}' }, body: { query } }, need, l);
+  if (!dev || !custs.length) {
+    const nc = notConnected('google', market, { method: 'POST', url, headers: { 'developer-token': '{GOOGLE_ADS_DEVELOPER_TOKEN}', authorization: 'Bearer {oauth_access_token}' }, body: { query } }, need, l);
+    if (dev && account && all.length) nc.hint = `Google customer ${account} is not in GOOGLE_ADS_CUSTOMER_ID for ${normMarket(market)} (configured: ${all.join(', ')}). Add it to the comma-separated list to report on it. No ad figure is fabricated.`;
+    return nc;
+  }
   if (!liveConnectorsEnabled()) return switchedOff('google', market, { method: 'POST', url, body: { query } }, need, l);
   const token = await googleAccessToken(market);
   if (!token) return notConnected('google', market, { method: 'POST', url, body: { query } }, need, l);
   const headers = { authorization: `Bearer ${token}`, 'developer-token': dev, 'content-type': 'application/json' };
   if (login) headers['login-customer-id'] = login;
-  const r = await fetchJson(url, { method: 'POST', headers, body: JSON.stringify({ query }) });
-  if (!r.ok) return { ok: false, connected: true, platform: 'google', market: normMarket(market), level: l, status: r.status, error: 'google ads request failed', raw: r.json, query };
-  return {
-    ok: true, connected: true, platform: 'google', market: normMarket(market), level: l,
-    metric_group: metricGroup, window: range, source: `google_ads_api_${GADS_VER}`,
-    fetched_at: new Date().toISOString(), query, data: r.json,
-  };
+  const parts = await Promise.all(custs.map(async (cust) => {
+    const one = `https://googleads.googleapis.com/${GADS_VER}/customers/${cust}/googleAds:searchStream`;
+    const r = await fetchJson(one, { method: 'POST', headers, body: JSON.stringify({ query }) });
+    if (!r.ok) return { ok: false, account_id: cust, connected: true, platform: 'google', market: normMarket(market), level: l, status: r.status, error: 'google ads request failed', raw: r.json, query };
+    // GAQL only returns customer.id when the level selects it, so rows from a
+    // campaign/ad-group/ad query would carry no account at all and every account
+    // would collapse into one unattributable pile. Stamp the customer we asked.
+    return { ok: true, account_id: cust, data: stampGoogleCustomer(r.json, cust) };
+  }));
+  return mergeAccounts('google', market, l, parts, { metric_group: metricGroup, window: range, source: `google_ads_api_${GADS_VER}`, query });
+}
+// searchStream returns an array of chunks, each { results: [ {campaign, metrics, …} ] }.
+// Preserve that shape (ad-rows-core walks it) and only fill in a missing customer.
+function stampGoogleCustomer(json, cust) {
+  const chunks = Array.isArray(json) ? json : [json];
+  return chunks.map((chunk) => {
+    if (!chunk || !Array.isArray(chunk.results)) return chunk;
+    return Object.assign({}, chunk, {
+      results: chunk.results.map((row) => (row && row.customer && row.customer.id)
+        ? row
+        : Object.assign({}, row, { customer: Object.assign({ id: cust }, row && row.customer) })),
+    });
+  });
 }
 
 // ── TikTok Ads integrated report ─────────────────────────────────────────────
@@ -196,29 +269,48 @@ function tiktokMetricFields(group) {
   if (group === 'all') return uniq(Object.values(TIKTOK_METRICS).flat());
   return TIKTOK_METRICS[group] || TIKTOK_METRICS.conversion;
 }
-async function tiktokInsights({ market, metricGroup = 'conversion', since, until, level = 'account' } = {}) {
+async function tiktokInsights({ market, metricGroup = 'conversion', since, until, level = 'account', account } = {}) {
   const l = normLevel(level);
   const spec = TIKTOK_LEVEL[l] || TIKTOK_LEVEL.account;
   const token = envFor('TIKTOK_ACCESS_TOKEN', market);
-  const adv = envFor('TIKTOK_ADVERTISER_ID', market);
+  const all = envIds('TIKTOK_ADVERTISER_ID', market);
+  const advs = selectIds(all, account);
   const range = (since && until) ? { since, until } : defaultRange();
-  const params = {
-    advertiser_id: adv || '{TIKTOK_ADVERTISER_ID}', report_type: 'BASIC',
-    data_level: spec.dataLevel, dimensions: JSON.stringify(spec.dimensions),
+  const base = {
+    report_type: 'BASIC', data_level: spec.dataLevel, dimensions: JSON.stringify(spec.dimensions),
     metrics: JSON.stringify(tiktokMetricFields(metricGroup)), start_date: range.since, end_date: range.until,
     page_size: 1000,
   };
+  const params = Object.assign({ advertiser_id: advs[0] || '{TIKTOK_ADVERTISER_ID}' }, base);
   const url = `${TIKTOK_BASE}/report/integrated/get/`;
   const ttNeed = ['TIKTOK_ACCESS_TOKEN', 'TIKTOK_ADVERTISER_ID'];
-  if (!token || !adv) return notConnected('tiktok', market, { method: 'GET', url, params, headers: { 'Access-Token': '{TIKTOK_ACCESS_TOKEN}' } }, ttNeed, l);
+  if (!token || !advs.length) {
+    const nc = notConnected('tiktok', market, { method: 'GET', url, params, headers: { 'Access-Token': '{TIKTOK_ACCESS_TOKEN}' } }, ttNeed, l);
+    if (token && account && all.length) nc.hint = `TikTok advertiser ${account} is not in TIKTOK_ADVERTISER_ID for ${normMarket(market)} (configured: ${all.join(', ')}). Add it to the comma-separated list to report on it. No ad figure is fabricated.`;
+    return nc;
+  }
   if (!liveConnectorsEnabled()) return switchedOff('tiktok', market, { method: 'GET', url, params, headers: { 'Access-Token': '{TIKTOK_ACCESS_TOKEN}' } }, ttNeed, l);
-  const r = await fetchJson(`${url}?${qs(params)}`, { headers: { 'Access-Token': token } });
-  if (!r.ok || (r.json && r.json.code && r.json.code !== 0)) return { ok: false, connected: true, platform: 'tiktok', market: normMarket(market), level: l, status: r.status, error: (r.json && r.json.message) || 'tiktok report request failed', raw: r.json };
-  return {
-    ok: true, connected: true, platform: 'tiktok', market: normMarket(market), level: l,
-    metric_group: metricGroup, window: range, source: 'tiktok_business_report_v1.3',
-    fetched_at: new Date().toISOString(), data: (r.json && r.json.data) || r.json,
-  };
+  const parts = await Promise.all(advs.map(async (adv) => {
+    const r = await fetchJson(`${url}?${qs(Object.assign({ advertiser_id: adv }, base))}`, { headers: { 'Access-Token': token } });
+    if (!r.ok || (r.json && r.json.code && r.json.code !== 0)) return { ok: false, account_id: adv, connected: true, platform: 'tiktok', market: normMarket(market), level: l, status: r.status, error: (r.json && r.json.message) || 'tiktok report request failed', raw: r.json };
+    return { ok: true, account_id: adv, data: [stampTiktokAdvertiser((r.json && r.json.data) || r.json, adv)] };
+  }));
+  // Each part's data is the report envelope; a single account keeps the exact
+  // shape it had before, several are concatenated into one list.
+  const merged = mergeAccounts('tiktok', market, l, parts, { metric_group: metricGroup, window: range, source: 'tiktok_business_report_v1.3' });
+  if (merged.ok && Array.isArray(merged.data) && merged.data.length === 1) merged.data = merged.data[0];
+  return merged;
+}
+// advertiser_id is only a dimension at account level, so campaign/ad-group/ad
+// rows come back with no advertiser at all. Stamp the one we queried.
+function stampTiktokAdvertiser(data, adv) {
+  if (!data || !Array.isArray(data.list)) return data;
+  return Object.assign({}, data, {
+    list: data.list.map((row) => {
+      const d = (row && row.dimensions) || {};
+      return d.advertiser_id ? row : Object.assign({}, row, { dimensions: Object.assign({}, d, { advertiser_id: adv }) });
+    }),
+  });
 }
 
 function isConnected(platform, market) {
@@ -240,32 +332,44 @@ function status(market) {
     note: 'Fresh reporting is fetched read-only from each platform. Reporting freshness still follows the source platform attribution and processing latency.',
   };
 }
-async function insights({ platform, market = 'US', metricGroup = 'conversion', metric_group, since, until, level = 'account' } = {}) {
+async function insights({ platform, market = 'US', metricGroup = 'conversion', metric_group, since, until, level = 'account', account } = {}) {
   const mg = metricGroup || metric_group || 'conversion';
   const p = String(platform || '').toLowerCase();
-  const args = { market, metricGroup: mg, since, until, level };
+  const args = { market, metricGroup: mg, since, until, level, account };
   if (p === 'meta' || p === 'facebook' || p === 'instagram') return metaInsights(args);
   if (p === 'google' || p === 'google_ads' || p === 'googleads') return googleInsights(args);
   if (p === 'tiktok') return tiktokInsights(args);
   return { ok: false, error: `Unknown ad platform '${platform}'. Use one of: ${PLATFORMS.join(', ')}.` };
 }
-async function summary({ market = 'US', metricGroup = 'conversion', metric_group, since, until, level = 'account' } = {}) {
+async function summary({ market = 'US', metricGroup = 'conversion', metric_group, since, until, level = 'account', account } = {}) {
   const mg = metricGroup || metric_group || 'conversion';
   const mk = normMarket(market);
   const l = normLevel(level);
-  const results = await Promise.all(PLATFORMS.map((p) => insights({ platform: p, market: mk, metricGroup: mg, since, until, level: l }).catch((e) => ({ ok: false, platform: p, level: l, error: e.message }))));
+  const results = await Promise.all(PLATFORMS.map((p) => insights({ platform: p, market: mk, metricGroup: mg, since, until, level: l, account }).catch((e) => ({ ok: false, platform: p, level: l, error: e.message }))));
   const connected = results.filter((r) => r && r.connected && r.ok).map((r) => r.platform);
   const pending = results.filter((r) => r && r.not_connected).map((r) => r.platform);
+  // Which ad ACCOUNTS were actually read, not just which platforms. A platform
+  // reporting one of its three accounts is not the same as a platform reporting.
+  const accounts = results.flatMap((r) => (r && r.accounts_ok) || []);
+  const accountErrors = results.flatMap((r) => ((r && r.account_errors) || []).map((e) => Object.assign({ platform: r.platform }, e)));
+  const notes = [];
+  if (pending.length) notes.push(`Live figures for: ${connected.join(', ') || 'none yet'}. Awaiting credentials for: ${pending.join(', ')}.`);
+  else notes.push('Fresh figures returned from all connected platforms.');
+  if (accounts.length) notes.push(`${accounts.length} ad account${accounts.length === 1 ? '' : 's'} read: ${accounts.join(', ')}.`);
+  if (accountErrors.length) notes.push(`${accountErrors.length} account${accountErrors.length === 1 ? '' : 's'} failed and contributed nothing: ${accountErrors.map((e) => `${e.platform} ${e.account_id}`).join(', ')}.`);
+  notes.push('No ad numbers are fabricated.');
   return {
     ok: true, market: mk, level: l, metric_group: mg,
     window: (since && until) ? { since, until } : defaultRange(), fetched_at: new Date().toISOString(),
     connected_platforms: connected, pending_platforms: pending, platforms: results,
-    note: pending.length ? `Live figures for: ${connected.join(', ') || 'none yet'}. Awaiting credentials for: ${pending.join(', ')}. No ad numbers are fabricated.` : 'Fresh figures returned from all connected platforms.',
+    accounts_read: accounts, account_errors: accountErrors,
+    requested_account: account || null,
+    note: notes.join(' '),
   };
 }
 
 module.exports = {
   insights, summary, status, isConnected,
   metaInsights, googleInsights, tiktokInsights,
-  PLATFORMS, METRIC_GROUPS, LEVELS, normMarket, normLevel, envFor,
+  PLATFORMS, METRIC_GROUPS, LEVELS, normMarket, normLevel, envFor, envIds, selectIds,
 };

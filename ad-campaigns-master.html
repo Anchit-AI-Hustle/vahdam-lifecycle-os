@@ -66,6 +66,15 @@
      (right-aligned) cells stay on one line so figures stay scannable. */
   td{white-space:normal;max-width:520px}
   td[style*="text-align:right"]{white-space:nowrap;max-width:none}
+  /* max-width on a <td> is IGNORED by auto table layout, so the rule above does
+     not actually bound anything - a single unbroken token like
+     "Conversion_BCAP_Coffee_NewBuyers_2025_Q3_Broad_v4" still widens the column
+     and paints over its neighbour. The bound has to live on a BLOCK inside the
+     cell, which is what .cw is. Mirrors .xtable .cw in data-analysis-extensions.js
+     so the same row data renders identically wherever it is shown. */
+  td .cw,th .cw{display:block;max-width:240px;overflow-wrap:anywhere;word-break:break-word}
+  td .cw.wide,th .cw.wide{max-width:320px;min-width:150px}
+  td .cw.id,th .cw.id{max-width:150px;font-family:var(--mono);font-size:11.3px}
   tbody tr:nth-child(even) td{background:var(--surface-2)}
   .chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid transparent;vertical-align:middle}
   .chip.good{background:var(--good-bg);color:var(--good);border-color:var(--good)}
@@ -534,6 +543,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
 
   <div class="tabs" id="tabs">
     <button data-p="live" class="on">Live Now</button>
+    <button data-p="liveintel">Live Ads Intelligence</button>
     <button data-p="calendar">Calendar</button>
     <button data-p="tracker">Tracker</button>
     <button data-p="accounts">Accounts</button>
@@ -575,6 +585,37 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     </div>
     <div class="tbl-wrap" id="live-ads"><div class="empty">Loading…</div></div>
     <p class="note" id="live-ads-note"></p>
+  </div>
+
+  <!-- LIVE ADS INTELLIGENCE — the cross-platform reporting view, moved here from
+       the Data Analysis "Live Ads" tab so ad analysis has exactly ONE entrance in
+       the LHS. Same endpoint (/api/public-config?action=data-analysis&view=ads →
+       ad-insights-core), same normalisation (ad-rows-core), so Meta, Google and
+       TikTok agree with every other view of the same numbers. Nothing is derived
+       twice: rates come from the payload's own KPI block, which sums the additive
+       fields before dividing. -->
+  <div class="panel" id="p-liveintel">
+    <p class="eyebrow">Live ads intelligence — Meta, Google and TikTok, account through ad level, fetched on request with caching disabled</p>
+    <div class="bar" id="li-controls">
+      <span id="li-regionacct"></span>
+      <label>Level<select id="li-level">
+        <option value="ad">Ad</option>
+        <option value="adset">Ad set / ad group</option>
+        <option value="campaign">Campaign</option>
+        <option value="account">Account</option>
+      </select></label>
+      <label>From<input type="date" id="li-since"></label>
+      <label>To<input type="date" id="li-until"></label>
+      <label>&nbsp;<button class="btn ghost" id="li-refresh" style="cursor:pointer;font-family:inherit">Refresh now</button></label>
+      <span class="srcchip" id="li-src">source: —</span>
+    </div>
+    <div class="cards" id="li-kpis"><div class="empty">Open this tab to load live platform reporting.</div></div>
+    <p class="eyebrow">Connector status — only a connected platform contributes a figure</p>
+    <div class="cards" id="li-connectors"></div>
+    <div class="notice" id="li-contract"></div>
+    <p class="eyebrow">Ranked by spend — every field the platform returns at this level</p>
+    <div class="tbl-wrap" id="li-tbl"><div class="empty">Not loaded yet.</div></div>
+    <p class="note" id="li-note"></p>
   </div>
 
   <div class="panel" id="p-calendar">
@@ -619,6 +660,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     <p class="eyebrow">The ad-account estate — what each account is, what it is for, and what it can be judged on</p>
     <div class="cards" id="acct-cards"></div>
     <div class="notice" id="acct-kpi-note"></div>
+    <div class="bar"><span id="acct-regionacct"></span></div>
     <div class="chipbar" id="acct-filters"></div>
     <div id="acct-live"></div>
     <p class="eyebrow">Every feed in the warehouse</p>
@@ -639,6 +681,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
        report knows about is reachable so the scope stays visible. -->
   <div class="panel" id="p-revenue">
     <p class="eyebrow">Revenue analysis — every cut, paid media first. A cut with no connected source says so rather than showing zeroes.</p>
+    <div class="bar"><span id="rev-regionacct"></span></div>
     <div class="cards" id="rev-kpis"><div class="empty">Loading…</div></div>
     <div class="notice" id="rev-accounts"></div>
     <div class="chipbar" id="rev-cutnav"></div>
@@ -845,7 +888,8 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       <div class="cal-head" style="justify-content:space-between;align-items:center">
         <h3 style="font-family:'Lora',serif;font-size:18px;font-weight:600;margin:0">Ad calendar — the Vahdam Brain plan</h3>
         <div style="display:flex;gap:8px;align-items:center">
-          <div id="ad-mkt" style="display:flex;gap:4px"></div>
+          <div id="ad-mkt" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"></div>
+          <p class="note" id="ad-acct-note" style="margin:6px 0 0"></p>
           <button class="btn btn-ghost" id="ad-refresh" title="Reload the plan">↻</button>
         </div>
       </div>
@@ -877,6 +921,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         </div>
         <div class="row">
           <div><label class="label">Market</label><select id="g-market"><option>US</option><option>UK</option><option>IN</option><option>Global</option><option>EU</option><option>AU</option><option>ME</option></select></div>
+          <div><label class="label">Ad account</label><select id="g-account"><option value="">Loading accounts…</option></select></div>
           <div><label class="label">Final URL</label><input id="g-url" placeholder="/landing"></div>
         </div>
         <label class="label">Keywords (comma-separated)</label>
@@ -929,6 +974,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         </div>
         <div class="row">
           <div><label class="label">Market</label><select id="m-market"><option>US</option><option>UK</option><option>IN</option><option>Global</option><option>EU</option><option>AU</option><option>ME</option></select></div>
+          <div><label class="label">Ad account</label><select id="m-account"><option value="">Loading accounts…</option></select></div>
           <div><label class="label">Placements</label><select id="m-place"><option>Advantage+ (all)</option><option>Feed</option><option>Stories/Reels</option><option>Manual</option></select></div>
         </div>
         <label class="label">Audience</label>
@@ -982,6 +1028,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         </div>
         <div class="row">
           <div><label class="label">Market</label><select id="t-market"><option>US</option><option>UK</option><option>IN</option><option>Global</option><option>AU</option><option>ME</option></select></div>
+          <div><label class="label">Ad account</label><select id="t-account"><option value="">Loading accounts…</option></select></div>
           <div><label class="label">Placement</label><select id="t-place"><option>TikTok In-Feed</option><option>Spark Ads</option><option>TopView</option><option>Pangle Network</option></select></div>
         </div>
         <label class="label">Audience</label>
@@ -1035,6 +1082,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     <div class="row">
       <div><label class="label">Budget</label><input id="dm-budget" type="number" placeholder="50"></div>
       <div><label class="label">Market</label><select id="dm-market"><option>US</option><option>UK</option><option>IN</option><option>Global</option><option>EU</option><option>AU</option><option>ME</option></select></div>
+          <div><label class="label">Ad account</label><select id="dm-account"><option value="">Loading accounts…</option></select></div>
     </div>
     <div class="btn-row">
       <button class="btn btn-ghost" data-close>Cancel</button>
@@ -1630,6 +1678,98 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   var REG=null, ACCTLIVE=null, LVACCT='', RETAIL=null, UGCLIB=null;
   var LIVE_ADS_MARKETS=["US","UK"], ADS_SOURCE="snapshot", LIVE_ADS_LOADED=false;
 
+  // ── Region → ad-account mapping (one registry, every selector) ─────────────
+  // data/ads/ad-accounts.json is the real estate: 19 warehouse FEEDS covering 14
+  // distinct ad ACCOUNTS across meta / google / target_roundel / tiktok, each row
+  // carrying its region, account_id, label, status, kpi and attribution model.
+  //
+  // Feeds are not accounts. The same account_id appears more than once (a live
+  // Maplemonk feed plus a superseded Datachannel mirror of the same Meta account;
+  // Google 9797311905 twice, campaign level and ad level). A picker listing feeds
+  // would show the same account two or three times and invite someone to "select"
+  // a retired mirror, so accounts are deduped on platform+account_id and the
+  // most-usable row wins. Feed count rides along, because "2 feeds" is exactly
+  // why the same account can report two different numbers.
+  var ACCT_STATUS_RANK={live:0,paused:1,stale:2,superseded:3,archive:4};
+  function acctRows(){ return (REG&&Array.isArray(REG.accounts))?REG.accounts:[]; }
+  function acctRegions(){
+    var seen={},out=[];
+    acctRows().forEach(function(a){ var r=String(a.region||"").toUpperCase(); if(r&&!seen[r]){seen[r]=1;out.push(r);} });
+    return out;
+  }
+  function acctsFor(region){
+    var want=String(region||"").toUpperCase(), by={};
+    acctRows().forEach(function(a){
+      if(want&&want!=="ALL"&&String(a.region||"").toUpperCase()!==want) return;
+      var key=String(a.platform||"")+"|"+String(a.account_id||a.id||"");
+      var rank=ACCT_STATUS_RANK[a.status];
+      if(rank==null) rank=9;
+      if(!by[key]){ by[key]={acct:a,rank:rank,feeds:1}; return; }
+      by[key].feeds++;
+      if(rank<by[key].rank){ by[key].acct=a; by[key].rank=rank; }
+    });
+    return Object.keys(by).map(function(k){
+      var e=by[k];
+      return { id:e.acct.id, account_id:e.acct.account_id||"", label:e.acct.label||e.acct.id,
+        platform:String(e.acct.platform||""), region:String(e.acct.region||"").toUpperCase(),
+        status:e.acct.status||"", kpi:e.acct.kpi||"", currency:e.acct.currency||"", feeds:e.feeds };
+    }).sort(function(x,y){
+      var r=(ACCT_STATUS_RANK[x.status]==null?9:ACCT_STATUS_RANK[x.status])-(ACCT_STATUS_RANK[y.status]==null?9:ACCT_STATUS_RANK[y.status]);
+      return r||x.platform.localeCompare(y.platform)||x.label.localeCompare(y.label);
+    });
+  }
+  // Two dependent selects: region first, ad accounts for THAT region beneath it.
+  // Rendered from the registry, never from a hardcoded list, so an account added
+  // to ad-accounts.json appears in every picker at once. Accounts are grouped by
+  // platform and labelled with the real account id, because two Vahdam accounts
+  // can carry near-identical names and only the id disambiguates them.
+  //
+  // opts.allRegions adds an "All regions" choice. Views that filter data already
+  // held on the page can honour it; the live-reporting view cannot, because the
+  // platform APIs are queried one market at a time and a fabricated "all" would
+  // be a sum of windows that were never fetched together.
+  function regionAccountControl(hostSel, state, onChange, opts){
+    var host=$(hostSel); if(!host) return;
+    opts=opts||{};
+    var regions=acctRegions();
+    if(!regions.length){ host.innerHTML="<label>Region<select disabled><option>registry unavailable</option></select></label>"; return; }
+    if(opts.allRegions) regions=["ALL"].concat(regions);
+    if(regions.indexOf(state.region)<0) state.region=regions[0];
+    var list=acctsFor(state.region);
+    if(state.account&&!list.some(function(a){return a.account_id===state.account;})) state.account="";
+    var groups={},order=[];
+    list.forEach(function(a){ if(!groups[a.platform]){groups[a.platform]=[];order.push(a.platform);} groups[a.platform].push(a); });
+    var optionHtml=order.map(function(p){
+      return "<optgroup label='"+esc(p.toUpperCase())+"'>"+groups[p].map(function(a){
+        var tail=[a.account_id||"no id",a.status,a.feeds>1?a.feeds+" feeds":""].filter(Boolean).join(" · ");
+        return "<option value='"+esc(a.account_id)+"'"+(state.account===a.account_id?" selected":"")+">"+esc(a.label)+" — "+esc(tail)+"</option>";
+      }).join("")+"</optgroup>";
+    }).join("");
+    host.innerHTML=
+      "<label>Region<select data-ra='region'>"+regions.map(function(r){
+        return "<option value='"+esc(r)+"'"+(state.region===r?" selected":"")+">"+(r==="ALL"?"All regions":esc(r))+" ("+acctsFor(r).length+" accounts)</option>";
+      }).join("")+"</select></label>"+
+      "<label>Ad account<select data-ra='account'><option value=''>All "+(state.region==="ALL"?"":esc(state.region)+" ")+"accounts ("+list.length+")</option>"+optionHtml+"</select></label>";
+    host.querySelector("select[data-ra='region']").onchange=function(e){
+      state.region=e.target.value; state.account="";
+      regionAccountControl(hostSel,state,onChange,opts); onChange(state);
+    };
+    host.querySelector("select[data-ra='account']").onchange=function(e){
+      state.account=e.target.value; onChange(state);
+    };
+  }
+  // A row belongs to the selected account when its account id matches. Platform
+  // payloads spell the field differently and Meta prefixes "act_", so compare on
+  // the digits. Returns true when nothing is selected: "All accounts" must never
+  // silently filter everything out.
+  function rowInAccount(r,accountId){
+    if(!accountId) return true;
+    var want=String(accountId).replace(/^act_/,"");
+    var got=[r.account_id,r.account,r.advertiser_id,r.customer_id].filter(function(v){return v!=null&&v!=="";});
+    if(!got.length) return true;
+    return got.some(function(v){ return String(v).replace(/^act_/,"")===want; });
+  }
+
   // ── Charts: dependency-free inline SVG. Every chart is preceded by ALWAYS
   // visible duration tiles (7D/14D/30D/60D/All) wired through rangeTiles().
   function rangeTiles(host, opts, current, onPick){
@@ -1856,7 +1996,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   }
   function revGet(view){
     return revToken().then(function(tok){
-      return fetch("/api/public-config?action=data-analysis&view="+view+"&market=US",
+      return fetch("/api/public-config?action=data-analysis&view="+view+"&market="+encodeURIComponent(REVSEL.region||"US"),
         { cache:"no-store", credentials:"same-origin", headers: tok?{authorization:"Bearer "+tok}:{} })
         .then(function(r){ return r.text().then(function(t){
           try { var j=JSON.parse(t); if(!r.ok) j.__http=r.status; return j; }
@@ -1962,7 +2102,14 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     var b=document.getElementById("rev-retry");
     if(b) b.onclick=function(){ REV_LOADED=true; loadRevenue(); };
   }
+  // The revenue report and the platform agents are both fetched per market, so
+  // this picker re-queries rather than filtering client side.
+  var REVSEL={region:"US",account:""}, REV_RA_BOUND=false;
   function loadRevenue(){
+    if(!REV_RA_BOUND&&REG){
+      REV_RA_BOUND=true;
+      regionAccountControl("#rev-regionacct",REVSEL,function(){ REVDATA=null; AGENTDATA=null; loadRevenue(); });
+    }
     revGet("revenue").then(function(j){
       if(j&&(j.__http===401||j.__http===403)){ revFailed("Sign in with a VAHDAM operator account to load the revenue report."); return; }
       // Any other failure shape must ALSO un-latch: the endpoint wraps server
@@ -2097,7 +2244,9 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   // for each account rather than leaving a reader to read a structural zero as a
   // failure. The registry comes from adAccounts() in ads-snowflake-core, emitted
   // to /data/ads/ad-accounts.json at build so the tab renders with no backend.
-  var ACCTFILTER={status:'live',platform:''};
+  // Region is the first cut of the estate and the account is the second, so the
+  // same two-level picker used everywhere else drives this tab's filters too.
+  var ACCTFILTER={status:'live',platform:'',region:'ALL',account:''}, ACCT_RA_BOUND=false;
   function acctById(id){ return ((REG&&REG.accounts)||[]).filter(function(a){return a.id===id;})[0]||null; }
   function kpiChip(k){
     return k==='roas'
@@ -2138,6 +2287,13 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     $("#acct-kpi-note").innerHTML="<b>Two kinds of account, two kinds of scorecard.</b> "+
       esc((REG.kpis&&REG.kpis.roas)||"")+" "+esc((REG.kpis&&REG.kpis.traffic)||"");
 
+    // Region + ad account, then the chip filters. Rebuilt on every render so the
+    // account list always matches the region actually selected.
+    if(!ACCT_RA_BOUND){
+      ACCT_RA_BOUND=true;
+      regionAccountControl("#acct-regionacct",ACCTFILTER,function(){ renderAccounts(); },{allRegions:true});
+    }
+
     // Chip filters, UGC-dashboard style.
     var plats=[''].concat(Object.keys(byPlat));
     var sts=['live','all','paused','superseded','stale','archive'];
@@ -2147,8 +2303,14 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       "<span class='cblab' style='margin-left:10px'>Platform</span>"+plats.map(function(x){
         return "<button class='cb"+(ACCTFILTER.platform===x?" on":"")+"' data-af='platform' data-v='"+esc(x)+"'>"+esc(x||'All')+"</button>";}).join("");
 
-    // Live-account cards with the observed figures we actually have.
-    var liveCards=live.map(function(a){
+    // Live-account cards with the observed figures we actually have. The KPI
+    // tiles above stay estate-wide on purpose (they describe the whole estate);
+    // these cards follow the region/account picker.
+    var liveCards=live.filter(function(a){
+      if(ACCTFILTER.region&&ACCTFILTER.region!=='ALL'&&String(a.region||'').toUpperCase()!==ACCTFILTER.region)return false;
+      if(ACCTFILTER.account&&String(a.account_id||'')!==ACCTFILTER.account)return false;
+      return true;
+    }).map(function(a){
       var o=acctObserved(a.id);
       var m1=o?money0(o.spend):"—", m1k="Spend observed";
       var m2 = a.kpi==='roas'
@@ -2170,11 +2332,18 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
             "<div class='id'>no observed rows in the loaded window</div>")+
         "</div>";
     }).join("");
-    $("#acct-live").innerHTML="<p class='eyebrow'>Live accounts — what each is delivering</p><div class='acctgrid'>"+liveCards+"</div>";
+    $("#acct-live").innerHTML="<p class='eyebrow'>Live accounts — what each is delivering</p>"+
+      (liveCards?"<div class='acctgrid'>"+liveCards+"</div>":"<div class='empty'>No live account matches the selected region and ad account.</div>");
 
+    // The feed table keeps EVERY feed for the selected account, including the
+    // superseded mirrors the picker hides. That is the point of this table: it is
+    // where you see that one account reports through two feeds and which of them
+    // is authoritative.
     var rows=reg.filter(function(a){
       if(ACCTFILTER.status!=='all'&&a.status!==ACCTFILTER.status)return false;
       if(ACCTFILTER.platform&&a.platform!==ACCTFILTER.platform)return false;
+      if(ACCTFILTER.region&&ACCTFILTER.region!=='ALL'&&String(a.region||'').toUpperCase()!==ACCTFILTER.region)return false;
+      if(ACCTFILTER.account&&String(a.account_id||'')!==ACCTFILTER.account)return false;
       return true;
     });
     $("#acct-tbl").innerHTML=table(
@@ -3090,6 +3259,9 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     if((b.dataset.p==="campaigns"||b.dataset.p==="overview")&&!LIVE_ADS_LOADED){ LIVE_ADS_LOADED=true; refreshLiveAds(); }
     // Same deal for the revenue report: two authenticated calls, only on open.
     if(b.dataset.p==="revenue"&&!REV_LOADED){ REV_LOADED=true; loadRevenue(); }
+    // Live Ads Intelligence builds its region/account picker from the registry,
+    // so it can only initialise once ad-accounts.json has landed.
+    if(b.dataset.p==="liveintel"&&REG) initLiveIntel();
   });
   // Cut switcher for the revenue report.
   document.getElementById("rev-cutnav").addEventListener("click",function(e){
@@ -3183,6 +3355,141 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     }catch(_){/* keep the committed snapshot already rendered */}
   }
 
+  // ── Live Ads Intelligence tab ─────────────────────────────────────────────
+  // The full cross-platform reporting view. Every field the payload carries is
+  // rendered: level, entity_id, cpm, conversion_rate, reach and frequency were
+  // all dropped by an earlier version of this table, and reach/frequency are the
+  // only way to see a set re-serving the same people. Nothing is derived here
+  // that the payload does not already compute from summed additive fields.
+  var LI={region:"",account:"",loaded:false,timer:null};
+  function dec(v,d){ return v==null?"—":Number(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}); }
+  function rate(v){ return v==null?"—":pct(Number(v)*100); }
+  function roasf(v){ return v==null?"—":Number(v).toLocaleString("en-US",{maximumFractionDigits:2})+"×"; }
+  function liKpis(k){
+    k=k||{};
+    return [card("Spend",money(k.spend)),card("Revenue",money(k.revenue)),card("ROAS",roasf(k.roas)),
+      card("Impressions",intf(k.impressions)),card("Reach",intf(k.reach)),card("Clicks",intf(k.clicks)),
+      card("CTR",rate(k.ctr)),card("CPC",money(k.cpc)),card("CPM",money(k.cpm)),
+      card("Conversions",dec(k.conversions,2)),card("CVR",rate(k.conversion_rate)),card("CPA",money(k.cpa))].join("");
+  }
+  function liConnectors(platforms){
+    if(!platforms||!platforms.length) return "<div class='empty'>No platform reported.</div>";
+    return platforms.map(function(p){
+      var live=p.connected&&p.ok;
+      var state=live?"live":(p.connected?"error":"not connected");
+      var detail=[];
+      if(p.error) detail.push(esc(p.error));
+      // The blocker names the exact env vars, so the fix is a task not a hunt.
+      if(!p.connected&&p.need_env&&p.need_env.length) detail.push("Needs: "+esc(p.need_env.join(", ")));
+      if(p.source) detail.push("source: "+esc(p.source));
+      if(p.fetched_at) detail.push("fetched "+esc(String(p.fetched_at).replace("T"," ").slice(0,16)));
+      return "<div class='sc'><div class='k'>"+esc(String(p.platform||"").toUpperCase())+
+        " <span class='chip"+(live?"":" warn")+"'>"+esc(state)+"</span></div>"+
+        "<div class='v' style='font-size:1.15rem'>"+intf((p.rows||[]).length)+" rows</div>"+
+        (detail.length?"<div class='note' style='margin-top:4px'>"+detail.join(" · ")+"</div>":"")+"</div>";
+    }).join("");
+  }
+  async function loadLiveIntel(){
+    var kh=$("#li-kpis"), tb=$("#li-tbl"), btn=$("#li-refresh");
+    if(!kh||!tb) return;
+    if(btn){ btn.disabled=true; btn.textContent="Refreshing…"; }
+    try{
+      var token=await liveAdsToken(), headers=token?{authorization:"Bearer "+token}:{};
+      var q="/api/public-config?action=data-analysis&view=ads&market="+encodeURIComponent(LI.region||"US")+
+        "&level="+encodeURIComponent($("#li-level").value||"ad");
+      // Scope the READ, not just the render: one account means one platform
+      // request instead of fetching the whole estate and discarding most of it.
+      if(LI.account) q+="&account="+encodeURIComponent(LI.account);
+      var since=$("#li-since").value, until=$("#li-until").value;
+      if(since) q+="&since="+encodeURIComponent(since);
+      if(until) q+="&until="+encodeURIComponent(until);
+      var res=await fetch(q,{cache:"no-store",headers:headers});
+      if(!res.ok){
+        // An unauthenticated visitor gets 401 here by design (this endpoint is
+        // operator-gated). Say which it is rather than rendering an empty table
+        // that reads as "no ads ran".
+        kh.innerHTML="<div class='empty'>"+(res.status===401||res.status===403
+          ? "Sign in with a VAHDAM operator account to read live platform reporting (HTTP "+res.status+")."
+          : "Live reporting is not reachable from here (HTTP "+res.status+").")+"</div>";
+        tb.innerHTML="<div class='empty'>No live rows loaded.</div>";
+        return;
+      }
+      var d=await res.json();
+      var all=Array.isArray(d.rows)?d.rows:[];
+      var rows=all.filter(function(r){ return rowInAccount(r,LI.account); });
+      $("#li-src").textContent="source: "+(d.cached?"cached snapshot":"live platform read");
+      kh.innerHTML=liKpis(rows.length===all.length?d.kpis:liRecalc(rows));
+      $("#li-connectors").innerHTML=liConnectors(d.platforms);
+      $("#li-contract").innerHTML="<b>Reporting contract.</b> "+esc(d.freshness||"")+
+        " Market <b>"+esc(d.market||LI.region)+"</b> · level <b>"+esc(d.level||"")+"</b> · window <b>"+
+        esc((d.window&&d.window.since)||"—")+" → "+esc((d.window&&d.window.until)||"—")+"</b> · generated "+
+        esc(String(d.generated_at||"").replace("T"," ").slice(0,16))+
+        // Which ACCOUNTS were read, not just which platforms answered. A platform
+        // that returned one of its three accounts is not a platform fully read.
+        (d.accounts_read&&d.accounts_read.length?" · accounts read: <b>"+esc(d.accounts_read.join(", "))+"</b>":"")+
+        (d.pending_platforms&&d.pending_platforms.length?" · pending: "+esc(d.pending_platforms.join(", ")):"")+
+        (d.account_errors&&d.account_errors.length
+          ? "<br><b>Partial.</b> These accounts failed and contributed nothing: "+
+            esc(d.account_errors.map(function(e){return e.platform+" "+e.account_id+(e.error?" ("+e.error+")":"");}).join(" · "))
+          : "");
+      if(!rows.length){
+        tb.innerHTML="<div class='empty'>"+(all.length
+          ? "No rows for the selected ad account in this window."
+          : "No rows returned. Connect a platform above, or widen the window.")+"</div>";
+      } else {
+        tb.innerHTML=table(
+          [{t:"Platform"},{t:"Level"},{t:"Entity"},{t:"Entity ID"},{t:"Campaign"},{t:"Ad group / set"},{t:"Status"},
+           {t:"Spend",r:1},{t:"Impressions",r:1},{t:"Reach",r:1},{t:"Frequency",r:1},{t:"Clicks",r:1},{t:"CTR",r:1},
+           {t:"CPC",r:1},{t:"CPM",r:1},{t:"Conversions",r:1},{t:"CVR",r:1},{t:"CPA",r:1},{t:"Revenue",r:1},{t:"ROAS",r:1}],
+          rows.slice(0,250).map(function(r){
+            return ["<div class='cw'>"+esc(String(r.platform||"").toUpperCase())+"</div>",esc(r.level||"—"),
+              "<div class='cw wide'>"+esc(r.entity||"—")+"</div>","<div class='cw id'>"+esc(r.entity_id||"—")+"</div>",
+              "<div class='cw wide'>"+esc(r.campaign||"—")+"</div>","<div class='cw wide'>"+esc(r.ad_group||"—")+"</div>",
+              esc(r.status||"—"),money(r.spend),intf(r.impressions),intf(r.reach),dec(r.frequency,2),intf(r.clicks),
+              rate(r.ctr),money(r.cpc),money(r.cpm),dec(r.conversions,2),rate(r.conversion_rate),money(r.cpa),
+              money(r.revenue),roasf(r.roas)];
+          }));
+      }
+      $("#li-note").textContent=(rows.length===all.length?rows.length+" rows":rows.length+" of "+all.length+" rows (filtered to the selected ad account)")+
+        (d.note?" · "+d.note:"")+" · showing at most 250.";
+    }catch(e){
+      kh.innerHTML="<div class='empty'>Live reporting failed: "+esc(e&&e.message||String(e))+"</div>";
+    }finally{ if(btn){ btn.disabled=false; btn.textContent="Refresh now"; } }
+  }
+  // Recompute the KPI block when an account filter narrows the rows. Rates are
+  // derived from the SUMS, never averaged from per-row rates (averaging a rate
+  // across rows of different size is simply a different, wrong number).
+  function liRecalc(rows){
+    var a={spend:0,impressions:0,clicks:0,conversions:0,revenue:0,reach:0};
+    rows.forEach(function(r){
+      a.spend+=Number(r.spend)||0; a.impressions+=Number(r.impressions)||0; a.clicks+=Number(r.clicks)||0;
+      a.conversions+=Number(r.conversions)||0; a.revenue+=Number(r.revenue)||0; a.reach+=Number(r.reach)||0;
+    });
+    var q=function(n,d){ return d?n/d:null; };
+    return Object.assign(a,{ctr:q(a.clicks,a.impressions),cpc:q(a.spend,a.clicks),cpm:q(a.spend*1000,a.impressions),
+      conversion_rate:q(a.conversions,a.clicks),cpa:q(a.spend,a.conversions),roas:q(a.revenue,a.spend)});
+  }
+  function initLiveIntel(){
+    if(LI.loaded) return; LI.loaded=true;
+    // Default to ALL available history, not the API's 30-day default. Live rows
+    // start in 2024, and a 30-day window silently hid every earlier year — which
+    // reads as "we did not run ads then" rather than "you are looking at a month".
+    if(!$("#li-since").value) $("#li-since").value="2020-01-01";
+    if(!$("#li-until").value) $("#li-until").value=new Date().toISOString().slice(0,10);
+    regionAccountControl("#li-regionacct",LI,function(){ loadLiveIntel(); });
+    $("#li-level").onchange=loadLiveIntel;
+    $("#li-since").onchange=loadLiveIntel;
+    $("#li-until").onchange=loadLiveIntel;
+    $("#li-refresh").onclick=loadLiveIntel;
+    loadLiveIntel();
+    // Refresh only while this tab is the active view — a background poll against
+    // an operator-gated endpoint is wasted quota.
+    LI.timer=setInterval(function(){
+      var t=document.querySelector("#tabs button.on");
+      if(t&&t.dataset.p==="liveintel") loadLiveIntel();
+    },60000);
+  }
+
   Promise.all([
     fetch("/data/ads/master-kb.json",{cache:"no-store"}).then(function(r){return r.json();}),
     fetch("/data/ads/target-ads-meta-2026-07-20.json",{cache:"no-store"}).then(function(r){return r.json();}),
@@ -3191,6 +3498,19 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     fetch("/data/ads/ugc-june-usa-2026-06.json",{cache:"no-store"}).then(function(r){return r.json();}).catch(function(){return null;})
   ]).then(function(res){
     KB=res[0]; ADS=res[1]; SNAP=res[2]; REG=res[3]; UGCLIB=res[4];
+    // Every region the account registry actually knows, not a hardcoded pair.
+    // It was ["US","UK"], so the two live India accounts (Meta 70950428, Google
+    // 7719984554) were never fetched by any view on this page.
+    if(REG&&acctRegions().length) LIVE_ADS_MARKETS=acctRegions();
+    // The Creative Studio runs in its OWN <script> block (separate scope), so it
+    // cannot see acctsFor/REG directly. Publish the registry once and announce
+    // it, rather than duplicating the mapping in the second block — two copies of
+    // a region→account map is exactly how the two halves of this page would start
+    // disagreeing about which accounts exist.
+    if(REG){
+      window.__ADS_ACCOUNTS={ regions:acctRegions, forRegion:acctsFor, raw:REG };
+      document.dispatchEvent(new CustomEvent("ads-registry-ready"));
+    }
     renderOverview(); renderCampaigns(); renderCreative(); renderOrganic(); renderKB(); renderOps(); renderSOP();
     // Open on the real today so the panel agrees with the grid's TODAY cell;
     // it explains the gap itself when the snapshot does not reach that far.
@@ -3277,6 +3597,51 @@ try{
       'OUTPUT: clean sections, ready to paste into the ' + platform + ' ad builder. No preamble.'
     ].filter(Boolean).join('\n') + SELF_CHECK;
   }
+  // ── Ad-account pickers on the creation forms ──────────────────────────────
+  // Every market selector on this page is followed by the ad accounts mapped to
+  // that market in data/ads/ad-accounts.json, narrowed to the platform the form
+  // is for. A market with no mapped account says so instead of offering a blank
+  // dropdown, because "Global" and "EU" genuinely have no ad account yet and
+  // pretending otherwise is how a creative gets built for a account that cannot
+  // run it.
+  const CRE_ACCT_PLATFORM = { g: 'google', m: 'meta', t: 'tiktok' };
+  function fillAccountSelect(selId, market, platform) {
+    const el = document.getElementById(selId); if (!el) return;
+    const reg = window.__ADS_ACCOUNTS;
+    if (!reg) { el.innerHTML = "<option value=''>Account registry not loaded</option>"; el.disabled = true; return; }
+    const prev = el.value;
+    const list = reg.forRegion(market).filter((a) => !platform || a.platform === platform);
+    if (!list.length) {
+      el.innerHTML = "<option value=''>No " + esc(platform || 'ad') + ' account mapped to ' + esc(market) + '</option>';
+      el.disabled = true; return;
+    }
+    el.disabled = false;
+    el.innerHTML = "<option value=''>Not tied to one account</option>" + list.map((a) =>
+      "<option value='" + esc(a.account_id) + "'>" + esc(a.label) + ' — ' + esc(a.account_id) +
+      (a.kpi ? ' · judged on ' + esc(a.kpi) : '') + '</option>').join('');
+    if (prev && list.some((a) => a.account_id === prev)) el.value = prev;
+  }
+  function bindCreativeAccounts() {
+    ['g', 'm', 't'].forEach((p) => {
+      const ms = document.getElementById(p + '-market'); if (!ms) return;
+      const sync = () => fillAccountSelect(p + '-account', ms.value, CRE_ACCT_PLATFORM[p]);
+      ms.addEventListener('change', sync); sync();
+    });
+    const dmM = document.getElementById('dm-market'), dmC = document.getElementById('dm-channel');
+    if (dmM) {
+      const sd = () => fillAccountSelect('dm-account', dmM.value, dmC && dmC.value !== 'other' ? dmC.value : '');
+      dmM.addEventListener('change', sd); if (dmC) dmC.addEventListener('change', sd); sd();
+    }
+  }
+  // The registry may land before or after this block parses, so handle both.
+  function onAdsRegistry() {
+    bindCreativeAccounts();
+    // The plan bar builds its region tiles from the registry too. Both functions
+    // are declared in this same block, so no existence guard is warranted.
+    renderAdMkt();
+  }
+  if (window.__ADS_ACCOUNTS) onAdsRegistry();
+  else document.addEventListener('ads-registry-ready', onAdsRegistry, { once: true });
   function cloneAd(ch, c) {
     store[ch] = store[ch] || [];
     const copy = Object.assign({}, c, { id: uid(), name: (c.name || 'Ad') + ' (Copy)' });
@@ -3379,17 +3744,17 @@ try{
   // Platform format specs. label = human name; size = WxH the visual + overlay
   // are rendered at; ar = friendly aspect tag stored on the asset.
   const CRE_CFG = {
-    g: { market: 'g-market', name: 'g-name',
+    g: { market: 'g-market', name: 'g-name', account: 'g-account',
       formats: [
         { format: 'Google · Landscape 1.91:1', size: '1200x628',  ar: '1.91:1' },
         { format: 'Google · Square 1:1',       size: '1200x1200', ar: '1:1' },
       ] },
-    m: { market: 'm-market', name: 'm-name',
+    m: { market: 'm-market', name: 'm-name', account: 'm-account',
       formats: [
         { format: 'Meta/IG · Feed 1:1',         size: '1080x1080', ar: '1:1' },
         { format: 'Meta/IG · Story/Reel 9:16',  size: '1080x1920', ar: '9:16' },
       ] },
-    t: { market: 't-market', name: 't-name',
+    t: { market: 't-market', name: 't-name', account: 't-account',
       formats: [
         { format: 'TikTok · Vertical 9:16', size: '1080x1920', ar: '9:16' },
       ] },
@@ -3971,14 +4336,43 @@ try{
   const dkey = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   const BRAIN = '/api/brain';
   const intf = (n) => (+n || 0).toLocaleString();
-  let AD_PLAN = [], AD_MKT = 'US';
+  let AD_PLAN = [], AD_MKT = 'US', AD_ACCT = '';
   const AD_PREVIEW = {};
   const CHAN_COL = { google: 'chan-google', meta: 'chan-meta', tiktok: 'chan-other' };
-  const adVisible = (e) => AD_MKT === 'ALL' || String(e.market || '').toUpperCase() === AD_MKT;
+  // Account filtering is honest about what the plan actually knows: a slot that
+  // carries no ad_account is NOT hidden by an account selection, because hiding
+  // it would assert "this slot is not for that account" when the plan simply has
+  // not assigned one. The count of unassigned slots is reported instead.
+  const adAccountOf = (e) => String((e && (e.ad_account || (e.payload && e.payload.ad_account))) || '').replace(/^act_/, '');
+  const adVisible = (e) => {
+    if (!(AD_MKT === 'ALL' || String(e.market || '').toUpperCase() === AD_MKT)) return false;
+    if (!AD_ACCT) return true;
+    const acc = adAccountOf(e);
+    return acc ? acc === AD_ACCT : true;
+  };
   function renderAdMkt() {
     const host = $('#ad-mkt'); if (!host) return;
-    host.innerHTML = ['US', 'UK', 'ALL'].map((m) => `<button class="tab${AD_MKT === m ? ' active' : ''}" data-admkt="${m}" style="padding:5px 12px;font-size:12px">${m}</button>`).join('');
-    host.querySelectorAll('[data-admkt]').forEach((b) => { b.onclick = () => { AD_MKT = b.dataset.admkt; renderAdMkt(); renderAdPlan(); }; });
+    const reg = window.__ADS_ACCOUNTS;
+    // Regions come from the account registry, so a market with real accounts can
+    // never be missing from this bar (it was hardcoded US/UK, which left the two
+    // live India accounts unreachable from here).
+    const regions = (reg ? reg.regions() : ['US', 'UK']).concat(['ALL']);
+    if (regions.indexOf(AD_MKT) < 0) AD_MKT = regions[0];
+    const list = reg ? reg.forRegion(AD_MKT) : [];
+    if (AD_ACCT && !list.some((a) => a.account_id === AD_ACCT)) AD_ACCT = '';
+    host.innerHTML =
+      '<span style="font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--soft, #5a6b60);margin-right:6px">REGION</span>' +
+      regions.map((m) => `<button class="tab${AD_MKT === m ? ' active' : ''}" data-admkt="${m}" style="padding:5px 12px;font-size:12px">${m}</button>`).join('') +
+      (reg
+        ? '<label style="display:inline-flex;align-items:center;gap:6px;margin-left:12px;font-size:12px">Ad account' +
+          '<select id="ad-acct" style="font:inherit;padding:4px 8px">' +
+          `<option value="">All ${AD_MKT === 'ALL' ? '' : esc(AD_MKT) + ' '}accounts (${list.length})</option>` +
+          list.map((a) => `<option value="${esc(a.account_id)}"${AD_ACCT === a.account_id ? ' selected' : ''}>${esc(a.platform.toUpperCase())} · ${esc(a.label)} — ${esc(a.account_id)}</option>`).join('') +
+          '</select></label>'
+        : '');
+    host.querySelectorAll('[data-admkt]').forEach((b) => { b.onclick = () => { AD_MKT = b.dataset.admkt; AD_ACCT = ''; renderAdMkt(); renderAdPlan(); }; });
+    const sel = host.querySelector('#ad-acct');
+    if (sel) sel.onchange = () => { AD_ACCT = sel.value; renderAdPlan(); };
   }
   async function loadAdPlan() {
     const host = $('#ad-plan'); if (host) host.innerHTML = '<p class="note">Loading the Vahdam Brain plan…</p>';
@@ -4001,6 +4395,16 @@ try{
       return;
     }
     if (empty) empty.style.display = 'none';
+    // Say plainly when an account filter is on but the plan has not assigned
+    // accounts to these slots, so "9 slots" is never read as "9 slots on this
+    // account".
+    if (AD_ACCT) {
+      const unassigned = rows.filter((e) => !adAccountOf(e)).length;
+      const bar = $('#ad-acct-note');
+      if (bar) bar.textContent = unassigned
+        ? `${unassigned} of ${rows.length} slots carry no ad account yet, so they are shown for every account. The Vahdam Brain plan does not assign one; set it when the ad is built in Creative Studio.`
+        : `All ${rows.length} slots are assigned to this ad account.`;
+    } else { const bar = $('#ad-acct-note'); if (bar) bar.textContent = ''; }
     const head = '<tr style="text-align:left;color:#556059;font-size:11px;text-transform:uppercase;letter-spacing:.06em"><th style="padding:8px 10px">Date</th><th style="padding:8px 10px">Cohort</th><th style="padding:8px 10px">Objective / Hero</th><th style="padding:8px 10px">Channels</th><th style="padding:8px 10px">Conf.</th><th style="padding:8px 10px">Status</th><th style="padding:8px 10px">Actions</th></tr>';
     const body = rows.map((e) => {
       const i = e.__i;
@@ -4087,7 +4491,7 @@ try{
     if (!activeDay) return;
     const name = $('#dm-name').value.trim(); if (!name) { toast('Enter a campaign name'); return; }
     (store.calendar[activeDay] = store.calendar[activeDay] || []).push({
-      id: uid(), channel: $('#dm-channel').value, name, budget: $('#dm-budget').value, market: $('#dm-market').value,
+      id: uid(), channel: $('#dm-channel').value, name, budget: $('#dm-budget').value, market: $('#dm-market').value, ad_account: $('#dm-account').value,
     });
     save(); renderAdPlan(); openDay(activeDay); toast('Scheduled');
   };
@@ -4165,7 +4569,7 @@ try{
   }
   $('#g-save').onclick = () => {
     const name = $('#g-name').value.trim(); if (!name) { toast('Enter a campaign name'); return; }
-    const rec = { id: uid(), name, type: $('#g-type').value, budget: $('#g-budget').value, market: $('#g-market').value,
+    const rec = { id: uid(), name, type: $('#g-type').value, budget: $('#g-budget').value, market: $('#g-market').value, ad_account: $('#g-account').value,
       url: $('#g-url').value.trim(), keywords: lines($('#g-keywords').value.split(',').join('\n')),
       headlines: lines($('#g-headlines').value).map((h) => clampLen(h, 30)), descriptions: lines($('#g-desc').value).map((d) => clampLen(d, 90)) };
     attachCreative('g', rec); store.google.unshift(rec);
@@ -4191,7 +4595,7 @@ try{
   }
   $('#m-save').onclick = () => {
     const name = $('#m-name').value.trim(); if (!name) { toast('Enter a campaign name'); return; }
-    const rec = { id: uid(), name, obj: $('#m-obj').value, budget: $('#m-budget').value, market: $('#m-market').value,
+    const rec = { id: uid(), name, obj: $('#m-obj').value, budget: $('#m-budget').value, market: $('#m-market').value, ad_account: $('#m-account').value,
       place: $('#m-place').value, aud: $('#m-aud').value.trim(), primary: clampLen($('#m-primary').value.trim(), 125), headline: clampLen($('#m-headline').value.trim(), 40) };
     attachCreative('m', rec); store.meta.unshift(rec);
     save(); renderMeta(); persistAd('meta', rec); ['m-name', 'm-budget', 'm-aud', 'm-primary', 'm-headline'].forEach((id) => $('#' + id).value = ''); toast('Campaign saved');
@@ -4215,7 +4619,7 @@ try{
   }
   $('#t-save').onclick = () => {
     const name = $('#t-name').value.trim(); if (!name) { toast('Enter a campaign name'); return; }
-    const rec = { id: uid(), name, obj: $('#t-obj').value, budget: $('#t-budget').value, market: $('#t-market').value,
+    const rec = { id: uid(), name, obj: $('#t-obj').value, budget: $('#t-budget').value, market: $('#t-market').value, ad_account: $('#t-account').value,
       place: $('#t-place').value, aud: $('#t-aud').value.trim(), hook: clampLen($('#t-hook').value.trim(), 100), caption: clampLen($('#t-caption').value.trim(), 100),
       creator: $('#t-creator').value.trim(), hashtags: $('#t-hash').value.trim() };
     attachCreative('t', rec); store.tiktok.unshift(rec);
