@@ -3636,8 +3636,9 @@ try{
   // The registry may land before or after this block parses, so handle both.
   function onAdsRegistry() {
     bindCreativeAccounts();
-    // The plan bar builds its region tiles from the registry too.
-    try { if (typeof renderAdMkt === 'function') renderAdMkt(); } catch (_) {}
+    // The plan bar builds its region tiles from the registry too. Both functions
+    // are declared in this same block, so no existence guard is warranted.
+    renderAdMkt();
   }
   if (window.__ADS_ACCOUNTS) onAdsRegistry();
   else document.addEventListener('ads-registry-ready', onAdsRegistry, { once: true });
