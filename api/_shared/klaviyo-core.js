@@ -38,6 +38,11 @@ function cfg() {
 // live Klaviyo API call is made — every op returns its would_request stub.
 function isConnected() { return liveConnectorsEnabled() && !!cfg().key; }
 
+// Split out so a health check can tell "no key" apart from "key set but the kill
+// switch is off". Collapsing those two into one false is what produced a health
+// blocker telling someone to set a variable they had already set correctly.
+function hasKey() { return !!cfg().key; }
+
 function qs(query) {
   const entries = Object.entries(query || {}).filter(([, v]) => v != null && v !== '');
   if (!entries.length) return '';
@@ -61,6 +66,21 @@ async function request({ path, query = {}, timeoutMs = 20000 }) {
       ok: false, connected: false, not_connected: true,
       would_request: { method: 'GET', url },
       hint: 'Set KLAVIYO_API_KEY in Vercel env to execute this for real. The request shape above is what will be sent.',
+    };
+  }
+  // HONOUR THE KILL SWITCH. This check was missing: the function gated on the
+  // key alone, so with a key set and LIVE_CONNECTORS off, Klaviyo called out for
+  // real while isConnected() — and therefore /api/connectors-health and every
+  // other caller that asks before acting — reported it as not connected. The
+  // switch is documented as "the app never opens a live external connection",
+  // and one connector quietly punching through a safety control is worse than
+  // the control not existing, because everything downstream trusts it.
+  if (!liveConnectorsEnabled()) {
+    return {
+      ok: false, connected: false, not_connected: true,
+      would_request: { method: 'GET', url },
+      blocker: 'Live connectors are disabled. Set LIVE_CONNECTORS=on in Vercel env to allow outbound reads. KLAVIYO_API_KEY is already set.',
+      hint: 'The API key is configured; only the global kill switch is holding this back.',
     };
   }
   const ctrl = new AbortController();
@@ -168,7 +188,7 @@ async function dispatch(op, params = {}) {
 }
 
 module.exports = {
-  isConnected, dispatch, OPS, request,
+  isConnected, hasKey, dispatch, OPS, request,
   getProfiles, getProfile, getLists, getList, getSegments, getSegment, getMetrics, getEvents,
   getCampaigns, getFlows, getTemplates,
 };

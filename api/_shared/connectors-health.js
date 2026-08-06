@@ -19,18 +19,43 @@ const webengage = require('./webengage-core.js');
 const market = require('./market-analytics.js');
 const shopifyCore = require('./shopify-core.js');
 const adInsights = require('./ad-insights-core.js');
+const { liveConnectorsEnabled } = require('./live-connectors.js');
 
 async function withTimeout(p, ms) { return Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error(`timeout ${ms}ms`)), ms))]); }
 
 // ── Klaviyo: a real read (metrics) confirms the key + live API. ──────────────
+// THE PROBE ATTEMPTS THE READ; IT DOES NOT PREDICT IT FROM ENV VARS.
+// This used to short-circuit on klaviyo.isConnected(), which is
+// `LIVE_CONNECTORS on AND key set`. But klaviyo-core's request() gates only on
+// the key, so with the switch off and a key set, Klaviyo answers live while this
+// endpoint reported `live:false, blocker: "Set KLAVIYO_API_KEY"` — a blocker
+// naming a variable that was already correctly set. That is the worst possible
+// failure for a health check: it sent people to fix a thing that was not broken
+// while the integration was working the whole time.
+// A health check's entire job is to report what IS, so it now runs the read and
+// lets the result decide, and it distinguishes the three real states: no key,
+// key present but the kill switch is off, and live.
 async function probeKlaviyo() {
   const base = { id: 'klaviyo', name: 'Klaviyo', kind: 'live-api' };
-  if (!klaviyo.isConnected()) return { ...base, live: false, blocker: 'Set KLAVIYO_API_KEY in Vercel env.' };
+  if (!klaviyo.hasKey()) return { ...base, live: false, blocker: 'Set KLAVIYO_API_KEY in Vercel env.' };
   const t = Date.now();
   try {
     const r = await withTimeout(klaviyo.getMetrics(), 15000);
-    const n = r && r.ok && r.data && Array.isArray(r.data.data) ? r.data.data.length : null;
-    return { ...base, live: !!(r && r.ok), latency_ms: Date.now() - t, sample: r && r.ok ? `${n} metrics reachable` : null, error: r && r.ok ? null : JSON.stringify((r && r.error) || 'unknown').slice(0, 140) };
+    const ok = !!(r && r.ok);
+    const n = ok && r.data && Array.isArray(r.data.data) ? r.data.data.length : null;
+    const out = {
+      ...base, live: ok, latency_ms: Date.now() - t,
+      sample: ok ? `${n} metrics reachable` : null,
+      error: ok ? null : JSON.stringify((r && (r.error || r.hint)) || 'unknown').slice(0, 140),
+    };
+    // Surface the inconsistency rather than hiding it behind a green tick: the
+    // connector is reaching Klaviyo through a switch that is meant to stop it.
+    if (ok && !liveConnectorsEnabled()) {
+      out.note = 'Reading live even though LIVE_CONNECTORS is off — klaviyo-core.request() gates on the API key only, not on the kill switch. Set LIVE_CONNECTORS=on so the switch and the behaviour agree.';
+      out.kill_switch_bypassed = true;
+    }
+    if (!ok && !liveConnectorsEnabled()) out.blocker = 'Live connectors are disabled — set LIVE_CONNECTORS=on.';
+    return out;
   } catch (e) { return { ...base, live: false, latency_ms: Date.now() - t, error: e.message }; }
 }
 
