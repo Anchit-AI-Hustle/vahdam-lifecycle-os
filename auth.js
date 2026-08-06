@@ -243,7 +243,11 @@
       { id: 'da-acq',      label: 'Acquisition · Ads + LP',        href: '/data-analysis?tab=acq',                  icon: 'insights' },
       { id: 'da-ret',      label: 'Retention · Mailer + LP',       href: '/data-analysis?tab=ret',                  icon: 'insights' },
       { id: 'da-cohort',   label: 'Cohorts & Calendar',            href: '/data-analysis?tab=cohort',               icon: 'cohort' },
-      { id: 'da-liveads',  label: 'Live Ads (Meta/Google/TikTok)', href: '/data-analysis?tab=live-ads',             icon: 'ads' },
+      // Live Ads moved OUT of this group (product owner, 2026-08-06): ad analysis
+      // must have exactly ONE entrance in this rail, and that entrance is
+      // Ad Campaigns Master Dashboard. The view itself was not deleted - it is the
+      // master's "Live Ads Intelligence" tab, reading the same endpoint, and
+      // /data-analysis?tab=live-ads now redirects there so old links still land.
       { id: 'da-mailer',   label: 'Mailer Intelligence',           href: '/data-analysis?tab=mailer-intelligence',  icon: 'insights' },
       { id: 'da-landing',  label: 'Landing Pages & Experiments',   href: '/data-analysis?tab=landing-intelligence', icon: 'landing' },
       { id: 'da-actions',  label: 'Actions & Outcomes',            href: '/data-analysis?tab=action-outcomes',      icon: 'insights' },
@@ -402,7 +406,8 @@
         ["Data analysis + review + hypothesis", "KT files parsed (3 email threads, spend workbook, 28-slide social deck); rollups computed per campaign and objective; benchmarks derived from the data."],
         ["Business & strategy decisions", "Portfolio verdicts: Sales engine clears the $0.80 bench, JoinBrands UGC traffic is the cheapest click, Awareness is the drag, July TikTok reads zero. Accounts are scored on what each can actually measure - ROAS only where a pixel or Google conversion fires, CTR/CPC/CPM where checkout happens on target.com, Instacart or amazon.com and no sale can ever be attributed back to the ad."],
         ["Content", "Knowledge base compiled: 54 catalogued links (verified via the Google Drive connector where possible), people map, gaps register."],
-        ["Design + layout + structure", "Thirteen tabs - Live Now, Calendar, Tracker, Accounts, SOP, Overview, Campaigns & Ads, Creative Intel, Organic & UGC, Knowledge Base, Creative Studio, Playbook, Ops & Data Sources - in the brand palette, white and green only, every table sortable and filterable and every chart carrying duration tiles. Creative Studio is the ad BUILDER (its own nav row, Ad Creation) and Playbook is the written paid-ads lesson; both were merged in from pages that have since been retired."],
+        ["Design + layout + structure", "Fifteen tabs - Live Now, Live Ads Intelligence, Calendar, Tracker, Accounts, SOP, Overview, Campaigns & Ads, Creative Intel, Organic & UGC, Knowledge Base, Creative Studio, Playbook, Revenue & Agents, Ops & Data Sources - in the brand palette, white and green only, every table sortable and filterable and every chart carrying duration tiles. Creative Studio is the ad BUILDER (its own nav row, Ad Creation) and Playbook is the written paid-ads lesson; both were merged in from pages that have since been retired."],
+        ["One dashboard, one entrance", "This is the ONLY ad-analysis feature in the rail. Live Ads Intelligence (Meta, Google and TikTok at account, campaign, ad-set and ad level, all twenty returned fields) moved here from the Data Analysis group, and Revenue Analysis plus the platform agents are mounted here over the same endpoints. Every region selector on the page is followed by an ad-account dropdown built from the real registry, so a view is always scoped to a named account id rather than a whole market."],
         ["Coding", "Static page + committed JSON (no new serverless function; the Hobby 12-function limit is untouched).", "/ads-master"],
         ["Final compilation + presentation", "Live Snowflake rows read straight into this dashboard (SOP compliance, pacing and the metric catalog on its SOP and Ops tabs); Google Slides KT presentation generated from the same knowledge base.", "/ads-master"]
       ]

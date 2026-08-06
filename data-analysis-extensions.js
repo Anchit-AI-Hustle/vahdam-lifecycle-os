@@ -30,7 +30,9 @@
   var LIVE_TABS = [
     { id: 'revenue-analysis', label: 'Revenue Analysis' },
     { id: 'platform-agents', label: 'Platform Agents' },
-    { id: 'live-ads', label: 'Live Ads' },
+    // 'live-ads' is deliberately NOT a tab here any more - it is the Ad Campaigns
+    // Master Dashboard's "Live Ads Intelligence" tab. openTab() still recognises
+    // the id and forwards, so existing links and bookmarks keep working.
     { id: 'mailer-intelligence', label: 'Mailer Intelligence' },
     { id: 'landing-intelligence', label: 'Landing Pages & Experiments' },
     { id: 'action-outcomes', label: 'Actions & Outcomes' },
@@ -290,10 +292,14 @@
     return panel;
   }
   function openTab(id) {
+    // Ad analysis lives in exactly ONE place: the Ad Campaigns Master Dashboard.
+    // This tab's view moved there verbatim (same endpoint, same fields, plus a
+    // region + ad-account picker), so the old deep link forwards instead of
+    // rendering a second copy that can drift from it.
+    if (id === 'live-ads') { location.replace('/ads-master#liveintel'); return; }
     var panel = showExtension(id);
     if (id === 'revenue-analysis') return renderRevenue(panel);
     if (id === 'platform-agents') return renderAgents(panel);
-    if (id === 'live-ads') return renderAds(panel);
     if (id === 'mailer-intelligence') return renderMailer(panel);
     if (id === 'landing-intelligence') return renderLanding(panel);
     if (id === 'action-outcomes') return renderActions(panel);
@@ -302,18 +308,6 @@
     if (r) return renderReview(panel, r);
   }
 
-  function adsControls() {
-    // Default to ALL available history so no year is hidden. The floor predates
-    // all ad data (earliest live rows are 2024), Until is today. The previous
-    // 30-day default hid everything older than the last month. Narrow via the
-    // date pickers as needed.
-    var until = isoDate(new Date()), since = '2020-01-01';
-    return '<div class="xcontrols">' +
-      '<label class="xfield">Level<select id="xAdsLevel"><option value="account">Account</option><option value="campaign">Campaign</option><option value="adgroup">Ad group / ad set</option><option value="ad" selected>Ad</option></select></label>' +
-      '<label class="xfield">Since<input id="xAdsSince" type="date" value="' + since + '"></label>' +
-      '<label class="xfield">Until<input id="xAdsUntil" type="date" value="' + until + '"></label>' +
-      '<button class="xbtn" id="xAdsRefresh">Refresh now</button></div>';
-  }
   // ── Revenue Analysis ──────────────────────────────────────────────────────
   // One combined feature, one sub-tab per dimension. Every cut the backend
   // knows about gets a sub-tab whether or not it has data — a blocked cut shows
@@ -446,44 +440,12 @@
     btn.addEventListener('click', load); await load();
   }
 
-  async function renderAds(panel) {
-    panel.innerHTML = panelTitle('Live Ads Intelligence', 'Ad-level through account-level reporting across Meta, Google and TikTok. The view fetches each platform on request, disables browser caching and refreshes every 60 seconds; source-platform processing and attribution latency still apply.', adsControls()) + '<div id="xAdsBody">' + loader('Loading ads') + '</div>';
-    var refresh = document.getElementById('xAdsRefresh');
-    async function load() {
-      if (state.tab !== 'live-ads') return;
-      var body = document.getElementById('xAdsBody'); if (!body) return;
-      refresh.disabled = true; refresh.textContent = 'Refreshing…';
-      try {
-        var data = await getJson('ads', { market: currentMarket(), level: document.getElementById('xAdsLevel').value, since: document.getElementById('xAdsSince').value, until: document.getElementById('xAdsUntil').value });
-        state.lastPayload.ads = data;
-        var k = data.kpis || {};
-        var platforms = (data.platforms || []).map(function (p) {
-          return '<div class="xplatform"><span><b>' + esc(String(p.platform || '').toUpperCase()) + '</b><br><small>' + esc(p.rows.length + ' source rows' + (p.fetched_at ? ' · ' + dateTime(p.fetched_at) : '')) + '</small></span>' + boolBadge(p.connected && p.ok, 'Live', p.connected ? 'Error' : 'Connect') + '</div>' + (p.error ? '<div class="xnotice bad">' + esc(p.error) + '</div>' : '') + (!p.connected && p.need_env && p.need_env.length ? '<div class="xnotice">Required configuration: ' + esc(p.need_env.join(', ')) + '</div>' : '');
-        }).join('');
-        // Every field the ads view actually returns is rendered. It previously
-        // dropped six of them (level, entity_id, cpm, conversion_rate, reach,
-        // frequency) — reach and frequency in particular are the only way to see
-        // that a set is burning budget on the same people.
-        var rows = (data.rows || []).map(function (r) {
-          return [r.platform, r.level || '—', r.entity, r.entity_id || '—', r.campaign || '—', r.ad_group || '—', r.status || '—',
-            money(r.spend), fmt(r.impressions), fmt(r.reach), fmt(r.frequency, 2), fmt(r.clicks), percent(r.ctr, 2),
-            money(r.cpc), money(r.cpm), fmt(r.conversions, 2), percent(r.conversion_rate, 2), money(r.cpa), money(r.revenue), ratio(r.roas)];
-        });
-        body.innerHTML = kpis([
-          { label: 'Spend', value: money(k.spend) }, { label: 'Revenue', value: money(k.revenue) }, { label: 'ROAS', value: ratio(k.roas) },
-          { label: 'Impressions', value: fmt(k.impressions) }, { label: 'Clicks', value: fmt(k.clicks) }, { label: 'CTR', value: percent(k.ctr, 2) },
-          { label: 'Conversions', value: fmt(k.conversions, 2) }, { label: 'CPA', value: money(k.cpa) }, { label: 'CVR', value: percent(k.conversion_rate, 2) },
-        ]) + '<div class="xgrid"><div class="xcard span4"><h3>Connector status</h3><p>Only connected providers contribute figures.</p>' + platforms + '</div><div class="xcard span8"><h3>Reporting contract</h3><p>' + esc(data.freshness || '') + '</p>' + note(data.note || '', data.pending_platforms && data.pending_platforms.length ? '' : 'good') + '<div class="xmeta"><span>Market: <b>' + esc(data.market) + '</b></span><span>Level: <b>' + esc(data.level) + '</b></span><span>Window: <b>' + esc(data.window && data.window.since) + ' → ' + esc(data.window && data.window.until) + '</b></span><span>Generated: <b>' + esc(dateTime(data.generated_at)) + '</b></span></div></div></div>' +
-          '<div class="xcard span12"><h3>Ads ranked by spend</h3><p>Every field the platform returns for this level: delivery, cost, efficiency and outcome. Campaign, ad-group/ad-set and ad identifiers are retained where each platform provides them.</p>' + table(['Platform','Level',W('Entity'),ID('Entity ID'),W('Campaign'),W('Ad group / set'),'Status',N('Spend'),N('Impressions'),N('Reach'),N('Frequency'),N('Clicks'),N('CTR'),N('CPC'),N('CPM'),N('Conversions'),N('CVR'),N('CPA'),N('Revenue'),N('ROAS')], rows, { limit: 250 }) + '</div>';
-      } catch (e) { body.innerHTML = failure('Live Ads Intelligence', e); }
-      finally { refresh.disabled = false; refresh.textContent = 'Refresh now'; }
-    }
-    refresh.addEventListener('click', load);
-    document.getElementById('xAdsLevel').addEventListener('change', load);
-    await load();
-    state.adsTimer = setInterval(load, REFRESH_MS);
-  }
-
+  // The Live Ads view that used to live here now lives on the Ad Campaigns
+  // Master Dashboard (its "Live Ads Intelligence" tab), reading the SAME
+  // /api/public-config?action=data-analysis&view=ads endpoint through the same
+  // ad-rows-core normalisation, plus a region + ad-account picker. It was removed
+  // from this file rather than left dead, so there is only one ads table to keep
+  // correct. openTab() forwards the old id.
   function mailerControls() {
     return '<div class="xcontrols"><label class="xfield">Window<select id="xMailerHours"><option value="24">24 hours</option><option value="72">3 days</option><option value="168">7 days</option><option value="720" selected>30 days</option></select></label><button class="xbtn" id="xMailerRefresh">Refresh now</button></div>';
   }
