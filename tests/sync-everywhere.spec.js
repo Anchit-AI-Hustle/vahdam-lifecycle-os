@@ -119,3 +119,26 @@ test('ads-live-core honours the LIVE_CONNECTORS kill switch', () => {
   const fn = src.slice(src.indexOf('function metaConfigured()'));
   expect(fn.slice(0, 220)).toContain('liveConnectorsEnabled()');
 });
+
+// ── The data surfaces the owner named explicitly ────────────────────────────
+// "all the data analysis, calendar of past days etc and all data related metrics
+// fields" must refresh on a frequency, not just on a page reload. A registered
+// loader is the difference between a real in-place refresh and a reload, so this
+// asserts registration rather than merely the presence of the bar.
+const REGISTERED = [
+  ['/smart-brain.html', 'brain:plan'],
+  ['/all-in-one.html', 'os:dashboard'],
+  ['/social-media.html', 'social:posts'],
+];
+for (const [route, surface] of REGISTERED) {
+  test(`${route} registers a live loader (${surface}), not just the reload fallback`, async ({ page }) => {
+    const s = server(); await new Promise((r) => s.listen(0, r));
+    const BASE = 'http://127.0.0.1:' + s.address().port;
+    await page.goto(BASE + route);
+    await page.waitForTimeout(2200);
+    const sources = await page.evaluate(() => (window.LifecycleSync && window.LifecycleSync.sources) || []);
+    expect(sources, `${route} should register ${surface}; got ${JSON.stringify(sources)}`).toContain(surface);
+    expect(await page.textContent('#vh-sync .vh-src')).not.toBe('page reload');
+    s.close();
+  });
+}

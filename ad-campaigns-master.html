@@ -3539,8 +3539,8 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     // it GOT, not what it hoped for: loadLive() falls back to a committed
     // snapshot when no connector is configured, and saying "live" then would be
     // the exact lie this dashboard is built to avoid.
-    if(window.LifecycleSync){
-      window.LifecycleSync.register({
+    if(true){
+      window.__lcSync=window.__lcSync||[]; window.__lcSync.push({
         surface:"ads:live", label:"Ads — Live Now (Meta / warehouse)", interval:90,
         load:async function(){
           await loadLive();
@@ -3550,7 +3550,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
           return {source:"live"};
         },
       });
-      window.LifecycleSync.register({
+      window.__lcSync.push({
         surface:"ads:details", label:"Ads — campaign & ad detail", interval:120,
         load:async function(){
           await refreshLiveAds();
@@ -3563,7 +3563,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       var _initLI=initLiveIntel;
       initLiveIntel=function(){
         _initLI();
-        window.LifecycleSync.register({
+        window.__lcSync.push({
           surface:"ads:liveintel", label:"Ads — Live Ads Intelligence (Meta/Google/TikTok)", interval:60,
           load:async function(){ await loadLiveIntel(); return {source:LI.lastSource||"live",note:LI.lastNote||null}; },
         });

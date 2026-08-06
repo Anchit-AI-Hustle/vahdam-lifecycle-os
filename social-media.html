@@ -403,6 +403,11 @@
 
   $('runBtn').addEventListener('click', run);
   $('loadBtn').addEventListener('click', load);
+      // Shared sync bar - the same load() the Load button runs.
+      (window.__lcSync = window.__lcSync || []).push({
+        surface: 'social:posts', label: 'Social Media OS - posts', interval: 120,
+        load: async function(){ await load(); return { source: 'live' }; },
+      });
 })();
 </script>
 </body>

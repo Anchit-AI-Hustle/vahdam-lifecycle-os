@@ -1297,6 +1297,12 @@ async function exportPlan(){
 }
 $('sync').addEventListener('click', runSync);
 $('refresh').addEventListener('click', loadPlan);
+// Shared sync bar: the rolling plan is the live surface here. Registering the
+// page's own loader keeps the bar and the Refresh button on one code path.
+(window.__lcSync = window.__lcSync || []).push({
+  surface: 'brain:plan', label: 'VAHDAM Brain - rolling plan', interval: 120,
+  load: async () => { const d = await loadPlan(); return d ? { source: 'live' } : { source: 'unavailable', note: 'The plan endpoint returned nothing.' }; },
+});
 $('export').addEventListener('click', exportPlan);
 autoGenerateOnLoad();
 </script>

@@ -315,6 +315,24 @@
     get report() { return lastReport.slice(); },
   };
 
+  // ── Registration queue (load order must not matter) ───────────────────────
+  // auth.js is itself `defer`, and it is what injects this module — so a page's
+  // INLINE script always runs before window.LifecycleSync exists. Any page-side
+  // `if (window.LifecycleSync) register(...)` guard is therefore dead code that
+  // fails silently, which is exactly how three pages ended up with only the
+  // reload fallback while appearing to be wired.
+  //
+  // So pages push onto an array instead, dataLayer-style:
+  //     (window.__lcSync = window.__lcSync || []).push({surface, label, load});
+  // Anything queued before this module loads is drained here, and `push` is then
+  // replaced so later pushes register immediately. No guard, no ordering rule.
+  var queued = window.__lcSync;
+  window.__lcSync = { push: function () { for (var i = 0; i < arguments.length; i++) register(arguments[i]); return 0; } };
+  if (Array.isArray(queued)) queued.forEach(function (o) { try { register(o); } catch (_) {} });
+
+  // Also announce readiness, for anything that would rather listen than queue.
+  try { document.dispatchEvent(new CustomEvent('lifecycle-sync-ready')); } catch (_) {}
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
   else mount();
 })();

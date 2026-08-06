@@ -321,9 +321,9 @@
   // re-derived here. A view we cannot classify reports 'live' only because it
   // genuinely refetches on every open.
   function syncSurfaceFor(id) {
-    if (!window.LifecycleSync || !id) return;
+    if (!id) return;
     var label = (LIVE_TABS.concat(REVIEW_TABS).find(function (t) { return t.id === id; }) || {}).label || id;
-    window.LifecycleSync.register({
+    (window.__lcSync = window.__lcSync || []).push({
       surface: 'data-analysis:' + id,
       label: 'Data Analysis — ' + label,
       interval: 60,
