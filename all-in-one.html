@@ -200,6 +200,11 @@
 
   document.addEventListener("DOMContentLoaded", function(){
     $("reload-btn").addEventListener("click", load);
+    // Shared sync bar - same loader as the Reload button.
+    (window.__lcSync = window.__lcSync || []).push({
+      surface: "os:dashboard", label: "Master Dashboard", interval: 120,
+      load: function(){ load(); return { source: "live" }; },
+    });
     $("refresh-btn").addEventListener("click", function(){
       var b=$("refresh-btn"); b.disabled=true; var t=b.textContent; b.innerHTML='<span class="spinner"></span> Running…';
       fetch(API+"?action=os-run-daily-job",{method:"POST"}).then(function(r){return r.json();}).then(function(j){

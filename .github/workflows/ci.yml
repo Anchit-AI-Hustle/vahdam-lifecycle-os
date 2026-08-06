@@ -21,8 +21,14 @@ jobs:
         run: |
           set -e
           for f in $(find api lib workers scripts -name '*.js'); do node --check "$f"; done
-          for f in auth.js sw.js chart-enhance.js table-sort.js ai-studio-bar.js; do [ -f "$f" ] && node --check "$f"; done
-          echo "All JS parses cleanly"
+          # GLOB the root shared scripts, never a hand-kept list. The list version
+          # named 5 files while 13 existed, so motion.js (injected by auth.js on
+          # EVERY page), data-analysis-extensions.js and sync-bar.js were all
+          # unchecked — a syntax error in any of them breaks every page and CI
+          # still passes. A list that must be updated by hand is a list that gets
+          # forgotten; the glob cannot omit a file that exists.
+          for f in *.js; do [ -f "$f" ] && node --check "$f"; done
+          echo "All JS parses cleanly ($(ls *.js | wc -l) root scripts + api/lib/workers/scripts)"
       - name: Function-count guard (Hobby cap = 12)
         # Vercel counts every non-_shared file under api/ as a Serverless Function.
         # The vercel.json "functions" map is OPTIONAL per-function config, so a file

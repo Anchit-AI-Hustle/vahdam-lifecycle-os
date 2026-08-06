@@ -285,6 +285,8 @@
   }
   function showExtension(id) {
     clearAdsTimer(); state.tab = id;
+    // Point the shared sync control at whatever view is now on screen.
+    try { syncSurfaceFor(id); } catch (_) {}
     ['kpis', 'signals', 'grid', 'footnote'].forEach(function (x) { var el = document.getElementById(x); if (el) el.style.display = 'none'; });
     var panel = document.getElementById('extendedAnalysisPanel'); panel.classList.add('on'); panel.innerHTML = '';
     document.querySelectorAll('#anTabs button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-ext-tab') === id); });
@@ -306,6 +308,36 @@
     if (id === 'alert-settings') return renderAlerts(panel);
     var r = REVIEW_TABS.find(function (x) { return x.id === id; });
     if (r) return renderReview(panel, r);
+  }
+
+  // ── Shared sync bar ───────────────────────────────────────────────────────
+  // Re-open the CURRENT tab on sync, which is exactly what each renderer's own
+  // "Refresh now" does — one code path, so the bar and the in-panel button can
+  // never disagree about what refreshing means. Registered per tab (the surface
+  // id changes with the tab) so the bar's source list names what is on screen.
+  //
+  // The freshness reported back is the tab's own honesty: the ads/revenue views
+  // already flag a cached snapshot, so that flag is forwarded rather than
+  // re-derived here. A view we cannot classify reports 'live' only because it
+  // genuinely refetches on every open.
+  function syncSurfaceFor(id) {
+    if (!id) return;
+    var label = (LIVE_TABS.concat(REVIEW_TABS).find(function (t) { return t.id === id; }) || {}).label || id;
+    (window.__lcSync = window.__lcSync || []).push({
+      surface: 'data-analysis:' + id,
+      label: 'Data Analysis — ' + label,
+      interval: 60,
+      load: async function () {
+        openTab(id);
+        // Let the renderer's own fetch settle so the bar does not stamp a fresh
+        // timestamp before the data actually arrived.
+        await new Promise(function (r) { setTimeout(r, 400); });
+        var p = state.lastPayload || {};
+        var d = p[id] || p[String(id).replace(/-.*$/, '')];
+        if (d && d.cached) return { source: 'cached', note: d.note || 'Serving a cached snapshot; the live read was unavailable.' };
+        return { source: 'live' };
+      },
+    });
   }
 
   // ── Revenue Analysis ──────────────────────────────────────────────────────
