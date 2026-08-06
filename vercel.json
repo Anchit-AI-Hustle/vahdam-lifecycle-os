@@ -113,6 +113,18 @@
   ],
   "rewrites": [
     {
+      "source": "/api/agent-builder/run/:tool",
+      "destination": "/api/brain?action=agent-run&tool=:tool"
+    },
+    {
+      "source": "/api/agent-builder/status",
+      "destination": "/api/brain?action=agent-status"
+    },
+    {
+      "source": "/api/agent-builder/openapi.json",
+      "destination": "/api/brain?action=agent-openapi"
+    },
+    {
       "source": "/privacy",
       "destination": "/privacy.html"
     },
