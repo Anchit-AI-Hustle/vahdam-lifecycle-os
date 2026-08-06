@@ -471,6 +471,68 @@
     requestAnimationFrame(frame);
   }
 
+  // ── 4b. Scroll-scrubbed video ────────────────────────────────────────────
+  // Opt-in: <video data-scrub muted playsinline preload="auto" src="...">.
+  // Scroll position drives the video's currentTime, so scrolling down plays the
+  // clip forward and scrolling back up plays it in reverse. This is the mechanic
+  // behind reveal sequences where the page appears to physically operate an
+  // object (a cloth lifting off a building, a camera descending underwater).
+  //
+  // It is opt-in, not automatic, for a reason no other effect here has: it needs
+  // a clip SHOT for it — one continuous, linear, locked-off move with no cuts.
+  // Scrubbing an ordinary marketing video just makes it stutter.
+  function attachScrubVideo(v) {
+    if (v.__vhScrub) return;
+    v.__vhScrub = true;
+    // Autoplay policy: a muted, inline video is the only kind allowed to be
+    // manipulated without a user gesture, and we never call play() anyway.
+    v.muted = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline', '');
+    v.pause();
+
+    var host = v.closest('[data-scrub-host]') || v.parentElement || v;
+    var dur = 0, pending = -1, raf = 0, seeking = false;
+
+    function onMeta() { dur = v.duration || 0; }
+    if (v.readyState >= 1) onMeta();
+    v.addEventListener('loadedmetadata', onMeta, { passive: true });
+    // A video that never loads must not leave a blank section behind it.
+    v.addEventListener('error', function () { v.__vhScrub = 'failed'; }, { passive: true });
+
+    function seek() {
+      raf = 0;
+      if (!dur || pending < 0 || seeking) return;
+      var t = Math.max(0, Math.min(dur - 0.02, pending));
+      // Skip sub-frame seeks: at 30fps anything under ~33ms is invisible and
+      // each seek is real decode work. Without this the decoder is asked to jump
+      // on every scroll event and the playhead visibly lags the scroll.
+      if (Math.abs(t - v.currentTime) < 0.033) return;
+      seeking = true;
+      try { v.currentTime = t; } catch (_) {}
+    }
+    v.addEventListener('seeked', function () { seeking = false; if (pending >= 0 && !raf) raf = requestAnimationFrame(seek); }, { passive: true });
+
+    function onScroll() {
+      var r = host.getBoundingClientRect();
+      // Progress across the host's full travel through the viewport: 0 when its
+      // top hits the bottom of the screen, 1 when its bottom leaves the top.
+      var span = r.height + window.innerHeight;
+      var p = span > 0 ? (window.innerHeight - r.top) / span : 0;
+      p = Math.max(0, Math.min(1, p));
+      pending = p * (dur || 0);
+      if (!raf) raf = requestAnimationFrame(seek);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    onScroll();
+  }
+
+  function scanScrubVideos() {
+    var vids = document.querySelectorAll('video[data-scrub]');
+    for (var i = 0; i < vids.length && i < 8; i++) attachScrubVideo(vids[i]);
+  }
+
   // ── 5. Atmosphere, beam, grain ───────────────────────────────────────────
   function fxLayer(cls) {
     var d = document.createElement('div');
@@ -565,6 +627,7 @@
     scanKinetic();
     scanReveals();
     scanPointer();
+    scanScrubVideos();
     loadGSAPIfNeeded();
   }
 
