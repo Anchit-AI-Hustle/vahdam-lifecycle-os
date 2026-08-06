@@ -45,10 +45,12 @@ test.beforeAll(async () => {
       }));
     }
     // Confine the served path to ROOT. `u` is attacker-controlled in the general
-    // case ("/../../etc/passwd"), and path.join happily normalises its way out of
-    // the directory - so resolve first and refuse anything that escapes.
-    const f = path.resolve(ROOT, '.' + (u === '/' ? '/index.html' : u));
-    if (f !== ROOT && !f.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('outside root'); }
+    // case ("/../../etc/passwd") and path.join will happily normalise its way out
+    // of the directory, so normalise the RELATIVE path first and refuse anything
+    // that climbs or is absolute before it is ever joined to ROOT.
+    const rel = path.normalize(u === '/' ? 'index.html' : decodeURIComponent(u).replace(/^\/+/, ''));
+    if (!rel || path.isAbsolute(rel) || rel.split(path.sep)[0] === '..') { res.writeHead(403); return res.end('outside root'); }
+    const f = path.join(ROOT, rel);
     if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('nf'); }
     const ext = path.extname(f);
     res.writeHead(200, { 'content-type': ext === '.json' ? 'application/json' : ext === '.js' ? 'text/javascript' : 'text/html' });
