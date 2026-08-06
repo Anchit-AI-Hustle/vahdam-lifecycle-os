@@ -143,7 +143,7 @@ async function shop({ market } = {}) { return read(market, 'shop', 'shop.json');
 // landing_site / referring_site / source_name are what make an order's ORIGIN
 // knowable. They were not requested before, so no attribution question could be
 // answered from this data at all.
-const ORDER_FIELDS = 'id,name,created_at,processed_at,total_price,currency,financial_status,fulfillment_status,customer,line_items,discount_codes,source_name,landing_site,referring_site,note_attributes';
+const ORDER_FIELDS = 'id,name,created_at,processed_at,cancelled_at,test,total_price,currency,financial_status,fulfillment_status,customer,line_items,discount_codes,source_name,landing_site,referring_site,note_attributes';
 
 async function orders({ market, days = 30, limit = PAGE_MAX, status = 'any' } = {}) {
   return read(market, 'orders', 'orders.json', {
@@ -339,6 +339,23 @@ function classifyOrder(order) {
   return { channel: 'direct_or_unknown', why: 'no utm on landing_site, no referring_site' };
 }
 
+// An order that was cancelled, refunded or placed as a test is not a result. It
+// was still counted before, so a single cancelled order could win a day the peak,
+// and a refunded high-value order could carry a date on revenue. Shopify's
+// status=any deliberately includes cancelled orders, so this has to be filtered
+// here rather than assumed away by the query.
+//
+// Excluded orders are REPORTED, not silently dropped: the gross count stays
+// visible alongside the net so the difference is auditable rather than a number
+// that quietly shrank.
+function orderQuality(o) {
+  if (o && o.test === true) return { counts: false, reason: 'test order' };
+  if (o && o.cancelled_at) return { counts: false, reason: 'cancelled' };
+  const fs = String((o && o.financial_status) || '').toLowerCase();
+  if (fs === 'refunded' || fs === 'voided') return { counts: false, reason: fs };
+  return { counts: true, reason: null };
+}
+
 // Bucket by the SHOP's local date, not UTC. An evening send in America/New_York
 // straddles two UTC dates, which would split its orders across two buckets and
 // move the apparent peak by a day.
@@ -367,10 +384,19 @@ async function attribution({ market, days = 90, maxPages = 20, timezone } = {}) 
   const byDate = new Map();
   const channelTotals = {};
   const emailExamples = [];
+  const excluded = {};
+  let excludedTotal = 0, emailGross = 0;
   for (const o of paged.orders) {
     const { channel, why } = classifyOrder(o);
     const date = localDate(o.processed_at || o.created_at, tz);
     if (!date) continue;
+    if (channel === 'email') emailGross++;
+    const q = orderQuality(o);
+    if (!q.counts) {
+      excluded[q.reason] = (excluded[q.reason] || 0) + 1;
+      excludedTotal++;
+      continue;                       // never lets a cancelled order win a day
+    }
     channelTotals[channel] = (channelTotals[channel] || 0) + 1;
     if (!byDate.has(date)) byDate.set(date, { date, total: 0, channels: {}, email_revenue: 0 });
     const row = byDate.get(date);
@@ -391,18 +417,26 @@ async function attribution({ market, days = 90, maxPages = 20, timezone } = {}) 
   const tied = peak ? ranked.filter((r) => r.email === peak.email).map((r) => r.date) : [];
 
   const total = paged.orders.length;
+  // The unattributed SHARE must be measured against the orders that were actually
+  // counted, not against gross. Dividing by gross silently dilutes it every time
+  // an order is excluded — 1 of 10 counted became "7.69%" of 13 read, which
+  // understates exactly the caveat a reader relies on to judge the answer.
+  const counted = Object.values(channelTotals).reduce((a, n) => a + n, 0);
   const unattributed = channelTotals.direct_or_unknown || 0;
-  const unattributed_pct = total ? round((unattributed / total) * 100) : null;
+  const unattributed_pct = counted ? round((unattributed / counted) * 100) : null;
 
   return {
     ok: true, connected: true, platform: 'shopify', market: normMarket(market), op: 'attribution',
     source: paged.source, fetched_at: paged.fetched_at,
-    window_days: clamp(days, 30, 365), orders_read: total, pages: paged.pages,
+    window_days: clamp(days, 30, 365), orders_read: total, orders_counted: counted, pages: paged.pages,
     truncated: paged.truncated,
     timezone: tz || 'UTC', timezone_source: tzSource,
     method: 'last-click from the order landing_site UTMs, referring_site as fallback',
     channel_totals: channelTotals,
     email_orders: channelTotals.email || 0,
+    email_orders_gross: emailGross,
+    excluded_orders: excludedTotal,
+    excluded_breakdown: excluded,
     peak_email_day: peak ? { date: peak.date, email_orders: peak.email, email_revenue: peak.email_revenue, orders_that_day: peak.total } : null,
     peak_is_tied_with: tied.length > 1 ? tied : [],
     email_examples: emailExamples,
@@ -412,7 +446,10 @@ async function attribution({ market, days = 90, maxPages = 20, timezone } = {}) 
     unattributed_pct,
     caveats: [
       'Last-click only. This is NOT Shopify multi-touch attribution (customerJourneySummary, GraphQL, separate scope) and NOT Klaviyo self-reported attribution - being independent of Klaviyo is the point of this check.',
-      `${unattributed} of ${total} orders (${unattributed_pct == null ? '-' : unattributed_pct}%) have no UTM and no referrer. Those are direct_or_unknown, NOT "not email": an email click that lost its UTMs lands there, so the true email count is a floor, not an exact figure.`,
+      excludedTotal
+        ? `${excludedTotal} order(s) excluded as not-a-result (${Object.entries(excluded).map(([k, v]) => `${v} ${k}`).join(', ')}). Email gross was ${emailGross}, net ${channelTotals.email || 0}. status=any includes cancelled orders, so this filter is what stops a cancelled order winning a day.`
+        : 'No cancelled, refunded, voided or test orders in the window - gross and net are the same.',
+      `${unattributed} of ${counted} counted orders (${unattributed_pct == null ? '-' : unattributed_pct}%) have no UTM and no referrer. Those are direct_or_unknown, NOT "not email": an email click that lost its UTMs lands there, so the true email count is a floor, not an exact figure.`,
       paged.truncated ? `Stopped at the ${maxPages}-page cap, so this is a PARTIAL read of the window and the peak day may be wrong. Narrow --days or raise maxPages.` : `Complete read of the window across ${paged.pages} page(s).`,
       tz ? `Dates bucketed in the shop timezone ${tz} (${tzSource}).` : 'Shop timezone unavailable; dates bucketed in UTC, which can split an evening send across two days.',
     ],

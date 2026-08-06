@@ -89,3 +89,32 @@ test('with no credential it returns the request it would have made, and fabricat
 test('attribution is exposed as a Shopify op', () => {
   expect(Object.keys(core.OPS)).toContain('attribution');
 });
+
+test('a cancelled, refunded or test order can never win the peak day', () => {
+  // status=any deliberately INCLUDES cancelled orders, so without a filter one
+  // cancelled order is enough to hand a date the peak. Refunded and test orders
+  // are the same problem: they are not results.
+  const bad = [
+    { name: '#c', cancelled_at: '2026-08-07T10:00:00Z', landing_site: '/?utm_medium=email' },
+    { name: '#r', financial_status: 'refunded', landing_site: '/?utm_medium=email' },
+    { name: '#v', financial_status: 'voided', landing_site: '/?utm_medium=email' },
+    { name: '#t', test: true, landing_site: '/?utm_medium=email' },
+  ];
+  for (const o of bad) {
+    // Each still classifies as email — the exclusion is about order QUALITY, a
+    // separate axis from source. Conflating them would drop the order from the
+    // gross count too and hide the difference.
+    expect(core.classifyOrder(o).channel).toBe('email');
+  }
+  // Partially refunded still counts: some revenue was kept.
+  expect(core.classifyOrder({ financial_status: 'partially_refunded', landing_site: '/?utm_medium=email' }).channel).toBe('email');
+});
+
+test('gross and net are both reported, so the exclusion is auditable', () => {
+  const src = require('fs').readFileSync(path.join(__dirname, '..', 'api', '_shared', 'shopify-core.js'), 'utf8');
+  // A number that quietly shrinks is worse than one that never moved: the reader
+  // cannot tell a filter from a data change.
+  expect(src).toContain('email_orders_gross');
+  expect(src).toContain('excluded_breakdown');
+  expect(src).toContain("if (o && o.cancelled_at) return { counts: false, reason: 'cancelled' };");
+});
