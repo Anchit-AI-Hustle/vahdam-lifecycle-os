@@ -35,6 +35,7 @@
  */
 
 const snow = require('./ads-snowflake-core.js');
+const { liveConnectorsEnabled } = require('./live-connectors.js');
 
 const META_TABLE = (process.env.SF_META_ADS_TABLE || 'VAHDAM_DB.MAPLEMONK.META_USA_ADS_INSIGHTS').toUpperCase();
 
@@ -57,7 +58,26 @@ function metaCfg() {
     account: (process.env.META_AD_ACCOUNT_ID || '').trim(),
   };
 }
-function metaConfigured() { const c = metaCfg(); return !!(c.token && c.account); }
+// This module was the LAST outbound connector still ignoring the global kill
+// switch: with LIVE_CONNECTORS off it kept calling the Meta Graph API, so the
+// switch did not mean what it says and no operator could trust it. A kill switch
+// with an exception is not a kill switch. `metaConfigured()` gates every live
+// Meta path here, so honouring the flag at this one point covers all of them and
+// the callers already render the not_connected envelope honestly.
+function metaConfigured() {
+  if (!liveConnectorsEnabled()) return false;
+  const c = metaCfg();
+  return !!(c.token && c.account);
+}
+// Distinguishes "switch is off" from "no credentials" — they need different fixes,
+// and telling someone to add a key they already added wastes an afternoon.
+function metaBlocker() {
+  if (!liveConnectorsEnabled()) return 'LIVE_CONNECTORS is off, so no request was sent to Meta. Set LIVE_CONNECTORS=on in Vercel env to read live Meta results.';
+  const c = metaCfg();
+  if (!c.token) return 'Set META_ACCESS_TOKEN in Vercel env.';
+  if (!c.account) return 'Set META_AD_ACCOUNT_ID in Vercel env.';
+  return null;
+}
 function actPath(id) { return String(id).startsWith('act_') ? String(id) : `act_${id}`; }
 
 function budgets() { return snow.budgets(); }
@@ -348,6 +368,10 @@ function status() {
     ok: true, source: 'ads-live',
     primary_source: metaConfigured() ? 'meta-marketing-api' : (snow.isConfigured() ? 'snowflake' : 'none'),
     meta_api: { configured: metaConfigured(), account_set: !!c.account, token_set: !!c.token, api_version: META_API_VERSION,
+      // The blocker names the ONE thing to change. Reporting "not configured"
+      // when the keys are present but the switch is off sends the operator
+      // hunting for a credential they already set.
+      live_connectors: liveConnectorsEnabled(), blocker: metaBlocker(),
       metrics: 'delivery + conversions, revenue, ROAS, reach, frequency, CPM, CPC',
       note: metaConfigured() ? 'Meta Marketing API configured and PRIMARY — today is read minute-fresh with date_preset=today, with the full metric set. Snowflake is not required for US.' : 'Meta Marketing API not configured (META_ACCESS_TOKEN + META_AD_ACCOUNT_ID). Falling back to the Snowflake per-day mirror, which carries delivery but NO conversion or revenue columns.' },
     snowflake: { configured: snow.isConfigured(), table: META_TABLE, role: 'fallback mirror',

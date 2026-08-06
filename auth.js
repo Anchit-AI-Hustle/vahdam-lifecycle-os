@@ -78,6 +78,26 @@
     } catch (_) {}
   })();
 
+  // ─── Shared sync layer: load /sync-bar.js once on every page ────────────
+  // Product-owner rule (2026-08-06): EVERY page must carry a refresh / sync
+  // control that brings it to real-time data. Loading it here rather than adding
+  // a <script> tag to 56 separate HTML files is what makes "every page" true and
+  // keeps it true for pages added later. The module is inert until something
+  // registers a loader, and on a page with no live source its button performs a
+  // cache-bypassing reload and labels itself honestly.
+  (function ensureSyncBar() {
+    try {
+      if (IS_FROZEN_DIFF) return;
+      var d = document;
+      if (d.querySelector('script[data-vh-sync]')) return;
+      var s = d.createElement('script');
+      s.src = '/sync-bar.js?v=20260806';
+      s.defer = true;
+      s.setAttribute('data-vh-sync', '1');
+      (d.head || d.documentElement).appendChild(s);
+    } catch (_) {}
+  })();
+
   // Theme switcher removed — the theme is locked to green (see theme.css).
   // Clean up the old floating button if a cached page still has one.
   (function removeLegacyThemeSwitch() {

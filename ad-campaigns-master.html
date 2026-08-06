@@ -3361,7 +3361,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   // all dropped by an earlier version of this table, and reach/frequency are the
   // only way to see a set re-serving the same people. Nothing is derived here
   // that the payload does not already compute from summed additive fields.
-  var LI={region:"",account:"",loaded:false,timer:null};
+  var LI={region:"",account:"",loaded:false,timer:null,lastSource:null,lastNote:null};
   function dec(v,d){ return v==null?"—":Number(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}); }
   function rate(v){ return v==null?"—":pct(Number(v)*100); }
   function roasf(v){ return v==null?"—":Number(v).toLocaleString("en-US",{maximumFractionDigits:2})+"×"; }
@@ -3417,6 +3417,10 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       var d=await res.json();
       var all=Array.isArray(d.rows)?d.rows:[];
       var rows=all.filter(function(r){ return rowInAccount(r,LI.account); });
+      // Record what this read actually was so the shared sync bar reports the
+      // same thing the chip says, rather than assuming every fetch was live.
+      LI.lastSource=d.cached?"cached":"live";
+      LI.lastNote=d.cached?(d.note||"Cached snapshot of real ad data; the live read is unavailable on this deployment."):null;
       $("#li-src").textContent="source: "+(d.cached?"cached snapshot":"live platform read");
       kh.innerHTML=liKpis(rows.length===all.length?d.kpis:liRecalc(rows));
       $("#li-connectors").innerHTML=liConnectors(d.platforms);
@@ -3530,6 +3534,42 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     },120000);
     // Auto-refresh the live view every 90s so "is it live yet" stays current.
     setInterval(function(){ if(document.querySelector("#tabs button[data-p='live']").classList.contains("on")) loadLive(); },90000);
+    // ── Shared sync bar ─────────────────────────────────────────────────────
+    // Registers the surfaces that actually read a live source. Each reports what
+    // it GOT, not what it hoped for: loadLive() falls back to a committed
+    // snapshot when no connector is configured, and saying "live" then would be
+    // the exact lie this dashboard is built to avoid.
+    if(window.LifecycleSync){
+      window.LifecycleSync.register({
+        surface:"ads:live", label:"Ads — Live Now (Meta / warehouse)", interval:90,
+        load:async function(){
+          await loadLive();
+          var t=LIVE&&LIVE.today;
+          if(!t||t.ok===false) return {source:"unavailable",note:(t&&t.hint)||"No live ad source reachable; the committed snapshot is shown."};
+          if(!t.connected) return {source:"snapshot",note:t.hint||"No live connector configured — showing the committed snapshot."};
+          return {source:"live"};
+        },
+      });
+      window.LifecycleSync.register({
+        surface:"ads:details", label:"Ads — campaign & ad detail", interval:120,
+        load:async function(){
+          await refreshLiveAds();
+          return ADS_SOURCE==="live" ? {source:"live"}
+            : {source:"snapshot",note:"Per-ad rows are the committed snapshot: the live platform read returned nothing (no keys, not an operator session, or a network-policy block)."};
+        },
+      });
+      // Live Ads Intelligence is only meaningful once it has been opened (it
+      // builds its picker from the registry), so it registers itself there.
+      var _initLI=initLiveIntel;
+      initLiveIntel=function(){
+        _initLI();
+        window.LifecycleSync.register({
+          surface:"ads:liveintel", label:"Ads — Live Ads Intelligence (Meta/Google/TikTok)", interval:60,
+          load:async function(){ await loadLiveIntel(); return {source:LI.lastSource||"live",note:LI.lastNote||null}; },
+        });
+      };
+    }
+
     var h=(location.hash||"").replace(/[^a-z]/gi,"");
     if(h){var b=document.querySelector("#tabs button[data-p='"+h+"']"); if(b)b.click();}
   }).catch(function(e){
