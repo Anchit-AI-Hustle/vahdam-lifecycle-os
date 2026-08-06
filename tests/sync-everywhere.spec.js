@@ -57,9 +57,19 @@ test('a page with no live source still gets a working control, and says so', asy
   await page.goto(BASE + '/frameworks.html');
   await page.waitForTimeout(1600);
   await expect(page.locator('#vh-sync')).toBeVisible();
-  // It must NOT imply live data it does not have.
+  // It must NOT imply live data it does not have. The text chip is hidden on
+  // narrow viewports, so read it rather than click it.
   expect(await page.textContent('#vh-sync .vh-src')).toBe('page reload');
-  await page.click('#vh-sync .vh-src');
+  // The dot button is the affordance that MUST work on every viewport, including
+  // phones where the chip and the auto toggle are hidden. It is asserted here
+  // because the first version of this bar shipped an 8px, effectively untappable
+  // target as the only mobile route into the panel.
+  const dot = page.locator('#vh-sync [data-vh="panel"]');
+  await expect(dot).toBeVisible();
+  const box = await dot.boundingBox();
+  expect(box.width, 'the dot needs a real touch target').toBeGreaterThanOrEqual(24);
+  expect(box.height, 'the dot needs a real touch target').toBeGreaterThanOrEqual(24);
+  await dot.click();
   await page.waitForTimeout(300);
   expect(await page.textContent('#vh-sync-panel')).toContain('registers no live data source');
   expect(errors, errors.join(' | ')).toEqual([]);
@@ -142,3 +152,47 @@ for (const [route, surface] of REGISTERED) {
     s.close();
   });
 }
+
+test('on a phone, auto-refresh stays controllable even though the bar hides it', async ({ page }) => {
+  const s = server(); await new Promise((r) => s.listen(0, r));
+  const BASE = 'http://127.0.0.1:' + s.address().port;
+  await page.setViewportSize({ width: 390, height: 780 });
+  await page.goto(BASE + '/ad-campaigns-master.html');
+  await page.waitForTimeout(2200);
+  // The bar's own toggle is hidden under 520px by design (no room).
+  await expect(page.locator('#vh-sync .vh-auto')).toBeHidden();
+  // So the capability has to live in the panel, or a phone user can never stop
+  // the polling — hiding a control must not remove the capability.
+  await page.locator('#vh-sync [data-vh="panel"]').click();
+  await page.waitForTimeout(300);
+  const toggle = page.locator('#vh-sync-panel [data-vh="auto2"]');
+  await expect(toggle).toBeVisible();
+  await toggle.uncheck();
+  expect(await page.evaluate(() => document.querySelector('#vh-sync [data-vh=\"auto\"]').checked))
+    .toBe(false);
+  s.close();
+});
+
+test('opening a page does not trigger a second fetch on top of its own startup load', async ({ page }) => {
+  // The refocus catch-up must not fire when nothing has synced yet. It did at
+  // first, so every registered page fetched twice on open — double the calls
+  // against metered connectors, and the two runs interleaved badly: a page whose
+  // loader clears its error banner on entry had the banner wiped by the second
+  // run. The page's own startup owns the first fetch.
+  const src = fs.readFileSync(path.join(ROOT, 'sync-bar.js'), 'utf8');
+  const handler = src.slice(src.indexOf("addEventListener('visibilitychange'"));
+  const body = handler.slice(0, handler.indexOf('});'));
+  expect(body, 'refocus must bail out when nothing has synced yet').toContain('if (lastOk == null) return;');
+  expect(body, 'refocus must not sync merely because lastOk is null').not.toMatch(/lastOk == null \|\|/);
+
+  const s = server(); await new Promise((r) => s.listen(0, r));
+  const BASE = 'http://127.0.0.1:' + s.address().port;
+  const before = apiCalls;
+  await page.goto(BASE + '/all-in-one.html');
+  await page.waitForTimeout(2500);
+  const onOpen = apiCalls - before;
+  // Its startup load() fires one request; the bar must add none.
+  expect(onOpen, `expected the page's own startup fetch only, got ${onOpen} calls`).toBeLessThanOrEqual(2);
+  expect(await page.evaluate(() => window.LifecycleSync.lastSyncedAt)).toBeNull();
+  s.close();
+});

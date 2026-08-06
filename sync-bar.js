@@ -99,7 +99,11 @@
       '  background:#004A2B;color:#FBF5EA;border:1px solid rgba(171,135,67,0.55);',
       '  box-shadow:0 4px 18px rgba(0,0,0,0.22);font-size:12px;line-height:1;max-width:calc(100vw - 28px)}',
       '#vh-sync.busy{opacity:0.92}',
-      '#vh-sync .vh-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#5FD08A}',
+      '#vh-sync .vh-dotbtn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;',
+'  margin:-6px -4px -6px -6px;padding:0;background:none;border:none;border-radius:50%;cursor:pointer;flex-shrink:0}',
+'#vh-sync .vh-dotbtn:hover{background:rgba(251,245,234,0.14)}',
+'#vh-sync .vh-dotbtn:focus-visible{outline:2px solid #AB8743;outline-offset:1px}',
+'#vh-sync .vh-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#5FD08A;pointer-events:none}',
       '#vh-sync.warn .vh-dot{background:#E9B949}',
       '#vh-sync.bad .vh-dot{background:#F08A7A}',
       '#vh-sync .vh-age{white-space:nowrap;font-variant-numeric:tabular-nums}',
@@ -139,7 +143,8 @@
     var bar = document.createElement('div');
     bar.id = 'vh-sync';
     bar.innerHTML =
-      '<span class="vh-dot" aria-hidden="true"></span>' +
+      '<button type="button" class="vh-dotbtn" data-vh="panel" aria-label="Show data sources and sync settings">' +
+      '<span class="vh-dot" aria-hidden="true"></span></button>' +
       '<span class="vh-age" role="status" aria-live="polite">not synced yet</span>' +
       '<span class="vh-src"></span>' +
       '<button type="button" data-vh="sync">Sync now</button>' +
@@ -161,8 +166,7 @@
     el.src.style.cursor = 'pointer';
     el.src.setAttribute('title', 'Show what each source returned');
     el.src.addEventListener('click', togglePanel);
-    el.dot.style.cursor = 'pointer';
-    el.dot.addEventListener('click', togglePanel);
+    bar.querySelector('[data-vh="panel"]').addEventListener('click', togglePanel);
 
     render();
     startTick();
@@ -184,8 +188,19 @@
       : '<p class="vh-note">' + (SURFACES.length
         ? 'Nothing synced yet on this page. Press Sync now.'
         : 'This page registers no live data source, so Sync now reloads it with the browser and service-worker caches bypassed.') + '</p>';
-    p.innerHTML = '<h4>Data sources</h4>' + rows;
+    p.innerHTML = '<h4>Data sources</h4>' + rows +
+      (SURFACES.length
+        ? '<div class="vh-row" style="margin-top:8px"><label class="vh-nm" style="display:flex;align-items:center;gap:7px;cursor:pointer">' +
+          '<input type="checkbox" data-vh="auto2"' + (autoOn ? ' checked' : '') + '> Auto-refresh</label>' +
+          '<span class="vh-st">' + esc(autoInterval() + 's') + '</span></div>'
+        : '');
     document.body.appendChild(p);
+    var a2 = p.querySelector('[data-vh="auto2"]');
+    if (a2) a2.addEventListener('change', function () {
+      autoOn = a2.checked;
+      if (el.auto) el.auto.checked = autoOn;
+      scheduleAuto();
+    });
     setTimeout(function () {
       document.addEventListener('click', function once(e) {
         if (p.contains(e.target) || (el.bar && el.bar.contains(e.target))) {
@@ -266,14 +281,16 @@
     await Promise.all(keys.map(function (k) { return caches.delete(k); }));
   }
 
+  // The shortest registered interval is what actually governs the cadence.
+  function autoInterval() {
+    var secs = SURFACES.reduce(function (a, s) { return s.interval ? Math.min(a, s.interval) : a; }, Infinity);
+    return isFinite(secs) ? Math.max(20, secs) : 0;
+  }
   function scheduleAuto() {
     if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
     if (!autoOn || !SURFACES.length) return;
-    var secs = SURFACES.reduce(function (a, s) {
-      return s.interval ? Math.min(a, s.interval) : a;
-    }, Infinity);
-    if (!isFinite(secs)) return;      // every surface is manual-only
-    secs = Math.max(20, secs);
+    var secs = autoInterval();
+    if (!secs) return;                // every surface is manual-only
     autoTimer = setInterval(function () {
       // Visible + online only: a hidden tab polling a metered API spends quota
       // to refresh a screen nobody is looking at.
@@ -283,11 +300,21 @@
     }, secs * 1000);
   }
 
-  // Coming back to the tab is the moment the numbers are most likely stale.
+  // Coming back to the tab is the moment the numbers are most likely stale — but
+  // ONLY catch up if we have synced at least once before.
+  //
+  // The first version also fired when lastOk was null, which meant it fired on
+  // INITIAL page load (a page becoming visible counts). That made every
+  // registered page fetch twice on open — once from its own startup code, once
+  // from here — doubling calls against metered connectors, and the two runs
+  // interleaved: social-media.html's load() clears its error banner on entry, so
+  // the second run wiped the banner the first had just set. The page's own
+  // startup owns the first fetch; this handler only ever refreshes a stale one.
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') return;
     if (!SURFACES.length || !autoOn) return;
-    if (lastOk == null || (Date.now() - lastOk) > staleAfter()) syncAll('refocus');
+    if (lastOk == null) return;
+    if ((Date.now() - lastOk) > staleAfter()) syncAll('refocus');
   });
 
   function register(opts) {
