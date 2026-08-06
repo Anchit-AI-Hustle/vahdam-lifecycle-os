@@ -18,6 +18,20 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 
+// Every file this fixture may serve, mapped URL path -> absolute path, built by
+// walking the repo ONCE at start-up. The walk takes its paths from the real
+// directory tree, so no request data ever reaches fs.
+const SERVABLE = new Map();
+(function indexRepo(dir, prefix) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'test-results') continue;
+    const abs = path.join(dir, entry.name);
+    const url = `${prefix}/${entry.name}`;
+    if (entry.isDirectory()) indexRepo(abs, url);
+    else if (/\.(html|js|json|css|svg|png|jpg|webp)$/i.test(entry.name)) SERVABLE.set(url, abs);
+  }
+})(ROOT, '');
+
 let server, BASE;
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
@@ -44,14 +58,12 @@ test.beforeAll(async () => {
         note: 'Fresh figures returned from all connected platforms.',
       }));
     }
-    // Confine the served path to ROOT. `u` is attacker-controlled in the general
-    // case ("/../../etc/passwd") and path.join will happily normalise its way out
-    // of the directory, so normalise the RELATIVE path first and refuse anything
-    // that climbs or is absolute before it is ever joined to ROOT.
-    const rel = path.normalize(u === '/' ? 'index.html' : decodeURIComponent(u).replace(/^\/+/, ''));
-    if (!rel || path.isAbsolute(rel) || rel.split(path.sep)[0] === '..') { res.writeHead(403); return res.end('outside root'); }
-    const f = path.join(ROOT, rel);
-    if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('nf'); }
+    // The request path is a Map KEY, never a filesystem path. SERVABLE is built
+    // once by walking the repo (see below), so nothing derived from the request
+    // is ever passed to fs - path traversal is structurally impossible here
+    // rather than merely filtered out.
+    const f = SERVABLE.get(u === '/' ? '/index.html' : u);
+    if (!f) { res.writeHead(404); return res.end('nf'); }
     const ext = path.extname(f);
     res.writeHead(200, { 'content-type': ext === '.json' ? 'application/json' : ext === '.js' ? 'text/javascript' : 'text/html' });
     res.end(fs.readFileSync(f));
