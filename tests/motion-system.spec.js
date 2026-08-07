@@ -34,7 +34,7 @@ const PAGE = `<!doctype html><html><head><style>
     <div class="card">Card two</div>
     <div class="kpi"><span class="num">12,480</span></div>
     <button class="primary">Explore the collection</button>
-    <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" width="300" height="160" alt="pack">
+    <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='160'%3E%3Crect width='300' height='160' fill='%23004A2B'/%3E%3C/svg%3E" width="300" height="160" alt="pack">
     <table><tr><td>Campaign</td><td>4,120</td></tr></table>
   </section>
   <section id="s2"><h2>Origin stories</h2><div class="card">Card three</div></section>
@@ -81,7 +81,11 @@ test.describe('content can never get stuck invisible', () => {
 
 // ── Clause 2: no clip-path on text (the "ooth. Rich." defect) ───────────────
 test.describe('the mid-word clipping defect cannot come back', () => {
-  test('a wipe is only ever assigned to media, never to a text run', async ({ page }) => {
+  // NOTE on the fixture image: it must be a VALID image at a real size. An invalid
+// data URI renders as a ~46x18 alt-text box, which motion.js correctly rejects as
+// an icon — and the test then fails claiming the wipe branch is unreachable when
+// the code is right and the fixture is broken.
+test('a wipe is only ever assigned to media, never to a text run', async ({ page }) => {
     await boot(page);
     const wiped = await page.evaluate(() =>
       Array.from(document.querySelectorAll('[data-vh-rv="wipe"]')).map((el) => el.tagName));
@@ -383,3 +387,78 @@ function sampler(buf) {
   };
   return { rgbAt, contrast };
 }
+
+// ── The selectors must match the markup this app actually ships ─────────────
+test.describe('coverage is measured against real markup, not a friendly fixture', () => {
+  test('no selector is scoped to <main>, because no page in this app has one', () => {
+    // Measured on the real production HTML of six pages: NONE uses a <main>
+    // element. Every `main h1` / `main img` selector therefore matched exactly
+    // zero nodes, so kinetic headings and the media wipe were dead app-wide —
+    // while the synthetic fixture above, which DOES use <main>, reported them
+    // working. That gap between fixture and reality is the bug this pins.
+    const selectorBlocks = [
+      JS.slice(JS.indexOf('var REVEAL_SEL'), JS.indexOf('var MEDIA_TAGS')),
+      JS.slice(JS.indexOf('function scanKinetic'), JS.indexOf('function scanKinetic') + 400),
+    ].join('\n');
+    expect(selectorBlocks, 'a main-scoped selector matches nothing in this app').not.toMatch(/['"`]\s*main\s+/);
+  });
+
+  test('real page markup gets reveals, and nothing is left hidden', async ({ page }) => {
+    // A stripped-down copy of the shape real pages use: no <main>, panels rather
+    // than cards, headings outside any landmark.
+    const REAL_SHAPE = `<!doctype html><html><head><style>
+      body{margin:0;background:#FBF5EA;color:#171717}
+      .wrap{padding:24px}.panel{background:#fff;padding:18px;margin:14px 0;height:140px}
+      .tab{display:none}.tab.on{display:block}
+    </style></head><body>
+      <div id="lifecycle-nav"><a href="#a">Rail</a></div>
+      <div class="wrap">
+        <h1>Ad campaigns master dashboard</h1>
+        <div class="panel">Visible panel</div>
+        <div class="tab on"><h2>Spend pacing</h2><div class="panel">Open tab panel</div></div>
+        <div class="tab"><h2>Creative studio</h2><div class="panel">Hidden tab panel</div></div>
+      </div></body></html>`;
+    await page.route('https://fx.test/motion.css*', (r) => r.fulfill({ contentType: 'text/css', body: CSS }));
+    await page.route('https://fx.test/', (r) => r.fulfill({ contentType: 'text/html', body: REAL_SHAPE }));
+    await page.goto('https://fx.test/');
+    await page.addScriptTag({ content: JS });
+    await page.waitForTimeout(700);
+
+    const r = await page.evaluate(() => ({
+      rv: document.querySelectorAll('.vh-rv').length,
+      kin: document.querySelectorAll('.vh-kin').length,
+      railTouched: document.querySelectorAll('#lifecycle-nav .vh-rv, #lifecycle-nav .vh-kin').length,
+    }));
+    expect(r.rv, 'a page with no <main> got no reveals').toBeGreaterThan(1);
+    expect(r.kin, 'headings outside a landmark got no kinetic treatment').toBeGreaterThan(0);
+    expect(r.railTouched, 'the LHS rail must stay untouched even unscoped').toBe(0);
+
+    // Reveal the hidden tab the way the real dashboards do — a class toggle,
+    // which a childList-only MutationObserver never sees.
+    //
+    // Note what is NOT asserted here: that the reveal COUNT goes up. An element
+    // inside a display:none ANCESTOR still reports its own `display: block`, so
+    // hidden tab panels are already tracked at boot. The count is therefore the
+    // wrong probe. What matters, and what actually broke, is that a panel which
+    // was never on screen when its observer fired ends up VISIBLE once its tab
+    // opens rather than stranded at opacity 0.
+    await page.evaluate(() => {
+      document.querySelector('.tab.on').classList.remove('on');
+      document.querySelectorAll('.tab')[1].classList.add('on');
+    });
+    await page.waitForTimeout(900);
+    const after = await page.evaluate(() => {
+      const shown = document.querySelectorAll('.tab')[1];
+      const inside = Array.from(shown.querySelectorAll('.vh-rv, .vh-kin'));
+      return {
+        tracked: inside.length,
+        invisible: inside.filter((el) => parseFloat(getComputedStyle(el).opacity) < 0.01).length,
+        anyStuckOnPage: Array.from(document.querySelectorAll('.vh-rv, .vh-kin'))
+          .filter((el) => el.offsetParent !== null && parseFloat(getComputedStyle(el).opacity) < 0.01).length,
+      };
+    });
+    expect(after.tracked, 'the newly opened tab has no tracked content at all').toBeGreaterThan(0);
+    expect(after.invisible, 'a newly opened tab left its own content invisible').toBe(0);
+    expect(after.anyStuckOnPage, 'switching tabs stranded content at opacity 0').toBe(0);
+  });
+});

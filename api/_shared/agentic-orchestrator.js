@@ -26,14 +26,36 @@ function trim(obj, n = 1400) {
   catch (_) { return null; }
 }
 
-async function planningStage(analysis, market, tier) {
-  if (!callLLM) return { provider: 'fallback', objective: 'Re-engage proven cohorts with bestsellers; protect margin.', cohorts: [], heroAngles: [], northStarMetric: 'revenue' };
+// GOAL-DRIVEN PLANNING.
+// `goal` is the operator's stated objective in their own words ("win back UK
+// lapsed coffee buyers before Diwali", "shift the US base from single tins to
+// samplers"). It was accepted by the API and documented in the opts block below,
+// but never destructured in runAgentic and never passed to this function — so a
+// goal typed by an operator was silently discarded and the brain planned its own
+// generic strategy instead. A stated goal that is quietly ignored is worse than
+// no goal field at all, because the output looks like an answer to the question
+// that was asked.
+async function planningStage(analysis, market, tier, goal) {
+  const g = String(goal || '').trim();
+  if (!callLLM) {
+    return {
+      provider: 'fallback',
+      objective: g || 'Re-engage proven cohorts with bestsellers; protect margin.',
+      goal: g || null, goal_honoured: false,
+      cohorts: [], heroAngles: [], northStarMetric: 'revenue',
+    };
+  }
   try {
-    const sys = "You are VAHDAM India's growth strategist. Given the analysis, set the 30-day STRATEGIC LOCK. Return STRICT JSON {\"objective\",\"cohorts\":[\"..\"],\"heroAngles\":[\"..\"],\"northStarMetric\"}. No banned phrases.";
-    const user = `MARKET ${market}\nANALYSIS ${JSON.stringify({ cohorts: (analysis.cohorts || []).slice(0, 8), winners: (analysis.winningCampaigns || analysis.winning_campaigns || []).slice(0, 5) })}\nReturn JSON.`;
-    const out = await callLLM({ systemPrompt: sys, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens: 700, tier, stage: 'agentic-planning' });
-    return Object.assign({ provider: out.provider || 'llm' }, callLLM.parseJSON(typeof out === 'string' ? out : out.text));
-  } catch (_) { return { provider: 'fallback', objective: 'fallback strategy', cohorts: [], heroAngles: [] }; }
+    const sys = "You are VAHDAM India's growth strategist. Given the analysis, set the 30-day STRATEGIC LOCK. Return STRICT JSON {\"objective\",\"cohorts\":[\"..\"],\"heroAngles\":[\"..\"],\"northStarMetric\",\"goal_interpretation\"}. No banned phrases."
+      + (g ? " The OPERATOR GOAL below is the brief: the objective you return must serve THAT goal, the cohorts you pick must be the ones that goal implies, and northStarMetric must be the metric that goal moves. In goal_interpretation, state in one sentence how you read the goal. If the analysis cannot support the goal, say so there rather than quietly substituting a different objective." : '');
+    const user = (g ? `OPERATOR GOAL (the brief): ${g}\n\n` : '')
+      + `MARKET ${market}\nANALYSIS ${JSON.stringify({ cohorts: (analysis.cohorts || []).slice(0, 8), winners: (analysis.winningCampaigns || analysis.winning_campaigns || []).slice(0, 5) })}\nReturn JSON.`;
+    const out = await callLLM({ systemPrompt: sys, userMessage: user, responseFormat: { type: 'json_object' }, maxTokens: 800, tier, stage: 'agentic-planning' });
+    const parsed = callLLM.parseJSON(typeof out === 'string' ? out : out.text) || {};
+    return Object.assign({ provider: out.provider || 'llm' }, parsed, { goal: g || null, goal_honoured: !!g });
+  } catch (_) {
+    return { provider: 'fallback', objective: g || 'fallback strategy', goal: g || null, goal_honoured: false, cohorts: [], heroAngles: [] };
+  }
 }
 
 async function reviewStage(campaign, tier) {
@@ -50,10 +72,14 @@ async function reviewStage(campaign, tier) {
 
 /**
  * runAgentic(opts) → { ok, mode, tier, market, stages[], strategy, scenarios, campaign, review, ideation }
- *   opts: { market, brief, tier:'budget'|'maxpower', days, scope, withCreatives, maxRetries }
+ *   opts: { market, goal (aka brief/theme), tier:'budget'|'maxpower', days, scope, withCreatives, maxRetries }
  */
 async function runAgentic(opts = {}) {
+  // `goal` (aliased brief/theme) is the operator's stated objective. It MUST be
+  // destructured here — omitting it is what made the documented `brief` option a
+  // no-op for every caller that passed one.
   const { market = 'US', tier = 'budget', days, maxRetries = 1 } = opts;
+  const goal = String(opts.goal || opts.brief || opts.theme || '').trim();
   const withCreatives = opts.withCreatives != null ? opts.withCreatives : (tier === 'maxpower');
   const config = svc.smartConfig();
   const stages = [];
@@ -75,8 +101,10 @@ async function runAgentic(opts = {}) {
   rec('analysis', true, `${(analysis.cohorts || []).length} cohorts, ${(analysis.winningCampaigns || analysis.winning_campaigns || []).length} winning campaigns`, { cohorts: (analysis.cohorts || []).map((c) => c.name || c.cohort) });
 
   // 3. PLANNING (LLM, tier-aware)
-  const strategy = await planningStage(analysis, market, tier);
-  rec('planning', true, strategy.objective || 'strategy set', strategy);
+  const strategy = await planningStage(analysis, market, tier, goal);
+  rec('planning', true,
+    (goal ? `goal: "${goal.slice(0, 90)}" -> ` : '') + (strategy.objective || 'strategy set'),
+    strategy);
 
   // 4. CALENDAR (+ 5 scenarios)
   const calendar = new svc.CalendarIntelligenceService(config).generate({ analysis, competitorBenchmarks, days: days || config.calendarDays, feedback: ownData.feedback });
@@ -85,6 +113,13 @@ async function runAgentic(opts = {}) {
 
   // 5+6. CONTENT (script) + ASSET CREATION — top entry of the default (medium) plan, score-gated retry
   const topEntry = (calendar.entries || [])[0];
+  // Carry the goal onto the entry the assets are built from. Without this the
+  // strategy stage honours the goal and every downstream asset ignores it, which
+  // reads as "the goal worked" right up until you open the mailer.
+  if (topEntry && goal) {
+    topEntry.goal = goal;
+    topEntry.objective = strategy.objective || topEntry.objective;
+  }
   let campaign = null, review = null, attempt = 0;
   if (topEntry) {
     do {
@@ -108,7 +143,14 @@ async function runAgentic(opts = {}) {
   const ideation = await ideate({ analysis, calendar, review: review || {}, market, tier });
   rec('ideation', true, `${ideation.ideas.length} next-actions`, { ideas: ideation.ideas.map((i) => i.title) });
 
-  return { ok: true, mode: db.connected ? 'db-linked' : 'local-fallback', tier, market, stages, strategy, scenarios: scenarioSet, campaign, review, ideation };
+  return {
+    ok: true, mode: db.connected ? 'db-linked' : 'local-fallback', tier, market,
+    // Echo the goal back so a caller can SEE whether the run was goal-driven,
+    // rather than having to infer it from the copy.
+    goal: goal || null,
+    goal_driven: !!goal,
+    stages, strategy, scenarios: scenarioSet, campaign, review, ideation,
+  };
 }
 
 module.exports = { runAgentic };
