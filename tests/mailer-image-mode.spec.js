@@ -32,7 +32,7 @@ const TRIGGER = fs.readFileSync(path.join(ROOT, 'api', '_shared', 'calendar-trig
 const MARK = {
   mailer: 'Editorial lifestyle food photograph for a premium tea brand email',
   ad: 'Scroll-stopping paid social ad',
-  reels: 'Cinematic 9:16 hero frame',
+  reels: 'Opening frame of a premium tea brand social video',
   design: 'flat graphic design mockup',
   ambient: 'Photoreal ambient lifestyle backdrop',
   default: 'Photoreal product lifestyle photograph',
@@ -70,27 +70,43 @@ test('the mailer mode exists and is selected by mode:"mailer"', async () => {
   expect(p).toContain(MARK.mailer);
 });
 
-test('THE BRIEF LEADS the mailer prompt; style and rules trail it', async () => {
+test('THE BRIEF LEADS every scene-first mode; style and rules trail it', async () => {
   // This ordering is the whole fix, and it is invisible in code review.
   // Generated against the real provider, a prohibition-first prompt returned a
   // 3D portrait in a glowing ring for a warm-kitchen brief, and the 'reels'
   // preamble returned a cold cinematic mountain landscape for the same brief.
   // Early tokens dominate: whatever leads the prompt overrides everything after
   // it, so the brief has to be first.
-  const p = await promptFor('mailer');
-  const brief = 'A cup of chai on a kitchen counter.';
-  const at = p.indexOf(brief);
-  const style = p.indexOf(MARK.mailer);
-  expect(at, 'the brief is missing from the prompt entirely').toBeGreaterThan(-1);
-  expect(style, 'the style block is missing').toBeGreaterThan(-1);
-  expect(style, 'style/rules were placed BEFORE the brief again').toBeGreaterThan(at);
-  // Nothing of substance may precede the brief.
-  expect(p.slice(0, at).replace(/https?:\S*?prompt\//, '').trim().length,
-    'something is prefixed ahead of the brief').toBeLessThan(5);
+  // Both modes that were measured producing off-brief images are covered.
+  // 'reels' returned a cold cinematic mountain landscape for a warm-kitchen
+  // brief; the first cut of 'mailer' returned a 3D portrait in a glowing ring.
+  for (const mode of ['mailer', 'reels']) {
+    const p = await promptFor(mode);
+    const brief = 'A cup of chai on a kitchen counter.';
+    const at = p.indexOf(brief);
+    const style = p.indexOf(MARK[mode]);
+    expect(at, `${mode}: the brief is missing from the prompt entirely`).toBeGreaterThan(-1);
+    expect(style, `${mode}: the style block is missing`).toBeGreaterThan(-1);
+    expect(style, `${mode}: style/rules were placed BEFORE the brief again`).toBeGreaterThan(at);
+    // Nothing of substance may precede the brief.
+    expect(p.slice(0, at).trim().length, `${mode}: something is prefixed ahead of the brief`).toBeLessThan(5);
+  }
 });
 
-test('the mailer prompt does not argue for what it wants to exclude', async () => {
-  const p = await promptFor('mailer');
+test('ambient may keep leading with its preamble, because it agrees with the brief', async () => {
+  // The rule is NOT "preamble first is always wrong". Generated against the real
+  // provider, 'ambient' leads with a preamble and comes back on-brief, because
+  // its style (warm tea scene, steam, wood, natural light) agrees with what it
+  // is asked to draw. 'reels' failed because "cinematic, graded like a film
+  // still" actively conflicts. A conflicting style wins when it leads — which is
+  // why only the conflicting modes were restructured, not all of them.
+  const p = await promptFor('ambient');
+  expect(p).toContain(MARK.ambient);
+  expect(p.indexOf(MARK.ambient)).toBeLessThan(p.indexOf('A cup of chai on a kitchen counter.'));
+});
+
+test('the scene-first prompts do not argue for what they want to exclude', async () => {
+  const p = (await promptFor('mailer')) + (await promptFor('reels'));
   // Negations are weak in diffusion models and often summon what they name, so
   // the rule list stays short and never enumerates the objects it fears.
   for (const summoned of ['badge', 'button', 'price', 'headline', 'watermark', 'logo']) {

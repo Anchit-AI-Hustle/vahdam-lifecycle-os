@@ -78,7 +78,20 @@ Editorial lifestyle food photograph for a premium tea brand email. Warm natural 
 Photograph only. No writing or lettering anywhere in the frame. No screens, devices or interface panels. Not letterboxed, not a film still.`;
 
 // Modes whose brief must LEAD the prompt rather than trail a preamble.
-const SCENE_FIRST = { mailer: MAILER_STYLE_BLOCK };
+// Same treatment for reels, and for the same measured reason. Generated against
+// the live cascade, the reels PREAMBLE returned a cold blue cinematic mountain
+// landscape at dusk for a warm-kitchen brief — the brief was ignored entirely.
+// The distinction that matters is not "preamble first is bad": 'ambient' leads
+// with a preamble and comes back fine, because its style AGREES with a warm tea
+// scene. 'reels' fails because "cinematic ... graded like a film still ...
+// filmic colour grade" actively pulls toward moody landscape cinema and beats
+// whatever brief follows it. A style that CONFLICTS with the brief wins when it
+// leads, so reels leads with the brief too.
+const REELS_STYLE_BLOCK = `
+Opening frame of a premium tea brand social video, shot vertically. Clear foreground, midground and background separation so the frame can be animated with parallax. One clear subject. Movement caught mid-action is welcome: steam curling, tea pouring, leaves drifting. Warm cream, deep forest green and gold tones, editorial food-film lighting, shallow depth of field. Calm empty space in the upper third where text is placed later.
+Photograph only. No writing or lettering anywhere in the frame. No screens, devices or interface panels.`;
+
+const SCENE_FIRST = { mailer: MAILER_STYLE_BLOCK, reels: REELS_STYLE_BLOCK };
 
 const AMBIENT_PROMPT_PREAMBLE = `Photoreal ambient lifestyle backdrop for VAHDAM India premium tea brand — an atmospheric tea scene with NO product and NO packaging in frame. Show only: a freshly brewed cup of tea with rising steam, loose tea leaves, a marble or wood surface, warm natural light, soft shallow depth of field. ABSOLUTELY NO product packaging, NO tin, NO box, NO pouch, NO label, NO brand mark, NO logo, NO text, NO words, NO watermark, NO UI. The real product photo is added separately, so this frame must stay a clean product-free backdrop. Brand palette accents allowed: deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. Gallery-print resolution, zero AI smear artifacts.
 
