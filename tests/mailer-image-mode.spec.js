@@ -23,7 +23,6 @@ const path = require('path');
 // which is why this went unnoticed. These tests read the real handler.
 
 const ROOT = path.join(__dirname, '..');
-const IMAGE = fs.readFileSync(path.join(ROOT, 'api', 'ai', 'image.js'), 'utf8');
 const PLAN = fs.readFileSync(path.join(ROOT, 'api', '_shared', 'smart-brain-plan.js'), 'utf8');
 const AGENT = fs.readFileSync(path.join(ROOT, 'api', '_shared', 'asset-agent.js'), 'utf8');
 const TRIGGER = fs.readFileSync(path.join(ROOT, 'api', '_shared', 'calendar-trigger.js'), 'utf8');
@@ -31,7 +30,7 @@ const TRIGGER = fs.readFileSync(path.join(ROOT, 'api', '_shared', 'calendar-trig
 // Distinctive opening phrase of each preamble, so a mode can be identified from
 // the prompt that actually reaches a provider.
 const MARK = {
-  mailer: 'premium tea EMAIL',
+  mailer: 'Editorial lifestyle food photograph for a premium tea brand email',
   ad: 'Scroll-stopping paid social ad',
   reels: 'Cinematic 9:16 hero frame',
   design: 'flat graphic design mockup',
@@ -57,13 +56,46 @@ async function promptFor(mode) {
   try {
     await handler({ method: 'POST', body: { prompt: 'A cup of chai on a kitchen counter.', size: '1536x1024', mode } }, res).catch(() => {});
   } finally { global.fetch = realFetch; }
-  return seen || '';
+  if (!seen) return '';
+  // Return ONLY the prompt, never the surrounding URL. The Pollinations query
+  // string carries `nologo=true`, which made a "does the prompt say 'logo'"
+  // assertion pass on the URL rather than the prompt.
+  const m = /\/prompt\/([\s\S]*?)(?:\?|$)/.exec(seen);
+  return m ? m[1] : seen;
 }
 
 test('the mailer mode exists and is selected by mode:"mailer"', async () => {
   const p = await promptFor('mailer');
   expect(p, 'no prompt ever reached a provider').toBeTruthy();
   expect(p).toContain(MARK.mailer);
+});
+
+test('THE BRIEF LEADS the mailer prompt; style and rules trail it', async () => {
+  // This ordering is the whole fix, and it is invisible in code review.
+  // Generated against the real provider, a prohibition-first prompt returned a
+  // 3D portrait in a glowing ring for a warm-kitchen brief, and the 'reels'
+  // preamble returned a cold cinematic mountain landscape for the same brief.
+  // Early tokens dominate: whatever leads the prompt overrides everything after
+  // it, so the brief has to be first.
+  const p = await promptFor('mailer');
+  const brief = 'A cup of chai on a kitchen counter.';
+  const at = p.indexOf(brief);
+  const style = p.indexOf(MARK.mailer);
+  expect(at, 'the brief is missing from the prompt entirely').toBeGreaterThan(-1);
+  expect(style, 'the style block is missing').toBeGreaterThan(-1);
+  expect(style, 'style/rules were placed BEFORE the brief again').toBeGreaterThan(at);
+  // Nothing of substance may precede the brief.
+  expect(p.slice(0, at).replace(/https?:\S*?prompt\//, '').trim().length,
+    'something is prefixed ahead of the brief').toBeLessThan(5);
+});
+
+test('the mailer prompt does not argue for what it wants to exclude', async () => {
+  const p = await promptFor('mailer');
+  // Negations are weak in diffusion models and often summon what they name, so
+  // the rule list stays short and never enumerates the objects it fears.
+  for (const summoned of ['badge', 'button', 'price', 'headline', 'watermark', 'logo']) {
+    expect(p.toLowerCase(), `naming "${summoned}" argues for drawing one`).not.toContain(summoned);
+  }
 });
 
 test('every mode selects its OWN preamble and no other', async () => {
@@ -78,18 +110,17 @@ test('every mode selects its OWN preamble and no other', async () => {
   }
 });
 
-test('the mailer preamble forbids exactly what breaks an email', async () => {
+test('the mailer rules cover exactly what breaks an email', async () => {
   const p = await promptFor('mailer');
-  // Copy is live HTML beside the image: baked text duplicates the headline,
-  // cannot be translated or read aloud, and breaks on dark-mode inversion.
-  expect(p).toMatch(/No text, no words/i);
-  // It goes INSIDE an email, so it must not depict one.
-  expect(p).toMatch(/No email layout, no inbox chrome/i);
-  expect(p).toMatch(/NOT a design mockup/i);
-  // Most opens are mobile; a frame that needs a big canvas is the wrong frame.
+  // Copy is live HTML beside the image, so text baked into pixels duplicates the
+  // headline, cannot be translated or read aloud, and breaks on dark-mode invert.
+  expect(p).toMatch(/No writing or lettering anywhere in the frame/i);
+  // It goes INSIDE an email, so it must not depict an inbox or a device.
+  expect(p).toMatch(/No screens, devices or interface panels/i);
+  // Most opens are mobile; a frame needing a big canvas is the wrong frame.
   expect(p).toMatch(/320px wide on a phone/i);
-  // And it is not a video still.
-  expect(p).toMatch(/NOT a vertical video still/i);
+  // And it is not a video frame.
+  expect(p).toMatch(/Not letterboxed, not a film still/i);
 });
 
 test('the Brain picks a mode per surface — reels only where it is really a video', () => {
