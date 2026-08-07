@@ -155,14 +155,23 @@
   }
 
   // ── 1. Reveals ───────────────────────────────────────────────────────────
+  // NOT SCOPED TO <main>. Measured against the real pages: NONE of the ~56
+  // documents in this app uses a <main> element, so every `main h1` / `main img`
+  // selector matched exactly zero nodes and kinetic headings plus the media wipe
+  // were dead everywhere. A synthetic test fixture that used <main> hid this
+  // completely — the selectors looked right and covered nothing.
+  // Dropping the scope is safe because excluded() already rejects anything
+  // inside nav/header/rail/sync-bar and anything fixed or sticky, which is what
+  // the `main` prefix was standing in for.
   var REVEAL_SEL = [
-    '.card', '[class*="card"]', '.tile', '[class*="tile"]',
+    '.card', '[class*="card"]', '.tile', '[class*="tile"]', '.panel',
     '.kpi', '.sig', '.w', '.pcard', '.coltile', '.metric', '.stat',
-    'main h1', 'main h2', '.sec-h', '.sec-eyebrow', '.sec-sub',
-    // Media, so the clip wipe is actually reachable. Without these the "wipe"
-    // branch would be dead code and every image would simply pop in.
-    'main img', 'main figure', 'main picture', 'main video', '.hero img'
+    'h1', 'h2', '.sec-h', '.sec-eyebrow', '.sec-sub',
+    // Media, so the clip wipe is actually reachable. Size-gated below: a 16px
+    // favicon or an inline icon wiping in reads as a glitch, not a reveal.
+    'img', 'figure', 'picture', 'video'
   ].join(',');
+  var MEDIA_TAGS = { IMG: 1, PICTURE: 1, FIGURE: 1, VIDEO: 1, CANVAS: 1 };
 
   // Rule 2 lives here: a wipe is only ever chosen for an element that is media,
   // and a heading always gets a motion that cannot cut a glyph.
@@ -229,6 +238,8 @@
       var n = perParent.get(p) || 0; perParent.set(p, n + 1);
       var rect;
       try { rect = el.getBoundingClientRect(); } catch (_) { rect = null; }
+      // Icons and spacer images are not media reveals.
+      if (MEDIA_TAGS[el.tagName] && rect && (rect.width < 80 || rect.height < 60)) continue;
       batch.push([el, n, rect]);
     }
     for (var j = 0; j < batch.length; j++) {
@@ -290,7 +301,7 @@
   }
 
   function scanKinetic() {
-    var hs = document.querySelectorAll('main h1, main h2, .sec-h, h1.vh-h, .hero h1, .hero h2');
+    var hs = document.querySelectorAll('h1, h2, .sec-h, h1.vh-h, .hero h1, .hero h2');
     for (var i = 0; i < hs.length && i < 24; i++) {
       if (hs[i].closest(CHROME)) continue;
       kineticize(hs[i]);
@@ -417,13 +428,17 @@
 
   function scanPointer() {
     if (!fine) return; // no hover on touch; a stuck tilt is worse than no tilt
-    var cards = document.querySelectorAll('.card, [class*="card"], .tile, .kpi, .metric, .stat, .pcard, .coltile');
+    var cards = document.querySelectorAll('.card, [class*="card"], .tile, .kpi, .metric, .stat, .pcard, .coltile, .panel');
     for (var i = 0; i < cards.length; i++) {
       var c = cards[i];
       if (c.closest(CHROME) || c.hasAttribute('data-no-tilt')) continue;
       var r = c.getBoundingClientRect();
       // Tilting something the size of the viewport reads as the page lurching.
-      if (r.width < 90 || r.width > 900 || r.height < 60) continue;
+      // Measured on the real ads dashboard: its cards and panels are wider than
+      // the 900px the synthetic fixture implied, so NOTHING on the busiest page
+      // in the app was getting tilt. Full-bleed elements are still excluded —
+      // tilting something the size of the viewport reads as the page lurching.
+      if (r.width < 90 || r.width > 1100 || r.height < 60) continue;
       attachTilt(c);
     }
     var btns = document.querySelectorAll('button.primary, .btn-primary, .vh-btn-primary, [data-magnetic], .cta, a.btn, button.cta');
@@ -657,13 +672,30 @@
     addGrain();
 
     // Re-scan for late/dynamically-injected content (debounced, time-boxed).
+    // ATTRIBUTES ARE WATCHED TOO, not just childList. Measured on the real ads
+    // dashboard: it holds 15 tab panels and shows one, so every hidden panel is
+    // display:none and correctly skipped — but switching tabs only toggles a
+    // class, which a childList-only observer never sees. The other 14 tabs got
+    // no motion for the life of the page. Re-scanning is cheap because
+    // excluded() short-circuits on __vhSeen, so a no-op scan touches nothing.
     var t = null;
-    var mo = new MutationObserver(function () {
+    var rescan = function () {
       if (t) return;
       t = setTimeout(function () { t = null; scanAll(); }, 250);
-    });
-    try { mo.observe(document.body, { childList: true, subtree: true }); } catch (_) {}
+    };
+    var mo = new MutationObserver(rescan);
+    try {
+      mo.observe(document.body, {
+        childList: true, subtree: true,
+        attributes: true, attributeFilter: ['class', 'style', 'hidden'],
+      });
+    } catch (_) {}
     setTimeout(function () { try { mo.disconnect(); } catch (_) {} }, 15000);
+
+    // The observer is time-boxed, but tab switching happens for as long as the
+    // page is open. A delegated click re-scan covers that indefinitely and costs
+    // nothing until someone actually clicks.
+    document.addEventListener('click', function () { setTimeout(rescan, 60); }, { passive: true, capture: true });
 
     // RULE 1, HARD SAFETY: never leave tracked content hidden.
     setTimeout(function () {
