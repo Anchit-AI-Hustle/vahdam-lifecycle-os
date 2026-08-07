@@ -51,6 +51,35 @@ Ad creative:
 // models fabricate garbled fake tins/labels, and ad branding + packaging must be
 // REAL. So this depicts only an empty tea scene (brewed cup, leaves, surface,
 // light) with no product, no tin, no box, no label, no text.
+// EMAIL IMAGERY IS ITS OWN JOB — used when mode === 'mailer'.
+// Three separate paths were generating mailer imagery with a mode built for
+// something else, and each produced a specific, visible wrongness:
+//   - the Brain's email/landing backplates used 'reels', so an email hero came
+//     back framed as the opening shot of a vertical social video (and asked for
+//     9:16 composition while being rendered at 1536x1024 landscape);
+//   - the mailer slot-filler used 'design', whose preamble describes a mockup of
+//     a WHOLE EMAIL as seen in an inbox — so every image slot inside a mailer
+//     rendered a picture of an email, inside an email.
+// An email image is not an ad image and not a mockup. What actually makes it
+// different is the medium, and every clause below is one of those constraints:
+//   - it is placed INSIDE the email, so it must never contain inbox chrome, a
+//     send header, a subject line or an email frame;
+//   - the copy is live HTML text next to it, so text baked into the pixels
+//     duplicates the headline, cannot be translated, is invisible to screen
+//     readers, and breaks when a client inverts for dark mode;
+//   - the median open is on a phone at roughly 300-350px wide with images that
+//     may load slowly or not at all, so it needs ONE clear subject and real
+//     contrast rather than fine detail that turns to mush;
+//   - it is not a video frame, so cinematic letterbox framing and "negative
+//     space for kinetic type" are actively wrong here.
+const MAILER_PROMPT_PREAMBLE = `Editorial lifestyle photograph for a VAHDAM India premium tea EMAIL — an image that sits INSIDE the email body, beside live HTML copy. This is a photograph, NOT a design mockup and NOT an advertisement.
+HARD RULES. No text, no words, no letterforms, no numbers, no headline, no price, no badge, no button, no logo, no watermark. No email layout, no inbox chrome, no subject line, no send header, no device frame, no UI of any kind. The headline and offer are real HTML text placed next to this image, so anything written into the pixels is a duplicate that cannot be read aloud, translated, or inverted for dark mode.
+COMPOSITION. One clear subject, read instantly at 320px wide on a phone, which is where most of these are opened. Strong tonal separation between subject and background so it survives a small render and a dark-mode inversion. Calm negative space on one side or along the lower third where the HTML copy will sit. Natural, unhurried framing at the given aspect ratio, NOT cinematic letterboxing and NOT a vertical video still.
+LOOK. Warm natural daylight, real kitchens and real hands, shallow but not extreme depth of field, editorial food photography. Brand palette present but not forced: deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. Packaging, if in frame, carries a gold botanical illustration ONLY with no readable lettering — never garbled or invented type. Gallery-print resolution, zero AI smear artifacts.
+
+Scene:
+`;
+
 const AMBIENT_PROMPT_PREAMBLE = `Photoreal ambient lifestyle backdrop for VAHDAM India premium tea brand — an atmospheric tea scene with NO product and NO packaging in frame. Show only: a freshly brewed cup of tea with rising steam, loose tea leaves, a marble or wood surface, warm natural light, soft shallow depth of field. ABSOLUTELY NO product packaging, NO tin, NO box, NO pouch, NO label, NO brand mark, NO logo, NO text, NO words, NO watermark, NO UI. The real product photo is added separately, so this frame must stay a clean product-free backdrop. Brand palette accents allowed: deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. Gallery-print resolution, zero AI smear artifacts.
 
 Scene:
@@ -139,6 +168,7 @@ module.exports = async function handler(req, res) {
     : (mode === 'ad') ? AD_PROMPT_PREAMBLE
     : (mode === 'ambient') ? AMBIENT_PROMPT_PREAMBLE
     : (mode === 'reels') ? REELS_PROMPT_PREAMBLE
+    : (mode === 'mailer') ? MAILER_PROMPT_PREAMBLE
     : IMAGE_PROMPT_PREAMBLE;
   // Reserve room so the quality bar always survives the 4000-char cap.
   const finalPrompt = (preamble + userPrompt).substring(0, 4000 - QUALITY_SUFFIX.length) + QUALITY_SUFFIX;
