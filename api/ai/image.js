@@ -51,6 +51,48 @@ Ad creative:
 // models fabricate garbled fake tins/labels, and ad branding + packaging must be
 // REAL. So this depicts only an empty tea scene (brewed cup, leaves, surface,
 // light) with no product, no tin, no box, no label, no text.
+// EMAIL IMAGERY IS ITS OWN JOB — used when mode === 'mailer'.
+// Three paths were generating mailer imagery with a mode built for another
+// medium: the Brain's email backplates used 'reels' (whose preamble opens
+// "Cinematic 9:16 hero frame ... the opening shot of a high-end social video"),
+// and the mailer slot-filler used 'design' (a mockup of a WHOLE EMAIL in an
+// inbox), so slots rendered a picture of an email inside an email.
+//
+// SCENE FIRST, RULES AFTER — and this ordering is the whole fix.
+// The first attempt at this mode front-loaded a wall of prohibitions ("no
+// headline, no price, no badge, no button...") and put the actual scene 2,000
+// characters below it. Generated against the live cascade it produced a 3D
+// portrait in a glowing ring — nothing like the brief. Two reasons, both
+// general to diffusion models:
+//   - early tokens dominate, so a preamble that opens with style or prohibition
+//     language overrides the brief instead of framing it (the 'reels' preamble
+//     failed the same way, returning a cold cinematic mountain landscape for a
+//     warm-kitchen brief);
+//   - negations are weak and often summon what they name, so listing "badge,
+//     button, price, headline" argues FOR those objects.
+// So for scene-first modes the brief leads, a short positive style line follows,
+// and only a few high-value prohibitions trail. Verified by generating both
+// versions against the real provider and comparing them.
+const MAILER_STYLE_BLOCK = `
+Editorial lifestyle food photograph for a premium tea brand email. Warm natural morning daylight, real kitchen surfaces, soft shallow depth of field, calm unhurried mood. Warm cream, deep forest green and gold tones. One clear subject that still reads at 320px wide on a phone, with calm empty space to one side where text is placed later. Natural full-frame framing.
+Photograph only. No writing or lettering anywhere in the frame. No screens, devices or interface panels. Not letterboxed, not a film still.`;
+
+// Modes whose brief must LEAD the prompt rather than trail a preamble.
+// Same treatment for reels, and for the same measured reason. Generated against
+// the live cascade, the reels PREAMBLE returned a cold blue cinematic mountain
+// landscape at dusk for a warm-kitchen brief — the brief was ignored entirely.
+// The distinction that matters is not "preamble first is bad": 'ambient' leads
+// with a preamble and comes back fine, because its style AGREES with a warm tea
+// scene. 'reels' fails because "cinematic ... graded like a film still ...
+// filmic colour grade" actively pulls toward moody landscape cinema and beats
+// whatever brief follows it. A style that CONFLICTS with the brief wins when it
+// leads, so reels leads with the brief too.
+const REELS_STYLE_BLOCK = `
+Opening frame of a premium tea brand social video, shot vertically. Clear foreground, midground and background separation so the frame can be animated with parallax. One clear subject. Movement caught mid-action is welcome: steam curling, tea pouring, leaves drifting. Warm cream, deep forest green and gold tones, editorial food-film lighting, shallow depth of field. Calm empty space in the upper third where text is placed later.
+Photograph only. No writing or lettering anywhere in the frame. No screens, devices or interface panels.`;
+
+const SCENE_FIRST = { mailer: MAILER_STYLE_BLOCK, reels: REELS_STYLE_BLOCK };
+
 const AMBIENT_PROMPT_PREAMBLE = `Photoreal ambient lifestyle backdrop for VAHDAM India premium tea brand — an atmospheric tea scene with NO product and NO packaging in frame. Show only: a freshly brewed cup of tea with rising steam, loose tea leaves, a marble or wood surface, warm natural light, soft shallow depth of field. ABSOLUTELY NO product packaging, NO tin, NO box, NO pouch, NO label, NO brand mark, NO logo, NO text, NO words, NO watermark, NO UI. The real product photo is added separately, so this frame must stay a clean product-free backdrop. Brand palette accents allowed: deep forest-green #004A2B, gold #AB8743, cream #FBF5EA. Gallery-print resolution, zero AI smear artifacts.
 
 Scene:
@@ -141,7 +183,11 @@ module.exports = async function handler(req, res) {
     : (mode === 'reels') ? REELS_PROMPT_PREAMBLE
     : IMAGE_PROMPT_PREAMBLE;
   // Reserve room so the quality bar always survives the 4000-char cap.
-  const finalPrompt = (preamble + userPrompt).substring(0, 4000 - QUALITY_SUFFIX.length) + QUALITY_SUFFIX;
+  // Scene-first modes put the BRIEF first and the style/rules after it; every
+  // other mode keeps the historical preamble-then-brief order.
+  const styleAfter = SCENE_FIRST[mode];
+  const assembled = styleAfter ? (userPrompt + '\n' + styleAfter) : (preamble + userPrompt);
+  const finalPrompt = assembled.substring(0, 4000 - QUALITY_SUFFIX.length) + QUALITY_SUFFIX;
 
   const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKeys = [

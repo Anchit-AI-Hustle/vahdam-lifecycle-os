@@ -124,7 +124,12 @@ async function fillMailerAssets(html, {
     const slot = slotOf(pr, 'image');
     if (!pr.prompt) { assets.push({ slot, kind: 'image', status: 'skipped', error: 'placeholder with no matching prompt' }); return null; }
     try {
-      const gen = await creative.generateCreativeImage(pr.prompt.prompt, { size: `${pr.prompt.genW}x${pr.prompt.genH}`, mode: 'design' });
+      // mode 'mailer', NOT 'design'. These slots sit INSIDE the mailer, and the
+      // 'design' preamble describes "a complete marketing email as it would
+      // appear in an inbox" — so every filled slot rendered a picture of a whole
+      // email, inside an email. 'design' is right for Mailer Studio's
+      // full-layout mockup button and wrong for everything that goes in a slot.
+      const gen = await creative.generateCreativeImage(pr.prompt.prompt, { size: `${pr.prompt.genW}x${pr.prompt.genH}`, mode: 'mailer' });
       if (!gen || !gen.image) { assets.push({ slot, kind: 'image', status: 'failed', error: 'no image from cascade' }); return null; }
       let url = gen.image;
       if (persist) {

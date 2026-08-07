@@ -1041,6 +1041,23 @@ const AD_AUDIO_RULE = 'Original score only, no recognisable or trending music, n
 // markets worse than one composed for it, so each gets the shape it ships in.
 const SCENE_SIZE = { email: '1536x1024', landing: '1536x1024', meta: '1024x1024', google: '1536x1024', tiktok: '1024x1536', youtube: '1536x1024' };
 
+// PROMPT MODE PER SURFACE. This was hardcoded to 'reels' for every key, so an
+// EMAIL hero was generated from a preamble that opens "Cinematic 9:16 hero frame
+// ... the opening shot of a high-end social video" and asks for negative space
+// where kinetic typography will be layered — while being rendered at 1536x1024
+// landscape. The prompt fought its own size and the mailer got an ad.
+// 'reels' is correct ONLY where the surface really is a vertical video frame.
+// Everything else is a still backplate, and email has its own rules (mobile
+// legibility, no baked text because the copy is live HTML, no video framing).
+const SCENE_MODE = {
+  email: 'mailer',
+  landing: 'ambient',   // web hero: product-free scene, copy overlaid in HTML
+  meta: 'ambient',      // static feed image; ad copy rides in native fields
+  google: 'ambient',
+  tiktok: 'reels',      // genuinely a 9:16 video still
+  youtube: 'reels',
+};
+
 // Upload a base64 data-URL creative to the public Supabase Storage bucket and
 // return its hosted URL (so we persist a small URL, not a multi-MB data-URL).
 // Returns null if it's not a data-URL or storage isn't configured — callers then
@@ -1114,7 +1131,7 @@ async function generateCreatives(copy, entry, { only = null, lean = false, scene
     await Promise.all(Object.keys(out).map(async (key) => {
       try {
         const gen = await generateCreativeImage(`${out[key].brief}\n\n${SCENE_ONLY_RULE}`, {
-          size: SCENE_SIZE[key] || '1024x1024', mode: 'reels', tier: sceneTier, timeoutMs: sceneTimeoutMs,
+          size: SCENE_SIZE[key] || '1024x1024', mode: SCENE_MODE[key] || 'ambient', tier: sceneTier, timeoutMs: sceneTimeoutMs,
         });
         if (!gen || !gen.image) return;
         const hosted = await uploadCreative(gen.image, `scene-${entry.date || 'slot'}-${key}`);

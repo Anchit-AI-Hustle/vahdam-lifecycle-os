@@ -316,7 +316,11 @@ module.exports = async function handler(req, res) {
     try {
       const { generateCreativeImage, uploadCreative } = require('../_shared/creative-image.js');
       const gen = await Promise.race([
-        generateCreativeImage(variants.V2.hero_image_brief, { size: '1536x1024' }),
+        // Explicit 'mailer' mode: this is the V2 hero INSIDE an email. It used to
+        // pass no mode and fall through to the generic product-photo preamble,
+        // which was close but carried none of the email-specific rules (mobile
+        // legibility at ~320px, no baked text because the copy is live HTML).
+        generateCreativeImage(variants.V2.hero_image_brief, { size: '1536x1024', mode: 'mailer' }),
         new Promise((resolve) => { timer = setTimeout(() => resolve(null), 30000); }),
       ]);
       // image.js never 502s — on total failure it returns an on-brand SVG
