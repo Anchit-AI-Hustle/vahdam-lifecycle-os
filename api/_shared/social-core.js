@@ -403,7 +403,17 @@ async function contentAgent(ctx, ideology, strategy, keys, timeoutMs) {
   }).join('\n');
   const out = await llmJson({
     tier: 'premium', stage: 'social-content', timeoutMs, maxTokens: 6500,
-    system: 'You are the senior content writer for VAHDAM (premium single-estate Indian teas, Ashwagandha Coffee, just-launched supplements; UK). Write today\'s copy for EVERY platform key listed, obeying each platform\'s limits and tone. Reply as strict JSON: {"posts":{"<key>":{"caption":"","hook":"","hashtags":[""],"alt_text":"","title":""}}}. The "blog" key instead needs {"title","slug","meta_description","body_markdown"} where body_markdown is a full 800-1200 word editorial SEO post. Hashtags without the pound sign are invalid.\n' + BRAND_GATES,
+    system: 'You are the senior content writer for VAHDAM (premium single-estate Indian teas, Ashwagandha Coffee, just-launched supplements; UK). Write today\'s copy for EVERY platform key listed, obeying each platform\'s limits and tone. Reply as strict JSON: {"posts":{"<key>":{"caption":"","hook":"","hashtags":[""],"alt_text":"","title":""}}, "comment_replies":[{"trigger":"","reply":""}]}. The "blog" key instead needs {"title","slug","meta_description","body_markdown"} where body_markdown is a full 800-1200 word editorial SEO post. Hashtags without the pound sign are invalid.\n'
+      // COMMENT REPLIES. A post is not finished when it is published — it is
+      // finished when the comments under it have been answered, and that reply
+      // is as much brand voice as the caption. This was the one job the pipeline
+      // did not do, so replies were being improvised by whoever saw them first.
+      // The fabrication risk is HIGHER here than in a caption: a caption is
+      // reviewed before it ships, a reply is typed in a hurry under a question
+      // like "is this safe while pregnant" or "what is the discount code". So
+      // the rule is stated as a refusal, not a preference.
+      + 'ALSO return 6-8 comment_replies: short, on-brand answers to the comment types this specific post will attract (a price question, a caffeine or ingredient question, a shipping question, a sceptical comment, a compliment, a request for a recommendation). Each is {"trigger": the kind of comment, "reply": what we say}. Rules for replies, which override tone: state NO price, discount code, delivery time, rating, review count or health/medical claim that is not already stated in this post or the product facts given below. Where the honest answer needs a fact you were not given, the reply must point the person to the product page or to support instead of guessing. Never diagnose, never promise an outcome, never answer a pregnancy, medication or medical-condition question with anything except a recommendation to speak to a doctor. Keep each reply under 240 characters and never open with the commenter\'s name.\n'
+      + BRAND_GATES,
     user: 'Date: ' + ctx.date + ' (UK)\nTheme: ' + ideology.theme + '\nNarrative: ' + ideology.narrative + '\nFocus product: ' + ctx.focus.product.title + ' → ' + ctx.focus.product.url + '\nProduct facts you may state: ' + focusLine(ctx.focus) + '\nPlatform specs:\n' + specLines,
   });
   const fb = fallbackContent(ctx, ideology, strategy, keys);
@@ -431,7 +441,17 @@ async function contentAgent(ctx, ideology, strategy, keys, timeoutMs) {
       if (!posts[key].hashtags.length && PLATFORM_SPECS[key].hashtags[0] > 0) posts[key].hashtags = fbp.hashtags;
     }
   }
-  return { posts };
+  // Comment replies are OPTIONAL output: if the model omits them we ship none
+  // rather than substituting invented ones. A fabricated reply is worse than an
+  // absent one, because an absent one gets written by a human who knows the
+  // answer. Everything that survives is brand-scrubbed like any other copy.
+  const comment_replies = Array.isArray(out.comment_replies)
+    ? out.comment_replies
+        .filter((r) => r && r.reply)
+        .map((r) => ({ trigger: String(r.trigger || '').slice(0, 80), reply: String(r.reply).slice(0, 240) }))
+        .slice(0, 8)
+    : [];
+  return { posts, comment_replies };
 }
 
 // ── Agent 5: Design — one hero image reused with per-platform crops ──────────

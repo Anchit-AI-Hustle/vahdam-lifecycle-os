@@ -490,10 +490,20 @@ Be specific and quantitative where the data allows.
 ${D2C_KNOWLEDGE}
 Return STRICT JSON only, no markdown fences.`;
 
+// The operator's goal in their OWN words, when the run was goal-driven. The
+// derived objective already reaches the prompt, but a paraphrase loses the
+// specifics an operator actually cares about ("before Diwali", "without
+// discounting"). Passing the original sentence keeps those constraints in front
+// of the model.
+function goalLine(entry) {
+  const g = String((entry && entry.goal) || '').trim();
+  return g ? `\n- OPERATOR GOAL (this send must serve it): ${g}` : '';
+}
+
 function strategyPrompt(entry) {
   const hooks = (entry.competitorContext || []).flatMap((c) => (c.trendingHooks || []).map((h) => h.hook)).slice(0, 6);
   const d = entry.decision || {};
-  return `Devise the strategy for ONE lifecycle send. Data:
+  return `Devise the strategy for ONE lifecycle send. Data:${goalLine(entry)}
 - Market: ${entry.market} | Cohort: ${entry.cohort?.name} (${entry.cohort?.size ?? 'size via ESP'} profiles) | Objective: ${entry.objective}
 - Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})${(entry.supportingProducts || []).length ? ` | Bundle: ${(entry.supportingProducts).map((p) => p.title).join(', ')}` : ''}
 - Offer: ${d.offer ? (d.offer.code ? `${d.offer.code} (${Math.round((d.offer.pct || 0) * 100)}%)` : 'no discount') : 'n/a'}
@@ -535,7 +545,7 @@ function copyPrompt(entry, fw = null, brief = null) {
   const briefLine = brief
     ? `\nSTRATEGY BRIEF from the growth lead (follow it): angle = ${brief.angle}; hook = ${brief.hook_thesis}; emotion = ${brief.target_emotion}; differentiator = ${brief.differentiator}; proof = ${(brief.proof_points || []).filter(Boolean).join('; ')}. Do: ${(brief.dos || []).join('; ')}. Avoid: ${(brief.donts || []).join('; ')}.`
     : '';
-  return `Write campaign copy for this planned slot. Context:
+  return `Write campaign copy for this planned slot. Context:${goalLine(entry)}
 - Market: ${entry.market} | Cohort: ${entry.cohort?.name} | Objective: ${entry.objective}
 - Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})
 - ${entry.festival ? `Seasonal moment: ${entry.festival.name}` : 'No festival; evergreen angle.'}

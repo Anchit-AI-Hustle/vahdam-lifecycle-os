@@ -125,6 +125,16 @@
     <div class="card wide" id="dualmode">
       <h2>Agentic Generation</h2>
       <p style="color:#48524c;margin:.2em 0 1em">Run the full pipeline as an <b>agentic</b> flow (data → analysis → planning → calendar → content → assets → review → ideation). Always runs on the <b>Premium</b> model cascade.</p>
+      <div style="margin-bottom:12px">
+        <label for="agenticGoal" class="label" style="display:block;margin-bottom:6px">Goal (optional) — what should this run achieve?</label>
+        <input id="agenticGoal" type="text" maxlength="300" autocomplete="off"
+          placeholder="e.g. win back UK lapsed coffee buyers this month without discounting"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;font:inherit;font-size:14px;color:#171717;background:#fff;border:1px solid rgba(171,135,67,0.5);border-radius:6px">
+        <p style="color:#48524c;margin:.45em 0 0;font-size:12.5px">
+          Leave blank and the brain sets its own objective from the analysis. Type a goal and it becomes the brief:
+          the strategy, the cohorts it picks, the metric it optimises and the copy in every asset are written to serve it.
+        </p>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
         <span class="label" style="margin-right:4px">Mode</span>
         <span class="btn sm" style="cursor:default;pointer-events:none" title="One mode: an agentic pipeline powered by the premium model cascade">🤖 Agentic</span>
@@ -223,18 +233,30 @@ function agenticMarket(){
 }
 async function runAgentic(){
   const out = $('agenticOut'), market = agenticMarket();
-  out.innerHTML = `<p>🤖 Running agentic flow — Premium, ${esc(market)} — 8 stages, please wait…</p>`;
+  const goalEl = $('agenticGoal');
+  const goal = goalEl ? String(goalEl.value||'').trim() : '';
+  out.innerHTML = `<p>🤖 Running agentic flow — Premium, ${esc(market)} — 8 stages, please wait…</p>`
+    + (goal ? `<p style="color:#48524c">Goal: <b>${esc(goal)}</b></p>` : '');
   try{
     // Return the plan fast; creatives (images/mailers/ads/LPs) prebuild in the
     // background via the convergent smart-brain-prebuild queue. Building creatives
     // inline used to blow past the serverless time limit (the "server took too
     // long" timeout). The plan itself is quick; assets converge after.
-    const r = await fetch('/api/brain?action=agentic-run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ market, tier: TIER, withCreatives: false })});
+    const r = await fetch('/api/brain?action=agentic-run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ market, tier: TIER, withCreatives: false, goal })});
     const d = await safeJson(r);
     if(!d.ok){ out.innerHTML = `<p style="color:#b00">Failed: ${esc(d.error||'unknown')}</p>`; return; }
     const stages = (d.stages||[]).map(s => `<div style="padding:6px 0;border-bottom:1px solid #eee5d2"><b>${s.ok?'✓':'✗'} ${esc(s.stage)}</b> — ${esc(s.summary||'')}</div>`).join('');
     const ideas = (d.ideation&&d.ideation.ideas||[]).map(i=>`<li><b>${esc(i.title)}</b> — ${esc(i.action||i.why||'')} <span style="color:#48524c">(${esc(i.impact||'')}/${esc(i.effort||'')})</span></li>`).join('');
-    out.innerHTML = `<div class="label">Flow · ${esc(d.mode)} · tier ${esc(d.tier)}</div>
+    // State plainly whether the run was goal-driven. The whole failure this
+    // replaced was a goal that looked accepted and was silently discarded, so
+    // "it ran" must never again be mistaken for "it used my goal".
+    const goalBar = d.goal
+      ? `<div style="margin:6px 0 10px;padding:8px 10px;background:#fff;border-left:3px solid #004A2B;border-radius:4px">
+           <b>Goal-driven run.</b> ${esc(d.goal)}
+           ${d.strategy && d.strategy.goal_interpretation ? `<div style="color:#48524c;margin-top:4px">Read as: ${esc(d.strategy.goal_interpretation)}</div>` : ''}
+         </div>`
+      : `<div style="margin:6px 0 10px;color:#48524c">No goal given — objective set by the brain from the analysis.</div>`;
+    out.innerHTML = `<div class="label">Flow · ${esc(d.mode)} · tier ${esc(d.tier)}</div>` + goalBar + `
       <div style="margin:8px 0">${stages}</div>
       <h2 style="font-size:18px;margin-top:14px">Ideation — what to do next</h2><ul>${ideas||'<li>—</li>'}</ul>
       <p style="color:#48524c;margin-top:12px">Creative assets (mailers, ads, landing pages, images) are prebuilding in the background and will appear on the dashboard shortly.</p>`;
