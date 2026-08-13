@@ -450,7 +450,7 @@
       title: 'VAHDAM Brain',
       what: "The one calendar feature of the OS — it combines the automated engine (formerly Smart Brain), the Cohort Mailer Calendar (Draft 2) and the 30-Day Plan Calendar (Draft 1). It maintains a rolling 90-day campaign plan in Supabase (smart_calendar_entries), refreshes it every morning by diff — never a wholesale rewrite — and turns every human-approved slot into a complete campaign: mailer + Meta/Google/TikTok ads + a landing page.",
       who: "Every customer cohort gets slots — RFM segments and engagement cohorts alike. The lifecycle team supervises: nothing ships without a human approve.",
-      how: "Six services run in sequence — KB, Analysis, Competitor, Calendar, Generation, Review. A daily Vercel Cron (03:30 UTC, CRON_SECRET-protected) syncs the plan; the console at /brain lists tentative slots for approve/reject; approving generates all assets and mirrors them into ads_generated and landing_pages_generated. Platform push is Phase 2 (push_status: not_integrated_phase_2).",
+      how: "Six services run in sequence — KB, Analysis, Competitor, Calendar, Generation, Review. A daily Vercel Cron (03:30 UTC, CRON_SECRET-protected) syncs the plan; the console at /brain lists tentative slots for approve/reject; approving generates all assets and mirrors them into ads_generated and landing_pages_generated. Platform push is Phase 2 (push_status: not_integrated_phase_2). The console opens on two operational panels above the slot list: Daily Operations, which recomputes from live timestamps whether the plan is actually being written, whether the daily job ran, how much of the rolling window is really planned and how many sends ahead have complete assets; and the Day-Level Calendar, one cell per day across history, today and the plan ahead, showing what was measured on past days and which channel artefacts genuinely exist for future ones.",
       input: "Nothing daily — the cron drives it. From you: approve or reject decisions per slot, plus optional feedback that recalibrates future planning.",
       pipeline: true,
       steps: [
@@ -461,6 +461,7 @@
         ['Design + layout + structure', 'Brand-gated templates apply the 4-colour palette and Lao MN / Proxima Nova; hero creative comes from the image cascade.'],
         ['Coding', 'Assets compile to production HTML — a Klaviyo-ready mailer and a landing page served at /lp/:campaignId.'],
         ['Final compilation + presentation', 'The Review service scores the output; everything is mirrored into ads_generated and landing_pages_generated and presented in the /brain console.', '/api/brain?action=cron (daily)'],
+        ['Freshness check', 'The day-level calendar re-derives every freshness verdict from row timestamps on each load — never from a stored fresh flag — so a loop that has stopped persisting is visible as a short rolling window and a stale write age instead of a green tile.', '/api/brain?action=daily-calendar'],
       ],
     },
     agent: {

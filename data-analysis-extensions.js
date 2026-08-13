@@ -45,10 +45,18 @@
     });
   }
   function num(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
-  function fmt(v, digits) { return num(v).toLocaleString(undefined, { maximumFractionDigits: digits == null ? 0 : digits }); }
-  function money(v) { return '$' + num(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
-  function percent(v, digits) { return (num(v) * 100).toFixed(digits == null ? 1 : digits) + '%'; }
-  function ratio(v, digits) { return num(v).toFixed(digits == null ? 2 : digits) + '×'; }
+  // UNKNOWN RENDERS AS A DASH, NEVER AS ZERO.
+  // These formatters coerced null/undefined to 0, so an absent measurement was
+  // printed as "0", "$0" or "0.00%". On the Mailer tab that produced a panel
+  // reading "OPEN RATE 0.00%" beside its own note explaining there was no
+  // delivery denominator: the page knew the figure was unknown and displayed a
+  // number that claims mail was sent and nobody opened it. A measured zero is
+  // still shown as 0 — only a genuinely absent value becomes a dash.
+  function known(v) { return !(v == null || v === '' || (typeof v === 'number' && !Number.isFinite(v))); }
+  function fmt(v, digits) { return known(v) ? num(v).toLocaleString(undefined, { maximumFractionDigits: digits == null ? 0 : digits }) : '—'; }
+  function money(v) { return known(v) ? '$' + num(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '—'; }
+  function percent(v, digits) { return known(v) ? (num(v) * 100).toFixed(digits == null ? 1 : digits) + '%' : '—'; }
+  function ratio(v, digits) { return known(v) ? num(v).toFixed(digits == null ? 2 : digits) + '×' : '—'; }
   function dateTime(v) {
     if (!v) return '—';
     var d = new Date(v); if (Number.isNaN(d.getTime())) return esc(v);
@@ -493,7 +501,7 @@
         state.lastPayload.mailer = d; var k = d.kpis || {}, s = d.sources || {};
         var klOn = !!(s.klaviyo && s.klaviyo.connected), weOn = !!(s.webengage && s.webengage.connected);
         var connectBanner = (!klOn && !weOn)
-          ? '<div class="xcard span12" style="border-left:4px solid var(--gold,#AB8743)"><h3>No mailer source connected</h3><p>Klaviyo and WebEngage are not connected, so every figure below is zero (nothing is estimated). To populate this tab with real data, set <code>KLAVIYO_API_KEY</code> (and the WebEngage export vars) in Vercel, then refresh. Read only, never written back.</p></div>'
+          ? '<div class="xcard span12" style="border-left:4px solid var(--gold,#AB8743)"><h3>No mailer source connected</h3><p>Klaviyo and WebEngage are not connected, so every figure below is <b>unknown</b> and shown as a dash. Nothing is estimated, and nothing is shown as zero: a zero here would claim that mail was sent and did not perform. To populate this tab with real data, set <code>KLAVIYO_API_KEY</code> and <code>LIVE_CONNECTORS=on</code> (plus the WebEngage export vars) in Vercel, then refresh. Read only, never written back.</p></div>'
           : '';
         // unique_users is carried on WebEngage rows and was being dropped. A blank
         // stays blank: Klaviyo rows genuinely have no unique-user count, and

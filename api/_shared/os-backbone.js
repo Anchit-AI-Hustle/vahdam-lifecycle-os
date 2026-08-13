@@ -257,7 +257,11 @@ async function runDailyJob(trigger = 'manual') {
       const r = await syncConnector(c.id, trigger).catch((e) => ({ status: 'error', message: e && e.message, records: 0 }));
       records_synced += (r.records || 0);
       if ((r.records || 0) === 0 && r.status === 'success') connectors_pending += 1;
-      await logStep(`sync:${c.id}`, r.status === 'error' ? 'error' : 'ok', r.message || 'synced');
+      // Pass the adapter's REAL verdict through. Collapsing anything that is not
+      // an error to 'ok' filed "nothing pulled" under success, so the daily job
+      // summary counted a no-op connector as a working one.
+      const stepStatus = r.status === 'error' ? 'error' : (r.status === 'skipped' ? 'skipped' : 'ok');
+      await logStep(`sync:${c.id}`, stepStatus, r.message || 'synced');
     } else {
       await logStep(`sync:${c.id}`, 'skipped', `not connected — set ${c.missing_env_vars.join(', ') || 'credentials'}`);
     }
@@ -272,11 +276,15 @@ async function runDailyJob(trigger = 'manual') {
   const steps_failed = steps.filter((s) => s.status === 'error').length;
   const summary = `${steps_ok}/${steps.length} steps ok, ${steps.filter((s) => s.status === 'skipped').length} skipped`;
 
+  // The run's status is DERIVED. It was written 'success' unconditionally, so
+  // the dashboard's "last refresh" tile showed a green run every day no matter
+  // how many steps failed.
+  const runStatus = steps_failed ? 'error' : 'success';
   if (cron_run_id) {
-    await safe(supa.update('cron_runs', { status: 'success', finished_at: nowIso(), steps_total: steps.length, steps_ok, steps_failed, summary }, { id: `eq.${cron_run_id}` }));
+    await safe(supa.update('cron_runs', { status: runStatus, finished_at: nowIso(), steps_total: steps.length, steps_ok, steps_failed, summary }, { id: `eq.${cron_run_id}` }));
   }
-  await safe(supa.update('scheduled_jobs', { last_run_at: started_at, last_status: 'success' }, { id: `eq.${jobId}` }));
-  await logActivity({ action: 'job.daily_refresh', entity_type: 'job', entity_id: jobId, summary, metadata: { trigger, steps } });
+  await safe(supa.update('scheduled_jobs', { last_run_at: started_at, last_status: runStatus }, { id: `eq.${jobId}` }));
+  await logActivity({ action: 'job.daily_refresh', entity_type: 'job', entity_id: jobId, summary, status: steps_failed ? 'error' : 'ok', metadata: { trigger, steps } });
 
   return { job_id: jobId, cron_run_id, steps_total: steps.length, steps_ok, steps_skipped: steps.filter((s) => s.status === 'skipped').length, records_synced, connectors_pending, summary, steps };
 }

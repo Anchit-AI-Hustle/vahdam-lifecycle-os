@@ -160,6 +160,110 @@ const RETENTION_DAYS = 30;
 // set, so the conditional UPDATE matches zero rows and the human decision wins.
 const SYNC_WRITABLE_STATUSES = 'in.(tentative,rejected)';
 
+// ── Resilient persistence ───────────────────────────────────────────────────
+// A PostgREST batch insert is ALL-OR-NOTHING: one row that violates a constraint
+// aborts the whole statement. That cost this system its entire daily loop. The
+// planner moved to four cohort sends per market per day while the live database
+// still carried the original UNIQUE (date, market) index from
+// supabase/migrations/20260610_smart_calendar_plan.sql — the migration that
+// relaxes it (20260712090000_multi_cohort_per_day.sql) was written but never
+// applied. So every batch 409'd on its FIRST row, `inserted` came back 0, and
+// syncDaily still returned ok:true listing hundreds of "changes" it had not
+// written. The rolling 90-day window silently decayed to 58 days over three
+// weeks, losing one day of horizon per day, and nothing anywhere said so.
+//
+// Two independent defences, because either alone leaves the same hole:
+//  1. retry row-by-row, so the rows that CAN be stored are stored (a partial
+//     plan beats no plan) — this works whether or not anyone applies a migration;
+//  2. report every rejection with the constraint that caused it, so the blocker
+//     names the fix instead of the operator having to infer it from a zero.
+
+const PG_UNIQUE_VIOLATION = '23505';
+
+function parsePgError(text) {
+  try {
+    const j = JSON.parse(text);
+    return { code: j.code || null, message: j.message || '', details: j.details || '' };
+  } catch (_) { return { code: null, message: String(text || '').slice(0, 200), details: '' }; }
+}
+
+// Turn a raw Postgres rejection into an operator-actionable blocker. Only
+// constraints this repo actually owns get a named remedy; anything else is
+// passed through verbatim rather than guessed at.
+function classifyWriteFailure(warning) {
+  const raw = String(warning || '');
+  const body = raw.slice(raw.indexOf('{') >= 0 ? raw.indexOf('{') : 0);
+  const { code, message, details } = parsePgError(body);
+  if (code === PG_UNIQUE_VIOLATION && /smart_cal_date_market_idx/.test(message)) {
+    return {
+      kind: 'schema_out_of_date',
+      constraint: 'smart_cal_date_market_idx',
+      detail: details || message,
+      effect: 'Only the first cohort slot per (date, market) can be stored. The other cohort sends planned for that day are rejected, and before the row-by-row fallback the whole batch was lost.',
+      fix: 'Apply supabase/migrations/20260712090000_multi_cohort_per_day.sql (it drops the UNIQUE (date, market) index and recreates it non-unique). It is included in supabase/COMBINED_RUN_THIS.sql.',
+    };
+  }
+  if (code === PG_UNIQUE_VIOLATION) {
+    return { kind: 'duplicate_row', constraint: null, detail: details || message, effect: 'The row already exists and was left untouched.', fix: null };
+  }
+  return { kind: 'write_failed', constraint: null, detail: message || raw.slice(0, 200), effect: 'These rows were not stored.', fix: null };
+}
+
+// Insert rows, falling back to one-at-a-time when the batch is rejected.
+// Returns real counts plus deduplicated blockers — never a bare ok:true.
+async function insertRowsResilient(db, table, rows, { onConflict = 'id', resolution = 'ignore-duplicates' } = {}) {
+  const out = { inserted: 0, rejected: 0, blockers: [], degraded: false };
+  if (!rows.length) return out;
+  const addBlocker = (warning, count) => {
+    const c = classifyWriteFailure(warning);
+    const hit = out.blockers.find((b) => b.kind === c.kind && b.constraint === c.constraint && b.detail === c.detail);
+    if (hit) hit.rows_rejected += count; else out.blockers.push({ ...c, rows_rejected: count });
+  };
+
+  const batch = await db.upsert(table, rows, onConflict, { resolution });
+  if (batch.ok) { out.inserted = (batch.rows || []).length; return out; }
+
+  // Batch refused. Re-try each row on its own so one bad slot cannot cost the
+  // rest of the window.
+  out.degraded = true;
+  for (const row of rows) {
+    const one = await db.upsert(table, [row], onConflict, { resolution });
+    if (one.ok) out.inserted += (one.rows || []).length;
+    else { out.rejected += 1; addBlocker(one.warning, 1); }
+  }
+  return out;
+}
+
+// Measure the rolling window against the horizon it claims. DERIVED from the
+// stored rows every time it is asked — never a flag written once and re-read as
+// if it were still true (the same defect already recorded for ads freshness).
+// A window that is short at the FAR end is the signature of a sync that stopped
+// persisting: the front keeps advancing with the calendar, the tail never moves.
+function horizonCoverage(entries, startIso, horizonDays) {
+  const have = new Set((entries || []).map((e) => e && e.date).filter(Boolean));
+  const missing = [];
+  for (let i = 0; i < horizonDays; i++) {
+    const d = addDaysIso(startIso, i);
+    if (!have.has(d)) missing.push(d);
+  }
+  const covered = horizonDays - missing.length;
+  const lastCovered = [...have].sort().pop() || null;
+  return {
+    horizon_days: horizonDays,
+    first_day: startIso,
+    last_planned_day: lastCovered,
+    covered_days: covered,
+    missing_days: missing.length,
+    // Bounded so a fully-empty window cannot return a 90-element payload on
+    // every poll; the count above is the number that matters.
+    missing_sample: missing.slice(0, 5),
+    complete: missing.length === 0,
+    note: missing.length === 0
+      ? `The full ${horizonDays}-day window is planned.`
+      : `${missing.length} of ${horizonDays} days have no planned slot (the window currently ends ${lastCovered || 'nowhere — it is empty'}). A rolling window that is short at the far end means the daily sync is not persisting: it loses one day of horizon per day.`,
+  };
+}
+
 // ── Analysis context (shared by sync + preview) ─────────────────────────────
 
 async function buildContext(config, db) {
@@ -381,11 +485,14 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
 
   let persistence = { skipped: true, reason: db.connected ? 'persist=false' : 'Supabase env not configured' };
   if (db.connected && persist) {
-    const results = { inserted: 0, updated: 0, skipped_locked: 0, warnings: [] };
+    const results = { inserted: 0, updated: 0, skipped_locked: 0, rejected: 0, warnings: [], blockers: [], degraded: false };
     if (inserts.length) {
       // ignore-duplicates: if a concurrent sync already created the row, leave it untouched.
-      const ins = await db.upsert(config.tableNames.calendarEntries, inserts, 'id', { resolution: 'ignore-duplicates' });
-      if (ins.ok) results.inserted = (ins.rows || []).length; else results.warnings.push(ins.warning);
+      const ins = await insertRowsResilient(db, config.tableNames.calendarEntries, inserts);
+      results.inserted = ins.inserted;
+      results.rejected = ins.rejected;
+      results.degraded = ins.degraded;
+      results.blockers.push(...ins.blockers);
     }
     for (const u of updates) {
       // OPTIMISTIC LOCK: the status filter means a row a human approved between our
@@ -398,9 +505,27 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
       if (upd.ok) {
         if ((upd.rows || []).length) results.updated += 1;
         else results.skipped_locked += 1; // human approved/finalized mid-sync
-      } else { results.warnings.push(upd.warning); }
+      } else {
+        results.warnings.push(upd.warning);
+        const c = classifyWriteFailure(upd.warning);
+        const hit = results.blockers.find((b) => b.kind === c.kind && b.detail === c.detail);
+        if (hit) hit.rows_rejected += 1; else results.blockers.push({ ...c, rows_rejected: 1 });
+      }
     }
-    persistence = { ok: true, ...results };
+    // ok is DERIVED. It used to be hardcoded true, so a sync that wrote nothing
+    // at all still reported success — which is how three weeks of dead syncs went
+    // unnoticed. A sync is ok when everything it intended to write either landed
+    // or was deliberately left alone (a human-locked row).
+    const intended = inserts.length + updates.length;
+    const landed = results.inserted + results.updated + results.skipped_locked;
+    persistence = {
+      ok: results.blockers.length === 0 && landed >= intended,
+      intended,
+      ...results,
+    };
+    if (!persistence.ok) {
+      persistence.summary = `${results.inserted + results.updated} of ${intended} planned writes landed; ${results.rejected} rejected by the database.`;
+    }
     // Roll past slots out of the active window.
     await db.update(config.tableNames.calendarEntries, { date: `lt.${start}`, status: SYNC_WRITABLE_STATUSES }, { status: 'archived', updated_at: nowIso() }).catch(() => {});
     await db.insert(config.tableNames.runs, [{
@@ -413,10 +538,17 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
 
   const plan = await getPlan({ config: cfg, _ctxFallback: { config, db, ctx, fresh } });
   return {
-    ok: true,
+    // A sync that could not write is not a successful sync. Callers (the cron
+    // step summary, the console tile) read this; while it was hardcoded true
+    // every one of them reported a healthy daily loop that had not run.
+    ok: persistence.skipped ? true : persistence.ok !== false,
     mode: db.connected ? 'db-linked' : 'local-fallback',
     synced_at: nowIso(),
     horizon_days: horizon,
+    // Coverage is MEASURED from what is actually stored, not asserted from the
+    // horizon we asked for. The gap between the two is the whole failure: the
+    // planner kept producing 90 days while the table kept 58.
+    coverage: horizonCoverage(plan.entries, start, horizon),
     changes,
     insights: ctx.analysis.dailyInsights,
     cohorts: ctx.analysis.cohorts,
@@ -1930,7 +2062,28 @@ async function prebuildAssets({ config: cfg = {}, batchSize = 1, sinceDate = nul
       failed.push({ id: row.id, error: e.message });
     }
   }
-  return { ok: true, mode: 'db-linked', built, failed, batch: batch.length, remaining: Math.max(0, pending.length - built.length) };
+  const out = { ok: true, mode: 'db-linked', built, failed, batch: batch.length, remaining: Math.max(0, pending.length - built.length) };
+  // LEAVE EVIDENCE. This queue is fire-and-forget: nothing awaits it, its
+  // response goes to an aborted client connection, and a batch that fails stops
+  // the chain by design. So when zero of 116 planned sends had assets, there was
+  // no way to tell whether the queue had been rejected at the door, had thrown
+  // on every build, or had never been invoked — three different fixes. A run row
+  // per pass makes the day-level calendar able to report the real reason instead
+  // of guessing at one.
+  await db.insert(config.tableNames.runs, [{
+    id: `run_prebuild_${Date.now().toString(36)}`,
+    payload: {
+      kind: 'prebuild',
+      batch: batch.length,
+      built: built.length,
+      failed: failed.length,
+      remaining: out.remaining,
+      pending_total: pending.length,
+      errors: failed.slice(0, 5).map((f) => ({ id: f.id, error: String(f.error || '').slice(0, 300) })),
+    },
+    created_at: nowIso(),
+  }]).catch(() => {});
+  return out;
 }
 
 // ── Safe DB diagnostic ──────────────────────────────────────────────────────
@@ -1980,4 +2133,7 @@ module.exports = {
   prebuildAssets, attachReadyVideos, healOrphans, dbCheck, syncStatus,
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
+  // exported for the day-level calendar + its tests (derived freshness helpers)
+  horizonCoverage, classifyWriteFailure, insertRowsResilient, isPrebuilt, PREBUILD_MARKER,
+  SYNC_WRITABLE_STATUSES, stableId, addDaysIso, todayIso,
 };

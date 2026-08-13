@@ -148,3 +148,22 @@ alter table public.sync_state     enable row level security;
 alter table public.sync_audit_log enable row level security;
 do $$ begin create policy "anon read sync_state" on public.sync_state for select using (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon read sync_audit" on public.sync_audit_log for select using (true); exception when duplicate_object then null; end $$;
+
+-- ── Automated Calendar: multi-cohort per day (migration 20260712090000) ──────
+-- SHIPPED HERE BECAUSE IT WAS MISSED. The planner schedules 3-4 distinct cohort
+-- sends per (date, market); the original schema carried a UNIQUE index on
+-- (date, market) that allows only one. With that index still live, every daily
+-- sync batch was rejected 23505 on its first row, nothing was written for weeks,
+-- and the rolling 90-day window decayed by a day per day down to 58. The code
+-- now degrades to row-by-row writes and reports the constraint by name, but the
+-- only way to store all four cohort sends for a day is to relax the index.
+-- Idempotent; safe to re-run.
+DROP INDEX IF EXISTS public.smart_cal_date_market_idx;
+CREATE INDEX IF NOT EXISTS smart_cal_date_market_idx ON public.smart_calendar_entries (date, market);
+
+-- The id scheme changed from cal_<date>_<market> to cal_<date>_<market>_<cohort>,
+-- so old-format rows can never be matched by a sync again. Clear the undecided
+-- ones so the next sync repopulates the day; KEEP anything a human approved.
+DELETE FROM public.smart_calendar_entries
+ WHERE status IN ('tentative', 'rejected', 'needs_human_verification')
+   AND id ~ '^cal_[0-9]{4}-[0-9]{2}-[0-9]{2}_[a-z]+$';
