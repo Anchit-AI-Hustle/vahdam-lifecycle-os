@@ -13,6 +13,25 @@ const path = require('path');
 // connected".
 
 const ROOT = path.join(__dirname, '..');
+
+// Count Vercel Serverless Function files WITHOUT a shell. The obvious version
+// shells out to `find` with a path built from __dirname, and CodeQL flags that
+// (correctly) as a command built from an uncontrolled absolute path — the same
+// finding this repo already hit once in ads-one-dashboard.spec.js. A directory
+// walk needs no shell, no quoting, and no interpolation of any path into a
+// command string, so the whole class of issue disappears rather than being
+// escaped around.
+function functionFileCount(dir = path.join(ROOT, 'api'), depth = 0) {
+  let n = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === '_shared') continue;   // _shared is excluded by Vercel
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) { if (depth < 6) n += functionFileCount(full, depth + 1); }
+    else if (entry.name.endsWith('.js')) n += 1;
+  }
+  return n;
+}
+
 const engine = require(path.join(ROOT, 'api', '_shared', 'ads-insight-engine.js'));
 const PAGE = fs.readFileSync(path.join(ROOT, 'ad-campaigns-master.html'), 'utf8');
 const BRAIN = fs.readFileSync(path.join(ROOT, 'api', 'brain.js'), 'utf8');
@@ -175,9 +194,7 @@ test.describe('wiring', () => {
     // case on an existing router with the engine in _shared.
     expect(BRAIN).toContain("case 'ads-analysis'");
     expect(fs.existsSync(path.join(ROOT, 'api', 'ads-analysis.js'))).toBe(false);
-    const cp = require('child_process');
-    const n = cp.execSync(`find ${JSON.stringify(path.join(ROOT, 'api'))} -name '*.js' -not -path '*/_shared/*'`).toString().trim().split('\n').filter(Boolean).length;
-    expect(n).toBeLessThanOrEqual(12);
+    expect(functionFileCount()).toBeLessThanOrEqual(12);
   });
 
   test('the Looker report is lazy: no third-party request until the tab opens', async ({ page }) => {
