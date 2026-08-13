@@ -58,9 +58,10 @@ marketing_mailers__html_architect/
 # Supabase CLI runtime files
 supabase/.temp/
 
-# Claude Code local config (keep shared project commands tracked)
+# Claude Code local config (keep shared project commands + skills tracked)
 .claude/*
 !.claude/commands/
+!.claude/skills/
 .claude/settings.local.json
 
 # Credentials and PATs
