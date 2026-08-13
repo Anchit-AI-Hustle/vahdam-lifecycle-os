@@ -200,6 +200,75 @@ made — callers render an honest empty state instead of a plausible number.
   a coverage test. Do NOT invent derived columns to fill gaps: `opens/events` is not an open rate
   (`events` is the total event count, not deliveries), so it is left out rather than shown wrong.
 
+### `/analytics` is a document, not a frame around one (2026-08-13)
+`/analytics` and `/data-analysis` rewrite to **`data-analysis.html` itself**. They used to rewrite to
+`data-analysis-contrast.html`, a 5KB shell that iframed the real page, injected ~50 `!important` rules
+across the document boundary, re-added them from a `MutationObserver`, and side-loaded
+`data-analysis-extensions.js` into the frame's body. That shape caused three defects that were invisible
+on the page itself:
+- **auth.js ran inside the frame, so the nav did too.** Nav links are deliberately plain `href`s
+  ("internal nav stays in the same tab so the back button works") and inside a frame that means the same
+  FRAME: clicking Mailer Studio loaded `/studio` into the iframe while the address bar still said
+  `/analytics`, and the wrapper's `load` handler then injected the analytics palette **and** the
+  extensions script into whatever page had just arrived.
+- **The iframe `src` was a bare `/data-analysis.html`**, so `?mkt=` never reached the page that reads it
+  (`/analytics?mkt=UK` rendered US). `?tab=` survived only because the extensions read it off `parent`.
+- **`/data-analysis.html` opened directly had no extensions**, so the path the nav lists as the same
+  feature rendered 4 tabs of 10.
+Now: the palette lives in `data-analysis.html` as `#vahdam-high-contrast-override` (still `!important`,
+to beat the base palette without rewriting 50 rules for no visible gain), the page loads its own
+extensions, `/data-analysis-contrast.html` 308-redirects to `/data-analysis` (needed because
+`cleanUrls` is false), and the wrapper is deleted. The extensions needed **zero** changes: their three
+`parent.` uses resolve to `window` when nothing is framed. Locked by `tests/analytics-surface.spec.js`.
+**Do not reintroduce a wrapper to restyle a page — edit the page.**
+
+### Sync registration: one surface per page, and refresh means re-READ (2026-08-13)
+- **One surface per page, registered once.** `data-analysis-extensions.js` used to register
+  `data-analysis:<tab>` *at the moment a tab opened*, so surfaces accumulated across a session and a
+  sync re-opened every visited tab in turn, landing on whichever registered last. It now registers a
+  single `data-analysis` surface at boot whose `load` refreshes whatever `state.tab` currently is.
+- **The default view is a surface too.** Only EXTENSION tabs registered, so the four native tabs — the
+  default view of the surface the owner names first — reported `page reload` and never refreshed in
+  place. `window.__daNative.refresh()` in `data-analysis.html` is the native loader.
+- **A committed file is never `live`.** `data/analytics/live-shopify.json` is a snapshot a human pulled
+  through the Shopify MCP (`pulled_at`, no generator writes it — only `market-analytics.js` reads it).
+  Re-reading it quickly is not reading the store, so it reports `source:'snapshot'`, and its age is
+  DERIVED at render time (`liveFreshness()`) instead of printing a fixed date beside the word "live" —
+  the same defect as the `ads-snowflake-core` `partial_day` case above.
+- **Refresh must never re-generate.** `/daily-email-calendar` is registered because
+  `calendar?action=smart-brain-plan` is a plain read. `/plan` and `/lifecycle-calendar` are deliberately
+  NOT registered: they call `calendar?action=generate` / `lifecycle-generate`, and putting a generator on
+  a timer would spend model quota and rewrite the plan on a schedule nobody asked for. `landing-pages.html`
+  is out for the same reason (`/api/ai`).
+- **A STALE asset is not a stale READ.** `assets.html` (`assets:generated`) reports `live` even when the
+  strip says campaigns need regeneration: the read is current, the *assets* are not. Calling that
+  `snapshot` would merge two different facts.
+- **Reload-only is sometimes the correct answer.** `dashboard.html`, `competitor-benchmarking.html` and
+  `cohort-definitions.html` issue no `/api/` calls at all — they are static/localStorage surfaces, so the
+  bar's "registers no live data source" fallback is honest, not a gap. Do not invent a loader for them.
+  Genuinely still open: `knowledge-base.html` (`kb?action=top-emails` is a read and could be wired).
+- Registered today: `ad-campaigns-master` (4), `smart-brain`, `all-in-one`, `social-media`,
+  `data-analysis`, `calendar:plan`, `assets:generated`. `tests/sync-everywhere.spec.js` pins the list.
+
+### Local Playwright runs can pass without running anything (2026-08-13)
+`playwright.config.js` honours `PW_CHROMIUM_PATH`, and in this sandbox you **must** set it:
+```bash
+export PW_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome
+```
+The package pins a Chromium build the sandbox does not ship (it has `chromium-1194`, the package wants
+another), and without the override the browser-driving specs die at `browserType.launch: Executable
+doesn't exist`. Depending on which specs are selected the run can still print a clean
+`N passed` — a pass of the file-reading specs only. This bit during the work above: a
+"96 passed" baseline had run **no** browser at all. CI is unaffected (`npx playwright install
+--with-deps` installs the pinned build and leaves the var unset). Treat a local green as meaningless
+unless the var is set.
+Second half of the same trap: only **Chromium** projects can run here. `iphone-se`, `iphone-12` and
+`ipad` resolve to `defaultBrowserType: 'webkit'`, and no WebKit is installed, so every browser-driving
+spec on those projects dies at launch (`Running as root without --no-sandbox`) — pre-existing specs
+included, so a failure there is the sandbox, not the diff. Verify locally with
+`--project=desktop-1280` and `--project=pixel-5` (393px, Chromium) to cover mobile; leave the WebKit
+projects to CI.
+
 ### Competitive benchmarking — the own/competitor boundary is load-bearing
 `_shared/competitive-benchmark-core.js` (`/api/competitor?action=benchmark|benchmark-set`) benchmarks us
 against a competitor using the same platform stack, on top of the existing Gmail→Sheet email intel.

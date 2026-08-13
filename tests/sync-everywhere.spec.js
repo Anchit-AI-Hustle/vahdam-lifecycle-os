@@ -139,6 +139,18 @@ const REGISTERED = [
   ['/smart-brain.html', 'brain:plan'],
   ['/all-in-one.html', 'os:dashboard'],
   ['/social-media.html', 'social:posts'],
+  // "all the data analysis" was the first thing named and the last thing covered.
+  // Its loader used to be registered only when an EXTENSION tab was opened, so the
+  // default view of /analytics reported "page reload" and never refreshed in place.
+  ['/data-analysis.html', 'data-analysis'],
+  // The other half of the same sentence: "calendar of past days". Only the page
+  // that READS the persisted plan is registered — /plan and /lifecycle-calendar
+  // call generation endpoints, and a timer must never re-generate a plan.
+  ['/daily-email-calendar.html', 'calendar:plan'],
+  // The CURRENT/STALE surface from docs/shared-source-of-truth.md. It reads the
+  // asset list and calendar?action=smart-brain-sync-status, so a fact changing
+  // under a generated campaign no longer waits for someone to press reload.
+  ['/assets.html', 'assets:generated'],
 ];
 for (const [route, surface] of REGISTERED) {
   test(`${route} registers a live loader (${surface}), not just the reload fallback`, async ({ page }) => {
