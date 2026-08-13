@@ -96,8 +96,11 @@ test.describe('every filter control does something, and says so when there is no
     ...FILTER_ATTRS,
   ].join(', ');
   // Applied as a second pass so a class that lands on a <div> wrapper does not
-  // pull the wrapper itself into the click list.
-  const isClickable = new Function('el', `return el.matches('${CLICKABLE.replace(/'/g, "\\'")}') || !!el.getAttribute('onclick');`);
+  // pull the wrapper itself into the click list. The selector is passed as an
+  // ARGUMENT rather than interpolated into a function body: building code from a
+  // string needs every metacharacter escaped, an earlier version here handled
+  // quotes but not backslashes, and CodeQL was right to flag it. Passing an arg
+  // removes the escaping problem instead of solving it.
 
   for (const file of appPages()) {
     test(`${file} filters behave`, async ({ page }) => {
@@ -118,7 +121,7 @@ test.describe('every filter control does something, and says so when there is no
       for (let i = 0; i < limit; i++) {
         const c = controls.nth(i);
         if (!(await c.isVisible().catch(() => false))) continue;
-        if (!(await c.evaluate(isClickable).catch(() => false))) continue;
+        if (!(await c.evaluate((el, sel) => el.matches(sel) || !!el.getAttribute('onclick'), CLICKABLE).catch(() => false))) continue;
         const label = ((await c.textContent().catch(() => '')) || '').trim().slice(0, 40);
         if (DESTRUCTIVE.test(label)) continue;
         await c.click({ timeout: 5000 }).catch(() => {});
