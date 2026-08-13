@@ -145,6 +145,16 @@ function collectErrors(page) {
     const t = m.text();
     // Network noise from stubbed/absent third-party assets is not a code defect.
     if (/favicon|manifest|service ?worker|sw\.js|Failed to load resource|net::ERR/i.test(t)) return;
+    // A SECURITY CONTROL DOING ITS JOB IS NOT A BUG. The Knowledge Base and the
+    // mailer previews render stored third-party HTML — captured competitor
+    // emails, generated mailers — inside `sandbox=""` iframes, which is exactly
+    // right: that content must never execute script in this origin. Chromium
+    // logs "Blocked script execution ... the 'allow-scripts' permission is not
+    // set" every time it enforces that, and this crawler flagged it as a page
+    // error. Left in, the pressure to make the suite green points at adding
+    // allow-scripts, which would turn a stored email into an XSS vector. So it
+    // is ignored HERE, deliberately, and the sandbox stays shut.
+    if (/Blocked script execution.*sandboxed/i.test(t)) return;
     errors.push(t);
   });
   return errors;
