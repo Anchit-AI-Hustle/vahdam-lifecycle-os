@@ -50,6 +50,36 @@ function apiStub(pathname, search) {
 
   const rows = (n, extra = () => ({})) => Array.from({ length: n }, (_, i) => ({ ...extra(i) }));
 
+  // The generation endpoints need REAL-SHAPED answers. A generic {ok:true} makes
+  // the Mailer Studio log "Brief creation failed — using heuristic", which is the
+  // page handling a bad response correctly and saying so out loud. Treating that
+  // as a defect would be blaming the app for the stub; suppressing the message
+  // would hide a genuine failure later. Answering properly does neither, and
+  // exercises the success path instead of the fallback.
+  if (pathname.startsWith('/api/ai/generate') || pathname.startsWith('/api/ai/pipeline')) {
+    return {
+      ok: true,
+      text: JSON.stringify({
+        subject: 'A quieter morning, one cup at a time',
+        preheader: 'Single-estate leaves, picked this season',
+        hero: 'Steep closer to origin', sub: 'Hand-picked single-estate tea',
+        offer: '', notes: 'stub brief', headline: 'headline', primary: 'primary',
+        blocks: [{ type: 'hero', copy: 'stub' }],
+      }),
+      brief: { hero: 'Steep closer to origin', sub: 'Hand-picked single-estate tea', offer: '', notes: 'stub brief' },
+      hero: 'Steep closer to origin', sub: 'Hand-picked single-estate tea', offer: '', notes: 'stub brief',
+      concepts: [{ name: 'Origin ritual', angle: 'single-estate freshness' }],
+      html: '<!doctype html><html><body><h1>Stub mailer</h1></body></html>',
+      creative_spec: [{ size: '1080x1080', overlay: { headline: 'OV', sub: 'SUB', offer: '' } }],
+      master_prompt: 'stub', landing_page_brief: 'stub brief', reference_warnings: [],
+      suggestions: {}, score: { total: 9.6, dimensions: {} },
+    };
+  }
+  if (pathname.startsWith('/api/ai/image')) {
+    // A 1x1 transparent PNG: enough for an <img> to load without reaching a
+    // provider or spending image quota.
+    return { ok: true, provider: 'stub', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' };
+  }
   if (pathname.startsWith('/api/public-config')) {
     return { ok: true, build: 'test', ts: new Date().toISOString(), supabaseUrl: '', supabaseAnonKey: '' };
   }
