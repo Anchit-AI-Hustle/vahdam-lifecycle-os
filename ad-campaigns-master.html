@@ -551,6 +551,10 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     <button data-p="overview">Overview</button>
     <button data-p="campaigns">Campaigns &amp; Ads</button>
     <button data-p="creative">Creative Intel</button>
+    <button data-p="insights">Insights</button>
+    <button data-p="actionables">Actionables</button>
+    <button data-p="creativeanalysis">Creative Analysis</button>
+    <button data-p="looker">Looker Report</button>
     <button data-p="organic">Organic &amp; UGC</button>
     <button data-p="kb">Knowledge Base</button>
     <button data-p="crestudio">Creative Studio</button>
@@ -766,6 +770,71 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     </div>
     <p class="eyebrow">Creative learnings (each cites its source)</p>
     <div id="learnings"></div>
+  </div>
+
+  <!-- ── INSIGHTS / ACTIONABLES / CREATIVE ANALYSIS ────────────────────────
+       All three read the SAME live rows the Campaigns table reads (via
+       ?action=ads-analysis, which calls ad-insights and then the shared
+       engine), so a figure quoted in an insight and the same figure in the
+       table cannot disagree. When no platform is connected they render the
+       platform's own blocker and the exact call that was blocked — never an
+       empty table, which reads as "no activity" rather than "not connected". -->
+  <div class="panel" id="p-insights">
+    <div class="hd">
+      <h2>Insights</h2>
+      <div class="sub">Observations derived from live ad rows. Every finding quotes the figures that produced it; nothing is inferred where the data is absent.</div>
+    </div>
+    <div class="row" style="margin:10px 0"><div id="insSel"></div>
+      <button class="btn" onclick="loadAdsAnalysis('insights',true)">Refresh</button></div>
+    <div id="insOut"><p class="dim">Loading…</p></div>
+  </div>
+
+  <div class="panel" id="p-actionables">
+    <div class="hd">
+      <h2>Actionables</h2>
+      <div class="sub">Ranked actions, each tied to the rows that justify it. An observation with nothing specific to do about it is not listed here.</div>
+    </div>
+    <div class="row" style="margin:10px 0"><div id="actSel"></div>
+      <button class="btn" onclick="loadAdsAnalysis('actionables',true)">Refresh</button></div>
+    <div id="actOut"><p class="dim">Loading…</p></div>
+  </div>
+
+  <div class="panel" id="p-creativeanalysis">
+    <div class="hd">
+      <h2>Creative Analysis</h2>
+      <div class="sub">Per-creative read. Hook rate and through rate separate a creative problem from a targeting problem, and are shown only where the video metrics to compute them are present.</div>
+    </div>
+    <div class="row" style="margin:10px 0"><div id="craSel"></div>
+      <button class="btn" onclick="loadAdsAnalysis('creative',true)">Refresh</button></div>
+    <div id="craOut"><p class="dim">Loading…</p></div>
+  </div>
+
+  <!-- ── LOOKER STUDIO ────────────────────────────────────────────────────
+       An EXTERNAL report: it carries its own data and its own refresh, and
+       Looker Studio exposes no data API, so an iframe is the only integration
+       available and its numbers cannot be pulled out and re-plotted here.
+       The src is withheld until the tab is opened so a visitor who never opens
+       it never hits Google. -->
+  <div class="panel" id="p-looker">
+    <div class="hd">
+      <h2>Looker Studio Report</h2>
+      <div class="sub">Embedded from Google Looker Studio. Owned and refreshed there, not computed by this dashboard.</div>
+    </div>
+    <div class="row" style="margin:10px 0;align-items:center">
+      <span class="pill" title="This panel renders a third-party report; its numbers are not computed here">External source</span>
+      <a id="lookerOpenAds" href="#" target="_blank" rel="noopener" class="btn">Open in Looker Studio &#8599;</a>
+    </div>
+    <div id="lookerHelpAds" class="note" style="display:none">
+      <b>If the report below shows a Google sign-in or permission error:</b>
+      the report is private, so it cannot be framed. In Looker Studio open it, then
+      <b>Share &rarr; Manage access</b> to allow the intended viewers and
+      <b>Share &rarr; Embed report</b> to enable embedding. Viewers still need to be signed in to a
+      Google account that has access. Nothing in this repo can grant that.
+    </div>
+    <iframe id="lookerFrameAds" title="Looker Studio report"
+            style="width:100%;height:calc(100vh - 300px);min-height:560px;border:0;display:block;background:#fff"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"
+            referrerpolicy="strict-origin-when-cross-origin"></iframe>
   </div>
 
   <div class="panel" id="p-organic">
@@ -3244,6 +3313,133 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   var TREE_LOADED=false;
   document.getElementById("tabs").addEventListener("click",function(e){
     var b=e.target.closest("button[data-p]"); if(!b)return;
+
+  // ── Insights / Actionables / Creative Analysis / Looker ───────────────────
+  // One fetch feeds all three analysis tabs; `view` picks what is rendered.
+  var ADSA = { insights:null, actionables:null, creative:null, loading:{} };
+
+  function adsaRegionSel(hostId, onChange){
+    // Reuse the page's region+account control so these tabs filter exactly like
+    // every other tab rather than inventing a second, divergent selector.
+    var host = document.getElementById(hostId);
+    if(!host || typeof regionAccountControl !== "function") return;
+    try { regionAccountControl("#"+hostId, ADSA, onChange, {allRegions:true}); } catch(_){}
+  }
+
+  function blockerBlock(d){
+    if(!d.blockers || !d.blockers.length) return "";
+    // Name the platform, the env vars, and the exact call that was blocked. An
+    // operator should never have to guess which credential is missing.
+    return '<div class="note" style="border-left:3px solid #AB8743">'
+      + '<b>Not connected, so nothing is analysed for these platforms.</b> No figure is estimated to fill the gap.'
+      + '<ul style="margin:8px 0 0;padding-left:18px">'
+      + d.blockers.map(function(x){
+          return '<li style="margin:4px 0"><b>'+esc(x.platform)+'</b> — '+esc(x.blocker||"")
+            + (x.need_env&&x.need_env.length ? '<br><span class="dim">Missing: <code>'+x.need_env.map(esc).join('</code>, <code>')+'</code></span>' : '')
+            + (x.would_request&&x.would_request.url ? '<br><span class="dim">Blocked call: '+esc((x.would_request.method||"GET")+" "+x.would_request.url).slice(0,180)+'</span>' : '')
+            + '</li>';
+        }).join("")
+      + '</ul></div>';
+  }
+
+  var SEV = { critical:"#8a1c1c", watch:"#7a5a12", good:"#004A2B" };
+  function renderInsights(d){
+    var host = document.getElementById("insOut"); if(!host) return;
+    var list = (d.insights||[]).map(function(i){
+      var ev = (i.evidence||[]).slice(0,5).map(function(e){
+        return '<li>'+esc(e.name||"")+' — '+Object.keys(e).filter(function(k){return k!=="name";})
+          .map(function(k){ return esc(k)+": "+(e[k]==null?"n/a":esc(String(typeof e[k]==="number"?(+e[k]).toFixed(2):e[k]))); }).join(" · ")+'</li>';
+      }).join("");
+      return '<div class="card" style="border-left:4px solid '+(SEV[i.severity]||"#AB8743")+';margin:10px 0">'
+        + '<div style="font-weight:700;color:#171717">'+esc(i.title)+'</div>'
+        + '<div class="dim" style="margin-top:4px;line-height:1.55">'+esc(i.detail)+'</div>'
+        + (ev ? '<ul class="dim" style="margin:8px 0 0;padding-left:18px;font-size:12.5px">'+ev+'</ul>' : '')
+        + '</div>';
+    }).join("");
+    host.innerHTML = blockerBlock(d)
+      + (list || '<p class="dim">'+esc(d.note||"No insight was produced from these rows. Nothing is invented to fill the panel.")+'</p>')
+      + '<p class="dim" style="margin-top:12px;font-size:12px">Analysed '+(d.rows_analysed||0)+' row(s)'
+      + (d.window? ' for '+esc(d.window.since)+' to '+esc(d.window.until):'')
+      + ' · fetched '+esc(String(d.fetched_at||"").replace("T"," ").slice(0,19))+' UTC</p>';
+  }
+
+  function renderActionables(d){
+    var host = document.getElementById("actOut"); if(!host) return;
+    var list = (d.actions||[]).map(function(a,n){
+      return '<div class="card" style="margin:10px 0">'
+        + '<div style="font-weight:700;color:#171717">'+(n+1)+'. '+esc(a.action)+'</div>'
+        + '<div class="dim" style="margin-top:4px;line-height:1.55"><b>Why:</b> '+esc(a.why)+'</div>'
+        + '<div class="dim" style="margin-top:4px"><b>Target metric:</b> '+esc(a.target_metric)+'</div>'
+        + '<div class="dim" style="margin-top:4px"><b>Expected:</b> '+esc(a.expected)+'</div>'
+        + '</div>';
+    }).join("");
+    host.innerHTML = blockerBlock(d)
+      + (list || '<p class="dim">'+esc(d.note||"No action is proposed from these rows.")+'</p>');
+  }
+
+  function renderCreative(d){
+    var host = document.getElementById("craOut"); if(!host) return;
+    var cs = d.creatives||[];
+    var f = function(v,dp){ return v==null? '<span class="dim">n/a</span>' : (+v).toFixed(dp==null?2:dp); };
+    var rows = cs.slice(0,60).map(function(c){
+      return '<tr><td><div class="cw">'+esc(c.name)+'</div></td>'
+        + '<td class="num">'+f(c.spend)+'</td><td class="num">'+f(c.impressions,0)+'</td>'
+        + '<td class="num">'+f(c.hook_rate,1)+'</td><td class="num">'+f(c.through_rate,1)+'</td>'
+        + '<td class="num">'+f(c.ctr,2)+'</td><td class="num">'+f(c.frequency,2)+'</td>'
+        + '<td><div class="cw wide">'+esc(c.diagnosis)+'</div></td></tr>';
+    }).join("");
+    host.innerHTML = blockerBlock(d)
+      + (rows
+        ? '<div style="overflow-x:auto"><table><thead><tr><th>Creative</th><th>Spend</th><th>Impr.</th>'
+          + '<th>Hook %</th><th>Through %</th><th>CTR %</th><th>Freq.</th><th>Diagnosis</th></tr></thead><tbody>'
+          + rows + '</tbody></table></div>'
+        : '<p class="dim">No creative rows returned.</p>')
+      + ((d.coverage && d.coverage.note) ? '<p class="dim" style="margin-top:10px">'+esc(d.coverage.note)+'</p>' : '');
+  }
+
+  async function loadAdsAnalysis(view, force){
+    var key = view==="creative" ? "creative" : view;
+    if(ADSA.loading[key] && !force) return;
+    ADSA.loading[key] = true;
+    var outId = view==="insights"?"insOut":view==="actionables"?"actOut":"craOut";
+    var host = document.getElementById(outId);
+    if(host && force) host.innerHTML = '<p class="dim">Loading live rows…</p>';
+    try{
+      var qs = "action=ads-analysis&view="+encodeURIComponent(view)+"&level=ad";
+      if(ADSA.region) qs += "&market="+encodeURIComponent(ADSA.region);
+      var r = await fetch("/api/brain?"+qs, {headers:{"Accept":"application/json"}});
+      var d = await r.json();
+      if(view==="insights") renderInsights(d);
+      else if(view==="actionables") renderActionables(d);
+      else renderCreative(d);
+    }catch(e){
+      // Say the fetch failed. An error is not an empty result, and must not
+      // render as one.
+      if(host) host.innerHTML = '<div class="note">Could not load live rows: '+esc(e.message||String(e))
+        + '. This is a request failure, not a report that there is no activity.</div>';
+    }
+  }
+
+  // Looker: withhold the src until the tab is opened (a visitor who never opens
+  // it never hits Google), then show the permission help if it does not paint.
+  var LOOKER_ID = "b5c3af25-b396-4daf-aede-431d0b494793";
+  var LOOKER_MOUNTED = false;
+  function mountLookerAds(){
+    if(LOOKER_MOUNTED) return; LOOKER_MOUNTED = true;
+    var a = document.getElementById("lookerOpenAds");
+    if(a) a.href = "https://lookerstudio.google.com/reporting/"+LOOKER_ID;
+    var f = document.getElementById("lookerFrameAds");
+    if(!f) return;
+    f.src = "https://lookerstudio.google.com/embed/reporting/"+LOOKER_ID;
+    // A private report frames a Google sign-in page, which looks identical to a
+    // broken embed. Surface the actual cause after a grace period rather than
+    // leaving a blank box the operator cannot diagnose.
+    setTimeout(function(){
+      var h = document.getElementById("lookerHelpAds");
+      if(h) h.style.display = "block";
+    }, 6000);
+  }
+
     document.querySelectorAll("#tabs button").forEach(function(x){x.classList.toggle("on",x===b);});
     // Scoped to this page's own panels (id p-*): the merged Creative Studio ships
     // its own .panel elements, and a blind sweep over every .panel would reach in.
@@ -3257,6 +3453,12 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     // Live Meta/Google/TikTok ad details load on first open of Campaigns/Overview
     // (never on page load — see refreshLiveAds notes above).
     if((b.dataset.p==="campaigns"||b.dataset.p==="overview")&&!LIVE_ADS_LOADED){ LIVE_ADS_LOADED=true; refreshLiveAds(); }
+    // Analysis tabs and the external report are all lazy: none of them costs a
+    // request until someone actually opens the tab.
+    if(b.dataset.p==="insights") loadAdsAnalysis("insights");
+    if(b.dataset.p==="actionables") loadAdsAnalysis("actionables");
+    if(b.dataset.p==="creativeanalysis") loadAdsAnalysis("creative");
+    if(b.dataset.p==="looker") mountLookerAds();
     // Same deal for the revenue report: two authenticated calls, only on open.
     if(b.dataset.p==="revenue"&&!REV_LOADED){ REV_LOADED=true; loadRevenue(); }
     // Live Ads Intelligence builds its region/account picker from the registry,
@@ -3558,6 +3760,29 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
             : {source:"snapshot",note:"Per-ad rows are the committed snapshot: the live platform read returned nothing (no keys, not an operator session, or a network-policy block)."};
         },
       });
+      // The analysis tabs share ONE registration: all three read the same live
+      // rows, so registering them separately would fire three identical fetches
+      // on every sync. Only the tab that is actually open is re-rendered; the
+      // others re-render when opened, which is what keeps a background sync from
+      // paying for panels nobody is looking at.
+      window.__lcSync.push({
+        surface:"ads:analysis", label:"Ads — Insights / Actionables / Creative Analysis", interval:120,
+        load:async function(){
+          var open = document.querySelector("#tabs button.on");
+          var p = open && open.dataset.p;
+          var view = p==="insights"?"insights":p==="actionables"?"actionables":p==="creativeanalysis"?"creative":null;
+          if(!view) return {source:"live",note:"No analysis tab open; nothing re-fetched."};
+          await loadAdsAnalysis(view,true);
+          // Report honestly which source the panel is now showing, so the sync
+          // bar cannot show green over a panel that is displaying a blocker.
+          var host=document.getElementById(view==="insights"?"insOut":view==="actionables"?"actOut":"craOut");
+          var blocked = host && host.textContent.indexOf("Not connected")>=0;
+          return blocked
+            ? {source:"unavailable",note:"Ad platform credentials are not set, so no rows were analysed."}
+            : {source:"live"};
+        },
+      });
+
       // Live Ads Intelligence is only meaningful once it has been opened (it
       // builds its picker from the registry), so it registers itself there.
       var _initLI=initLiveIntel;
