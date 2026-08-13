@@ -14,7 +14,13 @@ const SENDER = () => senderIdentity();
 const iso = () => new Date().toISOString();
 const n = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
 const text = (v) => String(v == null ? '' : v).trim();
-const rate = (a, b) => b ? a / b : 0;
+// UNKNOWN IS NOT ZERO. This returned 0 when the denominator was 0, so a window
+// with no deliveries reported "0.00% open rate" — which is a CLAIM ("we sent mail
+// and nobody opened it"), not the truth ("we have no delivery data"). The panel
+// even printed a note saying rates were left at zero rather than estimated: the
+// refusal to estimate was right, but zero was never the neutral value it looked
+// like. A missing denominator yields null, and the UI renders null as a dash.
+const rate = (a, b) => (b ? a / b : null);
 const safe = async (p, fallback) => { try { return await p; } catch (_) { return fallback; } };
 const fingerprint = (x) => crypto.createHash('sha1').update(String(x)).digest('hex');
 
@@ -124,18 +130,45 @@ async function mailer({ market = 'US', hours = 720 } = {}) {
     safe(supa.select('klaviyo_campaigns',{order:'send_time.desc',limit:100}),[]), safe(supa.select('klaviyo_segments',{order:'profile_count.desc',limit:100}),[]),
     webengage.eventSummary({hours,market}).catch((e)=>({ok:false,error:e.message})), webengage.campaignPerformance({event:'Notification Clicked',hours,market,top:30}).catch((e)=>({ok:false,error:e.message})),
   ]);
-  const events = klEvents(er, metricNames(mr)), by = {};
+  // Did ANY source actually report? Klaviyo counts only if it is connected AND
+  // returned events; WebEngage only if its summary read. With neither, the totals
+  // below are not measurements of zero — nothing measured them, and every count
+  // must stay null so the UI shows a dash instead of a confident 0.
+  // A source counts as REPORTING only if it read successfully AND returned data.
+  // A reachable but empty store is not a measurement of zero activity — it is an
+  // unpopulated mirror, and /api/connectors-health already applies exactly this
+  // standard (it reports an empty webengage_events table as NOT live). Treating
+  // an empty store as a reporting source is what left "DELIVERED 0" on a panel
+  // where Klaviyo was switched off and WebEngage had never been synced: two dark
+  // sources rendered as a measured zero.
+  const events0 = klEvents(er, metricNames(mr));
+  const klaviyoRead = klaviyo.isConnected() && er && er.ok !== false && events0.length > 0;
+  const webengageRead = !!(we && we.ok !== false && webengage.connected() && n(we.total_events) > 0);
+  const anySourceRead = klaviyoRead || webengageRead;
+  const events = events0, by = {};
   for (const e of events) by[e.name] = (by[e.name] || 0) + 1;
   for (const x of we && we.by_event || []) by[x.event] = (by[x.event] || 0) + n(x.n);
-  const delivered = sumEvents(by,/received email|delivered|notification delivered/i), opens = sumEvents(by,/opened email|notification opened|email open/i), clicks = sumEvents(by,/clicked email|notification clicked|email click/i), conversions = sumEvents(by,/placed order|order placed|purchase|complete payment/i), unsubscribes = sumEvents(by,/unsubscribe/i), bounces = sumEvents(by,/bounce/i);
-  const revenue = events.filter((e)=>/placed order|purchase/i.test(e.name)).reduce((a,e)=>a+e.value,0), cmap = new Map();
+  // `count()` returns null when no source reported at all, so a tile reads "—"
+  // (unknown) rather than "0" (measured none). The distinction is the whole
+  // difference between "we have nothing connected" and "email did nothing".
+  const count = (re) => (anySourceRead ? sumEvents(by, re) : null);
+  const delivered = count(/received email|delivered|notification delivered/i), opens = count(/opened email|notification opened|email open/i), clicks = count(/clicked email|notification clicked|email click/i), conversions = (klaviyoRead ? sumEvents(by,/placed order|order placed|purchase|complete payment/i) : null), unsubscribes = count(/unsubscribe/i), bounces = count(/bounce/i);
+  // Revenue is gated on KLAVIYO specifically, not on any source. It is derived
+  // only from Klaviyo order events — WebEngage carries no revenue at all — so a
+  // populated WebEngage store with Klaviyo dark would otherwise report "$0 mailer
+  // revenue", which claims email drove no sales when the truth is that the only
+  // source that could see sales was switched off.
+  const revenue = klaviyoRead ? events.filter((e)=>/placed order|purchase/i.test(e.name)).reduce((a,e)=>a+e.value,0) : null, cmap = new Map();
   for (const e of events) { const x = cmap.get(e.campaign) || {campaign:e.campaign,events:0,opens:0,clicks:0,conversions:0,revenue:0,source:'Klaviyo'}; x.events++; if(/open/i.test(e.name))x.opens++; if(/click/i.test(e.name))x.clicks++; if(/placed order|purchase/i.test(e.name)){x.conversions++;x.revenue+=e.value;} cmap.set(e.campaign,x); }
   for (const c of wc && wc.campaigns || []) cmap.set(`WebEngage · ${c.campaign}`, {campaign:c.campaign,events:c.events,opens:null,clicks:c.events,conversions:null,revenue:null,source:'WebEngage',unique_users:c.unique_users});
   const mirrors = (Array.isArray(cm)?cm:[]).map((c)=>({campaign:c.name||c.id,status:c.status,sent_at:c.send_time,source:'Klaviyo mirror',opens:null,clicks:null,conversions:null,revenue:null}));
   const campaigns = [...cmap.values(), ...mirrors.filter((c)=>!cmap.has(c.campaign))].slice(0,100), segments = Array.isArray(sm)?sm:[];
-  return { ok:true, generated_at:iso(), market, window_hours:hours, sources:{ klaviyo:{connected:klaviyo.isConnected(),live_events:events.length,mirrored_campaigns:Array.isArray(cm)?cm.length:0,segments:segments.length,note:er&&er.hint}, webengage:{connected:webengage.connected(),events:we&&we.total_events||0,note:we&&we.error} },
+  return { ok:true, generated_at:iso(), market, window_hours:hours, sources:{ klaviyo:{connected:klaviyo.isConnected(),reported:klaviyoRead,live_events:events.length,mirrored_campaigns:Array.isArray(cm)?cm.length:0,segments:segments.length,note:er&&er.hint}, webengage:{connected:webengage.connected(),reported:webengageRead,events:we&&we.total_events||0,note:(we&&we.error)||(webengage.connected()&&!(we&&we.total_events)?'Store reachable but no events in this window, so it contributes no figures.':null)} },
     kpis:{delivered,opens,open_rate:rate(opens,delivered),clicks,click_rate:rate(clicks,delivered),ctor:rate(clicks,opens),conversions,conversion_rate:rate(conversions,delivered),revenue,revenue_per_recipient:rate(revenue,delivered),unsubscribes,unsubscribe_rate:rate(unsubscribes,delivered),bounces,bounce_rate:rate(bounces,delivered),known_campaigns:campaigns.length,known_segments:segments.length,segment_profiles:segments.reduce((a,x)=>a+n(x.profile_count),0)},
-    event_mix:Object.entries(by).map(([event,count])=>({event,count})).sort((a,b)=>b.count-a.count), campaigns, segments, note: delivered?'Rates use available source events in the selected window.':'No delivery denominator is available; rates remain zero rather than being estimated.' };
+    event_mix:Object.entries(by).map(([event,count])=>({event,count})).sort((a,b)=>b.count-a.count), campaigns, segments, note: !anySourceRead
+      ? 'No mailer source returned data for this window, so every figure is unknown and shown as a dash. A connected but empty store is not a measurement of zero: nothing is estimated, and nothing is shown as zero, because a zero here would claim that mail was sent and did not perform.'
+      : (delivered ? 'Rates use available source events in the selected window.'
+        : 'A source reported, but no delivery events were among them, so rates have no denominator and are shown as a dash rather than as zero.') };
 }
 async function landing({ market = 'US' } = {}) { return pagedeck.analytics({ market }); }
 
