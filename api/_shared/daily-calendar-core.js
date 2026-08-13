@@ -91,6 +91,13 @@ function freshnessOf(lastRunIso, { expectedEveryHours = 24, today = todayIso(), 
 
 const CHANNELS = ['email', 'meta', 'google', 'tiktok', 'landing_page'];
 
+// Date columns an order row may carry, most authoritative first. smart_orders
+// uses `ordered_at`; the Shopify mirror uses `created_at`/`processed_at`. The
+// column is DETECTED from a real row rather than assumed, because assuming one
+// that does not exist makes the query 400 and the empty result read as "no
+// orders" instead of "the question was never asked".
+const ORDER_DATE_FIELDS = ['ordered_at', 'created_at', 'processed_at'];
+
 /**
  * Which channels this campaign genuinely produced. Reads the artefact, not the
  * plan: a slot whose channel list names TikTok but whose campaign carries no
@@ -160,7 +167,22 @@ async function dayCalendar({ from, to, market = '', config: cfg = {} } = {}) {
   }
 
   const t = config.tableNames;
-  const [slotRows, campaignRows, orderRows, orderProbe, cronRows, runRows] = await Promise.all([
+
+  // ASK THE TABLE WHAT ITS DATE COLUMN IS CALLED, before filtering on one.
+  // This shipped guessing `created_at`; the real column in smart_orders is
+  // `ordered_at`, so the window query 400'd, the adapter degraded the failure to
+  // [], and every past day would have reported a measured $0 sourced from a
+  // query that never ran. The guard caught it on first contact with production
+  // — this makes the read actually work rather than just fail honestly.
+  //
+  // A whole row, not a count: seeing the columns is the point.
+  const orderProbe = await db.select(t.orders, { limit: 1 }).catch(() => []);
+  const probeRow = (orderProbe || [])[0] || null;
+  const orderDateField = probeRow
+    ? ORDER_DATE_FIELDS.find((k) => probeRow[k] != null) || null
+    : null;
+
+  const [slotRows, campaignRows, orderRows, cronRows, runRows] = await Promise.all([
     // Archived rows are the PAST. syncDaily flips every elapsed slot to
     // 'archived' and getPlan filters those out, which is why no surface in the
     // app could show history even though the rows were sitting in the table.
@@ -169,19 +191,11 @@ async function dayCalendar({ from, to, market = '', config: cfg = {} } = {}) {
     // applied below in JS rather than smuggled into a key PostgREST ignores.
     db.select(t.calendarEntries, { filters: { date: `gte.${start}` }, order: 'date.asc', limit: 3000 }).catch(() => []),
     db.select(t.generatedCampaigns, { order: 'updated_at.desc', limit: 1000 }).catch(() => []),
-    db.select(t.orders, { filters: { created_at: `gte.${start}T00:00:00Z` }, limit: 20000 }).catch(() => []),
-    // Whether the order table REPORTS AT ALL, asked separately from whether it
-    // has rows in this window. Without this an empty table and a genuinely
-    // quiet fortnight both come back as an empty array, and reporting the
-    // second as "0 orders" when it is really the first is the same defect that
-    // printed a 0.00% open rate for mail nobody had measured.
-    //
-    // A whole row, not just an id, because the adapter degrades a FAILED read to
-    // [] as well. If the date column the filter above uses does not exist, that
-    // query 400s, comes back empty, and every day would report a measured zero
-    // sourced from a query that never ran. Seeing a real row lets us check the
-    // column is there before believing anything derived from it.
-    db.select(t.orders, { limit: 1 }).catch(() => []),
+    // Filtered on the column the probe actually found. With no such column we
+    // do not guess one — the day rows report unknown and say which columns exist.
+    orderDateField
+      ? db.select(t.orders, { filters: { [orderDateField]: `gte.${start}` }, limit: 20000 }).catch(() => [])
+      : Promise.resolve([]),
     db.select('cron_runs', { order: 'started_at.desc', limit: 5 }).catch(() => []),
     db.select(t.runs, { order: 'created_at.desc', limit: 25 }).catch(() => []),
   ]);
@@ -203,13 +217,9 @@ async function dayCalendar({ from, to, market = '', config: cfg = {} } = {}) {
 
   // The SOURCE reported (it has rows) AND it carries a date we can bucket by.
   // Only then is an empty day a measured zero rather than an unknown.
-  const probeRow = (orderProbe || [])[0] || null;
-  const orderDateField = probeRow
-    ? ['created_at', 'processed_at'].find((k) => probeRow[k] != null) || null
-    : null;
   const ordersRead = !!probeRow && !!orderDateField;
   const ordersBlocker = probeRow && !orderDateField
-    ? `The order table has rows but none of the date columns this view can bucket by (created_at, processed_at). Orders and revenue are reported as unknown rather than attributed to a day that cannot be read. Columns seen: ${Object.keys(probeRow).slice(0, 12).join(', ')}.`
+    ? `The order table has rows but none of the date columns this view can bucket by (${ORDER_DATE_FIELDS.join(', ')}). Orders and revenue are reported as unknown rather than attributed to a day that cannot be read. Columns seen: ${Object.keys(probeRow).slice(0, 12).join(', ')}.`
     : 'No order rows are stored for this window, so orders and revenue are unknown rather than zero. Run the Shopify/warehouse sync.';
 
   // Measured orders per day. Real stored rows — the one commercial figure this

@@ -22,6 +22,20 @@ module.exports = defineConfig({
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'tests/report' }]],
   use: {
     headless: true,
+    // Use a pre-installed Chromium when one is provided instead of the exact
+    // build this @playwright/test version pins.
+    //
+    // THIS IS NOT A CONVENIENCE. In a sandbox that ships chromium-1194 while the
+    // package wants 1234, every browser-driving spec dies at
+    // `browserType.launch: Executable doesn't exist` — and Playwright reports
+    // those as "did not run", not as failures, so the suite still exits 0. The
+    // run looks like a pass and is really a pass of the file-reading specs only.
+    // That is precisely the shape of defect this repo keeps finding in itself, so
+    // it does not get to live in the test harness.
+    //
+    // CI installs its own browsers and leaves PW_CHROMIUM_PATH unset, so this is
+    // inert there.
+    ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : {}),
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',

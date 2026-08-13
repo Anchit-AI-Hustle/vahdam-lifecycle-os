@@ -24,7 +24,17 @@
 <!-- Vercel Speed Insights — static-HTML form (bare-specifier import does not resolve in the browser) -->
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <script>
-  tailwind.config = {
+  // The Tailwind CDN is a THIRD PARTY that can fail: slow, blocked by a corporate
+  // proxy or ad-blocker (cdn.tailwindcss.com sits on some blocklists), or simply
+  // absent offline — and this app is an installable PWA, so offline is a state it
+  // advertises. Unguarded, `tailwind.config = {...}` throws ReferenceError on
+  // every one of those loads. The throw is contained to this block, so the page
+  // still works; what it silently costs is the brand palette, because every
+  // bg-green / text-gold / bg-cream class in the page resolves to nothing.
+  // Guarding does not restore the styling when the CDN is gone — nothing can —
+  // but it stops the page reporting a hard error for a condition it survives, so
+  // a real error on these pages is visible instead of buried.
+  if (window.tailwind) tailwind.config = {
     theme: { extend: {
       colors: {
         bg:    { DEFAULT:'#ffffff', soft:'#ffffff', card:'#eef3f0', deep:'#eef3f0' },
@@ -1584,6 +1594,45 @@ function destroyCharts() {
   Object.keys(charts).forEach((k) => delete charts[k]);
 }
 
+/**
+ * ApexCharts comes from a CDN, and a CDN can be slow, ad-blocked, proxied, or
+ * simply unreachable offline — a state this installable PWA advertises.
+ *
+ * The obvious guard is to bail out of rerender() when the library is missing.
+ * That is what this file did first, and it was WORSE than the unguarded throw:
+ * bailing skipped the KPI tiles and every table too, none of which need charts,
+ * so the whole dashboard went blank instead of losing its graphs. The crawler
+ * caught it as an empty <tbody id="execTopCampaigns"> — a table that had a
+ * perfectly good "No campaigns in window" fallback and simply never ran.
+ *
+ * So the library is stood in for rather than checked around. Each of the 18
+ * construction sites gets an object with the same shape; it paints the reason
+ * into the element that would have held the chart and no-ops the rest. Numbers,
+ * tables and KPIs render exactly as they always did.
+ */
+function ensureApexShim() {
+  if (typeof window.ApexCharts !== 'undefined') return;
+  const NOTE = 'This chart could not be drawn: the ApexCharts library did not load (fetched from cdn.jsdelivr.net). It is a rendering failure, not missing data — the figures in the tiles and tables below are unaffected. Check the connection, an ad-blocker, or a proxy blocking that host, then reload.';
+  window.ApexCharts = function ApexChartsUnavailable(el) {
+    this._el = el;
+    this.render = function render() {
+      const t = typeof this._el === 'string' ? document.querySelector(this._el) : this._el;
+      if (!t || t.querySelector('.chart-unavailable')) return Promise.resolve();
+      const n = document.createElement('div');
+      n.className = 'chart-unavailable';
+      n.style.cssText = 'padding:14px 16px;border:1px dashed #AB8743;border-radius:10px;background:#FBF5EA;color:#171717;font-size:12.5px;line-height:1.5';
+      n.textContent = NOTE;
+      t.appendChild(n);
+      return Promise.resolve();
+    };
+    this.destroy = function destroy() {
+      const t = typeof this._el === 'string' ? document.querySelector(this._el) : this._el;
+      if (t) t.querySelectorAll('.chart-unavailable').forEach((x) => x.remove());
+    };
+    this.updateOptions = this.updateSeries = this.appendSeries = function noop() { return Promise.resolve(); };
+  };
+}
+
 const APEX_BASE = {
   chart: {
     background: 'transparent',
@@ -2216,6 +2265,18 @@ function switchView(name) {
   rerender();
 }
 function rerender() {
+  // ApexCharts comes from a CDN, and a CDN can be slow, ad-blocked, proxied or
+  // simply unreachable offline. Unguarded, the first `new ApexCharts(...)` threw
+  // ReferenceError and took the rest of the render with it: not just the charts,
+  // but every KPI and table after that point in the same call. The page then
+  // shows partial numbers with no indication anything is missing, which is worse
+  // than showing none.
+  //
+  // This states the cause once, in the page, and stops before drawing. It is a
+  // RENDERING failure, and saying so matters — an analytics dashboard that
+  // silently renders nothing reads as "there is no data", which is a claim
+  // about the business rather than about a script tag.
+  ensureApexShim();
   // Honest empty state: with no connected/uploaded data there is nothing to
   // compute, so show the connect prompt instead of metrics over no rows.
   const empty = !hasData();

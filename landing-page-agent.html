@@ -25,7 +25,19 @@
 <section class="card preview">
 <div class="toolbar"><strong id="title">Final spatial page preview</strong><button class="btn secondary" id="open" disabled>Open New Tab</button><button class="btn secondary" id="download" disabled>Download HTML</button><button class="btn secondary" id="regenerate" disabled>Regenerate</button></div>
 <div class="empty" id="empty"><div><div class="demo-orbit" aria-hidden="true"><div class="demo-ring"></div><div class="demo-pack">VAHDAM<br>SPATIAL</div></div><b>Your complete page appears here</b>The preview is the actual exported HTML with spatial product depth, scroll choreography and interactive states.</div></div>
-<iframe class="frame" id="frame" title="Generated spatial landing page" sandbox="allow-same-origin allow-forms allow-popups allow-scripts" hidden></iframe>
+<!-- NO allow-same-origin. This frame is filled via srcdoc with HTML written by
+     an LLM (/api/ai/landing-page), and a srcdoc document inherits the PARENT's
+     origin. Granting allow-same-origin alongside allow-scripts therefore does
+     not sandbox anything: the generated page becomes same-origin with this app,
+     so it can read localStorage — which holds the Supabase auth session — reach
+     parent.document, and even delete this very sandbox attribute. The model
+     output is not attacker-controlled today, but it is not authored by us
+     either, and it is the one thing on this page that is neither.
+     Dropping allow-same-origin gives the frame an opaque origin. Scripts still
+     run, so the parallax, scroll progress and reveal animations in the preview
+     behave exactly as they do in the delivered file; the frame simply cannot
+     touch anything outside itself. -->
+<iframe class="frame" id="frame" title="Generated spatial landing page" sandbox="allow-forms allow-popups allow-scripts" hidden></iframe>
 </section>
 </div></div>
 <script>
