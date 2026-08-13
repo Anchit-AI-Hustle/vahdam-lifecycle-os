@@ -31,7 +31,15 @@ async function pull(table, fetchFn, mapRow) {
 
 async function run() {
   if (!kl.isConnected()) {
-    return { ok: false, connected: false, records: 0, breakdown: {}, message: 'KLAVIYO_API_KEY not set — nothing pulled.' };
+    // Name the blocker that is ACTUALLY holding this back. Reporting "set
+    // KLAVIYO_API_KEY" while the key is set and only the global kill switch is
+    // off sends the operator to fix the one thing that is not broken — the same
+    // failure /api/connectors-health already had. isConnected() is false for two
+    // different reasons and they need different actions.
+    const message = kl.hasKey()
+      ? 'Klaviyo key is set; live connectors are switched off — set LIVE_CONNECTORS=on to allow outbound reads. Nothing pulled.'
+      : 'KLAVIYO_API_KEY not set — nothing pulled.';
+    return { ok: false, connected: false, records: 0, breakdown: {}, message };
   }
   const breakdown = {};
   try {

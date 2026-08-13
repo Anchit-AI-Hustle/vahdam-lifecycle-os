@@ -95,7 +95,50 @@
   .adcard .v{color:#171717;line-height:1.55;font-size:13px;white-space:pre-wrap}
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
   @keyframes spin{to{transform:rotate(360deg)}}
-  @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}}
+  /* ── Daily operations status + day-level calendar ───────────────────────
+     Every colour here is a VERDICT, so it must be legible without the colour:
+     each state also carries its word. A green dot alone would repeat the
+     original failure in a new form — a surface that looks healthy. */
+  .fresh{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:4px 0 12px}
+  .fcell{border:1px solid rgba(171,135,67,.22);border-radius:12px;padding:12px 14px;background:#fff}
+  .fcell .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#48524c;margin-bottom:5px}
+  .fcell .v{font-size:15px;font-weight:800;color:#171717;line-height:1.25}
+  .fcell .n{font-size:11.5px;color:#556059;line-height:1.45;margin-top:5px}
+  .fcell.ok{border-left:4px solid #1d6b45}
+  .fcell.warn{border-left:4px solid var(--gold)}
+  .fcell.bad{border-left:4px solid #b91c1c}
+  .fcell.ok .v{color:#0a6b39}.fcell.bad .v{color:#b91c1c}.fcell.warn .v{color:#7a5f28}
+  .blk{border:1px solid rgba(185,28,28,.3);background:rgba(185,28,28,.05);border-radius:12px;padding:12px 14px;margin:0 0 10px}
+  .blk b{color:#b91c1c;display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+  .blk p{margin:0 0 6px;font-size:13px;color:#171717;line-height:1.5}
+  .blk .fix{font-size:12.5px;color:#556059;line-height:1.5;margin:0}
+  .calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+  .caldow{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#48524c;text-align:center;padding:4px 0}
+  .calmon{grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);padding:12px 2px 2px;border-top:1px solid rgba(171,135,67,.18);margin-top:6px}
+  .cday{border:1px solid rgba(171,135,67,.2);border-radius:10px;padding:7px 8px 8px;min-height:82px;background:#fff;cursor:pointer;text-align:left;font:inherit;display:block;width:100%}
+  .cday:hover{border-color:var(--gold);background:rgba(171,135,67,.05)}
+  .cday.past{background:#f7f5f0;color:#556059}
+  .cday.today{border:2px solid var(--green);background:rgba(0,74,43,.05)}
+  .cday.empty{border-style:dashed;opacity:.75}
+  .cday.sel{outline:2px solid var(--gold);outline-offset:1px}
+  .cday .d{font-size:13px;font-weight:800;color:#171717;font-variant-numeric:tabular-nums}
+  .cday.past .d{color:#6b7770}
+  .cday .cs{font-size:11px;color:#556059;line-height:1.4;margin-top:3px}
+  .cday .bar{display:flex;gap:2px;margin-top:5px}
+  .cday .bar i{height:4px;flex:1;border-radius:2px;background:rgba(171,135,67,.25)}
+  .cday .bar i.ready{background:#1d6b45}
+  .cday .bar i.part{background:var(--gold)}
+  .cday .warnmark{color:#b91c1c;font-weight:800}
+  .dayslots{margin-top:14px;border-top:1px solid rgba(171,135,67,.2);padding-top:12px}
+  .dslot{border:1px solid rgba(171,135,67,.2);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .dslot .hd{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;justify-content:space-between}
+  .dslot .ttl{font-size:13.5px;font-weight:700;color:#171717}
+  .dslot .meta{font-size:12px;color:#556059;margin-top:4px;line-height:1.5}
+  .chn{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin:3px 3px 0 0;border:1px solid}
+  .chn.on{background:rgba(29,107,69,.14);border-color:rgba(29,107,69,.45);color:#0a6b39}
+  .chn.off{background:rgba(171,135,67,.08);border-color:rgba(171,135,67,.4);color:#7a5f28}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}
+    .calgrid{grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.cday{min-height:64px;padding:5px}.cday .cs{font-size:10px}}
 </style>
 <script src="/auth.js?v=20260718light" defer></script>
 </head>
@@ -141,6 +184,41 @@
         <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
       </div>
       <div id="agenticOut" class="feed"><p style="color:#48524c">Run the agentic flow. It plans the calendar, writes the content and returns the next-step ideation inline.</p></div>
+    </div>
+
+    <div class="card wide" id="opsstatus">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <h2 style="margin:0">Daily operations — is this actually current?</h2>
+          <p style="color:#48524c;margin:.35em 0 0;font-size:13px">Every verdict below is recomputed from a timestamp each time this loads. Nothing here is a stored “fresh” flag being read back.</p>
+        </div>
+        <button class="btn sm secondary" onclick="loadDayCalendar(true)">↻ Re-check</button>
+      </div>
+      <div id="freshcells" class="fresh"><div class="fcell"><div class="k">Status</div><div class="v">Checking…</div></div></div>
+      <div id="opsblockers"></div>
+    </div>
+
+    <div class="card wide" id="daycal">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <h2 style="margin:0">Day-level calendar — history, today, and the plan ahead</h2>
+          <p style="color:#48524c;margin:.35em 0 0;font-size:13px">One cell per day. Past days carry what was measured; future days carry what is planned and which assets exist for it. A day with no send inside the rolling window is a gap, not a rest day.</p>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span style="color:#556059;font-size:12px;text-transform:uppercase;letter-spacing:.06em">Window</span>
+          <button class="mkchip" data-dcw="14" onclick="setDayWindow(14)">±14d</button>
+          <button class="mkchip on" data-dcw="30" onclick="setDayWindow(30)">30d back · 90 ahead</button>
+          <button class="mkchip" data-dcw="90" onclick="setDayWindow(90)">90d back · 90 ahead</button>
+        </div>
+      </div>
+      <div id="callegend" style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 12px;font-size:11.5px;color:#556059">
+        <span><b style="color:#0a6b39">▌</b> all planned assets exist</span>
+        <span><b style="color:#AB8743">▌</b> partly built</span>
+        <span><b style="color:#b91c1c">!</b> planned, nothing built</span>
+        <span style="border:1px dashed rgba(171,135,67,.6);border-radius:4px;padding:0 6px">dashed = no send planned</span>
+      </div>
+      <div id="calbody"><p style="color:#48524c;font-size:13px">Loading the day-level calendar…</p></div>
+      <div id="dayslots" class="dayslots" style="display:none"></div>
     </div>
 
     <div class="card wide">
@@ -1326,6 +1404,200 @@ $('refresh').addEventListener('click', loadPlan);
   load: async () => { const d = await loadPlan(); return d ? { source: 'live' } : { source: 'unavailable', note: 'The plan endpoint returned nothing.' }; },
 });
 $('export').addEventListener('click', exportPlan);
+
+// ── Daily operations status + day-level calendar ─────────────────────────────
+// The whole reason this panel exists: the loop it reports on had been dead for
+// three weeks while every existing surface still looked fine. So it renders the
+// bad news FIRST, states the age of each subsystem in hours, and prints the
+// exact command that fixes each blocker. It never shows a number for something
+// it did not read — an unknown renders as an em dash with its reason beside it.
+var DC = { data: null, loading: false, back: 30, selected: null };
+
+function dcFmtNum(v){ return (v === null || v === undefined || !isFinite(v)) ? '—' : Number(v).toLocaleString('en-US'); }
+function dcMoney(v){ return (v === null || v === undefined || !isFinite(v)) ? '—' : '$' + Math.round(Number(v)).toLocaleString('en-US'); }
+
+function freshCell(title, f, extra){
+  if(!f) return `<div class="fcell"><div class="k">${esc(title)}</div><div class="v">—</div><div class="n">Not reported.</div></div>`;
+  const cls = f.state === 'current' ? 'ok' : (f.state === 'never_run' ? 'bad' : 'warn');
+  const head = f.state === 'never_run' ? 'Never run'
+    : (f.age_hours === 0 ? 'Just now' : `${f.age_hours}h ago`);
+  return `<div class="fcell ${cls}">
+    <div class="k">${esc(title)}</div>
+    <div class="v">${esc(head)}</div>
+    <div class="n">${esc(f.note || '')}${extra ? '<br>' + extra : ''}</div>
+  </div>`;
+}
+
+function renderFreshness(d){
+  const f = d.freshness || {};
+  const cells = [];
+  cells.push(freshCell('Plan actually written', f.plan_persistence,
+    'This is the timestamp on the calendar rows themselves, not on the job that was supposed to write them.'));
+  cells.push(freshCell('Daily job run', f.daily_job, f.daily_job && f.daily_job.summary ? esc(f.daily_job.summary) : ''));
+  const cov = f.coverage || {};
+  const covCls = cov.complete ? 'ok' : 'bad';
+  cells.push(`<div class="fcell ${covCls}">
+    <div class="k">Rolling window</div>
+    <div class="v">${dcFmtNum(cov.covered_days)} / ${dcFmtNum(cov.horizon_days)} days</div>
+    <div class="n">${esc(cov.note || '')}</div>
+  </div>`);
+  const a = f.assets || {};
+  const aCls = a.slots_ahead ? (a.ready === a.slots_ahead ? 'ok' : (a.ready === 0 ? 'bad' : 'warn')) : 'warn';
+  cells.push(`<div class="fcell ${aCls}">
+    <div class="k">Assets ready ahead</div>
+    <div class="v">${dcFmtNum(a.ready)} / ${dcFmtNum(a.slots_ahead)}</div>
+    <div class="n">${dcFmtNum(a.partial)} partly built, ${dcFmtNum(a.none)} with no campaign at all. A send counts as ready only when every channel it plans has a real artefact.${
+      a.last_prebuild
+        ? `<br>Prebuild queue last ran ${esc(String(a.last_prebuild.at || '').slice(0, 16).replace('T', ' '))} UTC — built ${dcFmtNum(a.last_prebuild.built)}, failed ${dcFmtNum(a.last_prebuild.failed)}, ${dcFmtNum(a.last_prebuild.remaining)} pending.`
+        : '<br>The prebuild queue has no recorded run.'
+    }</div>
+  </div>`);
+  $('freshcells').innerHTML = cells.join('');
+
+  const blockers = d.blockers || [];
+  $('opsblockers').innerHTML = blockers.length
+    ? blockers.map(b => `<div class="blk"><b>${esc(b.subsystem || 'blocker')}</b><p>${esc(b.detail || '')}</p><p class="fix">${esc(b.fix || '')}</p></div>`).join('')
+    : '<p style="color:#0a6b39;font-size:13px;margin:4px 0 0">No blockers: the plan is persisting, the window is complete, and the assets ahead exist.</p>';
+}
+
+var DC_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function renderDayGrid(d){
+  const days = d.days || [];
+  if(!days.length){
+    $('calbody').innerHTML = `<p style="color:#b91c1c;font-size:13px">${esc(d.blocker || 'No days returned.')}</p>`;
+    return;
+  }
+  const out = [];
+  let month = '';
+  const dow = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  for(const day of days){
+    const dt = new Date(day.date + 'T00:00:00Z');
+    const key = DC_MONTHS[dt.getUTCMonth()] + ' ' + dt.getUTCFullYear();
+    if(key !== month){
+      month = key;
+      out.push(`<div class="calmon">${esc(key)}</div>`);
+      out.push(dow.map(x => `<div class="caldow">${x}</div>`).join(''));
+      // Pad to the correct weekday column (Monday-first).
+      const pad = (dt.getUTCDay() + 6) % 7;
+      for(let i = 0; i < pad; i++) out.push('<div></div>');
+    }
+    const c = day.counts || {};
+    const planned = c.planned || 0;
+    const cls = [ 'cday', day.bucket, planned ? '' : 'empty', DC.selected === day.date ? 'sel' : '' ].filter(Boolean).join(' ');
+    let line2;
+    if(!planned){
+      line2 = day.bucket === 'past' ? 'no send' : '<span class="warnmark">no send planned</span>';
+    } else if(day.bucket === 'past'){
+      // A past day's headline is what it MEASURED, and an unknown says so.
+      const m = day.measured || {};
+      line2 = m.orders === null ? `${planned} sent · —` : `${planned} sent · ${dcMoney(m.revenue)}`;
+    } else {
+      line2 = `${planned} planned · ${c.assets_ready || 0} ready`;
+    }
+    const bars = [];
+    for(const s of (day.slots || []).slice(0, 6)){
+      bars.push(`<i class="${s.assets_ready ? 'ready' : (s.assets ? 'part' : '')}"></i>`);
+    }
+    out.push(`<button class="${cls}" onclick="selectDay('${day.date}')" title="${esc(day.date)}">
+      <span class="d">${dt.getUTCDate()}</span>
+      <span class="cs">${line2}</span>
+      ${bars.length ? `<span class="bar">${bars.join('')}</span>` : ''}
+    </button>`);
+  }
+  $('calbody').innerHTML = `<div class="calgrid">${out.join('')}</div>`;
+}
+
+function chnChips(slot){
+  const built = slot.assets;
+  const chans = slot.channels || [];
+  if(!chans.length) return '<span style="color:#48524c;font-size:12px">No channel mix recorded for this send.</span>';
+  return chans.map(function(ch){
+    // With no campaign at all we know nothing was built; with a campaign we know
+    // per channel. Both render as "not built", never as a hopeful tick.
+    const on = built ? built[ch] === true : false;
+    return `<span class="chn ${on ? 'on' : 'off'}">${on ? '✓' : '—'} ${esc(ch)}</span>`;
+  }).join('');
+}
+
+function selectDay(date){
+  DC.selected = date;
+  const d = DC.data; if(!d) return;
+  const day = (d.days || []).find(x => x.date === date);
+  renderDayGrid(d);
+  const box = $('dayslots');
+  if(!day){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const parts = [`<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline">
+      <h3 style="margin:0;font-family:Georgia,serif;font-size:20px">${esc(date)} <span style="font-size:12px;color:#48524c;text-transform:uppercase;letter-spacing:.1em">${esc(day.bucket)}</span></h3>
+      <button class="btn sm secondary" onclick="closeDay()">Close</button>
+    </div>`];
+
+  const m = day.measured;
+  if(m){
+    parts.push(m.orders === null
+      ? `<p style="color:#7a5f28;font-size:13px;margin:8px 0 0">Measured: <b>unknown</b>. ${esc((day.blockers || [])[0] || 'No reporting source covered this day.')}</p>`
+      : `<p style="color:#556059;font-size:13px;margin:8px 0 0">Measured on this day: <b>${dcFmtNum(m.orders)}</b> orders, <b>${dcMoney(m.revenue)}</b> revenue <span style="color:#48524c">(${esc(m.basis)})</span>.</p>`);
+  } else {
+    parts.push('<p style="color:#556059;font-size:13px;margin:8px 0 0">This day is in the future, so there is nothing measured yet. Everything below is plan and asset state.</p>');
+  }
+
+  if(!(day.slots || []).length){
+    parts.push(`<p style="color:#b91c1c;font-size:13px;margin:10px 0 0">${esc((day.blockers || []).join(' ') || 'No send is planned for this day.')}</p>`);
+  }
+  for(const s of day.slots || []){
+    const missing = (s.assets_missing || []);
+    parts.push(`<div class="dslot">
+      <div class="hd">
+        <span class="ttl">${esc(s.market || '')} · ${esc(s.cohort || 'cohort n/a')}</span>
+        <span class="st ${esc(s.status || 'tentative')}">${esc(s.status || '')}</span>
+      </div>
+      <div class="meta">${esc(s.objective || 'objective n/a')}${s.hero ? ' — ' + esc(s.hero) : ''}${s.festival ? ' · ' + esc(s.festival) : ''}</div>
+      <div style="margin-top:6px">${chnChips(s)}</div>
+      <div class="meta">${s.campaign_id
+        ? `Campaign <code>${esc(s.campaign_id)}</code>${s.images != null ? ' · ' + s.images + ' image' + (s.images === 1 ? '' : 's') : ''}${s.landing_url ? ` · <a href="${esc(s.landing_url)}" target="_blank" style="color:#0a6b39">landing page ↗</a>` : ''}`
+        : 'No campaign has been generated for this send yet.'}
+        ${missing.length ? `<br><span style="color:#b91c1c">Not built: ${esc(missing.join(', '))}</span>` : ''}
+        ${s.updated_at ? `<br><span style="color:#48524c">Row last written ${esc(String(s.updated_at).slice(0, 16).replace('T', ' '))} UTC</span>` : ''}
+      </div>
+    </div>`);
+  }
+  box.innerHTML = parts.join('');
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeDay(){ DC.selected = null; $('dayslots').style.display = 'none'; if(DC.data) renderDayGrid(DC.data); }
+
+function setDayWindow(back){
+  DC.back = back;
+  document.querySelectorAll('[data-dcw]').forEach(function(b){ b.classList.toggle('on', String(back) === b.getAttribute('data-dcw')); });
+  loadDayCalendar(true);
+}
+
+async function loadDayCalendar(force){
+  if(DC.loading) return;
+  if(DC.data && !force) return;
+  DC.loading = true;
+  try{
+    const today = new Date();
+    const from = new Date(today.getTime() - DC.back * 86400000).toISOString().slice(0, 10);
+    const r = await fetch(`/api/brain?action=daily-calendar&from=${from}`, { cache: 'no-store' });
+    const d = await safeJson(r);
+    if(!d || d.ok === false){
+      $('freshcells').innerHTML = `<div class="fcell bad"><div class="k">Status</div><div class="v">Unavailable</div><div class="n">${esc((d && (d.error || d.blocker)) || 'The day-level calendar endpoint did not respond.')}</div></div>`;
+      $('calbody').innerHTML = '';
+      return;
+    }
+    DC.data = d;
+    renderFreshness(d);
+    renderDayGrid(d);
+    if(DC.selected) selectDay(DC.selected);
+  }catch(e){
+    $('freshcells').innerHTML = `<div class="fcell bad"><div class="k">Status</div><div class="v">Unavailable</div><div class="n">${esc((e && e.message) || e)}</div></div>`;
+  }finally{ DC.loading = false; }
+}
+
+loadDayCalendar(true);
 autoGenerateOnLoad();
 </script>
 </body>

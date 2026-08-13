@@ -500,6 +500,16 @@ module.exports = async function handler(req, res) {
         return res.json(out);
       }
 
+      // ── DAY-LEVEL CALENDAR (past · today · future in one grid) ───────────
+      // Every day in the window with what was planned, which assets actually
+      // exist for it, what was measured, and a DERIVED freshness verdict for
+      // each subsystem that feeds it. Never re-asserts a stored freshness flag.
+      case 'daily-calendar': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const dc = require('./_shared/daily-calendar-core.js');
+        return res.json(await dc.dayCalendar({ from: p.from, to: p.to, market: p.market || '' }));
+      }
+
       // ── ADS FROM SNOWFLAKE (live warehouse tables; cohort/segmentation) ──
       case 'ads-snowflake': {
         const p = req.method === 'POST' ? b : Object.assign({}, req.query);
@@ -828,15 +838,36 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
             finally { clearTimeout(timer); }
             prebuildKicked = true;
           }
-          steps.smart_brain_plan = { synced: true, mode: sync.mode, changes: (sync.changes || []).length, prebuild_kicked: prebuildKicked };
+          // `synced` is READ FROM THE WRITE RESULT, never assumed. It was
+          // hardcoded true, so this step reported a healthy plan sync with a
+          // count of "changes" for three weeks while the database rejected every
+          // row and stored nothing. A step that writes must report what landed.
+          const p = sync.persistence || {};
+          steps.smart_brain_plan = {
+            synced: sync.ok !== false && p.ok !== false,
+            mode: sync.mode,
+            changes: (sync.changes || []).length,
+            written: (p.inserted || 0) + (p.updated || 0),
+            rejected: p.rejected || 0,
+            coverage: sync.coverage ? `${sync.coverage.covered_days}/${sync.coverage.horizon_days} days planned` : null,
+            prebuild_kicked: prebuildKicked,
+          };
+          if (p.blockers && p.blockers.length) steps.smart_brain_plan.blockers = p.blockers;
+          if (sync.coverage && !sync.coverage.complete) steps.smart_brain_plan.coverage_note = sync.coverage.note;
         } catch (e) { steps.smart_brain_plan = { error: e.message }; }
         // Snowflake → Supabase daily mirror (historical/deep metrics for the
         // Vahdam3DConnectorEngine). No-op stub when SNOWFLAKE_* env is unset.
         try { steps.snowflake_sync = snowflake ? await snowflake.runSync({ source: 'cron' }) : { skipped: true }; }
         catch (e) { steps.snowflake_sync = { error: e.message }; }
-        const summary = { steps, ms: Date.now() - started };
-        await core.logRun('cron', summary, true);
-        return res.json({ ok: true, ...summary });
+        // The run's own verdict is DERIVED from its steps. Logging every run as
+        // ok:true made the run history worthless: it recorded three weeks of
+        // successes for a loop whose central step wrote nothing.
+        const failed = Object.entries(steps)
+          .filter(([, v]) => v && typeof v === 'object' && (v.error || v.synced === false || (Array.isArray(v.blockers) && v.blockers.length)))
+          .map(([k]) => k);
+        const summary = { steps, ms: Date.now() - started, failed_steps: failed };
+        await core.logRun('cron', summary, failed.length === 0);
+        return res.json({ ok: failed.length === 0, ...summary });
       }
 
       // ── LIFECYCLE OS BACKBONE (connectors / jobs / activity / dashboard) ──
@@ -857,7 +888,7 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
         return res.json({ ok: true, ...(await osb.dashboard()) });
 
       default:
-        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'agent-openapi', 'agent-status', 'agent-run', 'klaviyo', 'webengage-sync', 'webengage-report', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'access-narrative', 'snowflake-sync', 'snowflake-metrics', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
+        return res.status(400).json({ ok: false, error: 'Unknown action', actions: ['status', 'config', 'kb', 'kb-patterns', 'analyze', 'cohorts', 'library', 'scores', 'benchmarks', 'calendar', 'calendar-generate', 'calendar-review', 'festivals', 'festivals-extract', 'feedback', 'mvt', 'generate', 'assets', 'asset', 'campaigns', 'review', 'decide', 'recalibrate', 'confidence', 'agents', 'agent-upsert', 'agent-sync', 'agent-chat', 'agent-analyze', 'team-chat', 'agent-sessions', 'brand-chat', 'brand-tools', 'agent-openapi', 'agent-status', 'agent-run', 'klaviyo', 'webengage-sync', 'webengage-report', 'video-generate', 'video-status', 'mailer-assets', 'mailer-assets-status', 'social-run-daily', 'social-list', 'social-approve', 'social-skip', 'console-chat', 'alerts-anomaly', 'alerts-pulse', 'alerts-eod', 'alerts-preview', 'access-narrative', 'snowflake-sync', 'snowflake-metrics', 'daily-calendar', 'cron', 'os-connectors', 'os-connector-sync', 'os-run-daily-job', 'os-dashboard'] });
     }
   } catch (err) {
     console.error('[api/brain]', action, err);
