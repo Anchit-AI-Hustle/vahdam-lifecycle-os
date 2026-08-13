@@ -434,6 +434,72 @@ module.exports = async function handler(req, res) {
         return res.json(out);
       }
 
+      // ── ADS ANALYSIS (insights / actionables / creative) ─────────────────
+      // Derived from the SAME live rows ad-insights returns, so a figure quoted
+      // in an insight and the same figure in the Campaigns table cannot disagree.
+      // No new Serverless Function: the engine lives in _shared and this is one
+      // more case on an existing router (the Hobby cap is 12 and we are at 12).
+      case 'ads-analysis': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const view = String(p.view || 'all');
+        const args = { market: p.market, level: p.level || 'ad', since: p.since, until: p.until };
+        const src = p.platform
+          ? await adInsights.insights({ platform: p.platform, ...args })
+          : await adInsights.summary(args);
+
+        // Collect rows from whichever shape came back, and keep every platform's
+        // blocker verbatim. A disconnected platform must reach the UI as its own
+        // reason, not as an empty table that reads like "no activity".
+        const rows = [];
+        const blockers = [];
+        const pushFrom = (o) => {
+          if (!o) return;
+          if (Array.isArray(o.rows)) rows.push(...o.rows);
+          if (o.connected === false || o.not_connected) {
+            blockers.push({
+              platform: o.platform || 'unknown',
+              blocker: o.hint || o.blocker || 'not connected',
+              need_env: o.need_env || [],
+              would_request: o.would_request || o.would_query || null,
+            });
+          }
+        };
+        if (Array.isArray(src.platforms)) src.platforms.forEach(pushFrom); else pushFrom(src);
+
+        const engine = require('./_shared/ads-insight-engine.js');
+        const payload = {
+          ok: true,
+          market: args.market || 'US',
+          level: args.level,
+          window: src.window || null,
+          fetched_at: new Date().toISOString(),
+          rows_analysed: rows.length,
+          // Present whether or not anything is connected, so the caller can render
+          // an honest empty state rather than guessing why a list is empty.
+          blockers,
+          connected: rows.length > 0,
+        };
+        if (view === 'insights' || view === 'all') Object.assign(payload, engine.deriveInsights(rows));
+        if (view === 'actionables' || view === 'all') Object.assign(payload, engine.deriveActionables(rows));
+        if (view === 'creative' || view === 'all') Object.assign(payload, engine.deriveCreativeAnalysis(rows));
+        return res.json(payload);
+      }
+
+      // ── JOURNEY (link-by-link, cross-platform) ───────────────────────────
+      // Joins the cost side (Meta/Google/TikTok), the send side (Klaviyo,
+      // WebEngage) and the outcome side (Shopify orders + revenue) on the only
+      // key that exists on all of them: the destination link and its UTMs.
+      case 'journey': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const journey = require('./_shared/journey-core.js');
+        const out = await journey.linkLedger({
+          market: p.market || 'US',
+          days: p.days ? parseInt(p.days, 10) : 90,
+          since: p.since, until: p.until,
+        });
+        return res.json(out);
+      }
+
       // ── ADS FROM SNOWFLAKE (live warehouse tables; cohort/segmentation) ──
       case 'ads-snowflake': {
         const p = req.method === 'POST' ? b : Object.assign({}, req.query);

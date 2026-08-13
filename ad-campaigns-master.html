@@ -551,6 +551,12 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     <button data-p="overview">Overview</button>
     <button data-p="campaigns">Campaigns &amp; Ads</button>
     <button data-p="creative">Creative Intel</button>
+    <button data-p="insights">Insights</button>
+    <button data-p="actionables">Actionables</button>
+    <button data-p="creativeanalysis">Creative Analysis</button>
+    <button data-p="journey">Journey (link by link)</button>
+    <button data-p="mailers">Mailer &amp; Campaign</button>
+    <button data-p="looker">Looker Report</button>
     <button data-p="organic">Organic &amp; UGC</button>
     <button data-p="kb">Knowledge Base</button>
     <button data-p="crestudio">Creative Studio</button>
@@ -766,6 +772,96 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     </div>
     <p class="eyebrow">Creative learnings (each cites its source)</p>
     <div id="learnings"></div>
+  </div>
+
+  <!-- ── INSIGHTS / ACTIONABLES / CREATIVE ANALYSIS ────────────────────────
+       All three read the SAME live rows the Campaigns table reads (via
+       ?action=ads-analysis, which calls ad-insights and then the shared
+       engine), so a figure quoted in an insight and the same figure in the
+       table cannot disagree. When no platform is connected they render the
+       platform's own blocker and the exact call that was blocked — never an
+       empty table, which reads as "no activity" rather than "not connected". -->
+  <div class="panel" id="p-insights">
+    <div class="hd">
+      <h2>Insights</h2>
+      <div class="sub">Observations derived from live ad rows. Every finding quotes the figures that produced it; nothing is inferred where the data is absent.</div>
+    </div>
+    <div class="row" style="margin:10px 0"><div id="insSel"></div>
+      <button class="btn" onclick="loadAdsAnalysis('insights',true)">Refresh</button></div>
+    <div id="insOut"><p class="dim">Loading…</p></div>
+  </div>
+
+  <div class="panel" id="p-actionables">
+    <div class="hd">
+      <h2>Actionables</h2>
+      <div class="sub">Ranked actions, each tied to the rows that justify it. An observation with nothing specific to do about it is not listed here.</div>
+    </div>
+    <div class="row" style="margin:10px 0"><div id="actSel"></div>
+      <button class="btn" onclick="loadAdsAnalysis('actionables',true)">Refresh</button></div>
+    <div id="actOut"><p class="dim">Loading…</p></div>
+  </div>
+
+  <div class="panel" id="p-creativeanalysis">
+    <div class="hd">
+      <h2>Creative Analysis</h2>
+      <div class="sub">Per-creative read. Hook rate and through rate separate a creative problem from a targeting problem, and are shown only where the video metrics to compute them are present.</div>
+    </div>
+    <div class="row" style="margin:10px 0"><div id="craSel"></div>
+      <button class="btn" onclick="loadAdsAnalysis('creative',true)">Refresh</button></div>
+    <div id="craOut"><p class="dim">Loading…</p></div>
+  </div>
+
+  <!-- ── JOURNEY: LINK BY LINK ────────────────────────────────────────────
+       One row per link. The link is the join key because it is the only thing
+       that exists on every platform: there is no shared identity graph here, but
+       every one of them writes a destination URL with UTMs, and Shopify records
+       the one the buyer arrived on. Last-click by construction, and labelled as
+       such — claiming multi-touch from this data would be the most seductive
+       fabrication available on this page. -->
+  <div class="panel" id="p-journey">
+    <div class="hd">
+      <h2>Journey — link by link</h2>
+      <div class="sub">Every link that led to an order or carried ad spend, joined across Meta, Google, TikTok, Klaviyo, WebEngage and Shopify on its UTM tuple. Last-click, read from each order's own landing page.</div>
+    </div>
+    <div class="row" style="margin:10px 0"><button class="btn" onclick="loadJourney(true)">Refresh</button></div>
+    <div id="jrnOut"><p class="dim">Loading…</p></div>
+  </div>
+
+  <div class="panel" id="p-mailers">
+    <div class="hd">
+      <h2>Mailer &amp; Campaign</h2>
+      <div class="sub">Per-mailer and per-campaign rows from Klaviyo (email/SMS) and WebEngage (push), beside what the links in them actually produced in Shopify.</div>
+    </div>
+    <div class="row" style="margin:10px 0"><button class="btn" onclick="loadJourney(true)">Refresh</button></div>
+    <div id="mlrOut"><p class="dim">Loading…</p></div>
+  </div>
+
+  <!-- ── LOOKER STUDIO ────────────────────────────────────────────────────
+       An EXTERNAL report: it carries its own data and its own refresh, and
+       Looker Studio exposes no data API, so an iframe is the only integration
+       available and its numbers cannot be pulled out and re-plotted here.
+       The src is withheld until the tab is opened so a visitor who never opens
+       it never hits Google. -->
+  <div class="panel" id="p-looker">
+    <div class="hd">
+      <h2>Looker Studio Report</h2>
+      <div class="sub">Embedded from Google Looker Studio. Owned and refreshed there, not computed by this dashboard.</div>
+    </div>
+    <div class="row" style="margin:10px 0;align-items:center">
+      <span class="pill" title="This panel renders a third-party report; its numbers are not computed here">External source</span>
+      <a id="lookerOpenAds" href="#" target="_blank" rel="noopener" class="btn">Open in Looker Studio &#8599;</a>
+    </div>
+    <div id="lookerHelpAds" class="note" style="display:none">
+      <b>If the report below shows a Google sign-in or permission error:</b>
+      the report is private, so it cannot be framed. In Looker Studio open it, then
+      <b>Share &rarr; Manage access</b> to allow the intended viewers and
+      <b>Share &rarr; Embed report</b> to enable embedding. Viewers still need to be signed in to a
+      Google account that has access. Nothing in this repo can grant that.
+    </div>
+    <iframe id="lookerFrameAds" title="Looker Studio report"
+            style="width:100%;height:calc(100vh - 300px);min-height:560px;border:0;display:block;background:#fff"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"
+            referrerpolicy="strict-origin-when-cross-origin"></iframe>
   </div>
 
   <div class="panel" id="p-organic">
@@ -3244,6 +3340,252 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   var TREE_LOADED=false;
   document.getElementById("tabs").addEventListener("click",function(e){
     var b=e.target.closest("button[data-p]"); if(!b)return;
+
+  // ── Insights / Actionables / Creative Analysis / Looker ───────────────────
+  // One fetch feeds all three analysis tabs; `view` picks what is rendered.
+  var ADSA = { insights:null, actionables:null, creative:null, loading:{}, loaded:{} };
+
+  // Mount the page's OWN region+account control on these tabs rather than
+  // inventing a second, divergent selector. This was defined and never called,
+  // so the selector divs sat empty and ADSA.region stayed undefined — the tabs
+  // silently queried the default market with no way to change it, while the
+  // markup implied a filter existed.
+  var ADSA_SEL_MOUNTED = {};
+  function adsaRegionSel(hostId, onChange){
+    if(ADSA_SEL_MOUNTED[hostId]) return;
+    var host = document.getElementById(hostId);
+    if(!host || typeof regionAccountControl !== "function") return;
+    ADSA_SEL_MOUNTED[hostId] = true;
+    try { regionAccountControl("#"+hostId, ADSA, onChange, {allRegions:true}); } catch(_){ ADSA_SEL_MOUNTED[hostId] = false; }
+  }
+
+  function blockerBlock(d){
+    if(!d.blockers || !d.blockers.length) return "";
+    // Name the platform, the env vars, and the exact call that was blocked. An
+    // operator should never have to guess which credential is missing.
+    return '<div class="note" style="border-left:3px solid #AB8743">'
+      + '<b>Not connected, so nothing is analysed for these platforms.</b> No figure is estimated to fill the gap.'
+      + '<ul style="margin:8px 0 0;padding-left:18px">'
+      + d.blockers.map(function(x){
+          return '<li style="margin:4px 0"><b>'+esc(x.platform)+'</b> — '+esc(x.blocker||"")
+            + (x.need_env&&x.need_env.length ? '<br><span class="dim">Missing: <code>'+x.need_env.map(esc).join('</code>, <code>')+'</code></span>' : '')
+            + (x.would_request&&x.would_request.url ? '<br><span class="dim">Blocked call: '+esc((x.would_request.method||"GET")+" "+x.would_request.url).slice(0,180)+'</span>' : '')
+            + '</li>';
+        }).join("")
+      + '</ul></div>';
+  }
+
+  var SEV = { critical:"#8a1c1c", watch:"#7a5a12", good:"#004A2B" };
+  function renderInsights(d){
+    var host = document.getElementById("insOut"); if(!host) return;
+    var list = (d.insights||[]).map(function(i){
+      var ev = (i.evidence||[]).slice(0,5).map(function(e){
+        return '<li>'+esc(e.name||"")+' — '+Object.keys(e).filter(function(k){return k!=="name";})
+          .map(function(k){ return esc(k)+": "+(e[k]==null?"n/a":esc(String(typeof e[k]==="number"?(+e[k]).toFixed(2):e[k]))); }).join(" · ")+'</li>';
+      }).join("");
+      return '<div class="card" style="border-left:4px solid '+(SEV[i.severity]||"#AB8743")+';margin:10px 0">'
+        + '<div style="font-weight:700;color:#171717">'+esc(i.title)+'</div>'
+        + '<div class="dim" style="margin-top:4px;line-height:1.55">'+esc(i.detail)+'</div>'
+        + (ev ? '<ul class="dim" style="margin:8px 0 0;padding-left:18px;font-size:12.5px">'+ev+'</ul>' : '')
+        + '</div>';
+    }).join("");
+    host.innerHTML = blockerBlock(d)
+      + (list || '<p class="dim">'+esc(d.note||"No insight was produced from these rows. Nothing is invented to fill the panel.")+'</p>')
+      + '<p class="dim" style="margin-top:12px;font-size:12px">Analysed '+(d.rows_analysed||0)+' row(s)'
+      + (d.window? ' for '+esc(d.window.since)+' to '+esc(d.window.until):'')
+      + ' · fetched '+esc(String(d.fetched_at||"").replace("T"," ").slice(0,19))+' UTC</p>';
+  }
+
+  function renderActionables(d){
+    var host = document.getElementById("actOut"); if(!host) return;
+    var list = (d.actions||[]).map(function(a,n){
+      return '<div class="card" style="margin:10px 0">'
+        + '<div style="font-weight:700;color:#171717">'+(n+1)+'. '+esc(a.action)+'</div>'
+        + '<div class="dim" style="margin-top:4px;line-height:1.55"><b>Why:</b> '+esc(a.why)+'</div>'
+        + '<div class="dim" style="margin-top:4px"><b>Target metric:</b> '+esc(a.target_metric)+'</div>'
+        + '<div class="dim" style="margin-top:4px"><b>Expected:</b> '+esc(a.expected)+'</div>'
+        + '</div>';
+    }).join("");
+    host.innerHTML = blockerBlock(d)
+      + (list || '<p class="dim">'+esc(d.note||"No action is proposed from these rows.")+'</p>');
+  }
+
+  function renderCreative(d){
+    var host = document.getElementById("craOut"); if(!host) return;
+    var cs = d.creatives||[];
+    var f = function(v,dp){ return v==null? '<span class="dim">n/a</span>' : (+v).toFixed(dp==null?2:dp); };
+    var rows = cs.slice(0,60).map(function(c){
+      return '<tr><td><div class="cw">'+esc(c.name)+'</div></td>'
+        + '<td class="num">'+f(c.spend)+'</td><td class="num">'+f(c.impressions,0)+'</td>'
+        + '<td class="num">'+f(c.hook_rate,1)+'</td><td class="num">'+f(c.through_rate,1)+'</td>'
+        + '<td class="num">'+f(c.ctr,2)+'</td><td class="num">'+f(c.frequency,2)+'</td>'
+        + '<td><div class="cw wide">'+esc(c.diagnosis)+'</div></td></tr>';
+    }).join("");
+    host.innerHTML = blockerBlock(d)
+      + (rows
+        ? '<div style="overflow-x:auto"><table><thead><tr><th>Creative</th><th>Spend</th><th>Impr.</th>'
+          + '<th>Hook %</th><th>Through %</th><th>CTR %</th><th>Freq.</th><th>Diagnosis</th></tr></thead><tbody>'
+          + rows + '</tbody></table></div>'
+        : '<p class="dim">No creative rows returned.</p>')
+      + ((d.coverage && d.coverage.note) ? '<p class="dim" style="margin-top:10px">'+esc(d.coverage.note)+'</p>' : '');
+  }
+
+  async function loadAdsAnalysis(view, force){
+    var key = view==="creative" ? "creative" : view;
+    // Two separate flags on purpose. `loading` prevents a concurrent duplicate
+    // fetch and is ALWAYS cleared in the finally below; `loaded` is what makes a
+    // re-opened tab reuse what it already has. Collapsing them into one flag that
+    // is set and never reset is what left a tab whose first fetch failed refusing
+    // to retry for the life of the page.
+    if(ADSA.loading[key]) return;
+    if(ADSA.loaded && ADSA.loaded[key] && !force) return;
+    ADSA.loading[key] = true;
+    adsaRegionSel(view==="insights"?"insSel":view==="actionables"?"actSel":"craSel",
+      function(){ loadAdsAnalysis(view, true); });
+    var outId = view==="insights"?"insOut":view==="actionables"?"actOut":"craOut";
+    var host = document.getElementById(outId);
+    if(host && force) host.innerHTML = '<p class="dim">Loading live rows…</p>';
+    try{
+      var qs = "action=ads-analysis&view="+encodeURIComponent(view)+"&level=ad";
+      if(ADSA.region) qs += "&market="+encodeURIComponent(ADSA.region);
+      var r = await fetch("/api/brain?"+qs, {headers:{"Accept":"application/json"}});
+      var d = await r.json();
+      if(view==="insights") renderInsights(d);
+      else if(view==="actionables") renderActionables(d);
+      else renderCreative(d);
+      ADSA.loaded = ADSA.loaded || {}; ADSA.loaded[key] = true;
+    }catch(e){
+      // Say the fetch failed. An error is not an empty result, and must not
+      // render as one.
+      if(host) host.innerHTML = '<div class="note">Could not load live rows: '+esc(e.message||String(e))
+        + '. This is a request failure, not a report that there is no activity.</div>';
+    }finally{
+      // Cleared unconditionally: a failed fetch must leave the tab able to try
+      // again the next time it is opened.
+      ADSA.loading[key] = false;
+    }
+  }
+
+  // ── Journey (link by link) + Mailer & Campaign ───────────────────────────
+  // One fetch serves both panels: they are two readings of the same ledger, and
+  // fetching twice would double the Shopify page walk for no new information.
+  var JRN = { data:null, loading:false, loaded:false };
+
+  function jrnBlockers(d){
+    if(!d.blockers || !d.blockers.length) return "";
+    return '<div class="note" style="border-left:3px solid #AB8743">'
+      + '<b>These platforms contributed nothing, and here is why.</b> A link that looks unattributed below may simply belong to one of them — it is not evidence that the link performed badly.'
+      + '<ul style="margin:8px 0 0;padding-left:18px">'
+      + d.blockers.map(function(x){
+          return '<li style="margin:4px 0"><b>'+esc(x.platform)+'</b> — '+esc(x.reason||"")
+            + (x.need_env&&x.need_env.length ? '<br><span class="dim">Missing: <code>'+x.need_env.map(esc).join('</code>, <code>')+'</code></span>':'')
+            + (x.effect ? '<br><span class="dim">Effect: '+esc(x.effect)+'</span>':'')
+            + '</li>';
+        }).join("") + '</ul></div>';
+  }
+
+  function renderJourney(d){
+    var host=document.getElementById("jrnOut"); if(!host) return;
+    var f=function(v,dp){ return v==null? '<span class="dim">n/a</span>' : (+v).toFixed(dp==null?2:dp); };
+    var rows=(d.links||[]).slice(0,120).map(function(l){
+      return '<tr'+(l.leak?' style="background:rgba(138,28,28,0.05)"':'')+'>'
+        + '<td><div class="cw wide">'+esc(l.path||l.url||"-")+'</div>'
+          + (l.host? '<div class="dim" style="font-size:11px">'+esc(l.host)+'</div>':'')+'</td>'
+        + '<td>'+esc(l.channel)+'</td>'
+        + '<td><div class="cw">'+esc(l.campaign||"-")+'</div></td>'
+        + '<td class="num">'+f(l.spend)+'</td><td class="num">'+f(l.clicks,0)+'</td>'
+        + '<td class="num">'+f(l.orders,0)+'</td><td class="num">'+f(l.revenue)+'</td>'
+        + '<td class="num">'+(l.roas==null?'<span class="dim">n/a</span>':(+l.roas).toFixed(2))+'</td>'
+        + '<td>'+(l.leak?'<b style="color:#8a1c1c">spend, no orders</b>':(l.sides||[]).join(" + "))+'</td></tr>';
+    }).join("");
+    var c=d.coverage||{};
+    host.innerHTML = jrnBlockers(d)
+      + '<div class="note"><b>Method.</b> '+esc(d.method||"")+'</div>'
+      + (rows
+        ? '<div style="overflow-x:auto"><table><thead><tr><th>Link</th><th>Channel</th><th>Campaign</th>'
+          + '<th>Spend</th><th>Clicks</th><th>Orders</th><th>Revenue</th><th>ROAS</th><th>Sides</th></tr></thead><tbody>'
+          + rows+'</tbody></table></div>'
+        : '<p class="dim">No link carried an order or ad spend in this window.</p>')
+      + '<p class="dim" style="margin-top:12px;font-size:12px">'
+        + (c.links||0)+' link(s) · '+(c.with_outcome||0)+' with orders · '+(c.with_cost||0)+' with spend · '
+        + (c.both_sides||0)+' joined on both sides'
+        + (c.unjoinable_spend? ' · <b>'+(+c.unjoinable_spend).toFixed(2)+' unjoinable spend</b>':'')
+        + '</p>'
+      + (c.unjoinable_note? '<p class="dim" style="font-size:12px">'+esc(c.unjoinable_note)+'</p>':'');
+  }
+
+  function renderMailers(d){
+    var host=document.getElementById("mlrOut"); if(!host) return;
+    var ms=d.mailers||[];
+    // Email/SMS/push links from the SAME ledger, so a mailer's rows and the
+    // journey table cannot disagree about what its links produced.
+    var lifecycle=(d.links||[]).filter(function(l){ return ["email","sms","push"].indexOf(l.channel)>=0; });
+    var mrows=ms.map(function(m){
+      return '<tr><td>'+esc(m.platform)+'</td><td><div class="cw wide">'+esc(m.name||m.id||"-")+'</div></td>'
+        + '<td>'+esc(m.status||m.kind||"-")+'</td>'
+        + '<td>'+esc(String(m.sent_at||"").slice(0,10)||"-")+'</td>'
+        + '<td class="num">'+(m.events==null?'<span class="dim">n/a</span>':m.events)+'</td>'
+        + '<td class="num">'+(m.users==null?'<span class="dim">n/a</span>':m.users)+'</td></tr>';
+    }).join("");
+    var lrows=lifecycle.map(function(l){
+      return '<tr><td>'+esc(l.channel)+'</td><td><div class="cw">'+esc(l.campaign||"-")+'</div></td>'
+        + '<td><div class="cw wide">'+esc(l.path||"-")+'</div></td>'
+        + '<td class="num">'+l.orders+'</td><td class="num">'+(l.revenue==null?'n/a':(+l.revenue).toFixed(2))+'</td></tr>';
+    }).join("");
+    host.innerHTML = jrnBlockers(d)
+      + '<h3 style="margin:14px 0 6px">Mailers and campaigns</h3>'
+      + (mrows
+        ? '<div style="overflow-x:auto"><table><thead><tr><th>Platform</th><th>Name</th><th>Status</th><th>Sent</th><th>Events</th><th>Users</th></tr></thead><tbody>'+mrows+'</tbody></table></div>'
+        : '<p class="dim">No mailer or campaign rows were returned. Where a platform is blocked, its reason is listed above.</p>')
+      + '<h3 style="margin:18px 0 6px">What their links produced</h3>'
+      + '<p class="dim" style="font-size:12px;margin-bottom:6px">Counted from each order\'s own landing page, independently of what the sending platform reports for itself. Where the two disagree, that gap is the finding.</p>'
+      + (lrows
+        ? '<div style="overflow-x:auto"><table><thead><tr><th>Channel</th><th>Campaign</th><th>Link</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>'+lrows+'</tbody></table></div>'
+        : '<p class="dim">No email, SMS or push link carried an order in this window.</p>');
+  }
+
+  async function loadJourney(force){
+    if(JRN.loading) return;
+    if(JRN.loaded && !force) return;
+    JRN.loading=true;
+    var a=document.getElementById("jrnOut"), m=document.getElementById("mlrOut");
+    if(force){ if(a)a.innerHTML='<p class="dim">Reading orders and platform rows…</p>'; if(m)m.innerHTML='<p class="dim">Reading…</p>'; }
+    try{
+      var qs="action=journey&days=90";
+      if(ADSA && ADSA.region) qs+="&market="+encodeURIComponent(ADSA.region);
+      var r=await fetch("/api/brain?"+qs,{headers:{"Accept":"application/json"}});
+      var d=await r.json(); JRN.data=d;
+      renderJourney(d); renderMailers(d);
+      JRN.loaded=true;
+    }catch(e){
+      var msg='<div class="note">Could not build the ledger: '+esc(e.message||String(e))
+        +'. This is a request failure, not a report that no links converted.</div>';
+      if(a)a.innerHTML=msg; if(m)m.innerHTML=msg;
+    }finally{
+      JRN.loading=false;
+    }
+  }
+
+  // Looker: withhold the src until the tab is opened (a visitor who never opens
+  // it never hits Google), then show the permission help if it does not paint.
+  var LOOKER_ID = "b5c3af25-b396-4daf-aede-431d0b494793";
+  var LOOKER_MOUNTED = false;
+  function mountLookerAds(){
+    if(LOOKER_MOUNTED) return; LOOKER_MOUNTED = true;
+    var a = document.getElementById("lookerOpenAds");
+    if(a) a.href = "https://lookerstudio.google.com/reporting/"+LOOKER_ID;
+    var f = document.getElementById("lookerFrameAds");
+    if(!f) return;
+    f.src = "https://lookerstudio.google.com/embed/reporting/"+LOOKER_ID;
+    // A private report frames a Google sign-in page, which looks identical to a
+    // broken embed. Surface the actual cause after a grace period rather than
+    // leaving a blank box the operator cannot diagnose.
+    setTimeout(function(){
+      var h = document.getElementById("lookerHelpAds");
+      if(h) h.style.display = "block";
+    }, 6000);
+  }
+
     document.querySelectorAll("#tabs button").forEach(function(x){x.classList.toggle("on",x===b);});
     // Scoped to this page's own panels (id p-*): the merged Creative Studio ships
     // its own .panel elements, and a blind sweep over every .panel would reach in.
@@ -3257,6 +3599,13 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     // Live Meta/Google/TikTok ad details load on first open of Campaigns/Overview
     // (never on page load — see refreshLiveAds notes above).
     if((b.dataset.p==="campaigns"||b.dataset.p==="overview")&&!LIVE_ADS_LOADED){ LIVE_ADS_LOADED=true; refreshLiveAds(); }
+    // Analysis tabs and the external report are all lazy: none of them costs a
+    // request until someone actually opens the tab.
+    if(b.dataset.p==="insights") loadAdsAnalysis("insights");
+    if(b.dataset.p==="actionables") loadAdsAnalysis("actionables");
+    if(b.dataset.p==="creativeanalysis") loadAdsAnalysis("creative");
+    if(b.dataset.p==="journey"||b.dataset.p==="mailers") loadJourney();
+    if(b.dataset.p==="looker") mountLookerAds();
     // Same deal for the revenue report: two authenticated calls, only on open.
     if(b.dataset.p==="revenue"&&!REV_LOADED){ REV_LOADED=true; loadRevenue(); }
     // Live Ads Intelligence builds its region/account picker from the registry,
@@ -3558,6 +3907,29 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
             : {source:"snapshot",note:"Per-ad rows are the committed snapshot: the live platform read returned nothing (no keys, not an operator session, or a network-policy block)."};
         },
       });
+      // The analysis tabs share ONE registration: all three read the same live
+      // rows, so registering them separately would fire three identical fetches
+      // on every sync. Only the tab that is actually open is re-rendered; the
+      // others re-render when opened, which is what keeps a background sync from
+      // paying for panels nobody is looking at.
+      window.__lcSync.push({
+        surface:"ads:analysis", label:"Ads — Insights / Actionables / Creative Analysis", interval:120,
+        load:async function(){
+          var open = document.querySelector("#tabs button.on");
+          var p = open && open.dataset.p;
+          var view = p==="insights"?"insights":p==="actionables"?"actionables":p==="creativeanalysis"?"creative":null;
+          if(!view) return {source:"live",note:"No analysis tab open; nothing re-fetched."};
+          await loadAdsAnalysis(view,true);
+          // Report honestly which source the panel is now showing, so the sync
+          // bar cannot show green over a panel that is displaying a blocker.
+          var host=document.getElementById(view==="insights"?"insOut":view==="actionables"?"actOut":"craOut");
+          var blocked = host && host.textContent.indexOf("Not connected")>=0;
+          return blocked
+            ? {source:"unavailable",note:"Ad platform credentials are not set, so no rows were analysed."}
+            : {source:"live"};
+        },
+      });
+
       // Live Ads Intelligence is only meaningful once it has been opened (it
       // builds its picker from the registry), so it registers itself there.
       var _initLI=initLiveIntel;
