@@ -175,7 +175,13 @@ async function dayCalendar({ from, to, market = '', config: cfg = {} } = {}) {
     // quiet fortnight both come back as an empty array, and reporting the
     // second as "0 orders" when it is really the first is the same defect that
     // printed a 0.00% open rate for mail nobody had measured.
-    db.select(t.orders, { select: 'id', limit: 1 }).catch(() => []),
+    //
+    // A whole row, not just an id, because the adapter degrades a FAILED read to
+    // [] as well. If the date column the filter above uses does not exist, that
+    // query 400s, comes back empty, and every day would report a measured zero
+    // sourced from a query that never ran. Seeing a real row lets us check the
+    // column is there before believing anything derived from it.
+    db.select(t.orders, { limit: 1 }).catch(() => []),
     db.select('cron_runs', { order: 'started_at.desc', limit: 5 }).catch(() => []),
     db.select(t.runs, { order: 'created_at.desc', limit: 25 }).catch(() => []),
   ]);
@@ -195,11 +201,22 @@ async function dayCalendar({ from, to, market = '', config: cfg = {} } = {}) {
     if (slotId && !campaignBySlot.has(slotId)) campaignBySlot.set(slotId, { row, campaign: c });
   }
 
+  // The SOURCE reported (it has rows) AND it carries a date we can bucket by.
+  // Only then is an empty day a measured zero rather than an unknown.
+  const probeRow = (orderProbe || [])[0] || null;
+  const orderDateField = probeRow
+    ? ['created_at', 'processed_at'].find((k) => probeRow[k] != null) || null
+    : null;
+  const ordersRead = !!probeRow && !!orderDateField;
+  const ordersBlocker = probeRow && !orderDateField
+    ? `The order table has rows but none of the date columns this view can bucket by (created_at, processed_at). Orders and revenue are reported as unknown rather than attributed to a day that cannot be read. Columns seen: ${Object.keys(probeRow).slice(0, 12).join(', ')}.`
+    : 'No order rows are stored for this window, so orders and revenue are unknown rather than zero. Run the Shopify/warehouse sync.';
+
   // Measured orders per day. Real stored rows — the one commercial figure this
   // view can state today without any live connector.
   const ordersByDay = new Map();
-  for (const o of orderRows || []) {
-    const day = String(o.created_at || o.processed_at || '').slice(0, 10);
+  for (const o of (ordersRead ? (orderRows || []) : [])) {
+    const day = String(o[orderDateField] || '').slice(0, 10);
     if (!isIsoDate(day) || day < start || day > end) continue;
     if (market && String(o.market || '').toUpperCase() !== String(market).toUpperCase()) continue;
     const agg = ordersByDay.get(day) || { orders: 0, revenue: 0 };
@@ -207,10 +224,6 @@ async function dayCalendar({ from, to, market = '', config: cfg = {} } = {}) {
     agg.revenue += num(o.total ?? o.total_price);
     ordersByDay.set(day, agg);
   }
-  // The SOURCE reported (it has rows); this window may still legitimately hold
-  // none, and that is a measured zero rather than an unknown.
-  const ordersRead = (orderProbe || []).length > 0;
-
   // Group slots by day.
   const byDay = new Map();
   for (const r of slots) {
@@ -283,9 +296,7 @@ async function dayCalendar({ from, to, market = '', config: cfg = {} } = {}) {
         : { basis: null, orders: null, revenue: null }),
       blockers: [],
     };
-    if (bucket !== 'future' && !ordersRead) {
-      day.blockers.push('No order rows are stored for this window, so orders and revenue are unknown rather than zero. Run the Shopify/warehouse sync.');
-    }
+    if (bucket !== 'future' && !ordersRead) day.blockers.push(ordersBlocker);
     if (!slotOut.length && bucket !== 'past') {
       day.blockers.push('No send is planned for this day. Inside the rolling window that means the daily sync did not persist it.');
     }

@@ -255,7 +255,10 @@ test.describe('the day-level calendar', () => {
     proto.select = async function select(table, params = {}) {
       if (table === 'smart_calendar_entries') return slots;
       if (table === 'smart_generated_campaigns') return campaigns;
-      if (table === 'smart_orders') return (params.select === 'id' && params.limit === 1) ? orderProbe : orders;
+      // The unfiltered limit-1 read is the shape probe; the filtered read is the
+      // window. They must stay distinguishable or the stub hides the very
+      // distinction the code makes.
+      if (table === 'smart_orders') return (params.limit === 1 && !params.filters) ? orderProbe : orders;
       if (table === 'cron_runs') return cronRuns;
       if (table === 'smart_brain_runs') return runs;
       return [];
@@ -275,6 +278,9 @@ test.describe('the day-level calendar', () => {
     { id: 's3', date: TOMORROW, market: 'UK', status: 'tentative', updated_at: `${TODAY}T08:00:00Z`,
       payload: { cohort: { name: 'Nurture' }, objective: 'education', channels: ['email', 'landing_page'] } },
   ];
+  // A realistic probe row: the presence of a bucketable date column is what
+  // makes an empty day a measured zero rather than an unknown.
+  const ORDER_SHAPE = { id: 1, created_at: `${YESTERDAY}T12:00:00Z`, total: '0', market: 'US' };
   const CAMPAIGNS = [{
     id: 'c2', status: 'approved', updated_at: `${TODAY}T08:05:00Z`,
     payload: {
@@ -286,7 +292,7 @@ test.describe('the day-level calendar', () => {
   test('past, today and future are bucketed and history is not hidden', async () => {
     // getPlan filters `status: neq.archived`, which is why no surface in the app
     // could show a past send even though the rows were sitting in the table.
-    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orderProbe: [{ id: 1 }] });
+    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orderProbe: [ORDER_SHAPE] });
     try {
       const out = await dc.dayCalendar({ from: dc.addDaysIso(TODAY, -3), to: dc.addDaysIso(TODAY, 3) });
       const y = out.days.find((d) => d.date === YESTERDAY);
@@ -301,7 +307,7 @@ test.describe('the day-level calendar', () => {
   });
 
   test('a future day has no measurements at all, rather than zeros', async () => {
-    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orderProbe: [{ id: 1 }] });
+    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orderProbe: [ORDER_SHAPE] });
     try {
       const out = await dc.dayCalendar({ from: TODAY, to: dc.addDaysIso(TODAY, 3) });
       const m = out.days.find((d) => d.date === TOMORROW);
@@ -323,7 +329,7 @@ test.describe('the day-level calendar', () => {
   });
 
   test('a reporting store with no rows on a day IS a measured zero', async () => {
-    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orders: [], orderProbe: [{ id: 1 }] });
+    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orders: [], orderProbe: [ORDER_SHAPE] });
     try {
       const out = await dc.dayCalendar({ from: dc.addDaysIso(TODAY, -3), to: TODAY });
       const y = out.days.find((d) => d.date === YESTERDAY);
@@ -332,8 +338,26 @@ test.describe('the day-level calendar', () => {
     } finally { restore(); }
   });
 
+  test('a store whose date column cannot be read reports unknown, not zeros', async () => {
+    // The filtered order query 400s if the date column is absent, and the
+    // adapter degrades a failed read to []. Without checking the column, every
+    // day would print a measured zero sourced from a query that never ran.
+    const restore = stubDb({
+      slots: SLOTS, campaigns: CAMPAIGNS, orders: [],
+      orderProbe: [{ id: 1, order_placed_on: '2026-08-12', total: '40' }],
+    });
+    try {
+      const out = await dc.dayCalendar({ from: dc.addDaysIso(TODAY, -3), to: TODAY });
+      const y = out.days.find((d) => d.date === YESTERDAY);
+      expect(y.measured.orders).toBeNull();
+      expect(y.blockers.join(' ')).toMatch(/date columns this view can bucket by/i);
+      // And it names what it DID see, so the fix is obvious.
+      expect(y.blockers.join(' ')).toMatch(/order_placed_on/);
+    } finally { restore(); }
+  });
+
   test('a slot reports the channels it planned but never built', async () => {
-    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orderProbe: [{ id: 1 }] });
+    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orderProbe: [ORDER_SHAPE] });
     try {
       const out = await dc.dayCalendar({ from: TODAY, to: TODAY });
       const s = out.days[0].slots[0];
@@ -344,7 +368,7 @@ test.describe('the day-level calendar', () => {
   });
 
   test('a slot with no campaign is missing everything it planned', async () => {
-    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orderProbe: [{ id: 1 }] });
+    const restore = stubDb({ slots: SLOTS, campaigns: CAMPAIGNS, orderProbe: [ORDER_SHAPE] });
     try {
       const out = await dc.dayCalendar({ from: TOMORROW, to: TOMORROW });
       const s = out.days[0].slots[0];
@@ -357,7 +381,7 @@ test.describe('the day-level calendar', () => {
   test('the production failure surfaces as blockers with the command that fixes it', async () => {
     // Exactly the state found in production: three weeks since the last write,
     // a short window, and not one prebuilt asset.
-    const restore = stubDb({ slots: SLOTS, campaigns: [], orderProbe: [{ id: 1 }] });
+    const restore = stubDb({ slots: SLOTS, campaigns: [], orderProbe: [ORDER_SHAPE] });
     try {
       const out = await dc.dayCalendar({ from: dc.addDaysIso(TODAY, -3) });
       const kinds = out.blockers.map((b) => b.subsystem);
@@ -377,7 +401,7 @@ test.describe('the day-level calendar', () => {
     // fixes. The queue now leaves a run row so the surface reports the observed
     // one rather than the most plausible one.
     const restore = stubDb({
-      slots: SLOTS, campaigns: [], orderProbe: [{ id: 1 }],
+      slots: SLOTS, campaigns: [], orderProbe: [ORDER_SHAPE],
       runs: [{ id: 'r1', created_at: `${TODAY}T04:00:00Z`, payload: { kind: 'prebuild', built: 0, failed: 1, remaining: 115, errors: [{ id: 's3', error: 'image cascade exhausted: all providers returned 429' }] } }],
     });
     try {
