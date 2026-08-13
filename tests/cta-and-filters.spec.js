@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
-const { startServer, collectErrors, ROOT } = require('./lib/page-harness.js');
+const { startServer, collectErrors, blockExternal, ROOT } = require('./lib/page-harness.js');
 
 // EVERY FILTER AND EVERY CTA, ON EVERY PAGE, CLICKED FOR REAL.
 //
@@ -44,7 +44,18 @@ function appPages() {
 // a crawler would be worse than not testing them.
 const DESTRUCTIVE = /sign ?out|log ?out|delete|remove|reset|clear all|deploy|publish|download|export|approve all|generate all|run agentic|regenerate|\bzip\b/i;
 
+// DEGRADED MODE, DELIBERATELY. Third-party requests are failed immediately, so
+// every page is exercised with its CDNs gone — the exact condition an
+// ad-blocker, a corporate proxy, a CDN outage or an offline PWA launch produces,
+// and the condition that surfaced the Tailwind, Chart.js and ApexCharts defects.
+// It also keeps the crawl to minutes instead of forty, because unreachable hosts
+// no longer hold each page for 25 seconds.
+//
+// What this does NOT cover is the happy path where those libraries load. This
+// suite proves the app survives without its third parties; it does not prove the
+// charts draw when they are present.
 async function ready(page, url) {
+  await blockExternal(page);
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   // These pages boot auth and render asynchronously; give them a beat without
   // waiting on networkidle (the service worker keeps a connection warm).

@@ -160,4 +160,31 @@ function collectErrors(page) {
   return errors;
 }
 
-module.exports = { startServer, collectErrors, routeMap, ROOT };
+/**
+ * Fail every third-party request immediately instead of letting it hang.
+ *
+ * Two reasons, and the second is the real one.
+ *
+ * 1. Speed: unreachable CDN hosts hold each page for 20-25s, which turned a
+ *    130-check crawl into a 40-minute run nobody will wait for.
+ * 2. Determinism: this reproduces, exactly and on demand, the condition that
+ *    produced every third-party defect found so far — Tailwind, Chart.js and
+ *    ApexCharts all unreachable. An ad-blocker, a corporate proxy, a CDN
+ *    outage and an offline PWA launch all look like this to the page.
+ *
+ * So a crawl with this on is a DEGRADED-MODE test, and should be described that
+ * way: it proves the app survives its third parties being gone. It does NOT
+ * exercise the happy path where those libraries load, and must not be read as
+ * if it did.
+ */
+function blockExternal(page) {
+  return page.route('**/*', (route) => {
+    const url = route.request().url();
+    if (/^https?:\/\/(127\.0\.0\.1|localhost)/.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+      return route.continue();
+    }
+    return route.abort('failed');
+  });
+}
+
+module.exports = { startServer, collectErrors, routeMap, blockExternal, ROOT };
