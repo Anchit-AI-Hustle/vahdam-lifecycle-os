@@ -1766,9 +1766,21 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   }
   // Every table is sortable (clickable headers, table-sort.js) + filterable
   // (a row-filter box injected above the scroll wrapper).
-  function table(head,rows){
+  // Every table on this page is built here, so the empty case is handled here.
+  // With no rows this used to emit a bare <tbody></tbody>: a header with a blank
+  // rectangle under it, which reads as "still loading" or "this is broken"
+  // rather than "there is nothing to show". The crawler caught it on the
+  // Accounts (Roundel retail) and SOP (spend pacing) tabs, and it would have
+  // appeared on any other table whose source came back empty.
+  //
+  // `emptyNote` lets a caller say WHY it is empty when it knows — "no live
+  // account is connected" is far more useful than "no rows".
+  function table(head,rows,emptyNote){
+    var body = rows.length
+      ? rows.map(function(r){return "<tr>"+r.map(function(c,i){return "<td style='text-align:"+(head[i]&&head[i].r?"right":"left")+"'>"+c+"</td>";}).join("")+"</tr>";}).join("")
+      : "<tr><td colspan='"+head.length+"' style='text-align:left;padding:14px 12px;color:var(--muted,#5f5e5a)'>"+esc(emptyNote||"No rows to show for the current selection.")+"</td></tr>";
     return "<table data-sortable data-filterable><thead><tr>"+head.map(function(h){return "<th style='text-align:"+(h.r?"right":"left")+"'>"+esc(h.t)+"</th>";}).join("")+
-      "</tr></thead><tbody>"+rows.map(function(r){return "<tr>"+r.map(function(c,i){return "<td style='text-align:"+(head[i]&&head[i].r?"right":"left")+"'>"+c+"</td>";}).join("")+"</tr>";}).join("")+"</tbody></table>";
+      "</tr></thead><tbody>"+body+"</tbody></table>";
   }
   var KB=null, ADS=null, SNAP=null, LIVE=null, RANGE=30, CAMPRANGE='all';
   var REG=null, ACCTLIVE=null, LVACCT='', RETAIL=null, UGCLIB=null;
@@ -2520,7 +2532,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
           money0(r.roundel_attr_sales),r.roundel_roas!=null?r.roundel_roas+"x":"—",
           money0(r.target_sell_through),intf(r.target_units),intf(r.target_stores),
           r.sell_through_per_dollar!=null?r.sell_through_per_dollar+"x":"—"];
-      }));
+      }), "The retail funnel returned no periods. This table joins Meta retail spend, Roundel spend and Target sell-through; with none of those rows present there is nothing to compare, which is not the same as a period that sold nothing.");
     $("#rf-caveat").textContent=(f.caveat||"")+" Source: "+(live?"live warehouse read":"committed snapshot "+((SNAP&&SNAP.captured_at)||""))+
       " — "+((f.tables&&[f.tables.meta,f.tables.roundel,f.tables.sales].join(" · "))||"")+
       ". Target sell-through runs to 2026-07-23; Roundel ads to 2026-07-22.";
@@ -2678,7 +2690,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
               (res.days||[]).slice(-30).map(function(d){
                 return [esc(d.date), money(d.spend),
                         d.over?"<span class='chip warn'>over</span>":"<span class='chip good'>within</span>"];
-              }))+
+              }), "No daily spend rows were returned for this window, so pacing against the cap cannot be shown. Connect a live ad source or widen the date range.")+
         "<p class='note'>"+esc(res.note||"")+"</p>";
     }).catch(function(e){
       $("#sop-pacing").innerHTML="<div class='empty'>Pacing unavailable: "+esc(e.message)+"</div>";

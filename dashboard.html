@@ -1594,6 +1594,45 @@ function destroyCharts() {
   Object.keys(charts).forEach((k) => delete charts[k]);
 }
 
+/**
+ * ApexCharts comes from a CDN, and a CDN can be slow, ad-blocked, proxied, or
+ * simply unreachable offline — a state this installable PWA advertises.
+ *
+ * The obvious guard is to bail out of rerender() when the library is missing.
+ * That is what this file did first, and it was WORSE than the unguarded throw:
+ * bailing skipped the KPI tiles and every table too, none of which need charts,
+ * so the whole dashboard went blank instead of losing its graphs. The crawler
+ * caught it as an empty <tbody id="execTopCampaigns"> — a table that had a
+ * perfectly good "No campaigns in window" fallback and simply never ran.
+ *
+ * So the library is stood in for rather than checked around. Each of the 18
+ * construction sites gets an object with the same shape; it paints the reason
+ * into the element that would have held the chart and no-ops the rest. Numbers,
+ * tables and KPIs render exactly as they always did.
+ */
+function ensureApexShim() {
+  if (typeof window.ApexCharts !== 'undefined') return;
+  const NOTE = 'This chart could not be drawn: the ApexCharts library did not load (fetched from cdn.jsdelivr.net). It is a rendering failure, not missing data — the figures in the tiles and tables below are unaffected. Check the connection, an ad-blocker, or a proxy blocking that host, then reload.';
+  window.ApexCharts = function ApexChartsUnavailable(el) {
+    this._el = el;
+    this.render = function render() {
+      const t = typeof this._el === 'string' ? document.querySelector(this._el) : this._el;
+      if (!t || t.querySelector('.chart-unavailable')) return Promise.resolve();
+      const n = document.createElement('div');
+      n.className = 'chart-unavailable';
+      n.style.cssText = 'padding:14px 16px;border:1px dashed #AB8743;border-radius:10px;background:#FBF5EA;color:#171717;font-size:12.5px;line-height:1.5';
+      n.textContent = NOTE;
+      t.appendChild(n);
+      return Promise.resolve();
+    };
+    this.destroy = function destroy() {
+      const t = typeof this._el === 'string' ? document.querySelector(this._el) : this._el;
+      if (t) t.querySelectorAll('.chart-unavailable').forEach((x) => x.remove());
+    };
+    this.updateOptions = this.updateSeries = this.appendSeries = function noop() { return Promise.resolve(); };
+  };
+}
+
 const APEX_BASE = {
   chart: {
     background: 'transparent',
@@ -2237,18 +2276,7 @@ function rerender() {
   // RENDERING failure, and saying so matters — an analytics dashboard that
   // silently renders nothing reads as "there is no data", which is a claim
   // about the business rather than about a script tag.
-  if (typeof ApexCharts === 'undefined') {
-    const box = $('chartsUnavailable') || (() => {
-      const n = document.createElement('div');
-      n.id = 'chartsUnavailable';
-      n.style.cssText = 'margin:16px 0;padding:14px 16px;border:1px dashed #AB8743;border-radius:10px;background:#FBF5EA;color:#171717;font-size:13px;line-height:1.55';
-      document.querySelector('main')?.prepend(n);
-      return n;
-    })();
-    box.textContent = 'Charts cannot be drawn: the ApexCharts library did not load (it is fetched from cdn.jsdelivr.net). This is a rendering failure, not missing data — the underlying numbers are unaffected. Check the connection, an ad-blocker, or a proxy blocking that host, then reload.';
-    $('lastRefresh').textContent = fmtDateTime(Date.now());
-    return;
-  }
+  ensureApexShim();
   // Honest empty state: with no connected/uploaded data there is nothing to
   // compute, so show the connect prompt instead of metrics over no rows.
   const empty = !hasData();

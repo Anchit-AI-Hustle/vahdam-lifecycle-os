@@ -73,8 +73,31 @@ test.describe('every page loads without throwing', () => {
 });
 
 test.describe('every filter control does something, and says so when there is nothing', () => {
-  // The selectors this app actually uses for filter chips/buttons.
-  const FILTER_SEL = '.filter-btn, .mkchip, .fbtn, .chip[data-filter], [data-cat], [data-mkt], [data-dur], [data-dcw]';
+  // EVERY control family in the app, not the handful I happened to think of
+  // first. The original list (.filter-btn, .mkchip, .fbtn and four data-*
+  // attributes) matched 57 of roughly 364 control-like elements — 16%. It
+  // reported a clean run over the pages it could see and said nothing about the
+  // ads master's 47 controls, the dashboard's 44, or landing-pages' 31. A green
+  // crawl over 16% of the surface, described as "every filter", would have been
+  // the same false assurance as the suite that never launched a browser.
+  //
+  // Tabs and view switchers are in scope deliberately: a tab that throws, or
+  // that reveals an empty panel with no explanation, fails in exactly the way a
+  // broken filter does.
+  //
+  // Scoped to genuinely clickable elements. A display-only pill carrying one of
+  // these classes is inert, and clicking it would add noise without signal.
+  const CLICKABLE = 'button, a, [role="button"], [onclick], input[type="button"], input[type="radio"], label';
+  const FILTER_CLASSES = ['.filter-btn', '.mkchip', '.fbtn', '.chip', '.seg', '.tab', '.pvtab', '.nav-item', '.mkt', '.pill-btn'];
+  const FILTER_ATTRS = ['[data-cat]', '[data-mkt]', '[data-dur]', '[data-dcw]', '[data-g]', '[data-gg]',
+    '[data-p]', '[data-view]', '[data-filter]', '[data-tab]', '[data-range]', '[data-seg]'];
+  const FILTER_SEL = [
+    ...FILTER_CLASSES.flatMap((c) => [c, `${c} > button`, `${c} > a`]),
+    ...FILTER_ATTRS,
+  ].join(', ');
+  // Applied as a second pass so a class that lands on a <div> wrapper does not
+  // pull the wrapper itself into the click list.
+  const isClickable = new Function('el', `return el.matches('${CLICKABLE.replace(/'/g, "\\'")}') || !!el.getAttribute('onclick');`);
 
   for (const file of appPages()) {
     test(`${file} filters behave`, async ({ page }) => {
@@ -85,13 +108,17 @@ test.describe('every filter control does something, and says so when there is no
       const n = await controls.count();
       test.skip(n === 0, 'no filter controls on this page');
 
-      // Cap per page: clicking 64 chips on the ads master adds minutes for no
-      // extra signal — the first dozen exercise every distinct handler.
-      const limit = Math.min(n, 12);
+      // Cap per page. The ads master carries ~47 controls and the dashboard ~44;
+      // clicking every one adds minutes without adding signal, because they
+      // route through a handful of shared handlers. 20 covers each distinct
+      // family on the busiest page. THIS IS A KNOWN LIMIT, not full coverage,
+      // and it is stated here rather than implied by a green run.
+      const limit = Math.min(n, 20);
       const blanks = [];
       for (let i = 0; i < limit; i++) {
         const c = controls.nth(i);
         if (!(await c.isVisible().catch(() => false))) continue;
+        if (!(await c.evaluate(isClickable).catch(() => false))) continue;
         const label = ((await c.textContent().catch(() => '')) || '').trim().slice(0, 40);
         if (DESTRUCTIVE.test(label)) continue;
         await c.click({ timeout: 5000 }).catch(() => {});
