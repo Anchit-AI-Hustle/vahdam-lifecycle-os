@@ -48,7 +48,7 @@ You are operating the **Vahdam Lifecycle/Growth OS** for a coffee + wellness D2C
 - **Type:** Headings = Lao MN (`'Lao MN','Cormorant Garamond',Georgia,serif`); Body = Proxima Nova (`'Proxima Nova','Helvetica Neue',Arial,sans-serif`)
 - **BANNED phrases:** wellness journey, transform, liquid gold, game-changer, LIMITED TIME (caps), hurry, don't miss out, last chance, while supplies last
 - **PREFERRED:** ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted
-- **Store URLs:** US `www.vahdamteas.com` · UK `uk.vahdamteas.com` · IN `www.vahdamindia.com` · EU `eu.vahdamteas.com` · AU `au.vahdamteas.com`
+- **Store URLs:** US `www.vahdamteas.com` · UK `www.vahdam.co.uk` · IN `www.vahdamindia.com` · EU `www.vahdam.global` · AU `www.vahdam.global`
 - **Active mandate:** Aman's P01 — *sell happiness, not features*. Lead with emotional/sensory benefit; bake approved copy into creatives (see `api/_shared/master-prompt.js`).
 
 If `$ARGUMENTS` is empty, print this team map and ask which vertical to start with.

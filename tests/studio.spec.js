@@ -142,7 +142,7 @@ test.describe('Mailer Studio — responsive smoke', () => {
     // its OWN store domain. Regression-protects against the "₹ in US mailer" bug.
     const cases = [
       { mkt: 'US', currency: '$',  badCurrency: '₹', goodCity: /(New York|California|Chicago|Austin|Seattle|Boston|United States)/i, badCity: /Mumbai|Delhi|Bangalore|Kolkata/i, goodHost: 'vahdamteas.com', badHost: /vahdamindia\.com/ },
-      { mkt: 'UK', currency: '£',  badCurrency: '₹', goodCity: /London|Manchester|Edinburgh|Bath|Bristol|Oxford|United Kingdom/i, badCity: /Mumbai|New York/i, goodHost: 'uk.vahdamteas.com', badHost: /vahdamindia\.com/ },
+      { mkt: 'UK', currency: '£',  badCurrency: '₹', goodCity: /London|Manchester|Edinburgh|Bath|Bristol|Oxford|United Kingdom/i, badCity: /Mumbai|New York/i, goodHost: 'www.vahdam.co.uk', badHost: /vahdamindia\.com/ },
       { mkt: 'IN', currency: '₹',  badCurrency: '$', goodCity: /Mumbai|Delhi|Bangalore|Kolkata|Chennai|Pune|India/i, badCity: /New York|London/i, goodHost: 'vahdamindia.com', badHost: /uk\.vahdamteas\.com/ },
     ];
     await page.fill('#promptIn', '15% off bestsellers — code SAVE15 — free shipping');

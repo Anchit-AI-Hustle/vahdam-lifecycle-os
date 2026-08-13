@@ -23,15 +23,9 @@ const THRESHOLD = 3.5;
 let catalogImage = null;
 try { catalogImage = require('./catalog-image.js'); } catch (_) { catalogImage = null; }
 
-// Per-market official store host (verified in CLAUDE.md). Never cross-region.
-function storeHost(market) {
-  const m = String(market || 'US').toUpperCase();
-  if (m === 'UK') return 'uk.vahdamteas.com';
-  if (m === 'IN' || m === 'INDIA') return 'www.vahdamindia.com';
-  if (m === 'EU') return 'eu.vahdamteas.com';
-  if (m === 'AU') return 'au.vahdamteas.com';
-  return 'www.vahdamteas.com';
-}
+// Per-market official store host. Never cross-region. The hand-rolled version
+// this replaced returned three hosts that do not resolve.
+const { storeHost } = require('./market-urls.js');
 
 // Read a REAL numeric rating from common shapes; null when absent (never guessed).
 function ratingOf(p) {

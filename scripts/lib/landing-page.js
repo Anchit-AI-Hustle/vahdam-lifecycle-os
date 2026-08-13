@@ -35,9 +35,10 @@ function jsonLd(obj) { return JSON.stringify(obj).replace(/</g, '\\u003c'); }
 
 // Region-correct store URLs (CLAUDE.md, VERIFIED) - used when no ctaUrl is
 // given, so a generated page never ships an empty href.
-const STORE = { US: 'https://www.vahdamteas.com', UK: 'https://uk.vahdamteas.com',
-  IN: 'https://www.vahdamindia.com', EU: 'https://eu.vahdamteas.com',
-  AU: 'https://au.vahdamteas.com', GLOBAL: 'https://www.vahdamteas.com' };
+// One map (api/_shared/market-urls.js). These literals carried three hosts that
+// do not resolve, so every UK/EU/AU landing page this builder produced linked
+// nowhere.
+const STORE = require('../../api/_shared/market-urls.js').STORE_BASE;
 
 // Currency per region, for Product/Offer structured data. A price with the wrong
 // currency code is worse than no structured data, so an unknown market emits none.

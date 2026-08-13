@@ -23,6 +23,9 @@
 const { corsHeaders } = require('../../_shared/llm');
 const callLLM = require('../../_shared/llm');
 const MF = require('../../_shared/mailer-format');
+// One market map for the whole repo — see the header of market-urls.js for what
+// was measured and why nine hand-maintained copies had drifted into dead hosts.
+const MARKET = require('../../_shared/market-urls.js');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MASTER SYSTEM PROMPT — Steps 9-10 of the final master orchestration system
@@ -173,7 +176,7 @@ Apply bgcolor to EVERY <td> that has a background color — no exceptions.
       <div style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:8.5px;color:#AB8743;letter-spacing:0.22em;text-transform:uppercase;margin-top:4px">PREMIUM INDIAN TEAS · DIRECT FROM SOURCE</div>
     </td>
     <td width="200" style="text-align:right;padding:10px 24px 10px 16px;vertical-align:middle;background:#004A2B" bgcolor="#004A2B">
-      <a href="https://www.vahdamteas.com/collections/all" style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#AB8743;text-decoration:none;letter-spacing:0.06em">SHOP ALL →</a>
+      <a href="https://www.vahdam.com/collections/all" style="font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:10px;color:#AB8743;text-decoration:none;letter-spacing:0.06em">SHOP ALL →</a>
     </td>
   </tr>
 </table>
@@ -600,15 +603,10 @@ module.exports = async function handler(req, res) {
       ].filter(Boolean);
 
   // Market-specific store base URL for links
-  const storeUrlMap = {
-    'US': 'https://www.vahdamteas.com',
-    'UK': 'https://uk.vahdamteas.com',
-    'IN': 'https://www.vahdamindia.com',
-    'EU': 'https://eu.vahdamteas.com',
-    'AU': 'https://au.vahdamteas.com',
-    'Global': 'https://www.vahdamteas.com'
-  };
-  const storeBase = storeUrlMap[market] || storeUrlMap['US'];
+  // One map, in _shared/market-urls.js. The copy that used to live here pointed
+  // UK, EU and AU at hosts that do not resolve, so every non-US mailer this
+  // pipeline built linked nowhere.
+  const storeBase = MARKET.storeBase(market);
 
   const productsBlock = allProds.length > 0
     ? allProds.map((p, i) => {
@@ -771,20 +769,22 @@ Output starts <!DOCTYPE html>, ends </html>. Nothing before or after.`;
     // The system prompt uses {{STORE_BASE}} as the canonical placeholder.
     // Substitute it (and any stray non-store domains) with the correct
     // market base so every link in the final mailer redirects correctly.
-    const _MARKET_BASE = {
-      US: 'https://www.vahdamteas.com',
-      UK: 'https://uk.vahdamteas.com',
-      IN: 'https://www.vahdamindia.com',
-      Global: 'https://www.vahdamteas.com',
-      ME: 'https://www.vahdamteas.com',
-      AU: 'https://au.vahdamteas.com',
-      EU: 'https://eu.vahdamteas.com'
-    };
-    const _resolvedBase = _MARKET_BASE[market] || _MARKET_BASE.US;
+    const _resolvedBase = MARKET.storeBase(market);
     // 1) Substitute the template placeholder
     html = html.split('{{STORE_BASE}}').join(_resolvedBase);
-    // 2) Defensive: if the LLM hard-coded a bad domain, rewrite to the market base
-    html = html.replace(/https?:\/\/(?:www\.)?vahdam\.com(?!\/cdn)/g, _resolvedBase);
+    // 2) Rewrite any DEAD storefront host the model may have produced — those
+    //    are the ones that were in this file's own map until now, so the model
+    //    has almost certainly seen them. Each is replaced with the market's
+    //    canonical, reachable base.
+    //
+    //    The rule that used to live here rewrote `vahdam.com` — the real US
+    //    storefront — into whatever this map held, which meant a model that got
+    //    the URL RIGHT had it rewritten to a redirect domain for US and to a
+    //    host that does not resolve for UK, EU and AU. A safety net pointed the
+    //    wrong way. Only known-dead hosts are rewritten now.
+    for (const dead of MARKET.DEAD_HOSTS) {
+      html = html.replace(new RegExp(`https?://${dead.replace(/\./g, '\\.')}`, 'g'), _resolvedBase);
+    }
 
     // ── BRAND FONTS — deterministically guarantee the exact VAHDAM @font-face
     //    are present in <head>, regardless of LLM adherence (Brand Asset Engine).
@@ -857,7 +857,7 @@ Output starts <!DOCTYPE html>, ends </html>. Nothing before or after.`;
     const proofSection = planSections.find(s => s.id === 'social_proof') || {};
 
     // Market-specific store URL
-    const heuristicStoreBase = storeBase || 'https://www.vahdamteas.com';
+    const heuristicStoreBase = storeBase || 'https://www.vahdam.com';
     const heuristicShopUrl = heuristicStoreBase + '/collections/all?utm_source=email&utm_medium=mailer&utm_campaign=vahdam_studio';
     const heuristicHeroProduct = clientProducts[0] || {};
     const heuristicHeroHandle = heuristicHeroProduct.handle || '';
@@ -872,7 +872,7 @@ Output starts <!DOCTYPE html>, ends </html>. Nothing before or after.`;
     const productCopy = (productSection.copy || {}).subcopy || 'Premium single-estate tea, hand-picked at peak flavor.';
     const productCta = (productSection.copy || {}).cta || (isB ? 'Explore This Blend' : 'Add to Cart');
     const offerHeadline = (offerSection.copy || {}).headline || (heuristicHeroPrice ? 'Get ' + heuristicHeroProduct.name + ' Now' : 'Free Shipping on Orders $50+');
-    const offerSubcopy = (offerSection.copy || {}).subcopy || 'Shop now at vahdamteas.com';
+    const offerSubcopy = (offerSection.copy || {}).subcopy || 'Shop now at vahdam.com';
     const finalCta = (ctaSection.copy || {}).cta || (isB ? 'Explore the Collection' : 'Shop Now');
     const proofCopy = (proofSection.copy || {}).subcopy || '"Absolutely love the rich flavor and aroma. Best tea I\'ve ordered online." — Verified Buyer';
     const subjectLines = plan.subject_lines || [(isB ? 'A tea worth slowing down for' : heroHeadline)];
@@ -1038,7 +1038,7 @@ ${isB ? `<p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:12px;co
 <a href="${heuristicStoreBase}/pages/contact" style="color:${accentColor};text-decoration:none">Contact</a>
 </p>
 <p style="margin:0 0 8px;font-family:Arial,sans-serif;font-size:11px;color:#6b6255;line-height:1.5">
-You received this email because you signed up at vahdamteas.com<br>
+You received this email because you signed up at vahdam.com<br>
 <a href="{{UNSUBSCRIBE_URL}}" style="color:#8a8175;text-decoration:underline">Unsubscribe</a> &nbsp;|&nbsp; <a href="${heuristicStoreBase}/pages/privacy-policy" style="color:#8a8175;text-decoration:underline">Privacy Policy</a>
 </p>
 <p style="margin:0;font-family:Arial,sans-serif;font-size:10px;color:#4a4540">&copy; 2026 VAHDAM India. All Rights Reserved.</p>
