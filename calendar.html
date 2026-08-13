@@ -21,7 +21,17 @@
 <!-- Vercel Speed Insights — static-HTML form (bare-specifier import does not resolve in the browser) -->
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <script>
-  tailwind.config = { theme: { extend: {
+  // The Tailwind CDN is a THIRD PARTY that can fail: slow, blocked by a corporate
+  // proxy or ad-blocker (cdn.tailwindcss.com sits on some blocklists), or simply
+  // absent offline — and this app is an installable PWA, so offline is a state it
+  // advertises. Unguarded, `tailwind.config = {...}` throws ReferenceError on
+  // every one of those loads. The throw is contained to this block, so the page
+  // still works; what it silently costs is the brand palette, because every
+  // bg-green / text-gold / bg-cream class in the page resolves to nothing.
+  // Guarding does not restore the styling when the CDN is gone — nothing can —
+  // but it stops the page reporting a hard error for a condition it survives, so
+  // a real error on these pages is visible instead of buried.
+  if (window.tailwind) tailwind.config = { theme: { extend: {
     colors: {
       bg: { DEFAULT:'#ffffff', soft:'#ffffff', card:'#eef3f0' },
       ink: { DEFAULT:'#171717', dim:'#556059', mute:'#48524c' },

@@ -1,6 +1,5 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
-const path = require('path');
 const { startServer, collectErrors, ROOT } = require('./lib/page-harness.js');
 
 // EVERY FILTER AND EVERY CTA, ON EVERY PAGE, CLICKED FOR REAL.
