@@ -485,6 +485,21 @@ module.exports = async function handler(req, res) {
         return res.json(payload);
       }
 
+      // ── JOURNEY (link-by-link, cross-platform) ───────────────────────────
+      // Joins the cost side (Meta/Google/TikTok), the send side (Klaviyo,
+      // WebEngage) and the outcome side (Shopify orders + revenue) on the only
+      // key that exists on all of them: the destination link and its UTMs.
+      case 'journey': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const journey = require('./_shared/journey-core.js');
+        const out = await journey.linkLedger({
+          market: p.market || 'US',
+          days: p.days ? parseInt(p.days, 10) : 90,
+          since: p.since, until: p.until,
+        });
+        return res.json(out);
+      }
+
       // ── ADS FROM SNOWFLAKE (live warehouse tables; cohort/segmentation) ──
       case 'ads-snowflake': {
         const p = req.method === 'POST' ? b : Object.assign({}, req.query);

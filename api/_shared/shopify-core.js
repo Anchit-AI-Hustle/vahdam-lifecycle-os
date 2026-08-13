@@ -465,5 +465,5 @@ async function dispatch(op, params = {}) {
 module.exports = {
   dispatch, OPS, status, isConnected, cfg, normMarket,
   shop, orders, products, customers, inventory, summary,
-  attribution, classifyOrder, readPagedOrders, localDate,
+  attribution, classifyOrder, orderQuality, readPagedOrders, localDate,
 };
