@@ -193,10 +193,18 @@ const u=URL.createObjectURL(blob);const l=document.createElement('a');l.href=u;l
 const money=(n,d=0)=>'$'+Number(n).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
 const numf=(n,d=0)=>Number(n).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
 const pct=(n,d=1)=>(Number(n)*100).toFixed(d)+'%';
-Chart.register(ChartDataLabels);
-Chart.defaults.font.family="Proxima Nova, Arial";
-Chart.defaults.plugins.datalabels.color='#171717';
-Chart.defaults.plugins.legend.labels.font={size:11};
+// THIS is where the page threw. These four lines run at parse time, before any
+// chart is drawn, and assume two CDN scripts (Chart.js and its datalabels
+// plugin) have already arrived. When either has not, `Chart.register` throws
+// ReferenceError immediately — killing the rest of this script block, which is
+// far more than charts. Guarding here is what keeps the page alive so the
+// per-chart notice below can be shown at all.
+if (typeof Chart !== 'undefined') {
+  if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
+  Chart.defaults.font.family="Proxima Nova, Arial";
+  if (Chart.defaults.plugins.datalabels) Chart.defaults.plugins.datalabels.color='#171717';
+  Chart.defaults.plugins.legend.labels.font={size:11};
+}
 const GREEN='#004A2B',GOLD='#AB8743',INK='#171717',GREEN2='#2e7d5b';
 D.access_audit={app:"Shopify Claude Connector App",store:"VAHDAM® USA — vahdam.com (Shopify Plus)",pulled:"17 Jul 2026",granted_n:59,granted:["read_all_orders","read_analytics","read_companies","read_legal_policies","read_reports","read_checkouts","read_checkout_branding_settings","read_content","read_customers","read_discounts","read_draft_orders","read_files","read_fulfillments","read_inventory","read_locales","read_locations","read_marketing_events","read_markets","read_merchant_managed_fulfillment_orders","read_metaobject_definitions","read_metaobjects","read_online_store_navigation","read_order_edits","read_orders","read_price_rules","read_products","read_publications","read_returns","read_shipping","read_themes","read_translations","read_validations","write_checkouts","write_checkout_branding_settings","write_content","write_customers","write_discounts","write_draft_orders","write_files","write_fulfillments","write_inventory","write_locales","write_locations","write_marketing_events","write_markets","write_merchant_managed_fulfillment_orders","write_metaobject_definitions","write_metaobjects","write_online_store_navigation","write_order_edits","write_orders","write_price_rules","write_products","write_publications","write_returns","write_shipping","write_themes","write_translations","write_validations"],denied:[["staffMembers","Staff users, roles & permissions","Access denied — no user/staff read scope on the connector"],["appInstallations","Installed apps & their granted scopes","Access denied — no app-read scope"],["scriptTags","Storefront script injectors","Access denied"]],channels:["Online Store","Google & YouTube","Facebook & Instagram","Point of Sale","Pinterest","TikTok","Shop","Attentive","GrowLTV","Wizzy Blogs","Inbox","Instant","tectonic-commerce","Zaymo","Shopify GraphiQL App"],webhooks:0};
 D.app_audit={total:69,spend:"~$843/mo + Loop txn fees + Flype per-order",savings:"$300-430/mo",
@@ -247,7 +255,31 @@ function t3Sku(){var S=D.sku_live;var h='<div class="card"><h3>Amazon vs Shopify
  h+='<div class="method">'+S.weight_note+'</div></div>';
  DETAILS['t3_sku_live']={title:'Live Amazon vs Shopify - price gaps',method:'Common products live (active) on Shopify; Amazon selling price vs D2C.',table:tbl(['Live product','Amazon $','D2C $','D2C higher by'],S.top.map(function(x){return [x.n,'$'+x.a,'$'+x.d,'$'+Math.abs(x.g).toFixed(2)];})),source:'Amazon (Snowflake) selling price vs Shopify live price; status=active filter.'};
  return h;}
-function mkChart(id,cfg){var el=document.getElementById(id);if(!el)return null;try{var ex=Chart.getChart(el);if(ex)ex.destroy();}catch(e){}return new Chart(el,cfg);}
+// Chart.js is loaded from a CDN, and a CDN can be slow, blocked by an
+// ad-blocker or corporate proxy, or simply unreachable offline. Unguarded, the
+// first `new Chart(...)` threw ReferenceError and every chart on the page stayed
+// an empty rectangle: no chart, no explanation, and a dashboard that looks like
+// it has no data rather than one that could not draw it. On an analytics page
+// the charts ARE the content, so a blank box is the worst possible failure —
+// it reads as "we measured nothing".
+//
+// chartUnavailable() puts the reason where the chart would have been. Every
+// creation path goes through it, so a missing library is stated once per chart
+// rather than thrown once and hidden everywhere.
+function chartsReady(){ return typeof Chart !== 'undefined'; }
+function chartUnavailable(el){
+  if(!el) return null;
+  var box = el.closest ? (el.closest('.card') || el.parentElement) : el.parentElement;
+  if(box && box.querySelector('.chart-unavailable')) return null;
+  var n = document.createElement('div');
+  n.className = 'chart-unavailable';
+  n.style.cssText = 'padding:14px 16px;border:1px dashed #AB8743;border-radius:10px;background:#FBF5EA;color:#171717;font-size:12.5px;line-height:1.5';
+  n.textContent = 'This chart could not be drawn: the Chart.js library did not load (it is fetched from cdnjs.cloudflare.com). The underlying numbers are unaffected — this is a rendering failure, not missing data. Check the network connection, an ad-blocker, or a proxy blocking that host, then reload.';
+  if(box) box.appendChild(n); else el.parentElement && el.parentElement.appendChild(n);
+  if(el.style) el.style.display='none';
+  return null;
+}
+function mkChart(id,cfg){var el=document.getElementById(id);if(!el)return null;if(!chartsReady())return chartUnavailable(el);try{var ex=Chart.getChart(el);if(ex)ex.destroy();}catch(e){}return new Chart(el,cfg);}
 const DETAILS={};
 const PG={}; let pgId=0;
 function ptbl(headers,rows,per){per=per||25; const id='pg'+(++pgId); PG[id]={h:headers,r:rows,per:per,page:0}; return '<div class="ptblbox" id="'+id+'"></div>';}
@@ -310,6 +342,10 @@ function tvData(g){
 function tvRender(g){
  tvGran=g; var d=tvData(g); var el=document.getElementById('tvchart'); if(!el)return;
  document.querySelectorAll('#tvseg button').forEach(b=>b.classList.toggle('on',b.getAttribute('data-g')===g));
+ // Same guard as mkChart: this one builds its chart inline rather than going
+ // through it, so it needs the check too or the whole granularity control
+ // (day/week/month/year) throws on every click when the library is missing.
+ if(!chartsReady()){ chartUnavailable(el); return; }
  if(tvChart)tvChart.destroy();
  tvChart=new Chart(el,{data:{labels:d.labels,datasets:[
    {type:'bar',label:'Net sales',data:d.net,backgroundColor:'#004A2B',yAxisID:'y',datalabels:{display:true,anchor:'end',align:'top',font:{size:6.5,weight:'700'},color:'#004A2B',formatter:function(v){return v==null?'':'$'+(v/1000).toFixed(0)+'k';}}},

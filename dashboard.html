@@ -2226,6 +2226,29 @@ function switchView(name) {
   rerender();
 }
 function rerender() {
+  // ApexCharts comes from a CDN, and a CDN can be slow, ad-blocked, proxied or
+  // simply unreachable offline. Unguarded, the first `new ApexCharts(...)` threw
+  // ReferenceError and took the rest of the render with it: not just the charts,
+  // but every KPI and table after that point in the same call. The page then
+  // shows partial numbers with no indication anything is missing, which is worse
+  // than showing none.
+  //
+  // This states the cause once, in the page, and stops before drawing. It is a
+  // RENDERING failure, and saying so matters — an analytics dashboard that
+  // silently renders nothing reads as "there is no data", which is a claim
+  // about the business rather than about a script tag.
+  if (typeof ApexCharts === 'undefined') {
+    const box = $('chartsUnavailable') || (() => {
+      const n = document.createElement('div');
+      n.id = 'chartsUnavailable';
+      n.style.cssText = 'margin:16px 0;padding:14px 16px;border:1px dashed #AB8743;border-radius:10px;background:#FBF5EA;color:#171717;font-size:13px;line-height:1.55';
+      document.querySelector('main')?.prepend(n);
+      return n;
+    })();
+    box.textContent = 'Charts cannot be drawn: the ApexCharts library did not load (it is fetched from cdn.jsdelivr.net). This is a rendering failure, not missing data — the underlying numbers are unaffected. Check the connection, an ad-blocker, or a proxy blocking that host, then reload.';
+    $('lastRefresh').textContent = fmtDateTime(Date.now());
+    return;
+  }
   // Honest empty state: with no connected/uploaded data there is nothing to
   // compute, so show the connect prompt instead of metrics over no rows.
   const empty = !hasData();
