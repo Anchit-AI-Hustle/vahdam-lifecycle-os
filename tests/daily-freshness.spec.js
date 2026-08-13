@@ -338,19 +338,48 @@ test.describe('the day-level calendar', () => {
     } finally { restore(); }
   });
 
+  test('the real smart_orders shape is read, and the filter uses the column that exists', async () => {
+    // Caught against production on first contact: this shipped filtering on
+    // created_at, and smart_orders actually stores ordered_at. The query 400'd,
+    // the adapter degraded it to [], and every past day would have printed a
+    // measured $0 from a question that was never asked.
+    const seen = [];
+    const services = require(path.join(ROOT, 'lib', 'smart-brain', 'services.js'));
+    const proto = services.SmartBrainDbAdapter.prototype;
+    const saved = { select: proto.select, connected: Object.getOwnPropertyDescriptor(proto, 'connected') };
+    Object.defineProperty(proto, 'connected', { get() { return true; }, configurable: true });
+    proto.select = async function select(table, params = {}) {
+      if (table !== 'smart_orders') return [];
+      if (params.limit === 1 && !params.filters) return [{ id: 1, user_id: 'u', market: 'US', ordered_at: `${YESTERDAY}T09:00:00Z`, total: '58.00' }];
+      seen.push(Object.keys(params.filters || {}));
+      return [
+        { id: 1, market: 'US', ordered_at: `${YESTERDAY}T09:00:00Z`, total: '58.00' },
+        { id: 2, market: 'US', ordered_at: `${YESTERDAY}T18:00:00Z`, total: '42.50' },
+      ];
+    };
+    try {
+      const out = await dc.dayCalendar({ from: dc.addDaysIso(TODAY, -3), to: TODAY });
+      expect(seen[0], 'the window query must filter on the detected column').toEqual(['ordered_at']);
+      const y = out.days.find((d) => d.date === YESTERDAY);
+      expect(y.measured.orders).toBe(2);
+      expect(y.measured.revenue).toBeCloseTo(100.5, 2);
+    } finally { proto.select = saved.select; Object.defineProperty(proto, 'connected', saved.connected); }
+  });
+
   test('a store whose date column cannot be read reports unknown, not zeros', async () => {
     // The filtered order query 400s if the date column is absent, and the
     // adapter degrades a failed read to []. Without checking the column, every
     // day would print a measured zero sourced from a query that never ran.
     const restore = stubDb({
       slots: SLOTS, campaigns: CAMPAIGNS, orders: [],
-      orderProbe: [{ id: 1, order_placed_on: '2026-08-12', total: '40' }],
+      orderProbe: [{ id: 1, order_placed_on: '2026-08-12', total: '40' }],   // no ordered_at / created_at / processed_at
     });
     try {
       const out = await dc.dayCalendar({ from: dc.addDaysIso(TODAY, -3), to: TODAY });
       const y = out.days.find((d) => d.date === YESTERDAY);
       expect(y.measured.orders).toBeNull();
       expect(y.blockers.join(' ')).toMatch(/date columns this view can bucket by/i);
+      expect(y.blockers.join(' ')).toMatch(/ordered_at/);
       // And it names what it DID see, so the fix is obvious.
       expect(y.blockers.join(' ')).toMatch(/order_placed_on/);
     } finally { restore(); }
