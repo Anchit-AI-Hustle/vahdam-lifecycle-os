@@ -6,6 +6,35 @@
 //   npx playwright test --ui
 const { defineConfig, devices } = require('@playwright/test');
 
+/**
+ * Point a project at a pre-installed Chromium — but ONLY if that project runs
+ * Chromium.
+ *
+ * Why this exists at all: a sandbox that ships chromium-1194 while the package
+ * pins 1234 fails every browser spec at `browserType.launch: Executable doesn't
+ * exist`, and Playwright counts those as "did not run" rather than failures, so
+ * the suite still exits 0. A green run that launched no browser is the exact
+ * defect class this repo keeps finding in itself; it does not get to live in the
+ * harness.
+ *
+ * Why it is per-project: setting executablePath globally handed a CHROMIUM
+ * binary to the WebKit projects (iPhone SE, iPhone 12, iPad all default to
+ * WebKit), which failed 432 tests with "Target page, context or browser has been
+ * closed" — a message that reads as 432 broken pages rather than one broken
+ * config. CI, which leaves PW_CHROMIUM_PATH unset, passed 2997 on the same
+ * commit. A test-harness workaround that manufactures phantom app failures is
+ * worse than the gap it was papering over.
+ *
+ * WebKit projects are left alone: with no WebKit installed they skip honestly.
+ */
+function chromiumPath(use) {
+  const p = process.env.PW_CHROMIUM_PATH;
+  if (!p) return use;
+  const browser = use.defaultBrowserType || use.browserName || 'chromium';
+  if (browser !== 'chromium') return use;
+  return { ...use, launchOptions: { ...(use.launchOptions || {}), executablePath: p } };
+}
+
 module.exports = defineConfig({
   testDir: './tests',
   testMatch: /.*\.spec\.js$/,
@@ -22,20 +51,6 @@ module.exports = defineConfig({
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'tests/report' }]],
   use: {
     headless: true,
-    // Use a pre-installed Chromium when one is provided instead of the exact
-    // build this @playwright/test version pins.
-    //
-    // THIS IS NOT A CONVENIENCE. In a sandbox that ships chromium-1194 while the
-    // package wants 1234, every browser-driving spec dies at
-    // `browserType.launch: Executable doesn't exist` — and Playwright reports
-    // those as "did not run", not as failures, so the suite still exits 0. The
-    // run looks like a pass and is really a pass of the file-reading specs only.
-    // That is precisely the shape of defect this repo keeps finding in itself, so
-    // it does not get to live in the test harness.
-    //
-    // CI installs its own browsers and leaves PW_CHROMIUM_PATH unset, so this is
-    // inert there.
-    ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : {}),
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',
@@ -45,11 +60,11 @@ module.exports = defineConfig({
   },
   // Six viewports cover the realistic device matrix.
   projects: [
-    { name: 'iphone-se',     use: { ...devices['iPhone SE'] } },          // 320x568
-    { name: 'iphone-12',     use: { ...devices['iPhone 12'] } },          // 390x844
-    { name: 'pixel-5',       use: { ...devices['Pixel 5'] } },            // 393x851
-    { name: 'ipad',          use: { ...devices['iPad (gen 7)'] } },       // 810x1080
-    { name: 'desktop-1280',  use: { viewport: { width: 1280, height: 800 } } },
-    { name: 'desktop-1920',  use: { viewport: { width: 1920, height: 1080 } } },
+    { name: 'iphone-se',     use: chromiumPath({ ...devices['iPhone SE'] }) },     // 320x568
+    { name: 'iphone-12',     use: chromiumPath({ ...devices['iPhone 12'] }) },     // 390x844
+    { name: 'pixel-5',       use: chromiumPath({ ...devices['Pixel 5'] }) },       // 393x851
+    { name: 'ipad',          use: chromiumPath({ ...devices['iPad (gen 7)'] }) },  // 810x1080
+    { name: 'desktop-1280',  use: chromiumPath({ viewport: { width: 1280, height: 800 } }) },
+    { name: 'desktop-1920',  use: chromiumPath({ viewport: { width: 1920, height: 1080 } }) },
   ],
 });
