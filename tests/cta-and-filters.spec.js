@@ -122,6 +122,19 @@ test.describe('every filter control does something, and says so when there is no
         const c = controls.nth(i);
         if (!(await c.isVisible().catch(() => false))) continue;
         if (!(await c.evaluate((el, sel) => el.matches(sel) || !!el.getAttribute('onclick'), CLICKABLE).catch(() => false))) continue;
+        // A control that NAVIGATES is not a filter, whatever class it carries.
+        // retention-playbook.html has `<a class="chip" href="/brain">`, and the
+        // crawler was clicking it, leaving the page, and then asserting against
+        // whatever document loaded next — testing the wrong page and reporting
+        // the result under the original page's name. Anchors that stay put
+        // (href="#", "javascript:", or none) are still exercised.
+        const navigates = await c.evaluate((el) => {
+          if (el.tagName !== 'A') return false;
+          const href = el.getAttribute('href') || '';
+          if (!href || href.startsWith('#') || href.toLowerCase().startsWith('javascript:')) return false;
+          return true;
+        }).catch(() => false);
+        if (navigates) continue;
         const label = ((await c.textContent().catch(() => '')) || '').trim().slice(0, 40);
         if (DESTRUCTIVE.test(label)) continue;
         await c.click({ timeout: 5000 }).catch(() => {});

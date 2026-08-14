@@ -185,6 +185,15 @@ function collectErrors(page) {
     // allow-scripts, which would turn a stored email into an XSS vector. So it
     // is ignored HERE, deliberately, and the sandbox stays shut.
     if (/Blocked script execution.*sandboxed/i.test(t)) return;
+    // motion.css declares `@view-transition { navigation: auto }`, so the BROWSER
+    // runs a cross-document transition on same-origin navigation. Start a second
+    // navigation before the first finishes and it abandons the transition and
+    // logs "Transition was skipped". There is no promise for the page to catch —
+    // the transition is declared in CSS and managed by the browser — and the
+    // effect is cosmetic: the navigation still completes. A crawler clicking
+    // every 180ms provokes it by construction, which is how it reached CI as a
+    // failure on 2 of 6 viewports while the other 4 raced the other way.
+    if (/Transition was skipped/i.test(t)) return;
     errors.push(t);
   });
   return errors;
