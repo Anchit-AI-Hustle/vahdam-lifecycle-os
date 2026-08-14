@@ -25,7 +25,17 @@ const { defineConfig, devices } = require('@playwright/test');
  * commit. A test-harness workaround that manufactures phantom app failures is
  * worse than the gap it was papering over.
  *
- * WebKit projects are left alone: with no WebKit installed they skip honestly.
+ * WebKit projects are left alone. Note what that means in practice: this sandbox
+ * has no WebKit at all, so iphone-se, iphone-12 and ipad CANNOT run here and
+ * report "Executable doesn't exist at .../webkit-<build>/pw_run.sh". Half the
+ * device
+ * matrix is therefore only ever exercised in CI, which installs its own
+ * browsers. A local run covers pixel-5, desktop-1280 and desktop-1920 — three of
+ * six — and saying "the matrix passes locally" would overstate it by half.
+ *
+ * Run the reachable subset explicitly:
+ *   PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test \
+ *     --project=pixel-5 --project=desktop-1280 --project=desktop-1920
  */
 function chromiumPath(use) {
   const p = process.env.PW_CHROMIUM_PATH;
