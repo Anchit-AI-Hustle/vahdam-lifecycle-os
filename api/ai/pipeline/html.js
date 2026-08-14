@@ -782,8 +782,11 @@ Output starts <!DOCTYPE html>, ends </html>. Nothing before or after.`;
     //    the URL RIGHT had it rewritten to a redirect domain for US and to a
     //    host that does not resolve for UK, EU and AU. A safety net pointed the
     //    wrong way. Only known-dead hosts are rewritten now.
+    // split/join, not a built regex: the hosts are literals, and hand-escaping
+    // only `.` leaves backslashes and every other metacharacter unhandled.
     for (const dead of MARKET.DEAD_HOSTS) {
-      html = html.replace(new RegExp(`https?://${dead.replace(/\./g, '\\.')}`, 'g'), _resolvedBase);
+      html = html.split(`https://${dead}`).join(_resolvedBase);
+      html = html.split(`http://${dead}`).join(_resolvedBase);
     }
 
     // ── BRAND FONTS — deterministically guarantee the exact VAHDAM @font-face

@@ -50,7 +50,10 @@ function walk(dir, out = [], depth = 0) {
 
 test.describe('the market map', () => {
   test('no source file emits a storefront host that does not resolve', () => {
-    const dead = new RegExp(MARKET.DEAD_HOSTS.map((h) => h.replace(/\./g, '\\.')).join('|'), 'i');
+    // Plain substring search, not a built regex. These are literal hostnames, so
+    // a regex buys nothing and costs correctness: escaping `.` but not `\` is the
+    // same defect CodeQL flagged in the crawler spec, and I wrote it twice.
+    // indexOf cannot be under- or over-escaped.
     const offenders = [];
     for (const file of walk(ROOT)) {
       const rel = path.relative(ROOT, file).split(path.sep).join('/');
@@ -59,10 +62,11 @@ test.describe('the market map', () => {
       // this guard stops the GENERATORS producing new ones.
       if (rel.startsWith('landing-pages/') || rel.startsWith('mailers/') || rel.startsWith('ads/') || rel.startsWith('reports/')) continue;
       const src = fs.readFileSync(file, 'utf8');
-      const m = dead.exec(src);
-      if (m) {
-        const line = src.slice(0, m.index).split('\n').length;
-        offenders.push(`${rel}:${line} → ${m[0]}`);
+      for (const host of MARKET.DEAD_HOSTS) {
+        const at = src.indexOf(host);
+        if (at === -1) continue;
+        offenders.push(`${rel}:${src.slice(0, at).split('\n').length} → ${host}`);
+        break;
       }
     }
     expect(offenders, `these point at storefronts that do not resolve:\n  ${offenders.join('\n  ')}`).toEqual([]);
