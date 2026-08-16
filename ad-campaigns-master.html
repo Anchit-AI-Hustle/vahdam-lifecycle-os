@@ -2907,9 +2907,24 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     });
   }
 
+  // The drill link lives in the first cell only, so everywhere else in the row
+  // was dead space: a reader aiming at the spend column to open that campaign's
+  // ad sets hit nothing. The anchor stays (it is the keyboard and screen-reader
+  // affordance, and the visible cue), and the rest of the row now forwards to
+  // it. Anything already interactive inside the row keeps its own behaviour.
   function bindDrill(attr, fn){
     Array.prototype.forEach.call(document.querySelectorAll("#drill-tbl ["+attr+"]"),function(a){
-      a.addEventListener("click",function(e){ e.preventDefault(); fn(a.getAttribute(attr)); renderAds(); });
+      function go(e){ e.preventDefault(); fn(a.getAttribute(attr)); renderAds(); }
+      a.addEventListener("click",go);
+      var tr=a.closest("tr");
+      if(!tr||tr.__drillRow) return;
+      tr.__drillRow=true;
+      tr.style.cursor="pointer";
+      tr.title="Open "+a.textContent.trim();
+      tr.addEventListener("click",function(e){
+        if(e.target.closest("a,button,input,select,textarea,label")) return;
+        go(e);
+      });
     });
   }
 
@@ -2942,7 +2957,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
                 adsets:Object.keys(byC[k].reduce(function(m,r){m[r.adset]=1;return m;},{})).length,
                 objective:byC[k][0].objective};
       }));
-      $("#drill-title").textContent="Campaigns \u2014 click a campaign name to open its ad sets";
+      $("#drill-title").textContent="Campaigns \u2014 click any row to open its ad sets";
       $("#drill-tbl").innerHTML=table(
         [{t:"Campaign"},{t:"Objective"},{t:"Ad sets",r:1},{t:"Ads",r:1},{t:"Live",r:1}].concat(METRIC_HEAD).concat([{t:"Verdict"}]),
         list.map(function(c){return ["<a href='#' data-camp=\""+esc(c.name)+"\" style='font-weight:700'>"+esc(c.name)+"</a>",
@@ -2961,7 +2976,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         return {name:k, agg:drillAgg(byS[k]), objective:byS[k][0].objective};
       }));
       var tot=drillAgg(inC);
-      $("#drill-title").textContent="Ad sets in "+DRILL.campaign+" \u2014 click an ad set to open its ads";
+      $("#drill-title").textContent="Ad sets in "+DRILL.campaign+" \u2014 click any row to open its ads";
       $("#drill-tbl").innerHTML=table(
         [{t:"Ad set"},{t:"Objective"},{t:"Ads",r:1},{t:"Live",r:1}].concat(METRIC_HEAD).concat([{t:"Verdict"}]),
         slist.map(function(a){return ["<a href='#' data-set=\""+esc(a.name)+"\" style='font-weight:700'>"+esc(a.name)+"</a>",
@@ -2976,7 +2991,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       var inS=rows.filter(function(r){return r.campaign===DRILL.campaign && r.adset===DRILL.adset;});
       inS.sort(function(a,b){var x=a[sort],y=b[sort];if(x==null)return 1;if(y==null)return -1;return asc?(x-y):(y-x);});
       var tot2=drillAgg(inS);
-      $("#drill-title").textContent="Ads in "+DRILL.adset+" \u2014 click an ad to open its detail";
+      $("#drill-title").textContent="Ads in "+DRILL.adset+" \u2014 click any row to open its detail";
       $("#drill-tbl").innerHTML=table(
         [{t:"Ad"},{t:"Delivery"},{t:"Created"}].concat(METRIC_HEAD).concat([{t:"Verdict"}]),
         inS.map(function(r){return ["<a href='#' data-ad=\""+esc(r.ad)+"\" style='font-weight:700'>"+esc(r.ad)+"</a>",

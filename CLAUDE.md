@@ -200,6 +200,46 @@ made — callers render an honest empty state instead of a plausible number.
   a coverage test. Do NOT invent derived columns to fill gaps: `opens/events` is not an open rate
   (`events` is the total event count, not deliveries), so it is left out rather than shown wrong.
 
+### Clickable rows — one funnel graph, and a drill may never invent a join (2026-08-16)
+`funnel-drill.js` (shared front-end, alongside `chart-enhance.js` / `table-sort.js` / `ai-studio-bar.js`)
+holds the ONE attribution graph every analytics table drills through:
+`region → channel → platform → campaign → ad set → ad → landing page → product`, with the lifecycle side
+(`segment → mailer → landing page`) and the time cuts (`month → week`, `acquisition month → cohort
+quarter`) joining it. A table declares its stage; every row then becomes a click target that opens the
+next step, carrying the row it was clicked from.
+- **The load-bearing rule: a drill narrows the next step ONLY where a join key genuinely exists.** Ad rows
+  carry `platform`/`campaign`/`adset`, so those three edges filter exactly. Nothing ties a Shopify sales
+  channel to an ad platform, or an ad to a landing page (the ad cut carries no destination URL), so those
+  drills navigate **unnarrowed** and say so — in the graph edge's own words, before the click (it is the
+  row's `title` and the button's `aria-label`) and again as a banner after. Silently filtering there would
+  invent an attribution and put a confident wrong number in front of the business. Every `join(){return
+  null}` edge and every terminal stage carries a required `why`; `tests/funnel-drill.spec.js` fails the
+  build if one is missing or shorter than a real explanation.
+- A **blank key is not a filter** (filtering campaigns on `''` would show the rows that are also blank and
+  read as "this platform ran one campaign"). A drill step whose field the target cut does not carry is
+  **dropped and named** in the breadcrumb ("Carried but not applied"), never applied to empty the table. A
+  filter that matches nothing **replaces** the table rather than sitting above `table()`'s "no
+  source-backed rows" empty state, which would be false — the source has rows, the filter has none.
+- A stage with no downstream attribution step (product, cohort retention, day of week, the live order
+  feed, connector runs) is **not** given a fake successor to satisfy "every row clicks". Its rows open the
+  full record plus the reason the chain stops there.
+- Region drills **re-scope the market toggle** instead of filtering rows — filtering would leave the KPI
+  header on one market and the table under it on another.
+- Mechanics: `table()` renders a string, so records are parked in a registry keyed by `data-fd-id` and
+  handed to `FunnelDrill.attach()` by `wire()` after the HTML lands (records are sliced to the render
+  `limit` so row *n* is record *n*). Rows are split on **whether they contain a `<td>`**, not on
+  `tBodies[0]` — `data-analysis.html`'s own `table()` emits a bare `<table><tr><th>`, so the parser files
+  the header row inside the implicit tbody and index-walking would hand record 0 to the header and shift
+  every drill by one. The whole `<tr>` is a mouse target but the action is also a real `<button>` with an
+  `aria-label` (a `<tr>` cannot be focused meaningfully by AT), and the appended column gets a
+  `scope="col"` header so it is not a phantom. Anything already interactive in the row keeps its own
+  behaviour — that is what stops the ads-master hierarchy anchors being swallowed.
+- Wired into: `data-analysis.html` (native widget detail tables), `data-analysis-extensions.js` (Revenue
+  Analysis with a breadcrumb trail, plus Mailer / Landing / Agents / Actions), and
+  `ad-campaigns-master.html` (whole-row targets on campaign → ad set → ad). `tests/funnel-drill-live.spec.js`
+  drives the real page over a throwaway static server (absolute asset paths mean `file://` cannot serve it)
+  and asserts the chain actually filters, because a source-only test cannot prove a row clicks.
+
 ### Competitive benchmarking — the own/competitor boundary is load-bearing
 `_shared/competitive-benchmark-core.js` (`/api/competitor?action=benchmark|benchmark-set`) benchmarks us
 against a competitor using the same platform stack, on top of the existing Gmail→Sheet email intel.

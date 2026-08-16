@@ -147,6 +147,7 @@
      window.VAHDAM_ANALYTICS and supersede the file; until then this shows the
      real exports rather than an empty page. No sample/synthetic numbers. -->
 <script src="/data/analytics/market-data.js"></script>
+<script src="/funnel-drill.js"></script>
 <script>
 (function(){
   var A = (window.VAHDAM_ANALYTICS) || {markets:{}};
@@ -330,7 +331,7 @@
         return {
           insight:'<b>Peak month was '+mLabel(peak.month)+'</b> at '+moneyFull(peak.sales)+' ('+intf(peak.orders)+' orders). Most recent complete month '+mLabel(last.month)+' did '+moneyFull(last.sales)+', '+delta(last.sales,prev.sales)+' vs the prior month (a trailing partial month is excluded from this comparison). Revenue is seasonally front-loaded into the Nov to Dec gifting window; the growth job is lifting the Jan to Jul trough with subscription and replenishment programs.',
           chart:lineChart(mm.map(function(x){return {x:x.month,y:x.sales,label:mLabel(x.month)};}),{money:true,w:820,h:280,yLabel:'Total sales'}),
-          table:table(['Month','Orders','Total sales','AOV'], rows, {num:[1,2,3]}),
+          table:table(['Month','Orders','Total sales','AOV'], rows, {num:[1,2,3]}), stage:'month', records:mm,
           csv:'us_monthly_order_revenue_trend'
         };
       } },
@@ -339,13 +340,13 @@
       detail:function(m){ var mm=m.monthly; var rows=mm.map(function(x){return [mLabel(x.month),intf(x.orders),moneyFull(x.aov)];});
         var fm=fullMonths(mm); var last=fm[fm.length-1],prev=fm[fm.length-2];
         return {insight:'<b>'+intf(m.summary.orders)+' orders</b> over the trailing window. Most recent complete month '+delta(last.orders,prev.orders)+' MoM (a trailing partial month is excluded). Order volume, not AOV, is the primary revenue lever here.',
-        chart:barChartVertical(mm.map(function(x){return {label:mLabel(x.month),v:x.orders};}),{w:820,h:280,yLabel:'Orders'}), table:table(['Month','Orders','AOV'],rows,{num:[1,2]}), csv:'us_monthly_order_revenue_trend'}; } },
+        chart:barChartVertical(mm.map(function(x){return {label:mLabel(x.month),v:x.orders};}),{w:820,h:280,yLabel:'Orders'}), table:table(['Month','Orders','AOV'],rows,{num:[1,2]}), stage:'month', records:mm, csv:'us_monthly_order_revenue_trend'}; } },
     { id:'aov', title:'Average order value', sub:'Monthly', span:'span6',
       mini:function(m){ return lineChart(m.aov_trend.map(function(x){return {x:x.month,y:x.aov,label:mLabel(x.month)};}),{money:true,h:170}); },
       detail:function(m){ var t=m.aov_trend; var ft=fullMonths(t); var first=ft[0],last=ft[ft.length-1];
         var rows=t.map(function(x){return [mLabel(x.month),moneyFull(x.aov),intf(x.orders),moneyFull(x.sales)];});
         return {insight:'<b>AOV has compressed from '+moneyFull(first.aov)+' to '+moneyFull(last.aov)+'</b> across the window of complete months, '+delta(last.aov,first.aov)+'. Falling AOV alongside rising orders signals discount-led acquisition and smaller entry baskets. The fix: bundle logic, free-shipping thresholds set just above current AOV, and subscription anchors on Ashwagandha Coffee.',
-        chart:lineChart(t.map(function(x){return {x:x.month,y:x.aov,label:mLabel(x.month)};}),{money:true,w:820,h:280,yLabel:'Average order value'}), table:table(['Month','AOV','Orders','Total sales'],rows,{num:[1,2,3]}), csv:'us_aov_trend_by_month'}; } },
+        chart:lineChart(t.map(function(x){return {x:x.month,y:x.aov,label:mLabel(x.month)};}),{money:true,w:820,h:280,yLabel:'Average order value'}), table:table(['Month','AOV','Orders','Total sales'],rows,{num:[1,2,3]}), stage:'aov_trend', records:t, csv:'us_aov_trend_by_month'}; } },
     { id:'channels', title:'Total sales by channel', sub:'Where revenue comes from', span:'span6',
       mini:function(m){ var top=m.channels.slice(0,5).map(function(x){return {label:x.channel,v:x.sales,disp:money(x.sales)};}); return donut(top,{s:150})+legend(top); },
       detail:function(m){ var c=m.channels; var total=c.reduce(function(a,b){return a+b.sales;},0);
@@ -353,14 +354,14 @@
         var sub=c.find(function(x){return /loop|subscription/i.test(x.channel);});
         return {insight:'<b>Online Store drives '+pct(c[0].sales/total)+' of revenue.</b>'+(sub?' Subscriptions ('+sub.channel+') are '+pct(sub.sales/total)+' of sales at a '+moneyFull(sub.aov)+' AOV — the recurring base to defend and grow.':''),
         chart:donut(c.slice(0,6).map(function(x){return {label:x.channel,v:x.sales};}),{s:210})+legend(c.slice(0,6).map(function(x){return {label:x.channel,disp:money(x.sales)};})),
-        table:table(['Channel','Orders','Total sales','AOV','Share'],rows,{num:[1,2,3,4]}), csv:'us_sales_by_sales_channel'}; } },
+        table:table(['Channel','Orders','Total sales','AOV','Share'],rows,{num:[1,2,3,4]}), stage:'channel', records:c, csv:'us_sales_by_sales_channel'}; } },
     { id:'ptype', title:'Sales by product type', sub:'Category mix', span:'span6',
       mini:function(m){ return barChart(m.product_types.slice(0,7).map(function(x){return {label:trunc(x.type,20),v:x.net,disp:money(x.net)};}),{h:190,labelW:130}); },
       detail:function(m){ var p=m.product_types; var total=p.reduce(function(a,b){return a+b.net;},0);
         var rows=p.map(function(x){return [x.type,moneyFull(x.net),intf(x.orders),intf(x.quantity),pct(x.net/total)];});
         return {insight:'<b>'+p[0].type+' leads with '+moneyFull(p[0].net)+'</b> ('+pct(p[0].net/total)+' of category revenue). Coffee and functional supplements are the subscription engines; loose-leaf black and chai are the high-frequency habit categories worth cross-grading into coffee.',
         chart:barChart(p.slice(0,14).map(function(x){return {label:trunc(x.type,26),v:x.net,disp:money(x.net)};}),{w:820,h:14*30,labelW:200}),
-        table:table(['Product type','Net sales','Orders','Qty','Share'],rows,{num:[1,2,3,4]}), csv:'us_sales_by_product_type'}; } },
+        table:table(['Product type','Net sales','Orders','Qty','Share'],rows,{num:[1,2,3,4]}), stage:'product_type', records:p, csv:'us_sales_by_product_type'}; } },
     { id:'discount', title:'Discounted vs full-price', sub:'Margin exposure', span:'span6',
       mini:function(m){ var t=m.discount; var items=t.map(function(x){return {label:x.discounted?'Discounted':'Full price',v:x.sales,disp:money(x.sales)};}); return donut(items,{s:150})+legend(items); },
       detail:function(m){ var t=m.discount; var disc=t.find(function(x){return x.discounted;})||{}, full=t.find(function(x){return !x.discounted;})||{};
@@ -368,33 +369,33 @@
         var rows=t.map(function(x){return [x.discounted?'Discounted':'Full price',intf(x.orders),moneyFull(x.sales),moneyFull(x.aov)];});
         return {insight:'<b>'+pct((disc.orders||0)/totO)+' of orders use a discount</b>, and discounted AOV ('+moneyFull(disc.aov)+') is '+((full.aov&&disc.aov)?Math.round((1-disc.aov/full.aov)*100):0)+'% below full-price AOV ('+moneyFull(full.aov)+'). Discount is training a cheaper basket — reserve offers for the Curious Switcher cohort and protect full-margin buyers.',
         chart:donut(t.map(function(x){return {label:x.discounted?'Discounted':'Full price',v:x.sales};}),{s:210})+legend(t.map(function(x){return {label:(x.discounted?'Discounted':'Full price'),disp:money(x.sales)};})),
-        table:table(['Order type','Orders','Total sales','AOV'],rows,{num:[1,2,3]}), csv:'us_sales_by_discount_usage'}; } },
+        table:table(['Order type','Orders','Total sales','AOV'],rows,{num:[1,2,3]}), stage:'discount', records:t, csv:'us_sales_by_discount_usage'}; } },
     { id:'dow', title:'Sales by day of week', sub:'Send-timing signal', span:'span6',
       mini:function(m){ return barChart((m.day_of_week||[]).slice().sort(function(a,b){return a.dow-b.dow;}).map(function(x){return {label:DOW[x.dow]||x.dow,v:x.sales,disp:money(x.sales)};}),{h:190,labelW:52}); },
       detail:function(m){ var dw=(m.day_of_week||[]).slice().sort(function(a,b){return b.sales-a.sales;});
         var rows=dw.map(function(x){return [DOW[x.dow]||x.dow,intf(x.orders),moneyFull(x.sales),moneyFull(x.aov)];});
         return {insight:dw.length?('<b>'+(DOW[dw[0].dow])+' and '+(DOW[dw[1].dow])+' are the strongest revenue days.</b> Weight primary sends and paid pushes to the top two days; keep the weakest day for lighter re-engagement touches.'):'No day-of-week data for this market.',
         chart:barChart((m.day_of_week||[]).slice().sort(function(a,b){return a.dow-b.dow;}).map(function(x){return {label:DOW[x.dow]||x.dow,v:x.sales,disp:money(x.sales)+' · '+intf(x.orders)+' ord'};}),{w:760,h:7*34,labelW:60}),
-        table:table(['Day','Orders','Total sales','AOV'],rows,{num:[1,2,3]}), csv:'us_sales_by_day_of_week'}; } },
+        table:table(['Day','Orders','Total sales','AOV'],rows,{num:[1,2,3]}), stage:'day_of_week', records:dw, csv:'us_sales_by_day_of_week'}; } },
     { id:'newret', title:'New vs returning customers', sub:'Monthly acquisition/retention split', span:'span8',
       mini:function(m){ return stackedBars((m.new_vs_returning||[]).map(function(x){return {label:mLabel(x.month),a:x.new_c,b:x.ret_c};}),{h:190})+legend([{label:'New'},{label:'Returning'}].map(function(l,i){return {label:l.label};})); },
       detail:function(m){ var nr=m.new_vs_returning||[]; var rows=nr.map(function(x){var tot=x.new_c+x.ret_c;return [mLabel(x.month),intf(x.new_c),intf(x.ret_c),tot?pct(x.ret_c/tot):'—'];});
         return {insight:'<b>Returning customers are the volume base most months.</b> The healthy retention months cluster where returning-order share sits above 50% — protect that base with lifecycle flows; the acquisition spikes (gifting season) need a strong second-order nudge or they leak straight to churn.',
         chart:stackedBars(nr.map(function(x){return {label:mLabel(x.month),a:x.new_c,b:x.ret_c};}),{w:820,h:300,yLabel:'Customers'})+legend([{label:'New customers'},{label:'Returning customers'}]),
-        table:table(['Month','New','Returning','Returning share'],rows,{num:[1,2,3]}), csv:'us_new_vs_returning_customers_by_month'}; } },
+        table:table(['Month','New','Returning','Returning share'],rows,{num:[1,2,3]}), stage:'new_vs_returning', records:nr, csv:'us_new_vs_returning_customers_by_month'}; } },
     { id:'retrate', title:'Returning customer rate', sub:'Monthly retention %', span:'span4',
       mini:function(m){ return lineChart((m.returning_rate||[]).map(function(x){return {x:x.month,y:x.rate*100,label:mLabel(x.month)};}),{h:180,pct:true,yLabel:'Returning rate'}); },
       detail:function(m){ var rr=m.returning_rate||[]; var avg=rr.reduce(function(a,b){return a+b.rate;},0)/(rr.length||1);
         var rows=rr.map(function(x){return [mLabel(x.month),pct(x.rate),intf(x.ret_c),intf(x.new_c)];});
         return {insight:'<b>Average returning-customer rate is '+pct(avg)+'.</b> Dips align with heavy new-customer acquisition (dilution), not retention failure — read this alongside cohort retention before reacting.',
-        chart:lineChart(rr.map(function(x){return {x:x.month,y:x.rate*100,label:mLabel(x.month)};}),{w:820,h:280,pct:true,yLabel:'Returning customer rate (%)'}), table:table(['Month','Returning rate','Returning','New'],rows,{num:[1,2,3]}), csv:'us_returning_customer_rate_by_month'}; } },
+        chart:lineChart(rr.map(function(x){return {x:x.month,y:x.rate*100,label:mLabel(x.month)};}),{w:820,h:280,pct:true,yLabel:'Returning customer rate (%)'}), table:table(['Month','Returning rate','Returning','New'],rows,{num:[1,2,3]}), stage:'returning_rate', records:rr, csv:'us_returning_customer_rate_by_month'}; } },
     { id:'acq', title:'Customer acquisition', sub:'New customers by month', span:'span8',
       mini:function(m){ return barChartVertical((m.acquisition||[]).map(function(x){return {label:mLabel(x.month),v:x.new_c};}),{h:180}); },
       detail:function(m){ var ac=m.acquisition||[]; if(!ac.length) return {insight:'No acquisition series for this market.',chart:'',table:'',csv:''};
         var peak=ac.reduce(function(a,b){return b.new_c>a.new_c?b:a;},ac[0]);
         var rows=ac.map(function(x){return [mLabel(x.month),intf(x.new_c),intf(x.orders),moneyFull(x.sales)];});
         return {insight:'<b>Acquisition peaks in the Q4 gifting window</b> ('+mLabel(peak.month)+': '+intf(peak.new_c)+' new customers). First-order revenue per new customer is low relative to LTV — the money is made on order 2+, so the second-order conversion program is the highest-leverage growth investment.',
-        chart:barChartVertical(ac.map(function(x){return {label:mLabel(x.month),v:x.new_c};}),{w:820,h:280,yLabel:'New customers'}), table:table(['Month','New customers','First orders','First-order sales'],rows,{num:[1,2,3]}), csv:'us_customer_acquisition_by_month'}; } },
+        chart:barChartVertical(ac.map(function(x){return {label:mLabel(x.month),v:x.new_c};}),{w:820,h:280,yLabel:'New customers'}), table:table(['Month','New customers','First orders','First-order sales'],rows,{num:[1,2,3]}), stage:'acquisition', records:ac, csv:'us_customer_acquisition_by_month'}; } },
     { id:'cohort', title:'Customer cohort retention', sub:'By acquisition quarter', span:'span12',
       mini:function(m){ return cohortHeat(m.cohort, 6); },
       detail:function(m){ return {insight:'<b>Read across each row to see how a quarter’s cohort keeps ordering over time.</b> Retention is normalised to each cohort’s first observed quarter (=100%). Warmer cells = stronger repeat behaviour. Use this to set realistic LTV assumptions and to spot which acquisition quarters produced stickier customers (usually the non-discount, non-gifting cohorts).',
@@ -404,23 +405,23 @@
       detail:function(m){ var p=m.top_products; var rows=p.slice(0,50).map(function(x,i){return [String(i+1),x.title,moneyFull(x.net),intf(x.quantity),intf(x.orders)];});
         return {insight:'<b>'+p[0].title+' is the #1 revenue product at '+moneyFull(p[0].net)+'.</b> The Ashwagandha Coffee franchise (base, refill, packs, starter kit) is the growth spine — every retention program should orbit its reorder rhythm.',
         chart:barChart(p.slice(0,15).map(function(x){return {label:trunc(x.title,30),v:x.net,disp:money(x.net)};}),{w:820,h:15*30,labelW:230}),
-        table:table(['#','Product','Net sales','Qty','Orders'],rows,{num:[2,3,4]}), csv:(MKT==='UK'?'uk_3_top_products':'us_top_50_products_by_net_sales')}; } },
+        table:table(['#','Product','Net sales','Qty','Orders'],rows,{num:[2,3,4]}), stage:'product', records:p.slice(0,50), csv:(MKT==='UK'?'uk_3_top_products':'us_top_50_products_by_net_sales')}; } },
     { id:'topqty', title:'Top products by quantity', sub:'Units sold', span:'span6', usOnly:true,
       mini:function(m){ return barChart((m.top_by_qty||[]).slice(0,8).map(function(x){return {label:trunc(x.title,22),v:x.quantity,disp:intf(x.quantity)};}),{h:220,labelW:150}); },
       detail:function(m){ var p=m.top_by_qty||[]; var rows=p.map(function(x,i){return [String(i+1),x.title,intf(x.quantity),moneyFull(x.net),intf(x.orders)];});
         return {insight:'<b>Unit leaders vs revenue leaders diverge</b> — high-quantity, lower-price SKUs (chai, everyday black) drive frequency and are the ideal entry point for first-time buyers before cross-grading them into higher-AOV coffee and gifting.',
         chart:barChart(p.slice(0,15).map(function(x){return {label:trunc(x.title,30),v:x.quantity,disp:intf(x.quantity)};}),{w:820,h:15*30,labelW:230}),
-        table:table(['#','Product','Qty','Net sales','Orders'],rows,{num:[2,3,4]}), csv:'us_top_20_products_by_quantity'}; } },
+        table:table(['#','Product','Qty','Net sales','Orders'],rows,{num:[2,3,4]}), stage:'product', records:p, csv:'us_top_20_products_by_quantity'}; } },
     { id:'weekly', title:'Weekly sales trend', sub:'Granular momentum', span:'span12', usOnly:true,
       mini:function(m){ return lineChart((m.weekly||[]).map(function(x){return {x:x.week,y:x.sales,label:mLabel(x.week)};}),{money:true,h:180}); },
       detail:function(m){ var w=m.weekly||[]; var rows=w.map(function(x){return [x.week,intf(x.orders),moneyFull(x.sales),moneyFull(x.net),moneyFull(x.aov)];});
         return {insight:'<b>Week-level view exposes campaign spikes and post-promo troughs.</b> Use it to attribute revenue lift to specific sends and to spot the decay window where a follow-up flow should fire.',
-        chart:lineChart(w.map(function(x){return {x:x.week,y:x.sales,label:mLabel(x.week)};}),{money:true,w:900,h:300,yLabel:'Weekly total sales'}), table:table(['Week','Orders','Total sales','Net sales','AOV'],rows,{num:[1,2,3,4]}), csv:'us_weekly_sales_trend'}; } },
+        chart:lineChart(w.map(function(x){return {x:x.week,y:x.sales,label:mLabel(x.week)};}),{money:true,w:900,h:300,yLabel:'Weekly total sales'}), table:table(['Week','Orders','Total sales','Net sales','AOV'],rows,{num:[1,2,3,4]}), stage:'week', records:w, csv:'us_weekly_sales_trend'}; } },
     { id:'country', title:'Sales by shipping country', sub:'Geography', span:'span6', ukOnly:true,
       mini:function(m){ return barChart((m.shipping_country||[]).slice(0,6).map(function(x){return {label:trunc(x.country,18),v:x.sales,disp:money(x.sales)};}),{h:180,labelW:120}); },
       detail:function(m){ var c=m.shipping_country||[]; var rows=c.map(function(x){return [x.country,intf(x.orders),moneyFull(x.sales)];});
         return {insight:'<b>The UK storefront is domestically concentrated.</b> That focus keeps shipping economics and messaging simple; regional-within-UK cuts are the next expansion of this view.',
-        chart:barChart(c.slice(0,10).map(function(x){return {label:trunc(x.country,22),v:x.sales,disp:money(x.sales)};}),{w:760,labelW:180}), table:table(['Country','Orders','Total sales'],rows,{num:[1,2]}), csv:'uk_5_sales_by_shipping_country'}; } },
+        chart:barChart(c.slice(0,10).map(function(x){return {label:trunc(x.country,22),v:x.sales,disp:money(x.sales)};}),{w:760,labelW:180}), table:table(['Country','Orders','Total sales'],rows,{num:[1,2]}), stage:'country', records:c, csv:'uk_5_sales_by_shipping_country'}; } },
   ];
 
   function trunc(s,n){ s=String(s||''); return s.length>n?s.slice(0,n-1)+'…':s; }
@@ -697,8 +698,35 @@
       }); });
     }
     document.body.classList.add('detailing');
+    wireDetailDrill(det);
     history.replaceState(null,'','?mkt='+MKT+'#'+id);
     window.scrollTo(0,0);
+  }
+
+  // Every detail table names the funnel stage its rows belong to, so every row
+  // can be clicked through to the next attribution step. The step itself is
+  // resolved by funnel-drill.js — one graph shared with the Revenue Analysis
+  // tab, so the two can never disagree about what follows a campaign.
+  //
+  // The handoff is deliberately conditional. The next stage for most of these
+  // dimensions (platform, campaign, product) only exists in the Revenue Analysis
+  // tab, which is added by data-analysis-extensions.js. Without that file loaded
+  // there is nowhere to send the reader, so the row opens its own record and
+  // says why, rather than looking clickable and doing nothing.
+  function wireDetailDrill(det){
+    if(!det || !det.stage || !det.records || !det.records.length) return;
+    if(!window.FunnelDrill) return;
+    var wrap=document.querySelector('#detail .tbl-wrap'); if(!wrap) return;
+    var handoff = (typeof window.__lcFunnelToRevenue==='function')
+      ? function(plan){ closeDetail(); window.__lcFunnelToRevenue(plan); }
+      : null;
+    window.FunnelDrill.attach(wrap, {
+      stage: det.stage,
+      records: det.records,
+      onDrill: handoff,
+      detailFooter: handoff ? null
+        : 'The next step for this dimension lives in the Revenue Analysis tab, which is not loaded on this view.',
+    });
   }
   function closeDetail(){ document.body.classList.remove('detailing'); history.replaceState(null,'','?mkt='+MKT); window.scrollTo(0,0); }
 
