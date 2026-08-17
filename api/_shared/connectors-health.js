@@ -157,11 +157,20 @@ async function probeSupabase() {
 // Probed by attempting the read, not by inspecting env vars — the Klaviyo
 // lesson: predicting connectivity from configuration is how the health page
 // ends up telling an operator to set a key that is already set and working.
-async function probeCatalog(mk = 'US') {
+//
+// But it must NOT force a fresh read by default. /api/connectors-health is
+// unauthenticated, and a forced read walks the Admin API (up to 12 pages) on the
+// store's token — which would let anyone drain Shopify's rate limit through the
+// health route, and would be an open bypass of the operator gate on
+// /api/catalog?op=refresh. The TTL-cached resolve is still a REAL attempt: on a
+// cold or expired cache it performs the read, so this is not env-var
+// prediction — it just cannot be used as a hammer. `fresh` is passed only when
+// the caller has already been authenticated as an operator.
+async function probeCatalog(mk = 'US', { fresh = false } = {}) {
   const base = { id: 'catalog', name: 'Live product catalog', kind: 'live-api', market: mk };
   const t = Date.now();
   try {
-    const snap = await withTimeout(catalogLive.primeCatalog(mk, { fresh: true }), 20000);
+    const snap = await withTimeout(catalogLive.primeCatalog(mk, { fresh }), 20000);
     const bypassed = catalogGate.gateMode() === 'off';
     return {
       ...base,
@@ -169,6 +178,15 @@ async function probeCatalog(mk = 'US') {
       latency_ms: Date.now() - t,
       source: snap.source || 'none',
       sample: snap.count ? `${snap.count} products from ${snap.source}` : null,
+      // Say exactly where this reading came from, so an operator is never
+      // misled about how current the verdict is. "cached-failure" in particular
+      // must not read as "we just tried and it failed" — it means a recent
+      // failure is being replayed from the negative cache.
+      read: fresh ? 'forced-fresh'
+        : snap.cache === 'hit' ? 'cached'
+          : snap.cache === 'miss-hit' ? 'cached-failure'
+            : snap.cache === 'skip' ? 'not-attempted'
+              : 'fetched',
       blocker: snap.live
         // A bypass is reported as a live defect even when the catalog IS live,
         // because it means nothing downstream is actually enforcing this.
@@ -182,9 +200,9 @@ async function probeCatalog(mk = 'US') {
   }
 }
 
-async function health({ market: mk = 'US' } = {}) {
+async function health({ market: mk = 'US', fresh = false } = {}) {
   const platforms = await Promise.all([
-    probeKlaviyo(), probeShopify(), probeCatalog(mk), probeWebengage(), probeSupabase(),
+    probeKlaviyo(), probeShopify(), probeCatalog(mk, { fresh }), probeWebengage(), probeSupabase(),
     ...AD_PLATFORMS.map((p) => probeAdPlatform(p, mk)),
   ]);
   const live = platforms.filter((p) => p.live).length;

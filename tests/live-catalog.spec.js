@@ -346,6 +346,64 @@ test.describe('the live paths do not leak the store\'s private side', () => {
     expect(catalogCase).not.toMatch(/products:\s*p\.summary === '1' \? undefined : snap\.products\b/);
   });
 
+  test('the unauthenticated health probe cannot force an Admin walk', async () => {
+    await withEnv({ LIVE_CONNECTORS: 'on', SHOPIFY_STORE_DOMAIN: 'x.myshopify.com', SHOPIFY_ADMIN_TOKEN: 't' }, async () => {
+      const { live } = freshCatalog();
+      delete require.cache[require.resolve(path.join(SHARED, 'connectors-health.js'))];
+      const healthMod = require(path.join(SHARED, 'connectors-health.js'));
+      let calls = 0;
+      const restore = stubFetch(async () => { calls++; return jsonResponse({ products: [] }); });
+      try {
+        await healthMod.probeCatalog('US');
+        const afterFirst = calls;
+        expect(afterFirst).toBeGreaterThan(0); // it really does attempt the read
+        // Ten more anonymous hits must add nothing. Without a NEGATIVE cache a
+        // failing store is re-walked on every request — a retry storm that fires
+        // precisely when the catalog is already broken.
+        for (let i = 0; i < 10; i++) await healthMod.probeCatalog('US');
+        expect(calls, 'anonymous health hits re-walked the Admin API').toBe(afterFirst);
+        // And it says the verdict came from cache rather than a live attempt.
+        const r = await healthMod.probeCatalog('US');
+        expect(r.read).toBe('cached-failure');
+        // The operator path may still force one.
+        const before = calls;
+        const forced = await healthMod.probeCatalog('US', { fresh: true });
+        expect(calls).toBeGreaterThan(before);
+        expect(forced.read).toBe('forced-fresh');
+      } finally { restore(); live.clearCache(); }
+    });
+  });
+
+  test('an unknown market costs zero outbound calls (the cache key is caller-controlled)', async () => {
+    await withEnv({ LIVE_CONNECTORS: 'on', SHOPIFY_STORE_DOMAIN: 'x.myshopify.com', SHOPIFY_ADMIN_TOKEN: 't' }, async () => {
+      const { live } = freshCatalog();
+      let calls = 0;
+      const restore = stubFetch(async () => { calls++; return jsonResponse({ products: [] }); });
+      try {
+        // Each distinct market is a distinct cache key, so without an allowlist
+        // varying ?market= turns the TTL cache from a rate limiter into an
+        // amplifier: every junk value is a fresh cold read.
+        for (const m of ['ZZ', '../etc', 'US-EVIL', 'x1', 'x2', 'x3', 'DROP TABLE']) {
+          const r = await live.resolve(m);
+          expect(r.live).toBe(false);
+          expect(r.blocker).toMatch(/Unknown market/);
+        }
+        expect(calls, 'an unknown market reached the network').toBe(0);
+        // A real market still works.
+        expect(live.isKnownMarket('uk')).toBe(true);
+        expect(live.isKnownMarket('')).toBe(true); // empty normalises to US
+      } finally { restore(); live.clearCache(); }
+    });
+  });
+
+  test('the health route only honours ?fresh=1 for an operator', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'api', 'brain.js'), 'utf8');
+    const i = src.indexOf("case 'connectors-health':");
+    const block = src.slice(i, i + 900);
+    expect(block).toMatch(/wantsFresh[\s\S]*authorize\(req\)/);
+    expect(block, 'the probe must not be handed an unauthenticated fresh:true').not.toMatch(/fresh:\s*true/);
+  });
+
   test('the public projection drops inventory, SKUs and the variant list', () => {
     // Build a row the way an Admin read would, then apply the same field list
     // the anonymous branch uses, and assert what survives.

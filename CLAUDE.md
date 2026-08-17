@@ -179,6 +179,17 @@ resolver; `tests/live-catalog.spec.js` fails the build if a seventh private load
   (never a pass-through, or `?status=draft` dumps unpublished products) and `maxPages` is clamped to 12.
   Dispatchers pass **named params, never the caller's whole query object**. Locked by
   `tests/live-catalog.spec.js`.
+- **Gating one route is not gating the capability (2026-08-17, second review round).** The catalog probe in
+  `connectors-health` passed `fresh:true`, and `/api/connectors-health` is unauthenticated — so the forced
+  Admin walk was still reachable, straight past the operator gate on `?op=refresh`. When you gate an
+  expensive capability, grep for its OTHER callers. Now `probeCatalog(mk, {fresh})` defaults to the
+  TTL-cached resolve (still a REAL attempt on a cold cache, so it is not env-var prediction) and only an
+  authenticated operator gets `?fresh=1`. Two amplifiers closed with it: **the market is the cache key and
+  is caller-controlled**, so an unknown market now costs zero outbound calls (varying `?market=` otherwise
+  mints a cold read per value); and **failures are negatively cached** (`CATALOG_MISS_TTL_SECONDS`, 60s) —
+  success-only caching meant a broken store was re-walked on every single request, a retry storm firing
+  exactly when the catalog is already down. The health row reports `read: cached | cached-failure |
+  fetched | forced-fresh | not-attempted` so a replayed failure never reads as a fresh attempt.
 - Front ends read `/api/catalog` first and fall back to the artifact **labelled**: Mailer Studio (its
   frozen inline `CAT` array — 170 products, no prices, **no handles**, so `pdpUrl()` had been *guessing*
   PDP slugs — is now a last-resort fallback behind `hydrateCatalog()`, with the source shown at Step 2),

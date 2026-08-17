@@ -86,6 +86,14 @@ const STOREFRONT_BASE = {
 // Only three regions have a static build artifact; the live paths are per market.
 const STATIC_REGION = { US: 'us', UK: 'uk', GLOBAL: 'global' };
 
+// The market is caller-controlled on every route that reaches this module, and
+// it is the CACHE KEY. Without an allowlist, varying `?market=` mints a new cold
+// cache entry per value — each one a fresh Admin walk — which turns the TTL
+// cache from a rate limiter into an amplifier. An unknown market is answered
+// without any outbound call at all.
+const KNOWN_MARKETS = new Set(Object.keys(STOREFRONT_BASE));
+function isKnownMarket(m) { return KNOWN_MARKETS.has(normMarket(m)); }
+
 function normMarket(m) {
   const s = String(m == null ? '' : m).trim().toUpperCase();
   if (!s) return 'US';
@@ -303,13 +311,28 @@ function readStatic(market) {
 
 // ── Cache + resolution ──────────────────────────────────────────────────────
 const SNAP = Object.create(null);   // market → resolved live snapshot
+const MISS = Object.create(null);   // market → recent FAILED resolution
 let INFLIGHT = Object.create(null); // market → promise, so a burst of callers makes one call
+
+// A failure has to be remembered too, or only the happy path is rate-limited.
+// With success-only caching, a store that is unreachable or misconfigured is
+// re-walked on EVERY call — so the moment the catalog is actually broken, each
+// page load and each hit on the unauthenticated health route fires a fresh Admin
+// walk. That is exactly when you least want a retry storm. Short by design: it
+// bounds the hammer without meaningfully delaying recovery once the store is back.
+const MISS_TTL_MS = Math.max(10, parseInt(process.env.CATALOG_MISS_TTL_SECONDS || '60', 10) || 60) * 1000;
 
 function cached(market) {
   const s = SNAP[normMarket(market)];
   if (!s) return null;
   if (Date.now() - s.cached_at > TTL_MS) return null;
   return s;
+}
+function cachedMiss(market) {
+  const m = MISS[normMarket(market)];
+  if (!m) return null;
+  if (Date.now() - m.cached_at > MISS_TTL_MS) return null;
+  return m;
 }
 
 /**
@@ -319,9 +342,18 @@ function cached(market) {
  */
 async function resolve(market, { fresh = false } = {}) {
   const mk = normMarket(market);
+  if (!isKnownMarket(mk)) {
+    return {
+      ok: false, live: false, market: mk, source: null, products: [], count: 0,
+      fetched_at: null, attempts: [], cache: 'skip',
+      blocker: `Unknown market "${mk}". Known markets: ${[...KNOWN_MARKETS].join(', ')}. No store read was attempted.`,
+    };
+  }
   if (!fresh) {
     const hit = cached(mk);
     if (hit) return Object.assign({}, hit, { cache: 'hit' });
+    const miss = cachedMiss(mk);
+    if (miss) return Object.assign({}, miss, { cache: 'miss-hit' });
     if (INFLIGHT[mk]) return INFLIGHT[mk];
   }
   const run = (async () => {
@@ -347,9 +379,10 @@ async function resolve(market, { fresh = false } = {}) {
       }
       attempts.push({ source: name, ok: false, blocker: r.blocker, status: r.status || null, would_request: r.would_request || null });
     }
-    // Every live path failed. Report the static artifact as what it is.
+    // Every live path failed. Report the static artifact as what it is, and
+    // remember the failure briefly so the next caller does not re-walk.
     const st = readStatic(mk);
-    return {
+    const failed = {
       ok: !!st.ok, live: false, market: mk, source: st.ok ? 'static_build' : null,
       products: st.ok ? st.products : [], count: st.ok ? st.products.length : 0,
       fetched_at: st.fetched_at || null, stale: true, stale_days: st.ok ? st.stale_days : null,
@@ -358,6 +391,8 @@ async function resolve(market, { fresh = false } = {}) {
         ? `Live catalog unavailable for ${mk}; falling back to the static build artifact from ${st.fetched_at} (${st.stale_days} day(s) old). ${attempts.map((a) => a.blocker).filter(Boolean).join(' | ')}`
         : `No catalog at all for ${mk}. ${attempts.map((a) => a.blocker).filter(Boolean).concat([st.blocker]).filter(Boolean).join(' | ')}`,
     };
+    MISS[mk] = failed;
+    return failed;
   })();
   INFLIGHT[mk] = run;
   try { return await run; } finally { delete INFLIGHT[mk]; }
@@ -412,10 +447,12 @@ function statusFor(market) {
 function clearCache(market) {
   if (market) {
     delete SNAP[normMarket(market)];
+    delete MISS[normMarket(market)];
     const r = staticRegion(market);
     if (r) delete STATIC_CACHE[r];
   } else {
     for (const k of Object.keys(SNAP)) delete SNAP[k];
+    for (const k of Object.keys(MISS)) delete MISS[k];
     for (const k of Object.keys(STATIC_CACHE)) delete STATIC_CACHE[k];
   }
   INFLIGHT = Object.create(null);
@@ -584,6 +621,6 @@ function pickProducts(market, { limit = 6, tag = null, exclude = [], opts = {} }
 module.exports = {
   primeCatalog, resolve, catalogSync, statusFor, clearCache,
   findProduct, verifySelection, pickProducts, sellable,
-  normMarket, storefrontBase, staticRegion, readStatic,
+  normMarket, isKnownMarket, KNOWN_MARKETS, storefrontBase, staticRegion, readStatic,
   fromShopifyProduct, fromStaticRow,
 };

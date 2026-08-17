@@ -667,8 +667,14 @@ module.exports = async function handler(req, res) {
         // REAL live probe of every data platform — Shopify, Klaviyo, WebEngage,
         // Supabase, Meta Ads, Google Ads and TikTok Ads. Actual round-trips,
         // honest live/blocked + the exact blocker.
+        // This route is unauthenticated, so it must never force a fresh Shopify
+        // Admin catalog walk: that would be an open bypass of the operator gate
+        // on /api/catalog?op=refresh and a way to drain the store's rate limit.
+        // Only an already-authenticated operator gets ?fresh=1.
         const health = require('./_shared/connectors-health.js');
-        return res.json(await health.health({ market: req.query.market || 'US' }));
+        const wantsFresh = req.query.fresh === '1' || req.query.fresh === 'true';
+        const fresh = wantsFresh ? (await catalogAuth.authorize(req)).ok : false;
+        return res.json(await health.health({ market: req.query.market || 'US', fresh }));
       }
       case 'webengage-report': {
         const op = (req.query.op || 'campaigns').toLowerCase();
