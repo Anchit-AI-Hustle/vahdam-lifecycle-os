@@ -1308,7 +1308,9 @@ function _catalogBadge(){
   el.textContent = c.live
     ? ('Live catalog: ' + c.count + ' products from ' + c.source)
     : ('NOT LIVE - using ' + c.source + ' (' + c.count + ' products). Prices and stock are unverified; creative generation is blocked until the store can be read.');
-  el.style.color = c.live ? '#004A2B' : '#8a1c1c';
+  // #b91c1c is the error red this page already uses; a warning state should not
+  // introduce a third one.
+  el.style.color = c.live ? '#004A2B' : '#b91c1c';
   el.style.fontWeight = c.live ? '600' : '700';
 }
 async function hydrateCatalog(market){
