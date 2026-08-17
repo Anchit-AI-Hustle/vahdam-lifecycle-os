@@ -169,6 +169,16 @@ resolver; `tests/live-catalog.spec.js` fails the build if a seventh private load
   `/api/connectors-health` reports the bypass as a live defect even when the catalog is live.
 - Route: `/api/catalog?op=products|status|refresh|verify&market=` (on the brain router — no new function).
   Health gains a `catalog` platform and a top-level `creative_blocked` flag.
+- **Read-only is not public (2026-08-17, from the PR security review).** An Admin-token-backed route left
+  open is both a disclosure and a free quota-drain vector. So: **`/api/shopify` is operator-only** (it
+  returns orders *with their customer objects*, the customer list, inventory levels and draft/archived
+  products; nothing in the front end calls it). `/api/catalog` stays anonymous because the pages need it,
+  but it **projects out Admin-only fields** — per-variant inventory, internal SKUs, the whole variant list
+  — unless the caller is an operator, and **a forced refresh (`op=refresh` / `fresh=1`) needs an operator**
+  since it walks the Admin API on demand. In the core, `status` is an allowlist defaulting to `active`
+  (never a pass-through, or `?status=draft` dumps unpublished products) and `maxPages` is clamped to 12.
+  Dispatchers pass **named params, never the caller's whole query object**. Locked by
+  `tests/live-catalog.spec.js`.
 - Front ends read `/api/catalog` first and fall back to the artifact **labelled**: Mailer Studio (its
   frozen inline `CAT` array — 170 products, no prices, **no handles**, so `pdpUrl()` had been *guessing*
   PDP slugs — is now a last-resort fallback behind `hydrateCatalog()`, with the source shown at Step 2),

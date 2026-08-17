@@ -213,9 +213,19 @@ const PRODUCT_FIELDS = [
   'published_at', 'published_scope', 'created_at', 'updated_at',
 ].join(',');
 
+// `status` reaches the Admin API, where 'draft' and 'archived' return products
+// the store has deliberately not published. It is therefore an allowlist with a
+// safe default, never a pass-through of whatever a caller supplied: a request
+// for an unrecognised status reads the live catalog, it does not read drafts.
+const PRODUCT_STATUSES = new Set(['active', 'archived', 'draft']);
+function safeStatus(v) {
+  const s = String(v == null ? '' : v).trim().toLowerCase();
+  return PRODUCT_STATUSES.has(s) ? s : 'active';
+}
+
 async function products({ market, limit = PAGE_MAX, status } = {}) {
   return read(market, 'products', 'products.json', {
-    limit: clamp(limit, PAGE_MAX), status, fields: PRODUCT_FIELDS,
+    limit: clamp(limit, PAGE_MAX), status: safeStatus(status), fields: PRODUCT_FIELDS,
   });
 }
 
@@ -225,14 +235,20 @@ async function products({ market, limit = PAGE_MAX, status } = {}) {
 // that a caller would treat as complete — a missing product reads as "we do not
 // sell that", which is exactly the kind of wrong a creative must never be.
 async function readPagedProducts(market, { status, maxPages = 12 } = {}) {
+  // maxPages bounds how much Admin quota and serverless time one call can spend.
+  // It is clamped rather than trusted: reaching this from a request handler with
+  // a caller-supplied number would let anyone walk the Admin API indefinitely,
+  // and 12 pages (3000 products) already exceeds the largest regional catalog.
+  const pageCap = Math.min(Math.max(parseInt(maxPages, 10) || 12, 1), 12);
+  const st = safeStatus(status);
   if (!isConnected(market)) {
-    return notConnected(market, 'products-paged', 'products.json', { status, fields: PRODUCT_FIELDS });
+    return notConnected(market, 'products-paged', 'products.json', { status: st, fields: PRODUCT_FIELDS });
   }
   const all = [];
-  let url = urlFor(market, 'products.json', { limit: PAGE_MAX, status, fields: PRODUCT_FIELDS });
+  let url = urlFor(market, 'products.json', { limit: PAGE_MAX, status: st, fields: PRODUCT_FIELDS });
   let pages = 0, truncated = false;
   while (url) {
-    if (pages >= maxPages) { truncated = true; break; }
+    if (pages >= pageCap) { truncated = true; break; }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 20000);
     let res;
@@ -321,7 +337,10 @@ function status(market) {
 const OPS = {
   status: async (p) => status(p.market),
   shop, orders, products, customers, inventory, summary,
-  'products-paged': (p) => readPagedProducts(p.market, p),
+  // Named params only — never the caller's whole query object. Even behind the
+  // operator gate on the route, a dispatcher that splats request parameters into
+  // a core is one refactor away from forwarding something it should not.
+  'products-paged': (p) => readPagedProducts(p.market, { status: p.status, maxPages: p.maxPages }),
   // Declared here but defined below; the object is only read at dispatch time.
   attribution: (p) => attribution(p),
 };

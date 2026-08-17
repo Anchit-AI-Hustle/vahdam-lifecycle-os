@@ -284,6 +284,95 @@ test.describe('the gate stops creative work when the catalog is not live', () =>
   });
 });
 
+test.describe('the live paths do not leak the store\'s private side', () => {
+  // Read-only is not the same as public. The Admin token can see draft and
+  // archived products, per-variant inventory counts, internal SKUs, and the
+  // customer list — and every Admin call spends store quota and serverless
+  // time. An unauthenticated route backed by that token is both a disclosure
+  // and a free quota-drain vector, so these are the boundaries that hold it in.
+
+  test('a caller cannot choose an arbitrary product status', async () => {
+    await withEnv({ LIVE_CONNECTORS: 'on' }, async () => {
+      const shopify = fresh('api/_shared/shopify-core.js');
+      // Junk, injection attempts and empty all resolve to the live catalog,
+      // never to drafts, and never straight into the Admin query string.
+      for (const bad of ['any', 'ANY', '', null, 'active,draft', 'draft%20OR%201', { evil: true }]) {
+        const r = await shopify.products({ market: 'US', status: bad });
+        expect(r.would_request.url, `status=${JSON.stringify(bad)} reached the Admin API`).toContain('status=active');
+      }
+      // The three real Shopify values are still reachable — for an operator.
+      const draft = await shopify.products({ market: 'US', status: 'draft' });
+      expect(draft.would_request.url).toContain('status=draft');
+    });
+  });
+
+  test('maxPages is clamped, so nobody can walk the Admin API indefinitely', async () => {
+    await withEnv({ LIVE_CONNECTORS: 'on', SHOPIFY_STORE_DOMAIN: 'x.myshopify.com', SHOPIFY_ADMIN_TOKEN: 't' }, async () => {
+      const shopify = fresh('api/_shared/shopify-core.js');
+      let calls = 0;
+      const restore = stubFetch(async () => {
+        calls++;
+        return {
+          ok: true, status: 200,
+          // Always advertise a next page, so only the cap can stop the walk.
+          headers: { get: (h) => (String(h).toLowerCase() === 'link' ? '<https://x.myshopify.com/next>; rel="next"' : null) },
+          json: async () => storefrontPayload(1),
+          text: async () => JSON.stringify(storefrontPayload(1)),
+        };
+      });
+      try {
+        const r = await shopify.readPagedProducts('US', { maxPages: 100000 });
+        expect(r.truncated).toBe(true);
+        expect(calls, 'the page cap did not hold').toBeLessThanOrEqual(12);
+      } finally { restore(); }
+    });
+  });
+
+  test('the dispatcher passes named params, not the caller\'s whole query', () => {
+    const src = fs.readFileSync(path.join(SHARED, 'shopify-core.js'), 'utf8');
+    // `(p) => readPagedProducts(p.market, p)` splats the request query into the
+    // core; that is what let a caller pick status and maxPages.
+    expect(src).not.toMatch(/readPagedProducts\(\s*p\.market\s*,\s*p\s*\)/);
+  });
+
+  test('the Shopify route and forced refreshes are operator-only', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'api', 'brain.js'), 'utf8');
+    const shopifyCase = src.slice(src.indexOf("case 'shopify':"), src.indexOf("case 'shopify':") + 400);
+    expect(shopifyCase, 'the shopify dispatcher must require an operator').toMatch(/requireOperator/);
+    const catalogCase = src.slice(src.indexOf("case 'catalog':"), src.indexOf("case 'catalog':") + 1600);
+    expect(catalogCase, 'a forced Admin refresh must require an operator').toMatch(/wantsFresh[\s\S]*requireOperator/);
+    // And the anonymous projection must not hand out Admin-only fields.
+    expect(catalogCase).toMatch(/const project =/);
+    expect(catalogCase).not.toMatch(/products:\s*p\.summary === '1' \? undefined : snap\.products\b/);
+  });
+
+  test('the public projection drops inventory, SKUs and the variant list', () => {
+    // Build a row the way an Admin read would, then apply the same field list
+    // the anonymous branch uses, and assert what survives.
+    const { live } = freshCatalog();
+    const row = live.fromShopifyProduct(
+      { id: 1, title: 'T', handle: 't', published_at: '2026-01-01T00:00:00Z', images: [{ src: 'https://x/i.jpg' }],
+        variants: [{ id: 2, sku: 'SECRET-SKU', price: '9.00', inventory_quantity: 41, inventory_management: 'shopify' }] },
+      { source: 'shopify_admin', market: 'US', fetchedAt: '2026-08-17T00:00:00Z' }
+    );
+    // The full in-process row legitimately holds all of it (the gate needs it).
+    expect(row.variants[0].inventory).toBe(41);
+    expect(row.sku).toBe('SECRET-SKU');
+
+    const PUBLIC = ['id', 'n', 'h', 'i', 'imgs', 't', 'price', 'compare_at', 'type', 'available', 'url', 'source', 'fetched_at'];
+    const projected = {};
+    for (const k of PUBLIC) projected[k] = row[k];
+    expect(Object.keys(projected)).not.toContain('variants');
+    expect(Object.keys(projected)).not.toContain('sku');
+    expect(JSON.stringify(projected)).not.toContain('SECRET-SKU');
+    expect(JSON.stringify(projected)).not.toContain('41');
+    // What a page actually needs still survives the projection.
+    expect(projected.n).toBe('T');
+    expect(projected.price).toBe('9.00');
+    expect(projected.i).toBe('https://x/i.jpg');
+  });
+});
+
 test.describe('every creative entry point runs the gate', () => {
   // The gate only works if the paths that spend money actually call it. A new
   // generator that forgets to is the exact regression this catches.
