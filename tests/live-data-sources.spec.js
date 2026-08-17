@@ -41,12 +41,19 @@ test('Shopify never leaks the admin token in a not_connected envelope', async ()
 });
 
 // ── Connector health: every platform visible ────────────────────────────────
-test('health probes all seven platforms, including the three ad platforms', async () => {
+test('health probes all eight platforms, including the three ad platforms and the live catalog', async () => {
   const r = await health.health({ market: 'US' });
   const ids = r.platforms.map((p) => p.id).sort();
-  expect(ids).toEqual(['google', 'klaviyo', 'meta', 'shopify', 'supabase', 'tiktok', 'webengage']);
-  expect(r.summary.total).toBe(7);
+  // `catalog` is the live product catalog (catalog-live.js). It is probed
+  // separately from `shopify` because they fail independently: the Admin API can
+  // be unreachable while the public storefront still answers, and the catalog is
+  // the one source whose absence STOPS creative generation rather than degrading it.
+  expect(ids).toEqual(['catalog', 'google', 'klaviyo', 'meta', 'shopify', 'supabase', 'tiktok', 'webengage']);
+  expect(r.summary.total).toBe(8);
   expect(r.groups.paid_media.total).toBe(3);
+  expect(r.groups.commerce.total).toBe(2);
+  // The dashboard must be able to say "creative is blocked" without re-deriving it.
+  expect(typeof r.creative_blocked).toBe('boolean');
 });
 
 test('every blocked platform states an actionable blocker, never a bare failure', async () => {

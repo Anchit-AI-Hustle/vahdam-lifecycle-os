@@ -125,6 +125,10 @@ const SM = require('./scenario-model.js');
 // Guaranteed-online fallback: a real catalog product photo (Shopify CDN) so a
 // creative never ships an unrenderable data: URI when generation/upload fails.
 const catalogImage = require('./catalog-image.js');
+// The pre-creative live-catalog check. buildCampaign awaits it before anything
+// else runs; it both blocks a stale build and primes the snapshot the
+// synchronous catalogImage reads below use.
+const catalogGate = require('./catalog-gate.js');
 let reviewRecovery = null;
 try { reviewRecovery = require('./review-recovery.js'); } catch (_) { reviewRecovery = null; }
 // Shared mailer renderer, the SAME one the Mailer Studio / Mailer Calendar use,
@@ -1332,6 +1336,43 @@ async function kickAdVideos(campaign, creatives, entry) {
 // touch the DB or change any slot's status. Both previewEntry() and approveEntry()
 // call this so a reviewer sees EXACTLY what approving will produce.
 async function buildCampaign(entry, config, { id = null, withCreatives = true, noLLM = false, scenes = false, sceneTier = 'standard', withVideo = false } = {}) {
+  // ── GATE 0 · LIVE CATALOG ─────────────────────────────────────────────────
+  // Runs before the strategy brief, before a token of copy, before the first
+  // image call. Everything below states prices, links PDPs and shows pack shots
+  // as current fact; if the catalog behind those is not the live store, the
+  // whole build is spend on output that has to be thrown away — and it will
+  // look perfect while being wrong. Blocking here is the cheapest possible
+  // failure. Passing also PRIMES the snapshot every synchronous
+  // catalogImage.imageFor() call below reads from.
+  const heroForGate = entry && entry.heroProduct
+    ? [entry.heroProduct].concat(Array.isArray(entry.supportingProducts) ? entry.supportingProducts : [])
+    : null;
+  const gate = await catalogGate.requireLiveCatalog({
+    market: entry && entry.market,
+    products: heroForGate,
+    purpose: `campaign ${entry && (entry.id || entry.date) ? `(${entry.id || entry.date})` : ''}`.trim(),
+    // A weak title match may still pick the pack shot; it may never carry a
+    // price into copy. verifySelection enforces that distinction.
+    select: { requireStock: false },
+  });
+  if (gate.blocked) {
+    return Object.assign(catalogGate.blockedResponse(gate), {
+      campaign_id: id || null,
+      calendar_entry_id: (entry && entry.id) || id || null,
+      assets: null,
+      agent_trace: [{ agent: 'Live Catalog Gate', role: 'Data Integrity', ok: false, output: { code: gate.code, blocker: gate.blocker } }],
+    });
+  }
+  const catalogStamp = catalogGate.stamp(gate);
+  const gateTrace = {
+    agent: 'Live Catalog Gate', role: 'Data Integrity', ok: !gate.bypassed,
+    output: {
+      source: gate.provenance.source, live: gate.live, products: gate.provenance.count,
+      fetched_at: gate.provenance.fetched_at, verified: (gate.products || []).map((p) => p.h),
+      warning: gate.warning || null,
+    },
+  };
+
   // Review-recovery slots are a review INVITATION, not a promo: email-only, no
   // offer, no ads/landing page, CTA to the product's own review section. Render
   // the dedicated brand-compliant template directly (no LLM promo pipeline).
@@ -1344,7 +1385,8 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
       calendar_entry_id: entry.id || id || null,
       objective: 'review_recovery',
       copywriter: { provider: 'review-recovery-template', model: null, creatives: 'catalog', frameworks: ['review-invitation'] },
-      agent_trace: [{ agent: 'Review Recovery', role: 'Lifecycle / Reputation', ok: true, output: { product: product.title, rating: entry.product_rating, threshold: reviewRecovery.THRESHOLD } }],
+      catalog: catalogStamp,
+      agent_trace: [gateTrace, { agent: 'Review Recovery', role: 'Lifecycle / Reputation', ok: true, output: { product: product.title, rating: entry.product_rating, threshold: reviewRecovery.THRESHOLD } }],
       assets: {
         email: { subject, preheader: 'Rating plus a line, before the next cup.', html, variants: null, creative: { brief: '', image: null, provider: 'catalog' } },
         ads: [],
@@ -1355,8 +1397,9 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
   const campaign = new GenerationService(config).generate(entry);
   let copyMeta = { provider: 'template-fallback', model: null, creatives: 'none' };
   // Agent pipeline trace, surfaced in the console so the reviewer sees which
-  // specialist agent produced each part of the mailer.
-  const trace = [];
+  // specialist agent produced each part of the mailer. The catalog gate is the
+  // first step shown, because it is the first step that ran.
+  const trace = [gateTrace];
   // Held outside the try so the video kick below can reach the real pack shot
   // each channel was assigned, even if a later step in the LLM path threw.
   let lastCreatives = {};
@@ -1441,6 +1484,10 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
   campaign.copywriter = copyMeta;
   campaign.agent_trace = trace;
   campaign.calendar_entry_id = entry.id || id || null;
+  // Provenance travels WITH the campaign: which catalog source backed these
+  // prices, when it was read, and whether the gate was bypassed. A reviewer and
+  // the pre-launch sync check can both read it off the stored record.
+  campaign.catalog = catalogStamp;
   attachMasterPrompts(campaign, entry);
   return campaign;
 }
@@ -1570,6 +1617,9 @@ async function previewEntry({ id, reviewer = null, config: cfg = {}, entry: inli
     campaign = await buildCampaign(effectiveEntry(entry), config, force
       ? { id, withCreatives: true, scenes: true, sceneTier: 'standard', withVideo: true }
       : { id, withCreatives: false });
+    // The live-catalog gate refused: surface the block to the reviewer instead
+    // of persisting a half-campaign with no assets.
+    if (campaign && campaign.blocked) return campaign;
     campaign.status = 'preview';
     campaign.calendar_entry_id = entry.id || id || null;
     builtFresh = true;
@@ -1657,6 +1707,9 @@ async function approveEntry({ id, reviewer = null, config: cfg = {}, entry: inli
   // Approving is the commitment to ship, so this is where paid video is worth
   // spending: real clips, scene backplates, everything the send needs.
   if (!campaign) campaign = await buildCampaign(effectiveEntry(entry), config, { id, withCreatives: true, scenes: true, sceneTier: 'standard', withVideo: true });
+  // Approval is the commitment to SHIP. A blocked build must never be approved:
+  // return the block so the slot stays unapproved and the operator sees why.
+  if (campaign && campaign.blocked) return campaign;
   const copyMeta = campaign.copywriter || { provider: 'prebuilt', model: null };
   campaign.status = 'ready_for_human_final_check';
   campaign.calendar_entry_id = entry.id || id;
@@ -1835,6 +1888,9 @@ async function landingPageHtml(id, cfg = {}, variant = null) {
 // even when providers are rate-limited: the template LP html is real catalog data.
 async function republishOrphan(db, config, entry, row, { reviewer = null, withCreatives = false, noLLM = true, scenes = false, sceneTier = 'standard', withVideo = false } = {}) {
   const rebuilt = await buildCampaign(effectiveEntry(entry), config, { id: row.generated_campaign_id, withCreatives, noLLM, scenes, sceneTier, withVideo });
+  // A blocked rebuild has no assets to republish. Leave the orphan as it is and
+  // report why, rather than overwriting a live /lp with an empty page.
+  if (rebuilt && rebuilt.blocked) return rebuilt;
   // FORCE the campaign id to the id the slot already advertises. buildCampaign mints
   // its OWN deterministic id (idFor over the current entry), which no longer matches
   // the stamped generated_campaign_id once the entry has drifted since approval — so
@@ -2044,6 +2100,10 @@ async function prebuildAssets({ config: cfg = {}, batchSize = 1, sinceDate = nul
       // leads (gpt-image-2, ~112s, stronger brief adherence). No video — these
       // are unapproved drafts and video is metered per second.
       const campaign = await buildCampaign(effectiveEntry(entry), config, { id: row.id, withCreatives: true, scenes: true, sceneTier: 'premium' });
+      // Blocked on the live catalog: do NOT mark the slot prebuilt. Leaving the
+      // marker off is what makes the queue retry this slot once the store is
+      // readable again, instead of parking a stale draft as if it were done.
+      if (campaign && campaign.blocked) throw new Error(`live catalog gate: ${campaign.blocker}`);
       campaign.status = 'prebuilt';
       campaign.calendar_entry_id = row.id;
       await persistCampaignAssets(db, config, campaign, { status: 'prebuilt', origin: 'smart-brain-prebuild', mirror: false });

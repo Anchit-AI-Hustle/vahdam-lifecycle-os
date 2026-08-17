@@ -10,23 +10,21 @@
  * problem · how-it-works · benefits · comparison · story · spotlight · guarantee ·
  * FAQ · footer. Self-contained (inline CSS), region-aware.
  */
-const fs = require('fs');
-const path = require('path');
+const catalogLive = require('./catalog-live.js');
 
 const REGION = {
-  us:     { label: 'US',     base: 'https://www.vahdam.com',        ccy: '$', file: 'products_us.json' },
-  uk:     { label: 'UK',     base: 'https://uk.vahdamteas.com',     ccy: '£', file: 'products_uk.json' },
-  global: { label: 'Global', base: 'https://www.vahdamteas.com',    ccy: '$', file: 'products_global.json' },
-  in:     { label: 'India',  base: 'https://www.vahdamindia.com',   ccy: '₹', file: null },
+  us:     { label: 'US',     base: 'https://www.vahdam.com',        ccy: '$', market: 'US' },
+  uk:     { label: 'UK',     base: 'https://uk.vahdamteas.com',     ccy: '£', market: 'UK' },
+  global: { label: 'Global', base: 'https://www.vahdamteas.com',    ccy: '$', market: 'GLOBAL' },
+  in:     { label: 'India',  base: 'https://www.vahdamindia.com',   ccy: '₹', market: 'IN' },
 };
-const _cache = {};
+// Live catalog via the shared resolver. India has no build artifact, so it used
+// to render this page with no product at all; a live storefront read gives it
+// one, and when no source answers the page still degrades to the brand block
+// rather than borrowing another region's product (and its currency).
 function catalog(region) {
   const r = REGION[region] || REGION.us;
-  if (!r.file) return [];
-  if (_cache[region]) return _cache[region];
-  try { _cache[region] = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'data', 'catalog', r.file), 'utf8')); }
-  catch (_) { _cache[region] = []; }
-  return _cache[region];
+  return catalogLive.catalogSync(r.market).products;
 }
 const e = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 

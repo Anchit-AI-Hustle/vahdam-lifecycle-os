@@ -1,61 +1,43 @@
 'use strict';
 
 /**
- * Resolve a REAL, already-hosted product image URL (Shopify CDN) from the built
+ * Resolve a REAL, already-hosted product image URL (Shopify CDN) from the
  * product catalog, by handle or title, per market. Used as the guaranteed
  * online fallback for generated creatives so an asset never has to ship an
  * unrenderable `data:` URI (email clients strip those) — if generation/upload
  * fails, we use the product's own catalog photo, which is always online.
+ *
+ * The catalog itself now comes from catalog-live.js, which reads the LIVE store
+ * (Admin, then the public storefront) and only falls back to the build artifact
+ * when neither is reachable. This module keeps its synchronous API — the
+ * template renderers that call it cannot await — by reading the snapshot that
+ * catalog-gate.js primes before any creative work starts. sourceFor() exposes
+ * which source actually answered, so a caller or test can prove a creative was
+ * built on live data rather than on a months-old CSV export.
  */
-const fs = require('fs');
-const path = require('path');
+const catalog = require('./catalog-live.js');
 
-const CACHE = {};
-function regionKey(market) {
-  const m = String(market || 'US').toLowerCase();
-  if (m.startsWith('uk')) return 'uk';
-  if (/global|eu|au|me|row|rest/.test(m)) return 'global';
-  return 'us';
-}
-function load(market) {
-  const r = regionKey(market);
-  if (CACHE[r]) return CACHE[r];
-  let arr = [];
-  try {
-    const raw = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', 'catalog', `products_${r}.json`), 'utf8'));
-    arr = Array.isArray(raw) ? raw : (raw.products || raw.items || []);
-  } catch (_) { arr = []; }
-  CACHE[r] = arr;
-  return arr;
+function load(market) { return catalog.catalogSync(market).products; }
+
+/** Provenance of the rows this module is currently serving for a market. */
+function sourceFor(market) {
+  const s = catalog.catalogSync(market);
+  return { live: s.live, source: s.source, fetched_at: s.fetched_at, count: s.count, market: s.market };
 }
 
 // Find the REAL catalog row for a handle string or entry/heroProduct-ish object.
-// Never fabricates — returns a catalog row or null.
+// Never fabricates — returns a catalog row or null. Matching (handle → sku →
+// exact title → contains → distinctive token, rarest first) lives in
+// catalog-live.findProduct so the image path and the copy path can never
+// disagree about which product a slot meant.
 function match(entryOrHandle, market) {
-  const arr = load(market);
-  if (!arr.length) return null;
-  let handle = null, title = null;
-  if (typeof entryOrHandle === 'string') { handle = entryOrHandle; title = entryOrHandle.replace(/[-_]+/g, ' '); }
-  else if (entryOrHandle && typeof entryOrHandle === 'object') {
-    const hp = entryOrHandle.heroProduct || entryOrHandle;
-    handle = hp.handle || hp.h || entryOrHandle.hero_handle || null;
-    title = hp.title || hp.n || entryOrHandle.hero_product || null;
-  }
-  let p = handle && arr.find((x) => x.h === handle);
-  if (!p && title) {
-    const t = String(title).toLowerCase();
-    p = arr.find((x) => (x.n || '').toLowerCase() === t)
-      || arr.find((x) => (x.n || '').toLowerCase().includes(t.slice(0, 18)));
-    // Keyword fallback: a handle like "turmeric-curcumin" or "green-burner" has
-    // no exact catalog row, but a distinctive token ("turmeric", "burner") does.
-    // Try the longest tokens first so the rare, specific word wins over a common
-    // one ("burner" before "green"), keeping a real match instead of a miss.
-    if (!p) {
-      const toks = t.split(/\s+/).filter((w) => w.length >= 5).sort((a, b) => b.length - a.length);
-      for (const w of toks) { p = arr.find((x) => (x.n || '').toLowerCase().includes(w)); if (p) break; }
-    }
-  }
-  return p || null;
+  const m = catalog.findProduct(entryOrHandle, market);
+  return m.product || null;
+}
+
+/** Like match(), but keeps HOW the row was found so a caller can refuse a weak hit. */
+function matchDetail(entryOrHandle, market) {
+  return catalog.findProduct(entryOrHandle, market);
 }
 
 // Return an HD variant of a Shopify CDN image by requesting a specific rendered
@@ -104,4 +86,4 @@ function handleFor(entryOrHandle, market) {
   return (p && (p.h || p.handle)) || null;
 }
 
-module.exports = { imageFor, imagesFor, handleFor, match, hd };
+module.exports = { imageFor, imagesFor, handleFor, match, matchDetail, sourceFor, load, hd };

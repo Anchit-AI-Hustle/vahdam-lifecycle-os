@@ -43,6 +43,7 @@ const scenario = require('./scenario-model.js');
 const creative = require('./creative-image.js'); // eslint-disable-line no-unused-vars
 let catalogImage = null;
 try { catalogImage = require('./catalog-image.js'); } catch (_) { catalogImage = null; }
+const catalogGate = require('./catalog-gate.js');
 const video = require('./video-core.js');
 const push = require('./social-push-core.js');
 let brandPlaceholder = null;
@@ -679,11 +680,44 @@ async function runDaily({ date, platforms, dry_run = false } = {}) {
 
   const iso = normDate(date);
   const facts = productTypes();
+  const focus = focusFor(iso, facts);
+
+  // ── GATE 0 · LIVE CATALOG ─────────────────────────────────────────────────
+  // The focus product's title, handle, price and image come out of the static
+  // data/product-types.json rotation. Posts state those as fact and link the PDP,
+  // so before a single agent runs, the product is checked against the LIVE UK
+  // catalog and its live row substituted. No live catalog, no posts: a social
+  // post is published output, and an out-of-date price or a dead PDP is public.
+  const gate = await catalogGate.requireLiveCatalog({
+    market: MARKET, products: [focus.product], purpose: 'social posts',
+    select: { requireStock: false },
+  });
+  if (gate.blocked) {
+    return Object.assign(catalogGate.blockedResponse(gate), { date: iso, market: MARKET, posts: [], trace });
+  }
+  const liveRow = (gate.products || [])[0];
+  if (liveRow) {
+    // Live values win over the rotation file's copy of them — that file is a
+    // rotation schedule, not a price list.
+    focus.product = Object.assign({}, focus.product, {
+      title: liveRow.n, handle: liveRow.h, url: liveRow.url || focus.product.url,
+      image: liveRow.i || focus.product.image,
+      price_gbp: liveRow.price != null ? liveRow.price : focus.product.price_gbp,
+      compare_at_gbp: liveRow.compare_at != null ? liveRow.compare_at : focus.product.compare_at_gbp,
+      in_stock: liveRow.available,
+    });
+  }
+  trace.push({
+    step: '0-catalog', agent: 'Live Catalog Gate', tier: 'gate', ok: !gate.bypassed, source: gate.provenance.source,
+    note: `${gate.provenance.count} live products, focus ${focus.product.handle}${gate.warning ? ` — ${gate.warning}` : ''}`,
+  });
+
   const ctx = {
-    date: iso, dry_run: dry_run === true,
-    focus: focusFor(iso, facts),
+    date: iso, dry_run: dry_run === true, market: MARKET,
+    focus,
     festival: festivalFor(iso),
     recentThemes: await recentThemes(14),
+    catalog: catalogGate.stamp(gate),
   };
   const keys = resolveKeys(platforms);
 
@@ -748,6 +782,7 @@ async function runDaily({ date, platforms, dry_run = false } = {}) {
     focus: { type: ctx.focus.type, label: ctx.focus.label, purchase_mode: ctx.focus.purchase_mode, product: ctx.focus.product },
     calendar_moment: ctx.festival ? { name: ctx.festival.name, date: ctx.festival.date, upcoming: !!ctx.festival.upcoming } : null,
     ideology, hypothesis,
+    catalog: ctx.catalog,
     strategy: strategy.per_platform,
     hero: { image_url: hero.image_url || null, image_prompt: hero.image_prompt, provider: hero.provider || null, crops: hero.crops },
     summary,

@@ -201,10 +201,69 @@ async function readPagedOrders(market, { days, status = 'any', maxPages = 20 } =
     pages, truncated, orders: all,
   };
 }
-async function products({ market, limit = PAGE_MAX } = {}) {
+// The catalog is the source of truth for CREATIVE, not just for reporting, so a
+// product read has to carry everything a mailer / ad / landing page states about
+// it: the images (a creative without the real photo falls back to a placeholder
+// or, worse, a diffusion-invented tin), the published state (an unpublished
+// product must never be promoted), and the full variant list (price,
+// compare_at, sku, inventory). The old field list had none of those.
+const PRODUCT_FIELDS = [
+  'id', 'title', 'handle', 'status', 'product_type', 'vendor', 'tags',
+  'variants', 'images', 'image', 'options',
+  'published_at', 'published_scope', 'created_at', 'updated_at',
+].join(',');
+
+async function products({ market, limit = PAGE_MAX, status } = {}) {
   return read(market, 'products', 'products.json', {
-    limit: clamp(limit, PAGE_MAX), fields: 'id,title,handle,status,product_type,tags,variants,created_at,updated_at',
+    limit: clamp(limit, PAGE_MAX), status, fields: PRODUCT_FIELDS,
   });
+}
+
+// A single page caps at 250 products and the US catalog alone is 173 today, so
+// "the whole catalog" needs the same Link-header cursor walk the order reader
+// uses. Truncation is REPORTED rather than silently returning a partial catalog
+// that a caller would treat as complete — a missing product reads as "we do not
+// sell that", which is exactly the kind of wrong a creative must never be.
+async function readPagedProducts(market, { status, maxPages = 12 } = {}) {
+  if (!isConnected(market)) {
+    return notConnected(market, 'products-paged', 'products.json', { status, fields: PRODUCT_FIELDS });
+  }
+  const all = [];
+  let url = urlFor(market, 'products.json', { limit: PAGE_MAX, status, fields: PRODUCT_FIELDS });
+  let pages = 0, truncated = false;
+  while (url) {
+    if (pages >= maxPages) { truncated = true; break; }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    let res;
+    try {
+      res = await guardedFetch(url, {
+        signal: ctrl.signal, cache: 'no-store',
+        headers: { 'X-Shopify-Access-Token': cfg(market).token, Accept: 'application/json' },
+      });
+    } finally { clearTimeout(timer); }
+    const text = await res.text();
+    let json = null;
+    try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
+    if (!res.ok) {
+      return {
+        ok: false, connected: true, platform: 'shopify', market: normMarket(market), op: 'products-paged',
+        status: res.status, error: (json && (json.errors || json.error)) || `shopify ${res.status}`,
+        hint: (res.status === 401 || res.status === 403)
+          ? 'Token rejected. read_products scope is required to read the catalog.' : null,
+      };
+    }
+    all.push(...((json && json.products) || []));
+    pages++;
+    const link = res.headers && res.headers.get && res.headers.get('link');
+    const next = link && /<([^>]+)>;\s*rel="next"/.exec(link);
+    url = next ? next[1] : null;
+  }
+  return {
+    ok: true, connected: true, platform: 'shopify', market: normMarket(market), op: 'products-paged',
+    source: `shopify_admin_${cfg(market).version}`, fetched_at: new Date().toISOString(),
+    pages, truncated, products: all,
+  };
 }
 async function customers({ market, limit = PAGE_MAX } = {}) {
   return read(market, 'customers', 'customers.json', {
@@ -262,6 +321,7 @@ function status(market) {
 const OPS = {
   status: async (p) => status(p.market),
   shop, orders, products, customers, inventory, summary,
+  'products-paged': (p) => readPagedProducts(p.market, p),
   // Declared here but defined below; the object is only read at dispatch time.
   attribution: (p) => attribution(p),
 };
@@ -465,5 +525,6 @@ async function dispatch(op, params = {}) {
 module.exports = {
   dispatch, OPS, status, isConnected, cfg, normMarket,
   shop, orders, products, customers, inventory, summary,
-  attribution, classifyOrder, orderQuality, readPagedOrders, localDate,
+  attribution, classifyOrder, orderQuality, readPagedOrders, readPagedProducts,
+  localDate, PRODUCT_FIELDS,
 };

@@ -19,6 +19,8 @@ const webengage = require('./webengage-core.js');
 const market = require('./market-analytics.js');
 const shopifyCore = require('./shopify-core.js');
 const adInsights = require('./ad-insights-core.js');
+const catalogLive = require('./catalog-live.js');
+const catalogGate = require('./catalog-gate.js');
 const { liveConnectorsEnabled } = require('./live-connectors.js');
 
 async function withTimeout(p, ms) { return Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error(`timeout ${ms}ms`)), ms))]); }
@@ -151,9 +153,38 @@ async function probeSupabase() {
   } catch (e2) { return { ...base, live: false, latency_ms: Date.now() - t, error: e2.message }; }
 }
 
+// ── Live catalog: the one connector whose absence STOPS creative work. ───────
+// Probed by attempting the read, not by inspecting env vars — the Klaviyo
+// lesson: predicting connectivity from configuration is how the health page
+// ends up telling an operator to set a key that is already set and working.
+async function probeCatalog(mk = 'US') {
+  const base = { id: 'catalog', name: 'Live product catalog', kind: 'live-api', market: mk };
+  const t = Date.now();
+  try {
+    const snap = await withTimeout(catalogLive.primeCatalog(mk, { fresh: true }), 20000);
+    const bypassed = catalogGate.gateMode() === 'off';
+    return {
+      ...base,
+      live: !!snap.live,
+      latency_ms: Date.now() - t,
+      source: snap.source || 'none',
+      sample: snap.count ? `${snap.count} products from ${snap.source}` : null,
+      blocker: snap.live
+        // A bypass is reported as a live defect even when the catalog IS live,
+        // because it means nothing downstream is actually enforcing this.
+        ? (bypassed ? 'CATALOG_GATE=off - the pre-creative live-catalog check is bypassed. Creative can ship on stale data. Unset it.' : null)
+        : snap.blocker,
+      gate: bypassed ? 'BYPASSED (CATALOG_GATE=off)' : 'enforcing',
+      blocks_creative: !snap.live && !bypassed,
+    };
+  } catch (e) {
+    return { ...base, live: false, latency_ms: Date.now() - t, error: e.message, blocks_creative: true };
+  }
+}
+
 async function health({ market: mk = 'US' } = {}) {
   const platforms = await Promise.all([
-    probeKlaviyo(), probeShopify(), probeWebengage(), probeSupabase(),
+    probeKlaviyo(), probeShopify(), probeCatalog(mk), probeWebengage(), probeSupabase(),
     ...AD_PLATFORMS.map((p) => probeAdPlatform(p, mk)),
   ]);
   const live = platforms.filter((p) => p.live).length;
@@ -169,10 +200,13 @@ async function health({ market: mk = 'US' } = {}) {
     groups: {
       paid_media: { live: byGroup(adIds).filter((p) => p.live).length, total: adIds.length },
       lifecycle: { live: byGroup(['klaviyo', 'webengage']).filter((p) => p.live).length, total: 2 },
-      commerce: { live: byGroup(['shopify']).filter((p) => p.live).length, total: 1 },
+      commerce: { live: byGroup(['shopify', 'catalog']).filter((p) => p.live).length, total: 2 },
     },
+    // Hoisted out of the platform list because it is the one condition that
+    // stops work rather than degrading it: no live catalog, no creative.
+    creative_blocked: platforms.some((p) => p.id === 'catalog' && p.blocks_creative),
     platforms,
   };
 }
 
-module.exports = { health, probeKlaviyo, probeShopify, probeWebengage, probeSupabase, probeAdPlatform, AD_PLATFORMS };
+module.exports = { health, probeKlaviyo, probeShopify, probeCatalog, probeWebengage, probeSupabase, probeAdPlatform, AD_PLATFORMS };

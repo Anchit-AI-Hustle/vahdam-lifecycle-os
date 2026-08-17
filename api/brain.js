@@ -42,6 +42,8 @@ const smartbrain = require('../lib/smart-brain/services.js');
 const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
 const shopify = require('./_shared/shopify-core.js');
+const catalogLive = require('./_shared/catalog-live.js');
+const catalogGate = require('./_shared/catalog-gate.js');
 const agentBuilder = require('./_shared/agent-builder-core.js');
 const adInsights = require('./_shared/ad-insights-core.js');
 const adsSnowflake = require('./_shared/ads-snowflake-core.js');
@@ -413,6 +415,42 @@ module.exports = async function handler(req, res) {
         const params = req.method === 'POST' ? b : Object.assign({}, req.query);
         const out = await klaviyo.dispatch(op, params);
         return res.json(out);
+      }
+
+      // ── CATALOG (THE product catalog: live from the store, one source) ──
+      // op=products  the live catalog for a market (what every surface reads)
+      // op=status    provenance only, no fetch — for a badge or a health check
+      // op=refresh   force a fresh read, bypassing the TTL cache
+      // op=verify    check a product list (or the whole gate) before creating
+      case 'catalog': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = String(p.op || 'products').toLowerCase();
+        const mk = p.market || 'US';
+        if (op === 'status') return res.json({ ok: true, ...catalogLive.statusFor(mk) });
+        if (op === 'verify') {
+          // The pre-creative check, callable on its own so a UI can show the
+          // gate verdict BEFORE the operator spends a generation.
+          const list = Array.isArray(p.products) ? p.products
+            : (p.handles ? String(p.handles).split(',').map((h) => ({ handle: h.trim() })).filter((x) => x.handle) : null);
+          const gate = await catalogGate.requireLiveCatalog({ market: mk, products: list, purpose: p.purpose || 'pre-creative check', fresh: p.fresh === '1' || p.fresh === true });
+          if (gate.blocked) return res.status(409).json(catalogGate.blockedResponse(gate));
+          return res.json({
+            ok: true, status: gate.status, live: gate.live, bypassed: !!gate.bypassed,
+            warning: gate.warning || null, catalog: gate.provenance,
+            products: (gate.products || []).map((x) => ({ handle: x.h, name: x.n, price: x.price, image: x.i, url: x.url, in_stock: x.available, matched_by: x.match_method })),
+          });
+        }
+        const snap = await catalogLive.primeCatalog(mk, { fresh: op === 'refresh' || p.fresh === '1' });
+        // A non-live catalog is served with its provenance and a 200 - callers
+        // that must not use stale data check `live`, and the creative paths run
+        // it through catalog-gate rather than reading this endpoint raw.
+        return res.json({
+          ok: !!snap.ok, live: !!snap.live, market: catalogLive.normMarket(mk),
+          source: snap.source, count: snap.count, fetched_at: snap.fetched_at,
+          stale: !snap.live, stale_days: snap.stale_days || null, truncated: !!snap.truncated,
+          blocker: snap.blocker || null, attempts: snap.attempts || [],
+          products: p.summary === '1' ? undefined : snap.products,
+        });
       }
 
       // ── SHOPIFY (live, read-only Admin reads; never mutates the store) ──

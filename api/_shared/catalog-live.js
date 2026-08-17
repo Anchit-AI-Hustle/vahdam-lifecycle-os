@@ -1,0 +1,589 @@
+'use strict';
+
+/**
+ * catalog-live.js — THE catalog. One resolver, live from the connected Shopify
+ * store, for every surface in the app.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * The catalog used to be a build artifact: `npm run build` parsed three CSV
+ * exports into data/catalog/products_{us,uk,global}.json, and six different
+ * modules each opened those files with their own private fs.readFileSync loader
+ * (jarvis, brand-llm, calendar-export, calendar-trigger, landing-fallback,
+ * catalog-image). That is a photograph of the store taken on the day someone
+ * last exported a CSV. Every price, every compare-at, every in-stock flag, every
+ * product that has since been added, renamed, unpublished or sold out was
+ * asserted to customers as current fact. A creative built on it can promise a
+ * price the store does not charge and link a PDP the store no longer serves —
+ * the exact fabrication the master spec forbids, laundered through a file that
+ * looks authoritative because it ships in the repo.
+ *
+ * So: the catalog is FETCHED, not built. Two live paths, in order:
+ *
+ *   1. shopify_admin      — Admin REST products.json, paged, read-only. Carries
+ *                           status/published_at/variants/inventory, so it can
+ *                           tell an unpublished draft from a live product.
+ *                           Needs SHOPIFY_ADMIN_TOKEN + LIVE_CONNECTORS=on.
+ *   2. shopify_storefront — the store's own public /products.json. Same store,
+ *                           same data, no credential. Lists only published
+ *                           products, which is what a creative may promote
+ *                           anyway. This is the path that works today.
+ *
+ * and one NON-live path, which is never allowed to masquerade as the others:
+ *
+ *   3. static_build       — data/catalog/products_<region>.json, returned with
+ *                           live:false + stale:true + an age in days. Read-only
+ *                           surfaces may render it (labelled). Creative may not:
+ *                           see catalog-gate.js, which blocks on live:false.
+ *
+ * NO FABRICATION: with every path unavailable this returns products:[] and a
+ * blocker naming the exact request that failed. It never invents a product,
+ * price, image or handle, and never substitutes another region's catalog for a
+ * missing one (a UK mailer quoting US prices in dollars is the same lie in a
+ * different currency).
+ *
+ * SYNC READERS: most of the creative pipeline reads the catalog synchronously
+ * (catalogImage.imageFor(...) inside template rendering). Those callers cannot
+ * await. So the flow is prime-then-read: catalog-gate.js awaits primeCatalog()
+ * BEFORE any generation starts, which parks the live snapshot in this module's
+ * cache; the sync readers then hit that snapshot. If nothing primed it, a sync
+ * read falls back to the static file AND says so via `live:false` — it does not
+ * pretend, and the gate has already stopped creative work by then.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { guardedFetch } = require('./read-only-egress.js');
+const { liveConnectorsEnabled } = require('./live-connectors.js');
+const shopify = require('./shopify-core.js');
+
+// Reuse the exact categorization the CSV build and the storefront scraper use,
+// so a product's tags do not change meaning depending on which path read it.
+let deriveTags;
+try { ({ deriveTags } = require('../../scripts/build-catalog.js')); } catch (_) { deriveTags = null; }
+function tagsFor(tags, type, title) {
+  if (typeof deriveTags === 'function') {
+    try {
+      const t = deriveTags(Array.isArray(tags) ? tags.join(', ') : (tags || ''), type || '', title || '');
+      if (Array.isArray(t) && t.length) return t;
+    } catch (_) { /* fall through to the neutral tag */ }
+  }
+  return ['general'];
+}
+
+// ── Markets ─────────────────────────────────────────────────────────────────
+// Storefront bases are the VERIFIED per-market store URLs (CLAUDE.md). Each is
+// overridable per market by env so a store move needs no code change.
+const STOREFRONT_BASE = {
+  US: 'https://www.vahdamteas.com',
+  UK: 'https://uk.vahdamteas.com',
+  IN: 'https://www.vahdamindia.com',
+  EU: 'https://eu.vahdamteas.com',
+  AU: 'https://au.vahdamteas.com',
+  ME: 'https://www.vahdamteas.com',
+  GLOBAL: 'https://www.vahdamteas.com',
+};
+// Only three regions have a static build artifact; the live paths are per market.
+const STATIC_REGION = { US: 'us', UK: 'uk', GLOBAL: 'global' };
+
+function normMarket(m) {
+  const s = String(m == null ? '' : m).trim().toUpperCase();
+  if (!s) return 'US';
+  if (['US', 'USA', 'UNITED STATES', 'AMERICA'].includes(s)) return 'US';
+  if (['UK', 'GB', 'GBR', 'UNITED KINGDOM', 'BRITAIN', 'ENGLAND'].includes(s)) return 'UK';
+  if (['IN', 'IND', 'INDIA'].includes(s)) return 'IN';
+  if (['EU', 'EUROPE'].includes(s)) return 'EU';
+  if (['AU', 'AUS', 'AUSTRALIA'].includes(s)) return 'AU';
+  if (['ME', 'MIDDLE EAST', 'UAE'].includes(s)) return 'ME';
+  if (['GLOBAL', 'ROW', 'REST OF WORLD', 'INTERNATIONAL', 'WORLD'].includes(s)) return 'GLOBAL';
+  return s;
+}
+function storefrontBase(market) {
+  const mk = normMarket(market);
+  const override = String(process.env[`SHOPIFY_STOREFRONT_BASE_${mk}`] || '').trim();
+  if (override) return override.replace(/\/+$/, '');
+  return STOREFRONT_BASE[mk] || null;
+}
+// The static artifact exists for us/uk/global only. A market with no artifact of
+// its own gets NOTHING rather than another market's file — cross-region reuse of
+// prices, URLs and assets is forbidden by the master spec.
+function staticRegion(market) { return STATIC_REGION[normMarket(market)] || null; }
+
+const TTL_MS = Math.max(30, parseInt(process.env.CATALOG_TTL_SECONDS || '300', 10) || 300) * 1000;
+
+// ── Normalizers ─────────────────────────────────────────────────────────────
+// All three paths converge on ONE shape, a superset of the compact shape the
+// app already uses (n / i / imgs / t / h / price / compare_at / type), so every
+// existing reader keeps working while gaining the live-only fields.
+const money = (v) => (v == null || v === '' ? null : String(v));
+const httpUrl = (u) => (typeof u === 'string' && /^https?:\/\//.test(u) ? u : null);
+
+function normalizeVariants(list) {
+  return (Array.isArray(list) ? list : []).map((v) => ({
+    id: v.id != null ? String(v.id) : null,
+    sku: v.sku ? String(v.sku).trim() : null,
+    title: v.title || null,
+    price: money(v.price),
+    compare_at: money(v.compare_at_price) && String(v.compare_at_price) !== String(v.price) ? money(v.compare_at_price) : null,
+    // Admin gives inventory_quantity; the storefront gives a boolean `available`.
+    // Keep both notions distinct rather than inventing a count from a boolean.
+    available: typeof v.available === 'boolean' ? v.available
+      : (v.inventory_management == null ? true : Number(v.inventory_quantity) > 0),
+    inventory: Number.isFinite(Number(v.inventory_quantity)) ? Number(v.inventory_quantity) : null,
+  }));
+}
+
+function fromShopifyProduct(p, { source, market, fetchedAt }) {
+  const variants = normalizeVariants(p.variants);
+  const first = variants[0] || {};
+  const imgs = [];
+  const seen = new Set();
+  for (const im of (Array.isArray(p.images) ? p.images : [])) {
+    const u = httpUrl(im && (im.src || im.url));
+    if (u && !seen.has(u)) { seen.add(u); imgs.push(u); }
+  }
+  const primary = httpUrl(p.image && (p.image.src || p.image.url)) || imgs[0] || '';
+  if (primary && !seen.has(primary)) imgs.unshift(primary);
+
+  const status = String(p.status || '').toLowerCase() || null;
+  // The storefront endpoint only ever returns published products, so absence of
+  // published_at there means "the field was not sent", not "unpublished".
+  const published = source === 'shopify_storefront' ? true : !!p.published_at;
+
+  const out = {
+    id: p.id != null ? String(p.id) : null,
+    n: String(p.title || '').trim(),
+    h: String(p.handle || '').trim(),
+    i: primary,
+    imgs: imgs.slice(0, 10),
+    t: tagsFor(p.tags, p.product_type, p.title),
+    price: first.price || null,
+    compare_at: first.compare_at || null,
+    type: p.product_type || null,
+    vendor: p.vendor || null,
+    sku: first.sku || null,
+    available: variants.some((v) => v.available),
+    variants,
+    status: status || (source === 'shopify_storefront' ? 'active' : null),
+    published,
+    published_at: p.published_at || null,
+    updated_at: p.updated_at || null,
+    url: `${storefrontBase(market) || ''}/products/${String(p.handle || '').trim()}`,
+    source,
+    fetched_at: fetchedAt,
+  };
+  return out;
+}
+
+// The static rows are already in the compact shape; stamp provenance on them so
+// a downstream reader can never mistake one for a live row.
+function fromStaticRow(row, { market, fetchedAt, ageDays }) {
+  const imgs = Array.isArray(row.imgs) && row.imgs.length ? row.imgs.filter(httpUrl) : (httpUrl(row.i) ? [row.i] : []);
+  return Object.assign({}, row, {
+    imgs,
+    t: Array.isArray(row.t) && row.t.length ? row.t : ['general'],
+    url: row.url || `${storefrontBase(market) || ''}/products/${row.h || ''}`,
+    // Deliberately NOT defaulted to true: the CSV export has no availability
+    // column, so "in stock" is unknown here, and unknown must not read as yes.
+    available: typeof row.available === 'boolean' ? row.available : null,
+    published: null,
+    status: row.status || null,
+    source: 'static_build',
+    fetched_at: fetchedAt,
+    stale: true,
+    stale_days: ageDays,
+  });
+}
+
+function usable(p) { return !!(p && p.n && p.h); }
+
+// ── Fetchers ────────────────────────────────────────────────────────────────
+async function fetchAdmin(market) {
+  const r = await shopify.readPagedProducts(market, { maxPages: 12 });
+  if (!r || !r.ok) {
+    return {
+      ok: false, source: 'shopify_admin',
+      blocker: (r && (r.blocker || r.error)) || 'Shopify Admin products read failed.',
+      would_request: r && r.would_request ? r.would_request : null,
+      status: r && r.status ? r.status : null,
+    };
+  }
+  const fetchedAt = r.fetched_at || new Date().toISOString();
+  const products = (r.products || [])
+    .map((p) => fromShopifyProduct(p, { source: 'shopify_admin', market, fetchedAt }))
+    // Only sellable products may reach a creative: a draft/archived or
+    // unpublished product has no live PDP to send a click to.
+    .filter((p) => usable(p) && p.status === 'active' && p.published);
+  return { ok: true, source: 'shopify_admin', products, fetched_at: fetchedAt, truncated: !!r.truncated, pages: r.pages };
+}
+
+async function fetchStorefront(market, { timeoutMs = 15000 } = {}) {
+  const base = storefrontBase(market);
+  const url = base ? `${base}/products.json?limit=250&page=1` : null;
+  if (!base) {
+    return { ok: false, source: 'shopify_storefront', blocker: `No storefront base is configured for market ${normMarket(market)}. Set SHOPIFY_STOREFRONT_BASE_${normMarket(market)}.` };
+  }
+  if (!liveConnectorsEnabled()) {
+    // The kill switch is absolute: an unauthenticated public read is still an
+    // outbound live connection, and a switch one connector ignores is worse than
+    // no switch (see tests/kill-switch.spec.js).
+    return {
+      ok: false, source: 'shopify_storefront',
+      blocker: 'Live connectors are disabled - set LIVE_CONNECTORS=on to allow the live catalog read.',
+      would_request: { method: 'GET', url },
+    };
+  }
+  const raw = [];
+  const fetchedAt = new Date().toISOString();
+  for (let page = 1; page <= 6; page++) {
+    const pageUrl = `${base}/products.json?limit=250&page=${page}`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let res;
+    try {
+      res = await guardedFetch(pageUrl, {
+        signal: ctrl.signal, cache: 'no-store',
+        headers: { Accept: 'application/json', 'User-Agent': 'vahdam-lifecycle-os/catalog-live' },
+      });
+    } catch (e) {
+      if (e && e.read_only_blocked) throw e;
+      return { ok: false, source: 'shopify_storefront', blocker: `Storefront read failed: ${e.message}`, would_request: { method: 'GET', url: pageUrl } };
+    } finally { clearTimeout(timer); }
+    if (!res.ok) {
+      return { ok: false, source: 'shopify_storefront', blocker: `Storefront read returned HTTP ${res.status} for ${pageUrl}`, status: res.status, would_request: { method: 'GET', url: pageUrl } };
+    }
+    let body = null;
+    try { body = await res.json(); } catch (_) { body = null; }
+    const list = (body && body.products) || [];
+    if (!list.length) break;
+    raw.push(...list);
+    if (list.length < 250) break;
+  }
+  const products = raw
+    .map((p) => fromShopifyProduct(p, { source: 'shopify_storefront', market, fetchedAt }))
+    .filter(usable);
+  if (!products.length) {
+    return { ok: false, source: 'shopify_storefront', blocker: `Storefront ${base}/products.json returned no products.`, would_request: { method: 'GET', url } };
+  }
+  return { ok: true, source: 'shopify_storefront', products, fetched_at: fetchedAt };
+}
+
+// Parsed once per region and held. The sync accessor is called dozens of times
+// while a single mailer renders (one per image lookup), and re-reading a 200KB
+// JSON file each time would turn a template render into disk-bound work.
+const STATIC_CACHE = Object.create(null);
+
+function readStatic(market) {
+  const region = staticRegion(market);
+  if (!region) {
+    return { ok: false, source: 'static_build', blocker: `No catalog artifact exists for market ${normMarket(market)} (only us/uk/global are built), and another region's catalog must never be substituted.` };
+  }
+  if (STATIC_CACHE[region]) return STATIC_CACHE[region];
+  const file = path.join(process.cwd(), 'data', 'catalog', `products_${region}.json`);
+  const alt = path.join(__dirname, '..', '..', 'data', 'catalog', `products_${region}.json`);
+  const p = fs.existsSync(file) ? file : alt;
+  let raw, mtime;
+  try {
+    raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+    mtime = fs.statSync(p).mtime;
+  } catch (e) {
+    // NOT cached: a missing artifact on a cold boot may simply mean the build
+    // has not written it yet, and caching the miss would make that permanent.
+    return { ok: false, source: 'static_build', blocker: `Static catalog products_${region}.json is unreadable: ${e.message}` };
+  }
+  const arr = Array.isArray(raw) ? raw : (raw.products || raw.items || []);
+  const fetchedAt = (mtime instanceof Date ? mtime : new Date()).toISOString();
+  const ageDays = Math.max(0, Math.round((Date.now() - new Date(fetchedAt).getTime()) / 86400000));
+  STATIC_CACHE[region] = {
+    ok: true, source: 'static_build', stale: true, stale_days: ageDays, fetched_at: fetchedAt,
+    products: arr.filter(usable).map((row) => fromStaticRow(row, { market, fetchedAt, ageDays })),
+  };
+  return STATIC_CACHE[region];
+}
+
+// ── Cache + resolution ──────────────────────────────────────────────────────
+const SNAP = Object.create(null);   // market → resolved live snapshot
+let INFLIGHT = Object.create(null); // market → promise, so a burst of callers makes one call
+
+function cached(market) {
+  const s = SNAP[normMarket(market)];
+  if (!s) return null;
+  if (Date.now() - s.cached_at > TTL_MS) return null;
+  return s;
+}
+
+/**
+ * resolve() — try each live path in order, then report. Never throws for a
+ * missing credential; `attempts` records why each path was skipped or failed so
+ * the operator is pointed at the ONE thing that is actually broken.
+ */
+async function resolve(market, { fresh = false } = {}) {
+  const mk = normMarket(market);
+  if (!fresh) {
+    const hit = cached(mk);
+    if (hit) return Object.assign({}, hit, { cache: 'hit' });
+    if (INFLIGHT[mk]) return INFLIGHT[mk];
+  }
+  const run = (async () => {
+    const attempts = [];
+    for (const [name, fn] of [['shopify_admin', fetchAdmin], ['shopify_storefront', fetchStorefront]]) {
+      if (name === 'shopify_admin' && !shopify.isConnected(mk)) {
+        attempts.push({ source: name, ok: false, blocker: shopify.status(mk).blocker });
+        continue;
+      }
+      let r;
+      try { r = await fn(mk); } catch (e) {
+        if (e && e.read_only_blocked) throw e;
+        r = { ok: false, source: name, blocker: e.message };
+      }
+      if (r.ok && r.products.length) {
+        const snap = {
+          ok: true, live: true, market: mk, source: r.source, products: r.products,
+          count: r.products.length, fetched_at: r.fetched_at, truncated: !!r.truncated,
+          attempts, cached_at: Date.now(), blocker: null,
+        };
+        SNAP[mk] = snap;
+        return Object.assign({}, snap, { cache: 'miss' });
+      }
+      attempts.push({ source: name, ok: false, blocker: r.blocker, status: r.status || null, would_request: r.would_request || null });
+    }
+    // Every live path failed. Report the static artifact as what it is.
+    const st = readStatic(mk);
+    return {
+      ok: !!st.ok, live: false, market: mk, source: st.ok ? 'static_build' : null,
+      products: st.ok ? st.products : [], count: st.ok ? st.products.length : 0,
+      fetched_at: st.fetched_at || null, stale: true, stale_days: st.ok ? st.stale_days : null,
+      attempts, cached_at: Date.now(), cache: 'miss',
+      blocker: st.ok
+        ? `Live catalog unavailable for ${mk}; falling back to the static build artifact from ${st.fetched_at} (${st.stale_days} day(s) old). ${attempts.map((a) => a.blocker).filter(Boolean).join(' | ')}`
+        : `No catalog at all for ${mk}. ${attempts.map((a) => a.blocker).filter(Boolean).concat([st.blocker]).filter(Boolean).join(' | ')}`,
+    };
+  })();
+  INFLIGHT[mk] = run;
+  try { return await run; } finally { delete INFLIGHT[mk]; }
+}
+
+/**
+ * primeCatalog() — resolve and park a LIVE snapshot for the sync readers.
+ * This is what catalog-gate.js awaits before any creative work begins.
+ */
+async function primeCatalog(market, opts = {}) { return resolve(market, opts); }
+
+/**
+ * catalogSync() — the synchronous accessor every in-template reader uses.
+ * Returns the primed live snapshot when there is one, otherwise the static
+ * artifact, ALWAYS labelled with which. Never fetches (it cannot: it is sync).
+ */
+function catalogSync(market) {
+  const mk = normMarket(market);
+  const hit = SNAP[mk];
+  if (hit && hit.products.length) {
+    return {
+      products: hit.products, live: true, source: hit.source, market: mk,
+      fetched_at: hit.fetched_at, count: hit.products.length, stale: false,
+    };
+  }
+  const st = readStatic(mk);
+  return {
+    products: st.ok ? st.products : [], live: false, source: st.ok ? 'static_build' : null,
+    market: mk, fetched_at: st.fetched_at || null, count: st.ok ? st.products.length : 0,
+    stale: true, stale_days: st.ok ? st.stale_days : null, blocker: st.blocker || null,
+  };
+}
+
+/** Provenance without fetching — safe to call from a health probe or a UI badge. */
+function statusFor(market) {
+  const mk = normMarket(market);
+  const hit = SNAP[mk];
+  return {
+    market: mk,
+    live: !!(hit && hit.products.length),
+    source: hit ? hit.source : null,
+    count: hit ? hit.count : 0,
+    fetched_at: hit ? hit.fetched_at : null,
+    age_seconds: hit ? Math.round((Date.now() - hit.cached_at) / 1000) : null,
+    ttl_seconds: Math.round(TTL_MS / 1000),
+    admin_connected: shopify.isConnected(mk),
+    storefront_base: storefrontBase(mk),
+    live_connectors: liveConnectorsEnabled(),
+  };
+}
+
+function clearCache(market) {
+  if (market) {
+    delete SNAP[normMarket(market)];
+    const r = staticRegion(market);
+    if (r) delete STATIC_CACHE[r];
+  } else {
+    for (const k of Object.keys(SNAP)) delete SNAP[k];
+    for (const k of Object.keys(STATIC_CACHE)) delete STATIC_CACHE[k];
+  }
+  INFLIGHT = Object.create(null);
+}
+
+// ── Product selection ───────────────────────────────────────────────────────
+// Selecting the WRONG product is as damaging as inventing one: the mailer shows
+// a tin the copy does not describe, at a price that belongs to something else,
+// linking a PDP the reader did not click for. So every match records HOW it was
+// made and how confident that is, and a weak match is reported as weak rather
+// than being quietly promoted to a fact.
+const STOP = new Set([
+  'tea', 'teas', 'chai', 'the', 'and', 'with', 'for', 'vahdam', 'blend', 'blends',
+  'organic', 'loose', 'leaf', 'green', 'black', 'herbal', 'wellness', 'spiced',
+  'masala', 'gift', 'set', 'pack', 'box', 'bags', 'premium', 'pure', 'collection',
+]);
+const norm = (s) => String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+function queryOf(q) {
+  if (q == null) return {};
+  if (typeof q === 'string') return { handle: q, title: q.replace(/[-_]+/g, ' ') };
+  const hp = q.heroProduct || q;
+  return {
+    id: hp.id != null ? String(hp.id) : null,
+    handle: hp.handle || hp.h || q.hero_handle || null,
+    sku: hp.sku || q.sku || null,
+    title: hp.title || hp.n || hp.name || q.hero_product || null,
+  };
+}
+
+/**
+ * findProduct() — resolve one product against the live catalog for a market.
+ * Returns { product, match_method, confidence, ambiguous, candidates } or a
+ * null product with a reason. NEVER returns a product from another market.
+ *
+ * confidence: 'exact'  — id, handle, or SKU matched, or the full title did
+ *             'strong' — normalized title matched exactly
+ *             'weak'   — matched only on a distinctive token; usable for a
+ *                        thumbnail, NOT for a priced claim (the gate rejects it)
+ */
+function findProduct(query, market, { products = null } = {}) {
+  const cat = products || catalogSync(market).products;
+  const q = queryOf(query);
+  if (!cat.length) return { product: null, match_method: null, confidence: null, reason: 'catalog empty' };
+
+  if (q.id) {
+    const hit = cat.find((p) => p.id && p.id === String(q.id));
+    if (hit) return { product: hit, match_method: 'id', confidence: 'exact' };
+  }
+  if (q.handle) {
+    const h = String(q.handle).trim().toLowerCase();
+    const hit = cat.find((p) => (p.h || '').toLowerCase() === h);
+    if (hit) return { product: hit, match_method: 'handle', confidence: 'exact' };
+  }
+  if (q.sku) {
+    const s = String(q.sku).trim().toLowerCase();
+    const hit = cat.find((p) => (p.sku && p.sku.toLowerCase() === s)
+      || (p.variants || []).some((v) => v.sku && v.sku.toLowerCase() === s));
+    if (hit) return { product: hit, match_method: 'sku', confidence: 'exact' };
+  }
+  if (q.title) {
+    const t = norm(q.title);
+    if (t) {
+      const exact = cat.find((p) => norm(p.n) === t);
+      if (exact) return { product: exact, match_method: 'title', confidence: 'exact' };
+      const contains = cat.filter((p) => norm(p.n).includes(t) || t.includes(norm(p.n)));
+      if (contains.length === 1) return { product: contains[0], match_method: 'title-contains', confidence: 'strong' };
+      if (contains.length > 1) {
+        return {
+          product: contains[0], match_method: 'title-contains', confidence: 'weak', ambiguous: true,
+          candidates: contains.slice(0, 5).map((p) => ({ n: p.n, h: p.h })),
+          reason: `${contains.length} products match "${q.title}" by title`,
+        };
+      }
+      // Token fallback, rarest token first so "burner" beats "green".
+      const toks = t.split(' ').filter((w) => w.length >= 5 && !STOP.has(w)).sort((a, b) => b.length - a.length);
+      for (const w of toks) {
+        const hits = cat.filter((p) => norm(p.n).includes(w));
+        if (hits.length === 1) return { product: hits[0], match_method: `token:${w}`, confidence: 'weak' };
+        if (hits.length > 1) {
+          return {
+            product: hits[0], match_method: `token:${w}`, confidence: 'weak', ambiguous: true,
+            candidates: hits.slice(0, 5).map((p) => ({ n: p.n, h: p.h })),
+            reason: `${hits.length} products contain "${w}"`,
+          };
+        }
+      }
+    }
+  }
+  return {
+    product: null, match_method: null, confidence: null,
+    reason: `no product in the ${normMarket(market)} catalog matches ${JSON.stringify(q.handle || q.title || q.sku || q.id || '')}`,
+  };
+}
+
+/**
+ * sellable() — is this product fit to be promoted right now? Each failure is
+ * named, because "do not use this product" and "use it but omit the price" are
+ * different instructions to a generator.
+ */
+function sellable(p, { requireImage = true, requirePrice = true, requireStock = true } = {}) {
+  const problems = [];
+  if (!p) return { ok: false, problems: ['product not found'] };
+  if (p.status && p.status !== 'active') problems.push(`status=${p.status}`);
+  if (p.published === false) problems.push('not published');
+  if (requirePrice && !p.price) problems.push('no price');
+  if (requireImage && !httpUrl(p.i)) problems.push('no image');
+  // available === null means the source could not tell us (the CSV artifact has
+  // no stock column). Unknown is not the same as out of stock, and is not the
+  // same as in stock either — it is reported, and the gate treats a non-live
+  // source as blocking anyway.
+  if (requireStock && p.available === false) problems.push('out of stock');
+  return { ok: problems.length === 0, problems, stock_unknown: p.available == null };
+}
+
+/**
+ * verifySelection() — check a list of products a caller intends to put in a
+ * creative against the live catalog. Returns the verified rows (with live
+ * price/image/url substituted for whatever the caller carried) plus the
+ * rejects, each with a reason. This is what stops a stale price from a cached
+ * plan reaching a mailer even when the catalog itself is live.
+ */
+function verifySelection(list, market, opts = {}) {
+  const snap = catalogSync(market);
+  const verified = [];
+  const rejected = [];
+  for (const item of (Array.isArray(list) ? list : [])) {
+    const m = findProduct(item, market, { products: snap.products });
+    if (!m.product) { rejected.push({ input: queryOf(item), reason: m.reason || 'not found in live catalog' }); continue; }
+    const fit = sellable(m.product, opts);
+    // A weak (token) match may not carry a price into copy — that is how a
+    // "green tea" request ends up quoting the price of a different green tea.
+    if (m.confidence === 'weak' && opts.strict !== false) {
+      rejected.push({
+        input: queryOf(item), reason: `match too weak to price (${m.match_method}${m.ambiguous ? ', ambiguous' : ''})`,
+        candidates: m.candidates || [{ n: m.product.n, h: m.product.h }],
+      });
+      continue;
+    }
+    if (!fit.ok) { rejected.push({ input: queryOf(item), matched: { n: m.product.n, h: m.product.h }, reason: fit.problems.join(', ') }); continue; }
+    verified.push(Object.assign({}, m.product, { match_method: m.match_method, match_confidence: m.confidence }));
+  }
+  return {
+    live: snap.live, source: snap.source, market: normMarket(market),
+    fetched_at: snap.fetched_at, verified, rejected,
+    all_verified: rejected.length === 0 && verified.length > 0,
+  };
+}
+
+/**
+ * pickProducts() — choose N sellable products for a creative when the caller
+ * has no explicit list. Deterministic (sorted by handle) so the same slot does
+ * not silently change product between a preview and the approved send.
+ */
+function pickProducts(market, { limit = 6, tag = null, exclude = [], opts = {} } = {}) {
+  const snap = catalogSync(market);
+  const skip = new Set((exclude || []).map((h) => String(h).toLowerCase()));
+  const pool = snap.products
+    .filter((p) => sellable(p, opts).ok)
+    .filter((p) => !skip.has((p.h || '').toLowerCase()))
+    .filter((p) => !tag || (p.t || []).includes(tag))
+    .sort((a, b) => (a.h < b.h ? -1 : a.h > b.h ? 1 : 0));
+  return { live: snap.live, source: snap.source, fetched_at: snap.fetched_at, products: pool.slice(0, limit), pool_size: pool.length };
+}
+
+module.exports = {
+  primeCatalog, resolve, catalogSync, statusFor, clearCache,
+  findProduct, verifySelection, pickProducts, sellable,
+  normMarket, storefrontBase, staticRegion, readStatic,
+  fromShopifyProduct, fromStaticRow,
+};

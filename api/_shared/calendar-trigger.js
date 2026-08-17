@@ -18,8 +18,7 @@
 const llm = require('../_shared/llm.js');
 const { buildMasterPrompt } = require('../_shared/master-prompt.js');
 const CF = require('../_shared/copy-frameworks.js');
-const fs = require('fs');
-const path = require('path');
+const catalogLive = require('../_shared/catalog-live.js');
 
 // ─── VAHDAM store URLs (verified per CLAUDE.md) ─────────────────────────────
 function regionBase(market) {
@@ -45,22 +44,19 @@ function slugify(s) {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-// Best-effort SKU→handle lookup from the built catalog (data/catalog/products_<region>.json).
-const _catalogCache = {};
+// SKU→handle lookup against the LIVE catalog (catalog-live.js: Shopify Admin,
+// then the public storefront, then the build artifact).
+//
+// This used to read data/catalog/products_<region>.json with its own region map
+// that spelled the US region "usa" — a file that has never existed, since the
+// build writes products_us.json. Every US SKU lookup therefore returned null and
+// fell through to a slugified guess at the handle. Routing through the shared
+// resolver fixes the region name and gets live SKUs at the same time: a SKU
+// added since the last CSV export is now findable instead of being guessed at.
 function lookupHandle(market, sku) {
   if (!sku) return null;
-  const region = ({ US: 'usa', UK: 'uk' })[String(market || '').toUpperCase()] || 'global';
-  if (!(region in _catalogCache)) {
-    _catalogCache[region] = null;
-    try {
-      const p = path.join(__dirname, '..', '..', 'data', 'catalog', `products_${region}.json`);
-      if (fs.existsSync(p)) _catalogCache[region] = JSON.parse(fs.readFileSync(p, 'utf8'));
-    } catch { /* ignore */ }
-  }
-  const cat = _catalogCache[region];
-  if (!Array.isArray(cat)) return null;
-  const hit = cat.find((p) => (p.sku || p.variant_sku) === sku || p.s === sku);
-  return hit ? (hit.h || hit.handle || null) : null;
+  const m = catalogLive.findProduct({ sku }, market);
+  return (m.product && m.product.h) || null;
 }
 
 // Map a content type / festival to a sensible collection slug.

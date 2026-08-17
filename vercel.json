@@ -365,6 +365,10 @@
       "destination": "/api/brain?action=shopify"
     },
     {
+      "source": "/api/catalog",
+      "destination": "/api/brain?action=catalog"
+    },
+    {
       "source": "/api/connectors-health",
       "destination": "/api/brain?action=connectors-health"
     },
