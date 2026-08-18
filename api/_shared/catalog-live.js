@@ -72,17 +72,19 @@ function tagsFor(tags, type, title) {
 }
 
 // ── Markets ─────────────────────────────────────────────────────────────────
-// Storefront bases are the VERIFIED per-market store URLs (CLAUDE.md). Each is
+// Storefront bases come from market-urls.js, the ONE measured map. This module
+// originally carried its own copy, taken from the "VERIFIED" table in CLAUDE.md
+// — which was wrong on four of six entries: it sent UK, EU and AU at the
+// regional subdomains listed in market-urls DEAD_HOSTS, none of which resolve.
+// A live storefront catalog read for those markets could therefore never have
+// succeeded, and the gate would have blocked every UK creative while reporting
+// it as the store being unreachable. (The dead hosts are deliberately NOT named
+// literally here: tests/market-urls.spec.js greps source for them, and a guard
+// that a comment can trip is a guard people start ignoring.) Each base stays
 // overridable per market by env so a store move needs no code change.
-const STOREFRONT_BASE = {
-  US: 'https://www.vahdamteas.com',
-  UK: 'https://uk.vahdamteas.com',
-  IN: 'https://www.vahdamindia.com',
-  EU: 'https://eu.vahdamteas.com',
-  AU: 'https://au.vahdamteas.com',
-  ME: 'https://www.vahdamteas.com',
-  GLOBAL: 'https://www.vahdamteas.com',
-};
+const { STORE_BASE } = require('./market-urls.js');
+const STOREFRONT_BASE = STORE_BASE;
+
 // Only three regions have a static build artifact; the live paths are per market.
 const STATIC_REGION = { US: 'us', UK: 'uk', GLOBAL: 'global' };
 
@@ -309,6 +311,251 @@ function readStatic(market) {
   return STATIC_CACHE[region];
 }
 
+// ── Collections ─────────────────────────────────────────────────────────────
+// The store's REAL merchandising structure, not a keyword guess.
+//
+// Until now, "collections" in this app were INVENTED: scripts/build-catalog.js
+// deriveTags() bucketed products by matching words in the title and tag string
+// ("premium" meant the tags contained 'oolong' or 'white tea'), and the Mailer
+// Studio rendered twelve hardcoded chips over those buckets. Nothing in that
+// chain came from the store, so a "Premium" filter showed whatever the keyword
+// list happened to catch, and link builders pointed at /collections/wellness-tea
+// without anyone checking the store had such a collection.
+//
+// A collection is a real, named thing with a real URL that a customer can be
+// sent to. So it is read, never derived. Two live paths, same ladder as products:
+//   1. shopify_admin      — custom_collections + smart_collections, membership
+//                           via /collections/{id}/products.json (ids only).
+//   2. shopify_storefront — /collections.json, membership via
+//                           /collections/{handle}/products.json. No credential.
+// There is NO third path: the CSV artifact has no collection data, and deriving
+// one from keywords is the fabrication this replaces. With neither live path
+// available the answer is "unknown", and callers show no collections at all.
+const COLLECTION_CONCURRENCY = 6;
+const MAX_COLLECTIONS = Math.max(1, parseInt(process.env.CATALOG_MAX_COLLECTIONS || '60', 10) || 60);
+
+// Membership is fetched per collection, so it is bounded twice over: by the
+// number of collections walked and by the concurrency of that walk.
+async function mapLimited(items, limit, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      try { out[idx] = await fn(items[idx], idx); } catch (_) { out[idx] = null; }
+    }
+  }));
+  return out;
+}
+
+async function fetchCollectionsAdmin(market) {
+  const list = await shopify.collections({ market, limit: 250 });
+  if (!list.ok) return { ok: false, source: 'shopify_admin', blocker: list.blocker || list.error || 'Admin collections read failed.' };
+  const rows = (list.collections || []).slice(0, MAX_COLLECTIONS);
+  const members = await mapLimited(rows, COLLECTION_CONCURRENCY, async (c) => {
+    const r = await shopify.collectionProductIds({ market, id: c.id, limit: 250 });
+    return r && r.ok ? r.product_ids : null;
+  });
+  return {
+    ok: true, source: 'shopify_admin', fetched_at: list.fetched_at,
+    truncated: (list.collections || []).length > rows.length,
+    partial: !!list.partial, partial_reason: list.partial_reason || null,
+    collections: rows.map((c, n) => ({
+      id: c.id != null ? String(c.id) : null,
+      handle: String(c.handle || '').trim(),
+      title: String(c.title || '').trim(),
+      kind: c.kind || null,
+      published: c.published_at !== null && c.published_at !== undefined,
+      // null (not []) when the membership call failed, so "we could not read the
+      // members" never renders as "this collection is empty".
+      product_ids: members[n],
+      products_count: Array.isArray(members[n]) ? members[n].length : (Number.isFinite(Number(c.products_count)) ? Number(c.products_count) : null),
+      source: 'shopify_admin',
+    })).filter((c) => c.handle && c.title),
+  };
+}
+
+async function fetchCollectionsStorefront(market, { timeoutMs = 15000 } = {}) {
+  const base = storefrontBase(market);
+  if (!base) return { ok: false, source: 'shopify_storefront', blocker: `No storefront base configured for ${normMarket(market)}.` };
+  if (!liveConnectorsEnabled()) {
+    return { ok: false, source: 'shopify_storefront', blocker: 'Live connectors are disabled - set LIVE_CONNECTORS=on to allow the live collections read.', would_request: { method: 'GET', url: `${base}/collections.json?limit=250` } };
+  }
+  const getJson = async (url) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await guardedFetch(url, { signal: ctrl.signal, cache: 'no-store', headers: { Accept: 'application/json', 'User-Agent': 'vahdam-lifecycle-os/catalog-live' } });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) {
+      if (e && e.read_only_blocked) throw e;
+      return null;
+    } finally { clearTimeout(timer); }
+  };
+
+  const listUrl = `${base}/collections.json?limit=250`;
+  const body = await getJson(listUrl);
+  const raw = (body && body.collections) || [];
+  if (!raw.length) return { ok: false, source: 'shopify_storefront', blocker: `Storefront ${listUrl} returned no collections.`, would_request: { method: 'GET', url: listUrl } };
+  const rows = raw.slice(0, MAX_COLLECTIONS);
+  const fetchedAt = new Date().toISOString();
+  // The storefront exposes membership only per collection, keyed by handle.
+  const members = await mapLimited(rows, COLLECTION_CONCURRENCY, async (c) => {
+    const b = await getJson(`${base}/collections/${encodeURIComponent(c.handle)}/products.json?limit=250`);
+    if (!b || !Array.isArray(b.products)) return null;
+    return b.products.map((p) => String(p.id));
+  });
+  return {
+    ok: true, source: 'shopify_storefront', fetched_at: fetchedAt,
+    truncated: raw.length > rows.length,
+    collections: rows.map((c, n) => ({
+      id: c.id != null ? String(c.id) : null,
+      handle: String(c.handle || '').trim(),
+      title: String(c.title || '').trim(),
+      kind: null,
+      published: true, // the public endpoint only lists published collections
+      product_ids: members[n],
+      products_count: Array.isArray(members[n]) ? members[n].length : (Number.isFinite(Number(c.products_count)) ? Number(c.products_count) : null),
+      source: 'shopify_storefront',
+    })).filter((c) => c.handle && c.title),
+  };
+}
+
+const COLS = Object.create(null);       // market -> resolved collections
+const COLS_MISS = Object.create(null);  // market -> recent failure
+let COLS_INFLIGHT = Object.create(null);
+
+/**
+ * resolveCollections() — the live collection list for a market, with membership.
+ * Never derives: a failure yields collections:[] plus a blocker, so a caller
+ * renders nothing rather than a keyword-invented taxonomy.
+ */
+async function resolveCollections(market, { fresh = false } = {}) {
+  const mk = normMarket(market);
+  if (!isKnownMarket(mk)) {
+    return { ok: false, live: false, market: mk, collections: [], count: 0, blocker: `Unknown market "${mk}". No store read was attempted.` };
+  }
+  if (!fresh) {
+    const hit = COLS[mk];
+    if (hit && Date.now() - hit.cached_at <= TTL_MS) return Object.assign({}, hit, { cache: 'hit' });
+    const miss = COLS_MISS[mk];
+    if (miss && Date.now() - miss.cached_at <= MISS_TTL_MS) return Object.assign({}, miss, { cache: 'miss-hit' });
+    if (COLS_INFLIGHT[mk]) return COLS_INFLIGHT[mk];
+  }
+  const run = (async () => {
+    const attempts = [];
+    for (const [name, fn] of [['shopify_admin', fetchCollectionsAdmin], ['shopify_storefront', fetchCollectionsStorefront]]) {
+      if (name === 'shopify_admin' && !shopify.isConnected(mk)) {
+        attempts.push({ source: name, ok: false, blocker: shopify.status(mk).blocker });
+        continue;
+      }
+      let r;
+      try { r = await fn(mk); } catch (e) {
+        if (e && e.read_only_blocked) throw e;
+        r = { ok: false, source: name, blocker: e.message };
+      }
+      if (r.ok && r.collections.length) {
+        const snap = {
+          ok: true, live: true, market: mk, source: r.source, collections: r.collections,
+          count: r.collections.length, fetched_at: r.fetched_at, truncated: !!r.truncated,
+          partial: !!r.partial, partial_reason: r.partial_reason || null,
+          attempts, cached_at: Date.now(), blocker: null,
+        };
+        COLS[mk] = snap;
+        joinCollections(mk);
+        return Object.assign({}, snap, { cache: 'miss' });
+      }
+      attempts.push({ source: name, ok: false, blocker: r.blocker, would_request: r.would_request || null });
+    }
+    const failed = {
+      ok: false, live: false, market: mk, source: null, collections: [], count: 0,
+      fetched_at: null, attempts, cached_at: Date.now(), cache: 'miss',
+      blocker: `No live collections for ${mk}. ${attempts.map((a) => a.blocker).filter(Boolean).join(' | ')} There is no offline fallback: collections are read from the store or not shown, never derived from product keywords.`,
+    };
+    COLS_MISS[mk] = failed;
+    return failed;
+  })();
+  COLS_INFLIGHT[mk] = run;
+  try { return await run; } finally { delete COLS_INFLIGHT[mk]; }
+}
+
+/** Sync accessor over the primed collection snapshot (same prime-then-read contract). */
+function collectionsSync(market) {
+  const mk = normMarket(market);
+  const hit = COLS[mk];
+  if (hit && hit.collections.length) {
+    return { collections: hit.collections, live: true, source: hit.source, market: mk, fetched_at: hit.fetched_at, count: hit.count };
+  }
+  return { collections: [], live: false, source: null, market: mk, fetched_at: null, count: 0, blocker: (COLS_MISS[mk] && COLS_MISS[mk].blocker) || 'Collections have not been read for this market yet.' };
+}
+
+/**
+ * findCollection() — resolve a slug/title to a REAL collection, or null.
+ * This is what stops a link builder emitting /collections/wellness-tea for a
+ * store that has no such collection: an unresolved name yields null, and the
+ * caller links the PDP or the catalog root instead of a guessed 404.
+ */
+function findCollection(nameOrHandle, market) {
+  const list = collectionsSync(market).collections;
+  if (!list.length) return null;
+  const q = String(nameOrHandle == null ? '' : nameOrHandle).trim().toLowerCase();
+  if (!q) return null;
+  const slug = q.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return list.find((c) => c.handle.toLowerCase() === q)
+    || list.find((c) => c.handle.toLowerCase() === slug)
+    || list.find((c) => c.title.toLowerCase() === q)
+    || list.find((c) => c.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug)
+    || null;
+}
+
+/** The real collections a product belongs to, by product id. Never guessed. */
+function collectionsForProduct(product, market) {
+  const id = product && (product.id != null ? String(product.id) : null);
+  if (!id) return [];
+  return collectionsSync(market).collections
+    .filter((c) => Array.isArray(c.product_ids) && c.product_ids.includes(id))
+    .map((c) => ({ id: c.id, handle: c.handle, title: c.title }));
+}
+
+/**
+ * joinCollections() — stamp each primed product row with the REAL collections it
+ * belongs to. Called whenever either half (products or collections) finishes, so
+ * the join happens regardless of which resolved first.
+ *
+ * A product row carries `collections: []` only once collections have actually
+ * been read; until then the field is absent, which is how a caller tells "this
+ * product is in no collection" apart from "we have not read the collections".
+ */
+function joinCollections(market) {
+  const mk = normMarket(market);
+  const snap = SNAP[mk];
+  const cols = COLS[mk];
+  if (!snap || !cols || !cols.collections.length) return;
+  const byProduct = new Map();
+  for (const c of cols.collections) {
+    if (!Array.isArray(c.product_ids)) continue;
+    for (const pid of c.product_ids) {
+      if (!byProduct.has(pid)) byProduct.set(pid, []);
+      byProduct.get(pid).push({ id: c.id, handle: c.handle, title: c.title });
+    }
+  }
+  for (const p of snap.products) {
+    if (p.id) p.collections = byProduct.get(p.id) || [];
+  }
+  snap.collections_joined_at = cols.fetched_at;
+}
+
+/** Prime BOTH halves and join them. This is what the pre-creative gate awaits. */
+async function primeAll(market, opts = {}) {
+  const [catalog, collections] = await Promise.all([
+    resolve(market, opts),
+    resolveCollections(market, opts).catch((e) => ({ ok: false, live: false, collections: [], count: 0, blocker: e.message })),
+  ]);
+  joinCollections(market);
+  return { catalog, collections };
+}
+
 // ── Cache + resolution ──────────────────────────────────────────────────────
 const SNAP = Object.create(null);   // market → resolved live snapshot
 const MISS = Object.create(null);   // market → recent FAILED resolution
@@ -375,6 +622,7 @@ async function resolve(market, { fresh = false } = {}) {
           attempts, cached_at: Date.now(), blocker: null,
         };
         SNAP[mk] = snap;
+        joinCollections(mk);
         return Object.assign({}, snap, { cache: 'miss' });
       }
       attempts.push({ source: name, ok: false, blocker: r.blocker, status: r.status || null, would_request: r.would_request || null });
@@ -448,14 +696,19 @@ function clearCache(market) {
   if (market) {
     delete SNAP[normMarket(market)];
     delete MISS[normMarket(market)];
+    delete COLS[normMarket(market)];
+    delete COLS_MISS[normMarket(market)];
     const r = staticRegion(market);
     if (r) delete STATIC_CACHE[r];
   } else {
     for (const k of Object.keys(SNAP)) delete SNAP[k];
     for (const k of Object.keys(MISS)) delete MISS[k];
+    for (const k of Object.keys(COLS)) delete COLS[k];
+    for (const k of Object.keys(COLS_MISS)) delete COLS_MISS[k];
     for (const k of Object.keys(STATIC_CACHE)) delete STATIC_CACHE[k];
   }
   INFLIGHT = Object.create(null);
+  COLS_INFLIGHT = Object.create(null);
 }
 
 // ── Product selection ───────────────────────────────────────────────────────
@@ -619,7 +872,8 @@ function pickProducts(market, { limit = 6, tag = null, exclude = [], opts = {} }
 }
 
 module.exports = {
-  primeCatalog, resolve, catalogSync, statusFor, clearCache,
+  primeCatalog, primeAll, resolve, catalogSync, statusFor, clearCache,
+  resolveCollections, collectionsSync, findCollection, collectionsForProduct,
   findProduct, verifySelection, pickProducts, sellable,
   normMarket, isKnownMarket, KNOWN_MARKETS, storefrontBase, staticRegion, readStatic,
   fromShopifyProduct, fromStaticRow,

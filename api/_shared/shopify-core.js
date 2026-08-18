@@ -281,6 +281,43 @@ async function readPagedProducts(market, { status, maxPages = 12 } = {}) {
     pages, truncated, products: all,
   };
 }
+// ── Collections ─────────────────────────────────────────────────────────────
+// The store's REAL merchandising structure. Shopify splits it in two: manually
+// curated "custom" collections and rule-driven "smart" collections. Both are
+// real collections with real URLs, so both are read — omitting smart collections
+// would silently hide most of a modern store's navigation.
+const COLLECTION_FIELDS = 'id,handle,title,updated_at,published_at,body_html,image,products_count';
+
+async function collections({ market, limit = PAGE_MAX } = {}) {
+  const [custom, smart] = await Promise.all([
+    read(market, 'custom_collections', 'custom_collections.json', { limit: clamp(limit, PAGE_MAX), fields: COLLECTION_FIELDS }),
+    read(market, 'smart_collections', 'smart_collections.json', { limit: clamp(limit, PAGE_MAX), fields: COLLECTION_FIELDS }),
+  ]);
+  if (!custom.ok && !smart.ok) return Object.assign({}, custom, { op: 'collections' });
+  const rows = []
+    .concat(((custom.data && custom.data.custom_collections) || []).map((c) => Object.assign({ kind: 'custom' }, c)))
+    .concat(((smart.data && smart.data.smart_collections) || []).map((c) => Object.assign({ kind: 'smart' }, c)));
+  return {
+    ok: true, connected: true, platform: 'shopify', market: normMarket(market), op: 'collections',
+    source: `shopify_admin_${cfg(market).version}`, fetched_at: new Date().toISOString(),
+    // A partial read is reported: if one of the two calls failed, the list is
+    // incomplete and a caller must not treat a missing collection as "not a
+    // collection this store has".
+    partial: !(custom.ok && smart.ok),
+    partial_reason: custom.ok ? (smart.ok ? null : 'smart_collections read failed') : 'custom_collections read failed',
+    collections: rows,
+  };
+}
+
+// Membership. Works for BOTH custom and smart collections (unlike collects.json,
+// which only covers custom ones). Only ids are requested - membership is a join,
+// not a product read, and the product rows come from the catalog resolver.
+async function collectionProductIds({ market, id, limit = PAGE_MAX } = {}) {
+  const r = await read(market, 'collection_products', `collections/${encodeURIComponent(id)}/products.json`, { limit: clamp(limit, PAGE_MAX), fields: 'id' });
+  if (!r.ok) return r;
+  return Object.assign({}, r, { product_ids: ((r.data && r.data.products) || []).map((p) => String(p.id)) });
+}
+
 async function customers({ market, limit = PAGE_MAX } = {}) {
   return read(market, 'customers', 'customers.json', {
     limit: clamp(limit, PAGE_MAX), fields: 'id,created_at,orders_count,total_spent,state,tags,last_order_id',
@@ -341,6 +378,8 @@ const OPS = {
   // operator gate on the route, a dispatcher that splats request parameters into
   // a core is one refactor away from forwarding something it should not.
   'products-paged': (p) => readPagedProducts(p.market, { status: p.status, maxPages: p.maxPages }),
+  collections: (p) => collections({ market: p.market, limit: p.limit }),
+  'collection-products': (p) => collectionProductIds({ market: p.market, id: p.id, limit: p.limit }),
   // Declared here but defined below; the object is only read at dispatch time.
   attribution: (p) => attribution(p),
 };
@@ -543,7 +582,7 @@ async function dispatch(op, params = {}) {
 
 module.exports = {
   dispatch, OPS, status, isConnected, cfg, normMarket,
-  shop, orders, products, customers, inventory, summary,
+  shop, orders, products, customers, inventory, summary, collections, collectionProductIds,
   attribution, classifyOrder, orderQuality, readPagedOrders, readPagedProducts,
   localDate, PRODUCT_FIELDS,
 };
