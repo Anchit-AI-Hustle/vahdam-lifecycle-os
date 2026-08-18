@@ -126,6 +126,13 @@ async function runAgentic(opts = {}) {
       attempt += 1;
       try {
         campaign = await plan.buildCampaign(topEntry, config, { withCreatives });
+        // A live-catalog block is not a transient failure, so retrying with a
+        // different creative angle cannot fix it — stop and report the blocker.
+        if (campaign && campaign.blocked) {
+          rec('content+asset', false, `live catalog gate: ${campaign.blocker}`, { code: campaign.code, remediation: campaign.remediation });
+          campaign = null;
+          break;
+        }
       } catch (e) { rec('content+asset', false, `build failed: ${String(e && e.message || e)}`); break; }
       review = await reviewStage(campaign, tier);
       if (review.pass) break;

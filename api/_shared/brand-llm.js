@@ -34,8 +34,7 @@ const adInsights = require('./ad-insights-core.js');
 let callLLM = null;
 try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 
-const fs = require('fs');
-const path = require('path');
+const catalogLive = require('./catalog-live.js');
 
 // ── Real product catalog (source of truth for names + links) ─────────────────
 // Canonical per-region store domains (per the product owner): US vahdam.com,
@@ -47,34 +46,36 @@ const STORE_BASE = {
   GLOBAL: 'https://vahdam.global',
   IN: 'https://vahdam.in',
 };
-// Only us/uk/global catalogs are built; other markets reuse the global catalog.
-const CATALOG_FILE = { US: 'products_us.json', UK: 'products_uk.json', GLOBAL: 'products_global.json' };
-const _catalogCache = {};
 function normMarket(m) {
   const u = String(m || 'US').toUpperCase();
   return (u === 'US' || u === 'UK' || u === 'GLOBAL' || u === 'IN') ? u : 'US';
 }
-function loadCatalog(market) {
-  const region = CATALOG_FILE[market] ? market : 'GLOBAL';
-  if (_catalogCache[region]) return _catalogCache[region];
-  try {
-    const p = path.join(__dirname, '..', '..', 'data', 'catalog', CATALOG_FILE[region]);
-    const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
-    _catalogCache[region] = Array.isArray(raw) ? raw : (raw.products || raw.items || []);
-  } catch (_) { _catalogCache[region] = []; }
-  return _catalogCache[region];
+// The LIVE catalog (catalog-live.js), not the build artifact. ChaiGPT quotes
+// exact names, prices and PDP URLs back to the operator as fact, so reading a
+// months-old export here put stale prices into an evidence-contract answer.
+function loadCatalog(market) { return catalogLive.catalogSync(market).products; }
+/** Provenance for the answer, so a stale read is visible in the reply itself. */
+function catalogProvenance(market) {
+  const s = catalogLive.catalogSync(market);
+  return { live: s.live, source: s.source, fetched_at: s.fetched_at, count: s.count };
 }
 function storeBase(market) { return STORE_BASE[normMarket(market)] || STORE_BASE.US; }
 // Returns REAL products with exact names, prices and verified PDP URLs.
-function catalogProducts({ query, market } = {}) {
+// Awaits the live store read first — this tool's whole promise is that what it
+// returns is current, and the model quotes it verbatim into recommendations.
+async function catalogProducts({ query, market } = {}) {
   const mk = normMarket(market);
   const base = storeBase(mk);
+  try { await catalogLive.primeCatalog(mk); } catch (_) { /* fall through to whatever is cached; provenance reports it */ }
   const products = loadCatalog(mk);
+  const prov = catalogProvenance(mk);
   const q = String(query || '').toLowerCase().trim();
   const toRec = (p) => ({
     name: p.n || p.name || '',
     handle: p.h || p.handle || '',
     price: p.price || p.p || '',
+    compare_at: p.compare_at || null,
+    in_stock: typeof p.available === 'boolean' ? p.available : null,
     url: (p.h || p.handle) ? `${base}/products/${p.h || p.handle}` : '',
   });
   let list = products.map(toRec).filter((r) => r.name && r.handle && r.url);
@@ -96,7 +97,12 @@ function catalogProducts({ query, market } = {}) {
     market: mk,
     store: base,
     count: list.length,
-    note: 'These are the ONLY valid product names and URLs. Do not modify a handle or invent another.',
+    catalog_live: prov.live,
+    catalog_source: prov.source,
+    catalog_fetched_at: prov.fetched_at,
+    note: prov.live
+      ? 'These are the ONLY valid product names and URLs, read live from the store. Do not modify a handle or invent another.'
+      : `NOT LIVE: the store could not be read, so these rows come from ${prov.source || 'no source'} and the prices and stock may be out of date. Say so in the answer, and do not quote a price as current.`,
     products: list.slice(0, 20),
   };
 }

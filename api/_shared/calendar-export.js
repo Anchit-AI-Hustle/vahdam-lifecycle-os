@@ -20,30 +20,15 @@
  * reproducible.
  */
 
-const fs = require('fs');
-const path = require('path');
 const { buildMasterPrompt, regionFacts } = require('./master-prompt.js');
 const GR = require('./calendar-guardrails.js');
 
 // ── Catalog ------------------------------------------------------------------
-const CAT = {};
-function regionKey(market) {
-  const m = String(market || 'US').toLowerCase();
-  if (m.startsWith('uk')) return 'uk';
-  if (/global|eu|au|me|row|rest/.test(m)) return 'global';
-  return 'us';
-}
-function catalog(market) {
-  const r = regionKey(market);
-  if (CAT[r]) return CAT[r];
-  let arr = [];
-  try {
-    const raw = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', 'catalog', `products_${r}.json`), 'utf8'));
-    arr = Array.isArray(raw) ? raw : (raw.products || raw.items || []);
-  } catch (_) { arr = []; }
-  CAT[r] = arr;
-  return arr;
-}
+// Single shared resolver (catalog-live.js): live Shopify first, build artifact
+// only as a labelled fallback. Six modules used to keep six private copies of
+// this loader, so a fix to one left the others reading stale JSON.
+const catalogLive = require('./catalog-live.js');
+function catalog(market) { return catalogLive.catalogSync(market).products; }
 function storeBase(market) {
   const f = regionFacts(String(market || 'US').toUpperCase());
   return 'https://' + (f.store || 'www.vahdamteas.com');

@@ -42,6 +42,8 @@ const smartbrain = require('../lib/smart-brain/services.js');
 const brandLlm = require('./_shared/brand-llm.js');
 const klaviyo = require('./_shared/klaviyo-core.js');
 const shopify = require('./_shared/shopify-core.js');
+const catalogLive = require('./_shared/catalog-live.js');
+const catalogGate = require('./_shared/catalog-gate.js');
 const agentBuilder = require('./_shared/agent-builder-core.js');
 const adInsights = require('./_shared/ad-insights-core.js');
 const adsSnowflake = require('./_shared/ads-snowflake-core.js');
@@ -63,6 +65,23 @@ function body(req) {
   if (!req.body) return {};
   if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch (_) { return {}; } }
   return req.body;
+}
+
+// Operator gate for the routes that read the store's private side or spend its
+// API quota. Same check the data-analysis routes and public-config's privileged
+// modes use: CRON_SECRET, or a Supabase session on an allowed email domain.
+const catalogAuth = require('./_shared/data-analysis-core.js');
+async function requireOperator(req, res) {
+  const auth = await catalogAuth.authorize(req);
+  if (!auth.ok) {
+    res.status(auth.status || 401).json({
+      ok: false,
+      error: auth.error || 'operator_session_required',
+      hint: 'Operator-only. Send Authorization: Bearer <Supabase access token of an allowed operator, or the CRON_SECRET>.',
+    });
+    return null;
+  }
+  return auth;
 }
 
 function cronAuthorized(req) {
@@ -415,8 +434,68 @@ module.exports = async function handler(req, res) {
         return res.json(out);
       }
 
+      // ── CATALOG (THE product catalog: live from the store, one source) ──
+      // op=products  the live catalog for a market (what every surface reads)
+      // op=status    provenance only, no fetch — for a badge or a health check
+      // op=refresh   force a fresh read, bypassing the TTL cache
+      // op=verify    check a product list (or the whole gate) before creating
+      case 'catalog': {
+        const p = req.method === 'POST' ? b : Object.assign({}, req.query);
+        const op = String(p.op || 'products').toLowerCase();
+        const mk = p.market || 'US';
+        // Forcing a fresh read bypasses the TTL cache and walks the Admin API,
+        // so it spends store quota on demand. Anonymous callers get the cached
+        // read; only an operator may make the app go and fetch again.
+        const wantsFresh = op === 'refresh' || p.fresh === '1' || p.fresh === true;
+        if (wantsFresh) { const auth = await requireOperator(req, res); if (!auth) return; }
+        // The full row carries Admin-only fields (per-variant inventory counts,
+        // internal SKUs, the whole variant list). The app's pages need none of
+        // that — they read name, handle, image, price, stock — so the public
+        // projection drops it. An operator can ask for the unprojected rows.
+        const isOperator = wantsFresh || (await catalogAuth.authorize(req)).ok;
+        const project = (row) => (isOperator ? row : {
+          id: row.id, n: row.n, h: row.h, i: row.i, imgs: row.imgs, t: row.t,
+          price: row.price, compare_at: row.compare_at, type: row.type,
+          available: row.available, url: row.url, source: row.source, fetched_at: row.fetched_at,
+        });
+        if (op === 'status') return res.json({ ok: true, ...catalogLive.statusFor(mk) });
+        if (op === 'verify') {
+          // The pre-creative check, callable on its own so a UI can show the
+          // gate verdict BEFORE the operator spends a generation.
+          const list = Array.isArray(p.products) ? p.products
+            : (p.handles ? String(p.handles).split(',').map((h) => ({ handle: h.trim() })).filter((x) => x.handle) : null);
+          const gate = await catalogGate.requireLiveCatalog({ market: mk, products: list, purpose: p.purpose || 'pre-creative check', fresh: wantsFresh });
+          if (gate.blocked) return res.status(409).json(catalogGate.blockedResponse(gate));
+          return res.json({
+            ok: true, status: gate.status, live: gate.live, bypassed: !!gate.bypassed,
+            warning: gate.warning || null, catalog: gate.provenance,
+            products: (gate.products || []).map((x) => ({ handle: x.h, name: x.n, price: x.price, image: x.i, url: x.url, in_stock: x.available, matched_by: x.match_method })),
+          });
+        }
+        const snap = await catalogLive.primeCatalog(mk, { fresh: wantsFresh });
+        // A non-live catalog is served with its provenance and a 200 - callers
+        // that must not use stale data check `live`, and the creative paths run
+        // it through catalog-gate rather than reading this endpoint raw.
+        return res.json({
+          ok: !!snap.ok, live: !!snap.live, market: catalogLive.normMarket(mk),
+          source: snap.source, count: snap.count, fetched_at: snap.fetched_at,
+          stale: !snap.live, stale_days: snap.stale_days || null, truncated: !!snap.truncated,
+          blocker: snap.blocker || null, attempts: snap.attempts || [],
+          products: p.summary === '1' ? undefined : (snap.products || []).map(project),
+        });
+      }
+
       // ── SHOPIFY (live, read-only Admin reads; never mutates the store) ──
+      // OPERATOR-ONLY. Read-only is not the same as public: these ops return
+      // orders with their customer objects, the customer list itself, inventory
+      // levels, and draft/archived products — the store's private side. They
+      // also spend Shopify Admin quota and serverless time per call, so an open
+      // endpoint is a free quota-drain vector as well as a disclosure one.
+      // Nothing in the front end calls this (only scripts/order-attribution.js,
+      // which uses the core directly), so gating costs no functionality.
       case 'shopify': {
+        const auth = await requireOperator(req, res);
+        if (!auth) return;
         const p = req.method === 'POST' ? b : Object.assign({}, req.query);
         const out = await shopify.dispatch(p.op || 'summary', p);
         return res.json(out);
@@ -588,8 +667,14 @@ module.exports = async function handler(req, res) {
         // REAL live probe of every data platform — Shopify, Klaviyo, WebEngage,
         // Supabase, Meta Ads, Google Ads and TikTok Ads. Actual round-trips,
         // honest live/blocked + the exact blocker.
+        // This route is unauthenticated, so it must never force a fresh Shopify
+        // Admin catalog walk: that would be an open bypass of the operator gate
+        // on /api/catalog?op=refresh and a way to drain the store's rate limit.
+        // Only an already-authenticated operator gets ?fresh=1.
         const health = require('./_shared/connectors-health.js');
-        return res.json(await health.health({ market: req.query.market || 'US' }));
+        const wantsFresh = req.query.fresh === '1' || req.query.fresh === 'true';
+        const fresh = wantsFresh ? (await catalogAuth.authorize(req)).ok : false;
+        return res.json(await health.health({ market: req.query.market || 'US', fresh }));
       }
       case 'webengage-report': {
         const op = (req.query.op || 'campaigns').toLowerCase();

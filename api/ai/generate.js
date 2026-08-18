@@ -22,6 +22,8 @@ const { buildMasterPrompt } = require('../_shared/master-prompt.js');
 
 // Product-owner rule (2026-07-04): no em/en dashes in any generated output.
 const SMscen = require('../_shared/scenario-model.js');
+// Pre-creative check: the products this copy will name must exist in the LIVE store.
+const catalogGate = require('../_shared/catalog-gate.js');
 const scrubDashes = SMscen.scrubDashes;
 // sanitizeBrand does both: banned-phrase rewrite (transform, liquid gold, last
 // chance, …) AND em/en-dash scrub. Fall back to dash-only if unavailable.
@@ -423,7 +425,7 @@ module.exports = async function handler(req, res) {
   const markets = body.markets || [market];
   const theme = body.theme || body.type || '';
   const campaign_brief = body.campaign_brief || body.brief || body.prompt || '';
-  const selected_products = Array.isArray(body.selected_products) ? body.selected_products : [];
+  let selected_products = Array.isArray(body.selected_products) ? body.selected_products : [];
   const variant = body.variant || 'A';
   const regenerate_counter = Number(body.regenerate_counter || 0);
   const previous_outputs_summary = body.previous_outputs_summary || '';
@@ -434,6 +436,50 @@ module.exports = async function handler(req, res) {
   // body.tier can no longer downgrade. (Background/bulk classifiers live in
   // other files and keep their own cost-appropriate tiers.)
   const tier = 'premium';
+
+  // ── GATE 0 · LIVE CATALOG ───────────────────────────────────────────────────
+  // Copy that names a product states its price, its pack and its PDP as current
+  // fact. The BROWSER sends `selected_products` from whatever catalog it loaded,
+  // so trusting that payload lets a stale client price walk straight into a
+  // mailer. For every product-bearing creative mode the products are re-resolved
+  // against the LIVE store here and the verified rows replace the client's — and
+  // if the store cannot be read at all, generation stops before it spends a
+  // token. When no product is selected the prompts forbid naming one, so there
+  // is nothing to verify and only provenance is recorded.
+  const CREATIVE_MODES = new Set(['create_brief', 'concepts', 'mailer_full', 'autofill']);
+  let catalogStamp = null;
+  if (CREATIVE_MODES.has(mode) && selected_products.length) {
+    const gate = await catalogGate.requireLiveCatalog({
+      market, products: selected_products, purpose: `${mode} copy`, select: { requireStock: false },
+    });
+    if (gate.blocked) return res.status(409).json(catalogGate.blockedResponse(gate));
+    catalogStamp = catalogGate.stamp(gate);
+    if (gate.products && gate.products.length) {
+      // Live values, in the shape the prompt builders below already read.
+      selected_products = gate.products.map((p) => ({
+        name: p.n, handle: p.h, price: p.price, compare_at: p.compare_at,
+        image_url: p.i, category: p.type, type: p.type, url: p.url,
+        in_stock: p.available, sku: p.sku,
+      }));
+    }
+  } else if (CREATIVE_MODES.has(mode)) {
+    catalogStamp = catalogGate.stamp(await catalogGate.requireLiveCatalog({ market, purpose: `${mode} (no products selected)` })
+      .catch(() => null)) || null;
+  }
+
+  // Every success path in this handler (there are eight) returns the catalog
+  // provenance alongside its payload, so a caller can always tell whether the
+  // copy it just received was written against the live store. Wrapping res.json
+  // once beats remembering to add it to eight object literals — and to the
+  // ninth someone adds later.
+  if (catalogStamp) {
+    const _json = res.json.bind(res);
+    res.json = (payload) => _json(
+      payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? Object.assign({ catalog: catalogStamp }, payload)
+        : payload
+    );
+  }
 
   let systemPrompt = SYSTEM_PROMPT_CREATE_BRIEF;
   let userMessage = '';
