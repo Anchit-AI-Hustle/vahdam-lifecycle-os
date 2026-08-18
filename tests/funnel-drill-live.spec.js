@@ -117,10 +117,35 @@ test.describe('Data Analysis rows actually click', () => {
     expect(label).toContain('not narrowed');
   });
 
-  test('clicking a row opens something, and clicking a link inside one does not hijack it', async ({ page }) => {
+  test('clicking a row drills to the next step, and a link inside one is not hijacked', async ({ page }) => {
     await openDetail(page, 'channels');
-    // Without the Revenue Analysis tab loaded there is nowhere to drill to, so
-    // the row opens its own record — a real response, never a dead click.
+    // /analytics used to be a 5KB shell that iframed this page, so
+    // data-analysis-extensions.js — and with it the Revenue Analysis tab —
+    // was absent from this view and a row had nowhere to drill to. Now the
+    // page IS the document, the extensions load with it, and the drill target
+    // genuinely exists. So the row drills, which is the whole point of the
+    // feature; the record view below is the fallback, not the normal path.
+    await page.click('#detail .tbl-wrap table tr:has(td)');
+    await expect.poll(() => page.evaluate(() => document.body.classList.contains('detailing'))).toBe(false);
+    await expect(page.locator('#anTabs button.on')).toHaveText(/Revenue Analysis/);
+  });
+
+  test('with no drill target the row still opens its own record, never a dead click', async ({ page }) => {
+    // Reproduce the no-target condition on purpose rather than relying on a
+    // page shape that no longer occurs. wireDetailDrill reads the handoff at
+    // the moment the detail opens, so it has to be removed after the page has
+    // booted but before the widget is opened — a plain openDetail() would
+    // navigate and let the extensions re-install it.
+    await page.goto(origin + '/data-analysis.html');
+    await page.waitForFunction(() => !!document.querySelector('.w.link'));
+    await page.evaluate(() => {
+      const t = document.querySelector('#anTabs button[data-tab="acq"]');
+      if (t) t.click();
+    });
+    await page.waitForFunction(() => !!document.querySelector('.w.link[data-wid="channels"]'));
+    await page.evaluate(() => { delete window.__lcFunnelToRevenue; });
+    await page.evaluate(() => document.querySelector('.w.link[data-wid="channels"]').click());
+    await page.waitForSelector('#detail .tbl-wrap table tr td');
     await page.click('#detail .tbl-wrap table tr:has(td)');
     await expect(page.locator('.fd-modal')).toBeVisible();
     await expect(page.locator('.fd-sheet')).toContainText('Online Store');
@@ -148,7 +173,10 @@ test.describe('Data Analysis rows actually click', () => {
   });
 
   test('Escape closes the record view', async ({ page }) => {
-    await openDetail(page, 'channels');
+    // A TERMINAL dimension always opens a record rather than drilling, so this
+    // exercises the record view without depending on whether a drill target
+    // happens to be loaded.
+    await openDetail(page, 'dow');
     await page.click('#detail .fd-go');
     await expect(page.locator('.fd-modal')).toBeVisible();
     await page.keyboard.press('Escape');
