@@ -430,6 +430,38 @@ MCP bridge** mapping the gateway (`/recall /capture /search/* /session/end /heal
 LLM key for distillation only), verify with `npm run smoke`. Full setup (repo + CLI + Desktop) in that
 folder's README. Habit: `memory_recall` at task start, `memory_capture` after meaningful turns.
 
+## Agent evaluation + the brief gate (2026-08-18, from Google's ADK marketing-agency sample)
+Studied `python/agents/marketing-agency` in `google/adk-samples`. Two things it does that this repo
+did not, both now here; the rest of that sample (Vertex/ADK/GCP scaffolding, domain-name picking,
+website generation) does not fit a Node/Vercel app that already has deeper versions of its creative
+agents, and was deliberately not copied.
+- **`evals/` — the agent layer had NO evaluation.** ~600 tests covered pages, contrast, dead hosts,
+  kill switches and catalog provenance; nothing covered the 19 tools in `brand-llm.js` or which one a
+  question should route to. A misroute never throws: ask "how big is our customer base" and get
+  `list_cohorts` (a modelled RFM sample) instead of `audience_base` (the real Shopify total) and the
+  answer is off by an order of magnitude in the same confident voice. ADK's eval shape
+  (`{query, expected_tool_use, reference}` + `AgentEvaluator`) needs a live model every run, which
+  cannot gate CI, so evaluation is split: **structural** (no key, deterministic, GATES CI via
+  `tests/agent-evals.spec.js`) checks the routing SIGNAL — tool names and descriptions, all a
+  prompt-routed agent gets — that every named tool exists, every generator is `mutates:true` (the
+  prompt's "only on explicit user request" warning is generated from that flag), and two tools a case
+  distinguishes are actually distinguishable; **live** (`npm run evals:live`) runs the real loop and
+  is advisory. The spec guards the guard: it collides two descriptions and deletes a tool, and
+  asserts the evaluator then fails.
+- **`api/_shared/brief-gate.js` — a creative aimed by an invented strategy.** `generate.js` used to
+  tell the model, with no brief: *"(none provided - derive a strong, specific campaign concept)"* —
+  an instruction to invent the objective, audience and angle and then present them in the same voice
+  as the parts a human chose. Fabricating WHO a send is for is costlier than fabricating a price,
+  because the whole send is aimed by it. ADK's strategy sub-agent refuses outright ("You MUST NOT
+  proceed... list each missing essential"); binary refusal is wrong here, so the gate splits by what
+  the output DOES: **customer-facing** modes (`mailer_full`, `concepts`, `landing_page`) BLOCK with
+  `NOT LAUNCH READY - BRIEF DEPENDENCY` + the exact list; **ideation** (`create_brief`) PROCEEDS but
+  every gap becomes a declared assumption — a deterministic `assumptions[]` on the response plus a
+  prompt block telling the model to label them inline. The list is computed from which inputs were
+  absent, NOT asked of the model: a model asked to list its own assumptions omits the ones it did not
+  notice making. Runs BEFORE the catalog gate (cheaper, and more fundamental — a creative aimed at
+  nobody is wrong even when every product fact in it is live).
+
 ## Product Catalogs
 **Read the catalog through `api/_shared/catalog-live.js` — never `data/catalog/*.json` directly** (see "The
 catalog is LIVE" above). The CSV build still runs at deploy and its output is the labelled non-live
