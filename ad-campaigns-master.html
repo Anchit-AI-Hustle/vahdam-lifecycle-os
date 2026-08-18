@@ -4380,6 +4380,10 @@ try{
   // be REAL, so a genuine PDP product photo is the default base visual — never an
   // AI-invented tin. Catalog JSON is served with CORS from /data/catalog.
   const _catalogCache = {};
+  // Which source answered per region, so the Creative Studio can show whether
+  // the pack shots it is compositing came from the live store.
+  const _catalogSource = {};
+  window.__CATALOG_SOURCE__ = _catalogSource;
   // Return catalog PRODUCTS (with name/handle + real primary image), not a flat
   // image list — so a creative can be matched to the RIGHT SKU, never a random
   // real-but-wrong product.
@@ -4387,8 +4391,24 @@ try{
     const region = /uk/i.test(market) ? 'uk' : /us/i.test(market) ? 'us' : 'global';
     if (_catalogCache[region]) return _catalogCache[region];
     try {
-      const r = await fetch('/data/catalog/products_' + region + '.json', { cache: 'force-cache' });
-      const rows = r.ok ? await r.json() : [];
+      // LIVE first: /api/catalog reads the store (Admin, then public storefront)
+      // and only falls back to the build artifact itself. The static file is kept
+      // as a last resort so a network blip still renders a real pack shot, but a
+      // creative built from it is caught by the server-side gate before it ships.
+      let rows = [];
+      try {
+        const live = await fetch('/api/catalog?op=products&market=' + encodeURIComponent(region), { cache: 'no-store' });
+        if (live.ok) {
+          const d = await live.json();
+          if (Array.isArray(d.products) && d.products.length) rows = d.products;
+          _catalogSource[region] = { live: !!d.live, source: d.source, fetched_at: d.fetched_at };
+        }
+      } catch (_) { /* fall through to the artifact */ }
+      if (!rows.length) {
+        const r = await fetch('/data/catalog/products_' + region + '.json', { cache: 'force-cache' });
+        rows = r.ok ? await r.json() : [];
+        _catalogSource[region] = { live: false, source: 'static_build', fetched_at: null };
+      }
       const prods = (Array.isArray(rows) ? rows : []).map((p) => ({
         name: String((p && p.n) || ''), handle: String((p && p.h) || ''),
         img: (p && typeof p.i === 'string' && /^https?:\/\//.test(p.i)) ? p.i

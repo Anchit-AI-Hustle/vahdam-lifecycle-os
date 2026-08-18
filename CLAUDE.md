@@ -137,7 +137,68 @@ Each page is a **standalone, self-contained `.html` file** (inline CSS + JS, oft
 | `api/calendar.js` | `?action=generate` (30-day plan) + `?action=trigger-mailer` + `?action=smart-brain-*` (plan/sync-daily/cron/approve/reject/run-daily/feedback…) + `?action=lp&id=` (serves generated landing pages at `/lp/:id`). Logic in `_shared/calendar-generate.js`, `_shared/calendar-trigger.js`, `_shared/smart-brain-plan.js`, `lib/smart-brain/services.js` |
 | `api/competitor.js` | Competitor Benchmarking router (Gmail IMAP → Google Sheet) |
 | `api/kb.js` | Knowledge Base router (Supabase-backed) |
+| `api/brain.js` `?action=catalog` | The LIVE product catalog (`/api/catalog?op=products\|status\|refresh\|verify`). Logic in `_shared/catalog-live.js`; the pre-creative gate in `_shared/catalog-gate.js` |
 | `api/public-config.js` | Public config (Supabase URL + anon key) + `?health=1` health check; `/api/health` rewrites here. **Operator-only modes:** `?pipeline=1`, `?probe=1`, and the DETAILED `?health=1` payload require `Authorization: Bearer <operator Supabase token or CRON_SECRET>` (allowed domains via `ANALYTICS_ADMIN_DOMAINS`, default `vahdam.com`) and drop wildcard CORS. Anonymous `?health=1` returns liveness only (`ok/build/ts`) — never provider, key, model, region or env state. `?probe=1` also spends provider quota, so it must never be anonymous. |
+
+### The catalog is LIVE, and a gate proves it before any creative runs (2026-08-17)
+`api/_shared/catalog-live.js` is **THE** catalog — one resolver for every surface, fetched from the
+connected store rather than built. Order per market: **Shopify Admin** `products.json` (paged, needs a
+token) → **the store's public `/products.json`** (no credential, works today) → `data/catalog/products_
+<region>.json`, returned `live:false, stale:true, stale_days`. It was a build artifact parsed from three
+CSV exports, and **six modules each opened those files with their own private loader** (jarvis, brand-llm,
+calendar-export, calendar-trigger, landing-fallback, catalog-image) — so every price, rename, sell-out and
+new product since the last export was asserted to customers as current fact. All six now go through the
+resolver; `tests/live-catalog.spec.js` fails the build if a seventh private loader appears.
+- **Prime-then-read.** Template renderers call `catalogImage.imageFor(...)` **synchronously** and cannot
+  await, so `catalog-gate.js` awaits `primeCatalog()` before generation starts and the sync readers hit
+  that snapshot. The gate is both the check and the load. `catalogImage.sourceFor(market)` reports which
+  source answered.
+- **`catalog-gate.requireLiveCatalog()` is a HARD STOP, and it runs first** — before the strategy brief,
+  before a token of copy, before the first image call. It checks LIVE → FRESH (`CATALOG_MAX_AGE_MINUTES`)
+  → POPULATED → **SELECTED** (every named product resolves to a live row, unambiguously, active/published/
+  priced/in stock). A blocked build returns `NOT LAUNCH READY - DATA DEPENDENCY` + `[DATA REQUIRED BEFORE
+  LAUNCH: …]`, never half a campaign. Wired into `smart-brain-plan.buildCampaign`, `social-core.runDaily`
+  and `api/ai/generate.js`; every `buildCampaign` caller propagates `campaign.blocked` instead of
+  persisting empty assets.
+- **Selection correctness is part of the gate.** `findProduct` matches id → handle → SKU → exact title →
+  contains → rarest distinctive token, and records `match_method` + `confidence`. **A weak (token) match is
+  a block, not a substitution** — it is how one product's price ends up under another's name. On a pass the
+  gate returns the LIVE rows and callers build from those: `api/ai/generate.js` **replaces the browser's
+  `selected_products`** with them, because the client sends whatever catalog it happened to load.
+- **`CATALOG_GATE=off` never fakes a pass:** output carries `gate_bypassed` + the DATA REQUIRED line, and
+  `/api/connectors-health` reports the bypass as a live defect even when the catalog is live.
+- Route: `/api/catalog?op=products|status|refresh|verify&market=` (on the brain router — no new function).
+  Health gains a `catalog` platform and a top-level `creative_blocked` flag.
+- **Read-only is not public (2026-08-17, from the PR security review).** An Admin-token-backed route left
+  open is both a disclosure and a free quota-drain vector. So: **`/api/shopify` is operator-only** (it
+  returns orders *with their customer objects*, the customer list, inventory levels and draft/archived
+  products; nothing in the front end calls it). `/api/catalog` stays anonymous because the pages need it,
+  but it **projects out Admin-only fields** — per-variant inventory, internal SKUs, the whole variant list
+  — unless the caller is an operator, and **a forced refresh (`op=refresh` / `fresh=1`) needs an operator**
+  since it walks the Admin API on demand. In the core, `status` is an allowlist defaulting to `active`
+  (never a pass-through, or `?status=draft` dumps unpublished products) and `maxPages` is clamped to 12.
+  Dispatchers pass **named params, never the caller's whole query object**. Locked by
+  `tests/live-catalog.spec.js`.
+- **Gating one route is not gating the capability (2026-08-17, second review round).** The catalog probe in
+  `connectors-health` passed `fresh:true`, and `/api/connectors-health` is unauthenticated — so the forced
+  Admin walk was still reachable, straight past the operator gate on `?op=refresh`. When you gate an
+  expensive capability, grep for its OTHER callers. Now `probeCatalog(mk, {fresh})` defaults to the
+  TTL-cached resolve (still a REAL attempt on a cold cache, so it is not env-var prediction) and only an
+  authenticated operator gets `?fresh=1`. Two amplifiers closed with it: **the market is the cache key and
+  is caller-controlled**, so an unknown market now costs zero outbound calls (varying `?market=` otherwise
+  mints a cold read per value); and **failures are negatively cached** (`CATALOG_MISS_TTL_SECONDS`, 60s) —
+  success-only caching meant a broken store was re-walked on every single request, a retry storm firing
+  exactly when the catalog is already down. The health row reports `read: cached | cached-failure |
+  fetched | forced-fresh | not-attempted` so a replayed failure never reads as a fresh attempt.
+- Front ends read `/api/catalog` first and fall back to the artifact **labelled**: Mailer Studio (its
+  frozen inline `CAT` array — 170 products, no prices, **no handles**, so `pdpUrl()` had been *guessing*
+  PDP slugs — is now a last-resort fallback behind `hydrateCatalog()`, with the source shown at Step 2),
+  Creative Studio, and `copilot.js`. `window.CAT` is now actually set: `const` at script top level does not
+  attach to `window`, so the three `window.CAT &&` guards had been dead code.
+- Fixed in passing: `calendar-trigger.lookupHandle` mapped US to `products_usa.json`, a file the build has
+  never written, so **every US SKU lookup returned null** and fell through to a slugified guess.
+- Not verifiable from the dev sandbox: outbound egress to `vahdamteas.com` is blocked by proxy policy here,
+  so the storefront path is proven against a stubbed Shopify payload in tests, not a live round-trip.
 
 ### Live data sources — six platforms, one contract (2026-08-01)
 Every platform has a core, every core is wired, and **none fabricates**. With no credential each
@@ -146,7 +207,8 @@ made — callers render an honest empty state instead of a plausible number.
 
 | Platform | Core | Reached via |
 |---|---|---|
-| Shopify (live, read-only Admin) | `_shared/shopify-core.js` | `/api/shopify?op=shop\|orders\|products\|customers\|inventory\|summary` |
+| Shopify (live, read-only Admin) | `_shared/shopify-core.js` | `/api/shopify?op=shop\|orders\|products\|products-paged\|customers\|inventory\|summary\|attribution` |
+| Product catalog (live, gated) | `_shared/catalog-live.js` · `_shared/catalog-gate.js` | `/api/catalog?op=products\|status\|refresh\|verify` |
 | Meta Ads | `_shared/ads-live-core.js` (dashboard) · `_shared/ad-insights-core.js` (reporting) | `?action=ads-live` · `?action=ad-insights` |
 | Google Ads · TikTok Ads | `_shared/ad-insights-core.js` | `?action=ad-insights&platform=google\|tiktok` |
 | Klaviyo · WebEngage | `_shared/klaviyo-core.js` · `_shared/webengage-core.js` | `?action=klaviyo` · `/api/webengage` |
@@ -369,7 +431,12 @@ LLM key for distillation only), verify with `npm run smoke`. Full setup (repo + 
 folder's README. Habit: `memory_recall` at task start, `memory_capture` after meaningful turns.
 
 ## Product Catalogs
-US: 173 · UK: 101 · Global: 102 active products. Built at deploy from `products_export_{usa,uk,global}.csv` via `scripts/build-catalog.js` → `data/catalog/products_{region}.json` (served with CORS + cache headers per `vercel.json`).
+**Read the catalog through `api/_shared/catalog-live.js` — never `data/catalog/*.json` directly** (see "The
+catalog is LIVE" above). The CSV build still runs at deploy and its output is the labelled non-live
+fallback: US 173 · UK 101 · Global 102 active products, from `products_export_{usa,uk,global}.csv` via
+`scripts/build-catalog.js` → `data/catalog/products_{region}.json` (served with CORS + cache headers per
+`vercel.json`). Those counts are the artifact's, not necessarily the store's — the live read is what says
+how many products the store actually has today.
 
 ## Market-Specific Store URLs — ONE source: `api/_shared/market-urls.js`
 US → www.vahdam.com | UK → www.vahdam.co.uk | Global/EU/AU/ME → www.vahdam.global | IN → www.vahdam.com (no separate IN storefront today)

@@ -20,8 +20,10 @@
  *   LIVE_CONNECTORS=on \
  *   node scripts/order-attribution.js --market US --days 90
  *
- * Or against the deployed app, no local credentials needed:
- *   /api/shopify?op=attribution&market=US&days=90
+ * Or against the deployed app (operator-only: that route reads orders with
+ * their customer objects, so it needs a CRON_SECRET or an operator session):
+ *   curl -H "Authorization: Bearer $CRON_SECRET" \
+ *     "https://<app>/api/shopify?op=attribution&market=US&days=90"
  */
 
 const shopify = require('../api/_shared/shopify-core.js');

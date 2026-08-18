@@ -14,14 +14,16 @@
 // side would risk 404 links. Products + tabs are the high-confidence subset.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const fs = require('fs');
-const path = require('path');
+const catalogLive = require('./catalog-live.js');
 
-// Market → storefront base. Re-exported from the single source rather than
-// copied: this copy said "VERIFIED" and had three dead hosts in it.
+// Market → storefront base. Imported from the single source (market-urls.js),
+// never copied: the copy that used to live here was labelled "VERIFIED" and
+// contained three hosts that do not resolve.
 const { STORE_BASE } = require('./market-urls.js');
-// Only us/uk/global catalogs are built; other markets reuse the global catalog.
-const REGION_FILE = { US: 'products_us.json', UK: 'products_uk.json', GLOBAL: 'products_global.json' };
+// Markets with their own catalog; anything else deep-links against the global
+// one. Values are irrelevant now that the catalog is fetched rather than read
+// from a per-region file — only membership matters.
+const REGION_FILE = { US: true, UK: true, GLOBAL: true };
 
 // Words too generic to identify a product on their own.
 const STOP = new Set([
@@ -34,20 +36,11 @@ function tokenize(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
 }
 
-const _catalogCache = {};
+// Live catalog via the shared resolver — a PDP deep-link built from a stale
+// catalog can 404 on a product the store has since renamed or retired.
 function loadCatalog(market) {
   const region = REGION_FILE[market] ? market : 'GLOBAL';
-  const file = REGION_FILE[region];
-  if (_catalogCache[region]) return _catalogCache[region];
-  try {
-    const p = path.join(__dirname, '..', '..', 'data', 'catalog', file);
-    const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
-    const arr = Array.isArray(raw) ? raw : (raw.products || raw.items || []);
-    _catalogCache[region] = Array.isArray(arr) ? arr : [];
-  } catch (_) {
-    _catalogCache[region] = [];
-  }
-  return _catalogCache[region];
+  return catalogLive.catalogSync(region).products;
 }
 
 function matchProducts(text, products) {

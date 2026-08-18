@@ -109,8 +109,18 @@
   function loadKB() {
     if (KB.ready) return Promise.resolve(KB);
     var region = regionGuess();
-    return fetch('/data/catalog/products_' + region + '.json', { cache: 'force-cache' })
-      .then(function (r) { return r.ok ? r.json() : []; })
+    // The copilot quotes product names back at the user, so it reads the LIVE
+    // catalog (/api/catalog) rather than the build artifact; the static file
+    // stays as the offline fallback and is labelled as not live in the summary.
+    return fetch('/api/catalog?op=products&market=' + encodeURIComponent(region), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (d) {
+        if (d && Array.isArray(d.products) && d.products.length) { KB.live = !!d.live; KB.source = d.source; return d.products; }
+        KB.live = false; KB.source = 'static_build';
+        return fetch('/data/catalog/products_' + region + '.json', { cache: 'force-cache' })
+          .then(function (r) { return r.ok ? r.json() : []; });
+      })
       .then(function (list) {
         var arr = Array.isArray(list) ? list : (list.products || []);
         var cats = {};
@@ -119,7 +129,8 @@
           cats[c] = (cats[c] || 0) + 1;
         });
         var top = arr.slice(0, 40).map(function (p) { return p.n || p.title || p.name; }).filter(Boolean);
-        KB.summary = 'PRODUCT CATALOG (' + region.toUpperCase() + ', ' + arr.length + ' products). '
+        KB.summary = 'PRODUCT CATALOG (' + region.toUpperCase() + ', ' + arr.length + ' products, '
+          + (KB.live ? 'LIVE from ' + KB.source : 'NOT LIVE - source ' + (KB.source || 'unknown') + ', so do not state a price or stock as current') + '). '
           + 'Categories: ' + Object.keys(cats).slice(0, 12).join(', ') + '. '
           + 'Sample products: ' + top.slice(0, 30).join('; ') + '.';
         KB.ready = true;
