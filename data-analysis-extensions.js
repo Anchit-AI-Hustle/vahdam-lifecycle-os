@@ -13,6 +13,12 @@
     reviewFrame: null,
     reviewReady: false,
     lastPayload: {},
+    // The funnel drill trail for Revenue Analysis, and the cut a cross-tab drill
+    // asked to land on. Held on `state` so a re-render (refresh, market switch)
+    // can restore or deliberately clear it.
+    revChain: [],
+    revCut: null,
+    revIntent: null,
   };
 
   var REVIEW_TABS = [
@@ -81,6 +87,38 @@
   function ID(label) { return { label: label, cls: 'id' }; }
   function colOf(h) { return (h && typeof h === 'object') ? { label: h.label, cls: h.cls || '' } : { label: h, cls: '' }; }
 
+  // ── Clickable rows ────────────────────────────────────────────────────────
+  // table() renders a string, so the raw records cannot ride along on the DOM.
+  // They are parked in a registry under an id stamped on the wrapper, and wire()
+  // hands them to FunnelDrill after the HTML lands, deleting each entry as it is
+  // consumed so a long session does not accumulate every table it ever rendered.
+  var FD_SEQ = 0;
+  var FD_REG = {};
+  function fdRegister(opts, renderedRows) {
+    if (!opts.stage || !opts.records || !opts.records.length) return '';
+    var id = 'fd' + (++FD_SEQ);
+    FD_REG[id] = {
+      stage: opts.stage,
+      // The table renders at most `limit` rows, so the records must be cut to
+      // the same length or row 0 of the DOM would carry record 0 of a longer
+      // list on one table and a different one on the next.
+      records: opts.records.slice(0, renderedRows),
+      onDrill: opts.onDrill || null,
+      detailFooter: opts.detailFooter || null,
+    };
+    return ' data-fd-id="' + id + '"';
+  }
+  function wire(root) {
+    if (!root || !window.FunnelDrill) return;
+    [].forEach.call(root.querySelectorAll('[data-fd-id]'), function (el) {
+      var key = el.getAttribute('data-fd-id');
+      var reg = FD_REG[key];
+      if (!reg) return;
+      delete FD_REG[key];
+      window.FunnelDrill.attach(el, reg);
+    });
+  }
+
   function table(headers, rows, opts) {
     opts = opts || {};
     if (!rows || !rows.length) return '<div class="xempty">No source-backed rows are available for this view yet.</div>';
@@ -102,7 +140,8 @@
       }).join('') + '</tr>';
     }).join('');
     var count = rows.length > limit ? '<div class="xtable-note">Showing ' + limit + ' of ' + rows.length + ' rows.</div>' : '';
-    return '<div class="xtable"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' + count;
+    var fd = fdRegister(opts, Math.min(limit, rows.length));
+    return '<div class="xtable"' + fd + '><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' + count;
   }
   function panelTitle(title, subtitle, controls) {
     return '<div class="xhead"><div><h2>' + esc(title) + '</h2><p>' + esc(subtitle || '') + '</p></div>' + (controls || '') + '</div>';
@@ -391,19 +430,66 @@
     if (typeof v === 'object') return JSON.stringify(v).slice(0, 120);
     return String(v);
   }
-  function renderCut(c) {
+  // The cut key IS the funnel stage key for every cut the backend emits, except
+  // where the backend names the cut after the file section rather than the
+  // dimension. Mapping here rather than renaming the API keeps the payload
+  // contract (and its tests) untouched.
+  var CUT_STAGE = { live_orders: 'live_orders', new_vs_returning: 'new_vs_returning', aov_trend: 'aov_trend' };
+  function stageForCut(key) { return CUT_STAGE[key] || key; }
+
+  /**
+   * One cut, filtered by whatever drill steps apply to it.
+   *
+   * A drill step is applied ONLY if the target cut's rows actually carry the
+   * field it filters on. Carrying a `week` filter into the platform cut would
+   * match nothing and render an empty table that looks like "this platform sold
+   * nothing" — so an inapplicable step is dropped from the filter and reported
+   * as dropped in the breadcrumb rather than silently emptying the view.
+   */
+  function applicableFilters(c, chain) {
+    var sample = (c.rows || [])[0] || {};
+    return (chain || []).map(function (step) {
+      var f = step.filter;
+      var ok = !!(f && Object.prototype.hasOwnProperty.call(sample, f.field));
+      return { step: step, filter: f, applies: ok };
+    });
+  }
+
+  function renderCut(c, chain, onDrill) {
     if (!c.available) {
       return '<div class="xcard span12"><h3>' + esc(c.label) + '</h3>' +
         '<div class="xnotice bad"><b>Not available.</b> ' + esc(c.blocker || 'No source connected.') + '</div>' +
         (c.note ? note(c.note) : '') +
         '<p style="font-size:12px;color:var(--soft)">This analysis is in scope and will populate the moment the source above is connected. Nothing is estimated in the meantime.</p></div>';
     }
+    var applied = applicableFilters(c, chain).filter(function (x) { return x.applies; }).map(function (x) { return x.filter; });
+    var FD = window.FunnelDrill;
+    var source = (FD && applied.length)
+      ? c.rows.filter(function (r) { return FD.matches(r, applied); })
+      : c.rows;
     var keys = Object.keys(c.rows[0] || {});
-    var rows = c.rows.map(function (r) { return keys.map(function (k) { return cellFor(k, r[k]); }); });
+    var rows = source.map(function (r) { return keys.map(function (k) { return cellFor(k, r[k]); }); });
+    var last = (chain || [])[chain.length - 1];
+    // A drill that landed here without a join says so, in the words of the graph
+    // edge that could not be made — never as "no data".
+    var unjoined = (FD && last && last.cut === c.key && last.joinable === false) ? FD.unjoinedNotice(last) : '';
+    // A drill that matches nothing is NOT the same as a cut with no source.
+    // table()'s empty state says "no source-backed rows are available", which
+    // would be a lie here — the source has rows, this filter has none — so the
+    // table is replaced by the explanation rather than shown beneath it.
+    var noMatch = applied.length && !source.length;
+    var emptied = noMatch
+      ? '<div class="xnotice bad"><b>Nothing matches this drill.</b> ' + esc(c.label) + ' has ' + c.rows.length +
+        ' rows, none of them under ' + esc(applied.map(function (f) { return f.field + ' = ' + f.value; }).join(' and ')) +
+        '. That is a real absence in the source, not a loading state — clear a step above to widen the view.</div>'
+      : '';
     return '<div class="xcard span12"><h3>' + esc(c.label) + '</h3>' +
-      '<div class="xmeta"><span>Grain: <b>' + esc(c.grain) + '</b></span><span>Rows: <b>' + c.rows.length + '</b></span><span>Source: <b>' + esc(c.source || '—') + '</b></span></div>' +
-      (c.note ? note(c.note) : '') +
-      table(cutColumns(c.key, c.rows), rows, { limit: 300 }) + '</div>';
+      '<div class="xmeta"><span>Grain: <b>' + esc(c.grain) + '</b></span><span>Rows: <b>' + source.length +
+      (applied.length ? ' of ' + c.rows.length : '') + '</b></span><span>Source: <b>' + esc(c.source || '—') + '</b></span></div>' +
+      (c.note ? note(c.note) : '') + unjoined + emptied +
+      (noMatch ? '' : table(cutColumns(c.key, c.rows), rows, {
+        limit: 300, stage: stageForCut(c.key), records: source, onDrill: onDrill,
+      })) + '</div>';
   }
 
   async function renderRevenue(panel) {
@@ -434,21 +520,84 @@
           (d.excluded_sources || []).map(function (x) {
             return '<div class="xnotice bad"><b>Excluded source.</b> ' + esc(x.source) + ' (' + esc(x.rows_present) + ' rows) — ' + esc(x.excluded_because) + ' <i>Fix: ' + esc(x.to_make_usable) + '</i></div>';
           }).join('') + '</div>' +
-          '<div class="xsubnav">' + subnav + '</div><div id="xRevCut"></div>';
+          '<div class="xsubnav">' + subnav + '</div><div id="xRevCrumbs"></div><div id="xRevCut"></div>';
+
+        function drill(p) {
+          // A region drill is not a row filter: the export is scoped by market,
+          // so it re-scopes the whole analysis through the page's own toggle and
+          // refetches. Filtering rows here instead would leave the KPI header
+          // reporting a different market from the table underneath it.
+          if (p.market) {
+            var mb = document.querySelector('#mktToggle button[data-mkt="' + p.market + '"]');
+            if (mb && !mb.classList.contains('on')) { state.revChain = []; state.revIntent = { cut: p.to.key, chain: [] }; mb.click(); return; }
+            state.revChain = [];
+            show(p.to.key);
+            return;
+          }
+          state.revChain.push({
+            label: p.from.label + ': ' + String(p.value == null ? '—' : p.value).slice(0, 42),
+            cut: p.to.key, filter: p.filter, joinable: p.joinable, note: p.note, also: p.also,
+          });
+          show(p.to.key);
+        }
+        function popTo(depth) { state.revChain = state.revChain.slice(0, depth); show(depth ? state.revChain[depth - 1].cut : state.revCut); }
 
         function show(key) {
+          state.revCut = key;
           var c = (d.cuts || []).find(function (x) { return x.key === key; });
-          document.getElementById('xRevCut').innerHTML = c ? '<div class="xgrid">' + renderCut(c) + '</div>' : '';
+          var host = document.getElementById('xRevCut');
+          host.innerHTML = c ? '<div class="xgrid">' + renderCut(c, state.revChain, drill) + '</div>' : '';
+          wire(host);
+          var crumbHost = document.getElementById('xRevCrumbs');
+          crumbHost.innerHTML = '';
+          if (window.FunnelDrill && state.revChain.length) {
+            crumbHost.appendChild(window.FunnelDrill.crumbs(state.revChain, popTo));
+            // A step whose field the current cut does not carry is not silently
+            // ignored — it is named, so the reader knows the table is wider than
+            // the breadcrumb implies.
+            var dropped = c ? applicableFilters(c, state.revChain).filter(function (x) { return !x.applies; }) : [];
+            if (dropped.length) {
+              var d2 = document.createElement('div');
+              d2.className = 'fd-unjoined';
+              d2.innerHTML = '<b>Carried but not applied.</b> ' + esc(dropped.map(function (x) { return x.step.label; }).join(', ')) +
+                ' — the ' + esc(c.label.toLowerCase()) + ' rows carry no matching field, so this view is not narrowed by ' +
+                (dropped.length > 1 ? 'those steps' : 'that step') + '. It is kept in the trail so stepping back up still works.';
+              crumbHost.appendChild(d2);
+            }
+          }
           [].forEach.call(body.querySelectorAll('.xsub'), function (b) { b.classList.toggle('on', b.getAttribute('data-cut') === key); });
         }
         [].forEach.call(body.querySelectorAll('.xsub'), function (b) {
-          b.addEventListener('click', function () { show(b.getAttribute('data-cut')); });
+          // Picking a cut by hand is a fresh question, not a step in the current
+          // drill, so it clears the trail rather than carrying stale filters in.
+          b.addEventListener('click', function () { state.revChain = []; show(b.getAttribute('data-cut')); });
         });
-        show((d.cuts[0] || {}).key);
+        // An arrival from another tab ("show me the landing pages behind this
+        // mailer") opens on the cut it asked for, with its trail already set.
+        var intent = state.revIntent; state.revIntent = null;
+        state.revChain = (intent && intent.chain) || [];
+        show((intent && intent.cut) || (d.cuts[0] || {}).key);
       } catch (e) { body.innerHTML = failure('Revenue Analysis', e); }
       finally { btn.disabled = false; btn.textContent = 'Refresh now'; }
     }
     btn.addEventListener('click', load); await load();
+  }
+
+  /**
+   * The cross-tab drill: a row on the Mailer, Landing or Agents tab whose next
+   * attribution step lives in a Revenue Analysis cut. The trail is handed over
+   * so the reader lands with the same breadcrumb they would have had drilling
+   * inside Revenue Analysis.
+   */
+  function drillToRevenue(p) {
+    state.revIntent = {
+      cut: p.to.key,
+      chain: [{
+        label: p.from.label + ': ' + String(p.value == null ? '—' : p.value).slice(0, 42),
+        cut: p.to.key, filter: p.filter, joinable: p.joinable, note: p.note, also: p.also,
+      }],
+    };
+    openTab('revenue-analysis');
   }
 
   // ── Platform Agents ───────────────────────────────────────────────────────
@@ -489,9 +638,12 @@
           { label: 'Analysed', value: fmt(c.analysed) }, { label: 'Blocked', value: fmt(c.blocked) },
           { label: 'Action items', value: fmt((d.action_queue || []).length) },
         ]) + note(d.note) +
-          '<div class="xcard span12"><h3>Action queue</h3><p>Every agent\'s action items in one ranked list, most urgent first.</p>' +
-          table(['Priority', 'Platform', W('Action'), W('Why'), 'Target metric', 'Effort', 'Owner'], queue, { limit: 100 }) + '</div>' +
+          '<div class="xcard span12"><h3>Action queue</h3><p>Every agent\'s action items in one ranked list, most urgent first. Open a row to see the campaigns on that platform.</p>' +
+          table(['Priority', 'Platform', W('Action'), W('Why'), 'Target metric', 'Effort', 'Owner'], queue, {
+            limit: 100, stage: 'platform', records: (d.action_queue || []), onDrill: drillToRevenue,
+          }) + '</div>' +
           '<div class="xgrid">' + cards + '</div>';
+        wire(body);
       } catch (e) { body.innerHTML = failure('Platform Agents', e); }
       finally { btn.disabled = false; btn.textContent = 'Run all agents'; }
     }
@@ -533,9 +685,10 @@
           { label: 'Click-to-open', value: percent(k.ctor, 2) }, { label: 'Conversions', value: fmt(k.conversions) }, { label: 'Mailer revenue', value: money(k.revenue) },
           { label: 'Revenue / recipient', value: money(k.revenue_per_recipient) }, { label: 'Unsubscribe rate', value: percent(k.unsubscribe_rate, 3) }, { label: 'Bounce rate', value: percent(k.bounce_rate, 3) },
           { label: 'Known campaigns', value: fmt(k.known_campaigns) }, { label: 'Known segments', value: fmt(k.known_segments) }, { label: 'Segment profiles', value: fmt(k.segment_profiles) },
-        ]) + '<div class="xgrid"><div class="xcard"><h3>Source health</h3><div class="xplatform"><span><b>Klaviyo</b><br><small>' + esc((s.klaviyo && s.klaviyo.live_events || 0) + ' live events · ' + (s.klaviyo && s.klaviyo.mirrored_campaigns || 0) + ' mirrored campaigns') + '</small></span>' + boolBadge(s.klaviyo && s.klaviyo.connected) + '</div><div class="xplatform"><span><b>WebEngage</b><br><small>' + esc((s.webengage && s.webengage.events || 0) + ' events in window') + '</small></span>' + boolBadge(s.webengage && s.webengage.connected) + '</div>' + note(d.note || '') + '</div><div class="xcard"><h3>Event mix</h3>' + table(['Event',N('Count')], mix, { limit: 30 }) + '</div></div>' +
-          '<div class="xcard span12"><h3>Campaign ledger</h3><p>Unavailable fields remain blank rather than inferred.</p>' + table(['Source',W('Campaign'),'Status','Sent',N('Events'),N('Unique users'),N('Opens'),N('Clicks'),N('Conversions'),N('Revenue')], campaigns, { limit: 150 }) + '</div>' +
-          '<div class="xcard span12"><h3>Klaviyo audiences / segments</h3>' + table([W('Segment'),ID('Segment ID'),N('Profiles'),'Last synced'], segments, { limit: 100 }) + '</div>';
+        ]) + '<div class="xgrid"><div class="xcard"><h3>Source health</h3><div class="xplatform"><span><b>Klaviyo</b><br><small>' + esc((s.klaviyo && s.klaviyo.live_events || 0) + ' live events · ' + (s.klaviyo && s.klaviyo.mirrored_campaigns || 0) + ' mirrored campaigns') + '</small></span>' + boolBadge(s.klaviyo && s.klaviyo.connected) + '</div><div class="xplatform"><span><b>WebEngage</b><br><small>' + esc((s.webengage && s.webengage.events || 0) + ' events in window') + '</small></span>' + boolBadge(s.webengage && s.webengage.connected) + '</div>' + note(d.note || '') + '</div><div class="xcard"><h3>Event mix</h3>' + table(['Event',N('Count')], mix, { limit: 30, stage: 'event', records: (d.event_mix || []), onDrill: drillToRevenue }) + '</div></div>' +
+          '<div class="xcard span12"><h3>Campaign ledger</h3><p>Unavailable fields remain blank rather than inferred. Open a row to follow the send to the pages it could have driven.</p>' + table(['Source',W('Campaign'),'Status','Sent',N('Events'),N('Unique users'),N('Opens'),N('Clicks'),N('Conversions'),N('Revenue')], campaigns, { limit: 150, stage: 'mailer', records: (d.campaigns || []), onDrill: drillToRevenue }) + '</div>' +
+          '<div class="xcard span12"><h3>Klaviyo audiences / segments</h3>' + table([W('Segment'),ID('Segment ID'),N('Profiles'),'Last synced'], segments, { limit: 100, stage: 'segment', records: (d.segments || []), onDrill: drillToRevenue }) + '</div>';
+        wire(body);
       } catch (e) { body.innerHTML = failure('Mailer Intelligence', e); }
       finally { btn.disabled = false; btn.textContent = 'Refresh now'; }
     }
@@ -561,9 +714,10 @@
           { label: 'Live experiments', value: fmt(k.live_experiments) }, { label: 'Significant winners', value: fmt(k.significant_winners) }, { label: 'SRM flags', value: fmt(k.srm_flags) },
           { label: 'Competitor pages', value: fmt(k.competitor_pages) }, { label: 'Competitor brands', value: fmt(k.competitor_brands) },
         ]) + '<div class="xgrid"><div class="xcard span12"><h3>Connector & data coverage</h3><div class="xmeta">' + boolBadge(d.connector && d.connector.connected) + '<span>Sources: <b>' + esc((d.connector && d.connector.sources || []).join(' · ')) + '</b></span></div>' + note(d.connector && d.connector.note || '') + '<div class="xmetric-list"><div class="xmetric"><b>Own pages</b><br>' + esc((av.pages && av.pages.rows || 0) + ' rows') + '</div><div class="xmetric"><b>Experiments</b><br>' + esc((av.experiments && av.experiments.rows || 0) + ' rows') + '</div><div class="xmetric"><b>Competitors</b><br>' + esc((av.competitors && av.competitors.rows || 0) + ' rows') + '</div></div></div></div>' +
-          '<div class="xcard span12"><h3>VAHDAM landing-page performance</h3>' + table([W('Page'),'Status',N('Visitors'),N('Views'),N('Clicks'),N('CTR'),N('Conversions'),N('CVR'),N('Revenue'),N('AOV'),N('Avg view'),N('Load')], pages, { limit: 200 }) + '</div>' +
-          '<div class="xcard span12"><h3>A/B experiments & result quality</h3><p>Includes lift, confidence, winner status, revenue impact and sample-ratio mismatch checks.</p>' + table([W('Experiment'),'Status',W('Variants'),'Winner',N('Lift'),N('Confidence'),'Significant','SRM',N('Revenue impact')], experiments, { limit: 150 }) + '</div>' +
-          '<div class="xcard span12"><h3>Competitor landing-page benchmark</h3><p>Competitor numbers appear only where the authorised export provides them; unavailable estimates are left blank.</p>' + table(['Brand',W('Page'),'Type',W('Offer'),N('Active days'),N('Linked ads'),N('Est. spend'),N('CVR'),'Source'], competitors, { limit: 250 }) + '</div>';
+          '<div class="xcard span12"><h3>VAHDAM landing-page performance</h3><p>Open a row to step on to the products the funnel ends in.</p>' + table([W('Page'),'Status',N('Visitors'),N('Views'),N('Clicks'),N('CTR'),N('Conversions'),N('CVR'),N('Revenue'),N('AOV'),N('Avg view'),N('Load')], pages, { limit: 200, stage: 'landing_page', records: (d.pages || []), onDrill: drillToRevenue }) + '</div>' +
+          '<div class="xcard span12"><h3>A/B experiments & result quality</h3><p>Includes lift, confidence, winner status, revenue impact and sample-ratio mismatch checks.</p>' + table([W('Experiment'),'Status',W('Variants'),'Winner',N('Lift'),N('Confidence'),'Significant','SRM',N('Revenue impact')], experiments, { limit: 150, stage: 'experiment', records: (d.experiments || []), onDrill: drillToRevenue }) + '</div>' +
+          '<div class="xcard span12"><h3>Competitor landing-page benchmark</h3><p>Competitor numbers appear only where the authorised export provides them; unavailable estimates are left blank.</p>' + table(['Brand',W('Page'),'Type',W('Offer'),N('Active days'),N('Linked ads'),N('Est. spend'),N('CVR'),'Source'], competitors, { limit: 250, stage: 'competitor_page', records: (d.competitors || []) }) + '</div>';
+        wire(body);
       } catch (e) { body.innerHTML = failure('Landing Pages & Experiments', e); }
       finally { btn.disabled = false; btn.textContent = 'Refresh now'; }
     }
@@ -587,8 +741,9 @@
           { label: 'Measured actions', value: fmt(k.measured_actions) }, { label: 'Incremental revenue', value: money(k.realized_incremental_revenue) }, { label: 'Realised ROI', value: ratio(k.realized_roi) },
           { label: 'Guardrail breaches', value: fmt(k.guardrail_breaches) }, { label: 'Rollback rate', value: percent(k.rollback_rate, 1) }, { label: 'Experiment win rate', value: percent(k.experiment_win_rate, 1) },
           { label: 'Pending reviews', value: fmt(k.pending_reviews) },
-        ]) + note(d.note || '') + '<div class="xcard span12"><h3>Action outcome ledger</h3><p>Populate analytics_action_outcomes for recommendation-to-impact measurement; until then, activity records are shown without fabricated outcomes.</p>' + table(['Action','ID','Channel','Status','Recommended','Launched','Baseline','Observed','Incremental revenue','ROI','Guardrail','Rolled back'], rows, { limit: 250 }) + '</div>' +
-          '<div class="xgrid"><div class="xcard"><h3>Connector runs</h3>' + table(['Connector','Trigger','Status',N('Records'),'Started',W('Message')], runs, { limit: 100 }) + '</div><div class="xcard"><h3>Recent system activity</h3>' + table(['Time','Actor','Action','Entity','Status','Summary'], activity, { limit: 100 }) + '</div></div>';
+        ]) + note(d.note || '') + '<div class="xcard span12"><h3>Action outcome ledger</h3><p>Populate analytics_action_outcomes for recommendation-to-impact measurement; until then, activity records are shown without fabricated outcomes.</p>' + table(['Action','ID','Channel','Status','Recommended','Launched','Baseline','Observed','Incremental revenue','ROI','Guardrail','Rolled back'], rows, { limit: 250, stage: 'action_outcome', records: (d.actions || []) }) + '</div>' +
+          '<div class="xgrid"><div class="xcard"><h3>Connector runs</h3>' + table(['Connector','Trigger','Status',N('Records'),'Started',W('Message')], runs, { limit: 100, stage: 'connector_run', records: (d.connector_runs || []) }) + '</div><div class="xcard"><h3>Recent system activity</h3>' + table(['Time','Actor','Action','Entity','Status','Summary'], activity, { limit: 100, stage: 'activity', records: (d.recent_activity || []) }) + '</div></div>';
+        wire(body);
       } catch (e) { body.innerHTML = failure('Actions & Outcomes', e); }
       finally { btn.disabled = false; btn.textContent = 'Refresh now'; }
     }
@@ -685,16 +840,45 @@
     }
   }
 
+  // The host page loads funnel-drill.js itself. This file is also injected into
+  // that document by the contrast wrapper, so it may arrive first — and it must
+  // not render a table whose rows silently do not click. It waits a bounded
+  // moment for the module and then boots regardless: a page with plain rows is
+  // far better than a page stuck on a loader if the file ever 404s.
+  var fdWaited = 0;
+  function ensureFunnelDrill(done) {
+    if (window.FunnelDrill) return done();
+    if (!document.getElementById('funnel-drill-js')) {
+      var s = document.createElement('script');
+      s.id = 'funnel-drill-js';
+      s.src = '/funnel-drill.js';
+      (document.head || document.documentElement).appendChild(s);
+    }
+    if (fdWaited >= 3000) return done();
+    fdWaited += 60;
+    setTimeout(function () { ensureFunnelDrill(done); }, 60);
+  }
+
   function boot() {
     if (!document.getElementById('anTabs') || !document.getElementById('dash')) return setTimeout(boot, 80);
     injectCss(); installPanel(); removeSeparateReviewEntry(); addTabs();
     document.querySelectorAll('#mktToggle button').forEach(function (b) {
       b.addEventListener('click', function () { setTimeout(function () { if (state.tab) openTab(state.tab); }, 10); });
     });
-    // Register before resolving the initial tab, so the surface exists even when
-    // the page opens on a native tab and no extension tab is ever touched.
+    // Both halves of this merge are needed, in this order.
+    // From main: register the sync surface BEFORE the initial tab resolves, so
+    // it exists even when the page opens on a native tab and no extension tab is
+    // ever touched.
     registerSync();
-    applyInitialTab();
+    // From this branch: the native widget tables on the host page share this
+    // funnel graph but have no Revenue Analysis of their own to drill into, so
+    // they hand the plan back here. Published only once this file is live: with
+    // it absent the host falls back to the record view rather than a dead click.
+    window.__lcFunnelToRevenue = drillToRevenue;
+    // ensureFunnelDrill always invokes its callback — immediately if FunnelDrill
+    // is already present, otherwise after the script loads or the 3s wait caps —
+    // so applyInitialTab still runs exactly once, just after the drill is ready.
+    ensureFunnelDrill(applyInitialTab);
   }
   boot();
 })();
