@@ -619,7 +619,7 @@ const JS_ANALYTICS = String.raw`
 const JS_WORKSPACE = String.raw`
 (function(){
   "use strict";
-  var STORE = { US:'www.vahdamteas.com', UK:'uk.vahdamteas.com', Global:'www.vahdamteas.com' };
+  var STORE = { US:'www.vahdam.com', UK:'www.vahdam.co.uk', Global:'www.vahdam.global' };
   var CUR = { US:'$', UK:'£', Global:'$' };
   var AVATAR = {
     '001': { name:'Third-Wave Purists', hook:'origin story and cup character', hero:'Single-Estate Darjeeling First Flush', sub:'estate reserve' },
@@ -1346,7 +1346,7 @@ secHead("Generate", "Asset source builder", "Covers HTML mailer frameworks, loca
 '        <div class="card p-6"><div class="grid gap-4 sm:grid-cols-3">' +
 '<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Avatar</span><select id="gen-avatar" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="001">Cohort 001: Third-Wave Purists</option><option value="002" selected>Cohort 002: Functional Optimizers</option><option value="003">Cohort 003: Biohacking Performers</option><option value="004">Cohort 004: Routine Convenience</option></select></label>' +
 '<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Format</span><select id="gen-format" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="mailer" selected>HTML Mailer</option><option value="social">Paid Social Ad</option><option value="motion">Motion Graphic (video / GIF)</option></select></label>' +
-'<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Market</span><select id="gen-market" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="US" selected>US (www.vahdamteas.com)</option><option value="UK">UK (uk.vahdamteas.com)</option><option value="Global">Global (www.vahdamteas.com)</option></select></label>' +
+'<label class="block text-sm"><span class="text-[11px] uppercase font-bold" style="color:var(--soft);">Market</span><select id="gen-market" class="mt-1 w-full rounded-lg border px-3 py-2" style="border-color:var(--line);"><option value="US" selected>US (www.vahdamteas.com)</option><option value="UK">UK (www.vahdam.co.uk)</option><option value="Global">Global (www.vahdamteas.com)</option></select></label>' +
 '</div><div class="flex flex-wrap gap-3 mt-4"><button id="gen-btn" class="btn-primary px-5 py-2.5 text-sm">Generate asset source</button><button id="copy-btn" class="btn-gold px-5 py-2.5 text-sm">Copy to clipboard</button><span id="copy-status" class="self-center text-sm text-vahdam-green"></span></div>' +
 '<textarea id="gen-out" spellcheck="false" class="code-out mt-4 w-full h-80 rounded-xl border p-4" style="border-color:var(--line);background:#0f1d18;color:#e8ede9;" placeholder="Your generated, copy-pasteable asset source appears here. Edit in place before shipping."></textarea></div>',
 '        <div>' + linkBtn("./shopify-loop.html", "Next: push the asset to Shopify &rarr;") + '</div>',

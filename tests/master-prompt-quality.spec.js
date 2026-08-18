@@ -81,7 +81,7 @@ test('supplied product facts flow through; absent ones do not get invented', () 
   });
   expect(withProduct).toContain('Turmeric Ashwagandha');
   expect(withProduct).toContain('£19.99');
-  expect(withProduct).toContain('uk.vahdamteas.com');
+  expect(withProduct).toContain('www.vahdam.co.uk');
 
   // With no products the prompt must forbid inventing one, not quietly proceed.
   const without = buildMasterPrompt({ assetType: 'ad', platform: 'meta' });
@@ -121,7 +121,7 @@ test('the shared blocks are exported so other prompt sites cannot drift lower', 
   // The pre-existing API other modules import must survive.
   expect(typeof mp.buildMasterPrompt).toBe('function');
   expect(typeof mp.regionFacts).toBe('function');
-  expect(mp.regionFacts('UK').store).toBe('uk.vahdamteas.com');
+  expect(mp.regionFacts('UK').store).toBe('www.vahdam.co.uk');
 });
 
 test('prompts stay a practical size to paste', () => {

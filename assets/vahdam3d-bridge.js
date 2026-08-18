@@ -37,7 +37,7 @@ export const BRAND = {
 
 const STORE = {
   us: { base: 'https://www.vahdamteas.com', ccy: '$', lander: /^try\.vahdam\.com$/i },
-  uk: { base: 'https://uk.vahdamteas.com', ccy: '£', lander: /^try\.vahdam\.co\.uk$/i },
+  uk: { base: 'https://www.vahdam.co.uk', ccy: '£', lander: /^try\.vahdam\.co\.uk$/i },
   global: { base: 'https://www.vahdamteas.com', ccy: '$', lander: /^try\.vahdam\.global$/i },
 };
 const META_LANDER_RE = /^try\.vahdam\.(com|co\.uk|global)$/i;
@@ -48,7 +48,7 @@ export function parseRoute(host, pathname, regionHint) {
   const isMetaLander = META_LANDER_RE.test(h);
   let region = regionHint || 'us';
   if (!regionHint) {
-    if (/\.co\.uk$/i.test(h) || h === 'uk.vahdamteas.com') region = 'uk';
+    if (/\.co\.uk$/i.test(h) || h === 'www.vahdam.co.uk') region = 'uk';
     else if (/\.global$/i.test(h)) region = 'global';
   }
   let isolatedHandle = null;

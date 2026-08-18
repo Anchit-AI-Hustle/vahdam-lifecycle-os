@@ -56,10 +56,10 @@ Top US product: **Ashwagandha Coffee** (~$115,600 net). Top US categories in ord
 | Market | Store base URL |
 |---|---|
 | US | `www.vahdamteas.com` |
-| UK | `uk.vahdamteas.com` |
+| UK | `www.vahdam.co.uk` |
 | IN (India) | `www.vahdamindia.com` |
-| EU | `eu.vahdamteas.com` |
-| AU | `au.vahdamteas.com` |
+| EU | `www.vahdam.global` |
+| AU | `www.vahdam.global` |
 | Global / ME | `www.vahdamteas.com` |
 
 ### URL patterns
@@ -67,4 +67,4 @@ Top US product: **Ashwagandha Coffee** (~$115,600 net). Top US categories in ord
 - **Product detail page (PDP):** `{base}/products/{handle}` — where `{handle}` is the `h` field in the catalog JSON.
 - **Collection page:** `{base}/collections/{slug}` — resolved via the `heroMap` in `collectionUrl()`.
 
-Always pick the base URL that matches the recipient's market. A US mailer must link to `www.vahdamteas.com`; a UK mailer to `uk.vahdamteas.com`; and so on.
+Always pick the base URL that matches the recipient's market. A US mailer must link to `www.vahdamteas.com`; a UK mailer to `www.vahdam.co.uk`; and so on.

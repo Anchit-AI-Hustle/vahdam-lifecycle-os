@@ -332,8 +332,9 @@
   }
   function showExtension(id) {
     clearAdsTimer(); state.tab = id;
-    // Point the shared sync control at whatever view is now on screen.
-    try { syncSurfaceFor(id); } catch (_) {}
+    // No registration here: the single page surface reads state.tab when the bar
+    // actually syncs, so switching tabs changes what refreshes without adding
+    // another loader.
     ['kpis', 'signals', 'grid', 'footnote'].forEach(function (x) { var el = document.getElementById(x); if (el) el.style.display = 'none'; });
     var panel = document.getElementById('extendedAnalysisPanel'); panel.classList.add('on'); panel.innerHTML = '';
     document.querySelectorAll('#anTabs button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-ext-tab') === id); });
@@ -358,31 +359,48 @@
   }
 
   // ── Shared sync bar ───────────────────────────────────────────────────────
-  // Re-open the CURRENT tab on sync, which is exactly what each renderer's own
-  // "Refresh now" does — one code path, so the bar and the in-panel button can
-  // never disagree about what refreshing means. Registered per tab (the surface
-  // id changes with the tab) so the bar's source list names what is on screen.
+  // ONE surface for the whole page, registered once, refreshing whatever is on
+  // screen. It used to register one surface per tab, at the moment that tab was
+  // opened, which had two consequences. Surfaces accumulated across a session, so
+  // a sync re-opened every tab the user had visited in turn and the view landed
+  // on whichever happened to register last. And the four NATIVE tabs registered
+  // nothing at all, so the default view of /analytics — the first surface the
+  // owner names — reported "page reload" and never refreshed in place.
   //
-  // The freshness reported back is the tab's own honesty: the ads/revenue views
-  // already flag a cached snapshot, so that flag is forwarded rather than
-  // re-derived here. A view we cannot classify reports 'live' only because it
-  // genuinely refetches on every open.
-  function syncSurfaceFor(id) {
-    if (!id) return;
-    var label = (LIVE_TABS.concat(REVIEW_TABS).find(function (t) { return t.id === id; }) || {}).label || id;
+  // Refreshing still runs the same code path as each renderer's own "Refresh now"
+  // button, so the bar and the button can never disagree about what refreshing
+  // means. Freshness is the view's own honesty, forwarded rather than re-derived:
+  // the ads/revenue views already flag a cached read, and the native view reports
+  // a snapshot because that is what a committed overlay is.
+  function registerSync() {
     (window.__lcSync = window.__lcSync || []).push({
-      surface: 'data-analysis:' + id,
-      label: 'Data Analysis — ' + label,
+      surface: 'data-analysis',
+      label: 'Data Analysis',
       interval: 60,
       load: async function () {
-        openTab(id);
-        // Let the renderer's own fetch settle so the bar does not stamp a fresh
-        // timestamp before the data actually arrived.
-        await new Promise(function (r) { setTimeout(r, 400); });
-        var p = state.lastPayload || {};
-        var d = p[id] || p[String(id).replace(/-.*$/, '')];
-        if (d && d.cached) return { source: 'cached', note: d.note || 'Serving a cached snapshot; the live read was unavailable.' };
-        return { source: 'live' };
+        if (state.tab) {
+          openTab(state.tab);
+          // Let the renderer's own fetch settle so the bar does not stamp a fresh
+          // timestamp before the data actually arrived.
+          await new Promise(function (r) { setTimeout(r, 400); });
+          var p = state.lastPayload || {};
+          var d = p[state.tab] || p[String(state.tab).replace(/-.*$/, '')];
+          if (d && d.cached) return { source: 'cached', note: d.note || 'Serving a cached snapshot; the live read was unavailable.' };
+          return { source: 'live' };
+        }
+        // Native view. The Shopify overlay is a file someone pulled by hand, so
+        // it is never reported as live however recently the page fetched it —
+        // re-reading a committed file quickly is not the same as reading a store.
+        var f = null;
+        try { f = window.__daNative ? await window.__daNative.refresh() : null; } catch (_) {}
+        if (!f || !f.pulled_at) {
+          return { source: 'snapshot', note: 'Shopify Admin overlay; pull date unknown. Re-reads the committed file, not the store.' };
+        }
+        var age = f.is_today ? 'today' : f.stale_days + ' day' + (f.stale_days === 1 ? '' : 's') + ' ago';
+        return {
+          source: 'snapshot',
+          note: 'Shopify Admin overlay pulled ' + f.pulled_at + ' (' + age + '). Refreshing re-reads the committed file, not the store.',
+        };
       },
     });
   }
@@ -847,11 +865,19 @@
     document.querySelectorAll('#mktToggle button').forEach(function (b) {
       b.addEventListener('click', function () { setTimeout(function () { if (state.tab) openTab(state.tab); }, 10); });
     });
-    // The native widget tables on the host page share this funnel graph but have
-    // no Revenue Analysis of their own to drill into, so they hand the plan back
-    // here. Published only once this file is live: with it absent the host falls
-    // back to the record view rather than to a dead click.
+    // Both halves of this merge are needed, in this order.
+    // From main: register the sync surface BEFORE the initial tab resolves, so
+    // it exists even when the page opens on a native tab and no extension tab is
+    // ever touched.
+    registerSync();
+    // From this branch: the native widget tables on the host page share this
+    // funnel graph but have no Revenue Analysis of their own to drill into, so
+    // they hand the plan back here. Published only once this file is live: with
+    // it absent the host falls back to the record view rather than a dead click.
     window.__lcFunnelToRevenue = drillToRevenue;
+    // ensureFunnelDrill always invokes its callback — immediately if FunnelDrill
+    // is already present, otherwise after the script loads or the 3s wait caps —
+    // so applyInitialTab still runs exactly once, just after the drill is ready.
     ensureFunnelDrill(applyInitialTab);
   }
   boot();

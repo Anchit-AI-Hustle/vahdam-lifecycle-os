@@ -12,7 +12,7 @@
  * product (Yotpo's CDN does not rate-limit) with 429 backoff.
  *
  * region → base host (spec "Market-Specific Store URLs VERIFIED"):
- *   us → www.vahdamteas.com · uk → uk.vahdamteas.com · global → www.vahdamteas.com
+ *   us → www.vahdam.com · uk → www.vahdam.co.uk · global → www.vahdam.global
  * Writes data/brand-facts/<region>.json in the shape brand-facts.js expects,
  * keyed by handle + title (the renderers' stable fallback keys).
  */

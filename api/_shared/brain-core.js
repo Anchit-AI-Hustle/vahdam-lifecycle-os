@@ -173,7 +173,8 @@ const FALLBACK_BRAND = {
   banned_phrases: ['wellness journey', 'transform', 'liquid gold', 'game-changer', 'LIMITED TIME', 'hurry', "don't miss out", 'last chance', 'while supplies last'],
   preferred_lexicon: ['ritual', 'restore', 'balance', 'origin', 'single-estate', 'hand-picked', 'steep', 'heritage', 'crafted'],
   voice: 'warm, sensory, emotionally resonant, story-driven',
-  store_urls: { US: 'https://www.vahdamteas.com', UK: 'https://uk.vahdamteas.com', IN: 'https://www.vahdamindia.com', Global: 'https://www.vahdamteas.com' },
+  // From the single map (market-urls.js); the literals here had two dead hosts.
+  store_urls: require('./market-urls.js').STORE_BASE,
 };
 
 async function getBrandKit() {

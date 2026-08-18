@@ -11,7 +11,7 @@ Answer: `$ARGUMENTS`. **Do NOT use the Shopify Admin MCP connector** (no auth gr
 |---|---|---|
 | US | `https://www.vahdamteas.com` | ✓ `/products.json` returns live catalog (USD) |
 | Global | `https://www.vahdamteas.com` | ✓ same origin as US; differs by currency |
-| UK | — | ✗ no reachable JSON storefront: `uk.vahdamteas.com` is **NXDOMAIN**, `www.vahdamteas.co.uk` is a holding/lander page. **Use local `data/catalog/products_uk.json`** for UK products; flag to the user if live UK pricing is required. |
+| UK | — | ✗ no reachable JSON storefront: `www.vahdam.co.uk` is **NXDOMAIN**, `www.vahdamteas.co.uk` is a holding/lander page. **Use local `data/catalog/products_uk.json`** for UK products; flag to the user if live UK pricing is required. |
 
 ## Public endpoints (no auth — these are open on every Shopify storefront)
 - **Full catalog:** `{base}/products.json?limit=250&page=N` — paginate until empty. Returns title, handle, variants (price, sku, available), images, product_type, tags.

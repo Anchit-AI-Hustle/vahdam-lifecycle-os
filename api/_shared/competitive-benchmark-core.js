@@ -45,11 +45,11 @@ const webengage = require('./webengage-core.js');
 // side of a catalog comparison is read the same way as the competitor side so
 // the two are methodologically identical.
 const OWN_STOREFRONT = {
-  US: 'www.vahdamteas.com',
-  UK: 'uk.vahdamteas.com',
+  US: 'www.vahdam.com',
+  UK: 'www.vahdam.co.uk',
   IN: 'www.vahdamindia.com',
-  EU: 'eu.vahdamteas.com',
-  AU: 'au.vahdamteas.com',
+  EU: 'www.vahdam.global',
+  AU: 'www.vahdam.global',
 };
 
 const num = (v) => (v == null || v === '' || isNaN(Number(v)) ? 0 : Number(v));

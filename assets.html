@@ -146,8 +146,8 @@
   // Mirrors api/_shared/master-prompt.js so the copied prompt is brand-locked and
   // self-contained. Each ends with a SELF-CHECK so the model QAs its own output.
   const REGION = {
-    US:{store:'www.vahdamteas.com',cur:'$'}, UK:{store:'uk.vahdamteas.com',cur:'£'}, IN:{store:'www.vahdamindia.com',cur:'₹'},
-    EU:{store:'eu.vahdamteas.com',cur:'€'}, AU:{store:'au.vahdamteas.com',cur:'A$'}, Global:{store:'www.vahdamteas.com',cur:'$'}
+    US:{store:'www.vahdamteas.com',cur:'$'}, UK:{store:'www.vahdam.co.uk',cur:'£'}, IN:{store:'www.vahdamindia.com',cur:'₹'},
+    EU:{store:'www.vahdam.global',cur:'€'}, AU:{store:'www.vahdam.global',cur:'A$'}, Global:{store:'www.vahdamteas.com',cur:'$'}
   };
   function brandBlock() {
     return [
@@ -411,12 +411,12 @@
   // per-campaign freshness so the reviewer can see when a shipped asset is stale
   // against its canonical source. Additive + fail-quiet — never blocks the grid.
   async function loadSync() {
-    const strip = $('#syncStrip'); if (!strip) return;
+    const strip = $('#syncStrip'); if (!strip) return null;
     try {
       const r = await fetch('/api/calendar?action=smart-brain-sync-status').then((x) => x.json()).catch(() => null);
-      if (!r || !r.ok || !r.connected) { strip.hidden = true; return; }
+      if (!r || !r.ok || !r.connected) { strip.hidden = true; return { connected: false }; }
       const total = r.count || 0, stale = r.stale || 0;
-      if (!total) { strip.hidden = true; return; }
+      if (!total) { strip.hidden = true; return { connected: true, total: 0, stale: 0 }; }
       const dot = stale > 0 ? '#d9b25a' : '#3fa46a';
       const label = stale > 0
         ? ('<b style="color:#171717">' + stale + ' of ' + total + '</b> generated campaign' + (total === 1 ? '' : 's') + ' need regeneration — a source fact changed since they were built'
@@ -426,7 +426,8 @@
         + '<span>Source sync · ' + label + '</span>'
         + '<span style="margin-left:auto;color:#8a8a8a;font-size:11px">one canonical record, many views</span>';
       strip.style.display = 'flex'; strip.hidden = false;
-    } catch (_) { strip.hidden = true; }
+      return { connected: true, total, stale };
+    } catch (_) { strip.hidden = true; return { connected: false }; }
   }
 
   async function load() {
@@ -435,9 +436,37 @@
     $('#srcline').innerHTML = usingLocal
       ? 'Some assets are read from <b>this browser only</b> (the shared DB table may be empty or not migrated yet). Clones are always saved locally first.'
       : 'Reading from the <b>shared database</b> (+ this browser).' + (myEmail() ? '' : ' Sign in to filter to just your assets.');
-    loadSync();
+    const sync = await loadSync();
+    return { usingLocal, sync };
   }
   load();
+
+  // This is the surface the shared-source-of-truth design wants CURRENT/STALE on,
+  // so it is the last place that should have needed a manual reload to notice a
+  // fact changed underneath a generated campaign. Both calls here are plain reads
+  // (the asset list and calendar?action=smart-brain-sync-status), never a rebuild.
+  (window.__lcSync = window.__lcSync || []).push({
+    surface: 'assets:generated',
+    label: 'Generated Assets — mailers, ads, landing pages',
+    interval: 180,
+    load: async function () {
+      const out = await load();
+      if (out && out.usingLocal) {
+        return { source: 'cached', note: 'Some assets came from this browser only — the shared table was empty or unmigrated, so this is not the full shared set.' };
+      }
+      if (!out || !out.sync || !out.sync.connected) {
+        return { source: 'cached', note: 'Assets read from the shared database, but the source-sync check could not run, so CURRENT/STALE is unknown for this refresh.' };
+      }
+      // A STALE campaign is not a stale READ: the figures below are a live read of
+      // the shared table that correctly reports some assets as needing rebuild.
+      // Reporting 'snapshot' here would confuse "this data is old" with "these
+      // assets are out of date against their source".
+      if (out.sync.stale > 0) {
+        return { source: 'live', note: out.sync.stale + ' of ' + out.sync.total + ' generated campaigns are STALE against their canonical source and need regeneration.' };
+      }
+      return { source: 'live' };
+    },
+  });
 })();
 </script>
 </body>
