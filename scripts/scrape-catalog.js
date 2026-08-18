@@ -7,10 +7,19 @@
 // public storefront endpoints (no auth) instead:
 //   {base}/products.json?limit=250&page=N   (paginated until empty)
 //
-// Markets (verified 2026-06-21):
-//   us / global → https://www.vahdamteas.com  (live, USD)
-//   uk          → no reachable JSON storefront (uk.vahdamteas.com is NXDOMAIN,
-//                 .co.uk is a lander) → skipped; keep local products_uk.json.
+// Markets (re-verified 2026-08-13 — the 2026-06-21 note below it was correct
+// when written and is no longer true):
+//   us     → https://www.vahdam.com        live, USD  (www.vahdamteas.com now
+//            redirects here, so the old base cost a hop on every request)
+//   uk     → https://www.vahdam.co.uk      live, GBP  — NOT a lander any more.
+//            /products.json returns real UK products at GBP prices. The June
+//            note recorded uk.vahdamteas.com as NXDOMAIN (still true) and
+//            concluded .co.uk was a lander (no longer true), so UK was skipped
+//            and its catalog has been CSV-only ever since. It does not need to be.
+//   global → https://www.vahdam.global     live, USD
+//
+// A finding like the June one is a snapshot, not a fact. Re-run
+// `node scripts/check-market-urls.js` before trusting any of the above.
 //
 // Output: data/catalog/products_{market}.live.json  (same compact shape as
 //         build-catalog.js, minus CSV-only metafields the storefront omits).
@@ -29,10 +38,13 @@ const { deriveTags } = require('./build-catalog.js');
 const ROOT = path.resolve(__dirname, '..');
 const OUT_DIR = path.join(ROOT, 'data', 'catalog');
 
-// Markets with a reachable live storefront. UK intentionally omitted — see header.
+// Markets with a reachable live storefront. Bases come from the single market
+// map so this file cannot drift back to a dead host.
+const { STORE_BASE } = require('../api/_shared/market-urls.js');
 const MARKETS = [
-  { market: 'us',     base: 'https://www.vahdamteas.com' },
-  { market: 'global', base: 'https://www.vahdamteas.com' }
+  { market: 'us',     base: STORE_BASE.US },
+  { market: 'uk',     base: STORE_BASE.UK },
+  { market: 'global', base: STORE_BASE.GLOBAL },
 ];
 
 const MERGE = process.argv.includes('--merge');
@@ -106,7 +118,7 @@ async function main() {
       process.exitCode = 1;
     }
   }
-  console.log('\nNote: UK has no live storefront — keep data/catalog/products_uk.json (CSV-built).');
+  console.log('\nUK now scrapes live from ' + STORE_BASE.UK + ' (GBP). It was skipped as a lander until 2026-08-13.');
 }
 
 main();

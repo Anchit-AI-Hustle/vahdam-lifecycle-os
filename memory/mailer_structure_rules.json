@@ -248,10 +248,10 @@
 
   "market_urls": {
     "US": "https://www.vahdamteas.com",
-    "UK": "https://uk.vahdamteas.com",
+    "UK": "https://www.vahdam.co.uk",
     "IN": "https://www.vahdamindia.com",
-    "EU": "https://eu.vahdamteas.com",
-    "AU": "https://au.vahdamteas.com",
+    "EU": "https://www.vahdam.global",
+    "AU": "https://www.vahdam.global",
     "ME": "https://www.vahdamteas.com",
     "Global": "https://www.vahdamteas.com"
   }

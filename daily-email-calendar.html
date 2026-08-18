@@ -674,8 +674,12 @@ function mapEntry(e, i, day0){
     rationale: (e.analysis && e.analysis.summary) || e.rationale || ''
   };
 }
+// Returns what it actually rendered, so the sync bar reports the truth rather
+// than "refreshed". The reference fallback below is a baked set of days: it keeps
+// the page from collapsing when the plan cannot be read, but a calendar showing
+// reference days is NOT a live calendar and must never be counted as one.
 function loadLive(){
-  fetch('/api/calendar?action=smart-brain-plan').then(function(r){ return r.json(); }).then(function(j){
+  return fetch('/api/calendar?action=smart-brain-plan').then(function(r){ return r.json(); }).then(function(j){
     var entries = (j && j.entries) || [];
     var email = entries.filter(function(e){ return !e.channels || e.channels.indexOf('email') >= 0; });
     var us = email.filter(function(e){ return mktKey(e.market) === 'US'; });
@@ -683,12 +687,30 @@ function loadLive(){
     if (use.length){
       var day0 = use[0].date ? new Date(use[0].date + 'T00:00:00') : null;
       buildFromDays(use.map(function(e, i){ return mapEntry(e, i, day0); }), true);
-    } else {
-      buildFromDays(REFERENCE_DAYS, false);
+      return { source: 'live' };
     }
-  }).catch(function(){ buildFromDays(REFERENCE_DAYS, false); });
+    buildFromDays(REFERENCE_DAYS, false);
+    return { source: 'unavailable', note: 'The rolling plan returned no email entries, so the reference days are shown. These are illustrative, not the plan.' };
+  }).catch(function(){
+    buildFromDays(REFERENCE_DAYS, false);
+    return { source: 'unavailable', note: 'The rolling plan could not be read, so the reference days are shown. These are illustrative, not the plan.' };
+  });
 }
 loadLive();
+
+// "Calendar of past days" was named alongside the data analysis as something that
+// must refresh on a frequency rather than only on reload. This is a plain READ of
+// the persisted plan, so it is safe to poll. The other two calendar pages are
+// deliberately NOT registered: /plan and /lifecycle-calendar call generation
+// endpoints (calendar?action=generate / lifecycle-generate), and putting those on
+// a timer would spend model quota and rewrite the plan on a schedule nobody asked
+// for. A refresh has to re-read, never re-generate.
+(window.__lcSync = window.__lcSync || []).push({
+  surface: 'calendar:plan',
+  label: 'Email Calendar — rolling plan',
+  interval: 300,
+  load: function(){ return loadLive(); },
+});
 </script>
 <script src="/auth.js" defer></script>
 </body>

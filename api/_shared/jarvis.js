@@ -16,17 +16,13 @@
 
 const catalogLive = require('./catalog-live.js');
 
-// Market → storefront base (VERIFIED, per CLAUDE.md). Unknown markets fall back to .com
-const STORE_BASE = {
-  US: 'https://www.vahdamteas.com',
-  UK: 'https://uk.vahdamteas.com',
-  IN: 'https://www.vahdamindia.com',
-  EU: 'https://eu.vahdamteas.com',
-  AU: 'https://au.vahdamteas.com',
-  ME: 'https://www.vahdamteas.com',
-  GLOBAL: 'https://www.vahdamteas.com',
-};
-// Markets with their own catalog; anything else deep-links against the global one.
+// Market → storefront base. Imported from the single source (market-urls.js),
+// never copied: the copy that used to live here was labelled "VERIFIED" and
+// contained three hosts that do not resolve.
+const { STORE_BASE } = require('./market-urls.js');
+// Markets with their own catalog; anything else deep-links against the global
+// one. Values are irrelevant now that the catalog is fetched rather than read
+// from a per-region file — only membership matters.
 const REGION_FILE = { US: true, UK: true, GLOBAL: true };
 
 // Words too generic to identify a product on their own.

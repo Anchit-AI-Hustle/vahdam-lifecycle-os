@@ -263,6 +263,14 @@
       { id: 'da-acq',      label: 'Acquisition · Ads + LP',        href: '/data-analysis?tab=acq',                  icon: 'insights' },
       { id: 'da-ret',      label: 'Retention · Mailer + LP',       href: '/data-analysis?tab=ret',                  icon: 'insights' },
       { id: 'da-cohort',   label: 'Cohorts & Calendar',            href: '/data-analysis?tab=cohort',               icon: 'cohort' },
+      // The RFM dashboard was reachable from index, calendar, landing-pages and
+      // the ads master (four in-page links) but had NO row here: this group's
+      // match[] claimed /rfm and /dashboard.html, so landing there highlighted the
+      // group while no row lit up and the group never opened. Same defect as the
+      // orphaned INFO.ads / INFO.officialdesigns entries - the code survived, the
+      // entrance did not. It is the Draft 1 analytics surface (V1); Draft 2 is the
+      // Control Room above.
+      { id: 'da-rfm',      label: 'RFM Dashboard (Draft 1)',       href: '/rfm',                                    icon: 'analysis', ver: 'v1', draft: 1, match: ['/rfm', '/dashboard.html'] },
       // Live Ads moved OUT of this group (product owner, 2026-08-06): ad analysis
       // must have exactly ONE entrance in this rail, and that entrance is
       // Ad Campaigns Master Dashboard. The view itself was not deleted - it is the

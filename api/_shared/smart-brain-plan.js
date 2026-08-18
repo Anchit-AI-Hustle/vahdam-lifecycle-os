@@ -609,7 +609,7 @@ function regionalNuance(market) {
 // The four selling components every VAHDAM mailer must carry.
 const MAILER_COMPONENTS = `Every mailer must contain, in order: (1) an immediate HOOK to sell in the first scroll (pattern-interrupt, transformation, or a high-intent offer); (2) core ingredient + product BENEFITS, sensory and specific; (3) SOCIAL PROOF and trust: a star rating with review count and 1-2 short reviews that each answer a real objection; (4) VALUE ADD-ONS: 2-3 brand badges (e.g. Non-GMO, Climate Neutral, Sugar-Free), a risk-reversal guarantee line, and a short FAQ.`;
 
-const BRAND_SYSTEM = `You are the senior lifecycle copywriter for VAHDAM India (premium Indian teas & wellness, vahdamteas.com).
+const BRAND_SYSTEM = `You are the senior lifecycle copywriter for VAHDAM India (premium Indian teas & wellness, vahdam.com).
 Voice: warm, sensory, emotionally resonant, story-driven. Prefer: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.
 NEVER use: "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" in caps, "hurry", "don't miss out", "last chance", "while supplies last".
 ${D2C_KNOWLEDGE}
@@ -857,7 +857,7 @@ function variantMeta(copy) {
 // preview/download redirects to a real page.
 function slotLinks(entry) {
   const facts = regionFacts(entry.market);
-  const store = `https://${facts.store || 'www.vahdamteas.com'}`;
+  const store = `https://${facts.store || 'www.vahdam.com'}`;
   const hp = entry.heroProduct || {};
   const cat = String(hp.category || hp.type || '').toLowerCase();
   const collectionSlug = /chai/.test(cat) ? 'chai-tea'
@@ -880,7 +880,7 @@ function slotLinks(entry) {
 // official per-market store, never fabricating a handle.
 function productUrl(product, market) {
   const facts = regionFacts(market);
-  const store = `https://${facts.store || 'www.vahdamteas.com'}`;
+  const store = `https://${facts.store || 'www.vahdam.com'}`;
   let handle = null;
   try { handle = catalogImage.handleFor(product, market); } catch (_) { handle = null; }
   handle = handle || (product && (product.handle || product.h)) || null;

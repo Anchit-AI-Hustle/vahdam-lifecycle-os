@@ -11,12 +11,15 @@
  * FAQ · footer. Self-contained (inline CSS), region-aware.
  */
 const catalogLive = require('./catalog-live.js');
+const MU = require('./market-urls.js');
 
 const REGION = {
-  us:     { label: 'US',     base: 'https://www.vahdam.com',        ccy: '$', market: 'US' },
-  uk:     { label: 'UK',     base: 'https://uk.vahdamteas.com',     ccy: '£', market: 'UK' },
-  global: { label: 'Global', base: 'https://www.vahdamteas.com',    ccy: '$', market: 'GLOBAL' },
-  in:     { label: 'India',  base: 'https://www.vahdamindia.com',   ccy: '₹', market: 'IN' },
+  // Bases come from market-urls.js, the one measured map — not a fourth copy.
+  // Currency likewise, so a price can never be shown in the wrong symbol.
+  us:     { label: 'US',     base: MU.storeBase('US'),     ccy: MU.currency('US').symbol,     market: 'US' },
+  uk:     { label: 'UK',     base: MU.storeBase('UK'),     ccy: MU.currency('UK').symbol,     market: 'UK' },
+  global: { label: 'Global', base: MU.storeBase('GLOBAL'), ccy: MU.currency('GLOBAL').symbol, market: 'GLOBAL' },
+  in:     { label: 'India',  base: MU.storeBase('IN'),     ccy: MU.currency('IN').symbol,     market: 'IN' },
 };
 // Live catalog via the shared resolver. India has no build artifact, so it used
 // to render this page with no product at all; a live storefront read gives it
@@ -43,7 +46,7 @@ function buildFallbackLanding({ id = '', region = 'us', hint = '' } = {}) {
   const name = (p && p.n) || 'VAHDAM single-estate tea';
   const img = (p && p.i) || '';
   const price = p && p.price ? (/[£$₹]/.test(String(p.price)) ? String(p.price) : r.ccy + p.price) : '';
-  const url = p && p.h ? `${r.base}/products/${p.h}` : `${r.base}/collections/teas`;
+  const url = p && p.h ? `${r.base}/products/${p.h}` : MU.collectionUrl(r.market);
   const visual = img ? `<img src="${e(img)}" alt="${e(name)}" loading="eager">` : `<div class="pack">VAHDAM</div>`;
   const bene = [
     ['Single-estate, garden-fresh', 'Leaves picked at peak season and shipped fresh from India within 72 hours — never blended into anonymity.'],

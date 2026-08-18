@@ -138,11 +138,11 @@ No preamble, no "Here is...", no closing offer of further help.`;
 
 // ── Regional facts ──────────────────────────────────────────────────────────
 const REGION = {
-  US: { store: 'www.vahdamteas.com', presell: 'try.vahdam.com', currency: '$', locale: 'en-US', shipping: 'Free US shipping over $59' },
-  UK: { store: 'uk.vahdamteas.com', presell: 'try.vahdam.co.uk', currency: '£', locale: 'en-GB', shipping: 'Free UK shipping over £50' },
+  US: { store: 'www.vahdam.com', presell: 'try.vahdam.com', currency: '$', locale: 'en-US', shipping: 'Free US shipping over $59' },
+  UK: { store: 'www.vahdam.co.uk', presell: 'try.vahdam.co.uk', currency: '£', locale: 'en-GB', shipping: 'Free UK shipping over £50' },
   IN: { store: 'www.vahdamindia.com', presell: 'try.vahdam.com', currency: '₹', locale: 'en-IN', shipping: 'Free India shipping over ₹2,000' },
-  EU: { store: 'eu.vahdamteas.com', presell: 'try.vahdam.com', currency: '€', locale: 'en-IE', shipping: 'Free EU shipping over €60' },
-  AU: { store: 'au.vahdamteas.com', presell: 'try.vahdam.com', currency: 'A$', locale: 'en-AU', shipping: 'Free AU shipping over A$80' },
+  EU: { store: 'www.vahdam.global', presell: 'try.vahdam.com', currency: '€', locale: 'en-IE', shipping: 'Free EU shipping over €60' },
+  AU: { store: 'www.vahdam.global', presell: 'try.vahdam.com', currency: 'A$', locale: 'en-AU', shipping: 'Free AU shipping over A$80' },
   Global: { store: 'www.vahdamteas.com', presell: 'try.vahdam.com', currency: '$', locale: 'en', shipping: 'Free shipping on orders over $59' },
 };
 function regionFacts(market) { return REGION[market] || REGION.Global; }

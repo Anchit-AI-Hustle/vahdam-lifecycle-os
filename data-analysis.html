@@ -99,6 +99,73 @@
   .bignum{font-family:'Lao MN',Georgia,serif;font-size:30px;color:var(--head);}
   .empty{color:var(--soft);text-align:center;padding:26px;font-size:13px;}
 </style>
+<!-- High-contrast surface palette.
+     This block used to live in data-analysis-contrast.html, which loaded this page
+     in an iframe and injected these rules across the document boundary, re-adding
+     them from a MutationObserver whenever they were removed. That wrapper is gone:
+     the rules are now part of the page that they style, so /analytics is a real
+     document rather than a frame around one.
+     The !important flags are kept deliberately. They exist to beat the base palette
+     in the <style> above, and rewriting 50-odd rules to win on specificity instead
+     would change rendering for no user-visible gain. Same cascade, same result, one
+     document. Edit this block, not a wrapper. -->
+<style id="vahdam-high-contrast-override">
+  :root{
+    --forest:#004A2B!important;
+    --gold:#AB8743!important;
+    --ink:#171717!important;
+    --cream:#FBF5EA!important;
+    --bg:#FBF5EA!important;
+    --surface:#FFFFFF!important;
+    --tile:#FFFFFF!important;
+    --chip:#FBF5EA!important;
+    --line:#AB8743!important;
+    --soft:#31483B!important;
+    --head:#004A2B!important;
+    --accent:#8A682F!important;
+    --c1:#004A2B!important;
+    --c2:#AB8743!important;
+    --c3:#18794E!important;
+    --c4:#9B3A2E!important;
+    --c5:#305C89!important;
+    --c6:#6A3D7A!important;
+  }
+  html,body{background:#FBF5EA!important;color:#171717!important}
+  body{min-height:100vh!important}
+  .wrap{max-width:1440px!important;padding:30px 28px 110px!important}
+  h1,h2,h3,.sig-head,.sig-v,.w .wt,.bignum{color:#004A2B!important}
+  .eyebrow{color:#8A682F!important}
+  p.lede,.kpi .kl,.kpi .kd,.sig-sub,.sig-h,.sig-d,.w .ws,.legend,.note,.empty,.heat td.lbl,.heat th{color:#31483B!important}
+  .mkt{background:#FBF5EA!important;border:1px solid #AB8743!important;box-shadow:0 2px 10px rgba(0,74,43,.08)!important}
+  .mkt button{color:#004A2B!important}
+  .mkt button:hover{background:#E9DDC6!important}
+  .mkt button.on{background:#004A2B!important;color:#FFFFFF!important;box-shadow:0 0 0 2px #AB8743!important}
+  .kpi,.sig,.w{background:#FFFFFF!important;border:1px solid #AB8743!important;box-shadow:0 6px 18px rgba(0,74,43,.08)!important}
+  .kpi .kv{color:#004A2B!important}
+  .kpi:hover,.sig:hover,.w.link:hover{border-color:#004A2B!important;box-shadow:0 10px 26px rgba(0,74,43,.16)!important}
+  .sig-decomp,.insight{background:#FBF5EA!important;color:#171717!important;border:1px solid #D5C19A!important;border-left:4px solid #AB8743!important}
+  .sig-decomp b,.insight b{color:#004A2B!important}
+  .w .open,.crumb{color:#76551F!important}
+  .w .open:focus-visible,.crumb:focus-visible,.btn-dl:focus-visible,.mkt button:focus-visible{outline:3px solid #AB8743!important;outline-offset:2px!important}
+  .tbl-wrap{border:1px solid #AB8743!important;background:#FFFFFF!important}
+  table{color:#171717!important;background:#FFFFFF!important}
+  th{background:#004A2B!important;color:#FFFFFF!important;border-bottom:2px solid #AB8743!important}
+  td{color:#171717!important;border-bottom:1px solid #D8CCB6!important}
+  tbody tr:nth-child(even) td{background:#FBF5EA!important}
+  tbody tr:hover td{background:#E7F0EB!important}
+  .heat td{color:#171717!important}
+  .btn-dl{background:#004A2B!important;color:#FFFFFF!important;border:1px solid #AB8743!important}
+  .datalink{color:#004A2B!important;text-decoration-color:#AB8743!important}
+  .kpi .up,.sig-decomp .up{color:#137547!important}
+  .kpi .down,.sig-decomp .down{color:#A52A2A!important}
+  svg text{fill:#171717!important;font-weight:600!important}
+  svg .axis text,svg .tick text{fill:#171717!important}
+  svg line{stroke:#B9AA8C!important;stroke-opacity:.62!important}
+  svg path[stroke]{stroke-width:2.5!important}
+  svg circle{stroke:#FFFFFF!important;stroke-width:2!important}
+  [role="tooltip"],.tooltip,.chart-tooltip{background:#004A2B!important;color:#FFFFFF!important;border:1px solid #AB8743!important;box-shadow:0 8px 24px rgba(0,0,0,.22)!important}
+  @media(max-width:700px){.wrap{padding:20px 14px 90px!important}.topbar{align-items:flex-start!important}}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -185,7 +252,7 @@
   // ── market metadata (all four regions are first-class) ───────────────────
   var MARKET_META = {
     US:     { label:'United States', region:'us',     cur:'$', store:'www.vahdam.com' },
-    UK:     { label:'United Kingdom', region:'uk',     cur:'£', store:'uk.vahdamteas.com' },
+    UK:     { label:'United Kingdom', region:'uk',     cur:'£', store:'www.vahdam.co.uk' },
     GLOBAL: { label:'Global',         region:'global', cur:'$', store:'www.vahdamteas.com' },
     IN:     { label:'India',          region:'in',     cur:'₹', store:'www.vahdamindia.com' }
   };
@@ -710,8 +777,14 @@
 
   function renderFootnote(){
     var m=d()||{}; var live=m.__live;
+    // "live" is claimed only while the pull is same-day. The overlay does not
+    // refresh itself, so a fixed label plus a bare pull date reads as current
+    // forever; the age is derived and stated so a month-old figure says so.
+    var f=liveFreshness();
+    var age = !f ? '' : (f.is_today ? ', pulled today' : ', pulled '+esc(f.pulled_at)+' — '+f.stale_days+' day'+(f.stale_days===1?'':'s')+' ago');
+    var lead = (f && f.is_today) ? '<b>live Shopify Admin</b> snapshot' : '<b>Shopify Admin snapshot</b> (not live)';
     var src = live
-      ? 'Source: <b>live Shopify Admin</b> snapshot for '+esc(mktLabel())+' ('+esc(live.store_url||live.shop||meta(MKT).store)+', pulled '+esc(live.pulled_at||'recently')+') overlaying the '+esc(mktLabel())+' market exports.'
+      ? 'Source: '+lead+' for '+esc(mktLabel())+' ('+esc(live.store_url||live.shop||meta(MKT).store)+(age||', pulled '+esc(live.pulled_at||'recently'))+') overlaying the '+esc(mktLabel())+' market exports.'
       : 'Source: live VAHDAM '+esc(mktLabel())+' market exports in <span class="datalink">data/market/'+esc(meta(MKT).region)+'/</span>, compiled by <span class="datalink">scripts/build-market-analytics.js</span>.';
     document.getElementById('footnote').innerHTML=src+' Trailing 12-month window. The upstream ingestion + DuckDB engine lives in <a class="datalink" href="https://github.com/Anchit-AI-Hustle/vahdam_dtc_data_engine" target="_blank" rel="noopener">vahdam_dtc_data_engine</a> (live: <a class="datalink" href="/data-engine">DTC Data Engine</a>).';
   }
@@ -771,15 +844,57 @@
     if(marketHasData(MKT)){ var hash=(location.hash||'').replace('#',''); if(hash && WIDGETS.find(function(w){return w.id===hash;})) openDetail(hash); }
   }
 
+  // ── Native-view loading + DERIVED freshness ───────────────────────────────
+  // The overlay is a snapshot a human pulled through the Shopify MCP, not a feed
+  // that refreshes itself. Its age is therefore derived on every read (pulled_at
+  // vs today) instead of being described once in prose: a file that was current
+  // the day it was written still says "pulled 2026-07-18" a month later, and only
+  // the derived age tells the reader whether that number still means anything.
+  var LIVE_META=null;
+  function liveFreshness(){
+    if(!LIVE_META || !LIVE_META.pulled_at) return null;
+    // pulled_at is a bare date today ("2026-07-18"). Parsed bare it would be
+    // local-midnight in some engines and UTC in others, so pin the zone; a value
+    // that already carries a time is passed through untouched rather than having
+    // a second one appended onto it.
+    var raw=String(LIVE_META.pulled_at);
+    var t=Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw+'T00:00:00Z' : raw);
+    if(isNaN(t)) return null;
+    var days=Math.floor((Date.now()-t)/86400000);
+    return { pulled_at:LIVE_META.pulled_at, stale_days:days, is_today:days<=0 };
+  }
+  function loadNative(){
+    return fetch('/data/analytics/live-shopify.json',{cache:'no-store'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){ if(j){ LIVE_META={ pulled_at:j.pulled_at||null, source:j.source||null }; applyLive(j); } })
+      .catch(function(){});
+  }
+
   var booted=false; function once(){ if(booted) return; booted=true; boot(); }
-  fetch('/data/analytics/live-shopify.json',{cache:'no-store'})
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(j){ applyLive(j); })
-    .catch(function(){})
-    .then(once);
+  loadNative().then(once);
   setTimeout(once, 2500);
+
+  // The sync bar's loader for the four native tabs. Without it the bar found no
+  // registered source on the default view of /analytics and silently degraded to
+  // "page reload", so the surface the owner names first was the one surface that
+  // never refreshed in place.
+  window.__daNative={
+    freshness:liveFreshness,
+    refresh:function(){
+      return loadNative().then(function(){
+        if(booted) renderMarket();
+        return liveFreshness();
+      });
+    }
+  };
 })();
 </script>
+<!-- The extended tabs (Revenue, Mailer/Landing Intelligence, Business Review, ...).
+     Previously the /analytics wrapper injected this into this page's body from the
+     parent document; the page now loads its own behaviour, so opening
+     /data-analysis.html directly gives the same tabs as /analytics instead of a
+     stripped-down page with the four native tabs only. -->
+<script defer src="/data-analysis-extensions.js?v=20260813"></script>
 <script defer src="/auth.js"></script>
 </body>
 </html>

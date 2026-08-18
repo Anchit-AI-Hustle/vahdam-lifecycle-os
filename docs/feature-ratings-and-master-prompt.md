@@ -211,13 +211,13 @@ Use the EXACT regional configuration for the target market:
 
   US:   Store: https://www.vahdamteas.com  · Currency: $  · Locale: en-US
         Presell: https://try.vahdam.com
-  UK:   Store: https://uk.vahdamteas.com   · Currency: £  · Locale: en-GB
+  UK:   Store: https://www.vahdam.co.uk   · Currency: £  · Locale: en-GB
         Presell: https://try.vahdam.co.uk
   IN:   Store: https://www.vahdamindia.com · Currency: ₹  · Locale: en-IN
         Presell: https://try.vahdam.com
-  EU:   Store: https://eu.vahdamteas.com   · Currency: €  · Locale: en-IE
+  EU:   Store: https://www.vahdam.global   · Currency: €  · Locale: en-IE
         Presell: https://try.vahdam.com
-  AU:   Store: https://au.vahdamteas.com   · Currency: A$ · Locale: en-AU
+  AU:   Store: https://www.vahdam.global   · Currency: A$ · Locale: en-AU
         Presell: https://try.vahdam.com
   Global: Store: https://www.vahdamteas.com · Currency: $ · Locale: en
           Presell: https://try.vahdam.com
