@@ -46,6 +46,11 @@
   },
   "redirects": [
     {
+      "source": "/data-analysis-contrast.html",
+      "destination": "/data-analysis",
+      "permanent": true
+    },
+    {
       "source": "/ads",
       "destination": "/ads-master#crestudio",
       "permanent": false
@@ -418,11 +423,11 @@
     },
     {
       "source": "/analytics",
-      "destination": "/data-analysis-contrast.html"
+      "destination": "/data-analysis.html"
     },
     {
       "source": "/data-analysis",
-      "destination": "/data-analysis-contrast.html"
+      "destination": "/data-analysis.html"
     },
     {
       "source": "/d2c-lifecycle-os",
