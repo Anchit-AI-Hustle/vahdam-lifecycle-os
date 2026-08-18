@@ -24,6 +24,8 @@ const { buildMasterPrompt } = require('../_shared/master-prompt.js');
 const SMscen = require('../_shared/scenario-model.js');
 // Pre-creative check: the products this copy will name must exist in the LIVE store.
 const catalogGate = require('../_shared/catalog-gate.js');
+// Pre-creative check one level up: the STRATEGY the copy is aimed by.
+const briefGate = require('../_shared/brief-gate.js');
 const scrubDashes = SMscen.scrubDashes;
 // sanitizeBrand does both: banned-phrase rewrite (transform, liquid gold, last
 // chance, …) AND em/en-dash scrub. Fall back to dash-only if unavailable.
@@ -437,6 +439,19 @@ module.exports = async function handler(req, res) {
   // other files and keep their own cost-appropriate tiers.)
   const tier = 'premium';
 
+  // ── GATE 0a · BRIEF ESSENTIALS ─────────────────────────────────────────────
+  // Runs before the catalog gate because it is cheaper and more fundamental: a
+  // creative aimed at nobody, for no stated goal, is wrong even when every
+  // product fact in it is live. Customer-facing modes block; ideation proceeds
+  // with its gaps declared rather than silently invented.
+  const brief = briefGate.requireBrief({
+    mode, market, campaign_brief, theme,
+    target_audience: body.target_audience, objective: body.objective || body.goal,
+    cohort: body.cohort, selected_products,
+  });
+  if (brief.blocked) return res.status(422).json(briefGate.blockedResponse(brief));
+  const briefStamp = briefGate.stamp(brief);
+
   // ── GATE 0 · LIVE CATALOG ───────────────────────────────────────────────────
   // Copy that names a product states its price, its pack and its PDP as current
   // fact. The BROWSER sends `selected_products` from whatever catalog it loaded,
@@ -472,11 +487,16 @@ module.exports = async function handler(req, res) {
   // copy it just received was written against the live store. Wrapping res.json
   // once beats remembering to add it to eight object literals — and to the
   // ninth someone adds later.
-  if (catalogStamp) {
+  {
     const _json = res.json.bind(res);
     res.json = (payload) => _json(
       payload && typeof payload === 'object' && !Array.isArray(payload)
-        ? Object.assign({ catalog: catalogStamp }, payload)
+        ? Object.assign(
+            {},
+            catalogStamp ? { catalog: catalogStamp } : null,
+            briefStamp ? { brief: briefStamp } : null,
+            payload
+          )
         : payload
     );
   }
@@ -919,7 +939,8 @@ Target market: ${targetMarket}.`;
     userMessage = [
       `CAMPAIGN TYPE: ${theme || 'General Campaign'}`,
       `MARKET: ${market} — ${audienceCtx}`,
-      `SEED IDEA FROM USER: ${campaign_brief || '(none provided — derive a strong, specific campaign concept from the campaign type and market above)'}`,
+      `SEED IDEA FROM USER: ${campaign_brief || '(none provided — derive a concept from the campaign type and market above, and say so where you do)'}`,
+      briefGate.assumptionPromptBlock(brief),
       userAudience ? `TARGET AUDIENCE (already set by user — the brief MUST speak to this segment):\n${userAudience}` : '',
       productsBlock
         ? `PRODUCTS FROM THE LIVE VAHDAM CATALOG (use EXACT names and prices verbatim — do NOT invent SKUs or prices):\n${productsBlock}`

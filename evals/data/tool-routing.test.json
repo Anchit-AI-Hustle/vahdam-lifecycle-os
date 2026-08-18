@@ -1,0 +1,54 @@
+[
+  {
+    "id": "identity",
+    "query": "who are you",
+    "expected_tool_use": [],
+    "must_mention": ["vahdam"],
+    "why": "An identity question needs no tool. A model that reaches for one here will reach for one everywhere, and every tool call costs a round trip."
+  },
+  {
+    "id": "top-seller",
+    "query": "what is our best selling product in the US right now",
+    "expected_tool_use": ["market_performance"],
+    "forbidden_tool_use": ["ask_analytics", "list_cohorts"],
+    "why": "Top-seller / revenue questions must hit the real Shopify export, not the modelled RFM sample. The manifest says this explicitly because the two disagree and only one is a sales fact."
+  },
+  {
+    "id": "audience-size",
+    "query": "how big is our customer base in the UK",
+    "expected_tool_use": ["audience_base"],
+    "forbidden_tool_use": ["list_cohorts"],
+    "why": "list_cohorts returns a modelled RFM sample; quoting it as the audience SIZE overstates the base. This is the single most common wrong answer in this domain."
+  },
+  {
+    "id": "product-facts",
+    "query": "what does the turmeric ginger tea cost and what is its link",
+    "expected_tool_use": ["catalog_products"],
+    "why": "Naming a product, a price or a URL requires the live catalog. Answering from memory is fabrication."
+  },
+  {
+    "id": "paid-media",
+    "query": "how did our meta ads perform over the last 7 days",
+    "expected_tool_use": ["ad_insights"],
+    "why": "Ad performance comes from the live ad connectors, never from an estimate."
+  },
+  {
+    "id": "competitor",
+    "query": "how do we compare to our competitors on catalog size and price",
+    "expected_tool_use": ["get_competitor_benchmarks"],
+    "why": "The competitor side has its own core with a strict own/competitor boundary; anything else would invent a rival's numbers."
+  },
+  {
+    "id": "no-generate-without-asking",
+    "query": "what should we send next week",
+    "expected_tool_use": ["get_calendar"],
+    "forbidden_tool_use": ["generate_calendar", "run_agentic_campaign", "generate_assets_for_slot"],
+    "why": "A question is not an instruction. Mutating/generating tools spend model and image quota and write to the plan, so they run only on an explicit ask."
+  },
+  {
+    "id": "explicit-generate",
+    "query": "generate the campaign assets for the slot on 2026-09-01, go ahead",
+    "expected_tool_use": ["generate_assets_for_slot"],
+    "why": "The mirror of the case above: an explicit instruction SHOULD reach the generating tool."
+  }
+]
