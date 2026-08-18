@@ -110,7 +110,7 @@ buildMasterPrompt({
 **Voice:** warm, sensory, story-driven. **Prefer:** ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.
 **Banned:** wellness journey, transform, liquid gold, game-changer, LIMITED TIME (caps), hurry, don't miss out, last chance, while supplies last. No medical claims, no fake scarcity, no off-palette tints.
 **Catalogs:** US 173 · UK 101 · Global 102 active. Built at deploy from `products_export_{usa,uk,global}.csv`.
-**Store URLs:** US `www.vahdamteas.com` · UK `uk.vahdamteas.com` · IN `www.vahdamindia.com` · EU `eu.vahdamteas.com` · AU `au.vahdamteas.com`. Presell: `try.vahdam.com` / `try.vahdam.co.uk`. PDP `{base}/products/{handle}`.
+**Store URLs:** US `www.vahdamteas.com` · UK `www.vahdam.co.uk` · IN `www.vahdamindia.com` · EU `www.vahdam.global` · AU `www.vahdam.global`. Presell: `try.vahdam.com` / `try.vahdam.co.uk`. PDP `{base}/products/{handle}`.
 
 ---
 

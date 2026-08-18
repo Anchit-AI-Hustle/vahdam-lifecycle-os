@@ -15,8 +15,8 @@ const path = require('path');
 
 const REGION = {
   us:     { label: 'US',     base: 'https://www.vahdam.com',        ccy: '$', file: 'products_us.json' },
-  uk:     { label: 'UK',     base: 'https://uk.vahdamteas.com',     ccy: '£', file: 'products_uk.json' },
-  global: { label: 'Global', base: 'https://www.vahdamteas.com',    ccy: '$', file: 'products_global.json' },
+  uk:     { label: 'UK',     base: 'https://www.vahdam.co.uk',     ccy: '£', file: 'products_uk.json' },
+  global: { label: 'Global', base: 'https://www.vahdam.com',    ccy: '$', file: 'products_global.json' },
   in:     { label: 'India',  base: 'https://www.vahdamindia.com',   ccy: '₹', file: null },
 };
 const _cache = {};

@@ -1756,7 +1756,7 @@ async function supabaseHostImageMatrix(matrix,prefix){
   }
   return out;
 }
-const MARKET_BASE={US:'https://www.vahdamteas.com',UK:'https://uk.vahdamteas.com',IN:'https://www.vahdamindia.com',Global:'https://www.vahdamteas.com',ME:'https://www.vahdamteas.com',AU:'https://au.vahdamteas.com',EU:'https://eu.vahdamteas.com'};
+const MARKET_BASE={US:'https://www.vahdamteas.com',UK:'https://www.vahdam.co.uk',IN:'https://www.vahdamindia.com',Global:'https://www.vahdamteas.com',ME:'https://www.vahdamteas.com',AU:'https://www.vahdam.global',EU:'https://www.vahdam.global'};
 const VAHDAM_LOGO_URL='https://www.vahdam.com/cdn/shop/files/logo-website_3.png?v=1754032931&width=310';
 function getBase(m){return MARKET_BASE[m]||MARKET_BASE.US;}
 function toHandle(n){return n.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
@@ -6603,7 +6603,7 @@ function previewBothSideBySide(){
   var mktFlags={US:'🇺🇸',UK:'🇬🇧',IN:'🇮🇳',Global:'🌍',ME:'🇦🇪',AU:'🇦🇺',EU:'🇪🇺'};
   var mktNames={US:'United States',UK:'United Kingdom',IN:'India',Global:'Global / International',ME:'Middle East',AU:'Australia',EU:'Europe'};
   var mktCurr={US:'USD ($)',UK:'GBP (£)',IN:'INR (₹)',EU:'EUR (€)',AU:'AUD (A$)',ME:'AED (Dh)',Global:'USD ($)'};
-  var mktBase={US:'vahdamteas.com',UK:'uk.vahdamteas.com',IN:'vahdamindia.com',EU:'eu.vahdamteas.com',AU:'au.vahdamteas.com',ME:'vahdamteas.com',Global:'vahdamteas.com'};
+  var mktBase={US:'vahdamteas.com',UK:'www.vahdam.co.uk',IN:'vahdamindia.com',EU:'www.vahdam.global',AU:'www.vahdam.global',ME:'vahdamteas.com',Global:'vahdamteas.com'};
   var pageHtml='<!DOCTYPE html><html><head><title>VAHDAM® A vs B — '+mt+'</title><style>'+
     'body{margin:0;padding:0;background:#004A2B;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;display:flex;flex-direction:column;height:100vh}'+
     '.navbar{background:#171717;color:#FBF5EA;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}'+

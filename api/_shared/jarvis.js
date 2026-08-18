@@ -17,16 +17,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// Market → storefront base (VERIFIED, per CLAUDE.md). Unknown markets fall back to .com
-const STORE_BASE = {
-  US: 'https://www.vahdamteas.com',
-  UK: 'https://uk.vahdamteas.com',
-  IN: 'https://www.vahdamindia.com',
-  EU: 'https://eu.vahdamteas.com',
-  AU: 'https://au.vahdamteas.com',
-  ME: 'https://www.vahdamteas.com',
-  GLOBAL: 'https://www.vahdamteas.com',
-};
+// Market → storefront base. Re-exported from the single source rather than
+// copied: this copy said "VERIFIED" and had three dead hosts in it.
+const { STORE_BASE } = require('./market-urls.js');
 // Only us/uk/global catalogs are built; other markets reuse the global catalog.
 const REGION_FILE = { US: 'products_us.json', UK: 'products_uk.json', GLOBAL: 'products_global.json' };
 

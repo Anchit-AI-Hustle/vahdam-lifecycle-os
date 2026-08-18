@@ -122,6 +122,34 @@ test.describe('every filter control does something, and says so when there is no
         const c = controls.nth(i);
         if (!(await c.isVisible().catch(() => false))) continue;
         if (!(await c.evaluate((el, sel) => el.matches(sel) || !!el.getAttribute('onclick'), CLICKABLE).catch(() => false))) continue;
+        // A control that NAVIGATES is not a filter, whatever class it carries.
+        // retention-playbook.html has `<a class="chip" href="/brain">`, and the
+        // crawler was clicking it, leaving the page, and then asserting against
+        // whatever document loaded next — testing the wrong page and reporting
+        // the result under the original page's name. Anchors that stay put
+        // (href="#", "javascript:", or none) are still exercised.
+        //
+        // Decided by the URL PARSER, not by string prefixes. The first version
+        // enumerated the schemes that do not navigate (`javascript:`) and
+        // CodeQL flagged it for missing `data:` and `vbscript:` — correctly,
+        // and the point generalises past those two: a denylist of schemes is
+        // never finished. Resolving with `new URL` and allowing only http/https
+        // classifies every scheme, present and future, and gets `#fragment`
+        // right for free (same document once the hash is dropped).
+        const navigates = await c.evaluate((el) => {
+          if (el.tagName !== 'A') return false;
+          if (!el.getAttribute('href')) return false;
+          let target;
+          try { target = new URL(el.href, document.baseURI); } catch (_) { return false; }
+          // Only an http(s) URL performs a page navigation worth skipping;
+          // javascript:, data:, blob:, mailto:, tel: and anything else either
+          // stay put or are blocked for top-level navigation.
+          if (target.protocol !== 'http:' && target.protocol !== 'https:') return false;
+          const here = new URL(document.location.href);
+          target.hash = ''; here.hash = '';
+          return target.href !== here.href;
+        }).catch(() => false);
+        if (navigates) continue;
         const label = ((await c.textContent().catch(() => '')) || '').trim().slice(0, 40);
         if (DESTRUCTIVE.test(label)) continue;
         await c.click({ timeout: 5000 }).catch(() => {});

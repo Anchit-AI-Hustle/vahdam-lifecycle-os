@@ -56,7 +56,7 @@ function toSmartProduct(p, market) {
       image: p.i || null, subtitle: p.subtitle || null, caffeine: p.caffeine || null,
       tasting_notes: p.tasting_notes || null, form: p.form || null, cups: p.cups || null,
       packaging: p.packaging || null,
-      url: handle ? `${({ US: 'https://www.vahdamteas.com', UK: 'https://uk.vahdamteas.com', Global: 'https://www.vahdamteas.com' })[market]}/products/${handle}` : null,
+      url: handle ? require('../api/_shared/market-urls.js').productUrl(market, handle) : null,
     },
     updated_at: new Date().toISOString(),
   };

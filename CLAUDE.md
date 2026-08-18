@@ -331,9 +331,31 @@ folder's README. Habit: `memory_recall` at task start, `memory_capture` after me
 ## Product Catalogs
 US: 173 · UK: 101 · Global: 102 active products. Built at deploy from `products_export_{usa,uk,global}.csv` via `scripts/build-catalog.js` → `data/catalog/products_{region}.json` (served with CORS + cache headers per `vercel.json`).
 
-## Market-Specific Store URLs (VERIFIED)
-US → www.vahdamteas.com | UK → uk.vahdamteas.com | IN → www.vahdamindia.com | EU → eu.vahdamteas.com | AU → au.vahdamteas.com | Global/ME → www.vahdamteas.com
+## Market-Specific Store URLs — ONE source: `api/_shared/market-urls.js`
+US → www.vahdam.com | UK → www.vahdam.co.uk | Global/EU/AU/ME → www.vahdam.global | IN → www.vahdam.com (no separate IN storefront today)
+**Never hand-write this map again.** The table that used to sit here was headed
+"(VERIFIED)" and was wrong on four of six entries: `uk.vahdamteas.com`,
+`eu.vahdamteas.com` and `au.vahdamteas.com` do not resolve, and
+`www.vahdamteas.com` / `www.vahdamindia.com` only redirect to `www.vahdam.com`.
+Nine hand-maintained copies of the map existed across the mailer pipeline, ad
+generator, landing-page builder, review-recovery mailer, competitive benchmark and
+playbook generator — most captioned "VERIFIED, per CLAUDE.md" — so every UK/EU/AU
+asset the repo generated linked to a host that does not exist. The word "verified"
+is what stopped anyone re-checking. Re-measure any time with
+`node scripts/check-market-urls.js`; `tests/market-urls.spec.js` fails if a dead
+host reappears in source. Full history: `docs/prompt-library/README.md`.
 - PDP: `{base}/products/{handle}` (handle = catalog JSON `h` field) · Collection: `{base}/collections/{slug}` (via `heroMap` in `collectionUrl()`)
+
+## Prompt library — the brand contract for generated assets (`docs/prompt-library/`)
+Five production prompts (landing pages · mailers · ad creatives · visual assets ·
+music), each with a paste-verbatim brand block and a generic placeholder variant.
+They are the depth standard for anything generated: evidence rule, contrast rule,
+banned/preferred words, per-asset structure and an explicit output contract.
+Read `docs/prompt-library/README.md` first — it records where the supplied brand
+blocks disagree with measured reality (the market URLs) and which two rules are
+stricter than the codebase currently enforces (`Learn More`/`Click Here` as CTAs,
+and `href="#"`, both still present in already-generated deliverables under
+`landing-pages/ashwagandha-matrix/`).
 
 ## Brand Constants (source of truth: `Brand style guide.pdf`)
 - **Palette (ONLY these four)**: `#004A2B` forest green · `#AB8743` gold · `#171717` near-black · `#FBF5EA` cream

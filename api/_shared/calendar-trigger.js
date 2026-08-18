@@ -21,23 +21,11 @@ const CF = require('../_shared/copy-frameworks.js');
 const fs = require('fs');
 const path = require('path');
 
-// ─── VAHDAM store URLs (verified per CLAUDE.md) ─────────────────────────────
-function regionBase(market) {
-  const m = String(market || '').toUpperCase();
-  const map = {
-    US: 'https://www.vahdamteas.com',
-    UK: 'https://uk.vahdamteas.com',
-    IN: 'https://www.vahdamindia.com',
-    EU: 'https://eu.vahdamteas.com',
-    AU: 'https://au.vahdamteas.com',
-    CA: 'https://www.vahdamteas.com',
-    JP: 'https://www.vahdamteas.com',
-    SG: 'https://www.vahdamteas.com',
-    ME: 'https://www.vahdamteas.com',
-    GLOBAL: 'https://www.vahdamteas.com',
-  };
-  return map[m] || 'https://www.vahdamteas.com';
-}
+// ─── VAHDAM store URLs ──────────────────────────────────────────────────────
+// One map for the whole repo. The literals that used to sit here were labelled
+// "verified per CLAUDE.md" and pointed UK, EU and AU at hosts that do not
+// resolve; see the header of market-urls.js for what was actually measured.
+const { storeBase: regionBase } = require('./market-urls.js');
 
 function slugify(s) {
   return String(s || '').toLowerCase().trim()

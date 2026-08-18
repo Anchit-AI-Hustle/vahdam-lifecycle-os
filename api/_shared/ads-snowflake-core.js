@@ -289,7 +289,7 @@ function adAccounts() {
       label: 'VAHDAM UK', account_id: '573128874469619',
       table: tableRef('SF_META_UK_TABLE', 'VAHDAM_DB.MAPLEMONK.META_UK_ADS_INSIGHTS'), schema: 'MAPLEMONK',
       fresh_to: '2026-07-26', partial_day: true,
-      purpose: 'UK direct-to-consumer account on uk.vahdamteas.com. The freshest feed in the warehouse.',
+      purpose: 'UK direct-to-consumer account on www.vahdam.co.uk. The freshest feed in the warehouse.',
       used_for: 'UK D2C acquisition and retention',
       kpi: 'roas', attribution: 'meta_pixel',
       verified: { rows: 154585, last_day: '2026-07-26', campaigns: 37, spend: 661518.68 },
