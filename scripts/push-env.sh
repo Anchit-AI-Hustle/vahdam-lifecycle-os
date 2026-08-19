@@ -66,17 +66,19 @@ echo "${#names[@]} variable(s) in $ENV_FILE, target: $TARGET"
 
 if [ "$MODE" = "--check" ]; then exit 0; fi
 
-if ! command -v vercel >/dev/null 2>&1; then
-  echo "vercel CLI not found. Run: bash scripts/setup-clis.sh"
-  exit 1
-fi
-
 if [ "$MODE" != "--apply" ]; then
   echo
   echo "DRY RUN. Each of the above would be pushed with:"
   echo "  vercel env add <NAME> $TARGET   (value piped from $ENV_FILE, never echoed)"
   echo "Re-run with --apply to actually set them."
   exit 0
+fi
+
+# Only the write path needs the CLI. A dry run never calls vercel, so demanding
+# it there would stop you previewing an env file on a machine without it.
+if ! command -v vercel >/dev/null 2>&1; then
+  echo "vercel CLI not found. Run: bash scripts/setup-clis.sh"
+  exit 1
 fi
 
 echo

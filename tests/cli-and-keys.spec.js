@@ -25,6 +25,32 @@ const DOC = path.join(ROOT, 'docs', 'cli-and-keys.md');
 
 const read = (p) => fs.readFileSync(p, 'utf8');
 
+// CI has none of these CLIs installed. The first version of this spec was
+// written straight after installing them locally, so both script tests
+// silently depended on their presence and went red on every CI project.
+// barePath() reproduces that environment on purpose, so the dependency cannot
+// come back unnoticed in whichever environment the suite happens to run in.
+let BARE;
+function barePath() {
+  if (BARE) return BARE;
+  BARE = fs.mkdtempSync(path.join(require('os').tmpdir(), 'barepath-'));
+  for (const b of ['bash', 'sh', 'env', 'cat', 'grep', 'sed', 'tr', 'printf', 'git', 'rm']) {
+    try {
+      const src = execFileSync('command', ['-v', b], { shell: '/bin/bash', encoding: 'utf8' }).trim();
+      if (src) fs.symlinkSync(src, path.join(BARE, b));
+    } catch (_) { /* not present; the scripts do not require it */ }
+  }
+  return BARE;
+}
+// Run a script and return {status, out} instead of throwing, so a non-zero exit
+// is an assertable value rather than a crash.
+function run(args, env) {
+  const r = require('child_process').spawnSync('bash', args, {
+    cwd: ROOT, encoding: 'utf8', env: { ...process.env, ...(env || {}) },
+  });
+  return { status: r.status, out: (r.stdout || '') + (r.stderr || '') };
+}
+
 test('the scripts and the doc exist and are executable', () => {
   for (const p of [SETUP, PUSH]) {
     expect(fs.existsSync(p), `${p} is missing`).toBe(true);
@@ -53,10 +79,20 @@ test('setup-clis covers every CLI the stack can use, and names the ones that do 
   }
 });
 
-test('--check installs nothing and reports the real state', () => {
-  const out = execFileSync('bash', [SETUP, '--check'], { cwd: ROOT, encoding: 'utf8' });
-  expect(out).toMatch(/present: \d+/);
-  expect(out).toMatch(/No CLI exists for these/);
+test('--check reports the real state and never fails the shell', () => {
+  // "report only" must mean report only. Exiting non-zero when a CLI is absent
+  // makes the script unusable exactly where it is most useful: a CI runner or a
+  // fresh clone, where nothing is installed yet.
+  for (const env of [undefined, { PATH: barePath() }]) {
+    const { status, out } = run([SETUP, '--check'], env);
+    expect(status, `--check exited ${status}${env ? ' with no CLIs on PATH' : ''}`).toBe(0);
+    expect(out).toMatch(/present: \d+/);
+    expect(out).toMatch(/No CLI exists for these/);
+  }
+  // And with nothing installed it must actually say so, not silently pass.
+  const bare = run([SETUP, '--check'], { PATH: barePath() });
+  expect(bare.out).toMatch(/MISSING\s+vercel/);
+  expect(bare.out).toMatch(/missing: [1-9]/);
 });
 
 test('push-env is dry-run by default: --apply is required to write', () => {
@@ -87,17 +123,34 @@ test('push-env never echoes a secret value', () => {
     'OPENAI_API_KEY=sk-proj-SENTINELBETA',
   ].join('\n'));
   try {
+    // Both modes, and both with and without the CLIs on PATH: a dry run never
+    // calls vercel, so it must work on a machine that does not have it.
     for (const args of [['--check'], []]) {
-      const out = execFileSync('bash', [PUSH, ...args], {
-        cwd: ROOT, encoding: 'utf8', env: { ...process.env, ENV_FILE: file },
-      });
-      expect(out, 'a secret value was printed').not.toContain('SENTINELALPHA');
-      expect(out, 'a secret value was printed').not.toContain('SENTINELBETA');
-      // It must still be useful: names and lengths, and the empty one skipped.
-      expect(out).toContain('ANTHROPIC_API_KEY');
-      expect(out).toMatch(/EMPTY_ONE\s+\(empty\)/);
-      expect(out).toMatch(/3 variable\(s\)/);
+      for (const env of [{ ENV_FILE: file }, { ENV_FILE: file, PATH: barePath() }]) {
+        const { status, out } = run([PUSH, ...args], env);
+        expect(status, `push-env ${args.join(' ') || 'dry-run'} exited ${status}`).toBe(0);
+        expect(out, 'a secret value was printed').not.toContain('SENTINELALPHA');
+        expect(out, 'a secret value was printed').not.toContain('SENTINELBETA');
+        // It must still be useful: names and lengths, and the empty one skipped.
+        expect(out).toContain('ANTHROPIC_API_KEY');
+        expect(out).toMatch(/EMPTY_ONE\s+\(empty\)/);
+        expect(out).toMatch(/3 variable\(s\)/);
+      }
     }
+  } finally { fs.unlinkSync(file); }
+});
+
+test('--apply still refuses when vercel is absent', () => {
+  // The counterweight to the fix above. Moving the CLI check off the dry-run
+  // path must not remove it: the WRITE path still requires vercel, or the
+  // script would report success having pushed nothing.
+  const file = path.join(ROOT, 'node_modules', '.cache-applyfixture.env');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, 'SOME_KEY=value\n');
+  try {
+    const { status, out } = run([PUSH, '--apply'], { ENV_FILE: file, PATH: barePath() });
+    expect(status, '--apply succeeded with no vercel CLI').not.toBe(0);
+    expect(out).toMatch(/vercel CLI not found/);
   } finally { fs.unlinkSync(file); }
 });
 

@@ -93,6 +93,16 @@ local process can exfiltrate. Same boundary `scripts/preflight-credentials.sh` a
 - `tests/cli-and-keys.spec.js` pins it, including a behavioural check that runs the script over sentinel
   values and asserts neither appears in its output, plus a repo-wide guard against any future script that
   echoes a credential. Full detail: `docs/cli-and-keys.md`.
+- **A test written straight after installing something depends on it being installed.** Both script tests
+  passed locally and failed on all six CI projects, because CI has none of these CLIs and `execFileSync`
+  throws on a non-zero exit. Two real script defects were hiding behind that: `--check` is documented
+  "report only" yet exited 1 when a CLI was absent, making it unusable on a CI runner or a fresh clone;
+  and `push-env.sh` demanded the vercel CLI **before** the dry-run branch, though a dry run never calls
+  vercel, so you could not preview an env file without it. Fixed in the scripts, not papered over in the
+  tests. The spec now runs both scripts under a deliberately bare `PATH` (`barePath()`, symlinks to
+  coreutils only) and asserts exit 0 plus a real `MISSING vercel` line, so the assertion cannot be vacuous
+  and the environment dependency cannot return unnoticed. A counterweight test asserts `--apply` still
+  refuses when vercel is absent, so moving the guard did not delete it.
 
 ## Architecture — the big picture
 

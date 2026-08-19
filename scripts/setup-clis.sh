@@ -64,5 +64,11 @@ echo "  Meta Ads · Google Ads · TikTok Ads · Klaviyo · WebEngage"
 echo
 echo "present: $ok   installed: $installed   missing: $missing"
 echo "Next: bash scripts/setup-clis.sh --check   then   bash scripts/push-env.sh --check"
+
+# --check is documented as "report only". A report that fails the shell is a
+# surprise, and it makes the script unusable anywhere the CLIs are legitimately
+# absent (a CI runner, a fresh clone). Only the INSTALL path reports failure,
+# because there a missing CLI means an install actually did not work.
+if [ "$CHECK_ONLY" = 1 ]; then exit 0; fi
 [ "$missing" -gt 0 ] && exit 1
 exit 0
