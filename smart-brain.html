@@ -799,7 +799,28 @@ function renderPreview(payload, e, i, opts){
   ads.forEach((ad,ai)=>{ const id='pv-ad-'+(ad.platform||'x')+'-'+(ad.variant||ai); const vl=ad.variant?(' · '+ad.variant+(ad.angle?' ('+ad.angle+')':'')):''; const adName='ad-'+(ad.platform||'x')+'-'+(ad.variant||ai); tab(id, esc((ad.platform||'ad'))+' ad'+esc(vl), first); pane(id, adBar(adName, JSON.stringify(ad,null,2))+renderAd(ad), first); first=false; });
   tab('pv-json','{ } Details', first); pane('pv-json', `<pre style="margin:0">${esc(JSON.stringify(campaign && campaign.campaign_id ? campaign : e, null, 2))}</pre>`, first);
 
-  const banner = `<span class="st approved">final</span> <span class="pvnote" style="margin:0">Final generated version — the best version of each asset, ready to view and download.</span>`;
+  // The banner used to say "final - the best version of each asset, ready to view
+  // and download" no matter what happened underneath. A run where no LLM answered
+  // and the catalog gate fired still announced itself as finished, so the operator
+  // read "final, ready to download" and only discovered template stubs on opening
+  // them. Same defect class as the gate that blocked silently: the header must
+  // describe the run that actually happened.
+  const _tr = payload.agent_trace || campaign.agent_trace || [];
+  // NOTE: the label below prints "template" when cw.provider is MISSING, so the
+  // degraded check has to test the same thing the label does. Testing
+  // /template/ against an empty provider was false, which is why a template run
+  // showed the word "template" and no explanation next to it.
+  const _copyFellBack = !cw.provider || /template/i.test(String(cw.provider));
+  const _failedAgents = (Array.isArray(_tr) ? _tr : []).filter((a) => a && a.ok === false);
+  const _gateAgent = (Array.isArray(_tr) ? _tr : []).find((a) => a && /catalog gate/i.test(String(a.agent || '')) && a.ok === false);
+  const _degraded = _copyFellBack || _failedAgents.length > 0;
+  const banner = _degraded
+    ? `<span class="st" style="background:#3a1414;color:#ffd9d0">incomplete</span> <span class="pvnote" style="margin:0">Saved, but NOT fully generated: ${esc([
+        _copyFellBack ? 'copy is the template fallback' : '',
+        _gateAgent ? 'the live catalog gate blocked' : '',
+        (!_gateAgent && _failedAgents.length) ? `${_failedAgents.length} pipeline step(s) failed` : '',
+      ].filter(Boolean).join(' and '))}. See the reason below before sending anything.</span>`
+    : `<span class="st approved">final</span> <span class="pvnote" style="margin:0">Final generated version — the best version of each asset, ready to view and download.</span>`;
   // "Open detailed page": the real hosted landing page once live, else the primary
   // mailer opened full-screen in a new tab.
   const detailBtn = liveLpId
@@ -821,12 +842,25 @@ function renderPreview(payload, e, i, opts){
     ${(() => {
       // When copy fell back to the template (no LLM provider answered), show the
       // EXACT reason inline so the cause is visible — not buried in a tooltip.
-      const tr = payload.agent_trace || campaign.agent_trace || [];
-      const isFallback = /template/.test(String(cw.provider||''));
+      const tr = _tr;
+      const isFallback = _copyFellBack;
       const fb = Array.isArray(tr) ? tr.find(a=>a && a.agent==='fallback' && a.output && a.output.reason) : null;
       if(!isFallback && !fb) return '';
       const reason = (fb && fb.output && fb.output.reason) || 'the LLM cascade returned nothing for this slot';
       return `<div class="pvnote" style="margin-top:4px;color:#ffd9d0;background:#3a1414;border-radius:6px;padding:6px 9px;font-size:11px">⚠ Copy used the <b>template fallback</b>: ${esc(reason)}. This means no LLM provider answered — check that at least one text API key (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY / GROQ_API_KEY / CEREBRAS_API_KEY / XAI_API_KEY) is set and not quota-exhausted for this deployment, then Regenerate.</div>`;
+    })()}
+    ${(() => {
+      // Any other failed step states its own reason. A warning triangle on a
+      // chip labelled "Live Catalog Gate" is not a message an operator can act
+      // on; the step already carries the blocker, so print it.
+      const others = _failedAgents.filter((a) => a && a.agent !== 'fallback');
+      if(!others.length) return '';
+      return others.map((a) => {
+        const o = a.output || {};
+        const why = o.reason || o.blocker || o.message || o.error || '';
+        const fix = o.remediation ? [].concat(o.remediation).join(' ') : (/catalog/i.test(String(a.agent)) ? 'Set LIVE_CONNECTORS=on so the app may read the store, then Regenerate.' : '');
+        return `<div class="pvnote" style="margin-top:4px;color:#ffd9d0;background:#3a1414;border-radius:6px;padding:6px 9px;font-size:11px">⚠ <b>${esc(a.agent)}</b> did not pass${why?': '+esc(why):'.'}${fix?' To fix: '+esc(fix):''}</div>`;
+      }).join('');
     })()}
     <div class="pvtabs">${tabs.join('')}</div>
     ${panes.join('')}</div>`;

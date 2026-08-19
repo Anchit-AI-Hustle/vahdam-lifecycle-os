@@ -16,6 +16,7 @@
 <!-- Supabase JS SDK (used for cross-device dashboard storage) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- Lifecycle OS shared auth + cross-step nav -->
+<script src="/gate-notice.js"></script>
 <script src="/auth.js?v=20260718light" defer></script>
 <!-- Shared landing-page helper: the Studio builds the page each mailer links to. -->
 <script src="/ai-studio-bar.js" defer></script>
@@ -1075,7 +1076,37 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
   </div>
 
   <div id="p4-chatgpt" style="display:none">
-    <p style="font-size:12px;color:#48524c;margin-bottom:16px;line-height:1.6">Choose an AI image generation tool below. The full campaign prompt is <strong>auto-copied</strong> to your clipboard when you click Open. Paste it into the tool, generate your image, download it, then come back and upload it in the <strong>Upload Design File</strong> tab.</p>
+
+    <!-- ══ ASSET PROMPTS ══════════════════════════════════════════════════════
+         Two different prompts live on this tab and they were not distinguished.
+         Every card below used to copy an IMAGE prompt: the Gemini button copied
+         the product-photograph brief, so pasting it into Gemini returned one
+         pack shot, correctly, and no mailer. The prompt that returns a COMPLETE
+         mailer was server-side only and the page's copyMasterPrompt() was dead
+         code nothing called.
+         Asset prompts come first now, because building the mailer is the job;
+         an element prompt is for filling one slot inside it.                -->
+    <div style="border:1.5px solid #004A2B;border-radius:14px;background:#fff;box-shadow:0 2px 10px rgba(0,74,43,.10);margin-bottom:18px;overflow:hidden">
+      <div style="background:#004A2B;padding:13px 16px">
+        <div style="font-size:13px;font-weight:700;color:#FBF5EA">&#128231; Asset prompt &mdash; returns the COMPLETE mailer</div>
+        <div style="font-size:10.5px;color:rgba(251,245,234,.85);margin-top:3px">One ready-to-send HTML email file, not copy and not a picture of an email. Paste into a chat model (ChatGPT, Claude, Gemini) and it builds the whole thing.</div>
+      </div>
+      <div style="padding:13px 16px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button onclick="copyAssetPrompt('mailer')" style="padding:8px 14px;background:#004A2B;color:#FBF5EA;border:none;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">&#128203; Copy asset prompt</button>
+          <button onclick="copyAssetPrompt('landing_page')" style="padding:8px 14px;background:transparent;color:#004A2B;border:1.5px solid #004A2B;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">Landing page</button>
+          <button onclick="copyAssetPrompt('ad')" style="padding:8px 14px;background:transparent;color:#004A2B;border:1.5px solid #004A2B;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">Ad creative</button>
+          <span id="assetPromptState" style="font-size:10.5px;color:#556059"></span>
+        </div>
+        <p style="font-size:10.5px;color:#556059;margin:10px 0 0;line-height:1.55">Image slots come back as an embedded generation prompt plus a <code style="font-size:10px">PASTE_IMAGE_URL_HERE</code> token, because a chat model cannot produce a photograph. Fill those with the element prompts below, and the file is finished.</p>
+      </div>
+    </div>
+
+    <!-- ══ ELEMENT PROMPTS ═══════════════════════════════════════════════════ -->
+    <div style="border-left:3px solid #AB8743;padding-left:11px;margin-bottom:12px">
+      <div style="font-size:12.5px;font-weight:700;color:#171717">&#127912; Element prompts &mdash; return ONE image for a slot</div>
+      <div style="font-size:11px;color:#48524c;line-height:1.55;margin-top:2px">These produce a single visual that goes <em>inside</em> the mailer. They will not build the mailer itself. Generate, download, then upload in the <strong>Upload Design File</strong> tab.</div>
+    </div>
 
     <!-- Three tool cards -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
@@ -1090,9 +1121,9 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
           </div>
         </div>
         <div style="padding:12px 16px">
-          <p style="font-size:11px;color:#374151;line-height:1.6;margin-bottom:12px">Best for: detailed layout prompts, text rendering, multi-section email designs. Use the <strong>Full Layout Prompt</strong> below.</p>
+          <p style="font-size:11px;color:#374151;line-height:1.6;margin-bottom:12px">Element prompt. Best for a layout mockup image with legible text. This returns a PICTURE of a design, not a sendable email: use the asset prompt above for that.</p>
           <div style="display:flex;gap:8px">
-            <button onclick="copyPromptText();showCopyToast('Layout prompt copied — paste into ChatGPT')" style="flex:1;padding:7px 0;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">&#128203; Copy Prompt</button>
+            <button onclick="copyPromptText();showCopyToast('ELEMENT prompt copied (an image, not the mailer) - paste into ChatGPT')" style="flex:1;padding:7px 0;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">&#128203; Copy Prompt</button>
             <button onclick="openChatGPT()" style="flex:1;padding:7px 0;background:#10a37f;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">Open ChatGPT &#8599;</button>
           </div>
         </div>
@@ -1108,9 +1139,9 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
           </div>
         </div>
         <div style="padding:12px 16px">
-          <p style="font-size:11px;color:#374151;line-height:1.6;margin-bottom:12px">Best for: generating SVG or HTML design mockups in Artifacts. Paste the prompt and ask Claude to render a mailer design.</p>
+          <p style="font-size:11px;color:#374151;line-height:1.6;margin-bottom:12px">Element prompt. Best for an SVG or HTML mockup in Artifacts. For a real sendable mailer, copy the asset prompt above instead.</p>
           <div style="display:flex;gap:8px">
-            <button onclick="copyPromptText();showCopyToast('Layout prompt copied — paste into Claude')" style="flex:1;padding:7px 0;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">&#128203; Copy Prompt</button>
+            <button onclick="copyPromptText();showCopyToast('ELEMENT prompt copied (a mockup, not the mailer) - paste into Claude')" style="flex:1;padding:7px 0;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">&#128203; Copy Prompt</button>
             <button onclick="openClaudeAI()" style="flex:1;padding:7px 0;background:#7c5cfc;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">Open Claude &#8599;</button>
           </div>
         </div>
@@ -1126,9 +1157,9 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
           </div>
         </div>
         <div style="padding:12px 16px">
-          <p style="font-size:11px;color:#374151;line-height:1.6;margin-bottom:12px">Best for: photorealistic product lifestyle imagery with Imagen 3. Use the <strong>Visual Prompt</strong> for better results here.</p>
+          <p style="font-size:11px;color:#374151;line-height:1.6;margin-bottom:12px">Element prompt. Photorealistic product and lifestyle imagery. Returns ONE photograph for a slot in the mailer, which is exactly what it is for.</p>
           <div style="display:flex;gap:8px">
-            <button onclick="(function(){var t=S.lastImagePrompt||'';if(t)navigator.clipboard.writeText(t).catch(function(){});showCopyToast('Prompt copied — paste into Gemini');})()" style="flex:1;padding:7px 0;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">&#128203; Copy Prompt</button>
+            <button onclick="(function(){var t=S.lastImagePrompt||'';if(t)navigator.clipboard.writeText(t).catch(function(){});showCopyToast('ELEMENT prompt copied (one photograph, not the mailer) - paste into Gemini');})()" style="flex:1;padding:7px 0;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">&#128203; Copy Prompt</button>
             <button onclick="openGemini()" style="flex:1;padding:7px 0;background:#4285F4;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif">Open Gemini &#8599;</button>
           </div>
         </div>
@@ -1139,7 +1170,7 @@ html[data-theme="green"] .btn-primary:hover{box-shadow:0 0 0 1px rgba(171,135,67
     <div id="imageVariantSwitcher" style="display:none"></div>
     <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px">
       <div style="background:#f8f6f2;padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-        <span style="font-size:11px;font-weight:700;color:#374151">&#128203; Campaign Image Prompt &mdash; <span id="activeImagePromptVariantLabel">Variant A</span></span>
+        <span style="font-size:11px;font-weight:700;color:#374151">&#127912; Element prompt &middot; campaign image &mdash; <span id="activeImagePromptVariantLabel">Variant A</span></span>
         <div style="display:flex;gap:6px">
           <button onclick="copyImagePrompt('A')" style="font-size:10px;padding:4px 10px;background:transparent;color:#004A2B;border:1.5px solid #004A2B;border-radius:5px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-weight:600">Copy A</button>
           <button onclick="copyImagePrompt('B')" style="font-size:10px;padding:4px 10px;background:transparent;color:#AB8743;border:1.5px solid #AB8743;border-radius:5px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-weight:600">Copy B</button>
@@ -8543,6 +8574,41 @@ prompt,
 '5. Output ONLY clean, inline-CSS HTML — no explanation, no markdown wrapper.',
 '   The output is ready to paste directly into Klaviyo.',
 ].join('\n');
+}
+// Fetch the ASSET prompt from the one place it is defined
+// (api/_shared/master-prompt.js, via ?action=master-prompt) rather than keeping
+// a second copy in this page. getMasterSystemPrompt() below is the page's own
+// older hand-written version and had already drifted; this is the same "one
+// source" rule the market-URL map and asset-specs are under.
+async function copyAssetPrompt(assetType){
+  var st=document.getElementById('assetPromptState');
+  var label={mailer:'mailer',landing_page:'landing page',ad:'ad creative'}[assetType]||assetType;
+  if(st)st.textContent='Building the '+label+' prompt...';
+  try{
+    var body={
+      assetType:assetType,
+      market:(S&&S.market)||'US',
+      brief:(S&&S.prompt)||'',
+      products:(S&&S.selectedProducts)||[],
+      variant:'V2',
+      cohort:(S&&S.cohort)||'',
+    };
+    var r=await fetch('/api/ai/generate?action=master-prompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var j=await r.json();
+    if(!j||!j.ok||!j.prompt){
+      // Never claim a copy that did not happen.
+      var why=(window.GateNotice?window.GateNotice.explain(j,r).text:((j&&(j.error||j.detail))||('HTTP '+r.status)));
+      if(st)st.textContent='';
+      showCopyToast('Could not build the prompt: '+why);
+      return;
+    }
+    await navigator.clipboard.writeText(j.prompt);
+    if(st)st.textContent='Copied '+j.chars.toLocaleString()+' chars - returns the complete '+label+'.';
+    showCopyToast('ASSET prompt copied - paste into ChatGPT, Claude or Gemini for the complete '+label);
+  }catch(e){
+    if(st)st.textContent='';
+    showCopyToast('Could not build the prompt: '+(e&&e.message?e.message:'unknown error'));
+  }
 }
 function copyMasterPrompt(){
   var p=getMasterSystemPrompt();

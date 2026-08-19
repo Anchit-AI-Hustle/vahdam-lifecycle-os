@@ -128,8 +128,14 @@ Never regenerate wholesale on a subjective score: identify the lowest dimension,
 const OUTPUT_ENVELOPE = `RESPONSE FORMAT: exactly these four parts, in order, nothing else:
 1. CONCEPT (3-4 lines): the single emotional idea, who it is for, why it stops the scroll, and the one
    thing the viewer should feel. Concept precedes execution; never start rendering without it.
-2. THE ASSET: the complete deliverable per the contract below, ready to ship with no further editing.
-   Where the contract asks for HTML, output complete valid self-contained HTML in one block.
+2. THE ASSET: the complete, finished deliverable per the contract below, ready to
+   ship with no further editing and no assembly step. Output it in ONE code block
+   as complete valid self-contained HTML wherever the contract asks for a file.
+   This part is the asset ITSELF, never a description, brief, outline, plan or
+   list of its parts: if a human would still have to build something after
+   reading it, the response has failed regardless of how good the writing is.
+   The ONLY permitted gaps are the media paste tokens and the
+   [DATA REQUIRED BEFORE LAUNCH: ...] tokens defined above.
 3. SOURCE MAP: a compact table of every factual claim you made. Columns: statement | value | where it came
    from (supplied in prompt / placeholder token). Any row that is not traceable to this prompt must
    be a [DATA REQUIRED BEFORE LAUNCH: ...] token, not a value.
@@ -174,20 +180,68 @@ function productLines(products = [], currency = '$') {
 // The visual cascade for every visual asset, in the order the operator chose:
 const VISUAL_CASCADE = `VISUALS, in this source order: (1) if a hosted media URL is provided, embed it (product image/GIF/MP4, e.g. a Shopify product video); (2) else describe an auto-generated animated GIF (2 to 4 still frames, gentle Ken-Burns or cross-fade) the team can produce from product photography; (3) AI-generated video only as a last resort. Every visual must be photoreal, on-palette, text-free in the image itself (text lives in the layout, not burned into the photo) unless the asset is an ad creative.`;
 
+// ── The rule every contract inherits ────────────────────────────────────────
+// The contracts used to ask for the PARTS: "3 subject lines, a hero headline,
+// 2-3 paragraphs, a CTA" for a mailer; "every text field, plus a creative brief
+// per size" for an ad. Pasted into a blank ChatGPT/Gemini/Claude session that is
+// exactly what came back - a copy document and a description of a picture, which
+// someone then still has to build into an email or an ad. The asset was never
+// the deliverable; its ingredients were.
+const DELIVER_THE_WHOLE_ASSET = `DELIVER THE WHOLE ASSET, NOT ITS INGREDIENTS.
+The output is the finished file, ready to ship with no assembly step. A brief, an
+outline, a section-by-section plan, a copy document, a list of elements, or a
+description of what the asset should look like is a FAILED response even when
+every word in it is good. If a human would still have to build something after
+reading your answer, you have not delivered the asset.
+Do not ask clarifying questions and do not stop early. Missing facts become the
+[DATA REQUIRED BEFORE LAUNCH: ...] token, inline, and you continue.`;
+
+// A text model cannot produce a photograph. Pretending otherwise is how you get
+// an <img src="hero.jpg"> pointing at a file that does not exist, which is a
+// fabricated filename under the zero-fabrication rule. The repo already has one
+// honest convention for this (mailer-format.js, parsed by asset-agent.js), so
+// every contract uses it rather than inventing a second.
+const MEDIA_SLOT_PROTOCOL = `MEDIA SLOTS, the only permitted placeholder:
+You cannot produce a photograph, so every image, GIF or video slot is expressed
+as an embedded generation prompt immediately followed by a paste token, exactly:
+  <!-- IMAGE GENERATION PROMPT (hero, displayed 600x400 - generate at 1200x800 for retina):
+       <one vivid art-direction paragraph: light, lens, composition, the real SKU> -->
+  <img src="PASTE_IMAGE_URL_HERE" width="600" alt="<meaningful alt text>" style="display:block;width:100%;height:auto">
+Use VIDEO GENERATION PROMPT / PASTE_VIDEO_URL_HERE and GIF GENERATION PROMPT /
+PASTE_GIF_URL_HERE for those kinds. NEVER invent an image filename, CDN path or
+stock URL. The rest of the file is finished around these slots, so the asset is
+complete the moment the URLs are pasted in.`;
+
+// The email shell both mailer variants must produce. Written once and injected
+// into BOTH, because a user copies ONE variant and pastes it alone: V2 saying
+// "the same block as V1" is an instruction to a model that never saw V1.
+const EMAIL_FILE_SHELL = `1. The subject-metadata comment block, exactly this shape, as the first lines:
+   <!--
+   SUBJECT_PRIMARY: ... (<=50 chars)
+   SUBJECT_ALT1: ...
+   SUBJECT_ALT2: ...
+   PREHEADER: ... (<=90 chars, must NOT repeat the subject)
+   -->
+2. A complete <!doctype html> document, 600px fixed-width table layout, ALL CSS
+   inline on the elements (no <style> beyond a media query and the @font-face
+   block), MSO-safe bulletproof CTA buttons, bgcolor on every coloured cell.`;
+
 // ── EMAIL MAILER CONTRACT ───────────────────────────────────────────────────
 function mailerContract(variant) {
   if (variant === 'V1') {
-    return `ASSET: Email mailer, VARIANT V1 (COMPLETE TEXTUAL CONTENT, no imagery).
-Produce a fully text-driven email that stands on its own with zero images.
-Deliver, in order:
-1. 3 subject-line options (≤50 chars) + 1 preheader (≤90 chars).
-2. Editorial hero headline + opening line that earns the scroll.
-3. Body: 2 to 3 short story-driven paragraphs (origin, ritual, why-now).
-4. A benefit triplet (3 crisp lines).
-5. One tiny personal testimonial (story, not a star rating).
-6. Clear CTA copy + the destination store URL.
-7. Plain-text version suitable for deliverability.
-Compact (~two scrolls). No layout/visual instructions: pure copy.
+    return `ASSET: Email mailer, VARIANT V1 (Text: typography and colour only, zero photography).
+${DELIVER_THE_WHOLE_ASSET}
+DELIVER: ONE complete, self-contained, ready-to-send HTML email file. Not a copy
+document, not a list of sections, not a brief. If it cannot be pasted straight
+into an ESP and sent, it is not finished.
+The file must contain, in this order:
+${EMAIL_FILE_SHELL}
+3. The editorial hero headline and opening line, the 2 to 3 story paragraphs,
+   the benefit triplet, one tiny personal testimonial, and the CTA linking to
+   the real destination URL: all set as real markup inside that document.
+4. A plain-text alternative, after the HTML, in a block labelled PLAIN TEXT.
+V1 is typographic: colour blocks, rules, spacing and type carry it. NO <img> at
+all, not even a placeholder. Compact, about two scrolls.
 
 CRAFT FOR A TEXT-ONLY EMAIL: with no imagery, the writing carries everything:
 - The first seven words decide whether the rest is read. Open mid-scene, never with a greeting or a
@@ -201,14 +255,19 @@ CRAFT FOR A TEXT-ONLY EMAIL: with no imagery, the writing carries everything:
 - Earn the CTA: by the time it arrives the reader should already have decided. The button confirms a
   decision, it does not ask for one.`;
   }
-  return `ASSET: Email mailer, VARIANT V2 (TEXTUAL + VISUAL).
-Produce the same persuasive copy as V1 PLUS a complete visual layout.
-Deliver, in order:
-1. 3 subject lines + preheader.
-2. Section-by-section layout: for each section give the COPY and the VISUAL (hero, lifestyle, product packshot, motion moment).
-3. At least one motion slot (animated GIF or short product video) with an exact creative brief and where it sits.
-4. Benefit strip, social proof, offer bar, CTA: each with copy + visual direction.
-5. Responsive, email-client-safe structure (Outlook bgcolor on colored cells; max ~1200-1500px tall).
+  return `ASSET: Email mailer, VARIANT V2 (Text + Graphics).
+${DELIVER_THE_WHOLE_ASSET}
+DELIVER: ONE complete, self-contained, ready-to-send HTML email file containing,
+in this order:
+${EMAIL_FILE_SHELL}
+3. The visual layout built as real markup: hero band, benefit strip, social
+   proof, offer bar and CTA are sections IN the file, never descriptions of
+   sections.
+4. A plain-text alternative, after the HTML, in a block labelled PLAIN TEXT.
+${MEDIA_SLOT_PROTOCOL}
+At least one motion slot (GIF or short product video) declared the same way.
+Responsive: a max-width:600px media query collapsing to one fluid column, body
+>=16px on mobile, buttons >=44px tall. About 1200 to 1500px total height.
 ${VISUAL_CASCADE}
 
 CRAFT FOR A DESIGNED EMAIL:
@@ -276,8 +335,25 @@ unclear; any text is unreadable at thumbnail size; the region or currency is wro
 rating is unverified; the background is black or near-black; it looks like a template.
 
 Platform spec: ${spec}
-Deliver: (a) every text field the platform requires; (b) for EACH static size above, a precise creative brief describing the still visual, the BAKED-IN overlay wording (headline + offer) + exact pixel placement + safe zones; (c) the destination URL.
-VISUALS (produced asset): one still, on-palette, photoreal image per size with the overlay baked in. This is exactly what the studio compositor renders. If a hosted product image/MP4 URL is supplied, its first frame is used as the base still. Motion (animated GIF / short video) is an OPTIONAL follow-up brief for the team. Describe it only as a next step, NEVER as a delivered asset here. To produce the actual video ad from this brief, hand it to OpenMontage (open-source agentic video pipeline): https://github.com/Open-Montage/OpenMontage`;
+${DELIVER_THE_WHOLE_ASSET}
+DELIVER, in this order:
+(a) EVERY text field the platform requires, at its exact character limit, in a
+    block labelled PLATFORM FIELDS, ready to paste into Ads Manager.
+(b) THE CREATIVE ITSELF, one per produced size above: a complete, self-contained
+    HTML document whose <body> is exactly that pixel size, with the overlay type,
+    offer line, CTA and brand mark SET IN THE LAYOUT as real elements at real
+    coordinates, on the brand palette, in Lao MN / Proxima Nova. Screenshotting
+    that document at the stated size must produce the finished ad. This is the
+    deliverable: a paragraph describing the visual is NOT the creative, and a
+    layout that is merely a photo with a caption laid over it is a fail (see the
+    composition rules above).
+    Each size is its own document, composed for its own shape. Never one design
+    exported at three aspect ratios.
+${MEDIA_SLOT_PROTOCOL}
+(c) The destination URL, and the alt text for each size.
+MOTION is an OPTIONAL follow-up brief, never a delivered asset here. To produce
+an actual video ad from it, hand the brief to OpenMontage (open-source agentic
+video pipeline): https://github.com/Open-Montage/OpenMontage`;
 }
 
 // ── ORGANIC SOCIAL CONTRACT (per platform) ──────────────────────────────────
@@ -331,11 +407,16 @@ Platform spec: ${s.sizes}
 Copy limits: ${s.copy}
 Tone: ${s.tone}
 
-Deliver:
-1. Caption (within char limit, hook in first line)
-2. Hashtags (within platform budget, budgeted into char count)
-3. Image direction (size + brief for the photographer/designer)
-4. First comment (Instagram only, for additional hashtags/links)
+${DELIVER_THE_WHOLE_ASSET}
+DELIVER the finished post, ready to schedule:
+1. Caption, complete and final, within the char limit, hook in the first line.
+2. Hashtags, within the platform budget and counted INSIDE the caption limit.
+3. First comment (Instagram), complete.
+4. Alt text for the creative.
+5. The creative slot, declared with the media protocol below so the post is
+   complete the moment the URL is pasted in. The image is TEXT-FREE: no overlay,
+   no headline burned into it. All words live in the caption.
+${MEDIA_SLOT_PROTOCOL}
 
 CRAFT FOR ORGANIC (it must not smell like an ad):
 - The first line is the whole game. It appears truncated in-feed, so it must work as a standalone
@@ -355,7 +436,10 @@ BRAND RULES apply: palette, typography, voice, banned phrases, no dashes, no fab
 // ── LANDING PAGE CONTRACT ───────────────────────────────────────────────────
 function landingContract(facts) {
   return `ASSET: Landing page in the try.vahdam.* presell style (reference: https://${facts.presell}/...).
+${DELIVER_THE_WHOLE_ASSET}
 Build a conversion-focused, single-scroll-friendly page using the brand palette/typography.
+Every section named below must be WRITTEN OUT as real markup with real copy. A
+section stub, a comment saying what goes there, or lorem is a failed response.
 Sections, in order: sticky announcement bar · hero (headline + sub + primary CTA) · trust/credentials row (4.9/5 · 250K+ reviews · Oprah's Fav · B-Corp) · problem→solution narrative · product reveal with price (${facts.currency}) · benefit grid · ingredient/origin proof · testimonials as mini-stories (NOT star ratings) · FAQ (accordion, 3-5 Qs) · risk-reversal/guarantee · sticky footer CTA.
 Every CTA links to the regional store (https://${facts.store}/products/{handle}). Mobile-first, fast, self-contained HTML/CSS (inline), no external fonts/scripts.
 ${facts.shipping ? `Shipping line for offer bar: ${facts.shipping}` : ''}
@@ -376,6 +460,7 @@ CONVERSION CRAFT:
 - Proof sits next to the claim it supports, never in a separate testimonial ghetto at the bottom.
 - Every section must justify its own scroll cost. Cut any section that only restates another.
 - Sticky CTA appears after the first proof point, not immediately (immediate is pushy, late is lost).
+${MEDIA_SLOT_PROTOCOL}
 ${CRAFT_BLOCK}
 ${VISUAL_CASCADE}`;
 }
@@ -402,7 +487,9 @@ INTERACTION FLOW:
   2. Interactive stage: tap-to-build (e.g. build a cup of tea, steep ritual)
   3. End card: product reveal + CTA button (fires host CTA API)
 
-Deliver: complete self-contained HTML with inlined data:URI assets.
+${DELIVER_THE_WHOLE_ASSET}
+Deliver: complete self-contained HTML with inlined data:URI assets, playable as
+delivered. A description of the interaction is not a playable.
 ${facts.shipping ? `Shipping line for offer: ${facts.shipping}` : ''}`;
 }
 
@@ -447,8 +534,36 @@ B. VIDEO BRIEF (for Higgsfield / OpenMontage / external production):
     land on visuals and type alone.
 ${CRAFT_BLOCK}
 
-Deliver: complete motion ad HTML + shot-by-shot brief for external production.
+${DELIVER_THE_WHOLE_ASSET}
+Deliver: the complete motion ad HTML (it must animate when opened, not describe
+an animation) PLUS the shot-by-shot brief for external production. The brief is
+the SECOND deliverable, never a substitute for the first.
 ${facts.shipping ? `Shipping line for CTA: ${facts.shipping}` : ''}`;
+}
+
+// ── BLOG / LONG-FORM CONTRACT ───────────────────────────────────────────────
+// There was no blog contract. `assetType:'blog'` fell through the else-chain to
+// mailerContract(), so asking for an article returned an email brief. The asset
+// engines have had a blog engine since the per-asset split; this is its prompt.
+function blogContract(facts) {
+  return `ASSET: Blog post for the VAHDAM journal.
+${DELIVER_THE_WHOLE_ASSET}
+DELIVER ONE complete, publishable article as self-contained HTML:
+1. SEO title (<=60 chars) and meta description (<=160), in a metadata comment
+   block at the top of the file.
+2. One H1, then the article written in full under real H2 sections. Every
+   section is WRITTEN OUT: an outline, a heading list, or "[expand this]" is a
+   failed response.
+3. 900 to 1400 words unless the topic genuinely needs more. One question
+   answered per H2. No section whose only job is to introduce the next one.
+4. A brewing or ritual specific enough to be useful on its own: the reader
+   should get value even if they never buy anything.
+5. Internal links to the regional store (https://${facts.store}) on the product
+   mentions that earn one, never on every mention.
+6. FAQ block with schema.org FAQPage JSON-LD, filled with the real questions
+   and answers from the article.
+${MEDIA_SLOT_PROTOCOL}
+${facts.shipping ? `Shipping line where relevant: ${facts.shipping}` : ''}`;
 }
 
 /**
@@ -473,6 +588,7 @@ function buildMasterPrompt(o = {}) {
   else if (assetType === 'landing_page' || assetType === 'lp') contract = landingContract(facts);
   else if (assetType === 'playable') contract = playableContract(facts);
   else if (assetType === 'video' || assetType === 'motion') contract = videoContract(facts);
+  else if (assetType === 'blog' || assetType === 'article') contract = blogContract(facts);
   else contract = mailerContract(variant === 'V1' ? 'V1' : 'V2');
 
   return [

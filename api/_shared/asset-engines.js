@@ -353,11 +353,14 @@ const landingEngine = {
     const hay = obj + ' ' + coh;
     // Intent first: a page whose audience is named should not be left to the
     // seed. The seed only decides where intent is genuinely ambiguous.
+    // Word-anchored. Unanchored, `new` matched "renewal" and "newsletter", so a
+    // renewal reminder was designed as a first-purchase how-to page. Same defect
+    // class as the market-URL suffix match: a substring is not a token.
     const byIntent =
-      /gift|festive|diwali|christmas|holiday/.test(hay) ? 'gift-curation'
-      : /winback|lapsed|at.?risk|churn|non.?engag/.test(hay) ? 'proof-first'
-      : /new|welcome|activation|first|onboard/.test(hay) ? 'ritual-howto'
-      : /discover|sampler|cross.?sell|explore/.test(hay) ? 'comparison'
+      /\b(gift|gifting|festive|diwali|christmas|holiday)\b/.test(hay) ? 'gift-curation'
+      : /\b(winback|win.?back|lapsed|at.?risk|churn|non.?engagers?|dormant)\b/.test(hay) ? 'proof-first'
+      : /\b(new|welcome|activation|activate|first.?purchase|onboarding|onboard)\b/.test(hay) ? 'ritual-howto'
+      : /\b(discover|discovery|sampler|cross.?sell|explore)\b/.test(hay) ? 'comparison'
       : null;
     const a = byIntent
       ? this.archetypes.find((x) => x.key === byIntent)

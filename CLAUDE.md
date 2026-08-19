@@ -244,6 +244,55 @@ lied - each line was true when written, and then the code grew a rung.
   no longer exist in any form - the routers replaced them. Treat the README as the front door and
   CLAUDE.md as the working memory; when they disagree, the code wins and both get fixed.
 
+### Element prompts and asset prompts are different things (2026-08-19)
+Pasting "the prompt" from Mailer Studio into Gemini returned one product photograph. That was correct
+behaviour: all three platform cards on the Step-4 Prompts tab copied an **element** prompt (the Gemini
+button copied the product-photograph brief), and the prompt that returns a COMPLETE mailer had **no
+entrance in the UI at all** - `copyMasterPrompt()` was defined and called from nowhere. Same
+vanished-entrance trap as `INFO.ads` and the Creative Studio.
+- **The asset contracts also asked for the ingredients.** `mailerContract` asked for "3 subject lines,
+  a hero headline, 2-3 paragraphs, a CTA"; `adContract` asked for "every text field, plus a creative
+  brief per size". Both are copy documents. Only landing page, playable and video ever demanded a
+  finished file. Every contract now carries `DELIVER_THE_WHOLE_ASSET` (a brief, outline, plan or list
+  of elements is a FAILED response) and names the finished artifact: a sendable 600px inline-CSS HTML
+  email, one HTML document per produced ad size composed at that pixel size, a publishable article.
+- **`MEDIA_SLOT_PROTOCOL` is the one honest placeholder.** A chat model cannot produce a photograph,
+  and letting it emit `<img src="hero.jpg">` is a fabricated filename. Every media slot uses the
+  repo's existing convention (`<!-- IMAGE GENERATION PROMPT (...) -->` + `PASTE_IMAGE_URL_HERE`,
+  parsed by `asset-agent.js`), so the file is finished the moment URLs are pasted in. The playable is
+  the deliberate exception: it must inline every asset as a `data:` URI, so a paste token would fail
+  the unit. `tests/asset-vs-element-prompts.spec.js` checks the example in the prompt against
+  `mailer-format.ASSET_PROMPT_RE`, so the prompt cannot teach a shape the parser rejects.
+- **`blog` had no contract** and fell through the else-chain to `mailerContract()`.
+- Each mailer variant is pasted ALONE, so V2 saying "the same block as V1" was an instruction to a
+  model that never saw V1. The shell is now a shared const injected into both.
+- Served from ONE place: `/api/ai/generate?action=master-prompt` (GET, no quota, runs BEFORE the
+  provider-key check - a deployment with no keys is exactly when someone needs a prompt to paste
+  elsewhere). The Prompts tab now shows **Asset prompt** first and labels every element card, toast
+  included, so no button can hand you the wrong kind again.
+
+### A degraded run must not call itself final (2026-08-19)
+`/brain` showed `final - Final generated version, the best version of each asset, ready to view and
+download` on the same screen as `Copy by template` and a failed `Live Catalog Gate` chip. The run had
+not generated anything: no LLM answered, so copy fell back to templates, and the gate did not pass.
+- The banner was unconditional. It now reads `incomplete - Saved, but NOT fully generated: ...` and
+  names what degraded, and a clean run keeps its confident header (a warning that always fires is
+  noise).
+- **The explanation was suppressed by an off-by-falsy bug.** The label is
+  `esc(cw.provider || 'template')`, so a MISSING `copywriter` renders the bare word "template", while
+  the block explaining the fallback tested `/template/.test(String(cw.provider||''))` - false for an
+  empty provider. A live fallback writes `provider:'template-fallback'` and WAS caught; a stored
+  campaign that never carried the field was not. Both paths now reach the same warning.
+- Every failed pipeline step prints its own `reason`/`blocker` + remediation inline. A warning triangle
+  on a chip labelled "Live Catalog Gate" is not something an operator can act on.
+
+### The homepage says what it solves, not what it contains (2026-08-19)
+The hero was a capability list ("See your data. Watch competitors. Plan the month.") and the purpose
+paragraph enumerated features. Neither said why the tool exists. `index.html` now leads with the
+problem and carries a **What it solves** section: four problems the code actually addresses, each named
+with the mechanism that addresses it (live catalog + gate, zero fabrication, per-asset engines, one
+record many views), and no invented figure.
+
 ### Every asset is built by its own engine, not by one prompt with five slots (2026-08-19)
 A mailer, a Google RSA, a TikTok cover, a presell landing page and an Instagram post are five
 different design problems. They were generated as five slots of ONE JSON object, from ONE prompt at
