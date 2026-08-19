@@ -1801,9 +1801,14 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
           // bounded inner block that actually honours a max-width.
           var already = /class=['"][^'"]*\bcw\b/.test(String(c==null?"":c));
           var inner = (cls==="num"||already) ? c : "<div class='cw'>"+c+"</div>";
-          // The full value stays reachable on hover once it wraps.
-          var plain = String(c==null?"":c).replace(/<[^>]*>/g,"");
-          var ttl = (cls!=="num" && plain.length>28) ? " title='"+esc(plain)+"'" : "";
+          // The full value stays reachable on hover once it wraps. Only PLAIN
+          // cells get a title: stripping tags with a regex to build one is both
+          // unnecessary here and the kind of single-pass sanitizer that leaves
+          // "<<script>script>" behind, so the cell is simply skipped when it
+          // carries markup (the markup case already renders its own content).
+          var raw = String(c==null?"":c);
+          var isPlain = raw.indexOf("<") < 0 && raw.indexOf(">") < 0;
+          var ttl = (cls!=="num" && isPlain && raw.length>28) ? " title='"+esc(raw)+"'" : "";
           return "<td"+(cls?" class='"+cls+"'":"")+ttl+">"+inner+"</td>";
         }).join("")+"</tr>";}).join("")
       : "<tr><td colspan='"+head.length+"' style='text-align:left;padding:14px 12px;color:var(--muted,#5f5e5a)'>"+esc(emptyNote||"No rows to show for the current selection.")+"</td></tr>";

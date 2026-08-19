@@ -258,38 +258,35 @@
       { id: 'kbv-landing', label: 'Landing Pages', href: '/knowledge-base.html#landing', icon: 'landing' },
     ]},
     { id: 'designintel', label: 'Design Intelligence', href: '/design-intel', icon: 'insights', ver: 'v2', match: ['/design-intel', '/design-intelligence', '/design-intelligence.html'] },
-    { group: 'Data Analysis', icon: 'analysis', gid: 'analysis', ver: 'v2', match: ['/data-analysis', '/data-analysis.html', '/analytics', '/dashboard.html', '/rfm', '/d2c-review', '/business-review', '/usa-d2c-report', '/usa-d2c-dashboard'], children: [
-      { id: 'da-control',  label: 'Control Room',                  href: '/data-analysis?tab=control',              icon: 'analysis' },
-      { id: 'da-acq',      label: 'Acquisition · Ads + LP',        href: '/data-analysis?tab=acq',                  icon: 'insights' },
-      { id: 'da-ret',      label: 'Retention · Mailer + LP',       href: '/data-analysis?tab=ret',                  icon: 'insights' },
-      { id: 'da-cohort',   label: 'Cohorts & Calendar',            href: '/data-analysis?tab=cohort',               icon: 'cohort' },
-      // The RFM dashboard was reachable from index, calendar, landing-pages and
-      // the ads master (four in-page links) but had NO row here: this group's
-      // match[] claimed /rfm and /dashboard.html, so landing there highlighted the
-      // group while no row lit up and the group never opened. Same defect as the
-      // orphaned INFO.ads / INFO.officialdesigns entries - the code survived, the
-      // entrance did not. It is the Draft 1 analytics surface (V1); Draft 2 is the
-      // Control Room above.
-      { id: 'da-rfm',      label: 'RFM Dashboard (Draft 1)',       href: '/rfm',                                    icon: 'analysis', ver: 'v1', draft: 1, match: ['/rfm', '/dashboard.html'] },
-      // Live Ads moved OUT of this group (product owner, 2026-08-06): ad analysis
-      // must have exactly ONE entrance in this rail, and that entrance is
-      // Ad Campaigns Master Dashboard. The view itself was not deleted - it is the
-      // master's "Live Ads Intelligence" tab, reading the same endpoint, and
-      // /data-analysis?tab=live-ads now redirects there so old links still land.
-      { id: 'da-mailer',   label: 'Mailer Intelligence',           href: '/data-analysis?tab=mailer-intelligence',  icon: 'insights' },
-      { id: 'da-landing',  label: 'Landing Pages & Experiments',   href: '/data-analysis?tab=landing-intelligence', icon: 'landing' },
-      { id: 'da-actions',  label: 'Actions & Outcomes',            href: '/data-analysis?tab=action-outcomes',      icon: 'insights' },
-      { id: 'da-alerts',   label: 'Alert Settings',                href: '/data-analysis?tab=alert-settings',       icon: 'insights' },
-      { id: 'da-review',   label: 'Sales & Business Review',       href: '/data-analysis?tab=review-overview',      icon: 'analysis', match: ['/d2c-review', '/business-review', '/usa-d2c-report', '/usa-d2c-dashboard'] },
-    ]},
-    { group: 'Cohorts', icon: 'cohort', gid: 'cohorts', ver: 'v1', children: [
-      { id: 'coh-overview',   label: 'Overview',            href: '/cohorts?tab=overview',   icon: 'cohort' },
-      { id: 'coh-engagement', label: 'Engagement Cohorts',  href: '/cohorts?tab=engagement', icon: 'insights' },
-      { id: 'coh-englevel',   label: 'Engagement Levels',   href: '/cohorts?tab=englevel',   icon: 'insights' },
-      { id: 'coh-product',    label: 'Product Cohorts',     href: '/cohorts?tab=product',    icon: 'cohort' },
-      { id: 'coh-lifecycle',  label: 'Lifecycle Stages',    href: '/cohorts?tab=lifecycle',  icon: 'cohort' },
-      { id: 'coh-rfm',        label: 'RFM Segments',        href: '/cohorts?tab=rfm',        icon: 'analysis' },
-      { id: 'coh-behavioral', label: 'Behavioral',          href: '/cohorts?tab=behavioral', icon: 'cohort' },
+    // ── Data Analysis: ONE item, every analysis, in funnel order ─────────────
+    // Analysis used to be spread across three rail entries - this group, a
+    // separate Cohorts group, and the Ad Campaigns Master sitting on its own -
+    // so answering "how did that campaign do" meant knowing which of the three
+    // held the answer. It is one group now, and the children run top of funnel
+    // to bottom in the order the customer actually moves:
+    //   see the spend -> click -> land -> buy -> stay -> come back -> what we did
+    // Ad analysis still has exactly ONE entrance (product owner, 2026-08-06);
+    // that entrance has simply moved inside this group, where it belongs.
+    { group: 'Data Analysis', icon: 'analysis', gid: 'analysis', ver: 'v2', match: ['/data-analysis', '/data-analysis.html', '/analytics', '/dashboard.html', '/rfm', '/d2c-review', '/business-review', '/usa-d2c-report', '/usa-d2c-dashboard', '/cohorts', '/cohort-definitions.html'], children: [
+      // 0 · the whole funnel on one screen
+      { id: 'da-control',  label: 'Control Room (whole funnel)',        href: '/data-analysis?tab=control',              icon: 'analysis' },
+      // 1 · reach and spend, the top of the funnel
+      { id: 'adsmaster',   label: '1 · Ads & paid media',               href: '/ads-master',                             icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html', '/ads-dashboard', '/ad-performance', '/ads-dashboard.html', '/ads-masterclass', '/ads-masterclass.html'] },
+      // 2 · the click, and where it went
+      { id: 'da-acq',      label: '2 · Acquisition · ads to landing',   href: '/data-analysis?tab=acq',                  icon: 'insights' },
+      { id: 'da-landing',  label: '3 · Landing pages & experiments',    href: '/data-analysis?tab=landing-intelligence', icon: 'landing' },
+      // 4 · the purchase
+      { id: 'da-review',   label: '4 · Sales & business review',        href: '/data-analysis?tab=review-overview',      icon: 'analysis', match: ['/d2c-review', '/business-review', '/usa-d2c-report', '/usa-d2c-dashboard'] },
+      // 5 · who they became, and whether they stayed
+      { id: 'cohorts',     label: '5 · Cohorts & lifecycle stages',     href: '/cohorts',                                icon: 'cohort', ver: 'v1', match: ['/cohorts', '/cohort-definitions.html'] },
+      { id: 'da-ret',      label: '6 · Retention · mailer + LP',        href: '/data-analysis?tab=ret',                  icon: 'insights' },
+      { id: 'da-mailer',   label: '7 · Mailer intelligence',            href: '/data-analysis?tab=mailer-intelligence',  icon: 'insights' },
+      // 8 · value segmentation over the whole base
+      { id: 'da-rfm',      label: '8 · RFM dashboard (Draft 1)',        href: '/rfm',                                    icon: 'analysis', ver: 'v1', draft: 1, match: ['/rfm', '/dashboard.html'] },
+      { id: 'da-cohort',   label: '9 · Cohort coverage by calendar',    href: '/data-analysis?tab=cohort',               icon: 'cohort' },
+      // 10 · what we did about all of it, and what it changed
+      { id: 'da-actions',  label: '10 · Actions & outcomes',            href: '/data-analysis?tab=action-outcomes',      icon: 'insights' },
+      { id: 'da-alerts',   label: 'Alert settings',                     href: '/data-analysis?tab=alert-settings',       icon: 'insights' },
     ]},
     { id: 'avatars', label: 'Avatars (Personas)', href: '/avatars', icon: 'avatars', ver: 'v2', match: ['/avatars', '/personas', '/avatars.html'] },
 
@@ -325,7 +322,6 @@
     // one description of the builder (INFO.ads) rendered nowhere. Creating an
     // ad is its own job, so it gets its own row and its own INFO entry.
     { id: 'ads', label: 'Ad Creation (Creative Studio)', href: '/ads-master#crestudio', icon: 'ads', ver: 'v2', match: ['/ads', '/ad-creation', '/creative-studio', '/ad-campaigns.html'] },
-    { id: 'adsmaster', label: 'Ad Campaigns Master Dashboard', href: '/ads-master', icon: 'ads', ver: 'v2', match: ['/ads-master', '/ad-campaigns-master', '/ads-kb', '/ad-campaigns-master.html', '/ads-dashboard', '/ad-performance', '/ads-dashboard.html', '/ads-masterclass', '/ads-masterclass.html'] },
     // TWO features, deliberately separate (product owner, 2026-08-01):
     //   1. 3D Website & Storefront — the WEBSITE REVAMP. The store itself,
     //      rebuilt: the regional 3D storefronts and the official website clones.

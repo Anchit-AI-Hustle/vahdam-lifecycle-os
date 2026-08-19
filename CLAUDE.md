@@ -244,6 +244,32 @@ lied - each line was true when written, and then the code grew a rung.
   no longer exist in any form - the routers replaced them. Treat the README as the front door and
   CLAUDE.md as the working memory; when they disagree, the code wins and both get fixed.
 
+### Data Analysis is ONE rail entry, in funnel order (2026-08-19)
+Analysis was spread across three separate rail entries: the Data Analysis group, a standalone
+**Cohorts** group, and the **Ad Campaigns Master** sitting on its own. Answering "how did that campaign
+do" meant already knowing which of the three held the answer.
+- One group now, children ordered the way a customer moves: Control Room (whole funnel) -> 1 Ads &
+  paid media -> 2 Acquisition -> 3 Landing pages -> 4 Sales & business review -> 5 Cohorts & lifecycle
+  -> 6 Retention -> 7 Mailer intelligence -> 8 RFM -> 9 Cohort coverage -> 10 Actions & outcomes ->
+  Alert settings. The labels carry the step numbers so the sequence is visible, not inferred.
+- **Ad analysis still has exactly ONE entrance** (the 2026-08-06 rule); it has simply moved inside this
+  group. The ad BUILDER (`id:'ads'`, Creative Studio) stays in Design & Create - it is a create
+  feature, and the spec asserts it was not pulled in.
+- Dissolving the Cohorts group would have orphaned `INFO.cohorts` and failed `feature-taxonomy`, so the
+  group became a ROW with `id:'cohorts'` carrying the old group's `match` list. That is the invariant
+  working as intended: it caught the description going dark before the merge shipped.
+- `tests/nav-analysis-funnel.spec.js` pins the ORDER, not the labels, so renaming a row is free and
+  moving one is not.
+
+### A single-pass tag strip is never the right sanitizer (2026-08-19)
+CodeQL flagged two regexes added in the same pass: `.replace(/<[^>]*>/g,'')` to build a `title=`, and
+`.replace(/<\/?style[^>]*>/gi,'')` to pull CSS out of a page. Both are the pattern that leaves
+`<<script>script>` behind. Neither was exploitable (the title was `esc()`d, the other reads our own
+file), and both were also unnecessary, which is the real lesson: the title is only wanted for cells
+with no markup at all, so the cell is skipped when it carries any; and a regex with a capture group can
+hand back the CSS body directly instead of stripping the tags off the whole match. When a sanitizer
+looks necessary, check first whether the input can just be excluded.
+
 ### A filter that re-renders is not a filter that filters (2026-08-19)
 The ACCOUNT chips on `/ads-master` Live Now (Both / Target-Costco / DTC) called `renderLive()` on click,
 so the page visibly redrew, but `LVACCT` was read in `renderLiveAds` and NOWHERE else. The five KPI
