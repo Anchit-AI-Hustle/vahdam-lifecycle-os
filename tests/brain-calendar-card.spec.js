@@ -72,14 +72,14 @@ async function openCalendar(page) {
     });
   });
   await page.goto(`${BASE}/smart-brain.html`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.calgrid .cday').first().waitFor({ timeout: 20000 });
+  await page.locator('.callist .cday').first().waitFor({ timeout: 20000 });
 }
 
 test.describe('the /brain day card', () => {
   test.beforeEach(async ({ page }) => { await openCalendar(page); });
 
   test('leads with what the day sends, not with a constant', async ({ page }) => {
-    const themes = await page.locator('.calgrid .cday .ct').allTextContents();
+    const themes = await page.locator('.callist .cday .ct').allTextContents();
     expect(themes.length, 'no theme line rendered on any card').toBeGreaterThan(0);
     // The whole point: cards must differ from one another.
     expect(new Set(themes).size, `every card shows the same thing: ${themes.join(' | ')}`).toBeGreaterThan(1);
@@ -89,7 +89,7 @@ test.describe('the /brain day card', () => {
   test('never calls an artifact that exists "ready"', async ({ page }) => {
     // "ready" is a promise about sendability the data cannot support; "built" is
     // what builtChannels() actually measured.
-    const text = await page.locator('.calgrid').innerText();
+    const text = await page.locator('.callist').innerText();
     expect(text).not.toMatch(/\bready\b/i);
     expect(text).toMatch(/\d\/\d built/);
   });
@@ -98,21 +98,74 @@ test.describe('the /brain day card', () => {
     // "0 ready" cannot be told apart from a day that plans nothing; "0/2 built" can.
     // Card 3 is deliberately MIXED (US unbuilt, UK built) so the fraction has to
     // be computed rather than echoing a constant.
-    const card = page.locator('.calgrid .cday').nth(2);
+    const card = page.locator('.callist .cday').nth(2);
     await expect(card.locator('.cs')).toHaveText('1/2 built');
   });
 
   test('the colour code is explained on the page', async ({ page }) => {
     const legend = page.locator('#callegend');
     await expect(legend).toBeVisible();
-    await expect(legend).toContainText('one bar per send', { ignoreCase: true });
+    await expect(legend).toContainText('one chip per send', { ignoreCase: true });
     await expect(legend).toContainText('not that they passed the live catalog gate', { ignoreCase: true });
   });
 
-  test('each bar says which send it is and why it is that colour', async ({ page }) => {
-    const bars = page.locator('.calgrid .cday').nth(2).locator('.bar i');
+  test('each chip names its market and says why it is that colour', async ({ page }) => {
+    const bars = page.locator('.callist .cday').nth(2).locator('.bar b');
     await expect(bars).toHaveCount(2);
     await expect(bars.nth(0)).toHaveAttribute('title', /US — not built yet/);
     await expect(bars.nth(1)).toHaveAttribute('title', /UK — all channels built/);
+    // The chip NAMES its market, so "1/2 built" no longer leaves the reader
+    // guessing which of the two is the missing one.
+    await expect(bars.nth(0)).toHaveText('US');
+    await expect(bars.nth(1)).toHaveText('UK');
+  });
+
+  test('one day per row, and a long product name is not truncated', async ({ page }) => {
+    // The reason for the single column. In the 7-across grid each day got about
+    // 130px, so "Turmeric Ashwagandha Herbal Tea" rendered as
+    // "Turmeric Ashwagandh..." — and so did most other days, which is the state
+    // the screenshot showed. scrollWidth > clientWidth is exactly the ellipsis.
+    const rows = page.locator('.callist .cday');
+    const boxes = await rows.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()));
+    expect(boxes.length).toBeGreaterThan(1);
+    // One per row: every row starts at the same x and each sits below the last.
+    const xs = new Set(boxes.map((b) => Math.round(b.x)));
+    expect(xs.size, 'rows are not in a single column').toBe(1);
+    for(let i = 1; i < boxes.length; i++){
+      expect(boxes[i].top, 'a row is beside another instead of below it').toBeGreaterThanOrEqual(boxes[i-1].bottom - 1);
+    }
+    const clipped = await page.locator('.callist .cday .ct').evaluateAll((els) =>
+      els.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim()));
+    expect(clipped, `theme text is still being cut off: ${clipped.join(' | ')}`).toEqual([]);
+  });
+
+  test('a day opens the assets that were built for it', async ({ page }) => {
+    // The panel used to list a campaign id, an image COUNT and a landing link,
+    // and nothing else: no mailer, no ads, no way to look at anything. The
+    // viewer already existed for the entry list further down the page, so the
+    // capability was present and simply had no entrance from the calendar.
+    await page.route((url) => url.pathname.includes('/api/calendar') || url.pathname.includes('/api/brain'), async (r) => {
+      const u = r.request().url();
+      if (/smart-brain-preview/.test(u)) {
+        return r.fulfill({ contentType: 'application/json', body: JSON.stringify({
+          ok: true, persisted: true,
+          email_html: '<html><body><h1>Steep the evening slowly</h1></body></html>',
+          landing_html: '<html><body><h1>Landing</h1></body></html>',
+          ads: [], copywriter: { provider: 'anthropic' }, campaign: { campaign_id: 'camp-1' },
+        }) });
+      }
+      return r.fallback();
+    });
+    await page.locator('.callist .cday').nth(1).click();
+    // Locate the button STRUCTURALLY, not by its text: the text is what the
+    // click changes, so a hasText locator stops matching the moment it works.
+    const slotBtn = page.locator('#dayslots .dslot button').first();
+    await expect(slotBtn, 'the day panel offers no way to see an asset').toBeVisible();
+    await expect(slotBtn).toHaveText('View assets');
+    await slotBtn.click();
+    // The mailer must actually render, not just a spinner or an id.
+    const frame = page.locator('#dayslots .slotpv iframe.pvframe').first();
+    await expect(frame).toBeVisible({ timeout: 20000 });
+    await expect(slotBtn).toHaveText('Hide assets');
   });
 });

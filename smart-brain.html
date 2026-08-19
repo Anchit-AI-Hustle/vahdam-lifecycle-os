@@ -112,23 +112,41 @@
   .blk b{color:#b91c1c;display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
   .blk p{margin:0 0 6px;font-size:13px;color:#171717;line-height:1.5}
   .blk .fix{font-size:12.5px;color:#556059;line-height:1.5;margin:0}
-  .calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
-  .caldow{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#48524c;text-align:center;padding:4px 0}
-  .calmon{grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);padding:12px 2px 2px;border-top:1px solid rgba(171,135,67,.18);margin-top:6px}
-  .cday{border:1px solid rgba(171,135,67,.2);border-radius:10px;padding:7px 8px 8px;min-height:82px;background:#fff;cursor:pointer;text-align:left;font:inherit;display:block;width:100%}
+  /* ONE COLUMN, one day per row.
+     The 7-across month grid gave each day about 130px, which is narrower than
+     the thing every row has to say: "Turmeric Ashwagandha Herbal Tea" arrived
+     as "Turmeric Ashwagandh...", and so did most other days. A month grid is
+     the right shape when a cell holds a number; this cell holds a product name,
+     a market pair and a build state, so it wants a line, not a box. Full width
+     also makes room for the market column, which simply did not fit before. */
+  .callist{display:flex;flex-direction:column;gap:4px}
+  .calmon{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);padding:14px 2px 4px;border-top:1px solid rgba(171,135,67,.18);margin-top:6px}
+  .cday{display:grid;grid-template-columns:64px minmax(0,1fr) 104px auto;align-items:center;gap:14px;
+        border:1px solid rgba(171,135,67,.2);border-radius:10px;padding:9px 12px;background:#fff;
+        cursor:pointer;text-align:left;font:inherit;width:100%}
   .cday:hover{border-color:var(--gold);background:rgba(171,135,67,.05)}
   .cday.past{background:#f7f5f0;color:#556059}
   .cday.today{border:2px solid var(--green);background:rgba(0,74,43,.05)}
   .cday.empty{border-style:dashed;opacity:.75}
   .cday.sel{outline:2px solid var(--gold);outline-offset:1px}
-  .cday .d{font-size:13px;font-weight:800;color:#171717;font-variant-numeric:tabular-nums}
+  .cday .dwrap{display:flex;align-items:baseline;gap:6px}
+  .cday .d{font-size:15px;font-weight:800;color:#171717;font-variant-numeric:tabular-nums}
+  .cday .dow{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#6b7770}
   .cday.past .d{color:#6b7770}
-  /* The theme is the card's real headline: one line, ellipsised rather than
-     wrapped, so a long product name cannot push a 7-across grid out of shape. */
-  .cday .ct{display:block;font-size:11px;line-height:1.35;color:#0f3d28;font-weight:700;margin-top:2px;
+  /* The row's headline. It still ellipsises, but at full width that is now a
+     genuine last resort rather than the normal case. */
+  .cday .ct{font-size:13px;line-height:1.35;color:#0f3d28;font-weight:700;
             overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cday.past .ct{color:#5c6b62;font-weight:600}
-  .cday .cs{font-size:11px;color:#556059;line-height:1.4;margin-top:3px}
+  .cday .ctnone{color:#b91c1c;font-weight:800}
+  .cday .cs{font-size:11.5px;color:#556059;line-height:1.4;text-align:right;font-variant-numeric:tabular-nums}
+  @media (max-width:900px){
+    /* Below this the five columns stop fitting; stack the row's own fields
+       rather than letting the theme collapse to nothing. */
+    .cday{grid-template-columns:56px minmax(0,1fr);gap:6px 10px}
+    .cday .cs{grid-column:2;text-align:left}
+    .cday .bar{grid-column:2;justify-self:start}
+  }
   /* The legend draws the SAME swatch the card draws, from the same colours.
      It previously described a red "!" for "planned, nothing built", which the
      grid has never rendered — that state is an empty bar, and the red mark
@@ -136,14 +154,16 @@
      explains is worse than none. */
   #callegend{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:10px 0 12px;font-size:11.5px;color:#556059}
   #callegend span{display:inline-flex;align-items:center;gap:5px}
-  #callegend i{width:16px;height:4px;border-radius:2px;background:rgba(171,135,67,.25);flex:none}
-  #callegend i.ready{background:#1d6b45}
-  #callegend i.part{background:var(--gold)}
+  #callegend b.sw{font-size:10.5px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:999px;
+              border:1px solid rgba(171,135,67,.45);background:rgba(171,135,67,.10);color:#7a5f28}
+  #callegend b.sw.ready{background:rgba(29,107,69,.14);border-color:rgba(29,107,69,.5);color:#0a6b39}
+  #callegend b.sw.part{background:rgba(171,135,67,.22);border-color:var(--gold);color:#6b4f18}
   #callegend .calnote{color:#48524c}
-  .cday .bar{display:flex;gap:2px;margin-top:5px}
-  .cday .bar i{height:4px;flex:1;border-radius:2px;background:rgba(171,135,67,.25)}
-  .cday .bar i.ready{background:#1d6b45}
-  .cday .bar i.part{background:var(--gold)}
+  .cday .bar{display:flex;gap:4px;align-items:center;justify-self:end}
+  .cday .bar b{font-size:10.5px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:999px;
+              border:1px solid rgba(171,135,67,.45);background:rgba(171,135,67,.10);color:#7a5f28;min-width:34px;text-align:center}
+  .cday .bar b.ready{background:rgba(29,107,69,.14);border-color:rgba(29,107,69,.5);color:#0a6b39}
+  .cday .bar b.part{background:rgba(171,135,67,.22);border-color:var(--gold);color:#6b4f18}
   .cday .warnmark{color:#b91c1c;font-weight:800}
   .dayslots{margin-top:14px;border-top:1px solid rgba(171,135,67,.2);padding-top:12px}
   .dslot{border:1px solid rgba(171,135,67,.2);border-radius:10px;padding:10px 12px;margin-bottom:8px}
@@ -154,7 +174,7 @@
   .chn.on{background:rgba(29,107,69,.14);border-color:rgba(29,107,69,.45);color:#0a6b39}
   .chn.off{background:rgba(171,135,67,.08);border-color:rgba(171,135,67,.4);color:#7a5f28}
   @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}
-    .calgrid{grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.cday{min-height:64px;padding:5px}.cday .cs{font-size:10px}}
+    .cday{padding:8px 10px}.cday .cs{font-size:11px}}
 </style>
 <script src="/gate-notice.js"></script>
 <script src="/auth.js?v=20260718light" defer></script>
@@ -229,11 +249,11 @@
         </div>
       </div>
       <div id="callegend">
-        <span><i class="ready"></i> all channels built</span>
-        <span><i class="part"></i> partly built</span>
-        <span><i></i> not built yet</span>
+        <span><b class="sw ready">US</b> all channels built</span>
+        <span><b class="sw part">UK</b> partly built</span>
+        <span><b class="sw">US</b> not built yet</span>
         <span style="border:1px dashed rgba(171,135,67,.6);border-radius:4px;padding:0 6px">dashed card = no send planned</span>
-        <span class="calnote">One bar per send. <b>Built</b> means the files exist, not that they passed the live catalog gate.</span>
+        <span class="calnote">One chip per send, named for its market. <b>Built</b> means the files exist, not that they passed the live catalog gate.</span>
       </div>
       <div id="calbody"><p style="color:#48524c;font-size:13px">Loading the day-level calendar…</p></div>
       <div id="dayslots" class="dayslots" style="display:none"></div>
@@ -1522,17 +1542,15 @@ function renderDayGrid(d){
   }
   const out = [];
   let month = '';
-  const dow = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   for(const day of days){
     const dt = new Date(day.date + 'T00:00:00Z');
     const key = DC_MONTHS[dt.getUTCMonth()] + ' ' + dt.getUTCFullYear();
     if(key !== month){
       month = key;
       out.push(`<div class="calmon">${esc(key)}</div>`);
-      out.push(dow.map(x => `<div class="caldow">${x}</div>`).join(''));
-      // Pad to the correct weekday column (Monday-first).
-      const pad = (dt.getUTCDay() + 6) % 7;
-      for(let i = 0; i < pad; i++) out.push('<div></div>');
+      // No weekday header row and no leading pad cells: a single column has one
+      // day per row, so there are no weekday columns to label or align to.
     }
     const c = day.counts || {};
     const planned = c.planned || 0;
@@ -1569,21 +1587,27 @@ function renderDayGrid(d){
       line2 = `${c.assets_ready || 0}/${planned} built`;
     }
 
+    // One chip per send, LABELLED WITH ITS MARKET. The previous row carried an
+    // anonymous colour bar next to a separate "US · UK" column, which meant the
+    // reader could see that one of two was unbuilt but not WHICH — the answer
+    // was only in a tooltip. Naming the chip merges the two columns and removes
+    // a second constant: "US · UK" was identical on every row, exactly the
+    // problem "2 planned" had.
     const bars = [];
     for(const s of (day.slots || []).slice(0, 6)){
       const state = s.assets_ready ? 'ready' : (s.assets ? 'part' : '');
       const label = s.assets_ready ? 'all channels built'
         : (s.assets ? 'partly built: missing ' + (s.assets_missing || []).join(', ') : 'not built yet');
-      bars.push(`<i class="${state}" title="${esc((s.market || 'slot') + ' — ' + label)}"></i>`);
+      bars.push(`<b class="${state}" title="${esc((s.market || 'slot') + ' — ' + label)}">${esc(s.market || '?')}</b>`);
     }
     out.push(`<button class="${cls}" onclick="selectDay('${day.date}')" title="${esc(day.date + (theme ? ' — ' + theme : ''))}">
-      <span class="d">${dt.getUTCDate()}</span>
-      ${theme ? `<span class="ct">${esc(theme)}</span>` : ''}
+      <span class="dwrap"><span class="d">${dt.getUTCDate()}</span><span class="dow">${DOW[dt.getUTCDay()]}</span></span>
+      <span class="ct">${theme ? esc(theme) : '<span class="ctnone">no send planned</span>'}</span>
       <span class="cs">${line2}</span>
-      ${bars.length ? `<span class="bar">${bars.join('')}</span>` : ''}
+      <span class="bar">${bars.join('')}</span>
     </button>`);
   }
-  $('calbody').innerHTML = `<div class="calgrid">${out.join('')}</div>`;
+  $('calbody').innerHTML = `<div class="callist">${out.join('')}</div>`;
 }
 
 function chnChips(slot){
@@ -1638,11 +1662,67 @@ function selectDay(date){
         ${missing.length ? `<br><span style="color:#b91c1c">Not built: ${esc(missing.join(', '))}</span>` : ''}
         ${s.updated_at ? `<br><span style="color:#48524c">Row last written ${esc(String(s.updated_at).slice(0, 16).replace('T', ' '))} UTC</span>` : ''}
       </div>
+      <div style="margin-top:8px">
+        <button class="btn sm" onclick="viewSlotAssets('${esc(s.id)}', this)">View assets</button>
+        <span class="meta" style="margin-left:8px">${s.assets ? 'Opens the mailer, ads and landing page that were built for this send.' : 'Nothing is built for this send yet — this will attempt to generate it.'}</span>
+      </div>
+      <div class="slotpv" id="slotpv-${esc(s.id)}" style="display:none;margin-top:10px"></div>
     </div>`);
   }
   box.innerHTML = parts.join('');
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+// THE DAY PANEL COULD NOT SHOW AN ASSET.
+// It listed the campaign id, the image COUNT and a landing-page link, and that
+// was the whole of it: no mailer, no ads, no way to look at anything that had
+// been built. The viewer already existed — renderPreview() draws the Mailer /
+// Ads / Landing tabs for the entry list further down the page — so this is the
+// same "the feature kept its code and lost its entrance" trap the ads merge hit.
+// previewEntry resolves a slot from its id alone, so the day panel can call the
+// identical endpoint.
+async function viewSlotAssets(id, btn){
+  const box = document.getElementById('slotpv-' + id);
+  if(!box) return;
+  if(box.style.display !== 'none' && box.getAttribute('data-loaded') === '1'){
+    box.style.display = 'none'; btn.textContent = 'View assets'; return;
+  }
+  // renderPreview writes fixed pane ids (pv-mail, pv-lp, ...). Two open previews
+  // would mint duplicate ids and pvTab's getElementById would drive the WRONG
+  // one, so only one preview is ever mounted at a time.
+  document.querySelectorAll('.exprow').forEach(function(r){ r.style.display = 'none'; });
+  document.querySelectorAll('.exprow .expbody, .slotpv').forEach(function(b){
+    if(b !== box){ b.innerHTML = ''; b.removeAttribute('data-loaded'); }
+  });
+  box.style.display = '';
+  box.innerHTML = '<p class="pvnote"><span class="spinner"></span> Loading the built assets for this send…</p>';
+  btn.disabled = true;
+  try{
+    const r = await fetch(`${API}?action=smart-brain-preview`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: id, reviewer: reviewerEmail() }),
+    });
+    const data = await safeJson(r);
+    // A gate block answers HTTP 200 with ok:false and a reason. GateNotice turns
+    // that into the sentence that actually fixes it rather than a bare failure.
+    if(!data || !data.ok){
+      throw new Error(window.GateNotice
+        ? window.GateNotice.message('Could not load assets', data, r).text
+        : ((data && (data.error || data.message || data.blocker)) || 'Preview failed'));
+    }
+    const slot = ((DC.data && DC.data.days) || [])
+      .reduce(function(acc, d){ return acc || (d.slots || []).find(function(x){ return String(x.id) === String(id); }); }, null) || {};
+    renderPreview(data, {
+      id: id, channels: slot.channels || [],
+      generated_campaign_id: slot.campaign_id || null, analysis: null,
+    }, 'day-' + id, { target: box, persisted: !!data.persisted || slot.status === 'approved' || slot.status === 'final' });
+    box.setAttribute('data-loaded', '1');
+    btn.textContent = 'Hide assets';
+  }catch(err){
+    box.innerHTML = `<p class="pvnote" style="color:#b91c1c">${esc(err.message || String(err))}</p>`;
+  }finally{ btn.disabled = false; }
+}
+window.viewSlotAssets = viewSlotAssets;
 
 function closeDay(){ DC.selected = null; $('dayslots').style.display = 'none'; if(DC.data) renderDayGrid(DC.data); }
 
