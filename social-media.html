@@ -70,6 +70,7 @@
   @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:680px){.grid{grid-template-columns:1fr}h1{font-size:30px}body{padding:16px}}
 </style>
+<script src="/gate-notice.js"></script>
 <script src="/auth.js?v=20260718light" defer></script>
 </head>
 <body>
@@ -134,6 +135,14 @@
     el.textContent = msg;
     el.className = 'banner' + (info ? ' info' : '');
     el.style.display = 'block';
+  }
+  // Shared with smart-brain.html via /gate-notice.js so the two cannot drift.
+  function explainFailure(j, r) {
+    if (window.GateNotice) return window.GateNotice.explain(j, r);
+    // Module missing (cache miss / blocked asset): still never claim a 200 failed.
+    if (j && j.blocked) return { text: j.message || j.blocker || 'Generation was blocked.', blocked: true };
+    if (j && j.error) return { text: String(j.error), blocked: false };
+    return { text: (r && !r.ok) ? ('HTTP ' + r.status + ' - is the API deployed/reachable?') : 'The API returned ok:false with no reason given.', blocked: false };
   }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -344,7 +353,7 @@
     try {
       var r = await fetch(API + '?action=' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
       var j = await r.json();
-      if (!j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      if (!j.ok) { var whyD = explainFailure(j, r); banner('Could not update post: ' + whyD.text, whyD.blocked); return; }
       var st = cardEl.querySelector('.st');
       var s = (j.post && j.post.status) || (action === 'social-approve' ? 'approved' : 'skipped');
       st.textContent = s; st.className = 'st ' + s;
@@ -362,7 +371,15 @@
       var body = { date: $('datePick').value || todayIso(), dry_run: $('dryRun').checked };
       var r = await fetch(API + '?action=social-run-daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       var j = await r.json();
-      if (!j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      if (!j.ok) {
+        var why = explainFailure(j, r);
+        $('runState').textContent = '';
+        // A block is a verdict, not a crash: show it as information with the
+        // reason and the fix, not as "the pipeline failed".
+        banner((why.blocked ? 'Pipeline blocked: ' : 'Pipeline call failed: ') + why.text, why.blocked);
+        if (j.trace) renderTrace(j.trace);
+        return;
+      }
       lastRun = j;
       renderPosts(j.posts, false);
       renderTrace(j.trace);
@@ -371,6 +388,8 @@
       if (!persisted) banner('Run complete but not persisted: ' + ((j.persistence && j.persistence.reason) || 'unknown') + '. Approve/skip needs Supabase.', true);
     } catch (e) {
       $('runState').textContent = '';
+      // Reached only on a genuine transport failure (fetch threw, JSON was not
+      // parseable, request aborted) — so asking about reachability is fair here.
       banner('Pipeline call failed: ' + e.message + ' — is the API deployed/reachable?');
     } finally { btn.disabled = false; }
   }
@@ -390,7 +409,12 @@
       try { r = await fetch(API + '?action=social-list&date=' + encodeURIComponent(d), { signal: ctrl.signal }); }
       finally { clearTimeout(to); }
       var j = await r.json();
-      if (!j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      if (!j.ok) {
+        var whyL = explainFailure(j, r);
+        $('runState').textContent = '';
+        banner('Could not load posts: ' + whyL.text, whyL.blocked);
+        return;
+      }
       renderPosts(j.posts, true);
       renderTrace(null);
       $('runState').textContent = (j.posts || []).length + ' saved post(s) for ' + d + (j.persistence ? '' : ' — Supabase not configured');

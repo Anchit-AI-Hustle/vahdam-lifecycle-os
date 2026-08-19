@@ -200,6 +200,30 @@ resolver; `tests/live-catalog.spec.js` fails the build if a seventh private load
 - Not verifiable from the dev sandbox: outbound egress to `vahdamteas.com` is blocked by proxy policy here,
   so the storefront path is proven against a stubbed Shopify payload in tests, not a live round-trip.
 
+### A gate that blocks silently is indistinguishable from one that is broken (2026-08-19)
+The gates answer **HTTP 200** with `{ok:false, blocked:true, message, blocker, data_required,
+remediation}` — deliberately, because the API worked and declined. Every front end read only
+`j.error`, which that payload does not carry, so `/social` rendered **"Pipeline call failed: HTTP 200 -
+is the API deployed/reachable?"** (the status of a SUCCESSFUL response given as the reason it failed,
+sending the operator to check a healthy deployment) and `/brain` rendered a bare **"Generation
+failed"**. The payload itself said "Live catalog unavailable for UK - set `LIVE_CONNECTORS=on`", which
+is the one sentence that fixes it. Same defect class as the Klaviyo health probe above: a message that
+sends someone to fix the thing that is not broken.
+- **`gate-notice.js`** (shared front-end, alongside `chart-enhance.js` / `funnel-drill.js` /
+  `ai-studio-bar.js`) is the single explainer: `GateNotice.explain(json, response)` /
+  `.message(prefix, json, response)`. A block renders as a **verdict** (reason + `data_required` + "To
+  fix: …", styled as info, not as a crash); only a genuine transport failure (`!r.ok`, or a thrown
+  fetch) may ask about reachability; `ok:false` with no reason is reported verbatim rather than
+  disguised as a status code. One module, not a copy per page, for the reason `market-urls.js` exists.
+- Wired into `social-media.html` (run / load / approve) and `smart-brain.html` (7 call sites), each with
+  an inline fallback for a cache miss on the module. `tests/gate-notice.spec.js` pins it and drives the
+  real page against a stub that returns the captured blocked payload **with HTTP 200 on purpose**.
+- **Testing trap:** `auth.js` registers `sw.js` on `load`, `sw.js` calls `clients.claim()`, and the
+  `controllerchange` handler reloads the page 50ms later (PWA self-heal). On a loaded machine that
+  reload lands AFTER a test's click and wipes the banner it is reading — the spec passed alone and
+  failed in the suite. Browser tests that click and then assert on page state need
+  `test.use({ serviceWorkers: 'block' })` unless the SW is what is under test.
+
 ### Live data sources — six platforms, one contract (2026-08-01)
 Every platform has a core, every core is wired, and **none fabricates**. With no credential each
 returns `{connected:false, would_request|would_query, blocker}` naming the exact call it would have
