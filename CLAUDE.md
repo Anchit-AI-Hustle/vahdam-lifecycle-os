@@ -106,7 +106,7 @@ Each page is a **standalone, self-contained `.html` file** (inline CSS + JS, oft
   server fetches them.
 - **`api/_shared/reference-intel.js`** turns any reference into prose the text-only waterfall can read: bounded
   page fetch (title/meta/headings/CTAs, not just a text dump) and a vision pass for media — Gemini (images **and**
-  video, incl. YouTube URLs directly) → OpenAI → Anthropic (images only). Teaching all ten `llm.js` providers a
+  video, incl. YouTube URLs directly) → OpenAI → Anthropic (images only). Teaching all eleven `llm.js` rungs a
   multimodal message shape would have been far riskier; describe once, pass prose down. **A reference that cannot
   be read is reported as unread** (`reference_warnings`, shown in the bar) and the prompt explicitly says not to
   imagine it — an invented "the ad shows a 40% off badge" would otherwise be laundered into live copy as fact.
@@ -199,6 +199,29 @@ resolver; `tests/live-catalog.spec.js` fails the build if a seventh private load
   never written, so **every US SKU lookup returned null** and fell through to a slugified guess.
 - Not verifiable from the dev sandbox: outbound egress to `vahdamteas.com` is blocked by proxy policy here,
   so the storefront path is proven against a stubbed Shopify payload in tests, not a live round-trip.
+
+### Prose drifts faster than constants, because nothing executes it (2026-08-19)
+The LLM cascade was documented three different ways at once, and all three disagreed with the code.
+`CLAUDE.md` said "6-provider, OpenAI -> Anthropic -> ...". `DEVELOPMENT.md` said "8-provider,
+Anthropic-first" and even carried a "known doc drift" section correcting the README with its own wrong
+number. `llm.js`'s OWN header comment listed eight rungs and omitted github/cloudflare/openrouter.
+`providerOrder()` returns **eleven**, Anthropic-first: anthropic -> openai -> gemini -> grok -> groq ->
+cerebras -> github -> cloudflare -> openrouter -> ollama -> sakana (the last five skip cleanly when
+their env config is absent, so a default deployment behaves as six rungs; `fast` skips grok). Nobody
+lied - each line was true when written, and then the code grew a rung.
+- This is the market-URL failure in a different medium. The fix is the same: **pin the prose to the
+  code**. `tests/llm-waterfall-docs.spec.js` reads `providerOrder()` out of the source and fails any
+  living doc stating a different count, any doc still claiming OpenAI-first, and `llm.js`'s own header
+  if it omits a rung it routes to. It also asserts every named rung has a real `modelsFor()` case, so
+  the count can never be inflated by a provider that cannot answer.
+- Two allowances, both narrow: the `4-provider image cascade` is `api/ai/image.js` and is skipped, and
+  a doc may QUOTE an old wrong value while explaining that it was wrong (a quotation inside a
+  correction is the opposite of drift). `reference-intel.js`'s vision cascade genuinely runs
+  Gemini -> OpenAI -> Anthropic and is not the text waterfall.
+- **README.md was rewritten** in the same pass. It still described a three-stage app with a 30-day
+  calendar and documented two endpoints (`/api/calendar/generate`, `/api/calendar/trigger-mailer`) that
+  no longer exist in any form - the routers replaced them. Treat the README as the front door and
+  CLAUDE.md as the working memory; when they disagree, the code wins and both get fixed.
 
 ### Every asset is built by its own engine, not by one prompt with five slots (2026-08-19)
 A mailer, a Google RSA, a TikTok cover, a presell landing page and an Instagram post are five
@@ -445,7 +468,8 @@ Competitor side needs **no credentials and works today**: public `/products.json
 quietly passed our own CPM off as "category CPM" would be fabrication in the most damaging place.
 
 ### Shared LLM caller — `api/_shared/llm.js`
-6-provider text waterfall, de-duplicated: **OpenAI** (`OPENAI_API_KEY`/`_2`/`_3`) → **Anthropic** (claude-3-5-haiku) → **Gemini** (free tier) → **Grok/xAI** → **Groq** (free) → **Cerebras** (free). All callers should go through this rather than calling providers directly. Per-call provider override is supported (`'gemini'|'openai'|'anthropic'|'grok'`).
+**Eleven-rung, tier-routed** waterfall, de-duplicated, and **Anthropic-first** (not OpenAI-first): **Anthropic** -> **OpenAI** (`OPENAI_API_KEY`/`_2`/`_3`, rotated on quota before demoting) -> **Gemini** -> **Grok/xAI** -> **Groq** -> **Cerebras** -> **GitHub Models** -> **Cloudflare Workers AI** -> **OpenRouter** -> **Ollama** -> **Sakana**. The last five are conditional and skip cleanly when their env config is absent, so a default deployment behaves as six rungs. Tiers `premium|standard|fast`; `fast` skips Grok. All callers should go through this rather than calling providers directly. Per-call provider override is supported.
+**This line was wrong on both count and order** (it said "6-provider, OpenAI -> Anthropic -> ...") while `DEVELOPMENT.md` said "8-provider, Anthropic-first" and `llm.js`'s own header comment listed eight and omitted github/cloudflare/openrouter. Three documented waterfalls, none matching `providerOrder()`, which is the only real source. `tests/llm-waterfall-docs.spec.js` now pins every prose claim to it.
 
 ### Auth to Google Sheets — Workload Identity Federation (keyless)
 Competitor data lives in a Google Sheet. Auth has **two modes** (see `docs/workload-identity-federation.md` and `_shared/competitor-core.js`):
@@ -458,7 +482,7 @@ Competitor data lives in a Google Sheet. Auth has **two modes** (see `docs/workl
 **90-day horizon + asset prebuild (2026-07-09).** The rolling window is 90 days (`calendarDays: 90` in `services.js`, `calendar.days: 90` in `brain-core.js`, V1 `calendar-generate.js` cap raised to 90). Every slot in the window is not just planned but has its **full asset bundle prebuilt** — LLM copy + generated images for mailer + ads + landing page. Because ~180 slots (90d × US/UK) cannot build in one serverless invocation, `prebuildAssets()` is a **convergent background queue**: `?action=smart-brain-prebuild` (CRON_SECRET-protected) builds one small batch (via `buildCampaign(..., {withCreatives:true})`), persists it to `smart_generated_campaigns` as a `prebuilt` draft (NOT mirrored to the ads/LP dashboards until approval), marks the slot with a `payload.__prebuilt` marker, then re-fires itself until `remaining` hits 0, then idles. It self-chains via a fire-and-forget `fetch` to `VERCEL_URL` (3s handoff; the child keeps running after the client aborts). Kicked automatically after `smart-brain-sync-daily`, off the existing `/api/brain?action=cron` daily run (no 3rd Hobby-limited cron added), and re-runnable by hand. `previewEntry`/`approveEntry` REUSE the prebuilt campaign (instant view, no regeneration; what the reviewer saw is what ships). A material re-plan of a slot on daily sync drops the marker → the queue rebuilds the now-stale assets. Idempotent + resumable; a total-failure batch stops the chain instead of hot-looping.
 
 ### ChaiGPT — the brand LLM (conversational tool-calling over the whole stack)
-`api/_shared/brand-llm.js` is the brand's own "Claude-for-Vahdam": a provider-agnostic **tool-calling loop** that lets the LLM actually OPERATE the growth stack instead of just chatting. The model emits a strict JSON action each turn (`{action:'tool',...}` — single tool or a `tools:[…]` batch of up to 3 run in parallel — / `{action:'final',...}`); the server executes against the existing `_shared` cores and feeds results back, looping (default 5 steps). Speed: the loop pins the first provider that answers (per-call `preferProvider` in `llm.js`) so later steps skip dead keys, dedupes repeated tool+args calls, 20s per-provider timeout. Quality: the system prompt enforces an **evidence contract** — every recommendation quotes exact tool-sourced figures, names the target metric + expected impact, states a complete hypothesis, and quotes competitor benchmarks. Because tool-calls are plain JSON (not a provider-specific function-calling API), it works across the **entire 6-provider waterfall in `llm.js`**, including the free tiers — no extra keys. Tools registered: `ask_analytics`, `run_analysis`, `list_cohorts`, `get_calendar`, `get_competitor_benchmarks`, `search_knowledge_base`, `list_campaigns`, `generate_calendar`*, `generate_assets_for_slot`*, `run_agentic_campaign`*, `klaviyo` (*=writes/generates, only on explicit ask). Each reuses the SAME logic the `/api/brain ?action=` routes use. Endpoints: `?action=brand-chat` (the loop), `?action=brand-tools` (manifest + klaviyo status). UI: `chaigpt.html` at `/chaigpt` (also `/chai`, `/ask`) — Claude-style chat that shows the tool trace. Rename the product via the single `BRAND_LLM_NAME` constant in `brand-llm.js`.
+`api/_shared/brand-llm.js` is the brand's own "Claude-for-Vahdam": a provider-agnostic **tool-calling loop** that lets the LLM actually OPERATE the growth stack instead of just chatting. The model emits a strict JSON action each turn (`{action:'tool',...}` — single tool or a `tools:[…]` batch of up to 3 run in parallel — / `{action:'final',...}`); the server executes against the existing `_shared` cores and feeds results back, looping (default 5 steps). Speed: the loop pins the first provider that answers (per-call `preferProvider` in `llm.js`) so later steps skip dead keys, dedupes repeated tool+args calls, 20s per-provider timeout. Quality: the system prompt enforces an **evidence contract** — every recommendation quotes exact tool-sourced figures, names the target metric + expected impact, states a complete hypothesis, and quotes competitor benchmarks. Because tool-calls are plain JSON (not a provider-specific function-calling API), it works across the **entire eleven-rung waterfall in `llm.js`**, including the free tiers — no extra keys. Tools registered: `ask_analytics`, `run_analysis`, `list_cohorts`, `get_calendar`, `get_competitor_benchmarks`, `search_knowledge_base`, `list_campaigns`, `generate_calendar`*, `generate_assets_for_slot`*, `run_agentic_campaign`*, `klaviyo` (*=writes/generates, only on explicit ask). Each reuses the SAME logic the `/api/brain ?action=` routes use. Endpoints: `?action=brand-chat` (the loop), `?action=brand-tools` (manifest + klaviyo status). UI: `chaigpt.html` at `/chaigpt` (also `/chai`, `/ask`) — Claude-style chat that shows the tool trace. Rename the product via the single `BRAND_LLM_NAME` constant in `brand-llm.js`.
 
 ### Klaviyo integration (scaffolded — no keys yet)
 `api/_shared/klaviyo-core.js` mirrors Klaviyo's public JSON:API REST endpoints (profiles, lists, segments, metrics, events, campaigns, flows, templates, subscribe, track-event, campaign reporting). Auth via `KLAVIYO_API_KEY` (+ optional `KLAVIYO_PUBLIC_KEY`, `KLAVIYO_REVISION`). **Until a key is set**, every op returns a structured `{connected:false, would_request:{method,url,body}}` stub so the chat + tool-calling work end-to-end and only need a key to go live. Exposed at `?action=klaviyo` (`/api/klaviyo`, `op=` + params) and as the `klaviyo` ChaiGPT tool.

@@ -13,10 +13,17 @@
 //   standard (legacy 'budget' / default)  — variants, briefs, calendars
 //   fast     (new)                        — classification, tagging, scoring
 //
-// PROVIDER ORDER per tier (first available/configured rung wins):
-//   premium  : anthropic(opus)   → openai(gpt-5.5)  → gemini(3.1-pro)   → grok(4.3)      → groq → cerebras → ollama → sakana
-//   standard : anthropic(sonnet) → openai(5-mini)   → gemini(3.5-flash) → grok(4.1-fast) → groq → cerebras → ollama → sakana
-//   fast     : anthropic(haiku)  → openai(5-nano)   → gemini(2.5-flash, free) → groq → cerebras → ollama → sakana
+// PROVIDER ORDER per tier (first available/configured rung wins). ELEVEN rungs;
+// this comment must match providerOrder() below, which is the only real source:
+//   premium  : anthropic(opus)   → openai(gpt-5.5)  → gemini(3.1-pro)   → grok(4.3)      → groq → cerebras → github → cloudflare → openrouter → ollama → sakana
+//   standard : anthropic(sonnet) → openai(5-mini)   → gemini(3.5-flash) → grok(4.1-fast) → groq → cerebras → github → cloudflare → openrouter → ollama → sakana
+//   fast     : anthropic(haiku)  → openai(5-nano)   → gemini(2.5-flash, free)            → groq → cerebras → github → cloudflare → openrouter → ollama → sakana
+// (fast skips Grok: no cheap rung there.) The last five rungs are conditional -
+// github/cloudflare/openrouter/ollama/sakana are skipped cleanly when their env
+// config is absent, so a default deployment behaves as a six-rung waterfall.
+// This block listed EIGHT and omitted github/cloudflare/openrouter, while docs
+// across the repo variously claimed "6-provider, OpenAI-first" and "8-provider".
+// tests/llm-waterfall-docs.spec.js now pins every one of those claims to the code.
 //
 // DEMOTION RULES (blueprint docs/quality-upgrade-blueprint.md):
 //   • 429/402, 5xx, timeout, or 400 whose body matches

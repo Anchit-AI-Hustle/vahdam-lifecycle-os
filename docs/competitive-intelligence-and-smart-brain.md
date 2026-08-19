@@ -80,7 +80,7 @@ contaminate VAHDAM's own performance metrics, cohorts, or catalog.
    │  api/calendar.js    ?action=…   (Calendar Intelligence; _shared/calendar-*.js)               │
    │  api/ai/generate.js ?type=…     (Generation Engine; uses _shared/llm.js)                      │
    │  api/ai/image.js · api/ai/pipeline/* · api/public-config.js                                   │
-   │  _shared/llm.js  — 6-provider text waterfall used by ALL enrichment + generation             │
+   │  _shared/llm.js  — 11-rung text waterfall used by ALL enrichment + generation                │
    └───────────────────────────────────────────────────────────────────────────────────────────-─┘
                                         │
                                         ▼
@@ -537,7 +537,7 @@ workers/
 
 ## 6. AI Enrichment Pipeline
 
-All enrichment goes through the shared 6-provider waterfall
+All enrichment goes through the shared eleven-rung waterfall
 `api/_shared/llm.js` (`callLLM` + `parseJSON`) — **never call a provider
 directly.** Enrichment runs as the `enrich` queue stage (cron-driven, batched),
 writing structured fields back to `ci_*` and labels to `ci_creative_tags`.
@@ -584,7 +584,8 @@ writing structured fields back to `ci_*` and labels to `ci_creative_tags`.
   `systemPrompt` ("output strict JSON of this exact shape"), and `stage` (e.g.
   `ci_enrich_ad`) for log tracing — mirroring `discoverBrands()`.
 - Outputs are parsed with the resilient `parseJSON()` (handles fences/prose).
-- Provider waterfall (OpenAI → Anthropic → Gemini → Grok → Groq → Cerebras) gives
+- Provider waterfall (Anthropic → OpenAI → Gemini → Grok → Groq → Cerebras → GitHub
+  Models → Cloudflare → OpenRouter → Ollama → Sakana) gives
   free fallbacks; for high-volume enrichment, set `APP_AI_PROVIDER='gemini+'` to
   prefer the free tiers (Gemini + Groq + Cerebras) and skip paid credits.
 
