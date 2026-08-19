@@ -6,10 +6,11 @@
         — restyle the whole suite by editing these, not 15 files.
      2. Globally SAFE polish only: font smoothing, selection, focus-visible
         rings, custom scrollbars, reduced-motion. Bare elements are not restyled
-        EXCEPT one intentional, lowest-specificity table-layout default (see the
-        "Global table default" block) so header cells always sit above their
-        columns; any per-page `table.<class>` rule still wins on specificity, so
-        existing per-page CSS is not clobbered.
+        EXCEPT one intentional ZERO-specificity table default (see the "Global
+        table default" block), written with :where() so that ANY per-page rule
+        wins — including a bare `table { … }`, which is how 10 of the 14 pages
+        that style tables actually write it. Only the other 4 scope their rules
+        to a class, and only those 4 were ever safe from this stylesheet.
      3. An OPT-IN component kit under the `vh-` prefix (buttons, cards, tables,
         inputs, chips, badges, section headers) for pages to migrate onto.
      4. Mobile hardening: safe-area (notch) insets for the shared nav, larger
@@ -119,18 +120,28 @@
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
-/* ── Global table default: header cells sit exactly above their columns ─────
-   Element-level (lowest specificity) so ANY per-page `table.<class>` rule
-   still wins and existing per-page CSS is never clobbered. This only sets a
-   sane default for otherwise-unstyled tables. `table-layout: fixed` guarantees
-   the header row and body rows share identical column widths within a single
-   <table> (columns can never drift), `width: 100%` fills the container, and
-   border-box keeps padding inside the column so data cells align to their
-   header exactly. Wide tables should sit in an `overflow-x:auto` wrapper.
+/* ── Global table default ───────────────────────────────────────────────────
+   :where() gives these rules ZERO specificity, so any per-page rule beats them.
+   That matters because theme.css is injected by auth.js and therefore loads
+   AFTER every page's inline <style>. An element-level `table { … }` here would
+   tie a page's own `table { … }` on specificity and win on source order — the
+   opposite of a default. It did: ten pages style tables with a bare `table`
+   selector, and all ten were silently overridden.
+
+   `table-layout: fixed` used to be part of this default, justified as making
+   "header cells sit above their columns". Every table does that; columns cannot
+   drift within one <table> under either layout algorithm. What fixed layout
+   really does is ignore content width and divide the container equally, so the
+   20-column ads table was cut into 20 identical 49px columns: every header
+   clipped mid-word ("Frequenc", "Conversi") and every nowrap figure spilling
+   over its neighbour, which is how "$45,233.43" came to be printed on top of
+   "2.52x". It is removed — auto layout is the correct default for data tables,
+   and a page that genuinely wants equal columns can ask for fixed itself.
+
    NOTE: applies only to app pages that load theme.css (via auth.js); the
    generated email/mailer HTML, which uses <table> for layout, never loads it. */
-table { table-layout: fixed; width: 100%; border-collapse: collapse; }
-table th, table td {
+:where(table) { width: 100%; border-collapse: collapse; }
+:where(table th, table td) {
   box-sizing: border-box;
   vertical-align: top;
   overflow-wrap: break-word;
@@ -138,14 +149,15 @@ table th, table td {
 }
 /* Data-table column alignment. A table that has header cells is a DATA table
    (layout/email tables use <td> only), so `:has(th)` targets exactly those and
-   never touches layout tables. The header row and body share identical column
-   widths (table-layout: fixed above), so each header sits over its column; here
-   we set the reading alignment: the first column (row labels) stays LEFT, and
-   every other column is CENTERED so the value sits centered under its header.
-   Element-level (no class), so any page that deliberately sets per-column
-   alignment via a `table.<class>` rule still wins — this is the sane default. */
-table:has(th) th, table:has(th) td { text-align: center; }
-table:has(th) th:first-child, table:has(th) td:first-child { text-align: left; }
+   never touches layout tables. The first column (row labels) stays LEFT, every
+   other column is CENTERED.
+   Also :where()-wrapped, and here the old specificity was not a tie but a
+   defeat: `:has()` takes the specificity of its argument, so `table:has(th) th`
+   scored (0,0,3) and beat the ads dashboard's own `th, td { text-align: right }`
+   at (0,0,1) — the figures in a financial table were being centred against the
+   page's explicit instruction. At zero specificity this is a real default. */
+:where(table:has(th) th, table:has(th) td) { text-align: center; }
+:where(table:has(th) th:first-child, table:has(th) td:first-child) { text-align: left; }
 
 ::selection { background: rgba(171,135,67,0.30); color: var(--vh-cream); }
 
