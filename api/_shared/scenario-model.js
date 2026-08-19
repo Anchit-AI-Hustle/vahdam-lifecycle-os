@@ -403,6 +403,11 @@ function sanitizeBrand(str) {
 
 // Dev-only tripwire: throw outside production if a banned phrase survives, so a
 // future edit to the static profiles can't silently reintroduce one.
+// EXPORTED (as BANNED_PHRASES_RX) because every QA pass in the repo needs the
+// same list, and three hand-kept copies of it had already appeared (here,
+// ads-qa.js, asset-engines.js). A banned-phrase list that exists in three places
+// is a list that is enforced in one of them. Note the `i` flag with no `g`: it
+// is a test-only regex, so it carries no lastIndex state and is safe to share.
 const ALL_BANNED_RX = /wellness journey|\btransform\b|liquid gold|game[\s-]?changer|LIMITED TIME|hurry|don'?t miss out|last chance|while supplies last/i;
 function assertNoBanned(str, where = '') {
   if (str == null) return;
@@ -515,6 +520,7 @@ module.exports = {
   sanitizeBrand,
   scrubDashes,
   assertNoBanned,
+  BANNED_PHRASES_RX: ALL_BANNED_RX,
   INTERNAL_KEYS,
   stripInternal,
 };
