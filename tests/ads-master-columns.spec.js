@@ -45,9 +45,28 @@ test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)
 // The screenshot is a laptop at roughly this width. The defect needs a
 // CONSTRAINED container: at 2400px the columns fit and nothing overlaps, which
 // is how a too-wide viewport reports a clean run on a broken table.
+//
 // Service workers are blocked because auth.js registers one that reloads the
 // page shortly after load, which can wipe the DOM mid-assertion.
-test.use({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
+//
+// reducedMotion matters for a reason worth stating, because the first version
+// of this file failed in CI on three projects without it. motion.css reveals
+// each panel with `vh-rv-rise`, and #p-liveintel carries .vh-rv, so for a few
+// frames after the tab opens the panel holds
+//     matrix(0.999963, 0.00855201, -0.00855201, 0.999963, 0, 31.8)
+// which is a ~0.49 degree ROTATION. getBoundingClientRect() on a rotated
+// element returns its AXIS-ALIGNED bounding box, and the AABB of a rotated cell
+// is wider than the cell — so adjacent cells' boxes necessarily overlap, by
+// 0.80px, uniformly, on every boundary in the table. Nothing was painting over
+// anything; the geometry was simply being read mid-animation.
+//
+// A tolerance bump would have been the wrong fix: the rotation is largest early
+// in the animation, so the artifact is unbounded, not 0.8px. Measuring layout
+// through a transform is meaningless at any tolerance. prefers-reduced-motion
+// is an accessibility mode the app already implements properly — motion.css
+// sets `transform: none !important` on .vh-rv — so asking for it removes the
+// transform entirely and also stops the infinite grain/atmos loops.
+test.use({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
 
 /** Rows shaped like the screenshot: long campaign tokens, 18-digit ids, big money. */
 function liveRows() {
@@ -84,6 +103,21 @@ async function openLiveIntel(page) {
   await page.goto(`${BASE}/ad-campaigns-master.html`, { waitUntil: 'domcontentloaded' });
   await page.locator('[data-p="liveintel"]').first().click();
   await page.locator('#li-tbl table tbody td').first().waitFor({ timeout: 15000 });
+  // reducedMotion above should already have removed every transform. Assert it
+  // rather than trust it: a future reveal that reduced-motion does not cover
+  // would otherwise corrupt every measurement in this file silently, and the
+  // symptom (a uniform sub-pixel overlap on every boundary) reads like a real
+  // layout bug. An identity matrix is fine — it is a transform that moves
+  // nothing, which is what an animation settles to when it keeps its fill.
+  await page.waitForFunction(() => {
+    const t = document.querySelector('#li-tbl table');
+    if (!t) return false;
+    for (let e = t; e && e !== document.documentElement; e = e.parentElement) {
+      const tf = getComputedStyle(e).transform;
+      if (tf !== 'none' && tf !== 'matrix(1, 0, 0, 1, 0, 0)') return false;
+    }
+    return true;
+  }, null, { timeout: 15000 });
 }
 
 test.describe('the ads master table separates its columns', () => {
