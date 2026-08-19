@@ -57,9 +57,34 @@
   .sc .s{font-size:11.5px;color:var(--dim);margin-top:3px}
   .frame{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:16px;box-shadow:var(--shadow);margin:10px 0}
   .tbl-wrap{overflow-x:auto;border:1px solid var(--line-strong);border-radius:11px;box-shadow:var(--shadow);margin:8px 0;background:var(--surface)}
-  table{border-collapse:collapse;width:100%;font-size:13px;background:var(--surface);white-space:nowrap}
-  th,td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12.3px;font-weight:500;color:var(--text)}
-  th{background:var(--green);color:#fff;font-family:var(--sans);font-weight:700;font-size:11.5px;position:sticky;top:0;cursor:pointer;white-space:nowrap}
+  /* table-layout:auto + width:auto + min-width:100% — NOT width:100%, and never
+     table-layout:fixed. Fixed layout divides the container into equal columns
+     regardless of content: 20 columns in a 986px wrapper became 20 identical
+     49px columns. Numeric cells are white-space:nowrap, so a squeezed column
+     does not wrap — its text OVERFLOWS the cell box and paints over the
+     neighbour. That is how "$45,233.43" and "2.52x" ended up printed on top of
+     each other, and why the Frequency and Conversions headers were clipped
+     mid-word. Letting the table take its natural width and scrolling .tbl-wrap
+     instead is the cure — the columns stop competing.
+     table-layout is stated EXPLICITLY because theme.css sets a global default
+     for it, and theme.css loads after this page (auth.js injects it). */
+  table{border-collapse:collapse;table-layout:auto;width:auto;min-width:100%;font-size:13px;background:var(--surface);white-space:nowrap}
+  /* A vertical rule on every cell, so each column is visibly its own column.
+     Without it the only separation was whitespace, which disappears exactly
+     when the columns are tight — the moment separation matters most. */
+  th,td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--line);border-right:1px solid var(--line);font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12.3px;font-weight:500;color:var(--text)}
+  th:last-child,td:last-child{border-right:0}
+  /* Numeric columns get a floor so a long figure keeps its own space instead of
+     borrowing the next column's. Tuned to "$1,234,567.89" at 12.3px mono.
+     Keyed on .num, which is what table() actually emits — an earlier version of
+     this rule also listed td[style*="text-align:right"], matching markup this
+     page has never produced. */
+  th.num,td.num{min-width:96px}
+  /* box-shadow, not just border: with border-collapse a border on a STICKY th is
+     dropped as it detaches, so the header's column rules vanish precisely while
+     the header is doing its job. The inset shadow paints regardless. */
+  th{background:var(--green);color:#fff;font-family:var(--sans);font-weight:700;font-size:11.5px;position:sticky;top:0;cursor:pointer;white-space:nowrap;box-shadow:inset -1px 0 0 rgba(255,255,255,.22)}
+  th:last-child{box-shadow:none}
   th:first-child,td:first-child{text-align:left;font-family:var(--sans)}
   td:first-child{color:var(--ink);font-weight:600;max-width:330px;white-space:normal}
   /* Text cells wrap so a long value can never overlap the next column; numeric
@@ -69,9 +94,8 @@
 td.wide .cw,th.wide .cw,.cw.wide{max-width:320px;min-width:150px}
 td.id .cw,th.id .cw,.cw.id{max-width:150px}
 td.num,th.num{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
-  td[style*="text-align:right"]{white-space:nowrap;max-width:none}
-  /* max-width on a <td> is IGNORED by auto table layout, so the rule above does
-     not actually bound anything - a single unbroken token like
+  /* max-width on a <td> is IGNORED by auto table layout, so bounding a cell
+     directly does nothing - a single unbroken token like
      "Conversion_BCAP_Coffee_NewBuyers_2025_Q3_Broad_v4" still widens the column
      and paints over its neighbour. The bound has to live on a BLOCK inside the
      cell, which is what .cw is. Mirrors .xtable .cw in data-analysis-extensions.js
