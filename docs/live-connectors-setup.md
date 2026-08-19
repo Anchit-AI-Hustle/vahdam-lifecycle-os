@@ -24,8 +24,10 @@ opens an external connection. Nothing below works until it is on:
 LIVE_CONNECTORS=on
 ```
 
-Set it in Vercel (Project → Settings → Environment Variables → Production), then
-add the per-platform keys. Every variable also accepts a market suffix, and the
+Set it in Vercel (Project → Settings → Environment Variables → Production), or
+push it from a gitignored `.env.local` with `npm run push:env -- --apply`, then
+add the per-platform keys. Where each key comes from — and why no CLI can fetch
+one for you — is in [`cli-and-keys.md`](./cli-and-keys.md). Every variable also accepts a market suffix, and the
 suffixed value wins: `META_ACCESS_TOKEN_US` beats `META_ACCESS_TOKEN`. Use
 suffixes when a market has its own ad account, which is the case here (the US
 DTC account and the retail account are separate, and the Klaviyo account

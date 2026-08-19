@@ -63,9 +63,46 @@ npm test               # playwright test (tests/ dir; config playwright.config.j
 npm run test:ui        # playwright test --ui
 npm run test:install   # playwright install (first-time browser download)
 npm run deploy         # vercel --prod
+npm run setup:clis     # install every CLI the stack uses (vercel/supabase/shopify/wrangler/claude/codex)
+npm run push:env       # load keys from gitignored .env.local into Vercel (dry-run; --apply to write)
 npx playwright test tests/<file>.spec.js   # run a single test file
 ```
 There is no real `dev` server (the `dev` script is a no-op stub). For local serverless testing use `vercel dev`. CI (`.github/workflows/ci.yml`) only does an HTML smoke check + `npm run build` — there is no lint step.
+
+### No CLI can fetch an API key, and the tooling says so (2026-08-19)
+Asked to "use claude-cli to fetch the anthropic-api-key, similarly openai-cli for the openai one". Neither
+is possible, and the reason is worth pinning so it is not re-attempted: what those CLIs hold is not an API
+key. `claude auth` is `login|logout|status` with no key subcommand, and `claude auth status` here returns
+`authMethod: "oauth_token"` — a Claude Code **session**, scoped to Claude Code, not an `x-api-key`
+credential. `claude setup-token` mints a subscription token, still not an API key. There is **no openai
+CLI at all** any more: the `openai` package (v3.x) ships no console script and `python -m openai` errors.
+OpenAI's real CLI is `codex`, whose `login --with-api-key` **reads** a key from stdin — it consumes one,
+it cannot issue one. Both providers show a key exactly once at creation in the web console, and that
+one-time display IS the security property; a key retrievable on demand from a signed-in CLI is a key any
+local process can exfiltrate. Same boundary `scripts/preflight-credentials.sh` already stated.
+- `scripts/setup-clis.sh` installs what does exist (vercel, supabase, shopify, wrangler, claude, codex),
+  is idempotent, has a `--check` mode, and names the REST-only platforms (Meta, Google Ads, TikTok,
+  Klaviyo, WebEngage) so their absence reads as a fact rather than an oversight.
+- `scripts/push-env.sh` is the supported way a key reaches production without passing through a chat
+  transcript or a commit: paste into gitignored `.env.local`, dry-run, then `--apply`. It prints names and
+  lengths only, and **refuses to run if `.env.local` is git-tracked** — in a PUBLIC repo that file is
+  already leaked, and pushing it would only spread it.
+- **A `while read` loop drops the final line of a file with no trailing newline**, which an editor may
+  well produce: the last variable in `.env.local` would have been skipped in silence. Caught by the spec's
+  own fixture (`join('\n')` writes no trailing newline), fixed with `done < <(cat "$f"; echo)`.
+- `tests/cli-and-keys.spec.js` pins it, including a behavioural check that runs the script over sentinel
+  values and asserts neither appears in its output, plus a repo-wide guard against any future script that
+  echoes a credential. Full detail: `docs/cli-and-keys.md`.
+- **A test written straight after installing something depends on it being installed.** Both script tests
+  passed locally and failed on all six CI projects, because CI has none of these CLIs and `execFileSync`
+  throws on a non-zero exit. Two real script defects were hiding behind that: `--check` is documented
+  "report only" yet exited 1 when a CLI was absent, making it unusable on a CI runner or a fresh clone;
+  and `push-env.sh` demanded the vercel CLI **before** the dry-run branch, though a dry run never calls
+  vercel, so you could not preview an env file without it. Fixed in the scripts, not papered over in the
+  tests. The spec now runs both scripts under a deliberately bare `PATH` (`barePath()`, symlinks to
+  coreutils only) and asserts exit 0 plus a real `MISSING vercel` line, so the assertion cannot be vacuous
+  and the environment dependency cannot return unnoticed. A counterweight test asserts `--apply` still
+  refuses when vercel is absent, so moving the guard did not delete it.
 
 ## Architecture — the big picture
 
