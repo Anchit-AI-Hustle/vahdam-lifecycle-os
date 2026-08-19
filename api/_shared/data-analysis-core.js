@@ -74,6 +74,38 @@ async function saveSettings(input, updatedBy) {
 }
 
 function bearer(req) { const h = text(req && req.headers && (req.headers.authorization || req.headers.Authorization)); return /^Bearer\s+/i.test(h) ? h.replace(/^Bearer\s+/i, '') : ''; }
+
+// ── Operator identity: domains, plus named owner accounts ───────────────────
+// The gate was domain-only (`ANALYTICS_ADMIN_DOMAINS`, default vahdam.com), so
+// the owner's own non-vahdam accounts were treated as anonymous: they could not
+// see detailed health, force a catalog refresh, or reach /api/shopify. Two of
+// the three addresses the owner actually signs in with are personal ones.
+//
+// Stored as SHA-256, not plaintext, for one reason: THIS REPOSITORY IS PUBLIC.
+// The check only ever needs equality, never the address itself, so publishing
+// the addresses would buy nothing and cost the owner a scrapeable inbox. This
+// is not a security measure - an operator still needs a valid Supabase session
+// for that account - it is simply not printing someone's email in a public file.
+//
+// `ANALYTICS_ADMIN_EMAILS` (comma-separated, plaintext) adds more without a
+// deploy, and works the same way. Neither list grants anything a vahdam.com
+// address does not already have.
+const OWNER_EMAIL_SHA256 = Object.freeze([
+  '0d074d11ddd73323cf8ca2491f86cff054674426edc4b2646f25c10e7fc70ed4',
+  'e28343321c0195fa3e63081acb6dc023b6bb0eb927c0cb575c2e7863e0634edb',
+  '39f1ab678af01ba0cfeb4887d34b2696b89f6a68043bfad6fcceb0d52d334f09',
+]);
+function sha256(v) { return require('crypto').createHash('sha256').update(String(v)).digest('hex'); }
+/** Is this email an operator? Domain match, named owner hash, or env allowlist. */
+function isOperatorEmail(email) {
+  const e = text(email).trim().toLowerCase();
+  if (!e) return false;
+  const domains = text(process.env.ANALYTICS_ADMIN_DOMAINS || 'vahdam.com').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
+  if (domains.some((d) => e.endsWith(`@${d}`))) return true;
+  if (OWNER_EMAIL_SHA256.includes(sha256(e))) return true;
+  const extra = text(process.env.ANALYTICS_ADMIN_EMAILS).split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
+  return extra.includes(e);
+}
 async function authorize(req, { cron = false } = {}) {
   const token = bearer(req), secret = text(process.env.CRON_SECRET);
   if (secret && token === secret) return { ok: true, kind: 'cron' };
@@ -84,8 +116,7 @@ async function authorize(req, { cron = false } = {}) {
     const r = await fetch(`${url}/auth/v1/user`, { headers: { apikey: key, authorization: `Bearer ${token}` }, cache: 'no-store' });
     if (!r.ok) return { ok: false, status: 401, error: 'invalid_operator_session' };
     const user = await r.json(), email = text(user.email).toLowerCase();
-    const domains = text(process.env.ANALYTICS_ADMIN_DOMAINS || 'vahdam.com').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
-    return email && domains.some((d) => email.endsWith(`@${d}`)) ? { ok: true, kind: 'user', email, user_id: user.id } : { ok: false, status: 403, error: 'operator_not_allowed' };
+    return isOperatorEmail(email) ? { ok: true, kind: 'user', email, user_id: user.id } : { ok: false, status: 403, error: 'operator_not_allowed' };
   } catch (_) { return { ok: false, status: 401, error: 'operator_verification_unavailable' }; }
 }
 
@@ -220,4 +251,4 @@ async function testAlert(override){const settings=mergeSettings({...await loadSe
 async function status(){const settings=await loadSettings(),last=await latestRun();return{ok:true,generated_at:iso(),settings,last_run:last?{started_at:last.started_at,finished_at:last.finished_at,status:last.status,anomalies:Array.isArray(last.anomalies)?last.anomalies.length:null}:null,connectors:{ads:['US','UK','IN'].map((market)=>adsCore.status(market)),klaviyo:{connected:klaviyo.isConnected()},webengage:{connected:webengage.connected()},pagedeck:{connected:Boolean(text(process.env.PAGEDECK_ANALYTICS_EXPORT_URL)||text(process.env.PAGEDECK_EXPERIMENTS_EXPORT_URL)||text(process.env.PAGEDECK_COMPETITOR_EXPORT_URL)||text(process.env.PAGEDECK_API_KEY))},gmail:{connected:Boolean(text(process.env.GMAIL_CLIENT_ID)&&text(process.env.GMAIL_CLIENT_SECRET)&&text(process.env.GMAIL_REFRESH_TOKEN)),sender:alerts.senderEmail()},google_chat:{connected:Boolean(text(process.env.GOOGLE_CHAT_WEBHOOK_URL))},sms:{connected:Boolean(text(process.env.TWILIO_ACCOUNT_SID)&&text(process.env.TWILIO_AUTH_TOKEN)&&text(process.env.TWILIO_FROM_NUMBER))}}};}
 async function view(name,params){switch(String(name||'status').toLowerCase()){case'ads':return ads(params);case'mailer':return mailer(params);case'landing':case'pagedeck':return landing(params);case'actions':return actions();case'revenue':return require('./revenue-analysis-core.js').revenue(params);case'agents':return require('./platform-agents-core.js').runAll(params);case'agent':return require('./platform-agents-core.js').runAgent((params&&params.platform)||'shopify',params);case'alerts':return{ok:true,settings:await loadSettings(),status:await status()};default:return status();}}
 
-module.exports={DEFAULT_SETTINGS,authorize,loadSettings,saveSettings,view,status,ads,mailer,landing,actions,runHourly,testAlert,detectHourly};
+module.exports={DEFAULT_SETTINGS,authorize,isOperatorEmail,loadSettings,saveSettings,view,status,ads,mailer,landing,actions,runHourly,testAlert,detectHourly};
