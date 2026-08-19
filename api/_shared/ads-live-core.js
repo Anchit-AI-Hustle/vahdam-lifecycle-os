@@ -120,9 +120,16 @@ function firstActionValue(arr) {
   return a && a.value != null ? num(a.value) : null;
 }
 
+const metaAuth = require('./meta-auth.js');
 function metaUrl({ level = 'ad', datePreset, since, until, limit = 500 }) {
   const c = metaCfg();
   const p = new URLSearchParams({ level, fields: META_FIELDS, limit: String(limit) });
+  // appsecret_proof when META_APP_SECRET is configured (opt-in hardening).
+  // No market on metaCfg: this module is the single-account dashboard path, so
+  // the proof falls back to the global META_APP_SECRET.
+  for (const [k, v] of Object.entries(metaAuth.authParams(c.token))) {
+    if (k !== 'access_token') p.set(k, v);
+  }
   if (datePreset) p.set('date_preset', datePreset);
   else if (since && until) {
     p.set('time_range', JSON.stringify({ since, until }));
@@ -147,7 +154,7 @@ async function metaFetch(opts, timeoutMs = 25000) {
 }
 // Redacts the token — safe to show in a not_connected envelope.
 function metaWouldRequest(opts) {
-  return { method: 'GET', url: metaUrl(opts).replace(/access_token=[^&]*/, 'access_token=REDACTED'), auth: 'Bearer META_ACCESS_TOKEN' };
+  return { method: 'GET', url: metaAuth.redact(metaUrl(opts)), auth: 'Bearer META_ACCESS_TOKEN' };
 }
 
 const num = (v) => (v == null || v === '' || isNaN(Number(v)) ? 0 : Number(v));

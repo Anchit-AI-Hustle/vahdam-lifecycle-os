@@ -145,6 +145,7 @@ function metaMetricFields(group) {
   if (group === 'all') return uniq(Object.values(META_FIELDS).flat());
   return META_FIELDS[group] || META_FIELDS.conversion;
 }
+const metaAuth = require('./meta-auth.js');
 async function metaInsights({ market, metricGroup = 'conversion', since, until, level = 'account', account } = {}) {
   const token = envFor('META_ACCESS_TOKEN', market);
   const all = envIds('META_AD_ACCOUNT_ID', market);
@@ -163,7 +164,9 @@ async function metaInsights({ market, metricGroup = 'conversion', since, until, 
   if (!liveConnectorsEnabled()) return switchedOff('meta', market, { method: 'GET', url, params }, metaNeed, l);
   const parts = await Promise.all(accts.map(async (acct) => {
     const one = `https://graph.facebook.com/${GRAPH_VER}/act_${acct}/insights`;
-    const r = await fetchJson(`${one}?${qs({ ...params, access_token: token })}`);
+    // authParams adds appsecret_proof when META_APP_SECRET is set, so a stolen
+    // token cannot be replayed from outside the app. See meta-auth.js.
+    const r = await fetchJson(`${one}?${qs({ ...params, ...metaAuth.authParams(token, market) })}`);
     if (!r.ok) return { ok: false, account_id: acct, connected: true, platform: 'meta', market: normMarket(market), level: l, status: r.status, error: (r.json && r.json.error && r.json.error.message) || 'meta insights request failed', raw: r.json };
     // Meta already returns account_id on every row (META_IDENT carries it at
     // every level), so no stamping is needed here.
