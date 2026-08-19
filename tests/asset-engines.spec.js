@@ -300,3 +300,22 @@ test('the rendered page records which archetype produced it', () => {
   const html = SB.lpHtml({ id: 'r1', date: '2026-08-22', market: 'US', cohort: { name: 'c' }, objective: 'retention', heroProduct: { title: 'T', handle: 't' } }, copy, 'c1', null);
   expect(html).toMatch(/<!-- Landing archetype: [a-z-]+ \(.+\)\. Section order: .+ -->/);
 });
+
+// ── The store host in a generated asset ─────────────────────────────────────
+// master-prompt.js kept its own region map, and two of the six entries pointed
+// at hosts that market-urls.js itself lists as merely REDIRECTING
+// (www.vahdamindia.com for IN, www.vahdamteas.com for Global). Every landing
+// page CTA and every pasted master prompt for those markets sent the reader to
+// a bounce. This is the tenth hand-kept copy of that map; the guard is that it
+// is read, not re-typed.
+test('the master prompt takes its store host from market-urls, not a private map', () => {
+  const mp = shared('master-prompt.js');
+  const urls = shared('market-urls.js');
+  for (const market of ['US', 'UK', 'IN', 'EU', 'AU', 'Global']) {
+    expect(mp.regionFacts(market).store, `${market} store host`).toBe(urls.storeHost(market));
+  }
+  const src = fs.readFileSync(path.join(ROOT, 'api', '_shared', 'master-prompt.js'), 'utf8');
+  for (const dead of ['vahdamindia.com', 'vahdamteas.com']) {
+    expect(src, `master-prompt names the redirecting host ${dead}`).not.toMatch(new RegExp("store:\\s*'[^']*" + dead.replace('.', '\\.')));
+  }
+});

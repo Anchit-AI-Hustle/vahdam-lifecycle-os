@@ -137,14 +137,24 @@ const OUTPUT_ENVELOPE = `RESPONSE FORMAT: exactly these four parts, in order, no
 No preamble, no "Here is...", no closing offer of further help.`;
 
 // ── Regional facts ──────────────────────────────────────────────────────────
-const REGION = {
-  US: { store: 'www.vahdam.com', presell: 'try.vahdam.com', currency: '$', locale: 'en-US', shipping: 'Free US shipping over $59' },
-  UK: { store: 'www.vahdam.co.uk', presell: 'try.vahdam.co.uk', currency: '£', locale: 'en-GB', shipping: 'Free UK shipping over £50' },
-  IN: { store: 'www.vahdamindia.com', presell: 'try.vahdam.com', currency: '₹', locale: 'en-IN', shipping: 'Free India shipping over ₹2,000' },
-  EU: { store: 'www.vahdam.global', presell: 'try.vahdam.com', currency: '€', locale: 'en-IE', shipping: 'Free EU shipping over €60' },
-  AU: { store: 'www.vahdam.global', presell: 'try.vahdam.com', currency: 'A$', locale: 'en-AU', shipping: 'Free AU shipping over A$80' },
-  Global: { store: 'www.vahdamteas.com', presell: 'try.vahdam.com', currency: '$', locale: 'en', shipping: 'Free shipping on orders over $59' },
+// The STORE host is not written here. This map used to carry its own copy and
+// two of the six entries were wrong: `www.vahdamindia.com` for IN and
+// `www.vahdamteas.com` for Global are both listed in market-urls.js's own
+// REDIRECTING_HOSTS, so every landing-page CTA and every pasted master prompt
+// for those markets pointed at a host that only bounces. That is the tenth
+// hand-kept copy of a map CLAUDE.md already records as having been wrong on
+// four of six entries across nine copies. It is read now, not re-typed.
+const { storeHost } = require('./market-urls.js');
+const REGION_LOCAL = {
+  US: { presell: 'try.vahdam.com', currency: '$', locale: 'en-US', shipping: 'Free US shipping over $59' },
+  UK: { presell: 'try.vahdam.co.uk', currency: '£', locale: 'en-GB', shipping: 'Free UK shipping over £50' },
+  IN: { presell: 'try.vahdam.com', currency: '₹', locale: 'en-IN', shipping: 'Free India shipping over ₹2,000' },
+  EU: { presell: 'try.vahdam.com', currency: '€', locale: 'en-IE', shipping: 'Free EU shipping over €60' },
+  AU: { presell: 'try.vahdam.com', currency: 'A$', locale: 'en-AU', shipping: 'Free AU shipping over A$80' },
+  Global: { presell: 'try.vahdam.com', currency: '$', locale: 'en', shipping: 'Free shipping on orders over $59' },
 };
+const REGION = Object.fromEntries(Object.entries(REGION_LOCAL)
+  .map(([k, v]) => [k, { store: storeHost(k), ...v }]));
 function regionFacts(market) { return REGION[market] || REGION.Global; }
 
 // ── Product context ─────────────────────────────────────────────────────────
