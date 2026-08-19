@@ -8,8 +8,9 @@
         rings, custom scrollbars, reduced-motion. Bare elements are not restyled
         EXCEPT one intentional ZERO-specificity table default (see the "Global
         table default" block), written with :where() so that ANY per-page rule
-        wins — including a bare `table { … }`, which is how nine of the ten
-        pages that style tables actually write it.
+        wins — including a bare `table { … }`, which is how 10 of the 14 pages
+        that style tables actually write it. Only the other 4 scope their rules
+        to a class, and only those 4 were ever safe from this stylesheet.
      3. An OPT-IN component kit under the `vh-` prefix (buttons, cards, tables,
         inputs, chips, badges, section headers) for pages to migrate onto.
      4. Mobile hardening: safe-area (notch) insets for the shared nav, larger
