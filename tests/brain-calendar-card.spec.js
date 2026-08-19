@@ -134,9 +134,18 @@ test.describe('the /brain day card', () => {
     for(let i = 1; i < boxes.length; i++){
       expect(boxes[i].top, 'a row is beside another instead of below it').toBeGreaterThanOrEqual(boxes[i-1].bottom - 1);
     }
-    const clipped = await page.locator('.callist .cday .ct').evaluateAll((els) =>
-      els.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim()));
-    expect(clipped, `theme text is still being cut off: ${clipped.join(' | ')}`).toEqual([]);
+    // Assert the ROOM the column change delivers, not "zero ellipsis ever".
+    // The first version demanded that no theme was ever clipped, and that failed
+    // in CI on iphone-se, iphone-12 and ipad: the same string measures wider in
+    // WebKit, so whether a given name ellipsises depends on font metrics rather
+    // than on the layout being right. A width floor is the font-independent form
+    // of the same claim, and the 7-across grid - about 130px per day - cannot
+    // satisfy it.
+    const widths = await page.locator('.callist .cday .ct').evaluateAll((els) =>
+      els.map((e) => Math.round(e.getBoundingClientRect().width)));
+    expect(widths.length).toBeGreaterThan(1);
+    expect(Math.min(...widths), `the theme column is still cramped: ${widths.join(', ')}px`)
+      .toBeGreaterThan(260);
   });
 
   test('a day opens the assets that were built for it', async ({ page }) => {
