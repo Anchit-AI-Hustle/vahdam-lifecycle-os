@@ -2263,4 +2263,9 @@ module.exports = {
   // section ORDER actually changes with the archetype (a source-only test
   // cannot prove a template followed the engine).
   lpHtml,
+  // Same reason: the prompt builders are pure functions of the slot, so a test
+  // can RUN them and read the produced string. Asserting that the source file
+  // mentions `entry.cohort` only proves the characters are present; it cannot
+  // prove the cohort survives into the prompt the model is actually sent.
+  strategyPrompt, copyPrompt,
 };

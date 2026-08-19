@@ -396,6 +396,55 @@ module.exports = async function handler(req, res) {
   if (req.query && req.query.action === 'landing-page') {
     return require('../_shared/landing-page-core.js')(req, res);
   }
+  // The ASSET prompt, served so the front ends stop keeping their own copy.
+  //
+  // Mailer Studio's "Prompts" tab offered ChatGPT / Claude / Gemini cards whose
+  // buttons ALL copied an IMAGE prompt - the Gemini one copied the product
+  // photograph brief. Pasted into Gemini it returned exactly what it asked for:
+  // one pack shot, not a mailer. Meanwhile the real complete-asset prompt
+  // (buildMasterPrompt) lived only on the server, and the page's own
+  // copyMasterPrompt() was dead code that nothing called. So the prompt that
+  // builds the whole asset had no entrance in the UI at all.
+  //
+  // Assembling a prompt spends no model quota, so this answers GET, and it must
+  // run BEFORE the provider-key check below: a deployment with no keys can still
+  // hand a human the prompt to paste elsewhere. That is precisely the case where
+  // pasting into ChatGPT is the point.
+  if (req.query && req.query.action === 'master-prompt') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    let q = req.query || {};
+    if (req.method === 'POST') {
+      let b = req.body;
+      if (typeof b === 'string') { try { b = JSON.parse(b); } catch (_) { b = {}; } }
+      q = Object.assign({}, q, b || {});
+    }
+    const products = Array.isArray(q.products) ? q.products : [];
+    const assetType = String(q.assetType || q.asset_type || 'mailer');
+    try {
+      const prompt = buildMasterPrompt({
+        assetType,
+        market: q.market || 'US',
+        brief: q.brief || q.campaign_brief || '',
+        products,
+        variant: q.variant || 'V2',
+        platform: q.platform || 'meta',
+        cohort: q.cohort || '',
+        extra: q.extra || '',
+      });
+      return res.status(200).json({
+        ok: true, asset_type: assetType, kind: 'asset',
+        // Named so a UI cannot mislabel it: this prompt returns the finished
+        // asset, not one element of it.
+        produces: 'the complete finished asset, ready to ship',
+        prompt, chars: prompt.length,
+      });
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: 'master_prompt_failed', detail: String(e && e.message || e).slice(0, 200) });
+    }
+  }
   // CORS — allow same-origin + preview deploys
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
