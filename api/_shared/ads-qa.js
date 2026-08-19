@@ -13,16 +13,29 @@
 // Returns per-ad verdicts + a summary, and stamps each ad with `__qa` so the studio
 // can badge it. buildCampaign attaches the summary + an "Ads QA Critic" trace step.
 
-const BANNED = /wellness journey|\btransform\b|liquid gold|game[\s-]?changer|LIMITED TIME|hurry|don'?t miss out|last chance|while supplies last/i;
-const DASH = /[–—]/; // en / em dash — brand forbids both
+// The brand rules and the platform limits are NOT redefined here. This file had
+// its own copy of both, and asset-engines.js was about to make a third: a limit
+// that lives in two places is enforced in one, which is the same drift that
+// produced nine hand-written market-URL maps with four of them wrong.
+//   banned phrases -> scenario-model.js (where the brand scrubber already is)
+//   char limits    -> asset-specs.js (the single source for every size and cap)
+const { BANNED_PHRASES_RX: BANNED } = require('./scenario-model.js');
+const specs = require('./asset-specs.js');
+const DASH = /[–—]/; // en / em dash - brand forbids both
 // Signals of an offer/claim we cannot invent (there is no approved offer/claims lib).
 const OFFER = /\b\d{1,3}\s?%\s?off\b|\bcode[:\s]|\bpromo\b|\bcoupon\b|\bBOGO\b|\bmoney[\s-]?back\b|\bguarantee\b|\blowest price\b/i;
+// Derived from asset-specs, keeping this file's field names. Meta and Google
+// nest their caps differently there (google's live under headlines/descriptions
+// because Google takes a SWEEP of each), which is why this is a mapping rather
+// than a passthrough. youtube/pinterest are display placements with no ad copy
+// block in asset-specs, so their headline cap stays local and is marked as such.
+const A = specs.ADS;
 const LIMITS = {
-  meta:      { headline: 40, primary_text: 125 },
-  google:    { headline: 30, description: 90 },
-  youtube:   { headline: 40 },
-  tiktok:    { caption: 100 },
-  pinterest: { headline: 40 },
+  meta:      { headline: A.meta.copy.headline, primary_text: A.meta.copy.primaryText },
+  google:    { headline: A.google.copy.headlines.max, description: A.google.copy.descriptions.max },
+  tiktok:    { caption: A.tiktok.copy.caption },
+  youtube:   { headline: 40 },   // local: no youtube ad-copy block in asset-specs
+  pinterest: { headline: 40 },   // local: no pinterest ad-copy block in asset-specs
 };
 
 function textParts(ad) {

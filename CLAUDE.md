@@ -200,6 +200,42 @@ resolver; `tests/live-catalog.spec.js` fails the build if a seventh private load
 - Not verifiable from the dev sandbox: outbound egress to `vahdamteas.com` is blocked by proxy policy here,
   so the storefront path is proven against a stubbed Shopify payload in tests, not a live round-trip.
 
+### Every asset is built by its own engine, not by one prompt with five slots (2026-08-19)
+A mailer, a Google RSA, a TikTok cover, a presell landing page and an Instagram post are five
+different design problems. They were generated as five slots of ONE JSON object, from ONE prompt at
+ONE temperature, each rendered by ONE fixed template, so nothing in the pipeline knew that a Google
+headline dies at 30 characters, that an organic caption may not carry baked-in text, that a landing
+page's whole job is to repeat the ad's promise in the ad's own words, or that a video ad must move
+inside 0.8s. The per-asset contracts in `master-prompt.js` existed but were attached to the OUTPUT as
+a paste-anywhere `master_prompt`; the model that wrote the shipped copy never saw them. The mailer was
+the one exception (`mailer-design-strategy.js` picks a real archetype per slot) - the right shape, for
+one asset out of nine.
+- **`api/_shared/asset-engines.js`** - one engine per asset type (mailer, ad x3, landing page, social
+  x6, video, playable, blog). Each owns five things: `spec` (read from `asset-specs.js`), `design()`
+  (the layout algorithm - which structure THIS slot gets and why), `contract()` (its own generation
+  directive, injected into the copy prompt), `params` (its own temperature/tokens - an RSA sweep and a
+  story-driven email are not the same generation problem), and `qa()` (its own deterministic
+  validator). `qaCampaign()` rolls every asset up; `smart-brain-plan.buildCampaign` attaches it as
+  `campaign.asset_qa` + an "Asset Engines QA" trace step, advisory like `ads_qa`.
+- **QA reports, it never silently repairs.** A headline three chars over the Google cap is a copy
+  problem; truncating it mid-word ships a broken ad that reads as finished. Issues carry the measured
+  value and the limit. `ok` is false only on a CRITICAL - a warning is information, not a block.
+- **Landing pages now have archetypes** (presell-narrative / proof-first / ritual-howto / comparison /
+  gift-curation), chosen from the slot's stated intent and falling back to the seed. `lpHtml` renders
+  in the archetype's section ORDER instead of always hero->why->product->proof->faq, and **a section
+  whose copy the model did not supply is OMITTED, never padded** (a missing section is reviewable, a
+  fabricated one is not). The page records its archetype in an HTML comment.
+- **The design choice is deterministic and seeded, never random** - a re-run that changes an approved
+  asset means the reviewer approved something that no longer exists. **The seed's finalizer is
+  load-bearing:** FNV-1a's low bits are weak, so `h mod 4` with two different salts came out separated
+  by a CONSTANT offset - every ad format was paired with the same social angle on every slot, 4 of 16
+  possible combinations, lockstep dressed up as variety. A murmur3 `fmix32` avalanche fixes it, and
+  `tests/asset-engines.spec.js` pins the pair count above the number the unmixed hash produced.
+- **One source for every limit.** Caps come from `asset-specs.js` and the banned-phrase list from
+  `scenario-model.js` (`BANNED_PHRASES_RX`, now exported). `ads-qa.js` had grown its own `LIMITS` map
+  and the banned regex lived in three files. The spec test mutates `asset-specs` and re-requires, so a
+  re-typed constant fails rather than passing on a coincidence.
+
 ### A gate that blocks silently is indistinguishable from one that is broken (2026-08-19)
 The gates answer **HTTP 200** with `{ok:false, blocked:true, message, blocker, data_required,
 remediation}` — deliberately, because the API worked and declined. Every front end read only

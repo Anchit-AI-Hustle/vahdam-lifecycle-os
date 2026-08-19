@@ -142,6 +142,11 @@ try { renderTextVariant = require('./calendar-trigger.js').helpers.renderTextVar
 // distinctly instead of being one copy in two skins. Unifies the variant styles
 // across Smart Brain, Mailer Calendar and Plan Calendar.
 const CF = require('./copy-frameworks.js');
+// Per-asset design/structure/QA engines. The copy prompt used to describe all
+// five assets in one voice, so nothing in it knew a Google headline dies at 30
+// chars or that an organic caption may not carry baked-in text. Each asset now
+// carries its own contract into the prompt and its own validator out of it.
+const AE = require('./asset-engines.js');
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function nowIso() { return new Date().toISOString(); }
@@ -681,6 +686,14 @@ function copyPrompt(entry, fw = null, brief = null) {
   const briefLine = brief
     ? `\nSTRATEGY BRIEF from the growth lead (follow it): angle = ${brief.angle}; hook = ${brief.hook_thesis}; emotion = ${brief.target_emotion}; differentiator = ${brief.differentiator}; proof = ${(brief.proof_points || []).filter(Boolean).join('; ')}. Do: ${(brief.dos || []).join('; ')}. Avoid: ${(brief.donts || []).join('; ')}.`
     : '';
+  // Each asset states its OWN structure, limits and design for THIS slot. The
+  // engines are deterministic, so the same slot always asks for the same shapes
+  // and a re-run cannot quietly change what a reviewer already approved.
+  const contracts = AE.contractsFor(
+    ['mailer', 'landing_page', 'ad:meta', 'ad:google', 'ad:tiktok'],
+    { id: entry.id, date: entry.date, market: entry.market, cohort: entry.cohort, objective: entry.objective },
+  ).map((c) => c.contract).join('\n\n');
+
   return `Write campaign copy for this planned slot. Context:${goalLine(entry)}
 - Market: ${entry.market} | Cohort: ${entry.cohort?.name} | Objective: ${entry.objective}
 - Hero product: ${entry.heroProduct?.title} (${entry.heroProduct?.category || 'tea'})
@@ -690,6 +703,10 @@ function copyPrompt(entry, fw = null, brief = null) {
 - ${regionalNuance(entry.market)}${fwLine}${briefLine}
 
 ${MAILER_COMPONENTS}
+
+PER-ASSET CONTRACTS. These are five different design problems, not one brief in five slots. Obey each one for its own asset; a limit stated below is the platform's, not a preference:
+
+${contracts}
 
 Every asset must ship with a CREATIVE as well as copy. For each asset write an "image_brief": a vivid 1-2 sentence art-direction prompt for a photoreal product/lifestyle scene of the hero product. Channel rules (ALL creatives are TEXT-FREE photographs — never describe overlaid words, headlines, prices, logos or UI in the image_brief; diffusion models cannot spell and render garbled fake letterforms, and the real ad copy is rendered natively by the platform, not painted into the pixels):
 - email / LP heroes: just scene, props, light, mood; aspirational hero.
@@ -702,7 +719,7 @@ MESSAGE MATCH IS THE JOB OF THE LANDING PAGE. The page is not a sibling of the a
 Return JSON with exactly this shape:
 {
  "email": { "subject": "", "subject_alt1": "", "subject_alt2": "", "preheader": "", "hook": "the first-scroll pattern-interrupt line", "hero_headline": "", "intro_paragraph": "", "body_paragraph": "", "benefits": ["sensory benefit 1","benefit 2","benefit 3"], "rating": {"value": 4.9, "count": "250,000+"}, "reviews": [{"quote":"short review that answers an objection","author":"first name, initial","stars":5}], "badges": ["Non-GMO","Climate Neutral",""], "guarantee": "a risk-reversal line", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
- "landing": { "hero_headline": "", "hero_sub": "", "why_title": "", "why_bullets": ["","",""], "proof_quote": "", "proof_author": "", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "" },
+ "landing": { "hero_headline": "", "hero_sub": "", "why_title": "", "why_bullets": ["","",""], "proof_quote": "", "proof_author": "", "faq": [{"q":"","a":""},{"q":"","a":""}], "cta": "", "image_brief": "", "problem": "OPTIONAL, only if the landing contract asked for a problem section", "mechanism": "OPTIONAL, only if asked: how it actually works", "steps": ["OPTIONAL, only if asked: the ritual, step by step"], "comparison": "OPTIONAL, only if asked: the honest this-vs-that", "picks": ["OPTIONAL, only if asked: curated gift picks, one line of reasoning each"] },
  "ads": {
    "meta": { "primary_text": "", "headline": "", "description": "", "image_brief": "" },
    "google": { "headlines": ["","",""], "descriptions": ["",""], "image_brief": "" },
@@ -753,6 +770,61 @@ function lpHtml(entry, copy, campaignId, creativeUrl) {
       ? `<div class="guarantee"><h3>Steep with confidence</h3><p style="margin:0;color:var(--ink-dim)">${esc(_appClaims.find((c) => /guarantee|make it right|refund|return/i.test(String(c))))}</p></div>`
       : '')
     : `<div class="guarantee"><h3>Steep with confidence</h3><p style="margin:0;color:var(--ink-dim)">If your first cup isn't a quiet highlight of the day, our team will make it right.</p></div>`;
+  // ── Section order comes from the landing ENGINE, not from this template ────
+  // Every generated page used to render hero -> why -> product -> proof -> faq
+  // regardless of who it was for. A winback page (where trust is the blocker)
+  // and a first-purchase presell (where the question is how this fits a
+  // morning) are not the same page, and shipping them as the same page is the
+  // defect the mailer already had before it got archetypes.
+  //
+  // A section whose copy the model did not supply is OMITTED, never padded with
+  // invented content: a missing section is reviewable, a fabricated one is not.
+  const design = AE.ENGINES.landing_page.design({
+    id: entry.id, date: entry.date, market: entry.market, cohort: entry.cohort, objective: entry.objective,
+  });
+  const steps = (L.steps || []).filter(Boolean);
+  const picks = (L.picks || []).filter(Boolean);
+  const SECTION = {
+    hero: `<section class="hero">
+  <p class="eyebrow">${esc(entry.cohort?.name ? entry.cohort.name + ' edit' : 'A daily ritual')}</p>
+  <h1>${esc(L.hero_headline || entry.heroProduct?.title || 'Your ritual, restored')}</h1>
+  <p>${esc(L.hero_sub || entry.rationale || '')}</p>
+  <a class="btn" href="${esc(shopUrl)}">${cta}</a>
+</section>
+${creativeUrl ? `<figure style="margin:0;background:var(--cream,#FBF5EA);display:flex;align-items:center;justify-content:center;padding:18px 16px"><img src="${esc(creativeUrl)}" alt="${esc(L.hero_headline || entry.heroProduct?.title || 'VAHDAM')}" loading="lazy" style="display:block;width:auto;height:auto;max-width:min(100%,520px);max-height:460px;object-fit:contain;border-radius:12px"/></figure>` : ''}
+<div class="trust">${trustStars}<span>Single-estate origin</span><span>Hand-picked &amp; fresh</span><span>Ships in days</span></div>`,
+    why: `<div class="wrap"><section class="sec why">
+    <h2>${esc(L.why_title || 'Why this edit')}</h2>
+    <ul>${bullets || '<li><span class="tick">✓</span>Crafted around your daily ritual.</li>'}</ul>
+  </section></div>`,
+    product: `<div class="wrap"><section class="sec">
+    <div class="reveal">
+      <div>
+        <h3 style="margin:0 0 6px">${esc(entry.heroProduct?.title || 'The edit')}</h3>
+        <p style="margin:0;color:var(--ink-dim)">${esc(entry.heroProduct?.category || 'Single-estate tea')}</p>
+      </div>
+      <div style="text-align:right">
+        ${priceLabel ? `<div class="price">${esc(priceLabel)}</div>` : ''}
+        <a class="btn btn-dark" href="${esc(shopUrl)}">${cta}</a>
+      </div>
+    </div>
+  </section></div>`,
+    proof: proofSection,
+    faq: faq ? `<div class="wrap"><section class="sec"><h2>Questions, answered</h2>${faq}</section></div>` : '',
+    guarantee: guaranteeBlock ? `<div class="wrap">${guaranteeBlock}</div>` : '',
+    problem: L.problem ? `<div class="wrap"><section class="sec"><h2>The 4pm slump you did not book</h2><p>${esc(L.problem)}</p></section></div>` : '',
+    mechanism: L.mechanism ? `<div class="wrap"><section class="sec"><h2>How it works</h2><p>${esc(L.mechanism)}</p></section></div>` : '',
+    steps: steps.length ? `<div class="wrap"><section class="sec"><h2>The ritual, step by step</h2><ol>${steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></section></div>` : '',
+    comparison: L.comparison ? `<div class="wrap"><section class="sec"><h2>Which one is for you</h2><p>${esc(L.comparison)}</p></section></div>` : '',
+    picks: picks.length ? `<div class="wrap"><section class="sec"><h2>The picks</h2><ul>${picks.map((x) => `<li><span class="tick">✓</span>${esc(x)}</li>`).join('')}</ul></section></div>` : '',
+    // `cta` is the sticky bar, which is rendered once at the end of the body
+    // whatever the order says: two sticky bars is not a design choice.
+    cta: '',
+  };
+  // The hero always leads (it is the fold), so it is emitted separately and
+  // skipped here even if an archetype were ever written without it.
+  SECTION._body = design.order.filter((k) => k !== 'hero').map((k) => SECTION[k] || '').filter(Boolean).join('\n');
+
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(L.hero_headline || entry.heroProduct?.title || 'VAHDAM')}</title>
 <style>
@@ -790,38 +862,10 @@ footer{background:var(--ink);color:rgba(251,245,234,.6);text-align:center;paddin
 @media(max-width:640px){.hero h1{font-size:30px}.sec h2{font-size:24px}.sticky .info .sub{display:none}}
 </style></head>
 <body>
+<!-- Landing archetype: ${esc(design.archetype)} (${esc(design.why)}). Section order: ${esc(design.order.join(' / '))}. -->
 <div class="bar">VAHDAM India · ${esc(entry.market)} · Single-estate, hand-picked, shipped fresh</div>
-<section class="hero">
-  <p class="eyebrow">${esc(entry.cohort?.name ? entry.cohort.name + ' edit' : 'A daily ritual')}</p>
-  <h1>${esc(L.hero_headline || entry.heroProduct?.title || 'Your ritual, restored')}</h1>
-  <p>${esc(L.hero_sub || entry.rationale || '')}</p>
-  <a class="btn" href="${esc(shopUrl)}">${cta}</a>
-</section>
-${creativeUrl ? `<figure style="margin:0;background:var(--cream,#FBF5EA);display:flex;align-items:center;justify-content:center;padding:18px 16px"><img src="${esc(creativeUrl)}" alt="${esc(L.hero_headline || entry.heroProduct?.title || 'VAHDAM')}" loading="lazy" style="display:block;width:auto;height:auto;max-width:min(100%,520px);max-height:460px;object-fit:contain;border-radius:12px"/></figure>` : ''}
-<div class="trust">${trustStars}<span>Single-estate origin</span><span>Hand-picked &amp; fresh</span><span>Ships in days</span></div>
-<div class="wrap">
-  <section class="sec why">
-    <h2>${esc(L.why_title || 'Why this edit')}</h2>
-    <ul>${bullets || '<li><span class="tick">✓</span>Crafted around your daily ritual.</li>'}</ul>
-  </section>
-  <section class="sec">
-    <div class="reveal">
-      <div>
-        <h3 style="margin:0 0 6px">${esc(entry.heroProduct?.title || 'The edit')}</h3>
-        <p style="margin:0;color:var(--ink-dim)">${esc(entry.heroProduct?.category || 'Single-estate tea')}</p>
-      </div>
-      <div style="text-align:right">
-        ${priceLabel ? `<div class="price">${esc(priceLabel)}</div>` : ''}
-        <a class="btn btn-dark" href="${esc(shopUrl)}">${cta}</a>
-      </div>
-    </div>
-  </section>
-</div>
-${proofSection}
-<div class="wrap">
-  ${faq ? `<section class="sec"><h2>Questions, answered</h2>${faq}</section>` : ''}
-  ${guaranteeBlock}
-</div>
+${SECTION.hero}
+${SECTION._body}
 <div class="sticky">
   <div class="info"><b>${esc(entry.heroProduct?.title || 'VAHDAM edit')}</b><span class="sub">${esc(priceLabel)} · ships fresh from origin</span></div>
   <a class="btn" href="${esc(shopUrl)}">${cta}</a>
@@ -1470,6 +1514,25 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
     const adsQa = require('./ads-qa.js').qaAds(campaign.assets && campaign.assets.ads);
     campaign.ads_qa = adsQa;
     trace.push({ agent: 'Ads QA Critic', role: 'Paid Social QA', ok: adsQa.passed, provider: 'rule-based', output: { avg_score: adsQa.avg_score, critical: adsQa.critical, ads: adsQa.count, missing: adsQa.missing } });
+  } catch (_) { /* QA is advisory; never block generation */ }
+  // Per-asset QA — every asset checked by the engine that OWNS it, against that
+  // asset's own platform limits and structure. ads-qa above covers the paid
+  // creatives; nothing covered the mailer, the landing pages or the social
+  // posts, so a landing page that introduced a guarantee the ad never made, or
+  // a subject line that duplicated its preheader, shipped unremarked. Advisory
+  // like ads-qa: it reports with the measured value, it never silently repairs
+  // (truncating a headline mid-word ships a broken asset that reads as done).
+  try {
+    const ctx = { id: entry.id, date: entry.date, market: entry.market, cohort: entry.cohort, objective: entry.objective,
+      // Message match is checked against what the ads and email actually say,
+      // so the landing engine can tell "the page repeats the promise" from
+      // "the page invented an offer at the destination".
+      source_copy: [campaign.assets && campaign.assets.email && campaign.assets.email.subject,
+        ...(campaign.assets && campaign.assets.ads || []).map((a) => [a.primary_text, a.headline, a.caption].filter(Boolean).join(' '))]
+        .filter(Boolean).join(' ') };
+    const assetQa = AE.qaCampaign(campaign, ctx);
+    campaign.asset_qa = assetQa;
+    trace.push({ agent: 'Asset Engines QA', role: 'Per-asset structure + limits', ok: assetQa.ok, provider: 'rule-based', output: { checked: assetQa.checked, critical: assetQa.critical, warnings: assetQa.warnings } });
   } catch (_) { /* QA is advisory; never block generation */ }
   // Real video ads. Submit-only: the job ids ride on the campaign and the clips
   // are attached by polling video-status, because Veo runs for minutes.
@@ -2196,4 +2259,8 @@ module.exports = {
   // exported for the day-level calendar + its tests (derived freshness helpers)
   horizonCoverage, classifyWriteFailure, insertRowsResilient, isPrebuilt, PREBUILD_MARKER,
   SYNC_WRITABLE_STATUSES, stableId, addDaysIso, todayIso,
+  // exported so the per-asset engine tests can render a page and assert the
+  // section ORDER actually changes with the archetype (a source-only test
+  // cannot prove a template followed the engine).
+  lpHtml,
 };
