@@ -64,7 +64,11 @@
   td:first-child{color:var(--ink);font-weight:600;max-width:330px;white-space:normal}
   /* Text cells wrap so a long value can never overlap the next column; numeric
      (right-aligned) cells stay on one line so figures stay scannable. */
-  td{white-space:normal;max-width:520px}
+  td{white-space:normal}
+.cw{max-width:240px;overflow-wrap:anywhere;word-break:break-word}
+td.wide .cw,th.wide .cw,.cw.wide{max-width:320px;min-width:150px}
+td.id .cw,th.id .cw,.cw.id{max-width:150px}
+td.num,th.num{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
   td[style*="text-align:right"]{white-space:nowrap;max-width:none}
   /* max-width on a <td> is IGNORED by auto table layout, so the rule above does
      not actually bound anything - a single unbroken token like
@@ -1775,11 +1779,38 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   //
   // `emptyNote` lets a caller say WHY it is empty when it knows — "no live
   // account is connected" is far more useful than "no rows".
+  // Cells declare their KIND, and only that makes the table readable.
+  //
+  // The ad tables were unreadable: campaign and entity identifiers are long
+  // unbroken tokens (TOF_ASC_WeightLoss_Menopause_Coffee_..., 120240649869720711)
+  // and they overflowed their column and painted over the next one, so "Spend"
+  // and "Impressions" rendered as "$17,938.7870,485". The CSS looked like it
+  // handled this - td{max-width:520px} - but a max-width on a <td> is IGNORED
+  // under auto table layout. It has to sit on a block INSIDE the cell.
+  //
+  // Same fix, same idiom as data-analysis-extensions.js, which already solved
+  // this once: header {r:1} means numeric (stays on one line, right aligned,
+  // tabular), {w:1} a wide identifier, {id:1} a machine id. Everything else is
+  // bounded by .cw and wraps.
   function table(head,rows,emptyNote){
+    function clsOf(h){ return h&&h.r?"num":(h&&h.w?"wide":(h&&h.id?"id":"")); }
     var body = rows.length
-      ? rows.map(function(r){return "<tr>"+r.map(function(c,i){return "<td style='text-align:"+(head[i]&&head[i].r?"right":"left")+"'>"+c+"</td>";}).join("")+"</tr>";}).join("")
+      ? rows.map(function(r){return "<tr>"+r.map(function(c,i){
+          var cls=clsOf(head[i]);
+          // Numbers are left bare so they never wrap; everything else gets the
+          // bounded inner block that actually honours a max-width.
+          var already = /class=['"][^'"]*\bcw\b/.test(String(c==null?"":c));
+          var inner = (cls==="num"||already) ? c : "<div class='cw'>"+c+"</div>";
+          // The full value stays reachable on hover once it wraps.
+          var plain = String(c==null?"":c).replace(/<[^>]*>/g,"");
+          var ttl = (cls!=="num" && plain.length>28) ? " title='"+esc(plain)+"'" : "";
+          return "<td"+(cls?" class='"+cls+"'":"")+ttl+">"+inner+"</td>";
+        }).join("")+"</tr>";}).join("")
       : "<tr><td colspan='"+head.length+"' style='text-align:left;padding:14px 12px;color:var(--muted,#5f5e5a)'>"+esc(emptyNote||"No rows to show for the current selection.")+"</td></tr>";
-    return "<table data-sortable data-filterable><thead><tr>"+head.map(function(h){return "<th style='text-align:"+(h.r?"right":"left")+"'>"+esc(h.t)+"</th>";}).join("")+
+    return "<table data-sortable data-filterable><thead><tr>"+head.map(function(h){
+        var cls=clsOf(h);
+        return "<th"+(cls?" class='"+cls+"'":"")+">"+esc(h.t)+"</th>";
+      }).join("")+
       "</tr></thead><tbody>"+body+"</tbody></table>";
   }
   var KB=null, ADS=null, SNAP=null, LIVE=null, RANGE=30, CAMPRANGE='all';
@@ -1952,6 +1983,48 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     if(el) el.textContent=(rows.length?rows[0].date||rows[0].day:"")+" to "+(rows.length?rows[rows.length-1].date||rows[rows.length-1].day:"")+
       " · "+rows.length+" days · today is a partial day and rises through the day.";
   }
+  // ── Account scope for the Live Now tiles ──────────────────────────────────
+  // The ACCOUNT chips (Both / Target-Costco / DTC) re-rendered the page but only
+  // ever filtered the ADS TABLE: LVACCT was read in renderLiveAds and nowhere
+  // else. The five KPI tiles kept reading the blended totals, so selecting
+  // "Target / Costco" showed $136.27 - which is the DTC account's $21.79 plus
+  // retail's $114.48, i.e. both accounts, under a single-account heading. A
+  // filter that visibly does nothing is worse than no filter: it reports one
+  // account's spend as another's.
+  //
+  // Every source carries the per-account breakdown already (live: res.accounts[]
+  // keyed by source_id; snapshot: today.by_account and daily[].accounts), so the
+  // scoped figures are real, never a share-out of the total.
+  function liveScope(res, connected){
+    var blended = {
+      tot: connected ? res.totals
+        : (SNAP && SNAP.today ? { spend: SNAP.today.spend_so_far, impressions: SNAP.today.impressions, link_clicks: SNAP.today.link_clicks } : { spend: 0, impressions: 0, link_clicks: 0 }),
+      liveN: connected ? res.live_count : (SNAP && SNAP.today ? SNAP.today.ads_live : 0),
+      yest: (SNAP && SNAP.daily && SNAP.daily.length > 1) ? SNAP.daily[SNAP.daily.length - 2] : null,
+      scoped: false, label: "", missing: false,
+    };
+    if(!LVACCT) return blended;
+
+    var a = connected && res && res.accounts
+      ? (res.accounts.filter(function(x){ return x.source_id === LVACCT; })[0] || null)
+      : ((SNAP && SNAP.today && SNAP.today.by_account && SNAP.today.by_account[LVACCT]) || null);
+    var label = LVACCT === 'dtc' ? 'DTC' : (LVACCT === 'retail' ? 'Target / Costco' : LVACCT);
+    // The selected account has no row in this source. Say so and show nothing,
+    // rather than quietly falling back to the blended total - that fallback IS
+    // the bug being fixed.
+    if(!a) return { tot: { spend: null, impressions: null, link_clicks: null }, liveN: null, yest: null, scoped: true, label: label, missing: true };
+
+    var prevRow = (SNAP && SNAP.daily && SNAP.daily.length > 1) ? SNAP.daily[SNAP.daily.length - 2] : null;
+    var prevAcct = prevRow && prevRow.accounts ? prevRow.accounts[LVACCT] : null;
+    return {
+      tot: { spend: a.spend, impressions: a.impressions, link_clicks: a.link_clicks },
+      liveN: a.ads_live != null ? a.ads_live : a.ads,
+      // Only scope the previous day when that day really carries the breakdown.
+      yest: prevAcct ? { date: prevRow.date, spend: prevAcct.spend, impressions: prevAcct.impressions } : null,
+      scoped: true, label: label, missing: false,
+    };
+  }
+
   function renderLive(res){
     LIVE=LIVE||{}; LIVE.today=res; // kept so the status/search filters can re-render without refetching
     var connected=res&&res.ok&&res.connected;
@@ -1967,10 +2040,12 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     $("#live-src").textContent="source: "+(connected?res.source:((SNAP&&SNAP.source&&"snapshot")||"snapshot"));
     $("#live-upd").textContent="updated: "+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     var day=(connected?res.day:snapDay())||"";
-    var tot=connected?res.totals:(SNAP&&SNAP.today?{spend:SNAP.today.spend_so_far,impressions:SNAP.today.impressions,link_clicks:SNAP.today.link_clicks}:{spend:0,impressions:0,link_clicks:0});
-    var liveN=connected?res.live_count:(SNAP&&SNAP.today?SNAP.today.ads_live:0);
+    var scope=liveScope(res,connected);
+    var tot=scope.tot, liveN=scope.liveN, yest=scope.yest;
     var ctr=tot.impressions?(tot.link_clicks/tot.impressions*100):null;
-    var yest=(SNAP&&SNAP.daily&&SNAP.daily.length>1)?SNAP.daily[SNAP.daily.length-2]:null;
+    // Every scoped tile names the account, so a filtered figure can never be
+    // read as the whole estate.
+    var acctSuffix=scope.scoped?" · "+scope.label:"";
     // These five cards said "today" whatever the figures actually were, so a
     // snapshot captured a week ago reported its last day as today's partial
     // spend. The card headings now name the day they really describe, and only
@@ -1979,12 +2054,17 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     var when=isNow?" today":" on "+shortDay(day);
     var sub=isNow?esc(day)+" · partial day":esc(day)+" · "+(connected?"latest reported day":"snapshot's last day, not today");
     var prevLabel=isNow?"Yesterday (full day)":"Day before that (full day)";
+    var na=scope.missing;
+    var naNote="no rows for "+scope.label+" in this source";
     $("#live-cards").innerHTML=
-      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Ads delivering"+esc(when)+"</div><div class='v'>"+intf(liveN)+"</div><div class='s'>"+sub+"</div></div>"+
-      "<div class='sc'><div class='k'>Spend"+esc(isNow?" so far today":when)+"</div><div class='v'>"+money(tot.spend)+"</div><div class='s'>"+(connected&&res.pacing_pct!=null?res.pacing_pct+"% of the $"+intf(res.budget_cap)+" cap":"vs cap — set budgets in Ops")+"</div></div>"+
-      "<div class='sc'><div class='k'>Impressions"+esc(when)+"</div><div class='v'>"+intf(tot.impressions)+"</div><div class='s'>link clicks "+intf(tot.link_clicks)+"</div></div>"+
-      "<div class='sc'><div class='k'>CTR"+esc(when)+"</div><div class='v'>"+(ctr==null?"—":pct(ctr))+"</div><div class='s'>"+(connected&&res.cpc!=null?"CPC "+money(res.cpc):"")+"</div></div>"+
-      "<div class='sc'><div class='k'>"+esc(prevLabel)+"</div><div class='v'>"+(yest?money0(yest.spend):"—")+"</div><div class='s'>"+(yest?intf(yest.impressions)+" impressions":"")+"</div></div>";
+      "<div class='sc' style='border-left-color:var(--live)'><div class='k'>Ads delivering"+esc(when)+esc(acctSuffix)+"</div><div class='v'>"+(na?"—":intf(liveN))+"</div><div class='s'>"+esc(na?naNote:sub)+"</div></div>"+
+      "<div class='sc'><div class='k'>Spend"+esc(isNow?" so far today":when)+esc(acctSuffix)+"</div><div class='v'>"+(na?"—":money(tot.spend))+"</div><div class='s'>"+(na?esc(naNote):(scope.scoped?"one account of "+intf((SNAP&&SNAP.today&&SNAP.today.by_account?Object.keys(SNAP.today.by_account).length:2))+"":(connected&&res.pacing_pct!=null?res.pacing_pct+"% of the $"+intf(res.budget_cap)+" cap":"vs cap — set budgets in Ops")))+"</div></div>"+
+      "<div class='sc'><div class='k'>Impressions"+esc(when)+esc(acctSuffix)+"</div><div class='v'>"+(na?"—":intf(tot.impressions))+"</div><div class='s'>"+(na?esc(naNote):"link clicks "+intf(tot.link_clicks))+"</div></div>"+
+      "<div class='sc'><div class='k'>CTR"+esc(when)+esc(acctSuffix)+"</div><div class='v'>"+(ctr==null?"—":pct(ctr))+"</div><div class='s'>"+(na?esc(naNote):(!scope.scoped&&connected&&res.cpc!=null?"CPC "+money(res.cpc):""))+"</div></div>"+
+      // The previous-day tile is scoped only when that day carries the account
+      // breakdown. When it does not, it says so instead of showing a blended
+      // number under an account heading.
+      "<div class='sc'><div class='k'>"+esc(prevLabel)+esc(yest?acctSuffix:"")+"</div><div class='v'>"+(yest?money0(yest.spend):"—")+"</div><div class='s'>"+(yest?intf(yest.impressions)+" impressions":(scope.scoped?"no per-account figures for that day":""))+"</div></div>";
     renderLiveAccounts(res, connected);
     if(!connected){
       $("#live-notice").innerHTML="<div class='notice'><b>Not reading the ad account live right now.</b> "+
@@ -3974,6 +4054,14 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   }).catch(function(e){
     $("#live-cards").innerHTML="<div class='empty'>Could not load the ads data files — "+esc(e.message)+"</div>";
   });
+  // Exposed so the account-filter behaviour can be tested by running it, not by
+  // grepping for LVACCT. Nothing in the page reads these back.
+  window.__adsMaster = {
+    liveScope: liveScope,
+    setAccount: function(id){ LVACCT = id || ''; },
+    getAccount: function(){ return LVACCT; },
+    setSnap: function(v){ SNAP = v; },
+  };
 })();
 </script>
 

@@ -244,6 +244,36 @@ lied - each line was true when written, and then the code grew a rung.
   no longer exist in any form - the routers replaced them. Treat the README as the front door and
   CLAUDE.md as the working memory; when they disagree, the code wins and both get fixed.
 
+### A filter that re-renders is not a filter that filters (2026-08-19)
+The ACCOUNT chips on `/ads-master` Live Now (Both / Target-Costco / DTC) called `renderLive()` on click,
+so the page visibly redrew, but `LVACCT` was read in `renderLiveAds` and NOWHERE else. The five KPI
+tiles recomputed the same blended totals every time: selecting **Target / Costco** showed `$136.27`,
+which is DTC's `$21.79` plus retail's `$114.48`. One account's heading over both accounts' money, and
+it looks answered, which is why it survived.
+- `liveScope(res, connected)` now returns the totals for the ACTIVE selection from the per-account
+  breakdown every source already carries (`res.accounts[]` by `source_id` live; `today.by_account` and
+  `daily[].accounts` in the snapshot). Real figures, never a share-out of the total.
+- **A selected account with no row reports nothing**, not the blended fallback: that silent fallback IS
+  the bug. Same for the previous-day tile, which is scoped only on days that carry the breakdown.
+- Every scoped tile appends the account name to its heading, so a filtered figure cannot be read as the
+  whole estate. `tests/ads-account-filter.spec.js` drives the real chips and asserts the tile VALUE
+  changes, having first asserted the premise (the two accounts sum to the blended total).
+
+### `max-width` on a `<td>` is ignored, and this page had to learn it twice (2026-08-19)
+`ad-campaigns-master.html` has its OWN `table()`, so it never got the fix `data-analysis-extensions.js`
+already carries. Long campaign tokens and 18-digit entity ids overflowed and painted over the next
+column: Spend and Impressions rendered as `$17,938.7870,485`. The CSS looked deliberate
+(`td{white-space:normal;max-width:520px}`) and did nothing, because **auto table layout ignores a
+max-width on the cell** - it must sit on a block inside it.
+- Same idiom as the other page: `.cw` inner block, `{r:1}` numeric stays `nowrap`/right/tabular,
+  `{w:1}` wide, `{id:1}` machine id. Callers were ALREADY emitting `<div class='cw wide'>` and that
+  class had no CSS in this page at all, so a cell that carries its own `.cw` is not wrapped again
+  (nesting a 320px block in a 240px one overflows exactly as before).
+- **Testing note: a three-column fixture proves nothing.** Under the old CSS the `.cw` measured 910px
+  wide and yet nothing "overflowed", because the table simply grew. The defect needs the real column
+  count inside a constrained container, so the spec renders 20 columns at 1180px and asserts no two
+  cells overlap and none collapses below 8px.
+
 ### Element prompts and asset prompts are different things (2026-08-19)
 Pasting "the prompt" from Mailer Studio into Gemini returned one product photograph. That was correct
 behaviour: all three platform cards on the Step-4 Prompts tab copied an **element** prompt (the Gemini
