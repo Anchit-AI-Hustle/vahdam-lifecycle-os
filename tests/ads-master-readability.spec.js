@@ -44,8 +44,10 @@ test.describe('no cell paints over its neighbour', () => {
 
   // Pull the page's own <style> so the test measures the REAL CSS, not a copy.
   function pageCss() {
-    const blocks = SRC.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
-    return blocks.map((b) => b.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+    // Take the CAPTURE GROUP rather than stripping the tags off the whole match.
+    // A single-pass strip is the pattern that leaves "<<style>style>" behind;
+    // there is no reason to sanitize when the regex can just hand back the body.
+    return [...SRC.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n');
   }
 
   // The worst real row from the snapshot: long campaign token, 18-digit id.
