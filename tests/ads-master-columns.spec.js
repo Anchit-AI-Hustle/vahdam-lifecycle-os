@@ -200,26 +200,69 @@ test.describe('the ads master table separates its columns', () => {
 // ── The durable invariant ───────────────────────────────────────────────────
 // The page-level fix above is only safe while theme.css stays a real default.
 // It loads last, so any bare-element rule in it silently outranks every page.
-test('theme.css states its bare-element defaults at zero specificity', () => {
-  const css = fs.readFileSync(path.join(ROOT, 'theme.css'), 'utf8');
-  const offenders = [];
-  // Strip comments first: the block above deliberately QUOTES the old broken
-  // rule while explaining it, and a quotation inside a correction is not drift.
+// Deliberately NOT a list of element names. An allowlist of "dangerous" tags
+// only catches the tags someone already thought of — `section { display:grid }`
+// added tomorrow would sail through. The real rule is structural: a selector
+// carrying no class, id or attribute has element-level specificity, and from a
+// stylesheet that loads last that is a page override rather than a default.
+// `html`, `body` and `:root` are single elements no page lays out against, and
+// `*` here only ever carries a pseudo-element (scrollbar parts, ::before/::after
+// box-sizing), which cannot collide with a page's own layout rules.
+const ALLOWED_BARE = new Set(['html', 'body', ':root', '*', ':focus-visible']);
+
+/** The element part of a selector: everything before its pseudo-element, if any. */
+function elementPart(sel) {
+  return sel.split('::')[0].trim();
+}
+
+function bareSelectors(css) {
+  // Strip comments first: the theme.css block deliberately QUOTES the old
+  // broken rule while explaining it, and a quotation inside a correction is
+  // not drift. Strip at-rule preludes too (@media, @supports) — they are not
+  // selectors, and the rules nested inside them are checked on their own lines.
   const code = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const out = [];
   for (const line of code.split('\n')) {
-    const sel = line.split('{')[0];
-    if (!line.includes('{') || !sel.trim()) continue;
-    // Only bare element selectors are dangerous. A `.vh-` component or a
-    // pseudo-element rule is opt-in and cannot collide with a page's own CSS.
-    if (/^\s*(?:table|th|td|tr|thead|tbody|input|select|button|a|h[1-6]|p|ul|ol|li)\b[\s,>+~]*(?:[a-z0-9:()\-\s,>+~]*)?$/i.test(sel)
-        && !sel.includes(':where(') && !/^\s*(?:body|html)\b/.test(sel)) {
-      offenders.push(sel.trim());
-    }
+    if (!line.includes('{')) continue;
+    const sel = line.split('{')[0].trim();
+    if (!sel || sel.startsWith('@') || sel.startsWith('}')) continue;
+    if (sel.includes(':where(')) continue;                       // already zero-specificity
+    if (/[.#[]/.test(sel)) continue;                             // carries a class, id or attribute
+    // Every comma-separated part must be an allowed bare selector, otherwise
+    // the rule reaches real elements at element-level specificity.
+    // A bare pseudo-element on the document itself (::selection) has an empty
+    // element part and reaches nothing a page positions.
+    if (sel.split(',').map(elementPart).every((s) => s === '' || ALLOWED_BARE.has(s))) continue;
+    out.push(sel);
   }
+  return out;
+}
+
+test('theme.css states its bare-element defaults at zero specificity', () => {
+  const offenders = bareSelectors(fs.readFileSync(path.join(ROOT, 'theme.css'), 'utf8'));
   expect(offenders,
     'theme.css loads AFTER every page inline <style>, so a bare element rule here does not lose the\n' +
-    'specificity tie — it wins on source order and overrides the page. Wrap it in :where() so it is\n' +
-    'the default it claims to be. Offending selectors:\n  ' + offenders.join('\n  ')).toEqual([]);
+    'specificity tie — it wins on source order and overrides the page. That is how a documented\n' +
+    '"lowest-specificity default" silently overrode ten pages\' own table CSS. Wrap it in :where() so\n' +
+    'it is the default it claims to be. Offending selectors:\n  ' + offenders.join('\n  ')).toEqual([]);
+});
+
+test('the zero-specificity guard actually catches an offender (guards the guard)', () => {
+  // An empty result is the pass condition, and an over-narrow matcher produces
+  // one for the wrong reason. Feed it selectors it has never been told about.
+  const planted = bareSelectors([
+    'section { display: grid; }',                 // a tag not on any allowlist
+    'table { table-layout: fixed; }',             // the original defect
+    'ul > li + li { margin-top: 4px; }',          // combinators
+    'table::before { content: ""; }',             // a pseudo-element on a real tag still reaches pages
+    ':where(table) { width: 100%; }',             // correctly written — must NOT be flagged
+    '.vh-card { padding: 8px; }',                 // opt-in component — must NOT be flagged
+    'body { font-smoothing: antialiased; }',      // allowed bare — must NOT be flagged
+    '*::-webkit-scrollbar-thumb:hover { background: red; }', // pseudo on * — must NOT be flagged
+    '::selection { background: gold; }',          // document pseudo — must NOT be flagged
+    '/* table { table-layout: fixed; } */',       // quoted inside a comment — must NOT be flagged
+  ].join('\n'));
+  expect(planted).toEqual(['section', 'table', 'ul > li + li', 'table::before']);
 });
 
 test('theme.css does not force table-layout on every page', () => {
