@@ -24,7 +24,7 @@ fabrication, closed source-of-truth, design HARD rules, launch gate).
 - **Read-only egress guard** (`read-only-egress.js`): Shopify/Klaviyo/WebEngage are structurally fetch-only — writes throw before they leave. **Nothing is ever written back to those platforms.**
 
 ## 2. ChaiGPT / SteepSense — the brand LLM
-Provider-agnostic tool-calling loop over the 6-provider `llm.js` waterfall. Tools:
+Provider-agnostic tool-calling loop over the eleven-rung `llm.js` waterfall. Tools:
 `catalog_products · market_performance · ask_analytics · webengage_performance · run_analysis ·
 validate_data_accuracy · analyst_insights · list_cohorts · get_calendar · get_competitor_benchmarks ·
 search_knowledge_base · list_campaigns · generate_calendar* · generate_assets_for_slot* ·

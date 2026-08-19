@@ -142,7 +142,7 @@ Withheld (mutating): `generate_calendar` · `generate_assets_for_slot` ·
 
 Same tools, same cores, same market defaulting — so a question answered in Agent Builder
 and the same question answered in ChaiGPT cannot return different numbers. The difference
-is only who drives the loop: ChaiGPT runs its own tool-calling loop across our 6-provider
+is only who drives the loop: ChaiGPT runs its own tool-calling loop across our eleven-rung
 waterfall (`api/_shared/brand-llm.js`); Agent Builder runs Google's loop against the same
 registry. ChaiGPT keeps the write tools; the external bridge does not.
 

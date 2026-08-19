@@ -53,7 +53,7 @@ capabilities built around it as separate static apps + serverless routers.
   **Supabase (Postgres/PostgREST)** as the runtime store. There is deliberately
   **no Supabase SDK**; a hand-rolled PostgREST client (`api/_shared/supa.js`) keeps
   the serverless bundle small.
-- **LLM:** an 8-provider, tier-routed cascade (see §6).
+- **LLM:** an eleven-rung, tier-routed cascade (see §6).
 
 ---
 
@@ -169,11 +169,11 @@ ChatGPT/Claude/Gemini — the single source of truth for "how this asset was mad
 
 ## 6. The LLM cascade (`api/_shared/llm.js`)
 
-Single source of truth: `module.exports = callLLM`. An **8-provider, tier-routed
+Single source of truth: `module.exports = callLLM`. An **eleven-rung, tier-routed
 waterfall** in strict descending-accuracy order:
 
 ```
-anthropic → openai → gemini → grok → groq → cerebras → ollama → sakana
+anthropic → openai → gemini → grok → groq → cerebras → github → cloudflare → openrouter → ollama → sakana
                                    (fast tier skips grok)
 ```
 
@@ -342,9 +342,13 @@ live deployment**, so **every web deploy is automatically a mobile release**.
 
 ## 13. Known doc drift (code is authoritative)
 
-- **README's cascade line** ("OpenAI → Anthropic → Gemini → xAI → Groq → Cerebras")
-  is **stale**. The real order is Anthropic-first, 8 providers, tier-routed — see
-  `api/_shared/llm.js` and §6 above.
+- **The cascade line was wrong in three different ways at once.** This file said
+  8 providers, `CLAUDE.md` said 6 in OpenAI-first order, and `llm.js`'s own header
+  comment listed 8 and omitted github/cloudflare/openrouter. `providerOrder()` is
+  the only real source: **eleven rungs, Anthropic-first**, the last five conditional
+  on their env config. All four are now corrected and pinned by
+  `tests/llm-waterfall-docs.spec.js`, so the next drift fails CI instead of being
+  recorded here.
 - `OPTIMISATION_NOTES.md` predates the Playwright suite and some module work; treat
   it as historical Mailer-Studio changelog.
 

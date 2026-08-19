@@ -14,7 +14,7 @@
 
 It replaced a scatter of disconnected tools (a dashboard here, a mailer builder there, competitor spreadsheets, ad-hoc briefs) with **one Vercel-hosted app, one login, one design system, one shared data layer** — built and operated at effectively **zero fixed infrastructure cost** (Vercel Hobby + Supabase free tier + free-tier LLM fallbacks), which is itself a deliberate engineering constraint that shaped the architecture (§7).
 
-The system today: **11 user-facing modules**, **12 serverless functions** (the exact Vercel Hobby cap), a **6-provider LLM waterfall**, a **4-provider image cascade**, **40+ database tables**, **376 active products across 3 regional catalogs**, an installable **PWA + native Android/iOS super-app shells** (code fully in this repo, auto-synced to production by architecture), and a daily **03:30 UTC autonomous planning cron** with human approval gates.
+The system today: **11 user-facing modules**, **12 serverless functions** (the exact Vercel Hobby cap), an **eleven-rung LLM waterfall**, a **4-provider image cascade**, **40+ database tables**, **376 active products across 3 regional catalogs**, an installable **PWA + native Android/iOS super-app shells** (code fully in this repo, auto-synced to production by architecture), and a daily **03:30 UTC autonomous planning cron** with human approval gates.
 
 ---
 
@@ -208,7 +208,7 @@ Every feature below follows the same lens: **Origin → Need → Purpose → Wha
 - **Need.** Every tool answers one question; leadership questions span tools ("what's our best cohort, what are competitors doing about it, and what should we send?"). Also: answers must be *grounded* — no invented figures.
 - **Purpose.** A conversational operator for the entire stack, with evidence discipline.
 - **What it does.** Claude-style chat (market selector, suggestion chips, Klaviyo status pill) that plans multi-step work, calls real tools, and shows a collapsible **tool trace** (every call + args + results). **11 registered tools**: `ask_analytics`, `run_analysis`, `list_cohorts`, `get_calendar`, `get_competitor_benchmarks`, `search_knowledge_base`, `list_campaigns` (reads) + `generate_calendar`, `generate_assets_for_slot`, `run_agentic_campaign`, `klaviyo` (writes — only on explicit ask). The system prompt enforces a **4-point evidence contract**: quote exact tool-sourced figures, name the target metric + expected impact, state a complete hypothesis, quote competitor benchmarks.
-- **How it works.** `_shared/brand-llm.js`: a provider-agnostic **tool-calling loop** — the model emits strict JSON (`{action:'tool'|'tools'[≤3 in parallel]|'final'}`), the server executes against the same `_shared` cores the UI routes use, feeds results back, loops (default 5 steps). Because tool calls are plain JSON rather than a provider function-calling API, **the loop works across the entire 6-provider waterfall including free tiers**. Speed: pins the first provider that answers, dedupes repeated tool+args, 20s per-provider timeout. The product name is one constant (`BRAND_LLM_NAME`) — rebrandable in one line.
+- **How it works.** `_shared/brand-llm.js`: a provider-agnostic **tool-calling loop** — the model emits strict JSON (`{action:'tool'|'tools'[≤3 in parallel]|'final'}`), the server executes against the same `_shared` cores the UI routes use, feeds results back, loops (default 5 steps). Because tool calls are plain JSON rather than a provider function-calling API, **the loop works across the entire eleven-rung waterfall including free tiers**. Speed: pins the first provider that answers, dedupes repeated tool+args, 20s per-provider timeout. The product name is one constant (`BRAND_LLM_NAME`) — rebrandable in one line.
 - **Future.** Memory across sessions; scheduled "morning briefing" messages; Klaviyo write-ops going live with the key.
 
 ### 6.11 Vahdam Agent — buyer-facing voice + chat (`/agent`, `agent.html`, `agent-widget.js`)
@@ -266,7 +266,7 @@ Vercel Hobby caps a project at **12 serverless functions**. The app sits exactly
 2. **`_shared/` modules** — all real logic is import-cost-free and reusable by every router *and* by ChaiGPT's tools (one implementation, three consumers: UI, API, LLM).
 3. **Rewrite-collapsing** — retired endpoints (`/api/health`, `/api/voice`, `/api/klaviyo`, `/api/smart-brain`) live on as rewrites into surviving routers, so URLs never break.
 
-### 7.3 The 6-provider LLM waterfall (`_shared/llm.js`)
+### 7.3 The eleven-rung LLM waterfall (`_shared/llm.js`)
 All text generation goes through one caller: **OpenAI** (3 rotating keys) → **Anthropic** → **Gemini** (free) → **Grok/xAI** → **Groq** (free) → **Cerebras** (free). Features: per-call provider pinning (ChaiGPT's speed trick), Budget/Max-Power tier forcing, quota detection on **HTTP 400 + billing keywords** (both OpenAI and Anthropic return 400, not 429, on exhausted credit — a hard-won lesson), BOM/zero-width stripping, multi-strategy JSON parsing. **Consequence:** the platform *degrades to free tiers instead of failing*, and has no single-vendor dependency.
 
 ### 7.4 The image cascade (`api/ai/image.js`)
@@ -381,7 +381,7 @@ Source of truth: `Brand style guide.pdf`, codified in `_shared/master-prompt.js`
 
 | Risk | Mitigation (current) |
 |---|---|
-| LLM provider quota/price shifts | 6-provider waterfall with free-tier floor; per-call pinning; Budget tier default |
+| LLM provider quota/price shifts | eleven-rung waterfall with free-tier floor; per-call pinning; Budget tier default |
 | Vercel 12-function cap blocks growth | `?action=` routers + `_shared/` (new features ≈ 0 functions); CI gate counts functions on every PR; Pro upgrade is a decision, not a rewrite |
 | Competitor capture blocked (anti-bot, inbox limits) | Multiple paths: IMAP poll, Cloudflare email webhook, off-Vercel Playwright workers; stagger/backoff; store-for-internal-benchmarking policy |
 | Brand drift as generators multiply | Single brand kernel consumed by every generator; palette check + copy scrub at generation time; CI palette lock |
