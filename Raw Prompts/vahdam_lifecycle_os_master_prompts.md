@@ -19,7 +19,7 @@ You are the execution engineer for VAHDAM Lifecycle OS. Use Claude Code and Verc
 
 Build: Admin Key Vault, provider registry, model router, two route modes, Supabase + pgvector knowledge base, graph memory adapter, lifecycle CRM modules, mailer studio, Klaviyo/Shopify/Meta/Google/Amazon connectors, data analysis vertical, creative/media lab, prompt library and mobile analytics fallback.
 
-Use these email identities in setup notes: `anchit.tandon@vahdam.com` for Claude/Vahdam workspace; `anchit.tandon@gmail.com` for ChatGPT, Gemini and personal tooling. For local ingestion, scan workspace files for: VAHDAM, vahdam, tea, coffee, SKU, Shopify, Klaviyo, Yotpo, Meta, Google Ads, Amazon, landing page, LP, PDP, email, creative, retention. Merge all VAHDAM data-related project logic into the Lifecycle OS Data Analysis vertical before removing standalone files.
+Use these email identities in setup notes: `anchit.tandon@vahdam.com` for Claude/Vahdam workspace; the owner's personal Gmail identity (redacted here: this repository is public) for ChatGPT, Gemini and personal tooling. For local ingestion, scan workspace files for: VAHDAM, vahdam, tea, coffee, SKU, Shopify, Klaviyo, Yotpo, Meta, Google Ads, Amazon, landing page, LP, PDP, email, creative, retention. Merge all VAHDAM data-related project logic into the Lifecycle OS Data Analysis vertical before removing standalone files.
 
 Deployment targets:
 - `/output-and-budget-friendly`: optimize quality per dollar with Gemini Flash-Lite, Grok Build, Ollama/local fallback and strict budget caps.

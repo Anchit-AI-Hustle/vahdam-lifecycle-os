@@ -200,6 +200,27 @@ resolver; `tests/live-catalog.spec.js` fails the build if a seventh private load
 - Not verifiable from the dev sandbox: outbound egress to `vahdamteas.com` is blocked by proxy policy here,
   so the storefront path is proven against a stubbed Shopify payload in tests, not a live round-trip.
 
+### Operator identity: domains, plus named owner accounts as hashes (2026-08-19)
+The operator gate (`data-analysis-core.authorize`) was **domain-only** — `ANALYTICS_ADMIN_DOMAINS`,
+default `vahdam.com` — so the owner's own non-vahdam sign-ins were treated as anonymous: no detailed
+health, no `?pipeline=1` / `?probe=1`, no `/api/shopify`, no forced catalog refresh. Two of the three
+accounts the owner actually signs in with are personal ones.
+- `isOperatorEmail(email)` is now the single check: domain match -> built-in owner hash -> the
+  `ANALYTICS_ADMIN_EMAILS` env allowlist (plaintext, comma-separated, no deploy needed). `authorize()`
+  calls it; nothing else re-derives the rule.
+- **The named accounts are stored as SHA-256, not plaintext, because THIS REPOSITORY IS PUBLIC.** The
+  check only ever needs equality, so publishing the addresses would buy nothing and cost the owner a
+  scrapeable inbox. This is a privacy decision, NOT a security one: a hash grants nothing on its own,
+  and an operator still needs a valid Supabase session for that account (`tests/operator-allowlist.spec.js`
+  asserts a request with no bearer token is still 401).
+- The domain match stays anchored at `@`, so `attacker@evilvahdam.com` is refused; the spec covers that
+  and the suffix attack on the address itself.
+- Found in passing and redacted: `Raw Prompts/vahdam_lifecycle_os_master_prompts.md` carried a personal
+  address in plaintext. The work address is left where it legitimately documents a default
+  (`.env.example` `ALERT_EMAIL`). A repo-wide guard now fails the build if a **personal** address is
+  committed anywhere outside `tests/`. Note the git HISTORY still contains it, and rewriting history is
+  out of scope: treat that address as already public and rely on the guard from here.
+
 ### Prose drifts faster than constants, because nothing executes it (2026-08-19)
 The LLM cascade was documented three different ways at once, and all three disagreed with the code.
 `CLAUDE.md` said "6-provider, OpenAI -> Anthropic -> ...". `DEVELOPMENT.md` said "8-provider,
