@@ -123,7 +123,23 @@
   .cday.sel{outline:2px solid var(--gold);outline-offset:1px}
   .cday .d{font-size:13px;font-weight:800;color:#171717;font-variant-numeric:tabular-nums}
   .cday.past .d{color:#6b7770}
+  /* The theme is the card's real headline: one line, ellipsised rather than
+     wrapped, so a long product name cannot push a 7-across grid out of shape. */
+  .cday .ct{display:block;font-size:11px;line-height:1.35;color:#0f3d28;font-weight:700;margin-top:2px;
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cday.past .ct{color:#5c6b62;font-weight:600}
   .cday .cs{font-size:11px;color:#556059;line-height:1.4;margin-top:3px}
+  /* The legend draws the SAME swatch the card draws, from the same colours.
+     It previously described a red "!" for "planned, nothing built", which the
+     grid has never rendered — that state is an empty bar, and the red mark
+     means "no send planned". A legend that does not match the thing it
+     explains is worse than none. */
+  #callegend{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:10px 0 12px;font-size:11.5px;color:#556059}
+  #callegend span{display:inline-flex;align-items:center;gap:5px}
+  #callegend i{width:16px;height:4px;border-radius:2px;background:rgba(171,135,67,.25);flex:none}
+  #callegend i.ready{background:#1d6b45}
+  #callegend i.part{background:var(--gold)}
+  #callegend .calnote{color:#48524c}
   .cday .bar{display:flex;gap:2px;margin-top:5px}
   .cday .bar i{height:4px;flex:1;border-radius:2px;background:rgba(171,135,67,.25)}
   .cday .bar i.ready{background:#1d6b45}
@@ -212,11 +228,12 @@
           <button class="mkchip" data-dcw="90" onclick="setDayWindow(90)">90d back · 90 ahead</button>
         </div>
       </div>
-      <div id="callegend" style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 12px;font-size:11.5px;color:#556059">
-        <span><b style="color:#0a6b39">▌</b> all planned assets exist</span>
-        <span><b style="color:#AB8743">▌</b> partly built</span>
-        <span><b style="color:#b91c1c">!</b> planned, nothing built</span>
-        <span style="border:1px dashed rgba(171,135,67,.6);border-radius:4px;padding:0 6px">dashed = no send planned</span>
+      <div id="callegend">
+        <span><i class="ready"></i> all channels built</span>
+        <span><i class="part"></i> partly built</span>
+        <span><i></i> not built yet</span>
+        <span style="border:1px dashed rgba(171,135,67,.6);border-radius:4px;padding:0 6px">dashed card = no send planned</span>
+        <span class="calnote">One bar per send. <b>Built</b> means the files exist, not that they passed the live catalog gate.</span>
       </div>
       <div id="calbody"><p style="color:#48524c;font-size:13px">Loading the day-level calendar…</p></div>
       <div id="dayslots" class="dayslots" style="display:none"></div>
@@ -1520,6 +1537,19 @@ function renderDayGrid(d){
     const c = day.counts || {};
     const planned = c.planned || 0;
     const cls = [ 'cday', day.bucket, planned ? '' : 'empty', DC.selected === day.date ? 'sel' : '' ].filter(Boolean).join(' ');
+
+    // WHAT the day sends, which is the only thing that varies between cards.
+    // The old headline was "2 planned", and the plan is one slot per market
+    // every day, so that read "2" on all ninety cards: the most prominent text
+    // on the grid carried no information at all. Every field below is already
+    // on the slot and was simply never rendered.
+    const themes = [];
+    for(const s of (day.slots || [])){
+      const t = s.festival || s.hero || s.cohort || s.objective;
+      if(t && themes.indexOf(t) < 0) themes.push(t);
+    }
+    const theme = themes.join(' · ');
+
     let line2;
     if(!planned){
       line2 = day.bucket === 'past' ? 'no send' : '<span class="warnmark">no send planned</span>';
@@ -1528,14 +1558,27 @@ function renderDayGrid(d){
       const m = day.measured || {};
       line2 = m.orders === null ? `${planned} sent · —` : `${planned} sent · ${dcMoney(m.revenue)}`;
     } else {
-      line2 = `${planned} planned · ${c.assets_ready || 0} ready`;
+      // "built", not "ready". assets_ready is derived from builtChannels(): every
+      // planned channel has an artifact. That is a statement about files EXISTING,
+      // and it stays true for a campaign generated weeks ago against a catalog
+      // that has since gone stale or that the live gate is now blocking. Printing
+      // it as "ready" in the position a reader scans for "cleared to send" is the
+      // same defect as the run that called itself final while its catalog gate
+      // had failed. A fraction also makes the denominator visible, so "0 built"
+      // on a day that plans nothing cannot be confused with one that plans two.
+      line2 = `${c.assets_ready || 0}/${planned} built`;
     }
+
     const bars = [];
     for(const s of (day.slots || []).slice(0, 6)){
-      bars.push(`<i class="${s.assets_ready ? 'ready' : (s.assets ? 'part' : '')}"></i>`);
+      const state = s.assets_ready ? 'ready' : (s.assets ? 'part' : '');
+      const label = s.assets_ready ? 'all channels built'
+        : (s.assets ? 'partly built: missing ' + (s.assets_missing || []).join(', ') : 'not built yet');
+      bars.push(`<i class="${state}" title="${esc((s.market || 'slot') + ' — ' + label)}"></i>`);
     }
-    out.push(`<button class="${cls}" onclick="selectDay('${day.date}')" title="${esc(day.date)}">
+    out.push(`<button class="${cls}" onclick="selectDay('${day.date}')" title="${esc(day.date + (theme ? ' — ' + theme : ''))}">
       <span class="d">${dt.getUTCDate()}</span>
+      ${theme ? `<span class="ct">${esc(theme)}</span>` : ''}
       <span class="cs">${line2}</span>
       ${bars.length ? `<span class="bar">${bars.join('')}</span>` : ''}
     </button>`);
