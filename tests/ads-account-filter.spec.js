@@ -139,4 +139,81 @@ test.describe('the account chips actually filter', () => {
     // as the whole estate.
     expect(retail.k).toMatch(/Target \/ Costco/);
   });
+
+  // ── ACCOUNT is a MASTER filter, not a tile filter ─────────────────────────
+  // Fixing the tiles alone left the page in a worse state than before: the
+  // tiles read "Target / Costco $114.48" while the daily chart under them still
+  // drew both accounts at ~$2,988 a day, and nothing on screen said which panel
+  // meant what. Every panel that CAN be scoped must be, and the ones that
+  // cannot must say so.
+
+  test('the daily series is scoped to the selected account', async ({ page }) => {
+    await load(page);
+    const dayWithBoth = SNAP.daily.filter((d) => d.accounts && d.accounts.retail && d.accounts.dtc).slice(-1)[0];
+    expect(dayWithBoth, 'the fixture has no day with a per-account breakdown').toBeTruthy();
+
+    const scoped = await page.evaluate(({ rows, acct }) => {
+      window.__adsMaster.setAccount(acct);
+      return window.__adsMaster.scopeDaily(rows);
+    }, { rows: SNAP.daily.slice(-7), acct: 'retail' });
+
+    const last = scoped[scoped.length - 1];
+    expect(last.spend, 'the chart series is still blended').toBe(dayWithBoth.accounts.retail.spend);
+    expect(last.spend).not.toBe(dayWithBoth.spend);
+  });
+
+  test('a day with no per-account figures is dropped, not drawn at blended height', async ({ page }) => {
+    // A blended bar inside a filtered chart is a wrong number, not a missing
+    // one, so the day comes out of the series entirely.
+    await load(page);
+    const rows = [
+      { date: '2026-07-01', spend: 999, accounts: { retail: { spend: 100, impressions: 10, link_clicks: 1 } } },
+      { date: '2026-07-02', spend: 888 },                       // no breakdown
+    ];
+    const scoped = await page.evaluate(({ r }) => {
+      window.__adsMaster.setAccount('retail');
+      return window.__adsMaster.scopeDaily(r);
+    }, { r: rows });
+    expect(scoped.length).toBe(1);
+    expect(scoped[0].spend).toBe(100);
+    expect(scoped.some((x) => x.spend === 888), 'a blended day survived into a filtered chart').toBe(false);
+  });
+
+  test('"Both accounts" leaves the series untouched', async ({ page }) => {
+    await load(page);
+    const out = await page.evaluate(({ r }) => {
+      window.__adsMaster.setAccount('');
+      return window.__adsMaster.scopeDaily(r);
+    }, { r: SNAP.daily.slice(-3) });
+    expect(out.length).toBe(3);
+    expect(out[2].spend).toBe(SNAP.daily.slice(-1)[0].spend);
+  });
+
+  test('the page states what the filter covers, in both states', async ({ page }) => {
+    await load(page);
+    const chips = page.locator('#live-acct-chips button[data-lva]');
+    await expect.poll(() => chips.count()).toBeGreaterThan(1);
+    const scope = page.locator('#live-scope');
+
+    await chips.filter({ hasText: 'Both accounts' }).click();
+    await expect(scope).toContainText('Showing both accounts');
+
+    await chips.filter({ hasText: 'Target / Costco' }).click();
+    await expect(scope).toContainText('Filtered to Target / Costco');
+    // It must name WHICH panels follow the filter, or the user is still guessing.
+    await expect(scope).toContainText('daily chart');
+    await expect(scope).toContainText('ad list');
+    // And the one panel that deliberately does not follow it.
+    await expect(scope).toContainText('always lists every account');
+  });
+
+  test('the chart subtitle names its own scope', async ({ page }) => {
+    await load(page);
+    const chips = page.locator('#live-acct-chips button[data-lva]');
+    await expect.poll(() => chips.count()).toBeGreaterThan(1);
+    await chips.filter({ hasText: 'Target / Costco' }).click();
+    await expect(page.locator('#live-chart-sub')).toContainText('Target / Costco only');
+    await chips.filter({ hasText: 'Both accounts' }).click();
+    await expect(page.locator('#live-chart-sub')).toContainText('both accounts');
+  });
 });

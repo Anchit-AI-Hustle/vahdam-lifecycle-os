@@ -270,6 +270,20 @@ with no markup at all, so the cell is skipped when it carries any; and a regex w
 hand back the CSS body directly instead of stripping the tags off the whole match. When a sanitizer
 looks necessary, check first whether the input can just be excluded.
 
+### A filter must be a MASTER filter, or every number on the page is ambiguous (2026-08-19)
+Scoping the KPI tiles alone left `/ads-master` Live Now WORSE than before: the tiles read
+`SPEND ON 25 JUL - TARGET / COSTCO  $114.48` while the Daily spend chart directly under them still drew
+both accounts at ~$2,988 a day, and nothing on screen said which panel meant what. Half a filter forces
+the reader to work out, panel by panel, whether what they are looking at respects the control.
+- ACCOUNT is now the master filter for the tab: tiles, the daily chart (`scopeDaily()` maps each row
+  through `daily[].accounts`) and the ad list all follow it.
+- **A day with no per-account breakdown is DROPPED from a filtered chart, not drawn at its blended
+  height** - a blended bar inside a filtered chart is a wrong number, not a missing one - and the
+  subtitle counts what was hidden and why.
+- `#live-scope` states the current scope once for the whole tab, names which panels follow it, and
+  names the one that deliberately does not: "Today by account" IS the account comparison, so it always
+  lists every account. A panel that cannot be scoped must say so rather than look unfiltered.
+
 ### A filter that re-renders is not a filter that filters (2026-08-19)
 The ACCOUNT chips on `/ads-master` Live Now (Both / Target-Costco / DTC) called `renderLive()` on click,
 so the page visibly redrew, but `LVACCT` was read in `renderLiveAds` and NOWHERE else. The five KPI

@@ -579,6 +579,10 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
       </span>
     </div>
     <div class="chipbar" id="live-acct-chips"></div>
+    <!-- What the ACCOUNT chips above actually cover, stated once for the whole
+         tab. A filter that scopes some panels and not others is worse than no
+         filter, because every number becomes ambiguous. -->
+    <p id="live-scope" class="sub" style="margin:6px 0 2px;font-size:12px;color:var(--muted,#5f5e5a)"></p>
     <div class="cards" id="live-cards"><div class="empty">Loading…</div></div>
     <div id="live-acct-split"></div>
     <div id="live-notice"></div>
@@ -1975,6 +1979,24 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   // Real-time read of the Meta ad account: Meta Marketing API when configured,
   // else the Snowflake per-day mirror (which carries the current partial day),
   // else the committed snapshot, always labelled with which one is in play.
+  // ACCOUNT is a MASTER filter for this tab: every panel that CAN be scoped is
+  // scoped, and any panel that cannot says so in its own subtitle. Half a filter
+  // is the worst outcome - the tiles read "Target / Costco $114.48" while the
+  // chart under them still drew both accounts at ~$2,988 a day, and nothing on
+  // screen said which panel meant what.
+  //
+  // scopeDaily maps a daily row to the active account using the per-account
+  // breakdown the series already carries (daily[].accounts). A day that has no
+  // breakdown is DROPPED rather than shown at its blended height, because a
+  // blended bar in a filtered chart is a wrong number, not a missing one.
+  function scopeDaily(rows){
+    if(!LVACCT) return rows;
+    return rows.map(function(r){
+      var a=r&&r.accounts?r.accounts[LVACCT]:null;
+      if(!a) return null;
+      return {date:r.date||r.day, spend:a.spend, impressions:a.impressions, link_clicks:a.link_clicks, rel:r.rel};
+    }).filter(Boolean);
+  }
   function seriesFor(days){
     var rows=(SNAP&&SNAP.daily)||[];
     if(days==='all') return rows.slice();
@@ -1983,10 +2005,17 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   function drawSpendChart(){
     var rows=(LIVE&&LIVE.daily&&LIVE.daily.length?LIVE.daily:seriesFor(RANGE));
     if(RANGE!=='all'&&LIVE&&LIVE.daily&&LIVE.daily.length) rows=rows.slice(-Number(RANGE));
+    var all=rows.length;
+    rows=scopeDaily(rows);
     lineChart("#chart-spend", rows.map(function(r){return {date:r.date||r.day,spend:r.spend,rel:r.rel};}), 'spend', 'Daily spend', money0);
     var el=$("#live-chart-sub");
-    if(el) el.textContent=(rows.length?rows[0].date||rows[0].day:"")+" to "+(rows.length?rows[rows.length-1].date||rows[rows.length-1].day:"")+
-      " · "+rows.length+" days · today is a partial day and rises through the day.";
+    if(!el) return;
+    var scopeNote = LVACCT ? " · "+(LVACCT==='dtc'?'DTC':'Target / Costco')+" only" : " · both accounts";
+    var dropped = all-rows.length;
+    el.textContent=(rows.length?rows[0].date||rows[0].day:"")+" to "+(rows.length?rows[rows.length-1].date||rows[rows.length-1].day:"")+
+      " · "+rows.length+" days"+scopeNote+
+      (dropped>0?" · "+dropped+" day(s) hidden: no per-account figures recorded":"")+
+      " · today is a partial day and rises through the day.";
   }
   // ── Account scope for the Live Now tiles ──────────────────────────────────
   // The ACCOUNT chips (Both / Target-Costco / DTC) re-rendered the page but only
@@ -2101,12 +2130,25 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         });
     if(!rows.length){ $("#live-acct-split").innerHTML=""; $("#live-acct-chips").innerHTML=""; return; }
     rows.sort(function(a,b){return (b.spend||0)-(a.spend||0);});
+    // The master-filter statement. Without it the user has to infer, panel by
+    // panel, whether what they are looking at respects the chips.
+    var scopeEl=$("#live-scope");
+    if(scopeEl){
+      scopeEl.innerHTML = LVACCT
+        ? "<b>Filtered to "+esc(LVACCT==='dtc'?'DTC - own site':(LVACCT==='retail'?'Target / Costco':LVACCT))+".</b> "+
+          "The tiles, the daily chart and the ad list below all show this account only. "+
+          "\u201cToday by account\u201d always lists every account: it is the comparison."
+        : "<b>Showing both accounts.</b> Pick one above to filter the tiles, the daily chart and the ad list. "+
+          "The two accounts are never blended into one ROAS, because only DTC can attribute a sale.";
+    }
     $("#live-acct-chips").innerHTML="<span class='cblab'>Account</span>"+
       "<button class='cb"+(LVACCT===''?" on":"")+"' data-lva=''>Both accounts</button>"+
       rows.map(function(a){return "<button class='cb"+(LVACCT===a.id?" on":"")+"' data-lva='"+esc(a.id)+"'>"+esc(a.id==='dtc'?'DTC — own site':(a.id==='retail'?'Target / Costco':a.label))+"</button>";}).join("");
     var max=rows[0].spend||1;
     $("#live-acct-split").innerHTML="<div class='chartcard'><h3>Today by account</h3>"+
-      "<p class='sub'>"+esc(rows[0].src==='live'?"Live from the ad accounts.":"From the committed snapshot at capture.")+" Each account is scored on what it can measure.</p>"+
+      "<p class='sub'>"+esc(rows[0].src==='live'?"Live from the ad accounts.":"From the committed snapshot at capture.")+
+        " Each account is scored on what it can measure. "+
+        esc(LVACCT?"This panel is the account comparison, so it always lists every account and ignores the filter above.":"")+"</p>"+
       "<div class='acctgrid'>"+rows.map(function(a){
         var m2 = a.kpi==='roas'
           ? {k:'CTR today', v:a.ctr!=null?pct(a.ctr):"—"}
@@ -4063,6 +4105,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   // grepping for LVACCT. Nothing in the page reads these back.
   window.__adsMaster = {
     liveScope: liveScope,
+    scopeDaily: scopeDaily,
     setAccount: function(id){ LVACCT = id || ''; },
     getAccount: function(){ return LVACCT; },
     setSnap: function(v){ SNAP = v; },
