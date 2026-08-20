@@ -154,13 +154,39 @@ test.describe('the /brain day card', () => {
     // "Turmeric Ashwagandh..." — and so did most other days, which is the state
     // the screenshot showed. scrollWidth > clientWidth is exactly the ellipsis.
     const rows = page.locator('.callist .cday');
-    const boxes = await rows.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()));
-    expect(boxes.length).toBeGreaterThan(1);
+    // Collect enough to DIAGNOSE a failure from the CI log alone. The bare
+    // "expected >= 1393.43, received 1389.93" that this used to print says a
+    // row overlaps and nothing about which rows, how tall they are, or whether
+    // they are even siblings - and the screenshot/trace live in a CI artifact
+    // on a host this project's sandbox cannot reach. A geometry assertion
+    // should carry its own evidence.
+    const geo = await rows.evaluateAll((els) => els.map((e, i) => {
+      const r = e.getBoundingClientRect();
+      const p = e.parentElement;
+      return {
+        i, cls: e.className,
+        x: +r.x.toFixed(2), top: +r.top.toFixed(2), bottom: +r.bottom.toFixed(2),
+        h: +r.height.toFixed(2), offsetH: e.offsetHeight, scrollH: e.scrollHeight,
+        parent: p ? (p.className || p.tagName) : null,
+        parentDisplay: p ? getComputedStyle(p).display : null,
+        parentGap: p ? getComputedStyle(p).rowGap : null,
+      };
+    }));
+    const table = () => geo.map((g) =>
+      `  [${g.i}] x=${g.x} top=${g.top} bottom=${g.bottom} h=${g.h} (offset ${g.offsetH}, scroll ${g.scrollH}) ` +
+      `parent=${g.parent} display=${g.parentDisplay} gap=${g.parentGap} cls="${g.cls}"`).join('\n');
+
+    const boxes = geo;
+    expect(boxes.length, `only ${boxes.length} row(s) rendered:\n${table()}`).toBeGreaterThan(1);
     // One per row: every row starts at the same x and each sits below the last.
     const xs = new Set(boxes.map((b) => Math.round(b.x)));
-    expect(xs.size, 'rows are not in a single column').toBe(1);
+    expect(xs.size, `rows are not in a single column (${xs.size} distinct x):\n${table()}`).toBe(1);
     for(let i = 1; i < boxes.length; i++){
-      expect(boxes[i].top, 'a row is beside another instead of below it').toBeGreaterThanOrEqual(boxes[i-1].bottom - 1);
+      expect(boxes[i].top,
+        `row ${i} overlaps row ${i - 1} by ${(boxes[i-1].bottom - boxes[i].top).toFixed(2)}px.\n` +
+        `In a flex column with a fixed gap this is not possible for siblings, so check whether these ` +
+        `two rows share a parent and whether either box is taller than its layout slot:\n${table()}`
+      ).toBeGreaterThanOrEqual(boxes[i-1].bottom - 1);
     }
     // Assert the ROOM the column change delivers, as a FRACTION of the list.
     //
@@ -187,6 +213,49 @@ test.describe('the /brain day card', () => {
     expect(share.length).toBeGreaterThan(1);
     expect(Math.min(...share), `the theme column is still cramped: ${share.map((x) => Math.round(x * 100) + '%').join(', ')}`)
       .toBeGreaterThan(0.35);
+  });
+
+  // The assertion above only says the text HAPPENED to fit in the browser and
+  // viewport that ran it. That is why this sat red on main: it passed on every
+  // Chromium project and failed on all three WebKit ones, so it could not be
+  // reproduced by anyone whose machine cannot launch WebKit - which includes
+  // the sandbox this repo is usually developed in.
+  //
+  // These two tests pin the STRUCTURAL property instead, and both FAIL on
+  // Chromium against the old nowrap + text-overflow:ellipsis rule. That is the
+  // point: the defect is now reproducible on the engine you have, rather than
+  // only on the one CI has. Wrapped text cannot exceed its box because line
+  // breaking is CSS semantics, not a measurement that happens to come out
+  // favourably.
+  test('the headline is built to wrap, so no engine can truncate it', async ({ page }) => {
+    const css = await page.locator('.callist .cday .ct').first().evaluate((el) => {
+      const c = getComputedStyle(el);
+      return { whiteSpace: c.whiteSpace, overflowWrap: c.overflowWrap, textOverflow: c.textOverflow, overflow: c.overflow };
+    });
+    expect(css.whiteSpace, 'nowrap means the text truncates as soon as it is too wide').not.toBe('nowrap');
+    // A single unbroken token longer than the column is the one case wrapping
+    // alone cannot solve.
+    expect(['anywhere', 'break-word'], `overflow-wrap is ${css.overflowWrap}`).toContain(css.overflowWrap);
+    expect(css.textOverflow, 'text-overflow:ellipsis is the truncation this test forbids').not.toBe('ellipsis');
+  });
+
+  test('a pathological product name still does not overflow, at the narrowest width', async ({ page }) => {
+    // If a 200-char string and an unbroken 120-char token both fit at 320px -
+    // narrower than any project here - then a few percent of extra glyph width
+    // on another engine cannot make them overflow. That is what turns "it fits
+    // in this browser" into "it cannot overflow in any browser".
+    await page.setViewportSize({ width: 320, height: 900 });
+    const overflowing = await page.locator('.callist .cday .ct').evaluateAll((els) => {
+      const long = 'Turmeric Ashwagandha Herbal Tea with Cardamom and Black Pepper Single Estate Reserve Harvest Limited Batch Blend for the Morning Ritual, Second Flush, High Altitude Darjeeling Garden Selection';
+      const unbroken = 'A'.repeat(120);
+      const out = [];
+      els.forEach((e, i) => {
+        e.textContent = i % 2 ? long : unbroken;
+        if (e.scrollWidth > e.clientWidth + 1) out.push(e.textContent.slice(0, 30));
+      });
+      return out;
+    });
+    expect(overflowing, `text overflowed its box even with wrapping on: ${overflowing.join(' | ')}`).toEqual([]);
   });
 
   test('a day opens the assets that were built for it', async ({ page }) => {

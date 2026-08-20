@@ -458,6 +458,99 @@ one asset out of nine.
   and the banned regex lived in three files. The spec test mutates `asset-specs` and re-requires, so a
   re-typed constant fails rather than passing on a coincidence.
 
+### CI threw away the evidence for every failure it reported (2026-08-21)
+Every failing run logged `##[warning]No files were found with the provided path: tests/report/. No
+artifacts will be uploaded.` and nobody read it. The workflow ran `npx playwright test
+--reporter=list`, and **a `--reporter` flag REPLACES the whole reporter array from
+`playwright.config.js`** - so the `html` reporter never ran, `tests/report/` was never created, and the
+upload step pointed at an empty path. Worse, the screenshot, video and trace for each failure land in
+`test-results/`, which was **never uploaded at all**.
+- So CI would say WHICH test failed and discard everything explaining WHY. That is what made
+  `brain-calendar-card` unfixable for days: it reproduces only on the WebKit projects, WebKit cannot be
+  installed in this sandbox (`playwright install webkit` -> the download host is not in the proxy
+  allowlist), and the one artifact that would have shown the actual assertion was thrown away.
+- Fixed: no `--reporter` override (the config already lists `list` first, so console output is
+  unchanged) and the upload collects **both** `tests/report/` and `test-results/`, with
+  `if-no-files-found: warn`. `tests/ci-artifacts.spec.js` pins it, including that no future workflow
+  edit reintroduces a `--reporter` flag.
+- **The general lesson: a warning in a CI log is not noise.** This one had been printing on every red
+  run and described the exact reason the failures could not be diagnosed.
+
+### getBoundingClientRect on a ROTATED ancestor is not the element's box (2026-08-21)
+`main` sat red from `brain-calendar-card.spec.js` from #386 onward, so every PR opened against it
+inherited a red CI. **I misdiagnosed this twice, and the second time is the instructive one.**
+- The test is named "a long product name is not truncated", so I assumed the truncation assertion was
+  failing and fixed the CSS. I never read the assertion. The failure was the line BELOW it - the
+  row-stacking check - reporting a ~4.5px vertical OVERLAP between consecutive rows
+  (`expected >= 1393.4288, received 1389.9346`).
+- **The real cause: `motion.css` reveals panels with a small ROTATION, and
+  `getBoundingClientRect()` on a rotated element returns its AXIS-ALIGNED bounding box.** The AABB of
+  a rotated box is larger than the box, and the error grows with distance from the transform origin -
+  so far down a long list, stacked rows' boxes overlap and it reads exactly like "a row is beside
+  another instead of below it". Nothing was painting over anything. `reducedMotion:'reduce'` is
+  necessary but NOT sufficient: it only forces `transform:none` on `.vh-rv` and `.vh-kin .vh-w`.
+  **Wait for the ancestor transform to settle before measuring geometry** - the guard exists in
+  `ads-master-columns.spec.js` and now in `brain-calendar-card.spec.js`.
+- **Tells that should have redirected me sooner:** the numbers were byte-identical across three
+  different viewports (so not a width story) and byte-identical before and after a CSS change that
+  alters row height (so not a layout story). On Chromium the rows are uniform 38px in a flex column
+  with `gap:4px`, where `row[i].top - row[i-1].bottom` is ALWAYS +4 - a negative value is structurally
+  impossible for uniform siblings, which should have said "the measurement is wrong", not "the layout
+  is wrong".
+- **A green fix inside a DRAFT pull request is invisible.** #387 contained the correct diagnosis and
+  fix, fully green and mergeable, while `main` stayed red for days and every new PR inherited it.
+  Nothing surfaces a draft: the merge API refuses with `405 Pull Request is still a draft`, and the PR
+  listing reported `mergeable: true, mergeable_state: clean` because neither field mentions draft
+  state. When CI is red on `main`, check the open PRs for a fix before writing one.
+- The truncation defect was REAL and is fixed in the same pass (`white-space:normal;
+  overflow-wrap:anywhere` - wrapped text cannot exceed its box on any engine, and `anywhere` covers a
+  single unbroken token). It simply was never the reason CI was red. Two added tests fail on Chromium
+  against the old CSS, so that defect is now reproducible on the engine you have.
+- **`tail` on a Playwright run hides the summary line**; grep for `^  [0-9]+ (passed|failed)`. A local
+  `--project=iphone-se` run was read as a Chromium reproduction when it was 236
+  `browserType.launch: Executable doesn't exist` errors. WebKit cannot be installed here at all
+  (`playwright install webkit` -> the download host is not in the proxy allowlist), and the CI artifact
+  that would have shown the assertion is served from `productionresultssa5.blob.core.windows.net`,
+  which the proxy also denies. **When you cannot fetch the artifact, put the evidence in the log**: the
+  assertion now prints a full row-geometry table on failure.
+
+### A seed gives INDEPENDENCE, which is not variety (2026-08-21)
+"Ensure a unique and appropriate design in every asset every time." Measured over a real 90-day x
+2-market x 6-cohort calendar (1080 slots), it was neither. Every engine repeated its own design
+back-to-back at exactly the rate chance predicts (~25% on a 4-item list, 60-100 three-in-a-rows), and
+two were far worse because they resolved intent to a SINGLE archetype - a cohort's objective does not
+change from one send to the next, so **the mailer repeated 100% of the time** (Loyalists got
+editorial-lookbook forever, 1056 three-in-a-rows) and **the landing page 73%**. Every individual
+choice looked perfectly reasonable; the defect was purely statistical, which is why only measurement
+found it.
+- A calendar does not want independence, it wants each send to differ from that cohort's LAST send.
+  `rotate()` walks a seeded permutation by the slot's **date ordinal**, so consecutive sends cannot
+  collide. Result: every asset type now under chance, **zero three-in-a-rows anywhere**.
+- **Determinism is preserved and is load-bearing** - a re-run that changed an approved asset would
+  mean the reviewer approved something that no longer exists. Variety is never bought with randomness.
+- **Per-cycle re-permutation is not optional.** A cadence that divides the list size (a weekly send
+  against a 7-item list) lands on the same permutation index forever; the rotation is then invisible
+  while still looking correct in the source. Re-permuting each cycle breaks the aliasing, and the spec
+  drives cadences 2/3/4/5/7/14 to prove no cadence collapses to one shape.
+- **A slot discriminator is needed too**: two slots for the same cohort+market on the same DAY (an A/B
+  pair, two products) share an ordinal and would be designed identically. It has to be stable ALONG
+  the sequence or every date gets its own permutation and the walk dies, so it is the slot id minus
+  its date (`cal_2026-09-01_US_loyalists` -> `cal__US_loyalists`).
+- **Unique is not the only requirement; appropriate is the other, and over-rotating broke it.** The
+  first fix rotated a gifting page onto `presell-narrative` - a shape whose whole job is convincing
+  COLD traffic a problem exists, when a gift buyer has already decided to buy a present. The existing
+  test caught it. Intent therefore now drives **two different things**: `audience` is a COPY DIRECTIVE
+  that applies to every page for that intent whatever shape it takes (a gift buyer is not the drinker,
+  true of a picks list and a comparison alike), and `suitable` is the set of section ORDERS that
+  genuinely serve it. Rotation happens only inside `suitable`, so variety never costs message match.
+  Attaching that requirement to one archetype's `fit` string is what let rotation silently drop it.
+- Where an intent genuinely has one right shape, repeating is CORRECT, not a bug. The playable was the
+  one asset with no variety at all; it now has two shapes because the renderer genuinely builds two
+  (`renderPlayable`, `renderPlayableVideo`). A third would have had to be invented, so there are two.
+- `tests/asset-design-variety.spec.js` measures the real engines over the real calendar rather than
+  reading source, since the defect was statistical. Verified with teeth: reverting to the seed turns 3
+  of its 11 red.
+
 ### A gate that blocks silently is indistinguishable from one that is broken (2026-08-19)
 The gates answer **HTTP 200** with `{ok:false, blocked:true, message, blocker, data_required,
 remediation}` — deliberately, because the API worked and declined. Every front end read only
@@ -912,6 +1005,27 @@ guarantee or claim the ad did not state. Enforced in `api/ai/generate.js` (`buil
 calendar copy prompt in `api/_shared/smart-brain-plan.js`. The proven page corpus to build from lives in
 `landing-pages/final/` (cortisol presell v1/v2/v3, agent-best, all-in-one agent), `landing-pages/usa-july/` and
 `landing-pages/ashwagandha-matrix/`, with per-slot generation prompts in `landing-pages/final/lp-cortisol-asset-prompts.md`.
+
+### Sign-in has ONE implementation, and a redirect must point at a real route (2026-08-21)
+The homepage's main "Sign in with Google" CTA hand-rolled its own `signInWithOAuth` with
+`redirectTo: location.origin + '/dashboard'`. **`/dashboard` is not a route** - `dashboard.html` is
+served at `/rfm`, and `cleanUrls` is false, so an extensionless `/dashboard` matches no rewrite.
+Google completed the sign-in and dropped the user on a 404. It failed a second, independent way too:
+`rememberReturnTo`'s own comment already records that Supabase bounces to the Site URL when the exact
+path is not in the redirect allow-list, and a path nobody uses is not in it.
+- **The footer button on the SAME page worked**, which is the whole tell: there were two
+  implementations of one thing and only the copy drifted. `auth.js` used `origin + pathname` in both
+  of its call sites; the homepage did not.
+- Fixed by consolidation, not by correcting the copy: `auth.js` now owns `signIn()` and exposes it as
+  `window.LifecycleAuth.signIn`. Both auth.js call sites and the homepage CTA route through it, so
+  exactly one `signInWithOAuth(` call exists in the app. Same reasoning as `gate-notice.js` and
+  `market-urls.js`: one module, never a copy per page.
+- `redirectTo` uses **`origin + pathname`, never a hand-picked path** - the user is standing on that
+  path, so it exists, and it is what the allow-list is built from.
+- `tests/homepage-signin.spec.js` pins it: one implementation repo-wide, the CTA delegates, a general
+  guard that any hard-coded `redirectTo` path resolves to a real route in `vercel.json`, a premise
+  check that `/dashboard` is still not a route, and a behavioural click test. Verified with teeth - 4
+  of the 7 fail when the old CTA is restored.
 
 ## LHS navigation IA rule
 The shared LHS menu (`auth.js`, element `#lifecycle-nav`; model exposed as `window.__LC_NAV` / `window.__LC_NAV_INFO`) follows a standing IA rule:

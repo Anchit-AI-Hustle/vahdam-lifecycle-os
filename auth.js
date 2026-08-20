@@ -1431,11 +1431,7 @@
     if (signinBtn) signinBtn.onclick = (e) => {
       if (window.LifecycleAuth?.client) {
         e.preventDefault();
-        rememberReturnTo();
-        window.LifecycleAuth.client.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: location.origin + location.pathname },
-        });
+        signIn();
       }
     };
     const signoutBtn = wrap.querySelector('#lnav-signout');
@@ -1567,12 +1563,7 @@
           setTimeout(() => { btn.disabled = false; btn.innerHTML = btn.dataset.original || 'Sign in with Google'; }, 1800);
           return;
         }
-        rememberReturnTo();
-        const { error } = await window.LifecycleAuth.client.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: location.origin + location.pathname },
-        });
-        if (error) throw error;
+        await signIn();
       } catch (e) {
         btn.disabled = false;
         btn.textContent = 'Sign in with Google';
@@ -1705,6 +1696,25 @@
   function rememberReturnTo() {
     try { localStorage.setItem('lc-return-to', location.pathname + location.search + location.hash); } catch (_) {}
   }
+  // THE sign-in. Exposed as window.LifecycleAuth.signIn so a page never has to
+  // hand-roll its own signInWithOAuth call - index.html did exactly that and
+  // drifted, sending the OAuth callback to /dashboard, which is not a route
+  // (dashboard.html is served at /rfm) and is not in the Supabase redirect
+  // allow-list either. The result was a 404 after a successful Google sign-in,
+  // while the footer button on the same page worked.
+  async function signIn() {
+    const c = window.LifecycleAuth && window.LifecycleAuth.client;
+    if (!c) throw new Error('Supabase not configured');
+    rememberReturnTo();
+    const { error } = await c.auth.signInWithOAuth({
+      provider: 'google',
+      // origin + pathname, never a hand-picked path: it is guaranteed to exist
+      // (the user is standing on it) and it is what the allow-list is built from.
+      options: { redirectTo: location.origin + location.pathname },
+    });
+    if (error) throw error;
+  }
+
   function restoreReturnTo() {
     let target = null;
     try { target = localStorage.getItem('lc-return-to'); localStorage.removeItem('lc-return-to'); } catch (_) {}
@@ -1723,6 +1733,7 @@
       user: null,
       internal: false,
       mockMode: false,
+      signIn,
       signOut: async () => {
         if (window.LifecycleAuth.client) await window.LifecycleAuth.client.auth.signOut();
         window.LifecycleAuth.session = null;

@@ -115,6 +115,68 @@ function pickBySeed(list, ctx, salt) {
   return list[seed(slotKey(ctx) + '#' + salt) % list.length];
 }
 
+// ── Rotation: a seed gives INDEPENDENCE, which is not the same as VARIETY ────
+// Measured over a real 90-day x 2-market x 6-cohort calendar, pickBySeed left
+// every asset repeating its own design back-to-back at exactly the rate chance
+// predicts (~25% for a 4-item list, with 60-100 three-in-a-rows). Two engines
+// were far worse because they resolved intent to a SINGLE archetype: the mailer
+// repeated 100% of the time (a cohort's objective does not change day to day,
+// so Loyalists got editorial-lookbook forever) and the landing page 73%.
+//
+// Independence is the wrong property. A calendar wants each send to differ from
+// the cohort's LAST send, which means the choice has to know where it sits in
+// that cohort's sequence. rotate() walks a deterministic permutation by the
+// slot's date ordinal, so consecutive sends cannot collide.
+//
+// Determinism is preserved, and that is load-bearing: a re-run that changed an
+// approved asset would mean the reviewer approved something that no longer
+// exists. Same slot in, same design out, always.
+function ordinalFor(ctx = {}) {
+  const t = Date.parse(String(ctx.date || '') + 'T00:00:00Z');
+  // No date: fall back to the seed. Stable, but it cannot rotate — a slot with
+  // no date has no position in a sequence to rotate along.
+  if (!Number.isFinite(t)) return seed(slotKey(ctx)) % 9973;
+  return Math.floor(t / 86400000);
+}
+// Deterministic Fisher-Yates. Re-hashing per step keeps the swaps independent;
+// reusing one hash would correlate them the way the old FNV low bits did.
+function permute(list, key) {
+  const a = list.slice();
+  let h = seed(key);
+  for (let i = a.length - 1; i > 0; i--) {
+    h = seed(h + ':' + i);
+    const j = h % (i + 1);
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function rotate(list, ctx, salt) {
+  if (!list || !list.length) return null;
+  if (list.length === 1) return list[0];
+  const n = list.length;
+  const i = ordinalFor(ctx);
+  // Re-permute every cycle. Without this, a cadence that divides n (a weekly
+  // send against a 7-item list) lands on the same position forever and the
+  // rotation is invisible — the aliasing failure, not a hypothetical one.
+  const cycle = Math.floor(i / n);
+  const who = [ctx.market, ctx.cohort && (ctx.cohort.key || ctx.cohort.name), slotVariant(ctx), salt, cycle]
+    .filter((x) => x != null).join('|');
+  return permute(list, who)[((i % n) + n) % n];
+}
+// Two slots for the SAME cohort and market on the SAME day - an A/B pair, or two
+// products - share an ordinal, so without a discriminator they would be designed
+// identically. The discriminator has to be stable ALONG the cohort's sequence
+// though, or every date gets its own permutation and the sequence walk (the
+// whole point of rotate) is destroyed. The slot id minus its date is exactly
+// that: `cal_2026-09-01_US_loyalists` becomes `cal__US_loyalists`, identical on
+// every date, different for a second slot the same day.
+function slotVariant(ctx = {}) {
+  if (ctx.variant != null) return String(ctx.variant);
+  const id = String(ctx.id || '');
+  const d = String(ctx.date || '');
+  return d && id.includes(d) ? id.split(d).join('') : id;
+}
+
 // ── Measurement helpers ─────────────────────────────────────────────────────
 const str = (v) => (v == null ? '' : String(v));
 const len = (v) => str(v).trim().length;
@@ -246,7 +308,7 @@ function adEngine(platform) {
         { key: 'day-in-the-life', label: 'Day in the life', beats: ['6am reality', 'the ritual', 'how the day goes instead', 'CTA'] },
         { key: 'product-hero', label: 'Product hero', beats: ['single-source light on the real SKU', 'the promise', 'one reason to believe', 'CTA'] },
       ];
-      const f = pickBySeed(formats, ctx, 'ad:' + p);
+      const f = rotate(formats, ctx, 'ad:' + p);
       return {
         archetype: f.key,
         label: f.label,
@@ -347,6 +409,31 @@ const landingEngine = {
     { key: 'gift-curation', label: 'Gift curation', order: ['hero', 'picks', 'why', 'proof', 'faq', 'cta'], fit: 'gifting moments, where the reader is not the drinker' },
   ],
 
+  // Intent decides TWO different things, and conflating them was a real defect.
+  //
+  // `audience` is a copy directive and applies to EVERY page for that intent,
+  // whatever shape it takes: a gift buyer is not the drinker, and that has to be
+  // true of a gifting page whether it renders as a picks list or a comparison.
+  // Attaching that requirement to one archetype meant rotating the shape
+  // silently dropped it.
+  //
+  // `suitable` is the set of section ORDERS that genuinely serve the intent, and
+  // only those. presell-narrative exists for COLD traffic that must first be
+  // convinced there is a problem, so it is absent from gifting (the reader has
+  // already decided to buy a present) and from winback (a lapsed customer is not
+  // cold - they know us, the blocker is trust). Rotation happens inside this
+  // set, so variety never costs message match. Best fit is listed first.
+  intents: {
+    gifting: { suitable: ['gift-curation', 'comparison', 'proof-first'],
+      audience: 'The reader is the GIFT BUYER, not the drinker. Write to someone choosing for another person: who it suits, how it presents, and how confident they can be giving it. Never assume the reader will taste it.' },
+    winback: { suitable: ['proof-first', 'comparison', 'ritual-howto'],
+      audience: 'The reader has bought before and drifted. Trust is the blocker, not information: acknowledge the gap without guilt, lead with other real people who came back, and make re-trying feel small.' },
+    activation: { suitable: ['ritual-howto', 'comparison', 'proof-first'],
+      audience: 'The reader is new and the real question is how this fits an actual morning. Zero jargon, first-time-friendly, one obvious first step.' },
+    discovery: { suitable: ['comparison', 'ritual-howto', 'presell-narrative'],
+      audience: 'The reader is choosing between options and has not committed. Lower the risk of the first try; be honest about what this is and is not.' },
+  },
+
   design(ctx = {}) {
     const obj = String(ctx.objective || '').toLowerCase();
     const coh = String((ctx.cohort && (ctx.cohort.key || ctx.cohort.name)) || '').toLowerCase();
@@ -356,15 +443,22 @@ const landingEngine = {
     // Word-anchored. Unanchored, `new` matched "renewal" and "newsletter", so a
     // renewal reminder was designed as a first-purchase how-to page. Same defect
     // class as the market-URL suffix match: a substring is not a token.
-    const byIntent =
-      /\b(gift|gifting|festive|diwali|christmas|holiday)\b/.test(hay) ? 'gift-curation'
-      : /\b(winback|win.?back|lapsed|at.?risk|churn|non.?engagers?|dormant)\b/.test(hay) ? 'proof-first'
-      : /\b(new|welcome|activation|activate|first.?purchase|onboarding|onboard)\b/.test(hay) ? 'ritual-howto'
-      : /\b(discover|discovery|sampler|cross.?sell|explore)\b/.test(hay) ? 'comparison'
+    // Intent selects a SUITABLE SET, best fit first — not a single archetype.
+    // Resolving to one key meant a cohort's page never changed shape: measured
+    // at 73% back-to-back identical, and presell-narrative starved to 7% because
+    // it was only ever the seed's fallback. Every member of a set is defensible
+    // for that intent, so rotating inside it buys variety without trading away
+    // appropriateness. Where a set has one member, repeating is correct.
+    const intent =
+      /\b(gift|gifting|festive|diwali|christmas|holiday)\b/.test(hay) ? 'gifting'
+      : /\b(winback|win.?back|lapsed|at.?risk|churn|non.?engagers?|dormant)\b/.test(hay) ? 'winback'
+      : /\b(new|welcome|activation|activate|first.?purchase|onboarding|onboard)\b/.test(hay) ? 'activation'
+      : /\b(discover|discovery|sampler|cross.?sell|explore)\b/.test(hay) ? 'discovery'
       : null;
-    const a = byIntent
-      ? this.archetypes.find((x) => x.key === byIntent)
-      : pickBySeed(this.archetypes, ctx, 'lp');
+    const rule = intent ? this.intents[intent] : null;
+    const pool = (rule ? rule.suitable : this.archetypes.map((x) => x.key))
+      .map((k) => this.archetypes.find((x) => x.key === k)).filter(Boolean);
+    const a = rotate(pool, ctx, 'lp') || this.archetypes[0];
     return {
       archetype: a.key,
       label: a.label,
@@ -373,7 +467,11 @@ const landingEngine = {
       keys: a.order.map((sec) => this.sectionCopy[sec]).filter(Boolean),
       spec: specs.LANDING.rule,
       breakpoints: specs.LANDING.breakpoints,
-      why: byIntent ? `chosen from the slot's stated intent (${byIntent})` : 'no stated intent to key on, so chosen deterministically from the slot seed',
+      intent: intent || null,
+      audience: rule ? rule.audience : '',
+      why: rule
+        ? `intent "${intent}" narrows this to the ${pool.length} shapes that serve it (${pool.map((x) => x.key).join(', ')}); rotated by slot position so consecutive sends to this cohort differ, and the ${intent} audience directive applies whichever shape wins`
+        : 'no stated intent to narrow on, so rotated across every shape by the slot position (seed-derived when the slot carries no date)',
     };
   },
 
@@ -381,6 +479,8 @@ const landingEngine = {
     const d = this.design(ctx);
     return [
       `LANDING PAGE (${d.label}, ${d.fit}). Sections in THIS order: ${d.order.join(' -> ')}.`,
+      // Intent-level, never archetype-level: rotating the shape must not drop it.
+      d.audience ? `WHO IS READING: ${d.audience}` : '',
       'MESSAGE MATCH is the whole job: this page is the destination of a specific ad or email, so it opens on the EXACT promise that click was made on, in that creative\'s own words. Introduce no price, discount, rating, review count, guarantee or claim the originating creative did not state.',
       'Above the fold must answer what this is, who it is for, and what to do next, without scrolling. One primary action, repeated; never two competing CTAs.',
       `SEO title <=${this.limits.seo_title} chars, meta description <=${this.limits.meta_description}.`,
@@ -442,7 +542,7 @@ function socialEngine(platform) {
         { key: 'common-mistake', label: 'The mistake people make', beats: ['the mistake, named plainly', 'the correction', 'what it tastes like when it is right'] },
         { key: 'tiny-story', label: 'Tiny story', beats: ['one person, one morning, one specific detail', 'the turn', 'no hard sell'] },
       ];
-      const a = pickBySeed(angles, ctx, 'social:' + p);
+      const a = rotate(angles, ctx, 'social:' + p);
       return {
         archetype: a.key, label: a.label, order: a.beats,
         spec: specs.socialSpecText(p),
@@ -499,7 +599,7 @@ const videoEngine = {
       { key: 'ritual-loop', label: 'Ritual loop', beats: ['pour', 'steam', 'first sip', 'CTA card'] },
       { key: 'split-contrast', label: 'Split contrast', beats: ['the wound-up morning', 'hard cut', 'the calm one', 'CTA card'] },
     ];
-    const c = pickBySeed(cuts, ctx, 'video');
+    const c = rotate(cuts, ctx, 'video');
     return {
       archetype: c.key, label: c.label, order: c.beats,
       spec: '9:16 1080x1920. Sides 7% clear, bottom 18% clear of platform UI chrome.',
@@ -555,13 +655,30 @@ const playableEngine = {
   limits: { meta_mb: 2, tiktok_mb: 2, google_mb: 5 },
   params: { temperature: 0.7, maxTokens: 1800 },
 
-  design(ctx = {}) {
-    return {
-      archetype: 'tap-to-build',
-      label: 'Tap to build',
+  // Two shapes, because the renderer genuinely builds two: renderPlayable (the
+  // interactive unit) and renderPlayableVideo (inlined muted autoplay video into
+  // an interactive end card). This engine previously declared only the first, so
+  // every playable in the calendar was briefed identically forever - the one
+  // asset type left with no variety at all. A third would have to be invented,
+  // so there are two.
+  shapes: [
+    { key: 'tap-to-build', label: 'Tap to build', renderer: 'renderPlayable',
       order: ['hook screen 0-2s', 'interactive stage', 'end card with CTA'],
+      why: 'The interaction IS the ad: the user assembles the cup, so the value lands through doing rather than watching.' },
+    { key: 'watch-then-play', label: 'Video into end card', renderer: 'renderPlayableVideo',
+      order: ['inlined muted video 0-6s', 'interactive end card', 'CTA'],
+      why: 'Carries a filmed moment a built stage cannot, then hands the user something to touch before the CTA.' },
+  ],
+
+  design(ctx = {}) {
+    const sh = rotate(this.shapes, ctx, 'playable') || this.shapes[0];
+    return {
+      archetype: sh.key,
+      label: sh.label,
+      order: sh.order,
+      renderer: sh.renderer,
       spec: 'One self-contained HTML file. Every asset a data: URI. Portrait and landscape. Muted by default.',
-      why: 'Reviewers test offline, so a single external request fails the unit regardless of how good it is.',
+      why: `${sh.why} Reviewers test offline, so a single external request fails the unit regardless of how good it is.`,
     };
   },
 
@@ -606,7 +723,7 @@ const blogEngine = {
       { key: 'origin-explainer', label: 'Origin explainer', order: ['the estate', 'the harvest', 'what it changes in the cup', 'how to brew it', 'shop'] },
       { key: 'comparison', label: 'Comparison', order: ['the question', 'option A', 'option B', 'who each is for', 'shop'] },
     ];
-    const s = pickBySeed(shapes, ctx, 'blog');
+    const s = rotate(shapes, ctx, 'blog');
     return { archetype: s.key, label: s.label, order: s.order, spec: `Title <=${this.limits.title}, meta description <=${this.limits.metaDescription}.`, why: 'Search intent decides the shape; the shape decides the H2 outline.' };
   },
 
@@ -727,5 +844,5 @@ function contractsFor(assetTypes, ctx = {}) {
 module.exports = {
   ENGINES, engineFor, qaAsset, qaCampaign, contractsFor,
   // Exported for tests and for callers that need the same primitives.
-  seed, slotKey, pickBySeed, OFFER, DASH, ASKS_FOR_TEXT, CRIT, WARN,
+  seed, slotKey, pickBySeed, rotate, permute, ordinalFor, slotVariant, OFFER, DASH, ASKS_FOR_TEXT, CRIT, WARN,
 };

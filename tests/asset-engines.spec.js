@@ -118,8 +118,19 @@ test('the same slot always gets the same design', () => {
 test('different slots do not all land on the same archetype', () => {
   // Determinism without spread would make a 90-day calendar one template.
   const seen = new Set();
-  for (let i = 0; i < 24; i++) seen.add(AE.ENGINES.social_instagram.design(ctx({ id: 'slot-' + i })).archetype);
+  // Vary the DATE: that is what a calendar varies, and since the rotation walks
+  // a permutation by date ordinal it is the axis that must produce spread.
+  for (let i = 0; i < 24; i++) {
+    const date = new Date(Date.UTC(2026, 8, 1 + i)).toISOString().slice(0, 10);
+    seen.add(AE.ENGINES.social_instagram.design(ctx({ id: 'cal_' + date, date })).archetype);
+  }
   expect(seen.size).toBeGreaterThan(1);
+  // Two slots on the SAME day for the same cohort (an A/B pair, or two
+  // products) share a date ordinal, so they need the slot discriminator to
+  // differ - without it they would be designed identically.
+  const sameDay = new Set();
+  for (let i = 0; i < 24; i++) sameDay.add(AE.ENGINES.social_instagram.design(ctx({ id: 'slot-' + i })).archetype);
+  expect(sameDay.size, 'every slot on one day got the same design').toBeGreaterThan(1);
 });
 
 test('two engines on the same slot decide independently', () => {
@@ -128,7 +139,8 @@ test('two engines on the same slot decide independently', () => {
   // reason. Across a spread of slots the two must not be perfectly correlated.
   const pairs = new Set();
   for (let i = 0; i < 24; i++) {
-    const c = ctx({ id: 'slot-' + i });
+    const date = new Date(Date.UTC(2026, 8, 1 + i)).toISOString().slice(0, 10);
+    const c = ctx({ id: 'cal_' + date, date });
     pairs.add(AE.ENGINES.ad_meta.design(c).archetype + '|' + AE.ENGINES.social_instagram.design(c).archetype);
   }
   // 4 ad formats x 4 social angles = 16 possible pairings. FNV-1a's low bits
@@ -279,13 +291,25 @@ test('the landing page renders in the order its archetype chose', () => {
   const copy = { landing: { hero_headline: 'H', hero_sub: 'S', why_title: 'Why this edit', why_bullets: ['a'], proof_quote: 'A real line', proof_author: 'Anna', faq: [{ q: 'Q', a: 'A' }], cta: 'Shop' } };
   const page = (objective) => SB.lpHtml({ id: 'x' + objective, date: '2026-08-22', market: 'US', cohort: { name: 'c' }, objective, heroProduct: { title: 'T', handle: 't', price: 9 } }, copy, 'c1', null);
 
-  const winback = page('winback lapsed buyers');
-  expect(winback).toContain('proof-first');
-  expect(winback.indexOf('A real line'), 'proof must precede why on a trust-blocked page').toBeLessThan(winback.indexOf('Why this edit'));
-
-  const activation = page('activation for new subscribers');
-  expect(activation).toContain('ritual-howto');
-  expect(activation.indexOf('Why this edit')).toBeLessThan(activation.indexOf('A real line'));
+  // The archetype rotates within the intent's suitable set, so assert the page
+  // obeys WHICHEVER shape was chosen rather than pinning one key - pinning is
+  // what made every winback page identical for 90 days straight.
+  const LP = AE.ENGINES.landing_page;
+  for (const objective of ['winback lapsed buyers', 'activation for new subscribers']) {
+    const slot = { id: 'x' + objective, date: '2026-08-22', market: 'US', cohort: { name: 'c' }, objective };
+    const d = LP.design(slot);
+    const html = page(objective);
+    expect(html, 'the page does not record the archetype it rendered').toContain(d.archetype);
+    // proof vs why must appear in the order this archetype declares.
+    const iProof = d.order.indexOf('proof');
+    const iWhy = d.order.indexOf('why');
+    if (iProof >= 0 && iWhy >= 0) {
+      const rendered = [html.indexOf('A real line'), html.indexOf('Why this edit')];
+      expect(rendered[0] > -1 && rendered[1] > -1, 'both sections should render').toBe(true);
+      expect(rendered[0] < rendered[1], `${d.archetype} declares ${d.order.join(' -> ')} but rendered them the other way`)
+        .toBe(iProof < iWhy);
+    }
+  }
 });
 
 test('a section with no copy is omitted, never padded with invented content', () => {

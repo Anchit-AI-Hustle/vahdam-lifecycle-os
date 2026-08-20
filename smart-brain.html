@@ -133,10 +133,22 @@
   .cday .d{font-size:15px;font-weight:800;color:#171717;font-variant-numeric:tabular-nums}
   .cday .dow{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#6b7770}
   .cday.past .d{color:#6b7770}
-  /* The row's headline. It still ellipsises, but at full width that is now a
-     genuine last resort rather than the normal case. */
+  /* The row's headline. It must NOT ellipsise: a product name is the one thing
+     the reader is scanning this list for, and "Turmeric Ashwagandh..." is not a
+     product name.
+     This used to be nowrap + text-overflow:ellipsis, which truncates whenever
+     the text measures wider than its column. In CI it clipped on iphone-se,
+     iphone-12 and ipad (the WebKit projects) and fitted on every Chromium one,
+     so the visible symptom was engine-specific - but the CAUSE is not. A layout
+     that depends on text happening to fit breaks again on a longer product
+     name, a different font stack, or a reader who has raised their default font
+     size, on any engine.
+     Wrapping removes the dependency entirely - wrapped text cannot exceed its
+     box - and overflow-wrap:anywhere covers a single unbroken token longer than
+     the column, the one case wrapping alone cannot solve. Same lesson as the
+     .cw block in the ad tables. */
   .cday .ct{font-size:13px;line-height:1.35;color:#0f3d28;font-weight:700;
-            overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+            white-space:normal;overflow-wrap:anywhere;min-width:0}
   .cday.past .ct{color:#5c6b62;font-weight:600}
   .cday .ctnone{color:#b91c1c;font-weight:800}
   .cday .cs{font-size:11.5px;color:#556059;line-height:1.4;text-align:right;font-variant-numeric:tabular-nums}
