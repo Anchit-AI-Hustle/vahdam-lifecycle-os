@@ -458,6 +458,24 @@ one asset out of nine.
   and the banned regex lived in three files. The spec test mutates `asset-specs` and re-requires, so a
   re-typed constant fails rather than passing on a coincidence.
 
+### CI threw away the evidence for every failure it reported (2026-08-21)
+Every failing run logged `##[warning]No files were found with the provided path: tests/report/. No
+artifacts will be uploaded.` and nobody read it. The workflow ran `npx playwright test
+--reporter=list`, and **a `--reporter` flag REPLACES the whole reporter array from
+`playwright.config.js`** - so the `html` reporter never ran, `tests/report/` was never created, and the
+upload step pointed at an empty path. Worse, the screenshot, video and trace for each failure land in
+`test-results/`, which was **never uploaded at all**.
+- So CI would say WHICH test failed and discard everything explaining WHY. That is what made
+  `brain-calendar-card` unfixable for days: it reproduces only on the WebKit projects, WebKit cannot be
+  installed in this sandbox (`playwright install webkit` -> the download host is not in the proxy
+  allowlist), and the one artifact that would have shown the actual assertion was thrown away.
+- Fixed: no `--reporter` override (the config already lists `list` first, so console output is
+  unchanged) and the upload collects **both** `tests/report/` and `test-results/`, with
+  `if-no-files-found: warn`. `tests/ci-artifacts.spec.js` pins it, including that no future workflow
+  edit reintroduces a `--reporter` flag.
+- **The general lesson: a warning in a CI log is not noise.** This one had been printing on every red
+  run and described the exact reason the failures could not be diagnosed.
+
 ### A test that only says "it fitted here" cannot be reproduced anywhere else (2026-08-21)
 `main` sat red from `brain-calendar-card.spec.js:123` ("a long product name is not truncated") from #386
 onward, so every PR opened against it inherited a red CI. The `/brain` day-card headline was

@@ -51,11 +51,25 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
       - name: Run Playwright suite
-        run: npx playwright test --reporter=list
+        # No --reporter override here. It replaces the whole reporter array from
+        # playwright.config.js, so the html reporter never ran and tests/report/
+        # was never created - which is why every failing run logged
+        # "No files were found with the provided path: tests/report/" and threw
+        # away its own evidence. The config already lists 'list' first, so the
+        # console output is unchanged.
+        run: npx playwright test
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
-          path: tests/report/
+          # Both paths. tests/report/ is the browsable HTML report; test-results/
+          # is where the screenshot, video and trace for each failure actually
+          # land, and it was never uploaded at all. Without them a failure that
+          # only reproduces on an engine the developer cannot install (WebKit is
+          # not downloadable from the dev sandbox) cannot be diagnosed by anyone.
+          path: |
+            tests/report/
+            test-results/
           retention-days: 7
+          if-no-files-found: warn
