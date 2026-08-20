@@ -134,18 +134,31 @@ test.describe('the /brain day card', () => {
     for(let i = 1; i < boxes.length; i++){
       expect(boxes[i].top, 'a row is beside another instead of below it').toBeGreaterThanOrEqual(boxes[i-1].bottom - 1);
     }
-    // Assert the ROOM the column change delivers, not "zero ellipsis ever".
-    // The first version demanded that no theme was ever clipped, and that failed
-    // in CI on iphone-se, iphone-12 and ipad: the same string measures wider in
-    // WebKit, so whether a given name ellipsises depends on font metrics rather
-    // than on the layout being right. A width floor is the font-independent form
-    // of the same claim, and the 7-across grid - about 130px per day - cannot
-    // satisfy it.
-    const widths = await page.locator('.callist .cday .ct').evaluateAll((els) =>
-      els.map((e) => Math.round(e.getBoundingClientRect().width)));
-    expect(widths.length).toBeGreaterThan(1);
-    expect(Math.min(...widths), `the theme column is still cramped: ${widths.join(', ')}px`)
-      .toBeGreaterThan(260);
+    // Assert the ROOM the column change delivers, as a FRACTION of the list.
+    //
+    // Two earlier versions of this got it wrong, both by measuring something
+    // that is not the claim:
+    //   1. "no theme is ever ellipsised" - failed on all three WebKit projects,
+    //      because the same string measures wider there. That tested font
+    //      metrics, not layout.
+    //   2. "every theme is at least 260px" - still failed on iphone-12 and
+    //      ipad. Those projects emulate a mobile device, where the layout width
+    //      is driven by the page's own viewport meta rather than by the
+    //      configured viewport, so an ABSOLUTE pixel floor is not a property
+    //      the layout controls.
+    // What the column change actually guarantees is a SHARE: the theme gets
+    // most of the row instead of one seventh of the grid. In the 7-across grid
+    // a day was ~1/7 of the container, so the theme measured ~13% of the list;
+    // in a single column it is the 1fr of `64px 1fr 104px auto`. A fraction is
+    // both font-independent and viewport-independent.
+    const share = await page.evaluate(() => {
+      const list = document.querySelector('.callist').getBoundingClientRect().width;
+      return [...document.querySelectorAll('.callist .cday .ct')]
+        .map((e) => e.getBoundingClientRect().width / list);
+    });
+    expect(share.length).toBeGreaterThan(1);
+    expect(Math.min(...share), `the theme column is still cramped: ${share.map((x) => Math.round(x * 100) + '%').join(', ')}`)
+      .toBeGreaterThan(0.35);
   });
 
   test('a day opens the assets that were built for it', async ({ page }) => {
