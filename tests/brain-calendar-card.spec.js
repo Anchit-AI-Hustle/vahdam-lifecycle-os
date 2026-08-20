@@ -154,13 +154,39 @@ test.describe('the /brain day card', () => {
     // "Turmeric Ashwagandh..." — and so did most other days, which is the state
     // the screenshot showed. scrollWidth > clientWidth is exactly the ellipsis.
     const rows = page.locator('.callist .cday');
-    const boxes = await rows.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()));
-    expect(boxes.length).toBeGreaterThan(1);
+    // Collect enough to DIAGNOSE a failure from the CI log alone. The bare
+    // "expected >= 1393.43, received 1389.93" that this used to print says a
+    // row overlaps and nothing about which rows, how tall they are, or whether
+    // they are even siblings - and the screenshot/trace live in a CI artifact
+    // on a host this project's sandbox cannot reach. A geometry assertion
+    // should carry its own evidence.
+    const geo = await rows.evaluateAll((els) => els.map((e, i) => {
+      const r = e.getBoundingClientRect();
+      const p = e.parentElement;
+      return {
+        i, cls: e.className,
+        x: +r.x.toFixed(2), top: +r.top.toFixed(2), bottom: +r.bottom.toFixed(2),
+        h: +r.height.toFixed(2), offsetH: e.offsetHeight, scrollH: e.scrollHeight,
+        parent: p ? (p.className || p.tagName) : null,
+        parentDisplay: p ? getComputedStyle(p).display : null,
+        parentGap: p ? getComputedStyle(p).rowGap : null,
+      };
+    }));
+    const table = () => geo.map((g) =>
+      `  [${g.i}] x=${g.x} top=${g.top} bottom=${g.bottom} h=${g.h} (offset ${g.offsetH}, scroll ${g.scrollH}) ` +
+      `parent=${g.parent} display=${g.parentDisplay} gap=${g.parentGap} cls="${g.cls}"`).join('\n');
+
+    const boxes = geo;
+    expect(boxes.length, `only ${boxes.length} row(s) rendered:\n${table()}`).toBeGreaterThan(1);
     // One per row: every row starts at the same x and each sits below the last.
     const xs = new Set(boxes.map((b) => Math.round(b.x)));
-    expect(xs.size, 'rows are not in a single column').toBe(1);
+    expect(xs.size, `rows are not in a single column (${xs.size} distinct x):\n${table()}`).toBe(1);
     for(let i = 1; i < boxes.length; i++){
-      expect(boxes[i].top, 'a row is beside another instead of below it').toBeGreaterThanOrEqual(boxes[i-1].bottom - 1);
+      expect(boxes[i].top,
+        `row ${i} overlaps row ${i - 1} by ${(boxes[i-1].bottom - boxes[i].top).toFixed(2)}px.\n` +
+        `In a flex column with a fixed gap this is not possible for siblings, so check whether these ` +
+        `two rows share a parent and whether either box is taller than its layout slot:\n${table()}`
+      ).toBeGreaterThanOrEqual(boxes[i-1].bottom - 1);
     }
     // Assert the ROOM the column change delivers, as a FRACTION of the list.
     //
