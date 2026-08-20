@@ -476,34 +476,43 @@ upload step pointed at an empty path. Worse, the screenshot, video and trace for
 - **The general lesson: a warning in a CI log is not noise.** This one had been printing on every red
   run and described the exact reason the failures could not be diagnosed.
 
-### A test that only says "it fitted here" cannot be reproduced anywhere else (2026-08-21)
-`main` sat red from `brain-calendar-card.spec.js:123` ("a long product name is not truncated") from #386
-onward, so every PR opened against it inherited a red CI. The `/brain` day-card headline was
-`white-space:nowrap; overflow:hidden; text-overflow:ellipsis`, which truncates whenever the product
-name measures wider than its column. In CI it clipped on the three WebKit projects and fitted on every
-Chromium one.
-- **The assertion was `scrollWidth > clientWidth`, which only reports whether the text HAPPENED to fit
-  in whichever browser ran it.** That is why it survived: this sandbox cannot launch WebKit
-  (`playwright install webkit` is blocked by proxy policy - the download host is not in the allowlist),
-  so the defect was literally unreproducible locally.
-- **Two wrong turns worth recording.** First diagnosis blamed WebKit font metrics and stopped there.
-  Then `--project=iphone-se` was run locally, showed failures, and those were read as a Chromium
-  reproduction - they were 236 `browserType.launch: Executable doesn't exist` errors, invisible because
-  the output was being read through `tail`. **`tail` on a Playwright run hides the summary line**; grep
-  for `^  [0-9]+ (passed|failed)` instead. This is the same trap the "local runs can pass without
-  running anything" note above already describes, hit from the opposite direction: a local FAIL that is
-  not a real failure.
-- The fix is structural, not tuned, because the failing engine could not be measured: `white-space:
-  normal; overflow-wrap:anywhere`. Wrapped text cannot exceed its box on ANY engine - line breaking is
-  CSS semantics, not a measurement that comes out favourably - and `anywhere` covers the one case
-  wrapping alone cannot, a single unbroken token longer than the column. Same lesson as the `.cw` block
-  in the ad tables.
-- **The real deliverable is that the defect is now reproducible on the engine you have.** Two added
-  tests FAIL on Chromium against the old CSS: a computed-style check (`white-space` is not `nowrap`,
-  `text-overflow` is not `ellipsis`) and a pathological-input stress test at a 320px viewport with a
-  190-char name and a 120-char unbroken token. Old CSS: 4 failures across both Chromium projects. New
-  CSS: 18 passed. A geometry assertion that depends on the text fitting should always be paired with
-  one that does not.
+### getBoundingClientRect on a ROTATED ancestor is not the element's box (2026-08-21)
+`main` sat red from `brain-calendar-card.spec.js` from #386 onward, so every PR opened against it
+inherited a red CI. **I misdiagnosed this twice, and the second time is the instructive one.**
+- The test is named "a long product name is not truncated", so I assumed the truncation assertion was
+  failing and fixed the CSS. I never read the assertion. The failure was the line BELOW it - the
+  row-stacking check - reporting a ~4.5px vertical OVERLAP between consecutive rows
+  (`expected >= 1393.4288, received 1389.9346`).
+- **The real cause: `motion.css` reveals panels with a small ROTATION, and
+  `getBoundingClientRect()` on a rotated element returns its AXIS-ALIGNED bounding box.** The AABB of
+  a rotated box is larger than the box, and the error grows with distance from the transform origin -
+  so far down a long list, stacked rows' boxes overlap and it reads exactly like "a row is beside
+  another instead of below it". Nothing was painting over anything. `reducedMotion:'reduce'` is
+  necessary but NOT sufficient: it only forces `transform:none` on `.vh-rv` and `.vh-kin .vh-w`.
+  **Wait for the ancestor transform to settle before measuring geometry** - the guard exists in
+  `ads-master-columns.spec.js` and now in `brain-calendar-card.spec.js`.
+- **Tells that should have redirected me sooner:** the numbers were byte-identical across three
+  different viewports (so not a width story) and byte-identical before and after a CSS change that
+  alters row height (so not a layout story). On Chromium the rows are uniform 38px in a flex column
+  with `gap:4px`, where `row[i].top - row[i-1].bottom` is ALWAYS +4 - a negative value is structurally
+  impossible for uniform siblings, which should have said "the measurement is wrong", not "the layout
+  is wrong".
+- **A green fix inside a DRAFT pull request is invisible.** #387 contained the correct diagnosis and
+  fix, fully green and mergeable, while `main` stayed red for days and every new PR inherited it.
+  Nothing surfaces a draft: the merge API refuses with `405 Pull Request is still a draft`, and the PR
+  listing reported `mergeable: true, mergeable_state: clean` because neither field mentions draft
+  state. When CI is red on `main`, check the open PRs for a fix before writing one.
+- The truncation defect was REAL and is fixed in the same pass (`white-space:normal;
+  overflow-wrap:anywhere` - wrapped text cannot exceed its box on any engine, and `anywhere` covers a
+  single unbroken token). It simply was never the reason CI was red. Two added tests fail on Chromium
+  against the old CSS, so that defect is now reproducible on the engine you have.
+- **`tail` on a Playwright run hides the summary line**; grep for `^  [0-9]+ (passed|failed)`. A local
+  `--project=iphone-se` run was read as a Chromium reproduction when it was 236
+  `browserType.launch: Executable doesn't exist` errors. WebKit cannot be installed here at all
+  (`playwright install webkit` -> the download host is not in the proxy allowlist), and the CI artifact
+  that would have shown the assertion is served from `productionresultssa5.blob.core.windows.net`,
+  which the proxy also denies. **When you cannot fetch the artifact, put the evidence in the log**: the
+  assertion now prints a full row-geometry table on failure.
 
 ### A seed gives INDEPENDENCE, which is not variety (2026-08-21)
 "Ensure a unique and appropriate design in every asset every time." Measured over a real 90-day x
