@@ -458,6 +458,35 @@ one asset out of nine.
   and the banned regex lived in three files. The spec test mutates `asset-specs` and re-requires, so a
   re-typed constant fails rather than passing on a coincidence.
 
+### A test that only says "it fitted here" cannot be reproduced anywhere else (2026-08-21)
+`main` sat red from `brain-calendar-card.spec.js:123` ("a long product name is not truncated") from #386
+onward, so every PR opened against it inherited a red CI. The `/brain` day-card headline was
+`white-space:nowrap; overflow:hidden; text-overflow:ellipsis`, which truncates whenever the product
+name measures wider than its column. In CI it clipped on the three WebKit projects and fitted on every
+Chromium one.
+- **The assertion was `scrollWidth > clientWidth`, which only reports whether the text HAPPENED to fit
+  in whichever browser ran it.** That is why it survived: this sandbox cannot launch WebKit
+  (`playwright install webkit` is blocked by proxy policy - the download host is not in the allowlist),
+  so the defect was literally unreproducible locally.
+- **Two wrong turns worth recording.** First diagnosis blamed WebKit font metrics and stopped there.
+  Then `--project=iphone-se` was run locally, showed failures, and those were read as a Chromium
+  reproduction - they were 236 `browserType.launch: Executable doesn't exist` errors, invisible because
+  the output was being read through `tail`. **`tail` on a Playwright run hides the summary line**; grep
+  for `^  [0-9]+ (passed|failed)` instead. This is the same trap the "local runs can pass without
+  running anything" note above already describes, hit from the opposite direction: a local FAIL that is
+  not a real failure.
+- The fix is structural, not tuned, because the failing engine could not be measured: `white-space:
+  normal; overflow-wrap:anywhere`. Wrapped text cannot exceed its box on ANY engine - line breaking is
+  CSS semantics, not a measurement that comes out favourably - and `anywhere` covers the one case
+  wrapping alone cannot, a single unbroken token longer than the column. Same lesson as the `.cw` block
+  in the ad tables.
+- **The real deliverable is that the defect is now reproducible on the engine you have.** Two added
+  tests FAIL on Chromium against the old CSS: a computed-style check (`white-space` is not `nowrap`,
+  `text-overflow` is not `ellipsis`) and a pathological-input stress test at a 320px viewport with a
+  190-char name and a 120-char unbroken token. Old CSS: 4 failures across both Chromium projects. New
+  CSS: 18 passed. A geometry assertion that depends on the text fitting should always be paired with
+  one that does not.
+
 ### A seed gives INDEPENDENCE, which is not variety (2026-08-21)
 "Ensure a unique and appropriate design in every asset every time." Measured over a real 90-day x
 2-market x 6-cohort calendar (1080 slots), it was neither. Every engine repeated its own design

@@ -189,6 +189,49 @@ test.describe('the /brain day card', () => {
       .toBeGreaterThan(0.35);
   });
 
+  // The assertion above only says the text HAPPENED to fit in the browser and
+  // viewport that ran it. That is why this sat red on main: it passed on every
+  // Chromium project and failed on all three WebKit ones, so it could not be
+  // reproduced by anyone whose machine cannot launch WebKit - which includes
+  // the sandbox this repo is usually developed in.
+  //
+  // These two tests pin the STRUCTURAL property instead, and both FAIL on
+  // Chromium against the old nowrap + text-overflow:ellipsis rule. That is the
+  // point: the defect is now reproducible on the engine you have, rather than
+  // only on the one CI has. Wrapped text cannot exceed its box because line
+  // breaking is CSS semantics, not a measurement that happens to come out
+  // favourably.
+  test('the headline is built to wrap, so no engine can truncate it', async ({ page }) => {
+    const css = await page.locator('.callist .cday .ct').first().evaluate((el) => {
+      const c = getComputedStyle(el);
+      return { whiteSpace: c.whiteSpace, overflowWrap: c.overflowWrap, textOverflow: c.textOverflow, overflow: c.overflow };
+    });
+    expect(css.whiteSpace, 'nowrap means the text truncates as soon as it is too wide').not.toBe('nowrap');
+    // A single unbroken token longer than the column is the one case wrapping
+    // alone cannot solve.
+    expect(['anywhere', 'break-word'], `overflow-wrap is ${css.overflowWrap}`).toContain(css.overflowWrap);
+    expect(css.textOverflow, 'text-overflow:ellipsis is the truncation this test forbids').not.toBe('ellipsis');
+  });
+
+  test('a pathological product name still does not overflow, at the narrowest width', async ({ page }) => {
+    // If a 200-char string and an unbroken 120-char token both fit at 320px -
+    // narrower than any project here - then a few percent of extra glyph width
+    // on another engine cannot make them overflow. That is what turns "it fits
+    // in this browser" into "it cannot overflow in any browser".
+    await page.setViewportSize({ width: 320, height: 900 });
+    const overflowing = await page.locator('.callist .cday .ct').evaluateAll((els) => {
+      const long = 'Turmeric Ashwagandha Herbal Tea with Cardamom and Black Pepper Single Estate Reserve Harvest Limited Batch Blend for the Morning Ritual, Second Flush, High Altitude Darjeeling Garden Selection';
+      const unbroken = 'A'.repeat(120);
+      const out = [];
+      els.forEach((e, i) => {
+        e.textContent = i % 2 ? long : unbroken;
+        if (e.scrollWidth > e.clientWidth + 1) out.push(e.textContent.slice(0, 30));
+      });
+      return out;
+    });
+    expect(overflowing, `text overflowed its box even with wrapping on: ${overflowing.join(' | ')}`).toEqual([]);
+  });
+
   test('a day opens the assets that were built for it', async ({ page }) => {
     // The panel used to list a campaign id, an image COUNT and a landing link,
     // and nothing else: no mailer, no ads, no way to look at anything. The
