@@ -476,6 +476,32 @@ upload step pointed at an empty path. Worse, the screenshot, video and trace for
 - **The general lesson: a warning in a CI log is not noise.** This one had been printing on every red
   run and described the exact reason the failures could not be diagnosed.
 
+### Black was still being painted as a section background, in seven places (2026-08-21)
+The spec's HARD design rule - never a black / `#171717` / dark-neutral SECTION background, use green -
+was being violated by the shipping product. A generated mailer opened with a black band across the top,
+reported twice from the live studio, and the black offer banner sat mid-email under "ENDS SOON".
+- Four Mailer Studio section renderers painted their section on `_ARCH_INK`: `_sec_annBarUrgent`,
+  `_sec_offerBannerBold`, `_sec_urgencyStrip`, `_sec_countdownBlock`. All four are green now.
+- **A naive swap trades a banned background for an unreadable one.** Gold on green measures **3.12:1**
+  - AA-large ONLY - and every one of those labels is 10-10.5px, so the gold had to become cream
+  (9.61:1) at the same time. The button's white-on-gold was already only 3.34:1 and became ink on gold
+  (5.36:1). Compute the ratio before choosing the replacement colour, not after.
+- **The countdown tiles were ALREADY green**, so greening their section would have made them vanish
+  into it rather than merely look off-brand. They are cream with green text now. When you change a
+  container's colour, check what was relying on contrasting against the old one.
+- The guard found three more the report never mentioned: a generated LANDING PAGE `footer` on
+  `var(--ink)` in `smart-brain-plan.js` (customer-facing, fixed) and two dark navbars in the studio's
+  own preview chrome (fixed - the operator looks at those too).
+- **Two `#000` wells are CORRECT and stay:** the backdrop behind a `<video>` in `landing-page.js` and
+  behind the video-ad iframe in `ad-creative.js`. Media does not fill its frame, and green letterbox
+  bars round a video read as a rendering fault. They carry a `letterbox-well` marker at the point of
+  use so the exemption is auditable; `tests/no-black-backgrounds.spec.js` asserts the marker only ever
+  sits on a well that actually contains a video, and that exactly two exist - otherwise the marker
+  becomes an escape hatch for smuggling a section background back in.
+- Ink remains legal as TEXT (it is one of the four brand colours). The guard matches on `background:`
+  only, and a separate test asserts ink is still used for text somewhere, so the suite cannot pass by
+  the colour having been deleted entirely.
+
 ### getBoundingClientRect on a ROTATED ancestor is not the element's box (2026-08-21)
 `main` sat red from `brain-calendar-card.spec.js` from #386 onward, so every PR opened against it
 inherited a red CI. **I misdiagnosed this twice, and the second time is the instructive one.**

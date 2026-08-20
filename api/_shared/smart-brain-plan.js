@@ -858,7 +858,7 @@ h1,h2,h3{font-family:var(--head);line-height:1.12;margin:0 0 14px}
 .guarantee{background:var(--cream-warm);text-align:center;border-radius:14px;padding:34px;margin:30px 0}
 .sticky{position:sticky;bottom:0;background:#fff;border-top:1px solid #e7ddc6;display:flex;gap:14px;align-items:center;justify-content:space-between;padding:12px 22px;box-shadow:0 -6px 24px rgba(0,0,0,.08)}
 .sticky .info{font-size:14px}.sticky .info b{display:block;font-family:var(--head);font-size:16px}
-footer{background:var(--ink);color:rgba(251,245,234,.6);text-align:center;padding:26px;font-size:12px}
+footer{background:var(--moss);color:rgba(251,245,234,.72);text-align:center;padding:26px;font-size:12px}
 @media(max-width:640px){.hero h1{font-size:30px}.sec h2{font-size:24px}.sticky .info .sub{display:none}}
 </style></head>
 <body>
