@@ -913,6 +913,27 @@ calendar copy prompt in `api/_shared/smart-brain-plan.js`. The proven page corpu
 `landing-pages/final/` (cortisol presell v1/v2/v3, agent-best, all-in-one agent), `landing-pages/usa-july/` and
 `landing-pages/ashwagandha-matrix/`, with per-slot generation prompts in `landing-pages/final/lp-cortisol-asset-prompts.md`.
 
+### Sign-in has ONE implementation, and a redirect must point at a real route (2026-08-21)
+The homepage's main "Sign in with Google" CTA hand-rolled its own `signInWithOAuth` with
+`redirectTo: location.origin + '/dashboard'`. **`/dashboard` is not a route** - `dashboard.html` is
+served at `/rfm`, and `cleanUrls` is false, so an extensionless `/dashboard` matches no rewrite.
+Google completed the sign-in and dropped the user on a 404. It failed a second, independent way too:
+`rememberReturnTo`'s own comment already records that Supabase bounces to the Site URL when the exact
+path is not in the redirect allow-list, and a path nobody uses is not in it.
+- **The footer button on the SAME page worked**, which is the whole tell: there were two
+  implementations of one thing and only the copy drifted. `auth.js` used `origin + pathname` in both
+  of its call sites; the homepage did not.
+- Fixed by consolidation, not by correcting the copy: `auth.js` now owns `signIn()` and exposes it as
+  `window.LifecycleAuth.signIn`. Both auth.js call sites and the homepage CTA route through it, so
+  exactly one `signInWithOAuth(` call exists in the app. Same reasoning as `gate-notice.js` and
+  `market-urls.js`: one module, never a copy per page.
+- `redirectTo` uses **`origin + pathname`, never a hand-picked path** - the user is standing on that
+  path, so it exists, and it is what the allow-list is built from.
+- `tests/homepage-signin.spec.js` pins it: one implementation repo-wide, the CTA delegates, a general
+  guard that any hard-coded `redirectTo` path resolves to a real route in `vercel.json`, a premise
+  check that `/dashboard` is still not a route, and a behavioural click test. Verified with teeth - 4
+  of the 7 fail when the old CTA is restored.
+
 ## LHS navigation IA rule
 The shared LHS menu (`auth.js`, element `#lifecycle-nav`; model exposed as `window.__LC_NAV` / `window.__LC_NAV_INFO`) follows a standing IA rule:
 - **Every feature carries the SAME five "know about this feature" questions, in this exact order:** 1. What does it do? · 2. Who is it for? (cohort / cohort definition) · 3. How does it work? (modes/steps/logic) · 4. Input · 5. Step-by-Step Working. Because they are identical in shape for every feature, they do NOT live inline in the rail — a quiet `?` chip beside each feature/group label opens a popup that presents all five as headings with their content. The rail itself shows only the real feature links and their group sub-sections.

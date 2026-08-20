@@ -335,12 +335,17 @@
         btn.hidden = signedIn;
       }
       btn.addEventListener('click', async function () {
-        var c = window.LifecycleAuth && window.LifecycleAuth.client;
-        if (!c) { return; }
+        // Delegate to auth.js. This button used to call signInWithOAuth itself
+        // with redirectTo '/dashboard' - a path that is not a route (the RFM
+        // dashboard is served at /rfm) and is not in the Supabase redirect
+        // allow-list, so a successful Google sign-in landed on a 404 while the
+        // footer button on this same page worked. One implementation, no copies.
+        if (!(window.LifecycleAuth && window.LifecycleAuth.signIn)) return;
+        var original = btn.textContent;
         try {
           btn.disabled = true; btn.textContent = 'Redirecting to Google…';
-          await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + '/dashboard' } });
-        } catch (e) { btn.disabled = false; btn.textContent = 'Sign in with Google'; }
+          await window.LifecycleAuth.signIn();
+        } catch (e) { btn.disabled = false; btn.textContent = original; }
       });
       var n = 0, iv = setInterval(function () { sync(); if (++n > 25) clearInterval(iv); }, 400);
       sync();
