@@ -6295,7 +6295,7 @@ function renderStep5UnifiedPanel(){
         '</div>'+
         // VARIANT B
         '<div style="display:flex;flex-direction:column;background:#FBF5EA;border-radius:10px;border:1.5px solid #ede5d8;overflow:hidden">'+
-          '<div style="background:linear-gradient(180deg,#171717,#2a2a2a);color:#FBF5EA;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+          '<div style="background:linear-gradient(180deg,#004A2B,#00351f);color:#FBF5EA;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
             '<span style="font-family:Lao MN,Georgia,serif;font-size:13px;font-weight:700;letter-spacing:0.06em">V2</span>'+
             '<span style="font-size:9.5px;color:#AB8743;font-weight:700;letter-spacing:0.16em;text-transform:uppercase">Text + Visual</span>'+
             '<span style="flex:1"></span>'+
@@ -6342,7 +6342,7 @@ function _wrapPreviewWithNav(mailerHtml, mkt, variant){
   var safeHtml = String(mailerHtml||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   return '<!DOCTYPE html><html><head><title>VAHDAM® '+variantLabel+' — '+(mktNames[mkt]||mkt)+'</title>'+
     '<style>body{margin:0;padding:0;background:#f0ebe0;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;display:flex;flex-direction:column;height:100vh}'+
-    '.navbar{background:#171717;color:#FBF5EA;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}'+
+    '.navbar{background:#004A2B;color:#FBF5EA;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}'+
     '.navbar button{background:transparent;color:#FBF5EA;border:1px solid rgba(251,245,234,0.25);padding:6px 12px;border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.04em}'+
     '.navbar button:hover{background:rgba(251,245,234,0.08);border-color:#AB8743}'+
     '.navbar .ctx{display:flex;align-items:center;gap:8px;margin-left:auto;background:rgba(171,135,67,0.15);border:1px solid rgba(171,135,67,0.5);border-radius:6px;padding:5px 10px}'+
@@ -6717,7 +6717,7 @@ function previewBothSideBySide(){
   var mktBase={US:'vahdamteas.com',UK:'www.vahdam.co.uk',IN:'vahdamindia.com',EU:'www.vahdam.global',AU:'www.vahdam.global',ME:'vahdamteas.com',Global:'vahdamteas.com'};
   var pageHtml='<!DOCTYPE html><html><head><title>VAHDAM® A vs B — '+mt+'</title><style>'+
     'body{margin:0;padding:0;background:#004A2B;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;display:flex;flex-direction:column;height:100vh}'+
-    '.navbar{background:#171717;color:#FBF5EA;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}'+
+    '.navbar{background:#004A2B;color:#FBF5EA;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}'+
     '.navbar button{background:transparent;color:#FBF5EA;border:1px solid rgba(251,245,234,0.25);padding:6px 12px;border-radius:6px;cursor:pointer;font-family:Proxima Nova,Helvetica Neue,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.04em;display:inline-flex;align-items:center;gap:5px}'+
     '.navbar button:hover{background:rgba(251,245,234,0.08);border-color:#AB8743}'+
     '.navbar .nav-title{font-family:Lao MN,Georgia,serif;font-size:12px;color:#FBF5EA;letter-spacing:0.08em;margin-left:auto}'+
@@ -7048,7 +7048,12 @@ function _sec_annBar(s,c){
   return '<tr><td style="background:'+_ARCH_GREEN+';padding:10px 22px;text-align:center"><p style="font-family:'+_ARCH_FB+';font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:'+_ARCH_CREAM+';margin:0;font-weight:600">'+bar+blendBadges+' &middot; <span style="color:'+_ARCH_GOLD+'">PRICED IN '+hint+'</span></p></td></tr>';
 }
 function _sec_annBarUrgent(s,c){
-  return '<tr><td style="background:'+_ARCH_INK+';padding:11px 22px;text-align:center"><p style="font-family:'+_ARCH_FB+';font-size:10.5px;letter-spacing:0.24em;text-transform:uppercase;color:'+_ARCH_GOLD+';margin:0;font-weight:800">&#9889; '+(s.annBar||'LIMITED OFFER')+' &#9889;</p></td></tr>';
+  // Green, never ink. The brand spec forbids a black / #171717 / dark-neutral
+  // SECTION background outright, and this bar is the first thing in the mail.
+  // The label also moves gold -> cream: gold on green measures 3.12:1, which is
+  // AA-large only and this is 10.5px, so keeping gold would have swapped a
+  // banned background for a contrast failure.
+  return '<tr><td style="background:'+_ARCH_GREEN+';padding:11px 22px;text-align:center"><p style="font-family:'+_ARCH_FB+';font-size:10.5px;letter-spacing:0.24em;text-transform:uppercase;color:'+_ARCH_CREAM+';margin:0;font-weight:800">&#9889; '+(s.annBar||'LIMITED OFFER')+' &#9889;</p></td></tr>';
 }
 function _sec_logo(s,c){
   var base=c.base, sub=c.subline||'PREMIUM INDIAN TEAS · DIRECT FROM SOURCE';
@@ -7256,11 +7261,13 @@ function _sec_offerBanner(s,c){
 }
 function _sec_offerBannerBold(s,c){
   var ot=s.offer.text||'LIMITED OFFER', oc=s.offer.code, oct=s.offer.cta||s.cta;
-  return '<tr><td style="background:'+_ARCH_INK+';padding:26px 28px;text-align:center">'+
-    '<p style="font-family:'+_ARCH_FB+';font-size:10px;font-weight:800;letter-spacing:0.32em;color:'+_ARCH_GOLD+';margin:0 0 10px;text-transform:uppercase">&#9889; ENDS SOON &#9889;</p>'+
+  return '<tr><td style="background:'+_ARCH_GREEN+';padding:26px 28px;text-align:center">'+
+    '<p style="font-family:'+_ARCH_FB+';font-size:10px;font-weight:800;letter-spacing:0.32em;color:'+_ARCH_CREAM+';margin:0 0 10px;text-transform:uppercase">&#9889; ENDS SOON &#9889;</p>'+
     '<p style="font-family:'+_ARCH_FH+';font-size:32px;font-weight:bold;color:'+_ARCH_CREAM+';margin:0 0 12px;line-height:1.1">'+ot+'</p>'+
     (oc?'<p style="font-family:'+_ARCH_FH+';font-size:18px;font-weight:bold;color:'+_ARCH_INK+';margin:0 0 14px;letter-spacing:0.2em;background:'+_ARCH_GOLD+';display:inline-block;padding:6px 20px;border-radius:3px">'+oc+'</p><br>':'')+
-    _arch_btn(c.collUrl,oct,_ARCH_GOLD,'#ffffff')+
+    // Ink on gold is 5.36:1; white on gold was 3.34:1, which does not reach AA
+    // at button text size. The pill above already proves the ink/gold pairing.
+    _arch_btn(c.collUrl,oct,_ARCH_GOLD,_ARCH_INK)+
   '</td></tr>';
 }
 function _sec_softCta(s,c){
@@ -7279,7 +7286,7 @@ function _sec_trustBar(s,c){
   return '<tr><td style="background:'+_ARCH_GREEN+';padding:11px 20px;text-align:center"><p style="font-family:'+_ARCH_FB+';font-size:10px;color:'+_ARCH_CREAM+';margin:0;letter-spacing:0.06em"><span style="color:'+_ARCH_GOLD+'">&#9733;&#9733;&#9733;&#9733;&#9733;</span> &nbsp;'+mktIntel.social+' &middot; 100% Natural &middot; '+mktIntel.shippingNote+'</p></td></tr>';
 }
 function _sec_urgencyStrip(s,c){
-  return '<tr><td style="background:'+_ARCH_INK+';padding:12px 20px;text-align:center"><p style="font-family:'+_ARCH_FB+';font-size:10.5px;color:'+_ARCH_GOLD+';margin:0;letter-spacing:0.18em;text-transform:uppercase;font-weight:800">&#9889; This week only &middot; Free shipping above order minimum &middot; Trusted by 50,000+</p></td></tr>';
+  return '<tr><td style="background:'+_ARCH_GREEN+';padding:12px 20px;text-align:center"><p style="font-family:'+_ARCH_FB+';font-size:10.5px;color:'+_ARCH_CREAM+';margin:0;letter-spacing:0.18em;text-transform:uppercase;font-weight:800">&#9889; This week only &middot; Free shipping above order minimum &middot; Trusted by 50,000+</p></td></tr>';
 }
 function _sec_urgencyQuote(s,c){
   return '<tr><td style="background:'+_ARCH_PAPER+';padding:18px 32px;text-align:center;border-left:1px solid '+_ARCH_BORDER+';border-right:1px solid '+_ARCH_BORDER+'"><p style="font-family:'+_ARCH_FH+';font-size:16px;color:'+_ARCH_GREEN+';margin:0;font-style:italic;line-height:1.4">"The ones we love most always sell out first."</p></td></tr>';
@@ -7394,9 +7401,12 @@ function _sec_trendCards(s,c){
   return '<tr><td style="background:'+_ARCH_PAPER+';padding:20px 14px 14px;border-left:1px solid '+_ARCH_BORDER+';border-right:1px solid '+_ARCH_BORDER+'"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr>'+cells+'</tr></table></td></tr>';
 }
 function _sec_countdownBlock(s,c){
-  return '<tr><td style="background:'+_ARCH_INK+';padding:28px 28px;text-align:center"><p style="font-family:'+_ARCH_FB+';font-size:10px;font-weight:800;letter-spacing:0.32em;color:'+_ARCH_GOLD+';margin:0 0 12px;text-transform:uppercase">Limited drop ends in</p>'+
+  // The section is green now, so the tiles cannot also be green - they would
+  // vanish into their own background. Cream tile, green text (9.61:1), gold
+  // border to keep the brand accent.
+  return '<tr><td style="background:'+_ARCH_GREEN+';padding:28px 28px;text-align:center"><p style="font-family:'+_ARCH_FB+';font-size:10px;font-weight:800;letter-spacing:0.32em;color:'+_ARCH_CREAM+';margin:0 0 12px;text-transform:uppercase">Limited drop ends in</p>'+
     '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;border-collapse:collapse"><tr>'+
-      ['48 HRS','LIMITED STOCK','SHIPS NOW'].map(function(t,i){return '<td style="padding:10px 18px;background:'+_ARCH_GREEN+';border:1px solid '+_ARCH_GOLD+';margin:0 4px"><p style="font-family:'+_ARCH_FH+';font-size:18px;font-weight:bold;color:'+_ARCH_CREAM+';margin:0;letter-spacing:0.08em">'+t+'</p></td>'+(i<2?'<td width="6"></td>':'');}).join('')+
+      ['48 HRS','LIMITED STOCK','SHIPS NOW'].map(function(t,i){return '<td style="padding:10px 18px;background:'+_ARCH_CREAM+';border:1px solid '+_ARCH_GOLD+';margin:0 4px"><p style="font-family:'+_ARCH_FH+';font-size:18px;font-weight:bold;color:'+_ARCH_GREEN+';margin:0;letter-spacing:0.08em">'+t+'</p></td>'+(i<2?'<td width="6"></td>':'');}).join('')+
     '</tr></table>'+
     '<p style="font-family:'+_ARCH_FH+';font-size:24px;color:'+_ARCH_CREAM+';margin:14px 0 0;line-height:1.15">'+s.headline[0]+'</p>'+
   '</td></tr>';

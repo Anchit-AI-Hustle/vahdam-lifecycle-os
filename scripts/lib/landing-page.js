@@ -212,7 +212,7 @@ function renderLandingPage(o = {}) {
   // Muted + inline + loop so it autoplays on mobile without a sound surprise.
   const video = o.videoUrl ? `
     <section style="background:${PAL.cream};padding:32px 22px 8px;">
-      <div style="max-width:520px;margin:0 auto;border-radius:16px;overflow:hidden;border:1px solid ${PAL.gold}33;background:#000;">
+      <div style="max-width:520px;margin:0 auto;border-radius:16px;overflow:hidden;border:1px solid ${PAL.gold}33;background:#000;/* letterbox-well: black is correct BEHIND video, not a section background */">
         <video src="${esc(o.videoUrl)}"${o.videoPoster ? ` poster="${esc(o.videoPoster)}"` : ''} muted playsinline autoplay loop controls preload="metadata" style="display:block;width:100%;height:auto;"></video>
       </div>
       ${o.videoCaption ? `<div style="text-align:center;font-family:${BF};font-size:13px;color:#7a6e5a;margin-top:10px;">${esc(o.videoCaption)}</div>` : ''}

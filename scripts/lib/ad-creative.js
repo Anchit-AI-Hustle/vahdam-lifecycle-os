@@ -146,7 +146,7 @@ function renderAds(o = {}) {
   const videoBrief = motionBrief(vSpec);
   // Inline the animated unit via srcdoc so the preview page shows the real
   // creative playing, not a description of it.
-  const videoPreview = `<div style="width:250px;aspect-ratio:9/16;border-radius:12px;overflow:hidden;border:1px solid ${PAL.gold}33;background:#000;">
+  const videoPreview = `<div style="width:250px;aspect-ratio:9/16;border-radius:12px;overflow:hidden;border:1px solid ${PAL.gold}33;background:#000;/* letterbox-well: black is correct BEHIND video, not a section background */">
     <iframe title="Video ad preview" srcdoc="${esc(videoHtml)}" style="width:250px;height:444px;border:0;display:block;" sandbox="allow-scripts"></iframe></div>`;
 
   const copyBlock = `<pre style="white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#fff;border:1px solid ${PAL.gold}33;border-radius:10px;padding:16px;color:${PAL.ink};overflow:auto;">${esc(JSON.stringify(c, null, 2))}</pre>`;
