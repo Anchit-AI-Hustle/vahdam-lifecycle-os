@@ -84,7 +84,6 @@ test('back-to-back repeats are well below what chance would give', () => {
   // under that, and the two engines that pinned one archetype were at 100%/73%.
   const rows = [];
   for (const t of TYPES) {
-    const e = AE.engineFor(t);
     const n = new Set(sequence(t, COHORTS[0], 'US')).size;
     if (n < 2) continue;               // one real shape cannot rotate
     const { rate } = repeatStats(t);
