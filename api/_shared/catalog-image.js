@@ -28,11 +28,36 @@ function sourceFor(market) {
 // Find the REAL catalog row for a handle string or entry/heroProduct-ish object.
 // Never fabricates — returns a catalog row or null. Matching (handle → sku →
 // exact title → contains → distinctive token, rarest first) lives in
-// catalog-live.findProduct so the image path and the copy path can never
-// disagree about which product a slot meant.
-function match(entryOrHandle, market) {
+// catalog-live.findProduct, so the image path and the copy path run the same
+// matcher. Sharing a matcher is NOT the same as sharing a threshold, which is
+// what the previous version of this comment claimed and what the code below
+// got wrong:
+//
+// STRICT BY DEFAULT. findProduct's last rungs (title-contains with several
+// candidates, then a distinctive-token scan) return a product with
+// confidence:'weak' and often ambiguous:true. Returning m.product and dropping
+// those flags is how the image path and the copy path came to disagree about
+// which product a slot meant, despite the comment above promising they could
+// not: verifySelection REFUSES a weak hit ("match too weak to price"), while
+// this returned it silently. Measured on the US catalog:
+//
+//   findProduct('Earl Grey Citrus Black Tea')
+//     -> Chamomile Mint Citrus Green Tea   (token:citrus, weak, ambiguous)
+//
+// so a mailer for Earl Grey rendered a chamomile green tea's photograph, and
+// handleFor() built a PDP link to that other product — a customer clicking
+// through for one tea would land on another. A wrong photo or a wrong link is
+// a fabricated product claim, and the more visible half of one. No image is
+// the correct answer here; the templates already render image-free rather than
+// invent a URL.
+//
+// strict:false is available for a caller that genuinely wants a best-effort
+// row (a search suggestion, say) and will not put it in front of a customer.
+function match(entryOrHandle, market, { strict = true } = {}) {
   const m = catalog.findProduct(entryOrHandle, market);
-  return m.product || null;
+  if (!m.product) return null;
+  if (strict && m.confidence === 'weak') return null;
+  return m.product;
 }
 
 /** Like match(), but keeps HOW the row was found so a caller can refuse a weak hit. */
@@ -53,8 +78,8 @@ function hd(url, width = 1200) {
 
 // Accepts a handle string, or an entry/heroProduct-ish object. Returns an https
 // image URL or null (never a data: URI). Pass a width to get an HD-boosted URL.
-function imageFor(entryOrHandle, market, { width = 0 } = {}) {
-  const p = match(entryOrHandle, market);
+function imageFor(entryOrHandle, market, { width = 0, strict = true } = {}) {
+  const p = match(entryOrHandle, market, { strict });
   const url = p && p.i;
   if (!(typeof url === 'string' && /^https?:\/\//.test(url))) return null;
   return width ? hd(url, width) : url;
@@ -64,8 +89,8 @@ function imageFor(entryOrHandle, market, { width = 0 } = {}) {
 // (PDP gallery) order, de-duplicated and HD-boosted. Lets a caller pull DISTINCT
 // real photos of the same product across mailer / ad / landing sections instead
 // of repeating one shot. Never fabricates — returns [] when nothing matches.
-function imagesFor(entryOrHandle, market, { width = 1200 } = {}) {
-  const p = match(entryOrHandle, market);
+function imagesFor(entryOrHandle, market, { width = 1200, strict = true } = {}) {
+  const p = match(entryOrHandle, market, { strict });
   if (!p) return [];
   const list = Array.isArray(p.imgs) && p.imgs.length ? p.imgs : (p.i ? [p.i] : []);
   const seen = new Set();
@@ -81,8 +106,8 @@ function imagesFor(entryOrHandle, market, { width = 1200 } = {}) {
 
 // Resolve a REAL product handle from the catalog (for building a PDP URL).
 // Returns the catalog handle string or null — NEVER a fabricated handle.
-function handleFor(entryOrHandle, market) {
-  const p = match(entryOrHandle, market);
+function handleFor(entryOrHandle, market, { strict = true } = {}) {
+  const p = match(entryOrHandle, market, { strict });
   return (p && (p.h || p.handle)) || null;
 }
 

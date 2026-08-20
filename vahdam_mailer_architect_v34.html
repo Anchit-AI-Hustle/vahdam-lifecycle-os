@@ -2599,7 +2599,21 @@ async function createPromptWithAI(){
     });
     if(!res.ok){
       var errBody=await res.json().catch(function(){return {};});
-      var err=new Error((errBody.error||'server_error')+(errBody.detail?': '+errBody.detail.substring(0,120):''));
+      // The catalog gate DECLINES with a full explanation and no `error` field:
+      //   409 {blocked:true, reason:'live_catalog_required',
+      //        message:'Live catalog unavailable for US ... set LIVE_CONNECTORS=on'}
+      // Reading only errBody.error/errBody.detail found neither, fell through to
+      // the literal string 'server_error', and appended nothing — so the studio
+      // reported a server crash while the server was calmly saying which env var
+      // to set. GateNotice already exists for exactly this (it is loaded on this
+      // page and was simply never called); it checks `blocked` BEFORE it looks at
+      // the HTTP status, so a 409 block reads as a verdict and only a genuine
+      // transport failure asks whether the API is reachable.
+      var msg = window.GateNotice
+        ? window.GateNotice.explain(errBody, res).text
+        : (errBody.message||errBody.blocker||errBody.error||'server_error')+(errBody.detail?': '+errBody.detail.substring(0,120):'');
+      var err=new Error(msg);
+      err._blocked=!!errBody.blocked;
       err._status=res.status;err._retryAfter=errBody.retry_after||30;err._rateLimited=errBody.rate_limited||res.status===429;
       throw err;
     }
@@ -2650,8 +2664,13 @@ async function createPromptWithAI(){
     _clearBriefTimers();_bpDone(false);
     console.warn('[createPromptWithAI] error:',e);
     var errLabel=String(e&&e.message||e).substring(0,250);
-    if(typeof statusPill==='function')statusPill('err','Brief creation failed — using heuristic',errLabel);
-    else showCopyToast('Brief creation failed — using heuristic');
+    // A gate BLOCK is not a failure: the API worked and declined, and the reason
+    // names the fix. Calling it "failed" sends the reader to debug a healthy
+    // deployment, which is the same wrong turn the bare "server_error" caused.
+    var blocked=!!(e&&e._blocked);
+    var head=blocked?'Brief blocked — using heuristic':'Brief creation failed — using heuristic';
+    if(typeof statusPill==='function')statusPill('err',head,errLabel);
+    else showCopyToast(head+': '+errLabel);
     // Fall back to heuristic enhance
     if(ta&&ta.value.trim()) try{enhancePrompt();}catch(_){}
   }finally{

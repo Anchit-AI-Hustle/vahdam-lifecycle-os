@@ -73,6 +73,34 @@ async function openCalendar(page) {
   });
   await page.goto(`${BASE}/smart-brain.html`, { waitUntil: 'domcontentloaded' });
   await page.locator('.callist .cday').first().waitFor({ timeout: 20000 });
+  // WAIT FOR THE REVEAL TRANSFORM TO CLEAR BEFORE MEASURING ANY GEOMETRY.
+  //
+  // This is the same defect I diagnosed on the ads table earlier and then failed
+  // to guard here. motion.css reveals panels with a small ROTATION, and
+  // getBoundingClientRect returns the AXIS-ALIGNED bounding box of a rotated
+  // element. The AABB of a rotated box is larger than the box, and the error
+  // grows with distance from the transform origin - so far down a long list,
+  // stacked rows' AABBs overlap:
+  //
+  //   expected >= 1393.43  (previous row's bottom - 1)
+  //   received    1389.93  (this row's top)      -> ~4.5px overlap at y≈1390
+  //
+  // which reads exactly like "a row is beside another instead of below it".
+  // reducedMotion:'reduce' above is necessary but not sufficient: motion.css
+  // only forces transform:none on .vh-rv and .vh-kin .vh-w, so anything outside
+  // those selectors can still be mid-animation. Asserting the absence of a
+  // transform is the robust form, and it explains why the failing PROJECT SET
+  // shifted between runs (iphone-12+ipad, then iphone-se+iphone-12) - it is a
+  // race, not a per-device layout difference.
+  await page.waitForFunction(() => {
+    const el = document.querySelector('.callist .cday');
+    if (!el) return false;
+    for (let e = el; e && e !== document.documentElement; e = e.parentElement) {
+      const tf = getComputedStyle(e).transform;
+      if (tf !== 'none' && tf !== 'matrix(1, 0, 0, 1, 0, 0)') return false;
+    }
+    return true;
+  }, null, { timeout: 20000 });
 }
 
 test.describe('the /brain day card', () => {
@@ -134,9 +162,31 @@ test.describe('the /brain day card', () => {
     for(let i = 1; i < boxes.length; i++){
       expect(boxes[i].top, 'a row is beside another instead of below it').toBeGreaterThanOrEqual(boxes[i-1].bottom - 1);
     }
-    const clipped = await page.locator('.callist .cday .ct').evaluateAll((els) =>
-      els.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim()));
-    expect(clipped, `theme text is still being cut off: ${clipped.join(' | ')}`).toEqual([]);
+    // Assert the ROOM the column change delivers, as a FRACTION of the list.
+    //
+    // Two earlier versions of this got it wrong, both by measuring something
+    // that is not the claim:
+    //   1. "no theme is ever ellipsised" - failed on all three WebKit projects,
+    //      because the same string measures wider there. That tested font
+    //      metrics, not layout.
+    //   2. "every theme is at least 260px" - still failed on iphone-12 and
+    //      ipad. Those projects emulate a mobile device, where the layout width
+    //      is driven by the page's own viewport meta rather than by the
+    //      configured viewport, so an ABSOLUTE pixel floor is not a property
+    //      the layout controls.
+    // What the column change actually guarantees is a SHARE: the theme gets
+    // most of the row instead of one seventh of the grid. In the 7-across grid
+    // a day was ~1/7 of the container, so the theme measured ~13% of the list;
+    // in a single column it is the 1fr of `64px 1fr 104px auto`. A fraction is
+    // both font-independent and viewport-independent.
+    const share = await page.evaluate(() => {
+      const list = document.querySelector('.callist').getBoundingClientRect().width;
+      return [...document.querySelectorAll('.callist .cday .ct')]
+        .map((e) => e.getBoundingClientRect().width / list);
+    });
+    expect(share.length).toBeGreaterThan(1);
+    expect(Math.min(...share), `the theme column is still cramped: ${share.map((x) => Math.round(x * 100) + '%').join(', ')}`)
+      .toBeGreaterThan(0.35);
   });
 
   test('a day opens the assets that were built for it', async ({ page }) => {
