@@ -458,6 +458,43 @@ one asset out of nine.
   and the banned regex lived in three files. The spec test mutates `asset-specs` and re-requires, so a
   re-typed constant fails rather than passing on a coincidence.
 
+### A seed gives INDEPENDENCE, which is not variety (2026-08-21)
+"Ensure a unique and appropriate design in every asset every time." Measured over a real 90-day x
+2-market x 6-cohort calendar (1080 slots), it was neither. Every engine repeated its own design
+back-to-back at exactly the rate chance predicts (~25% on a 4-item list, 60-100 three-in-a-rows), and
+two were far worse because they resolved intent to a SINGLE archetype - a cohort's objective does not
+change from one send to the next, so **the mailer repeated 100% of the time** (Loyalists got
+editorial-lookbook forever, 1056 three-in-a-rows) and **the landing page 73%**. Every individual
+choice looked perfectly reasonable; the defect was purely statistical, which is why only measurement
+found it.
+- A calendar does not want independence, it wants each send to differ from that cohort's LAST send.
+  `rotate()` walks a seeded permutation by the slot's **date ordinal**, so consecutive sends cannot
+  collide. Result: every asset type now under chance, **zero three-in-a-rows anywhere**.
+- **Determinism is preserved and is load-bearing** - a re-run that changed an approved asset would
+  mean the reviewer approved something that no longer exists. Variety is never bought with randomness.
+- **Per-cycle re-permutation is not optional.** A cadence that divides the list size (a weekly send
+  against a 7-item list) lands on the same permutation index forever; the rotation is then invisible
+  while still looking correct in the source. Re-permuting each cycle breaks the aliasing, and the spec
+  drives cadences 2/3/4/5/7/14 to prove no cadence collapses to one shape.
+- **A slot discriminator is needed too**: two slots for the same cohort+market on the same DAY (an A/B
+  pair, two products) share an ordinal and would be designed identically. It has to be stable ALONG
+  the sequence or every date gets its own permutation and the walk dies, so it is the slot id minus
+  its date (`cal_2026-09-01_US_loyalists` -> `cal__US_loyalists`).
+- **Unique is not the only requirement; appropriate is the other, and over-rotating broke it.** The
+  first fix rotated a gifting page onto `presell-narrative` - a shape whose whole job is convincing
+  COLD traffic a problem exists, when a gift buyer has already decided to buy a present. The existing
+  test caught it. Intent therefore now drives **two different things**: `audience` is a COPY DIRECTIVE
+  that applies to every page for that intent whatever shape it takes (a gift buyer is not the drinker,
+  true of a picks list and a comparison alike), and `suitable` is the set of section ORDERS that
+  genuinely serve it. Rotation happens only inside `suitable`, so variety never costs message match.
+  Attaching that requirement to one archetype's `fit` string is what let rotation silently drop it.
+- Where an intent genuinely has one right shape, repeating is CORRECT, not a bug. The playable was the
+  one asset with no variety at all; it now has two shapes because the renderer genuinely builds two
+  (`renderPlayable`, `renderPlayableVideo`). A third would have had to be invented, so there are two.
+- `tests/asset-design-variety.spec.js` measures the real engines over the real calendar rather than
+  reading source, since the defect was statistical. Verified with teeth: reverting to the seed turns 3
+  of its 11 red.
+
 ### A gate that blocks silently is indistinguishable from one that is broken (2026-08-19)
 The gates answer **HTTP 200** with `{ok:false, blocked:true, message, blocker, data_required,
 remediation}` — deliberately, because the API worked and declined. Every front end read only

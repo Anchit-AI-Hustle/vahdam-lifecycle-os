@@ -56,7 +56,14 @@ test('the copy prompt carries the cohort AND the per-asset contracts', () => {
   // Each asset's own limits, in the prompt the copywriter model actually reads.
   expect(p, 'Google cap missing from the prompt').toMatch(/30 chars EACH/);
   expect(p, 'organic text-free rule missing').toMatch(/TEXT-FREE|text-free/);
-  expect(p, 'landing archetype missing').toContain('Proof first');
+  // The archetype rotates within the intent's suitable set, so assert the page
+  // shape is one that SERVES a trust-blocked cohort, plus the audience
+  // directive that must hold whichever shape wins.
+  const lp = AE.ENGINES.landing_page.design(entry('Winback lapsed buyers', 'winback lapsed buyers'));
+  expect(AE.ENGINES.landing_page.intents.winback.suitable, `winback rotated onto ${lp.archetype}`)
+    .toContain(lp.archetype);
+  expect(p, 'landing archetype missing').toContain(lp.label);
+  expect(p, 'the winback audience directive never reached the prompt').toMatch(/Trust is the blocker/);
 });
 
 test('changing only the cohort changes the copy prompt', () => {
@@ -65,8 +72,11 @@ test('changing only the cohort changes the copy prompt', () => {
   const a = SB.copyPrompt(entry('Winback lapsed buyers', 'winback lapsed buyers'));
   const b = SB.copyPrompt(entry('New subscribers', 'activation for new subscribers'));
   expect(a).not.toBe(b);
-  expect(a).toContain('Proof first');       // trust is the blocker
-  expect(b).toContain('Ritual how-to');     // how it fits a morning
+  // Not a pinned archetype: the DIRECTIVE is what must differ by cohort, and it
+  // holds whatever shape the rotation picked.
+  expect(a, 'trust is the blocker for a lapsed reader').toMatch(/Trust is the blocker/);
+  expect(b, 'a new reader needs to know how it fits a morning').toMatch(/fits an actual morning/);
+  expect(a).not.toMatch(/fits an actual morning/);
 });
 
 test('the copy framework is chosen from the cohort, not at random', () => {
@@ -80,28 +90,68 @@ test('the copy framework is chosen from the cohort, not at random', () => {
 test('a trust-blocked cohort and a first-purchase cohort get different pages', () => {
   // This is the property that matters. Same day, same market, same product:
   // only the cohort and its objective differ, and the page shape must follow.
-  const winback = AE.ENGINES.landing_page.design(entry('winback', 'winback lapsed buyers'));
-  const activation = AE.ENGINES.landing_page.design(entry('new', 'activation for new subscribers'));
-  expect(winback.archetype).toBe('proof-first');
-  expect(activation.archetype).toBe('ritual-howto');
-  expect(winback.order).not.toEqual(activation.order);
-  // And each must be able to say why it chose that shape.
+  const LP = AE.ENGINES.landing_page;
+  const winback = LP.design(entry('winback', 'winback lapsed buyers'));
+  const activation = LP.design(entry('new', 'activation for new subscribers'));
+  expect(winback.intent).toBe('winback');
+  expect(activation.intent).toBe('activation');
+  // Each shape must come from ITS OWN intent's suitable set. presell-narrative
+  // is for cold traffic; a lapsed customer is not cold, so it must never be
+  // reachable here however the rotation lands.
+  expect(LP.intents.winback.suitable).toContain(winback.archetype);
+  expect(LP.intents.activation.suitable).toContain(activation.archetype);
+  expect(LP.intents.winback.suitable).not.toContain('presell-narrative');
+  // `comparison` genuinely serves BOTH a lapsed reader (lower the risk of
+  // re-trying) and a new one (help me choose), so on any given day the two can
+  // legitimately land on the same section order. What must never coincide is
+  // the DIRECTIVE - that is what makes the page a winback page rather than an
+  // activation page with the same skeleton.
+  expect(winback.audience).toMatch(/Trust is the blocker/);
+  expect(activation.audience).toMatch(/fits an actual morning/);
+  expect(winback.audience).not.toBe(activation.audience);
   expect(winback.why).toMatch(/intent/);
-  expect(activation.fit).toMatch(/new and activation/);
+  // And across a run of dates the shapes must not be identical every time, or
+  // the cohort really would be decorative.
+  let differed = 0;
+  for (let i = 0; i < 10; i++) {
+    const date = new Date(Date.UTC(2026, 8, 1 + i)).toISOString().slice(0, 10);
+    const w = LP.design({ ...entry('winback', 'winback lapsed buyers'), id: 'cal_' + date + '_US_winback', date });
+    const a = LP.design({ ...entry('new', 'activation for new subscribers'), id: 'cal_' + date + '_US_new', date });
+    if (JSON.stringify(w.order) !== JSON.stringify(a.order)) differed++;
+  }
+  expect(differed, 'the two cohorts got the same page shape on every date').toBeGreaterThan(4);
 });
 
 test('the gifting cohort gets the gifting page, where the reader is not the drinker', () => {
-  const gift = AE.ENGINES.landing_page.design(entry('gifting', 'diwali gifting push'));
-  expect(gift.archetype).toBe('gift-curation');
-  expect(gift.fit).toMatch(/not the drinker/);
+  // The requirement is the AUDIENCE, not one page shape. It used to live on the
+  // gift-curation archetype's `fit` string, so rotating the shape silently
+  // dropped it - the reason intent now drives a copy directive that applies to
+  // every gifting page whatever its section order.
+  const LP = AE.ENGINES.landing_page;
+  const dates = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06'];
+  const shapes = new Set();
+  for (const date of dates) {
+    const g = LP.design({ ...entry('gifting', 'diwali gifting push'), id: 'cal_' + date + '_US_gifting', date });
+    expect(g.intent).toBe('gifting');
+    expect(g.audience, `${date} lost the gift-buyer framing`).toMatch(/not the drinker/i);
+    expect(LP.intents.gifting.suitable, `gifting rotated onto ${g.archetype}`).toContain(g.archetype);
+    // A gift buyer has already decided to buy a present, so the cold-traffic
+    // presell shape is never appropriate here.
+    expect(g.archetype).not.toBe('presell-narrative');
+    shapes.add(g.archetype);
+  }
+  // And it must not be the same page every single time.
+  expect(shapes.size, 'every gifting send got an identical page shape').toBeGreaterThan(1);
+  // The directive must actually reach the prompt the model reads.
+  expect(LP.contract(entry('gifting', 'diwali gifting push'))).toMatch(/WHO IS READING[\s\S]*not the drinker/i);
 });
 
 test('the per-asset contracts differ once the cohort differs', () => {
   const a = AE.contractsFor(['landing_page'], entry('winback', 'winback lapsed buyers'))[0].contract;
   const b = AE.contractsFor(['landing_page'], entry('new', 'activation for new subscribers'))[0].contract;
   expect(a).not.toBe(b);
-  expect(a).toContain('Proof first');
-  expect(b).toContain('Ritual how-to');
+  expect(a).toMatch(/Trust is the blocker/);
+  expect(b).toMatch(/fits an actual morning/);
 });
 
 test('an unrecognised cohort still gets a real design, chosen by seed', () => {
@@ -109,7 +159,7 @@ test('an unrecognised cohort still gets a real design, chosen by seed', () => {
   // to one default shape for every unlabelled slot.
   const d = AE.ENGINES.landing_page.design(entry('segment-7', 'general retention'));
   expect(d.archetype).toBeTruthy();
-  expect(d.why).toMatch(/seed/);
+  expect(d.intent, 'an unlabelled cohort should match no intent').toBeNull();
   const shapes = new Set();
   for (let i = 0; i < 20; i++) shapes.add(AE.ENGINES.landing_page.design(entry('seg' + i, 'general retention')).archetype);
   expect(shapes.size, 'every unlabelled cohort landed on the same shape').toBeGreaterThan(1);
@@ -147,9 +197,13 @@ test('a renewal or newsletter cohort is not mistaken for a new customer', () => 
     ['newsletter', 'weekly newsletter'],
   ]) {
     const d = AE.ENGINES.landing_page.design(entry(cohort, objective));
-    expect(d.archetype, `${cohort} was read as a new-customer slot`).not.toBe('ritual-howto');
-    expect(d.why, `${cohort} should fall through to the seed`).toMatch(/seed/);
+    expect(d.intent, `${cohort} was read as a new-customer slot`).not.toBe('activation');
+    expect(d.intent, `${cohort} should match no intent at all`).toBeNull();
   }
-  // A genuine new-subscriber slot still matches.
-  expect(AE.ENGINES.landing_page.design(entry('new-subscribers', 'welcome new subscribers')).archetype).toBe('ritual-howto');
+  // A genuine new-subscriber slot still matches, and gets the activation
+  // directive whichever suitable shape the rotation lands on.
+  const real = AE.ENGINES.landing_page.design(entry('new-subscribers', 'welcome new subscribers'));
+  expect(real.intent).toBe('activation');
+  expect(AE.ENGINES.landing_page.intents.activation.suitable).toContain(real.archetype);
+  expect(real.audience).toMatch(/fits an actual morning/);
 });

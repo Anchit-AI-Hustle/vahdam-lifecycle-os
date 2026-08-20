@@ -84,28 +84,46 @@ function stableIndex(str, n) {
   return h % n;
 }
 
-// Pick the archetype key for a slot from its cohort / objective / product /
-// festival. Falls through cohort-intent rules; a couple of ties rotate on the
-// slot seed so back-to-back affinity sends do not all look identical.
-function archetypeKeyFor(slot = {}) {
+// Which archetypes SUIT a slot's intent, best fit first.
+//
+// This used to return a single key per intent, and that was the whole bug: a
+// cohort's objective does not change from one send to the next, so every mailer
+// to Loyalists resolved to editorial-lookbook and every winback to
+// ugc-testimonial - forever. Measured over a 90-day x 2-market x 6-cohort
+// calendar, the mailer repeated its design back-to-back 100% of the time, with
+// 1056 three-in-a-rows. Only the `affinity` branch ever rotated.
+//
+// Every member of a set is defensible for that intent (a lapsed reader can be
+// earned back by customer voice, by an honest comparison that lowers the risk of
+// re-trying, or by a personal founder note), so rotating inside the set buys
+// variety without making the design inappropriate. The caller rotates; this
+// function only says what is allowed.
+function archetypeSetFor(slot = {}) {
   const s = [slot.theme, slot.angle, slot.objective, slot.festival, slot.cohort_name,
     slot.cohort && (slot.cohort.name || slot.cohort.key), slot.cohort_id]
     .filter(Boolean).join(' ').toLowerCase();
-  const seed = slot.id || slot.date || s;
 
-  if (/gift|gifting|high.?aov/.test(s)) return 'gift-guide';
-  if (/winback|win.?back|lapsed|at.?risk|non.?engager|dormant|churn/.test(s)) return 'ugc-testimonial';
-  if (/new sub|first.?purchase|activation|non.?buyer|welcome|onboard/.test(s)) return 'ritual-tutorial';
-  if (/vip|champion|single.?estate|prestige|connoisseur|premium/.test(s)) return 'editorial-lookbook';
-  if (/post.?purchase|nurture|thank|loyal|repeat|subscribe|replenish/.test(s)) return 'founder-note';
-  if (/browse|discovery|sampler|variety|undecided|cross.?sell|cross.?category/.test(s)) return 'comparison-discovery';
-  // Affinity / general: rotate between spotlight, tutorial and lookbook so a run
-  // of affinity sends still varies.
-  if (/affinity|black|green|chai|wellness|herbal|iced|summer/.test(s)) {
-    const rot = ['hero-spotlight', 'ritual-tutorial', 'editorial-lookbook'];
-    return rot[stableIndex(seed, rot.length)];
-  }
-  return DEFAULT_KEY;
+  if (/gift|gifting|high.?aov/.test(s)) return ['gift-guide', 'editorial-lookbook', 'hero-spotlight'];
+  if (/winback|win.?back|lapsed|at.?risk|non.?engager|dormant|churn/.test(s)) return ['ugc-testimonial', 'comparison-discovery', 'founder-note'];
+  if (/new sub|first.?purchase|activation|non.?buyer|welcome|onboard/.test(s)) return ['ritual-tutorial', 'comparison-discovery', 'founder-note'];
+  if (/vip|champion|single.?estate|prestige|connoisseur|premium/.test(s)) return ['editorial-lookbook', 'hero-spotlight', 'founder-note'];
+  if (/post.?purchase|nurture|thank|loyal|repeat|subscribe|replenish/.test(s)) return ['founder-note', 'ritual-tutorial', 'editorial-lookbook'];
+  if (/browse|discovery|sampler|variety|undecided|cross.?sell|cross.?category/.test(s)) return ['comparison-discovery', 'ritual-tutorial', 'hero-spotlight'];
+  if (/affinity|black|green|chai|wellness|herbal|iced|summer/.test(s)) return ['hero-spotlight', 'ritual-tutorial', 'editorial-lookbook'];
+  return [DEFAULT_KEY, 'editorial-lookbook', 'ritual-tutorial'];
+}
+
+// The single key for a slot: its suitable set, rotated by where the slot sits in
+// its cohort's sequence. Rotation lives in asset-engines so there is one
+// rotation algorithm for every asset type, not a private copy here.
+function archetypeKeyFor(slot = {}) {
+  const set = archetypeSetFor(slot).filter((k) => ARCHETYPES[k]);
+  if (!set.length) return DEFAULT_KEY;
+  try {
+    const picked = require('./asset-engines.js').rotate(set, slot, 'mailer-archetype');
+    if (picked && ARCHETYPES[picked]) return picked;
+  } catch (_) { /* fall through to the stable, non-rotating choice */ }
+  return set[stableIndex(slot.id || slot.date || '', set.length)];
 }
 
 function strategyFor(slot = {}) {
@@ -114,4 +132,4 @@ function strategyFor(slot = {}) {
   return { key, ...a };
 }
 
-module.exports = { strategyFor, archetypeKeyFor, ARCHETYPES, DEFAULT_KEY };
+module.exports = { strategyFor, archetypeKeyFor, archetypeSetFor, ARCHETYPES, DEFAULT_KEY };
