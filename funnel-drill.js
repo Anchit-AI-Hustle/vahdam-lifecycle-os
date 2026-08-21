@@ -66,6 +66,21 @@
       join: function () { return null; },
       why: 'Nothing in the connected sources ties a Shopify sales channel to an ad platform — orders carry no platform stamp and ad rows carry no sales channel. The platform rows are therefore shown unnarrowed. The link-by-link ledger is where that join is actually made, once both sides are connected.',
     },
+    // The ad ACCOUNT. Deliberately not spliced into platform -> campaign: the
+    // analytics ads cut carries no account column, so making it a mandatory link
+    // would either break that chain or invent a narrowing the rows cannot support.
+    // It is an additional entry point, used by the surfaces that DO carry an
+    // account (the ads dashboard's account cards, whose ids come from the same
+    // registry as the account chips), and it narrows exactly there.
+    account: {
+      key: 'account', label: 'Ad account', noun: 'ad account', next: 'campaign',
+      id: function (r) { return r.account_name || r.account_id || r.account; },
+      join: function (r) {
+        var v = r.account_id || r.account || r.account_name;
+        return { field: 'account', value: v, match: 'equals',
+          note: 'Ad rows carry their account id, and op=hierarchy applies it in SQL, so campaigns narrow exactly.' };
+      },
+    },
     platform: {
       key: 'platform', label: 'Ad platform', noun: 'platform', next: 'campaign',
       id: function (r) { return r.platform; },

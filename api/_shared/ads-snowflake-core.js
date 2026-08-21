@@ -1017,6 +1017,9 @@ async function hierarchy({ platform = 'meta', level = 'campaign', campaign, adse
   const r = await runStatement(sql);
   return {
     ok: true, connected: true, platform, level: lvl,
+    // account is echoed alongside campaign/adset so a caller can VERIFY the
+    // scope it asked for was applied, rather than trusting that it was.
+    account: account || null,
     campaign: campaign || null, adset: adset || null,
     table: t, source: 'snowflake', columns: r.columns, rows: r.rows,
   };
