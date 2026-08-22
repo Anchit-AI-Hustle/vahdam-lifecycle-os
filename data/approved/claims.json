@@ -1,0 +1,13 @@
+{
+  "_README": "Approved claims library. A claim NOT in this file is unapproved and blocks the launch gate. Ships EMPTY on purpose: inventing an approved claim would be exactly the fabrication the spec forbids, and approval is a human act (brand/legal), not something a generator can grant.",
+  "_format": {
+    "text": "the exact approved wording",
+    "kind": "benefit | certification | rating | provenance | comparison",
+    "regions": ["US", "UK", "GLOBAL"],
+    "source": "where the approval is recorded",
+    "approved_by": "who approved it",
+    "approved_at": "YYYY-MM-DD",
+    "expires_at": "YYYY-MM-DD or null"
+  },
+  "claims": []
+}
