@@ -67,7 +67,11 @@ test.beforeAll(async () => {
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   origin = 'http://127.0.0.1:' + server.address().port;
 });
-test.afterAll(async () => { await new Promise((r) => server.close(r)); });
+// A describe/file-level test.skip() means Playwright never runs beforeAll -
+// but it DOES run afterAll. Without the guard, `server` is undefined here and
+// server.close() throws, which Playwright reports as a FAILED test. That is
+// what reddened every CI run on the three WebKit projects for this file.
+test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
 
 // One viewport is enough: this is behaviour, not layout, and the same assertions
 // six times over only slow the suite down.
