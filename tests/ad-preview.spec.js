@@ -3,6 +3,16 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
+const { blockExternal } = require('./lib/page-harness');
+
+// page.goto waits for `load`, and every page here links Google Fonts and CDN
+// assets that cannot resolve in CI, so each navigation sat waiting for those
+// connections to give up (measured: 13.0s per goto, 0.2s with them refused).
+// Registered in a file-level beforeEach so it lands BEFORE any route a test
+// installs for itself: Playwright matches routes in reverse registration order,
+// so a per-test stub declared later still wins over this catch-all.
+test.beforeEach(async ({ page }) => { await blockExternal(page); });
+
 // An ad has one true shape. These stages used a FIXED height across the full
 // card width, so a 1:1 creative was cover-cropped into roughly an 8:1 band —
 // the packshot blown up past recognition while the corner badge read "1:1".

@@ -3,6 +3,16 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+const { blockExternal } = require('./lib/page-harness');
+
+// page.goto waits for `load`, and every page here links Google Fonts and CDN
+// assets that cannot resolve in CI, so each navigation sat waiting for those
+// connections to give up (measured: 13.0s per goto, 0.2s with them refused).
+// Registered in a file-level beforeEach so it lands BEFORE any route a test
+// installs for itself: Playwright matches routes in reverse registration order,
+// so a per-test stub declared later still wins over this catch-all.
+test.beforeEach(async ({ page }) => { await blockExternal(page); });
+
 // Ad creation is the feature that went missing in plain sight. It was never
 // deleted -- the /ads page was merged into ad-campaigns-master.html as the
 // Creative Studio tab -- but every route into it was removed at the same time:

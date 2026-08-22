@@ -28,6 +28,17 @@ const path = require('path');
 //
 // Neither is a flake in the ordinary sense. Both are deterministic given the
 // environment, which is why they recurred instead of washing out on retry.
+//
+// 3. AND NOTHING BOUNDED THE WAIT. GitHub's default job timeout is six hours and
+//    .github/workflows/ci.yml set none, so a stalled `npx playwright install`
+//    ran 5h49m before a human cancelled it. While it is happening, a hang and a
+//    slow suite look identical. That is fixed in the workflow (timeout-minutes
+//    on both jobs and on the install step) rather than here, because it is a
+//    property of the runner, not of any spec.
+//
+// Fix 2 was applied to every spec in the suite, not just the three that were
+// failing: measured across the fourteen that navigated to a real page, test time
+// on desktop-1280 went 421.6s -> 236.0s.
 
 const TESTS = __dirname;
 const specFiles = fs.readdirSync(TESTS)
@@ -61,24 +72,25 @@ test('no afterAll closes a server it cannot know exists', () => {
     + 'reports a passing file as failed:\n  ' + offenders.join('\n  ')).toEqual([]);
 });
 
-// Specs that pre-date this guard and still pay the third-party wait. They are
-// LISTED rather than silently excluded: each one's goto waits on fonts/CDN the
-// same way, so this is a known cost, not a clean bill of health. None of them is
-// failing today — the three that were failing have been converted — so the guard
-// exists to stop the list growing while these are worked through.
-const PRE_EXISTING = new Set([
-  'ad-creation.spec.js', 'ad-preview.spec.js', 'ads-account-filter.spec.js',
-  'ads-analysis.spec.js', 'ads-one-dashboard.spec.js', 'analytics-surface.spec.js',
-  'degraded-run-honesty.spec.js', 'funnel-drill-live.spec.js', 'gate-notice.spec.js',
-  'looker-embed.spec.js', 'motion-system.spec.js', 'social-media.spec.js',
-  'studio.spec.js', 'sync-everywhere.spec.js',
-]);
+// Two specs never navigate to a page that exists. They build a fixture in the
+// file and serve it through their own route handlers on an invented host, so
+// there is nothing for blockExternal to refuse — and adding it anyway measured
+// consistently SLOWER (33.2s / 33.2s without, 35.9s / 36.1s with) because every
+// request is then intercepted twice for no change in what reaches the network.
+//
+// They are exempt BY NAME rather than by a pattern, and the exemption is
+// verified below: an exemption nobody checks is how a list of "known costs"
+// turns into a list of things nobody looks at again.
+const SELF_ROUTED = new Set(['ads-analysis.spec.js', 'motion-system.spec.js']);
 
-test('a NEW spec that serves its own pages does not wait on the public internet', () => {
+/** goto targets that cannot leave the machine: loopback, disk, or an invented host. */
+const SAFE_TARGET = /^(https?:\/\/(127\.0\.0\.1|localhost)|file:|https?:\/\/[a-z0-9-]+\.test\/)/;
+
+test('a spec that navigates to a real page does not wait on the public internet', () => {
   const offenders = [];
   for (const [name, src] of Object.entries(SRC)) {
     if (!/page\.goto\(/.test(src)) continue;      // source-only specs never navigate
-    if (PRE_EXISTING.has(name)) continue;
+    if (SELF_ROUTED.has(name)) continue;
     if (!/blockExternal|route\.abort\(/.test(src)) offenders.push(name);
   }
   expect(offenders,
@@ -88,16 +100,20 @@ test('a NEW spec that serves its own pages does not wait on the public internet'
     + offenders.join('\n  ')).toEqual([]);
 });
 
-test('the pre-existing list does not rot', () => {
-  // An allowlist that keeps entries it no longer needs becomes a permanent
-  // excuse. A spec that has since been converted must leave the list.
-  const stale = [...PRE_EXISTING].filter((name) => {
+test('the self-routed exemption still describes those files', () => {
+  const wrong = [];
+  for (const name of SELF_ROUTED) {
     const src = SRC[name];
-    if (!src) return true;                              // file gone
-    return /blockExternal|route\.abort\(/.test(src);    // already converted
-  });
-  expect(stale,
-    'These no longer belong on the pre-existing list — remove them:\n  ' + stale.join('\n  ')).toEqual([]);
+    if (!src) { wrong.push(`${name}: file is gone`); continue; }
+    if (!/page\.route\(/.test(src)) wrong.push(`${name}: installs no route of its own`);
+    if (!/\.abort\(/.test(src)) wrong.push(`${name}: never aborts an unrecognised request`);
+    // Every literal navigation target must be one that cannot reach the internet.
+    const targets = [...src.matchAll(/page\.goto\(\s*['"`]([^'"`]+)/g)].map((m) => m[1]);
+    for (const t of targets) if (!SAFE_TARGET.test(t)) wrong.push(`${name}: navigates to ${t}`);
+  }
+  expect(wrong,
+    'The exemption above says these files route everything they navigate to. That is no longer\n'
+    + 'true, so they need blockExternal like everything else:\n  ' + wrong.join('\n  ')).toEqual([]);
 });
 
 test('the guards actually catch their own bugs', () => {
@@ -111,4 +127,12 @@ test('the guards actually catch their own bugs', () => {
     'the matcher rejects a correctly guarded hook').toBe(true);
   expect(guarded(body('test.afterAll(() => server && server.close());')),
     'the matcher rejects the && form').toBe(true);
+
+  // Same trap on the exemption check: SAFE_TARGET exists to REFUSE a real host,
+  // so a pattern that happened to accept everything would pass silently.
+  expect(SAFE_TARGET.test('https://ads.test/'), 'an invented .test host is safe').toBe(true);
+  expect(SAFE_TARGET.test('http://127.0.0.1:8080/x'), 'loopback is safe').toBe(true);
+  expect(SAFE_TARGET.test('file:///repo/dashboard.html'), 'the local disk is safe').toBe(true);
+  expect(SAFE_TARGET.test('https://www.vahdam.com/'), 'a real host must NOT read as safe').toBe(false);
+  expect(SAFE_TARGET.test('https://fonts.googleapis.com/css'), 'a CDN must NOT read as safe').toBe(false);
 });

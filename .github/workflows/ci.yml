@@ -8,6 +8,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # GitHub's default job timeout is SIX HOURS, and nothing here overrode it, so
+    # a hung step just sat there: one `npx playwright install` on this repo ran
+    # 5h49m before anyone noticed and cancelled it. A hang and a slow run look
+    # identical while they are happening; a timeout is what makes them different.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -41,6 +46,10 @@ jobs:
   e2e:
     name: Visual + invariant tests (Playwright)
     runs-on: ubuntu-latest
+    # See the note on `build` above. 40 minutes is well clear of a healthy run
+    # (the suite spends ~236s of test time per project after the third-party
+    # waits were removed, against 422s before) and far below six hours.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -49,6 +58,10 @@ jobs:
       - name: Build catalog
         run: npm run build
       - name: Install Playwright browsers
+        # This is the step that hung. Bound it on its own so a stalled download
+        # fails in twelve minutes with the log pointing at the download, instead
+        # of eating the whole job budget and reporting as "the test suite".
+        timeout-minutes: 12
         run: npx playwright install --with-deps
       - name: Run Playwright suite
         # No --reporter override here. It replaces the whole reporter array from

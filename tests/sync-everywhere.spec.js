@@ -12,6 +12,14 @@ const path = require('path');
 // both halves: the control exists everywhere, and it never claims a source is
 // live when that source returned a snapshot.
 
+const { blockExternal } = require('./lib/page-harness');
+
+// These pages are served from a loopback server, but auth.js still pulls Google
+// Fonts and the pages link CDN assets, and page.goto waits for `load` — so every
+// navigation here waited on hosts that cannot resolve in CI. Refuse them: nothing
+// this spec asserts depends on a third party being reachable.
+test.beforeEach(async ({ page }) => { await blockExternal(page); });
+
 const ROOT = path.join(__dirname, '..');
 const SERVABLE = new Map();
 (function index(dir, prefix) {
