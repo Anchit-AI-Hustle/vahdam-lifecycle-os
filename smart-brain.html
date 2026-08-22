@@ -121,18 +121,35 @@
      also makes room for the market column, which simply did not fit before. */
   .callist{display:flex;flex-direction:column;gap:4px}
   .calmon{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);padding:14px 2px 4px;border-top:1px solid rgba(171,135,67,.18);margin-top:6px}
-  .cday{display:grid;grid-template-columns:64px minmax(0,1fr) 104px auto;align-items:center;gap:14px;
-        border:1px solid rgba(171,135,67,.2);border-radius:10px;padding:9px 12px;background:#fff;
+  /* The day is the GROUP; each campaign inside it is a row. Collapsing a day's
+     sends into chips on one row left a campaign with no line of its own - its
+     cohort and objective were reachable only by opening the day - so the group
+     keeps the day-level facts (date, and the built fraction, which is the one
+     number that is about the day rather than about any single send) and the
+     rows carry each campaign. */
+  .cdaygrp{border:1px solid rgba(171,135,67,.2);border-radius:10px;background:#fff;overflow:hidden}
+  .cdaygrp.past{background:#f7f5f0;color:#556059}
+  .cdaygrp.today{border:2px solid var(--green);background:rgba(0,74,43,.05)}
+  .cdaygrp.empty{border-style:dashed;opacity:.75}
+  .cdaygrp.sel{outline:2px solid var(--gold);outline-offset:1px}
+  .cdayhd{display:flex;align-items:baseline;gap:10px;padding:7px 12px;
+          background:rgba(171,135,67,.07);border-bottom:1px solid rgba(171,135,67,.16)}
+  .cdaygrp.today .cdayhd{background:rgba(0,74,43,.09)}
+  .cdayhd .dwrap{display:flex;align-items:baseline;gap:6px}
+  .cdayhd .d{font-size:15px;font-weight:800;color:#171717;font-variant-numeric:tabular-nums}
+  .cdayhd .dow{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#6b7770}
+  .cdaygrp.past .cdayhd .d{color:#6b7770}
+  .cdayhd .hdate{font-size:11px;letter-spacing:.05em;color:#6b7770;font-variant-numeric:tabular-nums}
+  .cdayhd .cs{margin-left:auto;font-size:11.5px;color:#556059;font-variant-numeric:tabular-nums}
+  .cday{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(0,200px) 128px;align-items:center;gap:14px;
+        border:0;border-top:1px solid rgba(171,135,67,.12);padding:8px 12px;background:transparent;
         cursor:pointer;text-align:left;font:inherit;width:100%}
-  .cday:hover{border-color:var(--gold);background:rgba(171,135,67,.05)}
-  .cday.past{background:#f7f5f0;color:#556059}
-  .cday.today{border:2px solid var(--green);background:rgba(0,74,43,.05)}
-  .cday.empty{border-style:dashed;opacity:.75}
-  .cday.sel{outline:2px solid var(--gold);outline-offset:1px}
-  .cday .dwrap{display:flex;align-items:baseline;gap:6px}
-  .cday .d{font-size:15px;font-weight:800;color:#171717;font-variant-numeric:tabular-nums}
-  .cday .dow{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#6b7770}
-  .cday.past .d{color:#6b7770}
+  .cdayhd + .cday{border-top:0}
+  .cday:hover{background:rgba(171,135,67,.07)}
+  .cday.sel{background:rgba(171,135,67,.14);box-shadow:inset 3px 0 0 var(--gold)}
+  .cday.empty{cursor:default}
+  /* Cohort and objective, on the row rather than in a panel behind a click. */
+  .cday .who{font-size:11.5px;color:#556059;line-height:1.35;white-space:normal;overflow-wrap:anywhere;min-width:0}
   /* The row's headline. It must NOT ellipsise: a product name is the one thing
      the reader is scanning this list for, and "Turmeric Ashwagandh..." is not a
      product name.
@@ -149,15 +166,15 @@
      .cw block in the ad tables. */
   .cday .ct{font-size:13px;line-height:1.35;color:#0f3d28;font-weight:700;
             white-space:normal;overflow-wrap:anywhere;min-width:0}
-  .cday.past .ct{color:#5c6b62;font-weight:600}
+  .cdaygrp.past .cday .ct{color:#5c6b62;font-weight:600}
   .cday .ctnone{color:#b91c1c;font-weight:800}
   .cday .cs{font-size:11.5px;color:#556059;line-height:1.4;text-align:right;font-variant-numeric:tabular-nums}
   @media (max-width:900px){
-    /* Below this the five columns stop fitting; stack the row's own fields
+    /* Below this the four columns stop fitting; stack the row's own fields
        rather than letting the theme collapse to nothing. */
-    .cday{grid-template-columns:56px minmax(0,1fr);gap:6px 10px}
+    .cday{grid-template-columns:52px minmax(0,1fr);gap:6px 10px}
+    .cday .who{grid-column:2}
     .cday .cs{grid-column:2;text-align:left}
-    .cday .bar{grid-column:2;justify-self:start}
   }
   /* The legend draws the SAME swatch the card draws, from the same colours.
      It previously described a red "!" for "planned, nothing built", which the
@@ -171,7 +188,9 @@
   #callegend b.sw.ready{background:rgba(29,107,69,.14);border-color:rgba(29,107,69,.5);color:#0a6b39}
   #callegend b.sw.part{background:rgba(171,135,67,.22);border-color:var(--gold);color:#6b4f18}
   #callegend .calnote{color:#48524c}
-  .cday .bar{display:flex;gap:4px;align-items:center;justify-self:end}
+  /* The chip is now the row's FIRST column and names this row's own market, so
+     it sits left rather than being pushed to the far end of a day summary. */
+  .cday .bar{display:flex;gap:4px;align-items:center;justify-self:start}
   .cday .bar b{font-size:10.5px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:999px;
               border:1px solid rgba(171,135,67,.45);background:rgba(171,135,67,.10);color:#7a5f28;min-width:34px;text-align:center}
   .cday .bar b.ready{background:rgba(29,107,69,.14);border-color:rgba(29,107,69,.5);color:#0a6b39}
@@ -179,6 +198,9 @@
   .cday .warnmark{color:#b91c1c;font-weight:800}
   .dayslots{margin-top:14px;border-top:1px solid rgba(171,135,67,.2);padding-top:12px}
   .dslot{border:1px solid rgba(171,135,67,.2);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  /* The send whose row was clicked. Two sends share one day panel, so without
+     this the panel could not say which one the reader had asked about. */
+  .dslot.sel{border-color:var(--gold);box-shadow:inset 3px 0 0 var(--gold);background:rgba(171,135,67,.06)}
   .dslot .hd{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;justify-content:space-between}
   .dslot .ttl{font-size:13.5px;font-weight:700;color:#171717}
   .dslot .meta{font-size:12px;color:#556059;margin-top:4px;line-height:1.5}
@@ -294,8 +316,8 @@
         <span><b class="sw ready">US</b> all channels built</span>
         <span><b class="sw part">UK</b> partly built</span>
         <span><b class="sw">US</b> not built yet</span>
-        <span style="border:1px dashed rgba(171,135,67,.6);border-radius:4px;padding:0 6px">dashed card = no send planned</span>
-        <span class="calnote">One chip per send, named for its market. <b>Built</b> means the files exist, not that they passed the live catalog gate.</span>
+        <span style="border:1px dashed rgba(171,135,67,.6);border-radius:4px;padding:0 6px">dashed day = no send planned</span>
+        <span class="calnote">One row per campaign, grouped by day and named for its market. <b>Built</b> means the files exist, not that they passed the live catalog gate.</span>
       </div>
       <div id="calbody"><p style="color:#48524c;font-size:13px">Loading the day-level calendar…</p></div>
       <div id="dayslots" class="dayslots" style="display:none"></div>
@@ -1597,27 +1619,28 @@ function renderDayGrid(d){
     }
     const c = day.counts || {};
     const planned = c.planned || 0;
-    const cls = [ 'cday', day.bucket, planned ? '' : 'empty', DC.selected === day.date ? 'sel' : '' ].filter(Boolean).join(' ');
+    const slots = day.slots || [];
 
-    // WHAT the day sends, which is the only thing that varies between cards.
-    // The old headline was "2 planned", and the plan is one slot per market
-    // every day, so that read "2" on all ninety cards: the most prominent text
-    // on the grid carried no information at all. Every field below is already
-    // on the slot and was simply never rendered.
-    const themes = [];
-    for(const s of (day.slots || [])){
-      const t = s.festival || s.hero || s.cohort || s.objective;
-      if(t && themes.indexOf(t) < 0) themes.push(t);
-    }
-    const theme = themes.join(' · ');
-
-    let line2;
+    // ONE ROW PER CAMPAIGN, GROUPED UNDER THE DAY.
+    //
+    // The previous version put one row per DAY and collapsed that day's sends
+    // into market chips, so a campaign had no line of its own: its cohort and
+    // objective existed only in a tooltip and in the panel you got after a
+    // click, and two sends on one day shared a single headline built by
+    // joining their themes with a middot. Scanning "which campaign goes out,
+    // to whom, and is it built" meant opening every day in turn.
+    //
+    // The day stays the organising unit - the header below still carries the
+    // date and the day-level built fraction, which is the one number that is
+    // about the DAY rather than about any one send - and each campaign gets
+    // its own row underneath it.
+    let dayLine;
     if(!planned){
-      line2 = day.bucket === 'past' ? 'no send' : '<span class="warnmark">no send planned</span>';
+      dayLine = day.bucket === 'past' ? 'no send' : '<span class="warnmark">no send planned</span>';
     } else if(day.bucket === 'past'){
       // A past day's headline is what it MEASURED, and an unknown says so.
       const m = day.measured || {};
-      line2 = m.orders === null ? `${planned} sent · —` : `${planned} sent · ${dcMoney(m.revenue)}`;
+      dayLine = m.orders === null ? `${planned} sent · —` : `${planned} sent · ${dcMoney(m.revenue)}`;
     } else {
       // "built", not "ready". assets_ready is derived from builtChannels(): every
       // planned channel has an artifact. That is a statement about files EXISTING,
@@ -1627,28 +1650,42 @@ function renderDayGrid(d){
       // same defect as the run that called itself final while its catalog gate
       // had failed. A fraction also makes the denominator visible, so "0 built"
       // on a day that plans nothing cannot be confused with one that plans two.
-      line2 = `${c.assets_ready || 0}/${planned} built`;
+      dayLine = `${c.assets_ready || 0}/${planned} built`;
     }
 
-    // One chip per send, LABELLED WITH ITS MARKET. The previous row carried an
-    // anonymous colour bar next to a separate "US · UK" column, which meant the
-    // reader could see that one of two was unbuilt but not WHICH — the answer
-    // was only in a tooltip. Naming the chip merges the two columns and removes
-    // a second constant: "US · UK" was identical on every row, exactly the
-    // problem "2 planned" had.
-    const bars = [];
-    for(const s of (day.slots || []).slice(0, 6)){
+    const grpCls = ['cdaygrp', day.bucket, planned ? '' : 'empty',
+                    DC.selected === day.date ? 'sel' : ''].filter(Boolean).join(' ');
+    const rows = [];
+    rows.push(`<div class="cdayhd">
+      <span class="dwrap"><span class="d">${dt.getUTCDate()}</span><span class="dow">${DOW[dt.getUTCDay()]}</span></span>
+      <span class="hdate">${esc(day.date)}</span>
+      <span class="cs">${dayLine}</span>
+    </div>`);
+
+    if(!slots.length){
+      rows.push(`<div class="cday empty"><span class="ct"><span class="ctnone">no send planned</span></span></div>`);
+    }
+    for(const s of slots){
+      // The row's own build state, named. A chip that says "US" beside a row
+      // that IS the US send is not a second fact - it is this row's status, and
+      // it carries the same three colours the legend explains.
       const state = s.assets_ready ? 'ready' : (s.assets ? 'part' : '');
       const label = s.assets_ready ? 'all channels built'
         : (s.assets ? 'partly built: missing ' + (s.assets_missing || []).join(', ') : 'not built yet');
-      bars.push(`<b class="${state}" title="${esc((s.market || 'slot') + ' — ' + label)}">${esc(s.market || '?')}</b>`);
+      // The headline is THIS send's, not a join of every send that day.
+      const theme = s.festival || s.hero || s.cohort || s.objective || '';
+      // Cohort and objective were previously reachable only by opening the day.
+      const who = [s.cohort, s.objective].filter(Boolean).join(' · ');
+      const rowCls = ['cday', day.bucket, DC.selectedSlot === s.id ? 'sel' : ''].filter(Boolean).join(' ');
+      rows.push(`<button class="${rowCls}" onclick="selectDay('${day.date}','${esc(s.id || '')}')"
+          title="${esc(day.date + ' · ' + (s.market || '?') + ' — ' + label)}">
+        <span class="bar"><b class="${state}" title="${esc((s.market || 'slot') + ' — ' + label)}">${esc(s.market || '?')}</b></span>
+        <span class="ct">${theme ? esc(theme) : '<span class="ctnone">no theme recorded</span>'}</span>
+        <span class="who">${who ? esc(who) : ''}</span>
+        <span class="cs">${esc(label)}</span>
+      </button>`);
     }
-    out.push(`<button class="${cls}" onclick="selectDay('${day.date}')" title="${esc(day.date + (theme ? ' — ' + theme : ''))}">
-      <span class="dwrap"><span class="d">${dt.getUTCDate()}</span><span class="dow">${DOW[dt.getUTCDay()]}</span></span>
-      <span class="ct">${theme ? esc(theme) : '<span class="ctnone">no send planned</span>'}</span>
-      <span class="cs">${line2}</span>
-      <span class="bar">${bars.join('')}</span>
-    </button>`);
+    out.push(`<div class="${grpCls}">${rows.join('')}</div>`);
   }
   $('calbody').innerHTML = `<div class="callist">${out.join('')}</div>`;
 }
@@ -1665,8 +1702,12 @@ function chnChips(slot){
   }).join('');
 }
 
-function selectDay(date){
+function selectDay(date, slotId){
   DC.selected = date;
+  // Which CAMPAIGN was clicked, not just which day. With a row per send, two
+  // rows open the same day panel, and without this the panel gave no sign of
+  // which of them the reader had asked about.
+  DC.selectedSlot = slotId || null;
   const d = DC.data; if(!d) return;
   const day = (d.days || []).find(x => x.date === date);
   renderDayGrid(d);
@@ -1692,7 +1733,7 @@ function selectDay(date){
   }
   for(const s of day.slots || []){
     const missing = (s.assets_missing || []);
-    parts.push(`<div class="dslot">
+    parts.push(`<div class="dslot${DC.selectedSlot === s.id ? ' sel' : ''}" id="dslot-${esc(s.id || '')}">
       <div class="hd">
         <span class="ttl">${esc(s.market || '')} · ${esc(s.cohort || 'cohort n/a')}</span>
         <span class="st ${esc(s.status || 'tentative')}">${esc(s.status || '')}</span>
@@ -1715,7 +1756,11 @@ function selectDay(date){
     </div>`);
   }
   box.innerHTML = parts.join('');
-  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // Scroll to the SEND that was clicked when there is one, and to the day panel
+  // otherwise. Landing on the top of a two-send panel after clicking the second
+  // send is the same "which one did I ask about" problem the highlight fixes.
+  const focused = DC.selectedSlot && document.getElementById('dslot-' + DC.selectedSlot);
+  (focused || box).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // THE DAY PANEL COULD NOT SHOW AN ASSET.

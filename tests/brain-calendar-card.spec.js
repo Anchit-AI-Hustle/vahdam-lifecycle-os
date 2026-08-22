@@ -128,31 +128,64 @@ test.describe('the /brain day card', () => {
 
   test('the readiness fraction shows its denominator', async ({ page }) => {
     // "0 ready" cannot be told apart from a day that plans nothing; "0/2 built" can.
-    // Card 3 is deliberately MIXED (US unbuilt, UK built) so the fraction has to
-    // be computed rather than echoing a constant.
-    const card = page.locator('.callist .cday').nth(2);
-    await expect(card.locator('.cs')).toHaveText('1/2 built');
+    // Day 3 is deliberately MIXED (US unbuilt, UK built) so the fraction has to
+    // be computed rather than echoing a constant. It belongs on the DAY, not on
+    // a campaign row: a fraction over that day's sends is the one number here
+    // that is about the day rather than about any single send.
+    const group = page.locator('.callist .cdaygrp').nth(2);
+    await expect(group.locator('.cdayhd .cs')).toHaveText('1/2 built');
   });
 
   test('the colour code is explained on the page', async ({ page }) => {
     const legend = page.locator('#callegend');
     await expect(legend).toBeVisible();
-    await expect(legend).toContainText('one chip per send', { ignoreCase: true });
+    await expect(legend).toContainText('one row per campaign', { ignoreCase: true });
     await expect(legend).toContainText('not that they passed the live catalog gate', { ignoreCase: true });
   });
 
-  test('each chip names its market and says why it is that colour', async ({ page }) => {
-    const bars = page.locator('.callist .cday').nth(2).locator('.bar b');
-    await expect(bars).toHaveCount(2);
-    await expect(bars.nth(0)).toHaveAttribute('title', /US — not built yet/);
-    await expect(bars.nth(1)).toHaveAttribute('title', /UK — all channels built/);
-    // The chip NAMES its market, so "1/2 built" no longer leaves the reader
-    // guessing which of the two is the missing one.
-    await expect(bars.nth(0)).toHaveText('US');
-    await expect(bars.nth(1)).toHaveText('UK');
+  // ONE ROW PER CAMPAIGN, NOT ONE ROW PER DAY.
+  //
+  // Collapsing a day's sends into market chips on a single row left a campaign
+  // with no line of its own: its cohort and objective existed only in a tooltip
+  // and in the panel behind a click, and two sends on one day shared a headline
+  // built by joining their themes with a middot. The day stays the grouping.
+  test('every campaign gets its own row, carrying its own cohort and objective', async ({ page }) => {
+    // The fixture is 3 days x 2 markets. One row per DAY would render 3.
+    await expect(page.locator('.callist .cday')).toHaveCount(6);
+    await expect(page.locator('.callist .cdaygrp')).toHaveCount(3);
+
+    // Each row names one market, and its own audience — not the day's.
+    const rows = page.locator('.callist .cdaygrp').nth(2).locator('.cday');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0).locator('.bar b')).toHaveText('US');
+    await expect(rows.nth(1).locator('.bar b')).toHaveText('UK');
+    for (const i of [0, 1]) {
+      await expect(rows.nth(i).locator('.who'),
+        'cohort and objective are still only reachable by opening the day').toContainText('Lapsed 90d');
+      await expect(rows.nth(i).locator('.who')).toContainText('winback');
+    }
   });
 
-  test('one day per row, and a long product name is not truncated', async ({ page }) => {
+  test('each row states its own build state and says why it is that colour', async ({ page }) => {
+    const rows = page.locator('.callist .cdaygrp').nth(2).locator('.cday');
+    await expect(rows.nth(0).locator('.bar b')).toHaveAttribute('title', /US — not built yet/);
+    await expect(rows.nth(1).locator('.bar b')).toHaveAttribute('title', /UK — all channels built/);
+    // And it is on the row as TEXT, not only in a tooltip — a title attribute is
+    // not readable by someone scanning the list, which is the whole job here.
+    await expect(rows.nth(0).locator('.cs')).toHaveText('not built yet');
+    await expect(rows.nth(1).locator('.cs')).toHaveText('all channels built');
+  });
+
+  test('clicking a campaign row marks THAT send in the day panel', async ({ page }) => {
+    // Two rows open the same day panel. Without this the panel gave no sign of
+    // which of the two the reader had asked about.
+    await page.locator('.callist .cdaygrp').nth(2).locator('.cday').nth(1).click();
+    const selected = page.locator('#dayslots .dslot.sel');
+    await expect(selected, 'the panel does not mark the send that was clicked').toHaveCount(1);
+    await expect(selected).toContainText('UK');
+  });
+
+  test('one campaign per row, and a long product name is not truncated', async ({ page }) => {
     // The reason for the single column. In the 7-across grid each day got about
     // 130px, so "Turmeric Ashwagandha Herbal Tea" rendered as
     // "Turmeric Ashwagandh..." — and so did most other days, which is the state
@@ -207,7 +240,7 @@ test.describe('the /brain day card', () => {
     // What the column change actually guarantees is a SHARE: the theme gets
     // most of the row instead of one seventh of the grid. In the 7-across grid
     // a day was ~1/7 of the container, so the theme measured ~13% of the list;
-    // in a single column it is the 1fr of `64px 1fr 104px auto`. A fraction is
+    // in a single column it is the 1fr of `52px 1fr 200px 128px`. A fraction is
     // both font-independent and viewport-independent.
     const share = await page.evaluate(() => {
       const list = document.querySelector('.callist').getBoundingClientRect().width;
