@@ -173,6 +173,23 @@ test('the studio reads the prompt from the API, not from a second local copy', (
 });
 
 // ── The page still parses, and the button actually copies ───────────────────
+
+/**
+ * Only our own server may be waited on. The pages under test link Google Fonts,
+ * Vercel speed-insights, esm.sh and Shopify CDN images; in CI none of them
+ * resolve, and page.goto waits on them. Measured on the homepage: goto took
+ * 13,035ms with them and 210ms without, which is what pushed sibling specs past
+ * the 60s test timeout. Aborting them is also what makes an offline CI run
+ * behave like the offline run it actually is.
+ */
+function blockExternal(page, own) {
+  return page.route('**/*', (route) => {
+    const u = route.request().url();
+    if (u.startsWith(own) || u.startsWith('data:') || u.startsWith('blob:')) return route.continue();
+    return route.abort('failed');
+  });
+}
+
 test.describe('the studio page works', () => {
   test.skip(({ browserName }) => browserName !== 'chromium', 'behaviour test, one engine');
   test.use({ serviceWorkers: 'block' });   // the PWA self-heal reload races clicks
@@ -205,7 +222,11 @@ test.describe('the studio page works', () => {
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
     origin = 'http://127.0.0.1:' + server.address().port;
   });
-  test.afterAll(async () => { await new Promise((r) => server.close(r)); });
+  // A describe/file-level test.skip() means Playwright never runs beforeAll -
+  // but it DOES run afterAll. Without the guard, `server` is undefined here and
+  // server.close() throws, which Playwright reports as a FAILED test. That is
+  // what reddened every CI run on the three WebKit projects for this file.
+  test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
 
   test('the edited Prompts tab renders and the asset button is reachable', async ({ page }) => {
     const errors = [];
@@ -219,7 +240,8 @@ test.describe('the studio page works', () => {
       if (/Service worker is disabled because the context is sandboxed/.test(m)) return;
       errors.push(m);
     });
-    await page.goto(origin + '/vahdam_mailer_architect_v34.html');
+    await blockExternal(page, origin);
+    await page.goto(origin + '/vahdam_mailer_architect_v34.html', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.readyState === 'complete');
     // The block exists in the DOM (display:none until the tab is opened).
     expect(await page.locator('#p4-chatgpt').count()).toBe(1);
@@ -231,7 +253,8 @@ test.describe('the studio page works', () => {
 
   test('copying the asset prompt fetches the complete-asset prompt', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await page.goto(origin + '/vahdam_mailer_architect_v34.html');
+    await blockExternal(page, origin);
+    await page.goto(origin + '/vahdam_mailer_architect_v34.html', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.readyState === 'complete');
     await page.evaluate(() => window.copyAssetPrompt('mailer'));
     await expect.poll(() => page.locator('#assetPromptState').textContent()).toMatch(/returns the complete mailer/);

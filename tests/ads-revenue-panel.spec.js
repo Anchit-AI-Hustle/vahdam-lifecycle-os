@@ -86,13 +86,32 @@ test.use({ viewport: { width: 1280, height: 900 } });
 test.describe.configure({ mode: 'serial' });
 
 async function openPanel(page) {
+  await blockExternal(page, BASE);
   await page.goto(`${BASE}/ads-master`, { waitUntil: 'domcontentloaded' });
   await page.click('#tabs button[data-p="revenue"]');
   await expect(page.locator('#p-revenue')).toHaveClass(/\bon\b/);
   await expect(page.locator('#rev-kpis .card').first()).toBeVisible();
 }
 
+
+/**
+ * Only our own server may be waited on. The pages under test link Google Fonts,
+ * Vercel speed-insights, esm.sh and Shopify CDN images; in CI none of them
+ * resolve, and page.goto waits on them. Measured on the homepage: goto took
+ * 13,035ms with them and 210ms without, which is what pushed sibling specs past
+ * the 60s test timeout. Aborting them is also what makes an offline CI run
+ * behave like the offline run it actually is.
+ */
+function blockExternal(page, own) {
+  return page.route('**/*', (route) => {
+    const u = route.request().url();
+    if (u.startsWith(own) || u.startsWith('data:') || u.startsWith('blob:')) return route.continue();
+    return route.abort('failed');
+  });
+}
+
 test('the report has its own entrance on the ads dashboard', async ({ page }) => {
+  await blockExternal(page, BASE);
   await page.goto(`${BASE}/ads-master`, { waitUntil: 'domcontentloaded' });
   const btn = page.locator('#tabs button[data-p="revenue"]');
   await expect(btn).toHaveCount(1);
@@ -169,6 +188,7 @@ test('a 401 does not brick the panel: it un-latches and Retry reloads', async ({
   // back a no-op — the panel stayed dead. Now a failed load un-latches and
   // offers Retry.
   failNext401 = 2; // both calls of the first open fail like the real race
+  await blockExternal(page, BASE);
   await page.goto(`${BASE}/ads-master`, { waitUntil: 'domcontentloaded' });
   await page.click('#tabs button[data-p="revenue"]');
   await expect(page.locator('#rev-kpis')).toContainText(/sign in/i);
@@ -181,6 +201,11 @@ test('a 401 does not brick the panel: it un-latches and Retry reloads', async ({
 
 test('the panel does not fetch until it is opened', async ({ page }) => {
   const calls = [];
+  // blockExternal FIRST: Playwright matches routes in reverse registration order,
+  // so a block registered after this counting route would win for /api/* too and
+  // continue() the request without the counter ever seeing it - the count then
+  // reads 0 and looks like "the panel never fetched".
+  await blockExternal(page, BASE);
   await page.route('**/api/public-config**', (route) => { calls.push(route.request().url()); route.continue(); });
   await page.goto(`${BASE}/ads-master`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(400);

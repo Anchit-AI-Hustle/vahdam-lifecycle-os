@@ -75,9 +75,29 @@ test('/dashboard really is not a route, so the premise holds', () => {
 });
 
 // ── Behavioural: click the real button on the real page ─────────────────────
+
+/**
+ * Nothing but our own server may be waited on.
+ *
+ * page.goto defaults to waitUntil:'load', and index.html links Google Fonts,
+ * Vercel speed-insights, esm.sh/three and dozens of Shopify CDN images. In CI
+ * those cannot resolve, so goto sat there until each connection gave up:
+ * MEASURED 13,035ms for the goto against 657ms for the click it was setting up.
+ * That is what pushed this spec past the 60s test timeout on pixel-5 - not the
+ * click, and not the page. With third-party requests aborted the same goto
+ * takes 210ms.
+ */
+function blockExternal(page, own) {
+  return page.route('**/*', (route) => {
+    const u = route.request().url();
+    if (u.startsWith(own) || u.startsWith('data:') || u.startsWith('blob:')) return route.continue();
+    return route.abort('failed');
+  });
+}
+
 test.describe('the CTA actually starts sign-in', () => {
   test.skip(({ browserName }) => browserName !== 'chromium', 'behaviour test, one engine');
-  test.use({ serviceWorkers: 'block' });
+  test.use({ serviceWorkers: 'block', reducedMotion: 'reduce' });
 
   let server; let origin;
   test.beforeAll(async () => {
@@ -101,7 +121,8 @@ test.describe('the CTA actually starts sign-in', () => {
   test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
 
   test('clicking it calls LifecycleAuth.signIn, not a private OAuth call', async ({ page }) => {
-    await page.goto(origin + '/');
+    await blockExternal(page, origin);
+    await page.goto(origin + '/', { waitUntil: 'domcontentloaded' });
     // Stand in for auth.js's real client so nothing leaves the page.
     await page.evaluate(() => {
       window.__calls = [];
@@ -121,7 +142,8 @@ test.describe('the CTA actually starts sign-in', () => {
   });
 
   test('a failed sign-in restores the button instead of stranding it', async ({ page }) => {
-    await page.goto(origin + '/');
+    await blockExternal(page, origin);
+    await page.goto(origin + '/', { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => {
       window.LifecycleAuth = window.LifecycleAuth || {};
       window.LifecycleAuth.signIn = async () => { throw new Error('nope'); };
