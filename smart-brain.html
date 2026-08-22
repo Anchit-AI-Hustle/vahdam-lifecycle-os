@@ -253,31 +253,16 @@
           <h2 style="margin:0">Day-level calendar — history, today, and the plan ahead</h2>
           <p style="color:#48524c;margin:.35em 0 0;font-size:13px">One cell per day. Past days carry what was measured; future days carry what is planned and which assets exist for it. A day with no send inside the rolling window is a gap, not a rest day.</p>
         </div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;min-width:210px">
+          <button id="generateAll" class="btn sm ok" onclick="generateAll()" style="display:none;text-align:center" title="Generate the final best version of every asset (mailer, ads, landing page) for the sends currently shown (respects the region filter).">⚙ Generate all</button>
+          <button id="approveAll" class="btn sm ok" onclick="approveAll()" style="display:none;text-align:center" title="Approve and lock every send currently shown that is not already approved (includes prebuilt drafts). Each is built if needed, then locked as ship-ready. Rejected sends are skipped.">✓ Approve all</button>
+          <button id="downloadAll" class="btn sm secondary" onclick="sbZipAll()" style="text-align:center" title="Download every ALREADY-generated asset in view as a nested ZIP — {date}_{cohort}/{date}/mailer + landing + ad files. Retrieval only; never regenerates.">⬇ Download all (.zip)</button>
+        </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <span style="color:#556059;font-size:12px;text-transform:uppercase;letter-spacing:.06em">Window</span>
           <button class="mkchip" data-dcw="14" onclick="setDayWindow(14)">±14d</button>
           <button class="mkchip on" data-dcw="30" onclick="setDayWindow(30)">30d back · 90 ahead</button>
           <button class="mkchip" data-dcw="90" onclick="setDayWindow(90)">90d back · 90 ahead</button>
-        </div>
-      </div>
-      <div id="callegend">
-        <span><b class="sw ready">US</b> all channels built</span>
-        <span><b class="sw part">UK</b> partly built</span>
-        <span><b class="sw">US</b> not built yet</span>
-        <span style="border:1px dashed rgba(171,135,67,.6);border-radius:4px;padding:0 6px">dashed card = no send planned</span>
-        <span class="calnote">One chip per send, named for its market. <b>Built</b> means the files exist, not that they passed the live catalog gate.</span>
-      </div>
-      <div id="calbody"><p style="color:#48524c;font-size:13px">Loading the day-level calendar…</p></div>
-      <div id="dayslots" class="dayslots" style="display:none"></div>
-    </div>
-
-    <div class="card wide">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <h2 style="margin:0">Rolling calendar (next 90 days)</h2>
-        <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;min-width:210px">
-          <button id="generateAll" class="btn sm ok" onclick="generateAll()" style="display:none;text-align:center" title="Generate the final best version of every asset (mailer, ads, landing page) for the sends currently shown (respects the region filter).">⚙ Generate all</button>
-          <button id="approveAll" class="btn sm ok" onclick="approveAll()" style="display:none;text-align:center" title="Approve and lock every send currently shown that is not already approved (includes prebuilt drafts). Each is built if needed, then locked as ship-ready. Rejected sends are skipped.">✓ Approve all</button>
-          <button id="downloadAll" class="btn sm secondary" onclick="sbZipAll()" style="text-align:center" title="Download every ALREADY-generated asset in view as a nested ZIP — {date}_{cohort}/{date}/mailer + landing + ad files. Retrieval only; never regenerates.">⬇ Download all (.zip)</button>
         </div>
       </div>
       <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 8px">
@@ -305,13 +290,29 @@
         <button class="mkchip on" data-cat="supplement" onclick="toggleCat('supplement')">Supplements</button>
         <span id="catcount" style="color:#48524c;font-size:12px;margin-left:6px"></span>
       </div>
-      <div class="tblscroll">
-      <table id="plantable">
-        <thead><tr><th>Date</th><th>Market</th><th class="cohort">Cohort</th><th class="obj">Objective · Hero</th><th class="why">Why (analysis)</th><th class="chan">Channels</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="plan"><tr><td colspan="9" style="color:#48524c">Loading plan…</td></tr></tbody>
-      </table>
+      <div id="callegend">
+        <span><b class="sw ready">US</b> all channels built</span>
+        <span><b class="sw part">UK</b> partly built</span>
+        <span><b class="sw">US</b> not built yet</span>
+        <span style="border:1px dashed rgba(171,135,67,.6);border-radius:4px;padding:0 6px">dashed card = no send planned</span>
+        <span class="calnote">One chip per send, named for its market. <b>Built</b> means the files exist, not that they passed the live catalog gate.</span>
       </div>
+      <div id="calbody"><p style="color:#48524c;font-size:13px">Loading the day-level calendar…</p></div>
+      <div id="dayslots" class="dayslots" style="display:none"></div>
     </div>
+
+    <!-- The "Rolling calendar (next 90 days)" table lived here. It listed the same
+         90 days the day-level calendar above already lists, one row per entry, so /brain
+         carried two calendars of the same data. Merged into the day surface: its bulk
+         actions and filters moved into the Day-level calendar card, and its per-row
+         Market / Cohort / Objective-Hero / Why / Confidence now render in that card's
+         per-send detail panel (daily-calendar-core forwards `why` and
+         `confidence_label` for exactly this).
+         #plan is retained as an empty, hidden tbody because renderPlan() is still the
+         single place that computes the visible counts and the Generate/Approve button
+         state from PLAN + slotVisible - deleting the node would have meant either
+         rewriting that logic or letting $('plan').innerHTML throw. -->
+    <table hidden aria-hidden="true" style="display:none"><tbody id="plan"></tbody></table>
 
     <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
     <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
@@ -895,8 +896,26 @@ function renderPreview(payload, e, i, opts){
       const isFallback = _copyFellBack;
       const fb = Array.isArray(tr) ? tr.find(a=>a && a.agent==='fallback' && a.output && a.output.reason) : null;
       if(!isFallback && !fb) return '';
-      const reason = (fb && fb.output && fb.output.reason) || 'the LLM cascade returned nothing for this slot';
-      return `<div class="pvnote" style="margin-top:4px;color:#ffd9d0;background:#3a1414;border-radius:6px;padding:6px 9px;font-size:11px">⚠ Copy used the <b>template fallback</b>: ${esc(reason)}. This means no LLM provider answered — check that at least one text API key (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY / GROQ_API_KEY / CEREBRAS_API_KEY / XAI_API_KEY) is set and not quota-exhausted for this deployment, then Regenerate.</div>`;
+      const reason = (fb && fb.output && fb.output.reason) || null;
+      // The API-key sentence used to be UNCONDITIONAL: whatever the real reason
+      // was, the panel asserted "This means no LLM provider answered - check
+      // that at least one text API key is set". That is the defect that sends an
+      // operator to fix the thing that is not broken. Verified against this
+      // deployment: POST /api/ai/generate returns 200 with a Gemini answer, so
+      // the keys ARE set and working while this panel was blaming them.
+      //
+      // So: state the reason we actually have, and only give key/quota advice
+      // when the reason looks like a provider failure. When we have no reason at
+      // all, say that plainly rather than inventing one.
+      const KEYS = 'OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY / GROQ_API_KEY / CEREBRAS_API_KEY / XAI_API_KEY';
+      const providerish = reason ? /quota|rate.?limit|429|api[ _-]?key|unauthor|401|403|billing|credit|no provider|cascade|provider|timeout|abort|ETIMEDOUT/i.test(reason) : false;
+      const head = reason
+        ? `⚠ Copy used the <b>template fallback</b>: ${esc(reason)}.`
+        : '⚠ Copy used the <b>template fallback</b>, and this build recorded no reason for it.';
+      const advice = (providerish || !reason)
+        ? ` Check that at least one text API key (${KEYS}) is set and not quota-exhausted for this deployment, then Regenerate.`
+        : ' Address the cause above, then Regenerate. The text API keys are not implicated by this reason.';
+      return `<div class="pvnote" style="margin-top:4px;color:#ffd9d0;background:#3a1414;border-radius:6px;padding:6px 9px;font-size:11px">${head}${advice}</div>`;
     })()}
     ${(() => {
       // Any other failed step states its own reason. A warning triangle on a
@@ -906,9 +925,21 @@ function renderPreview(payload, e, i, opts){
       if(!others.length) return '';
       return others.map((a) => {
         const o = a.output || {};
-        const why = o.reason || o.blocker || o.message || o.error || '';
+        const why = o.reason || o.blocker || o.message || o.error || o.warning || '';
         const fix = o.remediation ? [].concat(o.remediation).join(' ') : (/catalog/i.test(String(a.agent)) ? 'Set LIVE_CONNECTORS=on so the app may read the store, then Regenerate.' : '');
-        return `<div class="pvnote" style="margin-top:4px;color:#ffd9d0;background:#3a1414;border-radius:6px;padding:6px 9px;font-size:11px">⚠ <b>${esc(a.agent)}</b> did not pass${why?': '+esc(why):'.'}${fix?' To fix: '+esc(fix):''}</div>`;
+        // "did not pass" is wrong for the catalog gate, and the difference is
+        // material. buildCampaign sets this step's ok to `!gate.bypassed`, and a
+        // real BLOCK returns early with no campaign at all - so a saved campaign
+        // showing this chip means the gate was BYPASSED (CATALOG_GATE=off), not
+        // that it failed. Bypassed is worse than it sounds: with the gate on,
+        // this build would have been REFUSED instead of written from a stale
+        // catalog, so the operator needs to know the guard is switched off, not
+        // that a check "did not pass".
+        const bypassed = /catalog gate/i.test(String(a.agent)) && !o.live;
+        const head = bypassed
+          ? `<b>${esc(a.agent)}</b> was BYPASSED (CATALOG_GATE=off), so this campaign was built from a catalog the gate would have rejected`
+          : `<b>${esc(a.agent)}</b> did not pass`;
+        return `<div class="pvnote" style="margin-top:4px;color:#ffd9d0;background:#3a1414;border-radius:6px;padding:6px 9px;font-size:11px">⚠ ${head}${why?': '+esc(why):'.'}${fix?' To fix: '+esc(fix):''}${bypassed?' Remove CATALOG_GATE=off once the catalog is live, so a stale build is refused rather than saved.':''}</div>`;
       }).join('');
     })()}
     <div class="pvtabs">${tabs.join('')}</div>
@@ -1667,6 +1698,8 @@ function selectDay(date){
         <span class="st ${esc(s.status || 'tentative')}">${esc(s.status || '')}</span>
       </div>
       <div class="meta">${esc(s.objective || 'objective n/a')}${s.hero ? ' — ' + esc(s.hero) : ''}${s.festival ? ' · ' + esc(s.festival) : ''}</div>
+      ${s.why ? `<div class="meta" style="margin-top:5px"><b>Why:</b> ${esc(s.why)}</div>` : ''}
+      ${(s.confidence != null || s.confidence_label) ? `<div class="meta" style="margin-top:3px"><b>Confidence:</b> ${esc(s.confidence_label || '')}${s.confidence != null ? ` ${Math.round(s.confidence * (s.confidence <= 1 ? 100 : 1))}%` : ''}</div>` : ''}
       <div style="margin-top:6px">${chnChips(s)}</div>
       <div class="meta">${s.campaign_id
         ? `Campaign <code>${esc(s.campaign_id)}</code>${s.images != null ? ' · ' + s.images + ' image' + (s.images === 1 ? '' : 's') : ''}${s.landing_url ? ` · <a href="${esc(s.landing_url)}" target="_blank" style="color:#0a6b39">landing page ↗</a>` : ''}`

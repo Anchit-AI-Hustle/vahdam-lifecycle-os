@@ -268,6 +268,12 @@ async function dayCalendar({ from, to, market = '', config: cfg = {} } = {}) {
         festival: (payload.festival && payload.festival.name) || null,
         hero: (payload.heroProduct && payload.heroProduct.title) || null,
         confidence: r.confidence ?? null,
+        // The day surface is now the ONLY calendar on /brain, so it has to carry
+        // what the retired "Rolling calendar" table carried: the reason the slot
+        // was chosen and the confidence label behind it. Both already live on the
+        // entry payload; the projection simply never forwarded them.
+        why: (payload.analysis && payload.analysis.summary) || payload.rationale || r.rationale || null,
+        confidence_label: (payload.analysis && payload.analysis.confidence && payload.analysis.confidence.label) || null,
         channels,
         campaign_id: linked ? linked.row.id : null,
         campaign_status: linked ? linked.row.status : null,

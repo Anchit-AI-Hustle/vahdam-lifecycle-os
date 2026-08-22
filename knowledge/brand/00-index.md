@@ -22,6 +22,12 @@ Read top to bottom for onboarding, or jump to the file that answers your questio
 | 05 | [05-landing-pages-and-creative.md](./05-landing-pages-and-creative.md) | Landing-page system, presell matrices, `/lp/:id` contract, creative rules. |
 | 06 | [06-market-intelligence-summary.md](./06-market-intelligence-summary.md) | US/UK performance headlines, market-intel pointers, competitor-capture data engine. |
 
+## Seasonal playbooks
+
+| Playbook | Answers |
+|---|---|
+| [BFCM 2026](../../docs/playbooks/bfcm-2026.md) | Black Friday 27 Nov / Cyber Monday 30 Nov 2026: which cohorts get a price cut and which do not, the send plan inside the frequency cap, the coffee subscription angle, and the blockers that must clear first. Synthesises `knowledge/retention/*` BFCM guidance against this base's offer rules. |
+
 ## The four buyer avatars (used throughout)
 
 All targeting ultimately resolves to one of four buyer avatars:

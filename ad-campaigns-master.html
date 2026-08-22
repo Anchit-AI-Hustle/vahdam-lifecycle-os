@@ -104,6 +104,12 @@ td.num,th.num{white-space:nowrap;text-align:right;font-variant-numeric:tabular-n
   td .cw.wide,th .cw.wide{max-width:320px;min-width:150px}
   td .cw.id,th .cw.id{max-width:150px;font-family:var(--mono);font-size:11.3px}
   tbody tr:nth-child(even) td{background:var(--surface-2)}
+  /* The account card is a button now, so it needs the affordances of one. */
+  .acard.drill{cursor:pointer;text-align:left;font:inherit;width:100%;display:block;
+               border:1px solid var(--line);background:var(--surface);transition:border-color .12s,background .12s}
+  .acard.drill:hover{border-color:var(--gold);background:rgba(171,135,67,.05)}
+  .acard.drill:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  .acard .drillgo{margin-top:8px;font-size:11.5px;font-weight:700;letter-spacing:.04em;color:#0a6b39}
   .chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid transparent;vertical-align:middle}
   .chip.good{background:var(--good-bg);color:var(--good);border-color:var(--good)}
   .chip.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
@@ -2177,21 +2183,51 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
         var m2 = a.kpi==='roas'
           ? {k:'CTR today', v:a.ctr!=null?pct(a.ctr):"—"}
           : {k:'CTR today', v:a.ctr!=null?pct(a.ctr):"—"};
-        return "<div class='acard"+(a.kpi==='traffic'?" traffic":"")+"'>"+
+        // A card that prints "19 campaigns" is an invitation to click it. It was a
+        // plain div, so nothing happened. It is now a real <button> that scopes the
+        // hierarchy tree to THIS account and opens it at campaign level, from which
+        // the existing rows drill campaign -> ad set -> ad. The id space is the same
+        // one the chips and the account registry use (dtc / retail / ...), so the
+        // narrowing is exact rather than a name guess.
+        return "<button type='button' class='acard drill"+(a.kpi==='traffic'?" traffic":"")+"'"+
+          " data-drill-acct='"+esc(a.id)+"' data-drill-label='"+esc(a.label)+"'"+
+          " title='Open "+esc(a.label)+" campaigns, ad sets and ads'"+
+          " aria-label='Open "+esc(a.label)+": "+intf(a.campaigns)+" campaigns, "+intf(a.ads)+" ads'>"+
           "<h4>"+esc(a.label)+"</h4>"+
           "<div class='id'>"+intf(a.ads)+" ads · "+intf(a.campaigns)+" campaigns "+(a.kpi?kpiChip(a.kpi):"")+"</div>"+
           (a.used_for?"<div class='use'>"+esc(a.used_for)+"</div>":"")+
           "<div class='mx'><div><div class='k'>Spend today</div><div class='v'>"+money(a.spend)+"</div></div>"+
           "<div><div class='k'>"+esc(m2.k)+"</div><div class='v'>"+m2.v+"</div></div>"+
           "<div><div class='k'>CPC</div><div class='v'>"+(a.cpc!=null?money(a.cpc):"—")+"</div></div></div>"+
-          "</div>";
+          "<div class='drillgo'>View campaigns \u203a</div>"+
+          "</button>";
       }).join("")+"</div>"+
       "<div class='dist' style='margin-top:12px'>"+rows.map(function(a){
         return "<div class='row'><div class='lb'>"+esc(a.label)+"</div>"+
           "<div class='tr'><div class='fl"+(a.kpi==='traffic'?" alt":"")+"' style='width:"+Math.max(1,Math.round(100*(a.spend||0)/max))+"%'></div></div>"+
           "<div class='vl'>"+money(a.spend)+"</div></div>";
       }).join("")+"</div></div>";
+    // Wire the drill AFTER the HTML lands. Clicking an account scopes the
+    // hierarchy tree to it and opens Campaigns & Ads at campaign level; the
+    // existing tree rows then take it down to ad set and then to the ad.
+    var split=$("#live-acct-split");
+    if(split) split.querySelectorAll("[data-drill-acct]").forEach(function(b){
+      b.addEventListener("click", function(){
+        drillIntoAccount(b.getAttribute("data-drill-acct"), b.getAttribute("data-drill-label"));
+      });
+    });
   }
+  /** Scope the campaign / ad-set / ad tree to one ad account and show it. */
+  function drillIntoAccount(id, label){
+    if(!id) return;
+    TREE={account:id,accountLabel:label||id,campaign:null,adset:null,ad:null};
+    var tab=document.querySelector('#tabs button[data-p="campaigns"]');
+    if(tab) tab.click();
+    loadTree();
+    var host=$("#tree-crumb")||$("#tree-body");
+    if(host&&host.scrollIntoView) host.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+  window.drillIntoAccount = drillIntoAccount;
   function renderLiveAds(res){
     var rows=(res&&res.ads)||[];
     if(!rows.length){
@@ -3185,7 +3221,12 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
      subset. Ratios are derived HERE from the additive sums (spend, impressions,
      link clicks) \u2014 summing a per-row CTR or CPC is the bug that once reported
      CTR 3,891% on this data, so aggregation must never touch a stored ratio. */
-  var TREE={campaign:null,adset:null,ad:null};
+  // account is part of the scope, not just campaign/adset. op=hierarchy has always
+  // accepted an `account` param and applied it in the SQL WHERE via
+  // accountFilter() - the UI simply never sent it, so every drill showed EVERY
+  // account's campaigns under whichever account you had just clicked. Same
+  // "capability exists, no entrance" shape as the Creative Studio nav row.
+  var TREE={account:null,accountLabel:null,campaign:null,adset:null,ad:null};
   function tRatios(r){
     var sp=Number(r.spend)||0, im=Number(r.impressions)||0,
         lk=Number(r.inline_link_clicks)||Number(r.clicks)||0;
@@ -3206,10 +3247,12 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
   }
   function treeCrumb(){
     var el=$("#tree-crumb"); if(!el) return; el.innerHTML="";
-    var parts=[["All campaigns",{campaign:null,adset:null,ad:null}]];
-    if(TREE.campaign) parts.push([TREE.campaign,{campaign:TREE.campaign,adset:null,ad:null}]);
-    if(TREE.adset)    parts.push([TREE.adset,{campaign:TREE.campaign,adset:TREE.adset,ad:null}]);
-    if(TREE.ad)       parts.push([TREE.ad,{campaign:TREE.campaign,adset:TREE.adset,ad:TREE.ad}]);
+    var A=TREE.account, AL=TREE.accountLabel;
+    var parts=[["All accounts",{account:null,accountLabel:null,campaign:null,adset:null,ad:null}]];
+    if(A) parts.push([AL||A,{account:A,accountLabel:AL,campaign:null,adset:null,ad:null}]);
+    if(TREE.campaign) parts.push([TREE.campaign,{account:A,accountLabel:AL,campaign:TREE.campaign,adset:null,ad:null}]);
+    if(TREE.adset)    parts.push([TREE.adset,{account:A,accountLabel:AL,campaign:TREE.campaign,adset:TREE.adset,ad:null}]);
+    if(TREE.ad)       parts.push([TREE.ad,{account:A,accountLabel:AL,campaign:TREE.campaign,adset:TREE.adset,ad:TREE.ad}]);
     parts.forEach(function(pr,i){
       if(i){ var s=document.createElement("span"); s.className="sep"; s.textContent="\u203a"; el.appendChild(s); }
       if(i===parts.length-1){
@@ -3228,7 +3271,8 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
     // platform is stated rather than left to the core's default, and level is sent
     // exactly ONCE — a duplicate level= arrives as an array and fails the level
     // lookup outright ("campaign,adset" is not a level).
-    var extra="&platform=meta&level="+level+(TREE.campaign?"&campaign="+encodeURIComponent(TREE.campaign):"")
+    var extra="&platform=meta&level="+level+(TREE.account?"&account="+encodeURIComponent(TREE.account):"")
+                                          +(TREE.campaign?"&campaign="+encodeURIComponent(TREE.campaign):"")
                                           +(TREE.adset?"&adset="+encodeURIComponent(TREE.adset):"");
     host.innerHTML="<div class='empty'>Loading "+esc(level)+"s\u2026</div>";
     apiGet("action=ads-snowflake&op=hierarchy"+extra).then(function(res){

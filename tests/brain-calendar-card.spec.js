@@ -27,6 +27,10 @@ function day(date, bucket, opts = {}) {
     id: `${date}-${market}`, market, status: 'tentative',
     cohort: opts.cohort || 'Lapsed 90d', festival: opts.festival || null,
     hero: opts.hero || 'Turmeric Spiced Herbal Tea', objective: 'winback',
+    // Forwarded by daily-calendar-core so the day surface can carry what the
+    // retired "Rolling calendar" table used to show.
+    why: 'Chosen to drive reactivation for Lapsed 90d with ' + (opts.hero || 'Turmeric Spiced Herbal Tea') + '.',
+    confidence: 0.7, confidence_label: 'moderate',
     channels: ['mailer', 'meta', 'landing_page'],
     assets: ready ? { mailer: true, meta: true, landing_page: true } : null,
     assets_missing: ready ? [] : ['mailer', 'meta', 'landing_page'],
@@ -286,5 +290,33 @@ test.describe('the /brain day card', () => {
     const frame = page.locator('#dayslots .slotpv iframe.pvframe').first();
     await expect(frame).toBeVisible({ timeout: 20000 });
     await expect(slotBtn).toHaveText('Hide assets');
+  });
+
+  test('the day surface is the ONLY calendar, and carries what the retired table carried', async ({ page }) => {
+    // /brain used to show TWO calendars of the same 90 days: this day-level list
+    // and a "Rolling calendar (next 90 days)" table, one row per entry. Two
+    // calendars of one dataset is the duplication that made the page hard to use.
+    await expect(page.locator('#plantable'), 'the duplicate Rolling calendar table is still rendered').toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Rolling calendar/i })).toHaveCount(0);
+
+    // Its bulk actions and filters had to MOVE, not be deleted: they act on
+    // PLAN + slotVisible, which is independent of the table's DOM, so deleting
+    // the card without relocating them would have silently removed working
+    // features rather than a duplicate view.
+    const card = page.locator('#daycal');
+    for (const id of ['#downloadAll', '#mktfilter', '#durfilter', '#catfilter']) {
+      await expect(card.locator(id), `${id} did not move into the day card`).toHaveCount(1);
+    }
+    // #plan is kept as a hidden tbody because renderPlan() is still the single
+    // place that computes the visible counts and button state.
+    await expect(page.locator('#plan')).toHaveCount(1);
+
+    // And the two columns only the table had now render in the per-send detail.
+    await page.locator('.callist .cday').nth(1).click();
+    const panel = page.locator('#dayslots');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('Why:');
+    await expect(panel).toContainText('Confidence:');
+    await expect(panel).toContainText('moderate');
   });
 });
