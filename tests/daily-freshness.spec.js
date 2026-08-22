@@ -463,12 +463,22 @@ test.describe('the surfaces are wired', () => {
     expect(functionFileCount()).toBeLessThanOrEqual(12);
   });
 
-  test('the console renders the status panel and the day grid', () => {
-    for (const id of ['opsstatus', 'daycal', 'freshcells', 'opsblockers', 'calbody', 'dayslots']) {
+  test('the console renders the status panel, and still makes the day-level read', () => {
+    for (const id of ['opsstatus', 'daycal', 'freshcells', 'opsblockers', 'plantable']) {
       expect(PAGE, `#${id} is missing from the console`).toContain(`id="${id}"`);
     }
+    // The day-level READ is what the freshness panel is computed from, so it
+    // must still happen even though the day-card GRID it also used to draw is
+    // gone - /brain has one calendar now, and it is the plan table. Losing the
+    // read along with the grid would leave the freshness verdicts blank while
+    // still looking like a working panel.
     expect(PAGE).toMatch(/loadDayCalendar\(true\)/);
     expect(PAGE).toContain('action=daily-calendar');
+    expect(PAGE, 'renderFreshness is what consumes that read').toMatch(/renderFreshness\(d\)/);
+    // And the second calendar must not come back.
+    for (const dead of ['id="calbody"', 'id="dayslots"', 'renderDayGrid']) {
+      expect(PAGE, `${dead} is a second calendar surface`).not.toContain(dead);
+    }
   });
 
   test('the migration that unblocks the writes ships in the apply-all bundle', () => {

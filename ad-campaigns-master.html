@@ -4276,11 +4276,32 @@ try{
       dmM.addEventListener('change', sd); if (dmC) dmC.addEventListener('change', sd); sd();
     }
   }
+  // THE PLAN BAR'S STATE IS DECLARED HERE, ABOVE ITS FIRST POSSIBLE READER.
+  //
+  // It used to be declared ~700 lines further down, next to the functions that
+  // use it, which is where you would naturally put it - and that is the bug.
+  // onAdsRegistry() below runs SYNCHRONOUSLY whenever the account registry has
+  // already landed, and it calls renderAdMkt(), which reads AD_MKT. A `let` is
+  // in its temporal dead zone until its declaration is evaluated, so that read
+  // threw:
+  //
+  //   ReferenceError: Cannot access 'AD_MKT' before initialization
+  //
+  // which the outer try/catch swallowed into one console line, taking the whole
+  // Creative Studio init with it. It is a RACE on whether the registry script
+  // ran before this block parsed, so it appeared intermittently and on one
+  // engine - CI caught it on iphone-12 while every Chromium project passed.
+  //
+  // The old comment here reasoned it away: "Both functions are declared in this
+  // same block, so no existence guard is warranted." True of the FUNCTIONS -
+  // declarations hoist - and false of the `let` they read. Hoisting a function
+  // is not initialising a variable.
+  let AD_PLAN = [], AD_MKT = 'US', AD_ACCT = '';
+
   // The registry may land before or after this block parses, so handle both.
   function onAdsRegistry() {
     bindCreativeAccounts();
-    // The plan bar builds its region tiles from the registry too. Both functions
-    // are declared in this same block, so no existence guard is warranted.
+    // The plan bar builds its region tiles from the registry too.
     renderAdMkt();
   }
   if (window.__ADS_ACCOUNTS) onAdsRegistry();
@@ -4999,7 +5020,6 @@ try{
   const dkey = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   const BRAIN = '/api/brain';
   const intf = (n) => (+n || 0).toLocaleString();
-  let AD_PLAN = [], AD_MKT = 'US', AD_ACCT = '';
   const AD_PREVIEW = {};
   const CHAN_COL = { google: 'chan-google', meta: 'chan-meta', tiktok: 'chan-other' };
   // Account filtering is honest about what the plan actually knows: a slot that
