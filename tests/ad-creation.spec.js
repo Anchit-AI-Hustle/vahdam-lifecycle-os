@@ -233,3 +233,57 @@ test.describe('ad creation is reachable and works', () => {
     await expect.poll(() => lastReq && lastReq.body.surface).toBe('lp-mailer');
   });
 });
+
+// THE ACCOUNT REGISTRY LANDING FIRST KILLED THE WHOLE CREATIVE STUDIO.
+//
+// ad-campaigns-master.html wires the registry both ways round:
+//
+//   if (window.__ADS_ACCOUNTS) onAdsRegistry();
+//   else document.addEventListener('ads-registry-ready', onAdsRegistry, {once:true});
+//
+// The `else` branch is fine - by the time the event fires, the block has fully
+// evaluated. The synchronous branch is not: onAdsRegistry() calls renderAdMkt(),
+// which reads AD_MKT, and AD_MKT was declared with `let` about seven hundred
+// lines FURTHER DOWN. A `let` is in its temporal dead zone until its declaration
+// is evaluated, so that read threw
+//
+//   ReferenceError: Cannot access 'AD_MKT' before initialization
+//
+// and the outer try/catch swallowed it into a single console line - taking every
+// tab of the Creative Studio with it.
+//
+// It is a RACE on whether the registry script ran before this block parsed, so
+// it surfaced intermittently and on one engine: CI caught it on iphone-12 while
+// all four Chromium projects passed, and the same file was reported "flaky" in
+// the same run. A race is not reproducible by waiting for it, so this test
+// FORCES the losing order with addInitScript, which runs before any page script.
+test.describe('the Creative Studio survives the registry arriving first', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('no temporal-dead-zone error, and the region bar still renders', async ({ page }) => {
+    // Present BEFORE the page's own script runs, so the synchronous branch wins.
+    await page.addInitScript(() => {
+      window.__ADS_ACCOUNTS = {
+        regions: () => ['US', 'UK', 'IN'],
+        forRegion: () => [{ account_id: '123', platform: 'meta', label: 'Test account' }],
+      };
+    });
+    const consoleErrors = [];
+    page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+    page.on('pageerror', (e) => consoleErrors.push(String(e.message || e)));
+
+    await page.goto(`${BASE}/ads-master#crestudio`);
+
+    // The error was CAUGHT, so it never reached pageerror and never failed a
+    // test that only watched for uncaught exceptions. It has to be read off the
+    // console, which is the only place the old code put it.
+    const tdz = consoleErrors.filter((t) => /before initialization|Creative Studio init/.test(t));
+    expect(tdz, `Creative Studio init threw:\n  ${tdz.join('\n  ')}`).toEqual([]);
+
+    // And prove init actually COMPLETED rather than merely not logging: the
+    // region bar is built by the very call that used to throw.
+    const bar = page.locator('#ad-mkt');
+    await expect(bar).toContainText('REGION');
+    await expect(bar.locator('[data-admkt]')).toHaveCount(4);   // US, UK, IN + ALL
+  });
+});

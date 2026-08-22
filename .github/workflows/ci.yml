@@ -46,10 +46,24 @@ jobs:
   e2e:
     name: Visual + invariant tests (Playwright)
     runs-on: ubuntu-latest
-    # See the note on `build` above. 40 minutes is well clear of a healthy run
-    # (the suite spends ~236s of test time per project after the third-party
-    # waits were removed, against 422s before) and far below six hours.
-    timeout-minutes: 40
+    # See the note on `build` above.
+    #
+    # THIS WAS SET TO 40 AND THAT WAS WRONG. I sized it from local timings for
+    # the fourteen specs I had just sped up (236s of test time per project,
+    # against 422s before) and never checked it against the WHOLE suite on a CI
+    # runner. The last complete run took 52.1 minutes, so 40 did not bound a
+    # hang - it killed three consecutive healthy runs on main at 40m20s each,
+    # reported as "cancelled", which reads like someone pressed the button.
+    # Turning a slow-but-green suite into a red one is a worse failure than the
+    # thing the timeout was added to catch.
+    #
+    # 90 is chosen to be far above any observed healthy run (52.1m is the
+    # worst measured, and cta-and-filters alone accounts for ~36m of it across
+    # the four device projects) while still being nowhere near the six-hour
+    # default. A timeout is a HANG DETECTOR, not a performance budget: if the
+    # suite gets slower for a legitimate reason, the right response is a
+    # profile, not a red build.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
