@@ -3,6 +3,7 @@
 // critical layout invariants that previously regressed.
 const { test, expect } = require('@playwright/test');
 const path = require('path');
+const { blockExternal } = require('./lib/page-harness');
 
 // All tests share this URL — it's set in playwright.config.js
 const URL = process.env.TARGET_URL || 'file://' + path.resolve(__dirname, '..', 'vahdam_mailer_architect_v34.html');
@@ -36,6 +37,11 @@ async function bypassAuth(page) {
 
 test.describe('Mailer Studio — responsive smoke', () => {
   test.beforeEach(async ({ page }) => {
+    // page.goto waits for `load`, and this page links Google Fonts and a handful
+    // of CDN assets that cannot resolve in CI — so every navigation sat waiting
+    // for those connections to give up. Refuse them outright. Skipped when
+    // TARGET_URL aims the run at a real deployment, where the page IS remote.
+    if (!process.env.TARGET_URL) await blockExternal(page);
     await bypassAuth(page);
     await page.goto(URL);
     // Force-dismiss auth in case the overlay is still showing (defense in depth)

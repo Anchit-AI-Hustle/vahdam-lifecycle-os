@@ -216,14 +216,26 @@ function collectErrors(page) {
  * exercise the happy path where those libraries load, and must not be read as
  * if it did.
  */
+// LOCAL means "cannot leave this machine", which is a wider set than the loopback
+// server: `file:` is the local disk and several specs open the page that way
+// (studio.spec.js reads vahdam_mailer_architect_v34.html straight off disk, and
+// looker-embed.spec.js does the same with dashboard.html). Aborting `file:` would
+// have blocked those pages' OWN scripts and stylesheets and broken them, which is
+// how a blanket "abort anything not http://127.0.0.1" would have looked like the
+// app failing rather than the harness overreaching.
+//
+// `about:` covers the blank document a context starts on. Everything else — every
+// http(s) host that is not loopback — is the public internet and is refused.
+function isLocalUrl(url) {
+  return /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url)
+    || /^(data|blob|file|about):/.test(url);
+}
+
 function blockExternal(page) {
   return page.route('**/*', (route) => {
-    const url = route.request().url();
-    if (/^https?:\/\/(127\.0\.0\.1|localhost)/.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
-      return route.continue();
-    }
+    if (isLocalUrl(route.request().url())) return route.continue();
     return route.abort('failed');
   });
 }
 
-module.exports = { startServer, collectErrors, routeMap, blockExternal, ROOT };
+module.exports = { startServer, collectErrors, routeMap, blockExternal, isLocalUrl, ROOT };
