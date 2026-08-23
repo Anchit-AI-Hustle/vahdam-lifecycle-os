@@ -508,6 +508,34 @@ timeout. Only the last is genuinely uncoverable locally.
   `budget > computed worst case` **and** that the control cap was not lowered - fixing a timeout by
   cutting coverage is the tempting wrong answer.
 
+### The check written to prevent red pushes was blinded by local state (2026-08-23)
+The very push that added the preflight above went red on CI in **14 seconds, on both jobs at once**,
+before a single test ran: `npm ci` refused `package-lock.json`. eslint had been added to
+`package.json` without regenerating the lock, so CI got `Missing: callsites@3.1.0 from lock file` and
+stopped.
+- **The preflight passed, and that is the lesson.** `node_modules` is already populated in the dev
+  sandbox, so `npx eslint` ran perfectly off a package the lockfile had never heard of. A local check
+  that reads the ENVIRONMENT rather than the COMMITTED ARTIFACT will confirm whatever the machine
+  happens to hold. Same shape as the bare-PATH trap one section up, and I walked into it again in the
+  same session.
+- Stage 5 now runs **`npm ci --dry-run`** first: it reproduces CI's validation exactly, touches no
+  `node_modules`, costs a second, and cannot be fooled by local state. Vercel installs from the same
+  lockfile, so this is one check for both platforms. Verified with teeth - adding an un-locked
+  dependency turns it red with `run: npm install --package-lock-only` in the message.
+- **A green CI is not a green DEPLOY**, and the same stage now covers the rest of that gap.
+  `npm run build` IS the `buildCommand` in `vercel.json`. `tests/vercel-deploy.spec.js` checks the
+  deploy manifest itself: **a rewrite whose destination file was deleted 404s a nav link while the
+  deploy still reports success** - this repo has form, since `ads-dashboard.html`, `ad-campaigns.html`
+  and `ads-masterclass.html` were each merged away and deleted. All 125 rewrites resolve today, so it
+  is a regression guard rather than a live bug.
+- **The function count is 12/12 - at the Hobby cap, not comfortably under it.** A 13th file under
+  `api/` fails the deploy outright. The spec asserts CI keeps its fast shell guard too, so that case
+  still fails in seconds instead of at the end of a 90-minute suite.
+- The redirect check strips the **fragment** as well as the query. My first version reported four
+  false positives because `/ads -> /ads-master#crestudio` is how Creative Studio keeps its own
+  entrance, and a rewrite cannot carry a hash - which is exactly why those four are redirects. The
+  config was right and the check was wrong.
+
 ### A claim with a test beside it is a warranty; without one it is marketing (2026-08-21)
 From a portfolio audit of the sibling products: "the enforcement table - claim -> test that holds it -
 is the single most sellable asset in the entire portfolio. Nothing else here has it." This repo makes
