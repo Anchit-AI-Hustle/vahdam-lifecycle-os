@@ -28,7 +28,11 @@ const JS_TYPE = /^(|text\/javascript|application\/javascript|module)$/i;
 
 function inlineBlocks(html) {
   const out = [];
-  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+  // `</script >` with whitespace before the bracket is valid HTML, and a
+  // close pattern that misses it makes the extractor swallow the rest of the
+  // document as script content - a false failure from the guard itself.
+  // Flagged by CodeQL on the first version of this file, and it was right.
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
     const attrs = m[1] || '';
     if (/\bsrc\s*=/.test(attrs)) continue;                       // external file
     const t = (/\btype\s*=\s*["']?([^"'\s>]+)/i.exec(attrs) || [, ''])[1];
@@ -74,4 +78,18 @@ test('the CI syntax step still covers the standalone scripts', () => {
   const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
   expect(ci).toMatch(/node --check/);
   expect(ci, 'the root-script glob was replaced by a hand-kept list again').toMatch(/for f in \*\.js/);
+});
+
+test('the extractor handles a whitespace-padded close tag', () => {
+  // `</script >` is valid HTML. The first version of this spec used
+  // /<\/script>/ and would have treated everything after such a tag as
+  // script body, failing on a page that is perfectly fine.
+  const html = '<script>var a = 1;</script >\n<p>after</p>\n<script>var b = 2;</script>';
+  const blocks = inlineBlocks(html);
+  expect(blocks.length, 'a padded close tag broke block extraction').toBe(2);
+  expect(blocks[0].code).toContain('var a');
+  expect(blocks[1].code).toContain('var b');
+  for (const b of blocks) expect(() => new Function(b.code)).not.toThrow();
+  // And the prose between them was not swallowed into a block.
+  expect(blocks.some((b) => b.code.includes('<p>after'))).toBe(false);
 });
