@@ -164,3 +164,30 @@ test('the gate is attached to every built campaign', () => {
   expect(src).toMatch(/campaign\.launch_gate\s*=/);
   expect(src).toContain('Launch Readiness Gate');
 });
+
+// The gate was computed for a while before anything DISPLAYED it: the only
+// trace on screen was a tick in the agent-pipeline pill row, so "is this at or
+// above 9.5" could not be answered by looking - which is the one question the
+// gate exists to answer. Same vanished-entrance defect this repo has hit with
+// INFO.ads, the Creative Studio tab and copyMasterPrompt: the code survived, the
+// way in did not.
+test('the weighted score is actually rendered, not just computed', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'smart-brain.html'), 'utf8');
+  expect(page, 'smart-brain.html never reads campaign.launch_gate').toMatch(/launch_gate/);
+  // The NUMBER, not merely a pass/fail pill - a tick does not tell you 9.6 from 9.4.
+  expect(page, 'the weighted score is not printed anywhere').toMatch(/weighted/);
+  expect(page).toMatch(/pass_mark/);
+  // A failing gate must say what is holding it down; a verdict with no cause is
+  // not something an operator can act on.
+  expect(page).toMatch(/blockers/);
+  expect(page).toMatch(/unmeasured/);
+  expect(page).toMatch(/remediation/);
+});
+
+test('the launch-gate banner uses brand green, never a dark-neutral fill', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'smart-brain.html'), 'utf8');
+  const banner = page.slice(page.indexOf('THE LAUNCH SCORE, AS A NUMBER'));
+  const block = banner.slice(0, banner.indexOf('Agent pipeline:'));
+  expect(block, 'the failing state must be brand green, not near-black').toContain('#004A2B');
+  expect(block).not.toMatch(/background:\s*#(171717|000|1a1a1a|3a1414)/i);
+});
