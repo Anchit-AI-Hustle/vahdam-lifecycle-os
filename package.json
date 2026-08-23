@@ -19,6 +19,8 @@
     "export:complete": "node scripts/export-complete.js",
     "deploy": "vercel --prod",
     "test": "playwright test",
+    "lint": "eslint .",
+    "preflight:push": "bash scripts/preflight-push.sh",
     "test:scenarios": "node scripts/_test-scenarios.js && node scripts/_test-scenarios-brain.js && node scripts/_test-competitor-schema.js",
     "test:ui": "playwright test --ui",
     "test:install": "playwright install",
@@ -40,7 +42,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "eslint": "^9.39.0"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

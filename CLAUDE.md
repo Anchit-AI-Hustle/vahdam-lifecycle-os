@@ -476,6 +476,38 @@ upload step pointed at an empty path. Worse, the screenshot, video and trace for
 - **The general lesson: a warning in a CI log is not noise.** This one had been printing on every red
   run and described the exact reason the failures could not be diagnosed.
 
+### Six red pushes, none of which a local test run could have caught (2026-08-23)
+Asked to make every push and deploy land clean. The tests were already being run before every push, so
+the useful question was why that was not enough. Classifying the session's six CI failures:
+env-dependent spec (passed here because the CLIs were installed, failed on a bare runner), three CodeQL
+regex findings (static analysis, not a test), an unused import (no linter existed), and a WebKit-only
+timeout. Only the last is genuinely uncoverable locally.
+- **A linter, configured as a RATCHET.** `eslint.config.mjs`, scoped to the standalone JS that CI
+  already syntax-checks plus the specs. Correctness rules (`no-undef`, `no-const-assign`, `no-dupe-keys`,
+  ...) are **error and all at zero**, so the gate can only go red on newly broken code; the ~47
+  pre-existing unused-vars/useless-escape are **warnings**. Making those blocking would turn CI red on
+  untouched work, which is not a gate, it is a chore.
+- **It found a live 500 within minutes.** `api/calendar.js` declared `const q` inside the
+  `lifecycle-list` branch and read it from `lifecycle-build-mailer`, a different block. `||`
+  short-circuits, so `q && q.force` only evaluated when `body.force` was falsy - **the default call** -
+  giving `ReferenceError: q is not defined`. ~800 tests never touched that path.
+- **`scripts/preflight-push.sh`** runs what CI runs: syntax, lint, the real inline-JS spec, the shell
+  scripts under a deliberately **bare PATH**, then the Chromium suite. It names what it cannot cover
+  (WebKit, CodeQL) instead of implying a green local run means green CI. `--fast` skips the 8-minute
+  suite for iterating and says it is not a substitute.
+- **The preflight's first version reimplemented the inline-JS extractor** and immediately drifted - no
+  `type="module"` handling, 7 false failures. It now invokes the spec. Same defect as nine copies of the
+  URL map; a local copy of shared logic goes stale the moment the original learns something.
+- **`eslint --fix` is not safe to run unreviewed.** It stripped deliberate `eslint-disable` comments from
+  six files and left trailing whitespace. Those comments are intent, and deleting them silently re-arms
+  the rule later. `linterOptions.reportUnusedDisableDirectives: 'off'` now prevents it, and a test
+  asserts the suppressions are still there.
+- **The WebKit timeout was under-budgeting, not flake.** `cta-and-filters` walks 20 controls with a 5s
+  click cap: a ~106s worst case inside the 60s default timeout. It could not fit, and only passed
+  because clicks usually land fast. Click cap 2s, file budget 120s, and a test asserts
+  `budget > computed worst case` **and** that the control cap was not lowered - fixing a timeout by
+  cutting coverage is the tempting wrong answer.
+
 ### A claim with a test beside it is a warranty; without one it is marketing (2026-08-21)
 From a portfolio audit of the sibling products: "the enforcement table - claim -> test that holds it -
 is the single most sellable asset in the entire portfolio. Nothing else here has it." This repo makes

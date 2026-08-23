@@ -58,13 +58,13 @@ test.describe('ads render at their real aspect', () => {
     await page.waitForFunction(() => typeof window.adAspect === 'function' && typeof window.adFrameCss === 'function');
     const out = await page.evaluate(() => {
       return {
-        explicit: adAspect({ aspect: '4:5' }),
-        meta: adAspect({ platform: 'meta' }),
-        tiktok: adAspect({ platform: 'tiktok' }),
-        google: adAspect({ platform: 'google' }),
-        youtube: adAspect({ platform: 'youtube' }),
-        css: adFrameCss({ platform: 'meta' }),
-        tallCss: adFrameCss({ platform: 'tiktok' }),
+        explicit: window.adAspect({ aspect: '4:5' }),
+        meta: window.adAspect({ platform: 'meta' }),
+        tiktok: window.adAspect({ platform: 'tiktok' }),
+        google: window.adAspect({ platform: 'google' }),
+        youtube: window.adAspect({ platform: 'youtube' }),
+        css: window.adFrameCss({ platform: 'meta' }),
+        tallCss: window.adFrameCss({ platform: 'tiktok' }),
       };
     });
     expect(out.explicit).toBe('4/5');
