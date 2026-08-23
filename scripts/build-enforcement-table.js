@@ -109,6 +109,28 @@ function resolve() {
   return { rows, errors };
 }
 
+/**
+ * Make an arbitrary string safe inside a markdown table cell.
+ *
+ * Order matters and is the bug CodeQL flagged: escaping `|` while leaving `\`
+ * alone means a title ending in a backslash emits `\\|`, which renders as a
+ * literal backslash and then breaks the cell. Backslash must be escaped FIRST,
+ * or the escape character you add can be eaten by one already there.
+ *
+ * A test title is also allowed to contain a template-literal placeholder
+ * (`${rel} paints ...`) and newlines; show the shape rather than the raw
+ * expression, and keep the row on one line so the table survives.
+ */
+function mdCell(str) {
+  return String(str == null ? '' : str)
+    .replace(/\$\{[^}]*\}/g, '<each file>')   // placeholder -> readable shape
+    .replace(/\\/g, '\\\\')                       // FIRST: escape backslashes
+    .replace(/\|/g, '\\|')                      // then pipes
+    .replace(/\r?\n|\r/g, ' ')                  // a newline would end the row
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function render(rows) {
   const groups = [...new Set(rows.map((r) => r.group))];
   const out = [
@@ -126,11 +148,7 @@ function render(rows) {
   for (const g of groups) {
     out.push(`## ${g}`, '', '| Claim | Enforced by |', '| --- | --- |');
     for (const r of rows.filter((x) => x.group === g)) {
-      // A test title built from a template literal comes out with its
-      // placeholders intact (`${rel} paints no ...`). Show the shape, not the
-      // raw expression, rather than pretending the title is static.
-      const title = r.title.replace(/\$\{[^}]+\}/g, '<each file>').replace(/\|/g, '\\|');
-      out.push(`| ${r.claim} | \`tests/${r.spec}\` — *${title}* |`);
+      out.push(`| ${mdCell(r.claim)} | \`tests/${r.spec}\` — *${mdCell(r.title)}* |`);
     }
     out.push('');
   }

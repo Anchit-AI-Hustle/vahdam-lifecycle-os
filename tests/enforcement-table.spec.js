@@ -77,3 +77,34 @@ test('no store host in the table or robots.txt is a redirecting one', () => {
   }
   expect(robots).toContain('www.vahdam.com');
 });
+
+test('a table cell escapes backslashes before pipes', () => {
+  // CodeQL caught this: escaping `|` while leaving `\` alone means a title
+  // ending in a backslash emits `\\|`, which renders as a literal backslash
+  // and then breaks the cell. Backslash must be escaped FIRST, or the escape
+  // character you add is eaten by one already there.
+  const src = fs.readFileSync(GEN, 'utf8');
+  const body = src.slice(src.indexOf('function mdCell'), src.indexOf('function render'));
+  const mdCell = new Function(body + '; return mdCell;')();
+
+  expect(mdCell('a|b')).toBe('a\\|b');
+  expect(mdCell('back\\slash')).toBe('back\\\\slash');
+  expect(mdCell('ends\\')).toBe('ends\\\\');
+  // A newline would terminate the table row.
+  expect(mdCell('x\ny')).toBe('x y');
+  // Template-literal placeholders show their shape, not the raw expression.
+  expect(mdCell('${rel} paints')).toBe('<each file> paints');
+  expect(mdCell(null)).toBe('');
+});
+
+test('the emitted table has no row broken by an unescaped delimiter', () => {
+  // Structural check on the real output: every data row must have exactly the
+  // column count the header declares.
+  const md = fs.readFileSync(DOC, 'utf8');
+  const rows = md.split('\n').filter((l) => l.startsWith('|') && !/^\|\s*-+/.test(l));
+  expect(rows.length).toBeGreaterThan(15);
+  for (const r of rows) {
+    const cells = r.replace(/\\\|/g, '\u0000').split('|').length;
+    expect(cells, `row has the wrong column count: ${r.slice(0, 80)}`).toBe(4);
+  }
+});
