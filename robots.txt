@@ -1,6 +1,6 @@
 # VAHDAM Lifecycle OS — internal growth/lifecycle operations tool.
 # This is a private, sign-in-gated application, not a public website.
-# Do not index or crawl any of it (the live customer store is vahdamteas.com).
+# Do not index or crawl any of it (the live customer store is www.vahdam.com).
 User-agent: *
 Disallow: /
 # Legal pages must stay fetchable (Google OAuth branding verification checks

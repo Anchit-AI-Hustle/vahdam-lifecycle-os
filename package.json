@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "node scripts/build-catalog.js && node scripts/build-website-designs.js",
+    "build:enforcement": "node scripts/build-enforcement-table.js",
     "preflight": "bash scripts/preflight-credentials.sh",
     "setup:clis": "bash scripts/setup-clis.sh",
     "push:env": "bash scripts/push-env.sh",
