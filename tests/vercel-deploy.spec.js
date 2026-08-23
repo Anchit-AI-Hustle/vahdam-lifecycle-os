@@ -28,6 +28,24 @@ test('vercel.json is valid JSON and keeps the no-framework contract', () => {
   expect(v.buildCommand).toBe('npm run build');
 });
 
+test('Vercel installs the same way CI does, so the two cannot disagree', () => {
+  // OBSERVED, not theorised. Commit 22e6fc5 deployed to Vercel as READY while
+  // CI rejected that exact SHA in 14 seconds: `npm ci` refused a package-lock
+  // that had drifted from package.json. With no installCommand set, Vercel
+  // chose its own and was happy to install anyway - so a green deployment was
+  // not evidence the commit was sound, and production shipped from a commit CI
+  // had already failed.
+  //
+  // Pinning it to `npm ci` makes both platforms enforce the lockfile. Drift now
+  // fails in one place instead of passing in one and failing in the other, and
+  // the preflight catches it before either sees the push.
+  const v = JSON.parse(raw);
+  expect(v.installCommand).toBe('npm ci');
+  const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+  expect(ci).toMatch(/run:\s*npm ci\b/);
+  expect(ci).not.toMatch(/run:\s*npm install\b/);
+});
+
 // A destination that is a real file on disk is the only kind this can check.
 // API routes, external URLs and anything carrying a `:param` or `*` are resolved
 // by Vercel at request time, not by the filesystem, so they are skipped rather
