@@ -28,11 +28,16 @@ const JS_TYPE = /^(|text\/javascript|application\/javascript|module)$/i;
 
 function inlineBlocks(html) {
   const out = [];
-  // `</script >` with whitespace before the bracket is valid HTML, and a
-  // close pattern that misses it makes the extractor swallow the rest of the
-  // document as script content - a false failure from the guard itself.
-  // Flagged by CodeQL on the first version of this file, and it was right.
-  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+  // An HTML end tag may carry whitespace AND attribute-like junk before the
+  // bracket - `</script >`, `</script\t\n foo="bar">` all close the element,
+  // the parser just ignores the junk. A close pattern that misses any of those
+  // makes the extractor swallow the rest of the document as script body: a
+  // false failure produced by the guard itself.
+  //
+  // CodeQL flagged this twice, and was right both times. The first fix allowed
+  // whitespace only, which is patching the example rather than the rule. The
+  // rule is: everything from `</script` up to the next `>` is the close tag.
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)) {
     const attrs = m[1] || '';
     if (/\bsrc\s*=/.test(attrs)) continue;                       // external file
     const t = (/\btype\s*=\s*["']?([^"'\s>]+)/i.exec(attrs) || [, ''])[1];
@@ -80,16 +85,20 @@ test('the CI syntax step still covers the standalone scripts', () => {
   expect(ci, 'the root-script glob was replaced by a hand-kept list again').toMatch(/for f in \*\.js/);
 });
 
-test('the extractor handles a whitespace-padded close tag', () => {
-  // `</script >` is valid HTML. The first version of this spec used
-  // /<\/script>/ and would have treated everything after such a tag as
-  // script body, failing on a page that is perfectly fine.
-  const html = '<script>var a = 1;</script >\n<p>after</p>\n<script>var b = 2;</script>';
-  const blocks = inlineBlocks(html);
-  expect(blocks.length, 'a padded close tag broke block extraction').toBe(2);
-  expect(blocks[0].code).toContain('var a');
-  expect(blocks[1].code).toContain('var b');
-  for (const b of blocks) expect(() => new Function(b.code)).not.toThrow();
-  // And the prose between them was not swallowed into a block.
-  expect(blocks.some((b) => b.code.includes('<p>after'))).toBe(false);
+test('the extractor handles every legal close-tag form', () => {
+  // All of these close the element per the HTML spec; the parser ignores the
+  // junk after the tag name. CodeQL supplied the second and third examples
+  // after the first fix only allowed whitespace - patching the example rather
+  // than the rule.
+  for (const close of ['</script>', '</script >', '</script\t\n bar>', '</script foo="bar">']) {
+    const html = `<script>var a = 1;${close}\n<p>after</p>\n<script>var b = 2;</script>`;
+    const blocks = inlineBlocks(html);
+    expect(blocks.length, `close tag ${JSON.stringify(close)} broke extraction`).toBe(2);
+    expect(blocks[0].code).toContain('var a');
+    expect(blocks[1].code).toContain('var b');
+    for (const b of blocks) expect(() => new Function(b.code)).not.toThrow();
+    // The prose between them must not have been swallowed into a block.
+    expect(blocks.some((b) => b.code.includes('<p>after')),
+      `content after ${JSON.stringify(close)} was swallowed`).toBe(false);
+  }
 });
