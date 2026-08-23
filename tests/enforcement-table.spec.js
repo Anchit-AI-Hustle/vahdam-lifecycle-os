@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
-const { execFileSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 
 // From the portfolio audit: "The enforcement table - claim -> test that holds
 // it - is the single most sellable asset in the entire portfolio. Nothing else
