@@ -476,6 +476,23 @@ upload step pointed at an empty path. Worse, the screenshot, video and trace for
 - **The general lesson: a warning in a CI log is not noise.** This one had been printing on every red
   run and described the exact reason the failures could not be diagnosed.
 
+### The most-cited bug in this file had no automated check (2026-08-21)
+"Common Bugs to Watch" opens with unescaped quotes in the giant inline-JS pages - "a stray backtick in a
+CSS comment once broke a template literal and killed the sidebar". Nothing checked for it. CI runs
+`node --check` over `api lib workers scripts` and the root `*.js` glob and stops there, while the pages
+carry **~4.2MB of inline JavaScript across 239 files in 311 script blocks**. A syntax error in any of it
+kills that page and CI stays green, because a broken `<script>` is a runtime failure and never a build
+one.
+- The CI step's own comment records learning this lesson once already, for root scripts: "a list that
+  must be updated by hand is a list that gets forgotten." The same reasoning applies to WHERE the code
+  is, not just which files are named - and the pages are where most of this app's JavaScript lives.
+- `tests/inline-js-parses.spec.js` parses every inline block. It skips `src=` scripts and any non-JS
+  `type` (`application/ld+json` is data, `text/template` is markup - the browser does not parse either
+  as JS, so neither should the guard), and it asserts the CI step still covers the standalone scripts so
+  this is read as extending that coverage rather than replacing it.
+- All 311 blocks parse today, so this is a regression guard rather than a latent bug. Verified with
+  teeth: injecting one curly apostrophe into `index.html` turns it red with the file and line.
+
 ### The market-URL map came back three times, and the guard could not see it (2026-08-21)
 `market-urls.js` was made the single source after nine hand-maintained copies were found. **Three came
 back**, and the existing spec could not catch them: it tests that a known DEAD host has not reappeared,
