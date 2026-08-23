@@ -126,3 +126,32 @@ test('--fix cannot strip a deliberate eslint-disable comment', () => {
       `${f} lost its eslint-disable comment`).toMatch(/eslint-disable/);
   }
 });
+
+// A check that depends on somebody remembering to run it is not a check. The
+// push that ADDED preflight-push.sh went red on CI because I pushed without
+// running it, which is the whole argument for wiring it to the push itself.
+test('the fast preflight runs automatically on push', () => {
+  const hook = path.join(ROOT, '.githooks/pre-push');
+  expect(fs.existsSync(hook), '.githooks/pre-push is missing').toBe(true);
+  const src = fs.readFileSync(hook, 'utf8');
+  expect(src).toContain('preflight-push.sh');
+  // --fast on purpose: ~19s, and it covers every class that actually went red
+  // this session. The 8-minute browser suite would make the hook something
+  // people routinely bypass, which is worse than not having it.
+  expect(src).toContain('--fast');
+  // The escape hatch must stay documented in the failure message: a hook that
+  // can wedge someone out of pushing is worse than the bug it prevents.
+  expect(src).toContain('--no-verify');
+  expect(fs.statSync(hook).mode & 0o111, 'pre-push is not executable').toBeTruthy();
+});
+
+test('prepare wires the hook and cannot fail an install', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  expect(pkg.scripts.prepare).toContain('core.hooksPath .githooks');
+  // prepare ALSO runs during `npm ci` on Vercel, and a non-zero prepare fails
+  // the install, which fails the deployment. It must swallow its own failure -
+  // a repo with no .git (or no git binary) has to install cleanly.
+  expect(pkg.scripts.prepare).toMatch(/\|\|\s*true/);
+  const rc = spawnSync('sh', ['-c', pkg.scripts.prepare], { cwd: require('os').tmpdir() });
+  expect(rc.status, 'prepare exits non-zero outside a git repo').toBe(0);
+});

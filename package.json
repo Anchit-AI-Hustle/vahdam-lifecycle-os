@@ -2,7 +2,7 @@
   "name": "vahdam-lifecycle-os",
   "version": "1.0.0",
   "private": true,
-  "description": "VAHDAM Lifecycle OS \u2014 Data Analysis + 30-day Marketing Calendar + Mailer Creator. Forked from marketing_mailers__html_architect; adds retention dashboard + calendar generator on top of the existing 6-LLM mailer pipeline.",
+  "description": "VAHDAM Lifecycle OS — Data Analysis + 30-day Marketing Calendar + Mailer Creator. Forked from marketing_mailers__html_architect; adds retention dashboard + calendar generator on top of the existing 6-LLM mailer pipeline.",
   "engines": {
     "node": ">=20.x"
   },
@@ -38,7 +38,9 @@
     "mobile:ios:open": "cap open ios",
     "attribution": "node scripts/order-attribution.js",
     "evals": "node scripts/run-evals.js",
-    "evals:live": "node scripts/run-evals.js --live"
+    "evals:live": "node scripts/run-evals.js --live",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "setup:hooks": "git config core.hooksPath .githooks && echo \"pre-push hook active (bypass with git push --no-verify)\""
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",

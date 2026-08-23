@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Run the cheap half of the preflight before every push.
+#
+# scripts/preflight-push.sh only helps if somebody remembers to run it, and the
+# push that added it went red on CI precisely because I pushed without it. A
+# check that depends on discipline is not a check.
+#
+# --fast is deliberate: it takes ~19 seconds and covers every failure class that
+# actually went red this session - lockfile drift, a lint error, a syntax error,
+# an inline script that does not parse, a script that needs a CLI CI does not
+# have, a rewrite pointing at a deleted page, a 13th Serverless Function. It
+# SKIPS the 8-minute browser suite, so this is a fast gate rather than a full
+# one; run `scripts/preflight-push.sh` (no flag) for that before anything that
+# matters.
+#
+# Escape hatch: `git push --no-verify` skips this entirely. It is here so a
+# broken hook can never stop you pushing - not as the normal path.
+cd "$(git rev-parse --show-toplevel)" || exit 0
+[ -f scripts/preflight-push.sh ] || exit 0
+
+if ! bash scripts/preflight-push.sh --fast; then
+  cat >&2 <<'MSG'
+
+PUSH BLOCKED by .githooks/pre-push (the fast preflight failed above).
+
+Fix the reported problem, or push anyway with:
+  git push --no-verify
+MSG
+  exit 1
+fi

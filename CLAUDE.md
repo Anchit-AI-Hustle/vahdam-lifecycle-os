@@ -535,6 +535,13 @@ stopped.
   false positives because `/ads -> /ads-master#crestudio` is how Creative Studio keeps its own
   entrance, and a rewrite cannot carry a hash - which is exactly why those four are redirects. The
   config was right and the check was wrong.
+- **A check that depends on remembering to run it is not a check** - the push that ADDED the preflight
+  went red because I pushed without running it. `.githooks/pre-push` now runs `--fast` on every push
+  (~19s: lockfile, lint, syntax, inline JS, bare PATH, deploy manifest - everything except the
+  8-minute browser suite, which would just get bypassed). Activated by a `prepare` script, which
+  **also runs during `npm ci` on Vercel**, so it ends in `|| true`: a non-zero `prepare` fails the
+  install and therefore the deployment. `git push --no-verify` is the documented escape hatch, so a
+  broken hook can never wedge someone out of pushing.
 
 ### A claim with a test beside it is a warranty; without one it is marketing (2026-08-21)
 From a portfolio audit of the sibling products: "the enforcement table - claim -> test that holds it -
