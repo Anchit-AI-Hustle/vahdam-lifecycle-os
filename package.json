@@ -2,12 +2,13 @@
   "name": "vahdam-lifecycle-os",
   "version": "1.0.0",
   "private": true,
-  "description": "VAHDAM Lifecycle OS \u2014 Data Analysis + 30-day Marketing Calendar + Mailer Creator. Forked from marketing_mailers__html_architect; adds retention dashboard + calendar generator on top of the existing 6-LLM mailer pipeline.",
+  "description": "VAHDAM Lifecycle OS — Data Analysis + 30-day Marketing Calendar + Mailer Creator. Forked from marketing_mailers__html_architect; adds retention dashboard + calendar generator on top of the existing 6-LLM mailer pipeline.",
   "engines": {
     "node": ">=20.x"
   },
   "scripts": {
     "build": "node scripts/build-catalog.js && node scripts/build-website-designs.js",
+    "build:enforcement": "node scripts/build-enforcement-table.js",
     "preflight": "bash scripts/preflight-credentials.sh",
     "setup:clis": "bash scripts/setup-clis.sh",
     "push:env": "bash scripts/push-env.sh",
@@ -18,6 +19,8 @@
     "export:complete": "node scripts/export-complete.js",
     "deploy": "vercel --prod",
     "test": "playwright test",
+    "lint": "eslint .",
+    "preflight:push": "bash scripts/preflight-push.sh",
     "test:scenarios": "node scripts/_test-scenarios.js && node scripts/_test-scenarios-brain.js && node scripts/_test-competitor-schema.js",
     "test:ui": "playwright test --ui",
     "test:install": "playwright install",
@@ -35,11 +38,14 @@
     "mobile:ios:open": "cap open ios",
     "attribution": "node scripts/order-attribution.js",
     "evals": "node scripts/run-evals.js",
-    "evals:live": "node scripts/run-evals.js --live"
+    "evals:live": "node scripts/run-evals.js --live",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "setup:hooks": "git config core.hooksPath .githooks && echo \"pre-push hook active (bypass with git push --no-verify)\""
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "eslint": "^9.39.0"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

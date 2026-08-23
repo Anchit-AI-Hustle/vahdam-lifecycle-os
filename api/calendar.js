@@ -285,6 +285,12 @@ async function lifecycle(req, res, action) {
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   const body = readBody(req);
+  // Hoisted deliberately. `q` used to be declared inside the lifecycle-list
+  // branch and referenced from lifecycle-build-mailer, which is a different
+  // block - so `q && q.force` threw ReferenceError. `||` short-circuits, so it
+  // only threw when body.force was FALSY, i.e. on the default call. Found by
+  // eslint no-undef; ~800 tests never exercised that path.
+  const q = req.query || {};
   try {
     if (action === 'lifecycle-generate') {
       if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
@@ -299,7 +305,6 @@ async function lifecycle(req, res, action) {
     }
 
     if (action === 'lifecycle-list') {
-      const q = req.query || {};
       const result = await lifecycleGen.listEntries({
         market: q.market || body.market || 'UK',
         from: q.from || body.from || null,

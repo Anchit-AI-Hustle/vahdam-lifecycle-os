@@ -823,6 +823,31 @@ function renderPreview(payload, e, i, opts){
       <button class="btn sm secondary" onclick="closeExp(${i})" title="Collapse">✕</button>
     </div>
     <div class="pvnote">Copy by <b>${esc(cw.provider || 'template')}</b>${cw.model?` · ${esc(cw.model)}`:''} · channels: ${(e.channels||[]).map(esc).join(', ')||'—'}</div>
+    ${(() => {
+      // THE LAUNCH SCORE, AS A NUMBER. The gate has been computed since it was
+      // added, but the only trace of it on screen was a tick in the agent
+      // pipeline below - so "is this at or above 9.5" could not be answered by
+      // looking, which is the whole question the gate exists to answer. A pass
+      // states the score; a fail states the score AND what is holding it down,
+      // because a verdict with no cause is not actionable.
+      const lg = (payload.campaign && payload.campaign.launch_gate) || campaign.launch_gate;
+      if (!lg || typeof lg.weighted !== 'number') return '';
+      const pass = lg.ok === true;
+      const bits = [];
+      if (Array.isArray(lg.blockers) && lg.blockers.length) bits.push('blockers: ' + lg.blockers.slice(0,4).map(esc).join(', '));
+      if (Array.isArray(lg.unmeasured) && lg.unmeasured.length) {
+        // An unmeasured dimension BLOCKS by design - it is not a pass with a
+        // gap, so it has to be named rather than left as a silent subtraction.
+        bits.push('unmeasured: ' + lg.unmeasured.slice(0,4).map((u)=>esc(u && u.label ? u.label : u)).join(', '));
+      }
+      const fix = Array.isArray(lg.remediation) && lg.remediation.length
+        ? ' To fix: ' + esc(String(lg.remediation[0])) : '';
+      return `<div class="pvnote" style="margin-top:4px;border-radius:6px;padding:6px 9px;font-size:11px;`
+        + (pass ? `background:#e8f3ec;color:#0a4a26` : `background:#004A2B;color:#FBF5EA`) + `">`
+        + `<b>Launch gate ${lg.weighted.toFixed(2)}/10</b> (pass mark ${esc(String(lg.pass_mark))}) &middot; ${esc(String(lg.verdict||''))}`
+        + (bits.length ? ` &middot; ${bits.join(' &middot; ')}` : '')
+        + esc('') + fix + `</div>`;
+    })()}
     ${(() => { const tr = payload.agent_trace || campaign.agent_trace; if(!Array.isArray(tr)||!tr.length) return ''; return `<div class="pvnote" style="margin-top:4px">Agent pipeline: ${tr.map(a=>`<span class="pill" style="background:${a.ok?'#e8f3ec':'#3a1414'};color:${a.ok?'#0a7d33':'#ffd9d0'};font-size:10px" title="${esc(a.role||'')}${a.provider?' · '+esc(a.provider):''}">${a.ok?'✓':'⚠'} ${esc(a.agent)}</span>`).join(' → ')}</div>`; })()}
     ${(() => {
       // When copy fell back to the template (no LLM provider answered), show the

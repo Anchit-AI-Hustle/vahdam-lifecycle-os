@@ -18,6 +18,10 @@
  */
 
 const { db, getConfig, getBrandKit, scrubBannedPhrases, idFor, todayIso, round } = require('./brain-core.js');
+// market-urls is THE map. The fallback here used to be www.vahdamteas.com,
+// which market-urls itself classifies as a REDIRECTING host - so every slot
+// with no explicit store_urls entry generated links through a redirect.
+const { storeBase } = require('./market-urls.js');
 const analysis = require('./brain-analysis.js');
 
 let callLLM = null;
@@ -295,7 +299,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
   const P = brand.palette;
   const heads = brand.typography.headings.fallback;
   const body = brand.typography.body.fallback;
-  const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+  const store = (brand.store_urls || {})[slot.market] || storeBase(slot.market);
   const cur = slot.market === 'UK' ? '£' : '$';
   // Collection CTA target, derived from the hero product's category so the
   // secondary CTA lands on the right collection (falls back to all-teas).
@@ -443,7 +447,7 @@ function mailerHtml(slot, copy, products, brand, agentUrl) {
 // just the rich mailer if the shared renderer is unavailable.
 function mailerVariants(slot, copy, products, brand, agentUrl, richHtml) {
   if (!renderTextVariant) return null;
-  const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+  const store = (brand.store_urls || {})[slot.market] || storeBase(slot.market);
   const p0 = products[0] || {};
   const heroImg = productImage(p0, slot.market) || '';
   const S = {
@@ -480,7 +484,7 @@ function landingHtml(slot, copy, products, brand, agentUrl) {
   const P = brand.palette;
   const heads = brand.typography.headings.fallback;
   const body = brand.typography.body.fallback;
-  const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+  const store = (brand.store_urls || {})[slot.market] || storeBase(slot.market);
   const cur = slot.market === 'UK' ? '£' : '$';
   const esc = (s) => String(s == null ? '' : s).replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'));
   const L = copy.landing || {};
@@ -673,7 +677,7 @@ function audienceSpec(slot, cohort) {
 
 function campaignObjects(slot, copy, cohort, products, brand) {
   const aud = audienceSpec(slot, cohort);
-  const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+  const store = (brand.store_urls || {})[slot.market] || storeBase(slot.market);
   const utm = `utm_source={platform}&utm_medium={medium}&utm_campaign=${encodeURIComponent(slot.id)}`;
   const objs = [];
   if (slot.channel === 'email' || slot.channel === 'landing_email') {
@@ -790,7 +794,7 @@ async function generateForSlot(slotId, { persist = true } = {}) {
     push('mailer_html', `Mailer · ${slot.theme} · ${slot.market}`, richHtml, { subject: copy.subject, preheader: copy.preheader, variants: variants || ['A: image hero', 'B: text editorial'] });
   }
   if (slot.channel.startsWith('landing')) {
-    const store = (brand.store_urls || {})[slot.market] || 'https://www.vahdamteas.com';
+    const store = (brand.store_urls || {})[slot.market] || storeBase(slot.market);
     const hub = pickCampaignHubLP(slot, picked);
     if (hub) {
       // Premium curated themed LP from the Campaign Hub compiler.

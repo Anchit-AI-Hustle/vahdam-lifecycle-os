@@ -34,6 +34,14 @@ jobs:
           # forgotten; the glob cannot omit a file that exists.
           for f in *.js; do [ -f "$f" ] && node --check "$f"; done
           echo "All JS parses cleanly ($(ls *.js | wc -l) root scripts + api/lib/workers/scripts)"
+      - name: Lint (correctness rules; warnings do not block)
+        # A ratchet, not a cleanup mandate. Every error-level rule is at zero
+        # today, so this can only go red on newly broken code. no-undef is why
+        # it exists: it found a ReferenceError on the default path of
+        # /api/calendar?action=lifecycle-build-mailer that ~800 tests never hit.
+        # ~47 pre-existing warnings stay visible and non-blocking.
+        run: npx eslint .
+
       - name: Function-count guard (Hobby cap = 12)
         # Vercel counts every non-_shared file under api/ as a Serverless Function.
         # The vercel.json "functions" map is OPTIONAL per-function config, so a file

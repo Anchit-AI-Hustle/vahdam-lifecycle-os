@@ -37,15 +37,13 @@ try { callLLM = require('./llm.js'); } catch (_) { callLLM = null; }
 const catalogLive = require('./catalog-live.js');
 
 // ── Real product catalog (source of truth for names + links) ─────────────────
-// Canonical per-region store domains (per the product owner): US vahdam.com,
-// UK vahdam.co.uk, Global vahdam.global, IN vahdam.in. The agent must NEVER
-// invent a handle or domain — every product name/URL it cites comes from here.
-const STORE_BASE = {
-  US: 'https://vahdam.com',
-  UK: 'https://vahdam.co.uk',
-  GLOBAL: 'https://vahdam.global',
-  IN: 'https://vahdam.in',
-};
+// Per-region store domains come from market-urls, which is the single source.
+// This file used to carry its own copy, and its comment asserted a vahdam.in
+// that the canonical map does not have - there is no separate IN storefront
+// today, so IN resolves to the .com store. The agent must NEVER invent a
+// handle or domain; every URL it cites resolves through here.
+const { storeBase: _storeBase } = require('./market-urls.js');
+const STORE_BASE = new Proxy({}, { get: (_t, k) => _storeBase(String(k)) });
 function normMarket(m) {
   const u = String(m || 'US').toUpperCase();
   return (u === 'US' || u === 'UK' || u === 'GLOBAL' || u === 'IN') ? u : 'US';

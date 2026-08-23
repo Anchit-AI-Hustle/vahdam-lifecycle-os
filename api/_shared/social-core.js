@@ -75,7 +75,7 @@ const ALL_KEYS = Object.keys(PLATFORM_SPECS);
 function loadJson(rel) {
   try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8')); } catch (_) { return null; }
 }
-function productTypes() { return loadJson('data/product-types.json') || { store: { base_url: 'https://vahdam.co.uk', product_url_pattern: 'https://vahdam.co.uk/products/{handle}' }, types: {} }; }
+function productTypes() { return loadJson('data/product-types.json') || { store: { base_url: 'https://www.vahdam.co.uk', product_url_pattern: 'https://www.vahdam.co.uk/products/{handle}' }, types: {} }; }
 function festivalsUK() { const f = loadJson('data/festivals.json'); return (f && f.UK) || []; }
 
 // ── Brand scrub — every emitted string passes through here ───────────────────
@@ -129,7 +129,7 @@ function focusFor(dateIso, facts) {
   const doy = dayOfYear(dateIso);
   const type = FOCUS_CYCLE[doy % FOCUS_CYCLE.length];
   const t = (facts.types || {})[type] || {};
-  const base = (facts.store && facts.store.base_url) || 'https://vahdam.co.uk';
+  const base = (facts.store && facts.store.base_url) || 'https://www.vahdam.co.uk';
   let product;
   if (type === 'coffee') {
     product = { title: t.label || 'Ashwagandha Coffee', handle: t.handle || 'ashwagandha-coffee' };
@@ -202,7 +202,7 @@ const BRAND_GATES = [
   '- NO founder voice: no first-person-singular "I", no founder letters, no personal-name sign-offs. The brand speaks as "we".',
   '- NO medical claims for ashwagandha / turmeric / supplements: no disease, stress-cure, cortisol, sleep-fix or weight-loss claims. Softest allowed register: "calm", "steady", "balance", "a gentler kind of energy".',
   '- Supplements: NEVER state a price (none is public). Coffee pricing must match EXACTLY: Pack of 1 £49.99 one-time / £29.99 subscription; Pack of 3 £99.99 / £59.99 (£59.99 = 2 x £29.99 — buy two packs, the third is free). 7 free gifts with EVERY coffee order. Teas & Botanicals: ONE-TIME purchase only — never subscription language for teas.',
-  '- Links: ONLY https://vahdam.co.uk/products/{handle} using the handles provided — never invent a URL or discount code.',
+  '- Links: ONLY https://www.vahdam.co.uk/products/{handle} using the handles provided — never invent a URL or discount code.',
   '- Voice: warm, sensory, story-driven. Preferred words: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
 ].join('\n');
 
@@ -294,7 +294,7 @@ async function strategyAgent(ctx, ideology, hypothesis, keys, timeoutMs) {
   const per = {};
   for (const key of keys) {
     const got = (out.per_platform || {})[key] || {};
-    const link = typeof got.link === 'string' && got.link.indexOf('https://vahdam.co.uk/products/') === 0 ? got.link : fb.per_platform[key].link;
+    const link = typeof got.link === 'string' && got.link.indexOf('https://www.vahdam.co.uk/products/') === 0 ? got.link : fb.per_platform[key].link;
     per[key] = {
       objective: ['awareness', 'traffic', 'conversion'].indexOf(String(got.objective || '').toLowerCase()) >= 0 ? String(got.objective).toLowerCase() : fb.per_platform[key].objective,
       cta: String(got.cta || fb.per_platform[key].cta),

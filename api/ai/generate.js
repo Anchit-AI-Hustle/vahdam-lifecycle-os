@@ -898,9 +898,10 @@ Target market: ${targetMarket}.`;
     // document (no JSON). The client previews it in the inline modal and falls
     // back to its deterministic template if this fails. response_format stays
     // null so the model returns raw HTML; scrubDashes runs on the way out.
-    const LP_STORE = { US:'https://vahdam.com', UK:'https://vahdam.co.uk', IN:'https://vahdam.in', Global:'https://vahdam.global', EU:'https://vahdam.global', AU:'https://vahdam.global', ME:'https://vahdam.global' };
+    // market-urls is the single source; a local map here is how apex domains
+    // and a non-existent vahdam.in got into generated landing pages.
     const lpRegion = (body.region || body.market || market || 'US');
-    const lpBase = LP_STORE[lpRegion] || LP_STORE.US;
+    const lpBase = require('../_shared/market-urls.js').storeBase(lpRegion);
     const lpChannel = String(body.channel || 'landing');
     response_format = undefined;
     systemPrompt = [

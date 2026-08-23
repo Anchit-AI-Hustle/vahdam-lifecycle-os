@@ -62,6 +62,15 @@ async function ready(page, url) {
   await page.waitForTimeout(700);
 }
 
+// This file walks up to 20 interactive controls per page across ~30 pages, so
+// its worst case is far larger than a normal spec's. Budget it explicitly
+// rather than inheriting the 60s default that it provably cannot fit inside:
+//   20 controls x (2s click cap + 180ms settle + ~300ms of evaluates) ~= 50s
+// plus page load, on the slowest emulated mobile project. 120s leaves real
+// margin without hiding a genuine hang - a control that takes minutes is still
+// a failure.
+test.describe.configure({ timeout: 120_000 });
+
 test.describe('every page loads without throwing', () => {
   for (const file of appPages()) {
     test(`${file} boots clean`, async ({ page }) => {
@@ -152,7 +161,11 @@ test.describe('every filter control does something, and says so when there is no
         if (navigates) continue;
         const label = ((await c.textContent().catch(() => '')) || '').trim().slice(0, 40);
         if (DESTRUCTIVE.test(label)) continue;
-        await c.click({ timeout: 5000 }).catch(() => {});
+        // 2s, not 5s. This is the dominant term in the file's runtime: 20
+        // controls x 5s is a 100s worst case inside a 60s test budget, which is
+        // how this timed out on iphone-12. A click on an element already
+        // checked for visibility either lands quickly or is not going to.
+        await c.click({ timeout: 2000 }).catch(() => {});
         await page.waitForTimeout(180);
 
         // A results container that a filter emptied must SAY it is empty.

@@ -123,3 +123,58 @@ test.describe('the market map', () => {
     expect(fs.readFileSync(p, 'utf8')).toMatch(/DEAD_HOSTS/);
   });
 });
+
+// ── No hand-written copies of the map, ever again ──────────────────────────
+// The existing tests catch a DEAD host reappearing. They cannot catch a map of
+// LIVE-looking hosts, which is how three copies survived the consolidation:
+//   api/ai/generate.js        LP_STORE, with an apex domain and a vahdam.in
+//   api/_shared/brand-llm.js  STORE_BASE, whose comment asserted that vahdam.in
+//   api/_shared/landing-page-core.js  STORE, which sent Global / EU / AU / ME
+//                                     to the US store entirely
+// The last one is the reason this guard exists: every one of those maps looked
+// plausible, and one of them silently pointed a whole region at the wrong
+// storefront, currency and catalog.
+test('no module keeps its own market -> store map', () => {
+  const files = require('child_process')
+    .execSync("git ls-files 'api/**/*.js' 'lib/**/*.js' 'scripts/**/*.js'", { cwd: ROOT, encoding: 'utf8' })
+    .split('\n').filter(Boolean)
+    .filter((f) => !/market-urls\.js$/.test(f));
+  const offenders = [];
+  for (const rel of files) {
+    const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    // Two or more region keys mapped to a vahdam host in one object literal.
+    for (const m of src.matchAll(/\{[^{}]*?(?:US|UK|IN|GLOBAL|Global)\s*:\s*['"`]https?:\/\/[^'"`]*vahdam[^{}]*\}/g)) {
+      const hits = (m[0].match(/vahdam/g) || []).length;
+      if (hits >= 2) offenders.push(`${rel}: ${m[0].slice(0, 90).replace(/\s+/g, ' ')}...`);
+    }
+    // Or the same shape spread over consecutive lines.
+    if (/^\s*(US|UK|GLOBAL|IN)\s*:\s*['"`]https?:\/\/[^'"`]*vahdam/m.test(src)
+        && (src.match(/^\s*(US|UK|GLOBAL|IN|Global|EU|AU|ME|India)\s*:\s*['"`]https?:\/\/[^'"`]*vahdam/gm) || []).length >= 2) {
+      offenders.push(`${rel}: multi-line region -> vahdam host map`);
+    }
+  }
+  expect([...new Set(offenders)],
+    `hand-written store map(s) found. Use storeBase() from market-urls:\n  ${[...new Set(offenders)].join('\n  ')}`).toEqual([]);
+});
+
+test('no source invents a vahdam host the canonical map does not have', () => {
+  const known = new Set(Object.values(MARKET.STORE_BASE).map((u) => new URL(u).host));
+  const files = require('child_process')
+    .execSync("git ls-files 'api/**/*.js' 'lib/**/*.js'", { cwd: ROOT, encoding: 'utf8' })
+    .split('\n').filter(Boolean).filter((f) => !/market-urls\.js$/.test(f));
+  const bad = [];
+  for (const rel of files) {
+    const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    for (const m of src.matchAll(/https?:\/\/([a-z0-9.-]*vahdam[a-z0-9.-]*)/gi)) {
+      const host = m[1].toLowerCase();
+      if (known.has(host)) continue;
+      if (/^try\.vahdam\./.test(host)) continue;            // documented landing subdomains
+      if (/myshopify\.com$/.test(host)) continue;            // the admin host, not a storefront
+      if (/vercel\.app$/.test(host)) continue;               // THIS app's own origin, not a storefront
+      bad.push(`${rel}: ${host}`);
+    }
+  }
+  // vahdam.in is the one this caught: CLAUDE.md records that there is no
+  // separate IN storefront today, so IN resolves to the .com store.
+  expect([...new Set(bad)], `host(s) not in the canonical map:\n  ${[...new Set(bad)].join('\n  ')}`).toEqual([]);
+});

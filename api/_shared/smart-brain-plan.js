@@ -1544,6 +1544,30 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
       trace.push({ agent: 'Motion Director', role: 'Video Ads', ok: false, output: { reason: String(e && e.message || e).slice(0, 160) } });
     }
   }
+  // §22 launch-readiness gate. Nothing computed this before, so "is it ready"
+  // was answered by looking at the screen. Advisory like ads_qa / asset_qa -
+  // it reports, it does not silently refuse - but it is now a number with
+  // evidence per dimension rather than an impression.
+  try {
+    const lg = require('./launch-gate.js');
+    campaign.launch_gate = lg.scoreCampaign(campaign, {
+      catalogGate: campaign.catalog_gate || null,
+    });
+    trace.push({
+      agent: 'Launch Readiness Gate', role: 'Pre-send gate',
+      ok: campaign.launch_gate.ok,
+      output: {
+        weighted: campaign.launch_gate.weighted,
+        verdict: campaign.launch_gate.verdict,
+        blockers: campaign.launch_gate.blockers,
+        unmeasured: campaign.launch_gate.unmeasured.map((u) => u.label),
+        remediation: campaign.launch_gate.remediation.slice(0, 6),
+      },
+    });
+  } catch (e) {
+    trace.push({ agent: 'Launch Readiness Gate', role: 'Pre-send gate', ok: false, output: { reason: String((e && e.message) || e) } });
+  }
+
   campaign.copywriter = copyMeta;
   campaign.agent_trace = trace;
   campaign.calendar_entry_id = entry.id || id || null;
