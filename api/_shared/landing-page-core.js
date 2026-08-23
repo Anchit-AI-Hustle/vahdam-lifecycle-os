@@ -8,16 +8,12 @@ const scrub = (value) => {
   catch (_) { return String(value || '').replace(/[\u2013\u2014]/g, '-'); }
 };
 
-const STORE = {
-  US: 'https://vahdam.com',
-  UK: 'https://vahdam.co.uk',
-  India: 'https://vahdam.in',
-  IN: 'https://vahdam.in',
-  Global: 'https://vahdam.com',
-  EU: 'https://vahdam.com',
-  AU: 'https://vahdam.com',
-  ME: 'https://vahdam.com',
-};
+// market-urls is THE map. This file used to keep its own, and it was wrong in
+// two ways at once: Global / EU / AU / ME all resolved to the US store, so a
+// Global landing page linked to the wrong storefront, currency and catalog;
+// and it used the apex domain plus a vahdam.in that the canonical map does not
+// have (there is no separate IN storefront today - IN resolves to .com).
+const { storeBase } = require('./market-urls.js');
 
 let runDesignLoop = null;
 try { ({ runDesignLoop } = require('./lp-design-loop.js')); } catch (_) { runDesignLoop = null; }
@@ -37,7 +33,7 @@ module.exports = async function handler(req, res) {
 
   const market = String(body.market || body.region || 'US');
   const channel = String(body.channel || 'landing');
-  const store = STORE[market] || STORE.US;
+  const store = storeBase(market);
   const motionProfile = String(body.motion_profile || 'immersive-balanced');
   const brief = String(body.brief || body.prompt || '').slice(0, 9000);
   if (brief.trim().length < 20) return res.status(400).json({ error: 'brief_required' });

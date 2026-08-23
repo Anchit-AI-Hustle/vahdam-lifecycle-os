@@ -476,6 +476,28 @@ upload step pointed at an empty path. Worse, the screenshot, video and trace for
 - **The general lesson: a warning in a CI log is not noise.** This one had been printing on every red
   run and described the exact reason the failures could not be diagnosed.
 
+### The market-URL map came back three times, and the guard could not see it (2026-08-21)
+`market-urls.js` was made the single source after nine hand-maintained copies were found. **Three came
+back**, and the existing spec could not catch them: it tests that a known DEAD host has not reappeared,
+which says nothing about a fresh map of live-LOOKING hosts.
+- `api/ai/generate.js` (`LP_STORE`), `api/_shared/brand-llm.js` (`STORE_BASE`, whose comment asserted a
+  `vahdam.in` the canonical map does not have) and `api/_shared/landing-page-core.js` (`STORE`).
+- **The worst was silent and regional:** `landing-page-core` mapped Global, EU, AU and ME all to
+  `vahdam.com`, so every Global landing page linked to the US storefront - wrong store, wrong currency,
+  wrong catalog - while looking perfectly reasonable in source.
+- All three also used the APEX domain. `market-urls` already classifies `vahdam.co.uk` and
+  `www.vahdamteas.com` as `REDIRECTING_HOSTS`, and the new guard found two more places relying on them:
+  `brain-generate.js` used `https://www.vahdamteas.com` as the DEFAULT store in five generators, and
+  `social-core.js` used apex `vahdam.co.uk` in five places including the prompt that tells the model
+  which URLs it may emit.
+- Two new tests in `tests/market-urls.spec.js`: no module may hold its own region→vahdam-host object
+  (two or more keys), and no source may name a vahdam host absent from `STORE_BASE`. The app's own
+  `*.vercel.app` origin and `try.vahdam.*` are exempt for a stated reason rather than by omission.
+  Verified with teeth - restoring one map turns two tests red.
+- **The lesson is about the guard, not the map.** A test written against the symptom you just fixed (a
+  specific dead host) does not cover the defect class (a local copy of a shared map). Guard the shape,
+  not the instance.
+
 ### Black was still being painted as a section background, in seven places (2026-08-21)
 The spec's HARD design rule - never a black / `#171717` / dark-neutral SECTION background, use green -
 was being violated by the shipping product. A generated mailer opened with a black band across the top,
