@@ -190,10 +190,15 @@
     };
   }
 
+  // `btn` is the element that was clicked, so it always exists: the only call
+  // site is the grid's own delegated handler. It was written with `btn ? ... : ''`
+  // guards, which a review bot correctly flagged as dead - and dead defensive
+  // code is worse than none, because it implies a case that cannot happen.
   async function copyAssetPrompt(item, btn) {
     const label = ASSET_LABEL[item.kind] || 'asset';
-    const orig = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Building…';
     try {
       const r = await fetch('/api/ai/generate?action=master-prompt', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -210,7 +215,8 @@
     } catch (err) {
       toast('Could not build the ' + label + ' prompt: ' + ((err && err.message) || 'unknown error'));
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = orig; }
+      btn.disabled = false;
+      btn.textContent = orig;
     }
   }
 

@@ -243,8 +243,17 @@ async function mapWithConcurrency(items, limit, fn) {
 
 // Insert rows, falling back to one-at-a-time when the batch is rejected.
 // Returns real counts plus deduplicated blockers — never a bare ok:true.
-async function insertRowsResilient(db, table, rows, { onConflict = 'id', resolution = 'ignore-duplicates' } = {}) {
-  const out = { inserted: 0, rejected: 0, blockers: [], degraded: false };
+//
+// CHUNKED, because "one batch" stops being a batch at some size. A 90-day x
+// 2-market x 2-cohort window is ~720 slots and a slot payload is ~12KB, so a
+// first sync after an outage would have posted a single ~7MB request — and if
+// PostgREST refuses it for ANY reason (size, one duplicate key), the fallback
+// re-tries all 720 rows ONE AT A TIME at ~389ms each, which is 4+ minutes
+// inside a 120s function. Chunks keep both the happy path and the fallback
+// bounded, and the per-row fallback stays sequential WITHIN a chunk so a
+// partially-rejected chunk still writes in a predictable order.
+async function insertRowsResilient(db, table, rows, { onConflict = 'id', resolution = 'ignore-duplicates', msLeft = null } = {}) {
+  const out = { inserted: 0, rejected: 0, deferred: 0, blockers: [], degraded: false };
   if (!rows.length) return out;
   const addBlocker = (warning, count) => {
     const c = classifyWriteFailure(warning);
@@ -252,17 +261,25 @@ async function insertRowsResilient(db, table, rows, { onConflict = 'id', resolut
     if (hit) hit.rows_rejected += count; else out.blockers.push({ ...c, rows_rejected: count });
   };
 
-  const batch = await db.upsert(table, rows, onConflict, { resolution });
-  if (batch.ok) { out.inserted = (batch.rows || []).length; return out; }
+  const SIZE = Math.max(1, Math.min(200, +process.env.SMART_BRAIN_INSERT_CHUNK || 25));
+  const WIDTH = Math.max(1, Math.min(12, +process.env.SMART_BRAIN_SYNC_CONCURRENCY || 8));
+  const chunks = [];
+  for (let i = 0; i < rows.length; i += SIZE) chunks.push(rows.slice(i, i + SIZE));
 
-  // Batch refused. Re-try each row on its own so one bad slot cannot cost the
-  // rest of the window.
-  out.degraded = true;
-  for (const row of rows) {
-    const one = await db.upsert(table, [row], onConflict, { resolution });
-    if (one.ok) out.inserted += (one.rows || []).length;
-    else { out.rejected += 1; addBlocker(one.warning, 1); }
-  }
+  await mapWithConcurrency(chunks, WIDTH, async (chunk) => {
+    if (msLeft && msLeft() <= 0) { out.deferred += chunk.length; return; }
+    const batch = await db.upsert(table, chunk, onConflict, { resolution });
+    if (batch.ok) { out.inserted += (batch.rows || []).length; return; }
+    // Chunk refused. Re-try each row on its own so one bad slot cannot cost the
+    // rest of the window.
+    out.degraded = true;
+    for (const row of chunk) {
+      if (msLeft && msLeft() <= 0) { out.deferred += 1; continue; }
+      const one = await db.upsert(table, [row], onConflict, { resolution });
+      if (one.ok) out.inserted += (one.rows || []).length;
+      else { out.rejected += 1; addBlocker(one.warning, 1); }
+    }
+  });
   return out;
 }
 
@@ -539,10 +556,11 @@ async function syncDaily({ config: cfg = {}, days, persist = true, includePlan =
     const results = { inserted: 0, updated: 0, skipped_locked: 0, rejected: 0, warnings: [], blockers: [], degraded: false };
     if (inserts.length) {
       // ignore-duplicates: if a concurrent sync already created the row, leave it untouched.
-      const ins = await insertRowsResilient(db, config.tableNames.calendarEntries, inserts);
+      const ins = await insertRowsResilient(db, config.tableNames.calendarEntries, inserts, { msLeft });
       results.inserted = ins.inserted;
       results.rejected = ins.rejected;
       results.degraded = ins.degraded;
+      results.deferred_inserts = ins.deferred;
       results.blockers.push(...ins.blockers);
     }
     tp = mark('insert_ms', tp);
@@ -571,8 +589,8 @@ async function syncDaily({ config: cfg = {}, days, persist = true, includePlan =
         if (hit) hit.rows_rejected += 1; else results.blockers.push({ ...c, rows_rejected: 1 });
       }
     });
-    results.deferred = deferred.length;
-    results.truncated = deferred.length > 0;
+    results.deferred = deferred.length + (results.deferred_inserts || 0);
+    results.truncated = results.deferred > 0;
     tp = mark('update_ms', tp);
     // ok is DERIVED. It used to be hardcoded true, so a sync that wrote nothing
     // at all still reported success — which is how three weeks of dead syncs went
@@ -630,7 +648,7 @@ async function syncDaily({ config: cfg = {}, days, persist = true, includePlan =
     // undiagnosable precisely because a killed invocation reports nothing: the
     // next slow run says which phase is eating the budget.
     timings: { ...timings, total_ms: Date.now() - t0, budget_ms: BUDGET_MS },
-    truncated: !!(persistence && persistence.truncated),
+    truncated: !!persistence.truncated,
     changes,
     insights: ctx.analysis.dailyInsights,
     cohorts: ctx.analysis.cohorts,
