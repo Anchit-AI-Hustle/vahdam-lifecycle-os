@@ -1355,6 +1355,77 @@ async function uploadCreative(dataUrl, name) {
 // product's real photos — all hosted Shopify CDN, HD-boosted, de-duplicated,
 // in catalog order. This is the single source every channel draws from so no
 // two sections ever repeat one photo. Never fabricates a URL.
+/* A VIDEO AD CARRIES AN ARTEFACT YOU CAN ACTUALLY PLAY.
+ *
+ * The console drew the STORYBOARD: caption text cross-faded over a still, and
+ * when there was no still, over a dark gradient — labelled "ANIMATED PREVIEW".
+ * So the preview box a reviewer approves from was, in the common case, an empty
+ * rectangle with words on it. Approving that is approving nothing.
+ *
+ * scripts/lib/motion-ad.js already exists in this repo and already builds a
+ * self-contained animated 9:16 creative from the storyboard, the brand palette
+ * and the brand's OWN catalogue photographs. Nothing in it needs a model. It was
+ * simply never attached to the ad.
+ */
+function attachMotionCreative(ad, entry, pool) {
+  try {
+    const motion = require('../../scripts/lib/motion-ad.js');
+    const brand = (entry && entry.brand && entry.brand.id) ? entry.brand : null;
+    const images = (Array.isArray(pool) ? pool : []).filter(Boolean);
+    const beats = (Array.isArray(ad.storyboard) && ad.storyboard.length ? ad.storyboard : [])
+      .slice(0, 4)
+      .map((sh, i) => ({
+        image: images.length ? images[i % images.length] : '',
+        headline: String((sh && (sh.scene || sh.shot)) || '').slice(0, 90),
+        sub: String(sh && sh.t ? sh.t : ''),
+        seconds: 2.6,
+      }));
+    const scenes = beats.length ? beats : [{
+      image: images[0] || '',
+      headline: String(ad.hook || ad.headline || (entry.heroProduct && entry.heroProduct.title) || '').slice(0, 90),
+      seconds: 2.6,
+    }];
+    // Audio follows the licensing rule in video-core: a brand with no bed of its
+    // own gets silence and a marker, never another tenant's recording.
+    let audio = null;
+    try { audio = require('./video-core.js').audioBedFor(Number(ad.duration_s) || 15, { brand }); } catch (_) { audio = null; }
+    const spec = {
+      brand,
+      product: (entry.heroProduct && entry.heroProduct.title) || '',
+      scenes,
+      cta: ad.cta || entry.cta || 'Shop now',
+      ctaHeadline: ad.headline || ad.hook || '',
+      audio: (audio && audio.bed) ? audio.bed : false,
+      loop: true,
+    };
+    ad.creative = Object.assign({}, ad.creative, {
+      motion_html: motion.renderMotionAd(spec),
+      motion_brief: motion.motionBrief(spec),
+      // The real MP4 is a separate, and currently absent, thing. Say so rather
+      // than letting an animated preview imply a rendered file exists.
+      video: motionVideoStatus(),
+      audio: audio || null,
+      images_used: scenes.map((sc) => sc.image).filter(Boolean),
+    });
+  } catch (e) {
+    // A motion build must never take a campaign down; the console then shows the
+    // storyboard with an explicit "no artefact" note rather than a fake player.
+    ad.creative = Object.assign({}, ad.creative, {
+      motion_error: String((e && e.message) || e).slice(0, 160),
+      video: motionVideoStatus(),
+    });
+  }
+}
+
+/** Whether a real MP4 can be produced by THIS deployment, without pretending. */
+function motionVideoStatus() {
+  try {
+    const vc = require('./video-core.js');
+    if (typeof vc.videoStatus === 'function') return vc.videoStatus();
+  } catch (_) { /* fall through */ }
+  return { exists: false, reason: 'No MP4 renderer is configured on this deployment; the animated HTML creative is the artefact.' };
+}
+
 function realImagePool(entry, width = 1600) {
   const market = entry.market;
   const urls = [];
@@ -1598,6 +1669,18 @@ async function buildCampaign(entry, config, { id = null, withCreatives = true, n
     console.warn('[smart-brain] LLM copy failed, using template assets:', e.message);
     trace.push({ agent: 'fallback', role: 'template assets', ok: false, output: { reason: String(e && e.message || e).slice(0, 160) } });
   }
+  // Every video ad gets its artefact, on EVERY path. Deliberately here rather
+  // than inside the LLM branch: renderMotionAd needs no provider, so a noLLM or
+  // rate-limited build must not be the one that ships an unplayable ad.
+  try {
+    const needsMotion = ((campaign.assets && campaign.assets.ads) || [])
+      .filter((ad) => ad.creative_type === 'video' && !(ad.creative && ad.creative.motion_html));
+    if (needsMotion.length) {
+      const pool = realImagePool(entry, 1400);
+      for (const ad of needsMotion) attachMotionCreative(ad, entry, pool);
+    }
+  } catch (_) { /* a motion build must never take a campaign down */ }
+
   // Ads QA Critic — deterministic review of the paid-social creatives; runs in BOTH
   // the LLM and noLLM paths. Attaches a verdict + stamps each ad for the studio badge.
   // Advisory (never blocks generation); surfaces type/brand/offer/limit violations.
