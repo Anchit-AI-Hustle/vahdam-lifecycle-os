@@ -298,6 +298,22 @@ do" meant already knowing which of the three held the answer.
 - `tests/nav-analysis-funnel.spec.js` pins the ORDER, not the labels, so renaming a row is free and
   moving one is not.
 
+### A log line's FIRST argument is a format string (2026-08-24)
+CodeQL raised four HIGH "externally-controlled format string" alerts on `api/_shared/llm.js` - one per
+provider branch - on a PR that does not touch that file (main is green, so treat the attribution as
+CodeQL's diff logic, not as a claim about the diff). The shape:
+`console.error('[llm][' + stage + '] OpenAI ' + r.status, err.substring(0, 200))`.
+- With **two or more arguments Node treats the first as a format string**, and `stage` is
+  caller-supplied. A `%s` anywhere in it silently swallows `err` - the one thing the line exists to
+  print - so this is a real logging defect as well as an alert. Single-argument `console.log(built)`
+  is not a sink, which is exactly why only the four calls that pass an error body were flagged.
+- Fixed by putting the literal first and the values after
+  (`console.error('[llm][%s] OpenAI %s %s', stage, r.status, err...)`).
+- `tests/llm-waterfall-docs.spec.js` guards the class, and **strips comments before scanning**: the
+  comment above the fixed call quotes the broken shape on purpose, and a guard that trips on an
+  explanation of the bug it prevents only teaches people to delete the explanation. Verified with
+  teeth - restoring one call turns it red.
+
 ### A single-pass tag strip is never the right sanitizer (2026-08-19)
 CodeQL flagged two regexes added in the same pass: `.replace(/<[^>]*>/g,'')` to build a `title=`, and
 `.replace(/<\/?style[^>]*>/gi,'')` to pull CSS out of a page. Both are the pattern that leaves
@@ -449,18 +465,27 @@ being re-run.
   ?action=smart-brain-sync-daily` -> HTTP 504 after 2m01s), not inferred. Two causes, both fixed, both
   now measured against the real database:
   - the update phase was `for (const u of updates) await db.update(...)` - ONE sequential PostgREST
-    round-trip per row. Measured from this sandbox: **389ms per serial round-trip, so ~70s for 180
-    rows**; the same 180 at width 8 is **~11s**. Updates now run at bounded concurrency
+    round-trip per row. Measured from this sandbox: **389ms per serial round-trip**, so ~70s for 180
+    rows and ~11s for the same 180 at width 8. Updates now run at bounded concurrency
     (`SMART_BRAIN_SYNC_CONCURRENCY`, default 8). Each row still gets its OWN conditional write,
     because the optimistic lock on `status` is what stops a sync clobbering an approval that landed
     since the read: only the WAITING is shared.
+  - **the window is ~720 slots, not 180** - 90 days x 2 markets x 2 cohorts, measured on the preview
+    deployment (`changes: 720`). At 389ms serial that is over four minutes of writes on its own. So
+    `insertRowsResilient` is CHUNKED too (`SMART_BRAIN_INSERT_CHUNK`, default 25): a slot payload is
+    ~12KB, so the old single batch would have posted **~7MB in one request** after an outage, and if
+    PostgREST refused it for any reason - size, one duplicate key - the fallback re-tried all 720 rows
+    ONE AT A TIME. Chunks bound the happy path and the fallback; the per-row fallback stays sequential
+    WITHIN a chunk so a partially-rejected chunk writes predictably. Both phases watch the clock, so
+    an insert-heavy first sync cannot burn the whole budget before a single update is attempted.
   - the stored window was read TWICE per sync - once raw, once through `getPlan()` at the end - and
     it is **1.89MB / 160 rows / 1.8s** on the live table. Cron callers now pass `includePlan:false`
     and skip the second read; coverage (the alarm for a window that stopped extending) is still
     measured, from a `select=date,market,status` read of a few KB.
-  - So the old worst case was ~2.4s context + 1.8s read + ~70s writes + prune + 1.8s re-read, which
-    fits inside 120s on a good day and does not on a bad one. It "used to work" because the window
-    was shorter; nothing changed except how many rows there were to update.
+  - Measured on the branch's own preview deployment (Vercel -> Supabase, `persist:false`, so
+    read-only): `context_ms 1761`, `plan_build_ms 384`, `plan_read_ms 1370`, `total_ms 3515`. Every
+    phase except the writes costs 3.5s; the writes were the whole timeout. It "used to work" because
+    the window was shorter - nothing changed except how many rows there were to write.
 - **A run that cannot finish now commits what it did and says what it deferred.** `syncDaily` takes a
   wall-clock budget (`SMART_BRAIN_SYNC_BUDGET_MS`, 95s): rows past it are `deferred`, the sync reports
   `truncated`, `persistence.ok` is false, and the next run re-derives the same diff and writes them.

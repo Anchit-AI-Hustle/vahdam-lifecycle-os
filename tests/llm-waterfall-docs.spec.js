@@ -121,3 +121,33 @@ test('callLLM is still the single exported entry point', () => {
   expect(typeof llm, 'llm.js must export the caller itself').toBe('function');
   expect(typeof llm.parseJSON).toBe('function');
 });
+
+// ── A log line's first argument is a format string ──────────────────────────
+// CodeQL raised four HIGH alerts on this file, one per provider branch:
+// `console.error('[llm][' + stage + '] OpenAI ' + r.status, err)`. With two or
+// more arguments Node treats the first as a format string, and `stage` comes
+// from the caller - so a '%s' in it silently swallows `err`, the one thing the
+// line exists to print. Literal format string, values as arguments.
+test('no log call puts a built string in the format-string position', () => {
+  const offenders = [];
+  // Comments are stripped first, preserving offsets, because the comment ABOVE
+  // the fixed call quotes the broken shape on purpose - and a guard that trips
+  // on an explanation of the bug it prevents just teaches people to delete the
+  // explanation. (Same reason the drift checks above skip a quoted old value
+  // inside a correction.)
+  const CODE = LLM_SRC
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
+  // console.X( <expression containing +> , <at least one more argument> )
+  const RE = /console\.(?:log|warn|error|info)\(\s*('[^']*'\s*\+[^;]*?|"[^"]*"\s*\+[^;]*?)\s*,\s*[^)]/g;
+  for (const m of CODE.matchAll(RE)) {
+    const line = CODE.slice(0, m.index).split('\n').length;
+    offenders.push(`llm.js:${line}  ${m[0].slice(0, 90).replace(/\s+/g, ' ')}`);
+  }
+  expect(offenders,
+    `a concatenated string is being used as a format string:\n  ${offenders.join('\n  ')}`).toEqual([]);
+  // Premise check: the four fixed calls really do pass extra arguments, so the
+  // test above is not vacuously green on calls that take only one.
+  const fixed = [...LLM_SRC.matchAll(/console\.error\('\[llm\]\[%s\][^']*',\s*stage/g)];
+  expect(fixed.length, 'the four provider error logs are gone or reshaped').toBe(4);
+});

@@ -286,7 +286,15 @@ module.exports = async function callLLM(opts) {
       clearTimeout(t);
       if (!r.ok) {
         const err = await r.text().catch(() => '');
-        console.error('[llm][' + stage + '] OpenAI ' + r.status, err.substring(0, 200));
+        // The FORMAT STRING is a literal, and everything variable is an argument.
+        // With two or more arguments Node treats the first as a format string, so
+        // `console.error('[llm][' + stage + '] OpenAI ' + r.status, err)` puts a
+        // caller-supplied value (`stage`) in that position: a '%s' inside it
+        // silently swallows the error body, which is the one thing the line
+        // exists to print. CodeQL flags it as an externally-controlled format
+        // string (4 high alerts, one per provider branch below). Same shape in
+        // every branch: literal first, values after.
+        console.error('[llm][%s] OpenAI %s %s', stage, r.status, err.substring(0, 200));
         return { ok: false, status: r.status, err };
       }
       const data = await r.json();
@@ -330,7 +338,7 @@ module.exports = async function callLLM(opts) {
       clearTimeout(t);
       if (!r.ok) {
         const err = await r.text().catch(() => '');
-        console.error('[llm][' + stage + '] Anthropic ' + r.status, err.substring(0, 200));
+        console.error('[llm][%s] Anthropic %s %s', stage, r.status, err.substring(0, 200));
         return { ok: false, status: r.status, err };
       }
       const data = await r.json();
@@ -371,7 +379,7 @@ module.exports = async function callLLM(opts) {
       clearTimeout(t);
       if (!r.ok) {
         const err = await r.text().catch(() => '');
-        console.error('[llm][' + stage + '] Gemini ' + r.status + ' model=' + model, err.substring(0, 200));
+        console.error('[llm][%s] Gemini %s model=%s %s', stage, r.status, model, err.substring(0, 200));
         return { ok: false, status: r.status, err };
       }
       const data = await r.json();
@@ -409,7 +417,7 @@ module.exports = async function callLLM(opts) {
         clearTimeout(t);
         if (!r.ok) {
           const err = await r.text().catch(() => '');
-          console.error('[llm][' + stage + '] ' + providerName + ' ' + r.status, err.substring(0, 200));
+          console.error('[llm][%s] %s %s %s', stage, providerName, r.status, err.substring(0, 200));
           return { ok: false, status: r.status, err };
         }
         const data = await r.json();

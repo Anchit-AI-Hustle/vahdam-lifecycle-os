@@ -174,8 +174,15 @@ test('every row still gets its OWN conditional write', () => {
 
 test('a sync that runs out of budget defers rows instead of being killed', () => {
   expect(PLAN_SRC).toMatch(/SMART_BRAIN_SYNC_BUDGET_MS/);
-  expect(PLAN_SRC).toMatch(/results\.deferred = deferred\.length/);
-  expect(PLAN_SRC).toMatch(/results\.truncated = deferred\.length > 0/);
+  // Deferrals come from BOTH phases: a first sync after an outage is mostly
+  // inserts (~720 slots on a 90-day window), so an insert phase that ignored the
+  // clock could burn the whole budget before a single update was attempted.
+  expect(PLAN_SRC).toMatch(/results\.deferred = deferred\.length \+ \(results\.deferred_inserts \|\| 0\)/);
+  expect(PLAN_SRC).toMatch(/results\.truncated = results\.deferred > 0/);
+  expect(PLAN_SRC, 'the insert phase does not watch the clock').toMatch(/insertRowsResilient\(db, config\.tableNames\.calendarEntries, inserts, \{ msLeft \}\)/);
+  // And the insert itself is chunked, so neither the batch nor its per-row
+  // fallback is unbounded in size.
+  expect(PLAN_SRC).toMatch(/SMART_BRAIN_INSERT_CHUNK/);
   // And a truncated sync is not reported as ok.
   expect(PLAN_SRC).toMatch(/landed >= intended && !results\.truncated/);
   // The summary has to say what happens next, or "deferred" reads as "lost".
@@ -209,4 +216,60 @@ test('a sync reports where its time went', async () => {
   expect(out.coverage).toBeTruthy();
   expect(typeof out.coverage.covered_days).toBe('number');
   expect(out.truncated).toBe(false);
+});
+
+test('a huge first sync is chunked, and its fallback cannot run away', async () => {
+  // 720 rows is the real shape of a 90-day x 2-market x 2-cohort window after an
+  // outage. One request of that size is ~7MB, and if PostgREST refuses it for
+  // ANY reason the old code re-tried all 720 rows one at a time at ~389ms each:
+  // four minutes inside a 120s function. Chunks bound both paths.
+  const calls = { batch: 0, single: 0, sizes: [] };
+  const db = {
+    async upsert(table, rows) {
+      if (rows.length > 1) { calls.batch += 1; calls.sizes.push(rows.length); return { ok: true, rows }; }
+      calls.single += 1; return { ok: true, rows };
+    },
+  };
+  const rows = Array.from({ length: 720 }, (_, i) => ({ id: 'r' + i }));
+  const out = await sbplan.insertRowsResilient(db, 't', rows);
+  expect(out.inserted).toBe(720);
+  expect(out.degraded).toBe(false);
+  expect(calls.single, 'a clean run must not fan out into single writes').toBe(0);
+  expect(calls.batch, 'the whole window went in one request again').toBeGreaterThan(1);
+  expect(Math.max(...calls.sizes), 'a chunk is larger than the configured cap').toBeLessThanOrEqual(200);
+});
+
+test('a rejected chunk costs only that chunk', async () => {
+  // The row that cannot be written must not take the other 719 with it, and the
+  // rows that CAN be written must still land.
+  const bad = 'r300';
+  const stored = [];
+  const db = {
+    async upsert(table, rows) {
+      if (rows.length > 1) {
+        if (rows.some((r) => r.id === bad)) {
+          return { ok: false, warning: 'Supabase upsert t failed: 409 {"code":"23505","details":"Key (date, market)=(x, US) already exists.","message":"duplicate key value violates unique constraint \\"smart_cal_date_market_idx\\""}' };
+        }
+        stored.push(...rows); return { ok: true, rows };
+      }
+      if (rows[0].id === bad) {
+        return { ok: false, warning: 'Supabase upsert t failed: 409 {"code":"23505","details":"Key (date, market)=(x, US) already exists.","message":"duplicate key value violates unique constraint \\"smart_cal_date_market_idx\\""}' };
+      }
+      stored.push(rows[0]); return { ok: true, rows };
+    },
+  };
+  const rows = Array.from({ length: 720 }, (_, i) => ({ id: 'r' + i }));
+  const out = await sbplan.insertRowsResilient(db, 't', rows);
+  expect(out.rejected).toBe(1);
+  expect(out.inserted).toBe(719);
+  expect(out.degraded, 'a fallback ran, so the run is degraded').toBe(true);
+  expect(stored.length).toBe(719);
+});
+
+test('an insert phase with no budget defers instead of writing forever', async () => {
+  const db = { async upsert(table, rows) { return { ok: true, rows }; } };
+  const rows = Array.from({ length: 100 }, (_, i) => ({ id: 'r' + i }));
+  const out = await sbplan.insertRowsResilient(db, 't', rows, { msLeft: () => -1 });
+  expect(out.inserted).toBe(0);
+  expect(out.deferred).toBe(100);
 });
