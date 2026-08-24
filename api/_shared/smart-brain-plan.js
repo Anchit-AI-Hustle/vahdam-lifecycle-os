@@ -648,7 +648,7 @@ async function syncDaily({ config: cfg = {}, days, persist = true, includePlan =
     // undiagnosable precisely because a killed invocation reports nothing: the
     // next slow run says which phase is eating the budget.
     timings: { ...timings, total_ms: Date.now() - t0, budget_ms: BUDGET_MS },
-    truncated: !!(persistence && persistence.truncated),
+    truncated: !!persistence.truncated,
     changes,
     insights: ctx.analysis.dailyInsights,
     cohorts: ctx.analysis.cohorts,

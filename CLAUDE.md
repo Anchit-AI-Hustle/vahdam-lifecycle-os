@@ -298,6 +298,25 @@ do" meant already knowing which of the three held the answer.
 - `tests/nav-analysis-funnel.spec.js` pins the ORDER, not the labels, so renaming a row is free and
   moving one is not.
 
+### Two review-bot findings, and a rebase that broke a spec semantically (2026-08-24)
+PR #398 merged with only its FIRST commit; the follow-up work landed after the merge, so it became a
+fresh change on the same branch rebased onto the new main. Three things worth keeping from that:
+- **Dead defensive code is worse than none.** A review bot flagged `btn ? btn.textContent : ''` and
+  two `if (btn)` guards in `assets.html`: the only call site is the grid's own delegated click
+  handler, so `btn` is the clicked element and cannot be absent. A guard for an impossible case
+  implies the case is possible. Same for `!!(persistence && persistence.truncated)` in
+  `smart-brain-plan.js`, where `persistence` is assigned unconditionally.
+- **A clean textual rebase can still break a spec semantically.** main had meanwhile replaced the
+  `/brain` Rolling calendar TABLE with a day-card list (`.callist .cday`, fed by
+  `?action=daily-calendar`), and `#plantable` is now asserted absent. My appended freshness tests
+  merged without a conflict and then failed on a selector that no longer exists, referencing a `PLAN`
+  fixture the rewritten file no longer defines. **eslint's `no-undef` caught the second half in
+  seconds** - which is the lint ratchet paying for itself on exactly the class of failure it was
+  added for.
+- The freshness tests now stub BOTH endpoints the page reads (the grid from `?action=daily-calendar`,
+  the plan and its timestamps from `?action=smart-brain-plan`), because stubbing only the grid leaves
+  the plan empty and the tile then correctly reads "never" - a green-looking test measuring nothing.
+
 ### A log line's FIRST argument is a format string (2026-08-24)
 CodeQL raised four HIGH "externally-controlled format string" alerts on `api/_shared/llm.js` - one per
 provider branch - on a PR that does not touch that file (main is green, so treat the attribution as
