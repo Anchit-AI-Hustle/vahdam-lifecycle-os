@@ -178,3 +178,59 @@ test('no source invents a vahdam host the canonical map does not have', () => {
   // separate IN storefront today, so IN resolves to the .com store.
   expect([...new Set(bad)], `host(s) not in the canonical map:\n  ${[...new Set(bad)].join('\n  ')}`).toEqual([]);
 });
+
+// ── The pages were never scanned, and two of them held a map ────────────────
+// The guard above reads api/, lib/ and scripts/. The front-end pages are where
+// most of this app's JavaScript actually lives, and two of them kept their own
+// region -> store map inside their inline script: assets.html (REGION) and
+// ad-campaigns-master.html (STORE_FACTS). Both were used to build a prompt that
+// a human pastes into ChatGPT, so both were handing out a store host for the
+// market - and both listed hosts that only redirect. Neither map was visible to
+// any test, because neither file is a .js file and neither wrote the scheme:
+// `store: 'www.vahdamteas.com'` does not match a pattern anchored on https://.
+test('no page keeps its own market -> store map', () => {
+  const files = require('child_process')
+    .execSync("git ls-files '*.html'", { cwd: ROOT, encoding: 'utf8' })
+    .split('\n').filter(Boolean)
+    // Top-level pages only: the app's own surfaces. The nested directories
+    // (mailers/, landing-pages/, lifecycle-campaigns/, diff-version/) are
+    // GENERATED deliverables kept as a corpus, not code that can be fixed.
+    .filter((f) => !f.includes('/'));
+  const offenders = [];
+  const counts = [];
+  // A region key whose value is a vahdam host, with or without a scheme.
+  const KEYED = /(?:^|[{,\s])(US|UK|IN|EU|AU|ME|Global|GLOBAL|India)\s*:\s*\{?[^{}]{0,40}?['"`](?:https?:\/\/)?(?:www\.)?[a-z0-9.-]*vahdam[a-z0-9.-]*['"`/]/g;
+  for (const rel of files) {
+    const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    const hits = [...src.matchAll(KEYED)];
+    if (hits.length >= 2) {
+      counts.push([rel, hits.length]);
+      offenders.push(`${rel}: ${hits.length} region -> vahdam host entries (e.g. ${hits[0][0].trim().slice(0, 60)})`);
+    }
+  }
+  // A RATCHET, not a cleanup mandate. Six more pages already hold one of these
+  // maps, several of them naming a host market-urls.js classifies as merely
+  // redirecting. They are recorded here with the number of entries each has, so
+  // this test fails the moment a NEW page grows a map or an existing one grows
+  // another entry - and cannot go red on work nobody has touched. Clearing the
+  // baseline means routing these pages through /api/ for their store host, which
+  // is a change to six generators and is not smuggled in here.
+  const BASELINE = {
+    'knowledge-base.html': 4,
+    'landing-page-agent.html': 8,
+    'landing-pages.html': 7,
+    'playbook.html': 3,
+    'research.html': 3,
+    'vahdam_mailer_architect_v34.html': 17,
+  };
+  const news = offenders.filter((o) => !BASELINE[o.split(':')[0]]);
+  expect([...new Set(news)],
+    `a page is keeping its own store map. Read it from /api/ (market-urls.js is the source):\n  ${[...new Set(news)].join('\n  ')}`).toEqual([]);
+  const grown = counts.filter(([rel, n]) => BASELINE[rel] && n > BASELINE[rel])
+    .map(([rel, n]) => `${rel}: ${n} entries, baseline ${BASELINE[rel]}`);
+  expect(grown, `a known store map GREW. Move that page onto /api/ instead of adding to its copy:\n  ${grown.join('\n  ')}`).toEqual([]);
+  // The baseline must not rot the other way either: a page that has been fixed
+  // should be REMOVED from it, so the list keeps describing reality.
+  const fixed = Object.keys(BASELINE).filter((rel) => !counts.some(([f]) => f === rel));
+  expect(fixed, `these pages no longer keep a map - delete them from BASELINE:\n  ${fixed.join('\n  ')}`).toEqual([]);
+});

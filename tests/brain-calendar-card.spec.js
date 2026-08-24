@@ -418,3 +418,58 @@ test.describe('the /brain day card', () => {
     await expect(panel).toContainText('moderate');
   });
 });
+
+// ── "Last sync" only ever knew about clicks, not about the plan ─────────────
+//
+// The tile was written in ONE place: inside runSync(). So on a plain page load
+// it read "-" forever, and a rolling calendar that had stopped rolling looked
+// exactly like one that was up to date. That is how a plan whose newest row was
+// ten days old sat on screen unnoticed while the daily cron timed out at the
+// 120s function cap and wrote nothing. The age is DERIVED from the rows at
+// render time - never a stored "fresh" flag re-asserted as a live claim.
+test.describe('the /brain plan says how old it is', () => {
+  const stamped = (iso) => PLAN.map((e) => ({ ...e, updated_at: iso }));
+
+  async function openWith(page, entries) {
+    await blockExternal(page);
+    await page.route((url) => url.pathname.startsWith('/api/'),
+      (r) => r.fulfill({ contentType: 'application/json', body: '{"ok":true}' }));
+    await page.route((url) => url.pathname.includes('/api/calendar'), (r) => {
+      if (!/action=smart-brain-plan/.test(r.request().url())) {
+        return r.fulfill({ contentType: 'application/json', body: '{"ok":true}' });
+      }
+      // No `mode:'db-linked'` on purpose: that flag makes autoGenerateOnLoad
+      // kick a sync on load, and the stubbed sync answers {ok:true} with no
+      // plan, which blanks the table this test is reading.
+      r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, entries }) });
+    });
+    await page.goto(`${BASE}/smart-brain.html`, { waitUntil: 'domcontentloaded' });
+    await page.locator('#plantable tbody tr.planrow').first().waitFor({ timeout: 20000 });
+  }
+
+  test('a fresh plan shows its age on load, with no warning', async ({ page }) => {
+    await openWith(page, stamped(new Date(Date.now() - 2 * 3600 * 1000).toISOString()));
+    const tile = page.locator('#lastsync');
+    await expect(tile).not.toHaveText('—');
+    await expect(tile).toContainText('h ago');
+    await expect(page.locator('#lastsyncnote')).toBeHidden();
+  });
+
+  test('a ten-day-old plan says so, in red, and names the loop to check', async ({ page }) => {
+    await openWith(page, stamped(new Date(Date.now() - 10 * 86400 * 1000).toISOString()));
+    await expect(page.locator('#lastsync')).toContainText('10 days ago');
+    const note = page.locator('#lastsyncnote');
+    await expect(note).toBeVisible();
+    await expect(note).toContainText('Stale');
+    // An operator needs the thing to go and look at, not just a red number.
+    await expect(note).toContainText('/api/cron/smart-brain');
+    const colour = await page.locator('#lastsync').evaluate((el) => getComputedStyle(el).color);
+    expect(colour, `stale tile rendered ${colour}`).toMatch(/rgb\(185, 28, 28\)/);
+  });
+
+  test('a plan with no timestamps reports "never", not a plausible date', async ({ page }) => {
+    await openWith(page, PLAN);   // no updated_at at all
+    await expect(page.locator('#lastsync')).toHaveText('never');
+    await expect(page.locator('#lastsyncnote')).toContainText('never been written');
+  });
+});

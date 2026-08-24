@@ -85,7 +85,7 @@
   <div class="page-head">
     <div class="eyebrow">Lifecycle OS</div>
     <h1>Created <em>Assets</em></h1>
-    <p class="sub">Every mailer, ad and landing page this suite has produced — filter, search, preview, clone, or copy a ready-to-run AI prompt for any of them.</p>
+    <p class="sub">Every mailer, ad and landing page this suite has produced — filter, search, preview, clone, or copy the prompt that rebuilds any of them COMPLETE in ChatGPT, Claude or Gemini.</p>
   </div>
 
   <div class="controls">
@@ -142,78 +142,76 @@
     })(); });
   }
 
-  // ─── Portable, role-primed AI prompts (paste into Claude / Gemini / ChatGPT) ───
-  // Mirrors api/_shared/master-prompt.js so the copied prompt is brand-locked and
-  // self-contained. Each ends with a SELF-CHECK so the model QAs its own output.
-  const REGION = {
-    US:{store:'www.vahdamteas.com',cur:'$'}, UK:{store:'www.vahdam.co.uk',cur:'£'}, IN:{store:'www.vahdamindia.com',cur:'₹'},
-    EU:{store:'www.vahdam.global',cur:'€'}, AU:{store:'www.vahdam.global',cur:'A$'}, Global:{store:'www.vahdamteas.com',cur:'$'}
-  };
-  function brandBlock() {
-    return [
-      'BRAND RULES (strict — obey exactly):',
-      '- Palette, ONLY these four: forest green #004A2B, gold #AB8743, near-black #171717, cream #FBF5EA.',
-      "- Headings: 'Lao MN','Cormorant Garamond',Georgia,serif. Body: 'Proxima Nova','Helvetica Neue',Arial,sans-serif.",
-      '- Voice: warm, sensory, story-driven, premium. Prefer: ritual, restore, balance, origin, single-estate, hand-picked, steep, heritage, crafted.',
-      "- NEVER use: wellness journey, transform, liquid gold, game-changer, LIMITED TIME (all caps), hurry, don't miss out, last chance, while supplies last.",
-      '- VAHDAM India: premium Indian heritage tea · B-Corp · single-estate · garden-fresh within 72 hours of harvest.'
-    ].join('\n');
-  }
-  function head(role, market) {
-    const f = REGION[market] || REGION.US;
-    return 'ROLE: ' + role + '\nMARKET: ' + market + ' (store ' + f.store + ', currency ' + f.cur + ' — all prices/copy in ' + f.cur + ').\n\n' + brandBlock() + '\n\n';
-  }
-  const SELF_CHECK = '\n\nSELF-CHECK (do this before finishing): re-read the BRAND RULES, list any violations in your draft (off-palette colours, banned phrases, wrong fonts, wrong currency), fix them, and return ONLY the corrected final output.';
+  // ─── The ASSET prompt, fetched from the one place it is defined ────────────
+  //
+  // This page used to BUILD the prompt itself, and what it built was the wrong
+  // kind of prompt. The "AI prompt" button on an ad card asked for a handful of
+  // headline variants, the primary text, a photograph brief for one lifestyle
+  // still, and a note on the target cohort: a copy document plus an ELEMENT
+  // prompt for a single picture. Pasted into ChatGPT it returns exactly that,
+  // and no ad. The mailer branch did ask for a full HTML email, but built around
+  // a stand-in image slot with no paste token, which invites a fabricated
+  // filename.
+  //
+  // api/_shared/master-prompt.js already holds the per-asset contracts that
+  // demand the FINISHED artifact (DELIVER THE WHOLE ASSET, the paste-token media
+  // protocol, the zero-fabrication rule, the launch-gate self-audit), served at
+  // /api/ai/generate?action=master-prompt. So this page asks for it rather than
+  // keeping a fourth hand-written copy - the same "one source" rule that
+  // market-urls.js, gate-notice.js and asset-specs.js are under. Two things went
+  // stale in the local copy while it existed: it named 'Cormorant Garamond' as a
+  // heading font (removed from the brand as drift) and it carried its own
+  // region -> store-host map, in which two of the six hosts are ones
+  // market-urls.js classifies as merely redirecting.
+  const ASSET_TYPE = { mailer: 'mailer', ad: 'ad', landing: 'landing_page' };
+  const ASSET_LABEL = { mailer: 'mailer', ad: 'ad', landing: 'landing page' };
+  const AD_PLATFORM = { meta: 'meta', facebook: 'meta', instagram: 'meta', google: 'google', tiktok: 'tiktok' };
 
-  function buildPrompt(item) {
-    const r = item.raw || {}, market = item.market || r.region || 'US';
-    if (item.kind === 'landing') {
-      const channel = r.channel || 'landing';
-      return head('You are a senior D2C conversion copywriter + front-end developer for VAHDAM India.', market) + [
-        'Build a COMPLETE, production-ready, single-file responsive HTML landing page that converts ' + channel + ' traffic.',
-        '',
-        'PAGE BRIEF:',
-        '- Hero headline: ' + (r.hero || item.name || '(write a strong, specific one)'),
-        '- Sub-headline: ' + (r.sub || '(write a supporting line)'),
-        '- Offer: ' + (r.offer || '(sell on quality, provenance and ritual — no forced discount)'),
-        r.notes ? '- Extra notes / story: ' + r.notes : '',
-        '- Channel intent: ' + channel + ' — mobile-first, one clear primary CTA.',
-        '',
-        'REQUIRED STRUCTURE: announcement bar; hero (headline + sub + CTA + product image placeholder); trust strip; benefits; product/offer block with price; social proof / testimonials; FAQ; final CTA; footer; sticky mobile CTA.',
-        'OUTPUT: return ONLY the full HTML document (from <!doctype html> to </html>), inline CSS, no external dependencies, no commentary.'
-      ].filter(Boolean).join('\n') + SELF_CHECK;
+  // The brief is assembled from what this asset actually records. Nothing is
+  // invented to fill a gap: an absent field is simply not sent, and the contract
+  // then emits its own [DATA REQUIRED BEFORE LAUNCH: ...] token instead of a
+  // plausible guess.
+  function promptRequest(item) {
+    const r = item.raw || {};
+    const brief = [
+      r.campaign_title || item.name || '',
+      r.type ? 'Moment: ' + r.type : '',
+      r.hero || '', r.sub || '', r.headline || '', r.hook || '',
+      r.offer ? 'Offer (already approved, do not change it): ' + r.offer : '',
+      r.brief || r.notes || '',
+      r.channel && item.kind === 'landing' ? 'This page is the destination of ' + r.channel + ' traffic.' : '',
+    ].filter(Boolean).join(' · ');
+    return {
+      assetType: ASSET_TYPE[item.kind] || 'mailer',
+      market: item.market || r.region || r.market || 'US',
+      brief,
+      variant: 'V2',
+      platform: AD_PLATFORM[String(r.channel || '').toLowerCase()] || 'meta',
+    };
+  }
+
+  async function copyAssetPrompt(item, btn) {
+    const label = ASSET_LABEL[item.kind] || 'asset';
+    const orig = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
+    try {
+      const r = await fetch('/api/ai/generate?action=master-prompt', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(promptRequest(item)),
+      });
+      const j = await r.json().catch(() => null);
+      if (!j || !j.ok || !j.prompt) {
+        // Never report a copy that did not happen.
+        const why = (j && (j.error || j.detail || j.blocker || j.message)) || ('HTTP ' + r.status);
+        toast('Could not build the ' + label + ' prompt: ' + why);
+        return;
+      }
+      copyText(j.prompt, '📋 ASSET prompt copied (' + j.chars.toLocaleString() + ' chars) — returns the COMPLETE ' + label + ', not a brief.');
+    } catch (err) {
+      toast('Could not build the ' + label + ' prompt: ' + ((err && err.message) || 'unknown error'));
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = orig; }
     }
-    if (item.kind === 'ad') {
-      const platform = (r.channel || 'meta').toUpperCase();
-      return head('You are a senior paid-social creative director + performance copywriter for VAHDAM India.', market) + [
-        'Produce a scroll-stopping ' + platform + ' ad creative package.',
-        '',
-        'AD BRIEF:',
-        '- Concept / product: ' + (item.name || '(pick a hero SKU and a single emotional end-state)'),
-        r.headline ? '- Existing headline to improve on: ' + r.headline : '',
-        r.offer ? '- Offer: ' + r.offer : '',
-        r.hook ? '- Hook direction: ' + r.hook : '',
-        '',
-        'DELIVER, clearly labelled:',
-        '1) 3 headline options (≤6 words) leading with the emotional end-state, never an ingredient list.',
-        '2) Primary text (≤125 chars) + a 1-line description + a strong CTA.',
-        '3) An IMAGE-GENERATION PROMPT for a photoreal lifestyle scene: brand palette, gallery-print/8K sharpness, soft natural light, shallow depth of field; VAHDAM tin shows a gold botanical illustration only with NO readable lettering; NO logos, NO watermarks, NO garbled text.',
-        '4) Which cohort/audience this is aimed at and why.',
-        'OUTPUT: clean sections, ready to paste into the ' + platform + ' ad builder. No preamble.'
-      ].filter(Boolean).join('\n') + SELF_CHECK;
-    }
-    // mailer
-    return head('You are a senior lifecycle-email creative director + front-end email developer for VAHDAM India.', market) + [
-      'Build a COMPLETE, production-ready, responsive HTML marketing email (compact, ~1200–1500px tall, two scrolls max).',
-      '',
-      'EMAIL BRIEF:',
-      '- Campaign: ' + (r.campaign_title || item.name || '(name it)'),
-      r.type ? '- Type / moment: ' + r.type : '',
-      r.brief ? '- Brief / story: ' + r.brief : '- Brief: write a warm, sensory, story-driven campaign around origin + ritual.',
-      '',
-      'REQUIRED STRUCTURE: preheader; branded header; hero (headline + sub + CTA + product image placeholder); story/benefit block; product block with price + CTA; a tiny personal-story testimonial; secondary CTA; footer with unsubscribe.',
-      'Use table-based, inbox-safe HTML with inline CSS. OUTPUT: return ONLY the full HTML document, no commentary.'
-    ].filter(Boolean).join('\n') + SELF_CHECK;
   }
 
   // ─── localStorage sources (carry the fuller objects needed to clone/prompt) ──
@@ -346,7 +344,7 @@
           '<div class="acts">' +
             previewBtn +
             '<button class="abtn" data-act="clone" data-id="' + it._id + '">⧉ Clone</button>' +
-            '<button class="abtn primary" data-act="prompt" data-id="' + it._id + '">📋 AI prompt</button>' +
+            '<button class="abtn primary" data-act="prompt" data-id="' + it._id + '" title="Copy the prompt that returns this COMPLETE asset (not a brief, and not a single image) - paste it into ChatGPT, Claude or Gemini.">📋 Asset prompt</button>' +
           '</div>' +
         '</div></div>';
     }).join('');
@@ -387,7 +385,7 @@
       } else if (it.image) { window.open(it.image, '_blank', 'noopener'); }
       return;
     }
-    if (btn.dataset.act === 'prompt') { copyText(buildPrompt(it), '📋 AI prompt copied — paste into Claude, Gemini or ChatGPT.'); return; }
+    if (btn.dataset.act === 'prompt') { await copyAssetPrompt(it, btn); return; }
     if (btn.dataset.act === 'clone') {
       try { cloneItem(it); } catch (err) { toast('Clone failed: ' + (err && err.message || err)); return; }
       toast('⧉ Cloned "' + (it.name || 'asset') + '" — reloading library…');
