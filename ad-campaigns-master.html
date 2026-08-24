@@ -1069,7 +1069,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
             <span class="cre-title">🎨 Ad creatives</span>
             <div class="btn-row">
               <button class="btn btn-ghost" type="button" id="g-cre">Generate ad creatives</button>
-              <button class="btn btn-ghost" type="button" id="g-mp" data-mp="g">⧉ Copy master prompt</button>
+              <button class="btn btn-ghost" type="button" id="g-mp" data-mp="g" title="Copy the ASSET prompt: it returns the COMPLETE ad (every platform field plus the creative itself, one composed document per produced size), not a brief and not a single image. Paste into ChatGPT, Claude or Gemini.">⧉ Copy asset prompt</button>
             </div>
           </div>
           <label class="label" style="margin-top:8px">Media URL (optional) — paste a hosted image / GIF / MP4 (e.g. a Shopify product video)</label>
@@ -1122,7 +1122,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
             <span class="cre-title">🎨 Ad creatives</span>
             <div class="btn-row">
               <button class="btn btn-ghost" type="button" id="m-cre">Generate ad creatives</button>
-              <button class="btn btn-ghost" type="button" id="m-mp" data-mp="m">⧉ Copy master prompt</button>
+              <button class="btn btn-ghost" type="button" id="m-mp" data-mp="m" title="Copy the ASSET prompt: it returns the COMPLETE ad (every platform field plus the creative itself, one composed document per produced size), not a brief and not a single image. Paste into ChatGPT, Claude or Gemini.">⧉ Copy asset prompt</button>
             </div>
           </div>
           <label class="label" style="margin-top:8px">Media URL (optional) — paste a hosted image / GIF / MP4 (e.g. a Shopify product video)</label>
@@ -1180,7 +1180,7 @@ footer {max-width:var(--maxw);margin:0 auto;padding:50px 22px 70px;border-top:1p
             <span class="cre-title">🎨 Ad creatives</span>
             <div class="btn-row">
               <button class="btn btn-ghost" type="button" id="t-cre">Generate ad creatives</button>
-              <button class="btn btn-ghost" type="button" id="t-mp" data-mp="t">⧉ Copy master prompt</button>
+              <button class="btn btn-ghost" type="button" id="t-mp" data-mp="t" title="Copy the ASSET prompt: it returns the COMPLETE ad (every platform field plus the creative itself, one composed document per produced size), not a brief and not a single image. Paste into ChatGPT, Claude or Gemini.">⧉ Copy asset prompt</button>
             </div>
           </div>
           <label class="label" style="margin-top:8px">Media URL (optional) — paste a hosted image / GIF / MP4 (e.g. a Shopify product video)</label>
@@ -4925,67 +4925,61 @@ try{
     }
   });
 
-  // ── Master prompt (copy anywhere) ─────────────────────────────────────
-  // The single portable prompt for this ad. The /api/ai/generate autofill
-  // response now returns `master_prompt`; we cache it per channel and let the
-  // user copy it. If autofill hasn't run, build a client-side prompt mirroring
-  // api/_shared/master-prompt.js (assetType:'ad', platform per channel).
+  // ── Asset prompt (copy anywhere) ──────────────────────────────────────
+  // The single portable prompt for this ad, and it must return the AD, not a
+  // description of one. /api/ai/generate?mode=autofill already returns
+  // `master_prompt` (built by api/_shared/master-prompt.js) and it is cached per
+  // channel below; when autofill has not run, this page used to fall back to a
+  // hand-written local mirror of it - and that mirror had drifted into asking
+  // for the INGREDIENTS: every text field the platform requires, plus a written
+  // description of the still visual for each size. A description is not a
+  // creative. The real contract now says the opposite in as many words (it
+  // demands the creative itself and rejects a paragraph about it), so the
+  // fallback is a fetch from that one source instead of a second copy of it.
+  // The mirror also carried its own region -> store-host map, two of whose
+  // entries are hosts market-urls.js classifies as merely redirecting.
   const CH_PLATFORM = { g: 'google', m: 'meta', t: 'tiktok' };
   const lastMasterPrompt = { g: '', m: '', t: '' };
-  const STORE_FACTS = {
-    US: { store: 'www.vahdamteas.com', currency: '$' }, UK: { store: 'www.vahdam.co.uk', currency: '£' },
-    IN: { store: 'www.vahdamindia.com', currency: '₹' }, EU: { store: 'www.vahdam.global', currency: '€' },
-    AU: { store: 'www.vahdam.global', currency: 'A$' }, ME: { store: 'www.vahdamteas.com', currency: 'AED' },
-    Global: { store: 'www.vahdamteas.com', currency: '$' },
-  };
-  const AD_SPEC = {
-    google: 'Google (Responsive Search + Performance Max): 15 headlines (≤30 chars), 4 descriptions (≤90 chars), long headline (≤90), business name. PRODUCED creatives are static images at 1.91:1 (1200×628) and 1:1 (1200×1200).',
-    meta: 'Meta (Facebook/Instagram Feed + Reels + Stories): primary text (≤125 chars before truncation), headline (≤40), description. PRODUCED creatives are static images at 1:1 (1080×1080, Feed) and 9:16 (1080×1920, Story/Reel).',
-    tiktok: 'TikTok (In-Feed + Spark): native-feeling video script with a 0–2s hook, on-screen text beats, brand-safe audio direction, caption, and 3 hashtag options. The PRODUCED creative is a static 9:16 (1080×1920) key-frame/cover image.',
-  };
-  // Client-side mirror of buildMasterPrompt({assetType:'ad'}) for when the
-  // server-returned master_prompt isn't available yet.
-  function clientMasterPrompt(ch) {
-    const platform = CH_PLATFORM[ch];
-    const market = v(CRE_CFG[ch].market) || 'US';
-    const f = STORE_FACTS[market] || STORE_FACTS.Global;
+  async function fetchAssetPrompt(ch) {
     const c = getCopy(ch);
-    const brief = [v(CRE_CFG[ch].name), c.headline, c.sub].filter(Boolean).join(' — ');
-    return [
-      "You are VAHDAM India's senior lifecycle creative director. Produce best-in-class, ready-to-ship output. Follow every rule exactly.",
-      '',
-      'BRAND: VAHDAM India — premium single-estate Indian teas & wellness.',
-      'VOICE: warm, sensory, emotionally resonant, story-driven.',
-      'PALETTE (use ONLY these four): #004A2B forest green · #AB8743 gold · #171717 near-black · #FBF5EA cream.',
-      "TYPOGRAPHY (strict): Headings = 'Lao MN'. Body = 'Proxima Nova'. Never introduce other fonts.",
-      'BANNED phrases: "wellness journey", "transform", "liquid gold", "game-changer", "LIMITED TIME" (caps), "hurry", "don\'t miss out", "last chance", "while supplies last".',
-      '',
-      'MARKET: ' + market + ' · Store: https://' + f.store + ' · Currency: ' + f.currency,
-      brief ? '\nCAMPAIGN BRIEF:\n' + brief : '',
-      '',
-      'ASSET: Paid ad creative for ' + platform.toUpperCase() + ' — a FULL ad, not just copy.',
-      'The PRODUCED creative is a still, photoreal, on-palette image at each size below with the on-creative text overlay (headline + offer) BAKED INTO the image, exactly like a real ' + platform + ' ad.',
-      'Platform spec: ' + (AD_SPEC[platform] || AD_SPEC.meta),
-      'Deliver: (a) every text field the platform requires; (b) for EACH static size, a precise creative brief describing the still visual, the baked-in overlay wording + pixel placement + safe zones; (c) the destination URL.',
-      'VISUALS (produced asset): one still on-palette image per size with the overlay baked in. If a hosted product image/MP4 URL is supplied, its first frame is the base still. Motion (GIF/short video) is an OPTIONAL follow-up brief — never a delivered asset here. To produce the actual video ad, hand this brief to OpenMontage (open-source agentic video pipeline): https://github.com/Open-Montage/OpenMontage',
-      '',
-      'QUALITY BAR: premium, specific, sensory, zero filler. No banned phrases. No medical claims.',
-    ].filter((l) => l !== null && l !== undefined).join('\n').trim();
+    const brief = [v(CRE_CFG[ch].name), c.headline, c.sub, c.offer ? 'Offer (approved, do not change it): ' + c.offer : '']
+      .filter(Boolean).join(' — ');
+    const r = await fetch('/api/ai/generate?action=master-prompt', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assetType: 'ad', platform: CH_PLATFORM[ch], market: c.market || 'US', brief }),
+    });
+    const j = await r.json().catch(() => null);
+    if (!j || !j.ok || !j.prompt) {
+      const why = (j && (j.error || j.detail || j.blocker || j.message)) || ('HTTP ' + r.status);
+      throw new Error(why);
+    }
+    return j.prompt;
   }
   async function copyMasterPrompt(ch, btn) {
-    const text = lastMasterPrompt[ch] || clientMasterPrompt(ch);
     const orig = btn.textContent;
+    let text = lastMasterPrompt[ch];
+    if (!text) {
+      btn.textContent = 'Building…';
+      // No local fallback: a prompt that returns the wrong KIND of output is
+      // worse than an honest failure, because it looks like it worked.
+      try { text = await fetchAssetPrompt(ch); }
+      catch (e) {
+        btn.textContent = orig;
+        toast('Could not build the ad prompt: ' + ((e && e.message) || 'unknown error'));
+        return;
+      }
+    }
     try {
       await navigator.clipboard.writeText(text);
       btn.textContent = '✓ Copied';
-      toast('Master prompt copied — paste into any chat');
+      toast('ASSET prompt copied — paste into any chat for the COMPLETE ad');
     } catch (_) {
       // Clipboard blocked — fall back to a temporary textarea selection.
       try {
         const ta = document.createElement('textarea'); ta.value = text;
         ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta);
         ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-        btn.textContent = '✓ Copied'; toast('Master prompt copied');
+        btn.textContent = '✓ Copied'; toast('ASSET prompt copied — returns the COMPLETE ad');
       } catch (e2) { toast('Copy failed — select manually'); }
     }
     setTimeout(() => { btn.textContent = orig; }, 1600);
@@ -5355,7 +5349,7 @@ try{
       onApply: (fields, meta) => {
         const d = (meta && meta.response) || {};
         const chKey = AI_SURFACE_CHANNEL[surface];
-        // Cache the server-returned master prompt for "Copy master prompt".
+        // Cache the server-returned asset prompt for "Copy asset prompt".
         const mp = d.master_prompt || fields.master_prompt || '';
         if (mp && chKey) lastMasterPrompt[chKey] = mp;
         // Capture the LLM-authored on-creative overlay (real offer + baked-in

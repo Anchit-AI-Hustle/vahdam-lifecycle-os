@@ -876,39 +876,76 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
       }
 
       // ── CRON: the daily automated loop ───────────────────────────────────
+      //
+      // THIS RAN OUT OF TIME EVERY DAY AND SAID NOTHING ABOUT IT.
+      // api/brain.js has maxDuration 120 (vercel.json), and this handler ran
+      // nine heavy steps in series - including up to FIVE full LLM campaign
+      // generations - before it reached the Smart Brain plan sync. Vercel killed
+      // the invocation at the cap ("Vercel Runtime Timeout Error: Task timed out
+      // after 120 seconds", logged as 504 GET /api/brain at 18:31, the cron's
+      // own schedule), so every step after the kill point never ran, and
+      // core.logRun() - the LAST line - never wrote a run record either.
+      //
+      // The visible symptom was the Smart Brain frozen: nothing in the 160-slot
+      // rolling window had been touched since 2026-08-14, the horizon stopped
+      // extending (80 days ahead instead of 90), no slot was re-reviewed against
+      // fresh data, and the convergent prebuild chain was never kicked (zero
+      // __prebuilt markers across the whole window). A cron that dies mid-chain
+      // looks exactly like a cron that was never scheduled, and both look
+      // exactly like "the calendar is just quiet today".
+      //
+      // Two structural changes:
+      // 1. ORDER BY COST, NOT BY HABIT. The Smart Brain plan sync is this
+      //    product's core loop and is DB-only (no LLM, no image call), so it now
+      //    runs BEFORE per-slot asset generation - the single most expensive
+      //    step, and the one that was starving it.
+      // 2. A DEADLINE, AND A RECORD. Every step is gated on the remaining
+      //    budget, and the run is logged with `timed_out` plus the steps that
+      //    did not fit. A truncated run now reports what it skipped instead of
+      //    disappearing.
+      // The plan sync also has its own schedule now (/api/cron/smart-brain ->
+      // /api/calendar?action=smart-brain-cron, vercel.json crons), so the
+      // rolling calendar no longer depends on this run finishing at all.
       case 'cron': {
         if (!cronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
         const started = Date.now();
         const steps = {};
+        const skipped = [];
+        // Stop short of the platform's own kill so the run record and the
+        // response still get written: a report that arrives is worth more than
+        // one more step that does not. The floor is 1s rather than something
+        // "sensible" so a test can actually drive the deadline: a guard nobody
+        // can exercise is a guard nobody knows works. A too-small value is not
+        // silent either - every step it starves is named in skipped_steps and
+        // the run is logged ok:false.
+        const BUDGET_MS = Math.max(1000, +process.env.BRAIN_CRON_BUDGET_MS || 102000);
+        const msLeft = () => BUDGET_MS - (Date.now() - started);
+        // Run a step only when `needMs` of budget remains. A step that cannot
+        // fit is NAMED in the result, never silently dropped.
+        const step = async (name, needMs, fn) => {
+          if (msLeft() < needMs) {
+            steps[name] = { skipped: 'no time budget left', ms_left: Math.max(0, msLeft()) };
+            skipped.push(name);
+            return;
+          }
+          const t0 = Date.now();
+          try { steps[name] = await fn(); } catch (e) { steps[name] = { error: e.message }; }
+          if (steps[name] && typeof steps[name] === 'object') steps[name].ms = Date.now() - t0;
+        };
+
         // STEP 0 — pull fresh READ-ONLY data from the source platforms into
         // Supabase FIRST, so every downstream step (analysis, planning, asset
         // regeneration) uses the data for the day. runDailyJob runs the Klaviyo
         // read-only sync adapter (and future Shopify/WebEngage adapters).
-        try { steps.os_daily = await osb.runDailyJob('cron'); } catch (e) { steps.os_daily = { error: e.message }; }
-        try { steps.festivals = { detected: (await calendar.extractFestivals({ persist: true })).length }; } catch (e) { steps.festivals = { error: e.message }; }
-        try { const r = await calendar.dailyReview({ persist: true }); steps.daily_review = { changes: r.review.changes.length, pass_rate: r.daily_summary.pass_rate }; } catch (e) { steps.daily_review = { error: e.message }; }
-        try { steps.benchmarks = { ok: true, markets: Object.keys(await competitor.benchmarks({ persist: true })).filter((k) => k !== '_advisory') }; } catch (e) { steps.benchmarks = { error: e.message }; }
-        try { steps.auto_approve = await review.autoApproveSweep(); } catch (e) { steps.auto_approve = { error: e.message }; }
-        // auto-generate assets for approved slots within 3 days
-        try {
-          const soon = core.addDays(core.todayIso(), 3);
-          const slots = await core.db().select('smart_calendar', { limit: 20, filters: { status: 'eq.approved', slot_date: `lte.${soon}` } });
-          let generated = 0;
-          for (const s of slots.slice(0, 5)) { // cap per run for serverless time budget
-            try { await generate.generateForSlot(s.id, { persist: true }); generated++; } catch (_) {}
-          }
-          steps.generation = { approved_due: slots.length, generated };
-        } catch (e) { steps.generation = { error: e.message }; }
-        const recal = await review.recalibrationStatus().catch(() => null);
-        steps.weekly_recalibration_gate = recal;
-        // (os_daily read-only data pull now runs FIRST — see STEP 0 above.)
-        // Smart Brain rolling plan (smart_calendar_entries): refresh the 90-day
-        // window, then kick the convergent background prebuild chain so every slot
-        // keeps its FULL asset bundle (LLM copy + images) prebuilt ahead of need.
-        // Runs off this existing daily cron to avoid adding a Hobby-limited 3rd cron.
-        try {
+        await step('os_daily', 8000, () => osb.runDailyJob('cron'));
+        // STEP 1 — the Smart Brain rolling plan (smart_calendar_entries):
+        // refresh the 90-day window, then kick the convergent background
+        // prebuild chain so every slot keeps its FULL asset bundle (LLM copy +
+        // images) prebuilt ahead of need. This is the core loop, it is cheap,
+        // and it used to run ninth.
+        await step('smart_brain_plan', 20000, async () => {
           const sbplan = require('./_shared/smart-brain-plan.js');
-          const sync = await sbplan.syncDaily({ persist: true });
+          const sync = await sbplan.syncDaily({ persist: true, includePlan: false });
           let prebuildKicked = false;
           const base = process.env.SELF_BASE_URL ? String(process.env.SELF_BASE_URL).replace(/\/$/, '')
             : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
@@ -928,31 +965,70 @@ Weekly recalibration: ${JSON.stringify(recal)}`;
           // count of "changes" for three weeks while the database rejected every
           // row and stored nothing. A step that writes must report what landed.
           const p = sync.persistence || {};
-          steps.smart_brain_plan = {
+          const out = {
             synced: sync.ok !== false && p.ok !== false,
             mode: sync.mode,
             changes: (sync.changes || []).length,
             written: (p.inserted || 0) + (p.updated || 0),
             rejected: p.rejected || 0,
             coverage: sync.coverage ? `${sync.coverage.covered_days}/${sync.coverage.horizon_days} days planned` : null,
+            // Which phase ate the budget, and whether rows were left for the
+            // next run. Both were invisible while the invocation was simply
+            // being killed.
+            timings: sync.timings || null,
+            truncated: !!sync.truncated,
             prebuild_kicked: prebuildKicked,
           };
-          if (p.blockers && p.blockers.length) steps.smart_brain_plan.blockers = p.blockers;
-          if (sync.coverage && !sync.coverage.complete) steps.smart_brain_plan.coverage_note = sync.coverage.note;
-        } catch (e) { steps.smart_brain_plan = { error: e.message }; }
+          if (p.blockers && p.blockers.length) out.blockers = p.blockers;
+          if (sync.coverage && !sync.coverage.complete) out.coverage_note = sync.coverage.note;
+          return out;
+        });
+        await step('festivals', 6000, async () => ({ detected: (await calendar.extractFestivals({ persist: true })).length }));
+        await step('daily_review', 10000, async () => {
+          const r = await calendar.dailyReview({ persist: true });
+          return { changes: r.review.changes.length, pass_rate: r.daily_summary.pass_rate };
+        });
+        await step('benchmarks', 8000, async () => ({ ok: true, markets: Object.keys(await competitor.benchmarks({ persist: true })).filter((k) => k !== '_advisory') }));
+        await step('auto_approve', 5000, () => review.autoApproveSweep());
+        // Auto-generate assets for approved slots within 3 days. This is the
+        // expensive step (a full LLM campaign build per slot), so it runs late
+        // and takes only the budget that is actually left: the per-run cap of 5
+        // was never a time budget, it was a guess at one.
+        await step('generation', 20000, async () => {
+          const soon = core.addDays(core.todayIso(), 3);
+          const slots = await core.db().select('smart_calendar', { limit: 20, filters: { status: 'eq.approved', slot_date: `lte.${soon}` } });
+          let generated = 0;
+          let stoppedEarly = false;
+          for (const s of slots.slice(0, 5)) {
+            // One build can take tens of seconds. Check before each, so the run
+            // never gets killed inside the loop and loses its whole report.
+            if (msLeft() < 15000) { stoppedEarly = true; break; }
+            try { await generate.generateForSlot(s.id, { persist: true }); generated++; } catch (_) {}
+          }
+          return { approved_due: slots.length, generated, stopped_early: stoppedEarly };
+        });
         // Snowflake → Supabase daily mirror (historical/deep metrics for the
         // Vahdam3DConnectorEngine). No-op stub when SNOWFLAKE_* env is unset.
-        try { steps.snowflake_sync = snowflake ? await snowflake.runSync({ source: 'cron' }) : { skipped: true }; }
-        catch (e) { steps.snowflake_sync = { error: e.message }; }
+        await step('snowflake_sync', 5000, async () => (snowflake ? snowflake.runSync({ source: 'cron' }) : { skipped: true }));
+        await step('weekly_recalibration_gate', 2000, () => review.recalibrationStatus().catch(() => null));
         // The run's own verdict is DERIVED from its steps. Logging every run as
         // ok:true made the run history worthless: it recorded three weeks of
-        // successes for a loop whose central step wrote nothing.
+        // successes for a loop whose central step wrote nothing. A run that ran
+        // out of time is not a success either, so a skipped step counts.
         const failed = Object.entries(steps)
           .filter(([, v]) => v && typeof v === 'object' && (v.error || v.synced === false || (Array.isArray(v.blockers) && v.blockers.length)))
           .map(([k]) => k);
-        const summary = { steps, ms: Date.now() - started, failed_steps: failed };
-        await core.logRun('cron', summary, failed.length === 0);
-        return res.json({ ok: failed.length === 0, ...summary });
+        const summary = {
+          steps,
+          ms: Date.now() - started,
+          budget_ms: BUDGET_MS,
+          failed_steps: failed,
+          skipped_steps: skipped,
+          timed_out: skipped.length > 0,
+        };
+        const ok = failed.length === 0 && skipped.length === 0;
+        await core.logRun('cron', summary, ok);
+        return res.json({ ok, ...summary });
       }
 
       // ── LIFECYCLE OS BACKBONE (connectors / jobs / activity / dashboard) ──

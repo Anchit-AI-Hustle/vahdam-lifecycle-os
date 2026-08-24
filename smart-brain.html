@@ -147,7 +147,7 @@
     <div class="card"><div class="label">Mode</div><div id="mode" class="metric">—</div></div>
     <div class="card"><div class="label">Plan entries</div><div id="entries" class="metric">—</div></div>
     <div class="card"><div class="label">Awaiting generation</div><div id="pending" class="metric">—</div></div>
-    <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div></div>
+    <div class="card"><div class="label">Last sync</div><div id="lastsync" class="metric" style="font-size:16px">—</div><div id="lastsyncnote" class="pvnote" style="margin:6px 0 0;display:none"></div></div>
     <div class="card" title="Total sends scheduled in the next 30 days across all regions. Target: 3-4 cohorts/day/market to support >=70-80k USD/month (~1000-1500 USD/day)."><div class="label">Sends / 30d</div><div id="sends30" class="metric">—</div></div>
 
     <div class="card wide" id="dualmode">
@@ -1178,6 +1178,55 @@ async function recreateEntry(i){
 }
 window.recreateEntry = recreateEntry;
 
+// ── How old is this plan? ───────────────────────────────────────────────────
+// The "Last sync" tile was written in ONE place: inside runSync(). So on a plain
+// page load it read "—" forever, and a rolling calendar that had stopped rolling
+// looked exactly like one that was up to date. That is how a 10-day-stale plan
+// (the daily cron was timing out at 120s and writing nothing) sat on screen
+// unnoticed: every slot still rendered, just with old dates in the payloads.
+// The age is DERIVED at render time from the rows themselves, never a stored
+// "fresh" flag re-asserted as a live claim.
+function planFreshness(entries){
+  let newest = 0;
+  (entries||[]).forEach(e=>{
+    [e && e.updated_at, e && e.approved_at].forEach(v=>{
+      const t = v ? Date.parse(v) : NaN;
+      if(Number.isFinite(t) && t > newest) newest = t;
+    });
+  });
+  return newest || null;
+}
+// NAME COLLISION, and it silently won: this file already declares
+// renderFreshness() ~350 lines below for the day-level freshness CARD. Function
+// declarations hoist, so the LAST one wins and the first call site quietly
+// invoked the other function with the wrong arguments. Hence renderPlanAge.
+function renderPlanAge(entries, syncedAt){
+  const el = $('lastsync'), note = $('lastsyncnote');
+  if(!el) return;
+  const ms = syncedAt ? Date.parse(syncedAt) : planFreshness(entries);
+  if(!Number.isFinite(ms) || !ms){
+    el.textContent = 'never';
+    el.style.color = '#b91c1c';
+    if(note){ note.style.display=''; note.style.color='#b91c1c'; note.textContent = 'No slot in this window carries a sync timestamp, so this plan has never been written. Press Run Daily Sync.'; }
+    return;
+  }
+  const hours = (Date.now() - ms) / 3600000;
+  const age = hours < 1 ? 'just now'
+    : hours < 36 ? Math.round(hours) + 'h ago'
+    : Math.round(hours/24) + ' days ago';
+  el.textContent = new Date(ms).toLocaleString() + ' · ' + age;
+  // The plan is re-planned daily by design, so anything past ~36h means the
+  // daily loop is not running - and that is the only actionable fact here.
+  const stale = hours >= 36;
+  el.style.color = stale ? '#b91c1c' : '';
+  if(note){
+    note.style.display = stale ? '' : 'none';
+    note.style.color = '#b91c1c';
+    if(stale) note.textContent = 'Stale: the rolling window has not been re-planned for ' + age.replace(' ago','') + '. '
+      + 'The daily loop writes it (03:30 UTC /api/cron/smart-brain, 18:30 UTC /api/brain?action=cron) - check that run before trusting any date past today. Run Daily Sync does it now.';
+  }
+}
+
 async function loadPlan(){
   try{
     const r = await fetch(`${API}?action=smart-brain-plan`);
@@ -1185,6 +1234,7 @@ async function loadPlan(){
     if(!data.ok) throw new Error(window.GateNotice ? window.GateNotice.message('Failed to load plan', data, null).text : (data.error || data.message || data.blocker || 'Failed to load plan'));
     $('mode').textContent = data.mode === 'db-linked' ? (data.stored ? 'DB-linked' : 'DB (empty)') : 'Preview';
     PLAN = data.entries || [];
+    renderPlanAge(PLAN, null);
     renderPlan();
     if(data.mode !== 'db-linked') $('changes').innerHTML = '<p>⚠️ Supabase env not linked — plan is a stateless preview; assets generate on demand but the calendar itself is not persisted.</p>';
     return data;
@@ -1218,9 +1268,14 @@ async function runSync(){
   try{
     const r = await fetch(`${API}?action=smart-brain-sync-daily`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})});
     const data = await safeJson(r);
-    if(!data.ok) throw new Error(window.GateNotice ? window.GateNotice.message('Sync failed', data, null).text : (data.error || data.message || data.blocker || 'Sync failed'));
+    // A partial sync is not the same as a failed one, and the difference is
+    // actionable: `persistence.summary` says how many writes landed and how many
+    // were deferred to the next run. Reporting that as a bare "Sync failed" sent
+    // the operator looking for a broken deployment instead of a slow one.
+    if(!data.ok) throw new Error((data.persistence && data.persistence.summary)
+      || (window.GateNotice ? window.GateNotice.message('Sync failed', data, null).text : (data.error || data.message || data.blocker || 'Sync failed')));
     $('mode').textContent = data.mode === 'db-linked' ? 'DB-linked' : 'Preview';
-    $('lastsync').textContent = new Date(data.synced_at).toLocaleString();
+    renderPlanAge(data.plan || [], data.synced_at);
     $('insights').innerHTML = (data.insights||[]).map(x=>`<p>• ${esc(x)}</p>`).join('') || '<p>No insights.</p>';
     $('changes').innerHTML = (data.changes||[]).filter(c=>c.kind!=='kept_locked').map(c=>`<p><b>${esc(c.kind)}</b> — ${esc(c.detail)}</p>`).join('') || '<p>No material changes — plan already in sync with the data.</p>';
     PLAN = data.plan || [];

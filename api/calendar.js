@@ -195,11 +195,27 @@ async function smartBrain(req, res, smartAction) {
         ? (auth === `Bearer ${secret}` || req.query?.secret === secret)
         : (String(process.env.VERCEL_ENV) !== 'production');
       if (!authorized) return res.status(401).json({ ok: false, error: 'Unauthorized cron call' });
-      const result = await plan.syncDaily({ persist: true });
+      // includePlan:false — a cron does not need the ~2MB re-read of every
+      // slot's payload, and paying for it is part of what pushed this past the
+      // 120s function cap. Coverage is still measured (date-only read).
+      const result = await plan.syncDaily({ persist: true, includePlan: false });
       // Kick the background prebuild chain so the full 90-day window keeps its
       // assets (copy + images) prebuilt automatically every day.
       const f = await firePrebuild(0);
-      return res.status(200).json({ ok: true, cron: true, synced_at: result.synced_at, mode: result.mode, changes: result.changes.length, persistence: result.persistence, prebuild_kicked: f.fired });
+      // `ok` is the sync's own verdict, not a constant. It was hardcoded true,
+      // so a truncated or fully-rejected sync reported a healthy daily loop.
+      return res.status(200).json({
+        ok: result.ok !== false,
+        cron: true,
+        synced_at: result.synced_at,
+        mode: result.mode,
+        changes: result.changes.length,
+        coverage: result.coverage,
+        timings: result.timings,
+        truncated: !!result.truncated,
+        persistence: result.persistence,
+        prebuild_kicked: f.fired,
+      });
     }
 
     if (smartAction === 'preview') {

@@ -113,6 +113,10 @@
       "schedule": "30 18 * * *"
     },
     {
+      "path": "/api/cron/smart-brain",
+      "schedule": "30 3 * * *"
+    },
+    {
       "path": "/api/cron/social",
       "schedule": "0 19 * * *"
     }
@@ -377,6 +381,10 @@
     {
       "source": "/api/connectors-health",
       "destination": "/api/brain?action=connectors-health"
+    },
+    {
+      "source": "/api/cron/smart-brain",
+      "destination": "/api/calendar?action=smart-brain-cron"
     },
     {
       "source": "/api/cron/social",

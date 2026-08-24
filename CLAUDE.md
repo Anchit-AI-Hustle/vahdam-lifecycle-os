@@ -400,6 +400,123 @@ vanished-entrance trap as `INFO.ads` and the Creative Studio.
   elsewhere). The Prompts tab now shows **Asset prompt** first and labels every element card, toast
   included, so no button can hand you the wrong kind again.
 
+### Fixing ONE page's prompt left the same defect in two others (2026-08-24)
+The element-vs-asset fix above was applied to Mailer Studio, and the two OTHER surfaces that hand a
+human a prompt kept their own hand-written builders - so "copy the prompt" still returned the wrong
+KIND of thing in the Assets library and the Creative Studio.
+- **`assets.html` `buildPrompt(item)`** was a fourth copy of the contract. Its ad branch asked for
+  three headline options, primary text, an image-generation prompt for one lifestyle still, and a
+  cohort note: a copy document plus an ELEMENT prompt. Pasted into ChatGPT it returns exactly that,
+  and no ad. Its mailer branch did ask for a full HTML email, but built around a bare "image
+  placeholder" with no paste token, which invites a fabricated filename.
+- **`ad-campaigns-master.html` `clientMasterPrompt(ch)`** was the fallback whenever autofill had not
+  run - i.e. the normal case for someone who fills the form and clicks the button. It asked for
+  "every text field, plus a precise creative brief per size", which the real contract now names as a
+  FAILED response in as many words.
+- Both now POST to **`/api/ai/generate?action=master-prompt`** and there is no local fallback: a
+  prompt that returns the wrong kind of output is worse than an honest failure, because it looks like
+  it worked. Buttons and toasts say **asset prompt** and name what comes back.
+- **Both drifted copies also carried their own region -> store-host map**, two of whose hosts only
+  redirect - and `tests/market-urls.spec.js` could not see either one, for two independent reasons:
+  the guard reads `api/`, `lib/` and `scripts/` (the pages hold ~4.2MB of inline JS and were never
+  scanned), and it anchors on `https://` while both maps stored a bare host (`store:
+  'www.vahdam...'`). A new guard scans the top-level pages and matches a scheme-less host. It found
+  **six more pages** doing it (`knowledge-base`, `landing-page-agent`, `landing-pages`, `playbook`,
+  `research`, `vahdam_mailer_architect_v34`), so it ships as a **ratchet**: a recorded baseline count
+  per file, failing on a new page or a grown map, and failing too if a baselined page is fixed and
+  not removed from the list. Routing those six through the API is real work and is NOT done.
+- Lesson, again: fixing the instance is not fixing the class. The 2026-08-19 entry fixed one page's
+  buttons; the defect was "every surface builds its own prompt", and two surfaces still did.
+
+### The Smart Brain stopped, and the only thing that would have said so said nothing (2026-08-24)
+`/brain` served a 160-slot rolling calendar in which **nothing had been touched since 2026-08-14**:
+the horizon had stopped extending (80 days ahead, not 90), no slot had been re-reviewed against the
+day's data, and not one slot carried a `__prebuilt` marker. The plan was not corrupt - it was never
+being re-run.
+- **The scheduled cron dies at the function cap.** `api/brain.js` has `maxDuration: 120`, and
+  `?action=cron` ran nine heavy steps in series - including up to FIVE full LLM campaign builds -
+  reaching the Smart Brain plan sync NINTH. Vercel's runtime log for the 18:30 schedule is
+  `504 GET /api/brain ... Task timed out after 120 seconds`. Everything after the kill point never
+  ran, and `core.logRun()` is the LAST line, so no run record was written either. **A cron that dies
+  mid-chain is indistinguishable from one that was never scheduled**, and both look like a quiet day.
+- **`/api/cron/smart-brain` did not exist.** This file has claimed since the feature shipped that a
+  03:30 UTC cron hits it (rewrite -> `?action=smart-brain-cron`). There was no such cron and no such
+  rewrite: `vercel.json` had two crons, brain and social. The action was there the whole time,
+  unreachable - the same vanished-entrance defect as `INFO.ads` and the Creative Studio, in the
+  scheduler instead of the nav. Both now exist, so the calendar's own loop no longer depends on the
+  heavy brain run finishing.
+- **`smart-brain-sync-daily` itself 504s at 120s**, measured against production (`POST
+  ?action=smart-brain-sync-daily` -> HTTP 504 after 2m01s), not inferred. Two causes, both fixed, both
+  now measured against the real database:
+  - the update phase was `for (const u of updates) await db.update(...)` - ONE sequential PostgREST
+    round-trip per row. Measured from this sandbox: **389ms per serial round-trip, so ~70s for 180
+    rows**; the same 180 at width 8 is **~11s**. Updates now run at bounded concurrency
+    (`SMART_BRAIN_SYNC_CONCURRENCY`, default 8). Each row still gets its OWN conditional write,
+    because the optimistic lock on `status` is what stops a sync clobbering an approval that landed
+    since the read: only the WAITING is shared.
+  - the stored window was read TWICE per sync - once raw, once through `getPlan()` at the end - and
+    it is **1.89MB / 160 rows / 1.8s** on the live table. Cron callers now pass `includePlan:false`
+    and skip the second read; coverage (the alarm for a window that stopped extending) is still
+    measured, from a `select=date,market,status` read of a few KB.
+  - So the old worst case was ~2.4s context + 1.8s read + ~70s writes + prune + 1.8s re-read, which
+    fits inside 120s on a good day and does not on a bad one. It "used to work" because the window
+    was shorter; nothing changed except how many rows there were to update.
+- **A run that cannot finish now commits what it did and says what it deferred.** `syncDaily` takes a
+  wall-clock budget (`SMART_BRAIN_SYNC_BUDGET_MS`, 95s): rows past it are `deferred`, the sync reports
+  `truncated`, `persistence.ok` is false, and the next run re-derives the same diff and writes them.
+  The daily cron gained the same shape (`BRAIN_CRON_BUDGET_MS`, per-step `needMs`, `skipped_steps`,
+  `timed_out`) and the plan sync moved AHEAD of asset generation: order by cost, not by habit.
+- **Phase timings are returned on every sync** (`context_ms`, `plan_build_ms`, `stored_read_ms`,
+  `insert_ms`, `update_ms`, `plan_read_ms`, `total_ms`). The timeout was undiagnosable precisely
+  because a killed invocation reports nothing, so the evidence goes in the response - the same
+  reasoning as printing the row geometry on a failed layout assertion.
+- **The app's OWN instrumentation had it right the whole time**, which is the uncomfortable part:
+  `/api/brain?action=daily-calendar` reported `plan_persistence: {age_hours: 246, state: 'stale'}`,
+  `plan_run: never_run`, `coverage: 80/90 days` with the note "a rolling window that is short at the
+  far end means the daily sync is not persisting: it loses one day of horizon per day", and
+  `daily_job: {summary: '4/12 steps ok, 8 skipped'}` timestamped 18:31 - the cron that then died. The
+  freshness card on `/brain` renders that. What was blank was the **"Last sync" tile** beside it:
+  written in ONE place, inside `runSync()`, so on a plain page load it read `-` forever. Two
+  indicators of the same fact, one honest and one mute. The tile now DERIVES the age from the rows'
+  own `updated_at` at render time (never a stored "fresh" flag re-asserted as a live claim), goes red
+  past ~36h and names the loop to check. **Watch the name collision it walked into**: the new helper
+  was also called `renderFreshness`, the file already declared one ~350 lines down for that card, and
+  function declarations hoist - so the later one silently won and the new call site invoked the wrong
+  function with the wrong arguments. It is `renderPlanAge` now.
+- A partial sync also reports `persistence.summary` in the UI instead of a bare "Sync failed", which
+  sent the operator hunting a broken deployment instead of a slow one.
+- **Still true after this and not fixable in code:** production has `LIVE_CONNECTORS` off, so
+  `/api/connectors-health` reports `creative_blocked: true` and the live-catalog gate refuses every
+  generation (falling back to a build artifact dated 2018-10-20). The plan will roll again; the
+  prebuild queue will keep building nothing until that env var and a live store read are in place.
+- Unverifiable from the dev sandbox: the sync cannot be run locally (no Supabase credentials here),
+  so the concurrency and budget work is proven by test and by reasoning about the measured 504, not
+  by a green production run.
+
+### A UK send planned around a US product, because two market names are the same length (2026-08-24)
+Found while reading the frozen plan above. Of the 80 UK slots in the live 90-day window, **64 carried a
+hero whose SKU was `VAH-US-*`**, and the US slots carried UK products in the same proportion. One line:
+```js
+const product = products[(epoch + k + market.length) % products.length].product;
+```
+The pool was every row in `smart_products` regardless of market, and the stride meant to separate the
+markets was `market.length` - **2 for `US` and 2 for `UK`** - so the two markets got byte-identical
+picks and either could be handed the other's catalog.
+- It breaks the closed source-of-truth rule (no cross-region reuse of facts), and it also breaks
+  GENERATION: the live-catalog gate resolves a named product against the REGIONAL store and blocks the
+  build when it cannot find it, so a UK slot pointed at a US-only SKU is a slot that can never produce
+  assets. 113 of 160 slots currently have no campaign at all.
+- `smart_products` has a `market` column, so the pool is filtered on it, widening to market-agnostic
+  rows (a row that claims no market is not another region's product) and only then, with nothing else
+  to plan from, to everything - and a slot planned off that last resort carries
+  `product_data_dependency: [DATA REQUIRED BEFORE LAUNCH: product catalog for <market> ...]` rather
+  than presenting another region's product as this region's. The stride is now a real per-market hash.
+- Determinism is preserved and is load-bearing (a re-run that changes an approved slot means the
+  reviewer approved something that no longer exists); `tests/smart-brain-market-products.spec.js`
+  asserts it alongside the market rule, and 2 of its 6 tests go red against the old line.
+- The lesson is the same one as `market.length`: a "vary it by X" expression that happens to be
+  constant across the real values of X is invisible in review and looks deliberate in the source.
+
 ### A degraded run must not call itself final (2026-08-19)
 `/brain` showed `final - Final generated version, the best version of each asset, ready to view and
 download` on the same screen as `Copy by template` and a failed `Live Catalog Gate` chip. The run had
@@ -924,7 +1041,7 @@ Competitor data lives in a Google Sheet. Auth has **two modes** (see `docs/workl
 - **Mode B (legacy):** JSON key in `GOOGLE_SERVICE_ACCOUNT_*` env vars. Code prefers Mode A when `GCP_*` present; falls back to JWT when `VERCEL_OIDC_TOKEN` absent.
 
 ### Smart Brain (persistent daily loop)
-`lib/smart-brain/services.js` (6 services: KB, Analysis, Competitor, Calendar, Generation, Review) + `api/_shared/smart-brain-plan.js` (persistent rolling **90-day** plan in `smart_calendar_entries`, diff-updated daily, human approve/reject). Daily Vercel Cron (03:30 UTC) hits `/api/cron/smart-brain` (rewrite → `?action=smart-brain-cron`, `CRON_SECRET`-protected). Console UI: `smart-brain.html` at `/brain`. Approving a slot LLM-writes mailer + Meta/Google/TikTok ads + landing page (served at `/lp/:campaignId`) and mirrors them into `ads_generated`/`landing_pages_generated`. Platform push stays Phase 2 (`push_status: not_integrated_phase_2`).
+`lib/smart-brain/services.js` (6 services: KB, Analysis, Competitor, Calendar, Generation, Review) + `api/_shared/smart-brain-plan.js` (persistent rolling **90-day** plan in `smart_calendar_entries`, diff-updated daily, human approve/reject). Daily Vercel Cron (03:30 UTC) hits `/api/cron/smart-brain` (rewrite → `?action=smart-brain-cron`, `CRON_SECRET`-protected). That cron and that rewrite were BOTH missing from `vercel.json` until 2026-08-24 while this line claimed otherwise — see "The Smart Brain stopped" above; the plan is also refreshed by the 18:30 UTC `/api/brain?action=cron` run as a second chance. Console UI: `smart-brain.html` at `/brain`. Approving a slot LLM-writes mailer + Meta/Google/TikTok ads + landing page (served at `/lp/:campaignId`) and mirrors them into `ads_generated`/`landing_pages_generated`. Platform push stays Phase 2 (`push_status: not_integrated_phase_2`).
 
 **90-day horizon + asset prebuild (2026-07-09).** The rolling window is 90 days (`calendarDays: 90` in `services.js`, `calendar.days: 90` in `brain-core.js`, V1 `calendar-generate.js` cap raised to 90). Every slot in the window is not just planned but has its **full asset bundle prebuilt** — LLM copy + generated images for mailer + ads + landing page. Because ~180 slots (90d × US/UK) cannot build in one serverless invocation, `prebuildAssets()` is a **convergent background queue**: `?action=smart-brain-prebuild` (CRON_SECRET-protected) builds one small batch (via `buildCampaign(..., {withCreatives:true})`), persists it to `smart_generated_campaigns` as a `prebuilt` draft (NOT mirrored to the ads/LP dashboards until approval), marks the slot with a `payload.__prebuilt` marker, then re-fires itself until `remaining` hits 0, then idles. It self-chains via a fire-and-forget `fetch` to `VERCEL_URL` (3s handoff; the child keeps running after the client aborts). Kicked automatically after `smart-brain-sync-daily`, off the existing `/api/brain?action=cron` daily run (no 3rd Hobby-limited cron added), and re-runnable by hand. `previewEntry`/`approveEntry` REUSE the prebuilt campaign (instant view, no regeneration; what the reviewer saw is what ships). A material re-plan of a slot on daily sync drops the marker → the queue rebuilds the now-stale assets. Idempotent + resumable; a total-failure batch stops the chain instead of hot-looping.
 

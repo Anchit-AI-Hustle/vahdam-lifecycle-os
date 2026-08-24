@@ -33,6 +33,24 @@ claim or renaming a test.
 | Store URLs resolve through one module; no page keeps its own map. | `tests/market-urls.spec.js` — *no module keeps its own market -> store map* |
 | No source names a store host that is not in the canonical map. | `tests/market-urls.spec.js` — *no source invents a vahdam host the canonical map does not have* |
 | Sign-in has exactly one implementation. | `tests/homepage-signin.spec.js` — *sign-in has exactly one implementation, and it lives in auth.js* |
+| No page keeps its own store map either; the guard reads the pages, not just the modules. | `tests/market-urls.spec.js` — *no page keeps its own market -> store map* |
+| Every surface that hands a human a prompt reads it from the API, not a local copy. | `tests/asset-vs-element-prompts.spec.js` — *the assets library asks the API for the prompt, and holds no copy of one* |
+
+## Assets are finished, not briefed
+
+| Claim | Enforced by |
+| --- | --- |
+| Every asset prompt returns the complete deliverable; a brief is a failed response. | `tests/asset-vs-element-prompts.spec.js` — *every asset prompt states that the deliverable is the whole asset* |
+| Copying an ad prompt returns the creative itself, not a description of one. | `tests/asset-vs-element-prompts.spec.js` — *an ad card copies a prompt that returns the creative, not a brief* |
+
+## The daily loop actually runs
+
+| Claim | Enforced by |
+| --- | --- |
+| The Smart Brain's rolling calendar has its own daily schedule, not a step at the end of another job. | `tests/smart-brain-cron.spec.js` — *a scheduled cron reaches the Smart Brain plan sync* |
+| A daily run that runs out of time reports what it skipped instead of vanishing. | `tests/smart-brain-cron.spec.js` — *with no time budget the cron skips every step and says so* |
+| A sync that cannot finish commits what it did and defers the rest to the next run. | `tests/smart-brain-cron.spec.js` — *a sync that runs out of budget defers rows instead of being killed* |
+| Every send is planned from its own market catalog, never another region's. | `tests/smart-brain-market-products.spec.js` — *every slot is planned from its own market catalog* |
 
 ## Safety + privacy
 
@@ -51,4 +69,4 @@ claim or renaming a test.
 | CI keeps the screenshots and traces for a failing run. | `tests/ci-artifacts.spec.js` — *the failure artifacts themselves are uploaded* |
 | Documented provider counts match what the code actually routes to. | `tests/llm-waterfall-docs.spec.js` — *no living doc states a provider count that disagrees with the code* |
 
-_18 claims, each bound to a named test._
+_26 claims, each bound to a named test._

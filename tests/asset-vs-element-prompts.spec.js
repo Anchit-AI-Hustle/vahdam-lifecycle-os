@@ -265,3 +265,132 @@ test.describe('the studio page works', () => {
     expect(copied).not.toMatch(/^Premium, photorealistic PRODUCT PHOTOGRAPH/);
   });
 });
+
+// ── The same defect, in the two pages that were never fixed ─────────────────
+//
+// Mailer Studio was corrected (above). The Assets library and the Creative
+// Studio each kept their OWN hand-written prompt builder, and both asked for the
+// ingredients:
+//   assets.html buildPrompt(item), ad branch: "1) 3 headline options ... 3) An
+//   IMAGE-GENERATION PROMPT for a photoreal lifestyle scene ... 4) Which cohort".
+//   That is a copy document plus an ELEMENT prompt for one picture: paste it into
+//   ChatGPT and you get three headlines and a photo brief, never an ad.
+//   ad-campaigns-master.html clientMasterPrompt(ch): "(b) for EACH static size, a
+//   precise creative brief describing the still visual" - a brief, which the real
+//   contract now names as a FAILED response in as many words.
+// Both now read the prompt from /api/ai/generate?action=master-prompt.
+const ASSETS_PAGE = fs.readFileSync(path.join(ROOT, 'assets.html'), 'utf8');
+const ADS_MASTER = fs.readFileSync(path.join(ROOT, 'ad-campaigns-master.html'), 'utf8');
+
+test('the assets library asks the API for the prompt, and holds no copy of one', () => {
+  expect(ASSETS_PAGE).toContain("'/api/ai/generate?action=master-prompt'");
+  // The old builder and its giveaway phrases must be gone, not merely unused.
+  expect(ASSETS_PAGE, 'the hand-written prompt builder is still here').not.toMatch(/function buildPrompt\(/);
+  expect(ASSETS_PAGE, 'still asks for an image element prompt inside an ad prompt').not.toMatch(/IMAGE-GENERATION PROMPT/);
+  expect(ASSETS_PAGE, 'still asks for headline options instead of the ad').not.toMatch(/3 headline options/);
+  expect(ASSETS_PAGE, 'still asks for a placeholder instead of a paste token').not.toMatch(/product image placeholder/);
+  // And it must map every kind it lists to a real asset contract.
+  for (const t of ['mailer', 'ad', 'landing_page']) expect(ASSETS_PAGE).toContain(t);
+});
+
+test('the Creative Studio has no local mirror of the ad prompt', () => {
+  expect(ADS_MASTER).toContain("'/api/ai/generate?action=master-prompt'");
+  expect(ADS_MASTER, 'clientMasterPrompt is back').not.toMatch(/clientMasterPrompt/);
+  expect(ADS_MASTER, 'still asks for a brief per size instead of the creative')
+    .not.toMatch(/creative brief describing the still visual/);
+  // A failed build must not silently fall back to a locally invented prompt.
+  expect(ADS_MASTER).toMatch(/Could not build the ad prompt/);
+});
+
+test('both pages name which KIND of prompt the button copies', () => {
+  // "AI prompt" / "master prompt" says nothing about what comes back. The whole
+  // failure was copying one kind and getting the other.
+  expect(ASSETS_PAGE).toMatch(/Asset prompt<\/button>/);
+  expect(ASSETS_PAGE).toMatch(/COMPLETE/);
+  expect(ADS_MASTER).toMatch(/Copy asset prompt<\/button>/);
+  expect(ADS_MASTER).toMatch(/COMPLETE ad/);
+});
+
+// ── With teeth: click the button and read the clipboard ─────────────────────
+test.describe('the assets library copies the whole-asset prompt', () => {
+  test.skip(({ browserName }) => browserName !== 'chromium', 'behaviour test, one engine');
+  test.use({ serviceWorkers: 'block' });
+
+  let server; let origin;
+  test.beforeAll(async () => {
+    server = http.createServer((req, res) => {
+      const u = new URL(req.url, 'http://x');
+      if (u.pathname === '/api/ai/generate') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; });
+        req.on('end', () => {
+          const q = Object.fromEntries(u.searchParams);
+          let b = {}; try { b = JSON.parse(raw || '{}'); } catch (_) { b = {}; }
+          invoke({ ...q, ...b }, b).then((r) => {
+            res.writeHead(r.status, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(r.body));
+          });
+        });
+        return;
+      }
+      const f = path.join(ROOT, u.pathname === '/' ? '/index.html' : decodeURIComponent(u.pathname));
+      if (f.startsWith(ROOT) && fs.existsSync(f) && fs.statSync(f).isFile()) {
+        const ext = path.extname(f);
+        res.writeHead(200, { 'Content-Type': ext === '.html' ? 'text/html' : ext === '.js' ? 'text/javascript' : 'text/plain' });
+        return res.end(fs.readFileSync(f));
+      }
+      res.writeHead(404); res.end('nope');
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    origin = 'http://127.0.0.1:' + server.address().port;
+  });
+  test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
+
+  // The library reads its local-first sources from localStorage, so a seeded
+  // mailer and a seeded ad give us one card of each kind with no database.
+  const seed = () => {
+    localStorage.setItem('vhd_logs', JSON.stringify([{
+      id: 1, date: '2026-08-01T00:00:00.000Z', prompt: 'winback lapsed UK buyers', type: 'winback',
+      markets: ['UK'], _full: { campaign_title: 'Winback: the morning cup', primary_market: 'UK' },
+    }]));
+    localStorage.setItem('vahdam-ads-v1', JSON.stringify({
+      meta: [{ id: 'a1', name: 'Calm mornings', channel: 'meta', market: 'UK', headline: 'Calm mornings', created_at: '2026-08-01T00:00:00.000Z' }],
+    }));
+  };
+
+  async function copyFrom(page, kind) {
+    const card = page.locator('.asset', { has: page.locator('.tag.' + kind) }).first();
+    await card.locator('[data-act="prompt"]').click();
+    await expect.poll(async () => (await page.evaluate(() => navigator.clipboard.readText())).length, { timeout: 15000 })
+      .toBeGreaterThan(2000);
+    return page.evaluate(() => navigator.clipboard.readText());
+  }
+
+  test('a mailer card copies a prompt that returns a sendable email', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await blockExternal(page, origin);
+    await page.addInitScript(seed);
+    await page.goto(origin + '/assets.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.asset').first()).toBeVisible({ timeout: 20000 });
+    const copied = await copyFrom(page, 'mailer');
+    expect(copied).toContain('DELIVER THE WHOLE ASSET');
+    expect(copied).toMatch(/ready-to-send HTML email/);
+    expect(copied).toContain('PASTE_IMAGE_URL_HERE');
+    // The two shapes the old builder produced.
+    expect(copied).not.toMatch(/IMAGE-GENERATION PROMPT/);
+    expect(copied).not.toMatch(/product image placeholder/);
+  });
+
+  test('an ad card copies a prompt that returns the creative, not a brief', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await blockExternal(page, origin);
+    await page.addInitScript(seed);
+    await page.goto(origin + '/assets.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.asset').first()).toBeVisible({ timeout: 20000 });
+    const copied = await copyFrom(page, 'ad');
+    expect(copied).toContain('DELIVER THE WHOLE ASSET');
+    expect(copied).toMatch(/THE CREATIVE ITSELF/);
+    expect(copied).toMatch(/PLATFORM FIELDS/);
+    expect(copied).not.toMatch(/3 headline options/);
+  });
+});

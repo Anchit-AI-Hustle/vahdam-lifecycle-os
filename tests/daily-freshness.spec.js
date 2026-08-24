@@ -155,7 +155,12 @@ test.describe('success is derived, never asserted', () => {
 
   test('the cron records the run as failed when a step failed', () => {
     expect(BRAIN).not.toMatch(/logRun\('cron', summary, true\)/);
-    expect(BRAIN).toMatch(/logRun\('cron', summary, failed\.length === 0\)/);
+    // The verdict is DERIVED. It now also counts steps the run had no time
+    // budget left for: this cron was being killed at the 120s function cap with
+    // its central step never reached, so "ran out of time" has to be a failure
+    // too, not an unrecorded silence.
+    expect(BRAIN).toMatch(/const ok = failed\.length === 0 && skipped\.length === 0;/);
+    expect(BRAIN).toMatch(/logRun\('cron', summary, ok\)/);
   });
 
   test('the cron step reports rows WRITTEN, not changes intended', () => {

@@ -218,6 +218,29 @@ function classifyWriteFailure(warning) {
   return { kind: 'write_failed', constraint: null, detail: message || raw.slice(0, 200), effect: 'These rows were not stored.', fix: null };
 }
 
+// ── One round-trip at a time is what killed the daily sync ──────────────────
+// The update phase below was `for (const u of updates) await db.update(...)`:
+// one sequential HTTP round-trip to PostgREST per row. With a 90-day x 2-market
+// window that is up to ~180 serial requests, and Supabase answers this project
+// in ~0.5-1.1s, so the write phase alone could exceed the function's 120s
+// maxDuration. When it did, Vercel killed the invocation mid-loop: no response,
+// no run record, and a rolling calendar that silently stopped rolling.
+// Each row still gets its OWN conditional write (the optimistic lock on status
+// is per-row and load-bearing: it is what stops a sync clobbering an approval
+// that landed since the read). Only the WAITING is shared.
+async function mapWithConcurrency(items, limit, fn) {
+  const width = Math.max(1, Math.min(items.length, limit));
+  let next = 0;
+  const workers = Array.from({ length: width }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+}
+
 // Insert rows, falling back to one-at-a-time when the batch is rejected.
 // Returns real counts plus deduplicated blockers — never a bare ok:true.
 async function insertRowsResilient(db, table, rows, { onConflict = 'id', resolution = 'ignore-duplicates' } = {}) {
@@ -412,18 +435,36 @@ async function pruneOldRecords(config, db) {
 
 // ── Daily sync (the smart-brain daily review loop) ──────────────────────────
 
-async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
+// `includePlan:false` skips the full re-read of the stored window at the end.
+// That read returns the entire payload of every slot (~12KB x 160 = ~2MB) and
+// only the console UI needs it; a cron does not, and it was being paid for on
+// every scheduled run.
+async function syncDaily({ config: cfg = {}, days, persist = true, includePlan = true } = {}) {
   const config = smartConfig(cfg);
   const db = new SmartBrainDbAdapter(config);
   const horizon = days || config.calendarDays;
   const start = todayIso();
+  // WHERE THE TIME WENT USED TO BE UNKNOWABLE. This sync 504'd at the 120s
+  // function cap and the only evidence was the timeout itself, so every
+  // diagnosis was a guess. The phases are timed and returned, and the write
+  // phase stops at a deadline rather than being killed inside the loop: a run
+  // that cannot finish now commits what it did, names what it deferred, and the
+  // next run picks those rows up (the diff is idempotent).
+  const t0 = Date.now();
+  const timings = {};
+  const mark = (name, from) => { timings[name] = Date.now() - from; return Date.now(); };
+  const BUDGET_MS = Math.max(1000, +process.env.SMART_BRAIN_SYNC_BUDGET_MS || 95000);
+  const msLeft = () => BUDGET_MS - (Date.now() - t0);
   // Near-term slots inside this window get their prebuilt assets regenerated on
   // EVERY sync (fresh creatives vs. the latest competitor + campaign data), even
   // without a material plan change.
   const refreshDays = Number.isFinite(+config.prebuildRefreshDays) ? +config.prebuildRefreshDays : 7;
   const refreshUntil = addDaysIso(start, refreshDays);
+  let tp = Date.now();
   const ctx = await buildContext(config, db);
+  tp = mark('context_ms', tp);
   const fresh = freshEntries(config, ctx, start, horizon);
+  tp = mark('plan_build_ms', tp);
 
   const changes = [];
   let stored = [];
@@ -432,6 +473,7 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
       filters: { date: `gte.${start}` }, order: 'date.asc', limit: 1000,
     }).catch(() => [])) || [];
   }
+  tp = mark('stored_read_ms', tp);
   const storedById = new Map(stored.map((r) => [r.id, r]));
 
   // New slots are inserted (never overwriting an existing row); refreshes to
@@ -503,7 +545,15 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
       results.degraded = ins.degraded;
       results.blockers.push(...ins.blockers);
     }
-    for (const u of updates) {
+    tp = mark('insert_ms', tp);
+    // Attempt only what the remaining budget can carry, and say so. Deferred
+    // rows are not lost: the next sync re-derives the same diff and writes them.
+    const attempted = [];
+    const deferred = [];
+    const WIDTH = Math.max(1, Math.min(12, +process.env.SMART_BRAIN_SYNC_CONCURRENCY || 8));
+    for (const u of updates) (msLeft() > 0 ? attempted : deferred).push(u);
+    await mapWithConcurrency(attempted, WIDTH, async (u) => {
+      if (msLeft() <= 0) { deferred.push(u); return; }
       // OPTIMISTIC LOCK: the status filter means a row a human approved between our
       // read and this write no longer matches → update affects 0 rows, decision preserved.
       const upd = await db.update(
@@ -520,7 +570,10 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
         const hit = results.blockers.find((b) => b.kind === c.kind && b.detail === c.detail);
         if (hit) hit.rows_rejected += 1; else results.blockers.push({ ...c, rows_rejected: 1 });
       }
-    }
+    });
+    results.deferred = deferred.length;
+    results.truncated = deferred.length > 0;
+    tp = mark('update_ms', tp);
     // ok is DERIVED. It used to be hardcoded true, so a sync that wrote nothing
     // at all still reported success — which is how three weeks of dead syncs went
     // unnoticed. A sync is ok when everything it intended to write either landed
@@ -528,12 +581,14 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
     const intended = inserts.length + updates.length;
     const landed = results.inserted + results.updated + results.skipped_locked;
     persistence = {
-      ok: results.blockers.length === 0 && landed >= intended,
+      ok: results.blockers.length === 0 && landed >= intended && !results.truncated,
       intended,
       ...results,
     };
     if (!persistence.ok) {
-      persistence.summary = `${results.inserted + results.updated} of ${intended} planned writes landed; ${results.rejected} rejected by the database.`;
+      persistence.summary = results.truncated
+        ? `${results.inserted + results.updated} of ${intended} planned writes landed; ${results.deferred} deferred when the ${Math.round(BUDGET_MS / 1000)}s sync budget ran out (the next sync re-derives and writes them); ${results.rejected} rejected by the database.`
+        : `${results.inserted + results.updated} of ${intended} planned writes landed; ${results.rejected} rejected by the database.`;
     }
     // Roll past slots out of the active window.
     await db.update(config.tableNames.calendarEntries, { date: `lt.${start}`, status: SYNC_WRITABLE_STATUSES }, { status: 'archived', updated_at: nowIso() }).catch(() => {});
@@ -543,9 +598,22 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
       created_at: nowIso(),
     }]).catch(() => {});
     persistence.pruned = await pruneOldRecords(config, db);
+    tp = mark('archive_prune_ms', tp);
   }
 
-  const plan = await getPlan({ config: cfg, _ctxFallback: { config, db, ctx, fresh } });
+  const plan = includePlan
+    ? await getPlan({ config: cfg, _ctxFallback: { config, db, ctx, fresh } })
+    : { entries: [] };
+  // Coverage is the alarm that says the window stopped extending, so it is
+  // still MEASURED when the full plan is skipped - from a date-only read, which
+  // is a few KB instead of a few MB.
+  let coverageRows = plan.entries;
+  if (!includePlan && db.connected && persist) {
+    coverageRows = (await db.select(config.tableNames.calendarEntries, {
+      select: 'date,market,status', filters: { date: `gte.${start}`, status: 'neq.archived' }, order: 'date.asc', limit: 1000,
+    }).catch(() => [])) || [];
+  }
+  mark('plan_read_ms', tp);
   return {
     // A sync that could not write is not a successful sync. Callers (the cron
     // step summary, the console tile) read this; while it was hardcoded true
@@ -557,7 +625,12 @@ async function syncDaily({ config: cfg = {}, days, persist = true } = {}) {
     // Coverage is MEASURED from what is actually stored, not asserted from the
     // horizon we asked for. The gap between the two is the whole failure: the
     // planner kept producing 90 days while the table kept 58.
-    coverage: horizonCoverage(plan.entries, start, horizon),
+    coverage: horizonCoverage(coverageRows, start, horizon),
+    // Phase timings, always. The 120s timeout that froze this calendar was
+    // undiagnosable precisely because a killed invocation reports nothing: the
+    // next slow run says which phase is eating the budget.
+    timings: { ...timings, total_ms: Date.now() - t0, budget_ms: BUDGET_MS },
+    truncated: !!(persistence && persistence.truncated),
     changes,
     insights: ctx.analysis.dailyInsights,
     cohorts: ctx.analysis.cohorts,
@@ -2281,7 +2354,7 @@ module.exports = {
   // exported for unit testing (pure scenario helpers)
   attachScenarioLayer, promoteScenario, effectiveEntry, buildStandbyVariant,
   // exported for the day-level calendar + its tests (derived freshness helpers)
-  horizonCoverage, classifyWriteFailure, insertRowsResilient, isPrebuilt, PREBUILD_MARKER,
+  horizonCoverage, classifyWriteFailure, insertRowsResilient, mapWithConcurrency, isPrebuilt, PREBUILD_MARKER,
   SYNC_WRITABLE_STATUSES, stableId, addDaysIso, todayIso,
   // exported so the per-asset engine tests can render a page and assert the
   // section ORDER actually changes with the archetype (a source-only test
