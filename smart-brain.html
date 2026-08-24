@@ -675,9 +675,27 @@ function renderAd(ad){
       const note = (mp4 && mp4.exists)
         ? 'RENDERED MP4 AVAILABLE'
         : 'ANIMATED CREATIVE · ' + esc(String((mp4 && mp4.reason) || 'no MP4 rendered'));
+      /* sandbox WITHOUT allow-scripts, deliberately.
+       *
+       * allow-same-origin plus allow-scripts together DEFEATS the sandbox: the
+       * framed document then runs with this page's origin and can reach the
+       * parent DOM and the operator's Supabase session in localStorage.
+       *
+       * The payload is not trusted. smart_generated_campaigns still grants
+       * insert/update to the anon role in this repo (migration
+       * 20260719120000), so anyone who can reach the project can replace a
+       * campaign, and expanding that row would execute it as the reviewer.
+       *
+       * renderMotionAd emits pure CSS animation and no script at all, so
+       * allow-scripts bought nothing. The mailer and landing previews on this
+       * page already omit it; this matches them.
+       *
+       * Written as a JS comment rather than inside the template below: a
+       * backtick in an HTML comment there terminates the template literal,
+       * which is exactly how the first version of this note broke the page. */
       stage = `<div class="adcard-motion" style="position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(171,135,67,.3);background:#04120b;${adFrameCss(ad)}">
         ${meta}
-        <iframe class="advframe" sandbox="allow-same-origin allow-scripts" title="Animated ad creative"
+        <iframe class="advframe" sandbox="allow-same-origin" title="Animated ad creative"
           style="display:block;width:100%;height:100%;border:0;background:#04120b"></iframe>
         <span style="position:absolute;bottom:7px;right:10px;z-index:3;font-size:9px;font-weight:800;letter-spacing:.06em;color:#AB8743;background:rgba(4,18,11,.7);padding:3px 7px;border-radius:6px">${note}</span>
       </div>`;
@@ -903,8 +921,11 @@ function renderPreview(payload, e, i, opts){
    * hydration finds. `tab()` keeps its name and signature so the call sites did
    * not all need editing; `on` is ignored, because nothing is hidden. */
   const heads = [], panes = [];
-  const tab = (id,label)=> heads.push({ id, label });
-  const pane= (id,html)=> panes.push({ id, html });
+  // `_on` is the old "is this the open tab" flag. Nothing is hidden any more so
+  // it is ignored — declared rather than dropped so the arity matches the ~11
+  // call sites that still pass it, instead of silently taking extra arguments.
+  const tab = (id,label,_on)=> heads.push({ id, label });
+  const pane= (id,html,_on)=> panes.push({ id, html });
 
   let first = true;
   // Analysis first — the "why" behind everything below it.
