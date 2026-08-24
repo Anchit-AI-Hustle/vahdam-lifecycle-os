@@ -86,6 +86,12 @@
   .pvtab.on{color:#171717;border-bottom-color:var(--gold);background:rgba(171,135,67,.08)}
   .adimg{width:100%;max-height:420px;object-fit:cover;border-radius:8px;margin:4px 0 12px;border:1px solid rgba(171,135,67,.2);display:block}
   .pvpane{display:none}.pvpane.on{display:block}
+  /* Stacked sections: each asset keeps its own heading so a long row stays
+     readable, with a rule between one asset and the next. */
+  .pvsec{border-top:1px solid rgba(171,135,67,.22);padding:14px 0 4px;margin:0}
+  .pvsec:first-of-type{border-top:0;padding-top:4px}
+  .pvsech{margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;color:#9fb0a6}
   .pvframe{width:100%;height:560px;border:1px solid rgba(171,135,67,.22);border-radius:12px;background:#fff}
   .pvexport{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
   .pvnote{color:#556059;font-size:12px;margin:0 0 10px}
@@ -592,6 +598,36 @@ function adFrameCss(ad){
   return 'aspect-ratio:' + a + ';width:100%;' + (tall ? 'max-width:300px;' : 'max-width:520px;') + 'margin:4px 0 10px;';
 }
 
+/* The strip is a JUMP now, not a switcher: every pane is open, so this scrolls
+   to a section instead of hiding the others. */
+window.pvJump = function(id){
+  const el = document.getElementById(id);
+  if (!el) return;
+  (el.closest('.pvsec') || el).scrollIntoView({ behavior:'smooth', block:'start' });
+};
+
+/* The preview IS the artefact: the iframe is handed the creative's exact bytes
+   as a Blob, so what a reviewer approves and what downloads are the same file. */
+function hydrateMotionAds(root){
+  const store = window.__SB_MOTION || [];
+  (root||document).querySelectorAll('.adcard[data-motion="1"]').forEach(card=>{
+    const item = store[Number(card.dataset.motionIdx)];
+    const frame = card.querySelector('.advframe');
+    if(!item || !frame || frame.dataset.hydrated) return;
+    const url = URL.createObjectURL(new Blob([item.html], { type:'text/html' }));
+    frame.src = url; frame.dataset.hydrated = '1';
+    setTimeout(()=>URL.revokeObjectURL(url), 300000);
+  });
+}
+window.sbDownloadMotion = function(idx){
+  const item = (window.__SB_MOTION||[])[idx]; if(!item) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([item.html], { type:'text/html' }));
+  a.download = String(item.name||'video-ad')+'-creative.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
+};
+
 function renderAd(ad){
   const rows = [];
   const add = (k,v)=>{ if(v!=null && String(v).trim()!=='') rows.push(`<div class="k">${esc(k)}</div><div class="v">${esc(Array.isArray(v)?v.filter(Boolean).join('\n'):v)}</div>`); };
@@ -619,7 +655,36 @@ function renderAd(ad){
     const still = (ad.creative && ad.creative.image) || ad.image || '';
     const shots = ad.storyboard || [];
     const meta = `<span style="position:absolute;top:8px;left:10px;z-index:3;font-size:10px;font-weight:800;letter-spacing:.08em;color:#AB8743">VIDEO · ${esc(ad.placement||'9:16')} · ${esc(String(ad.duration_s||15))}s</span>`;
+    // 0. THE REAL ANIMATED CREATIVE, when one was built.
+    //
+    // scripts/lib/motion-ad.js produces a self-contained animated 9:16 ad from
+    // the storyboard, the brand palette and the brand's own catalogue photos,
+    // and smart-brain-plan now attaches it to every video ad. That artefact is
+    // the thing to show: the branch below it draws storyboard TEXT over a still,
+    // and with no still it draws text over a dark gradient — which is how this
+    // preview box came to look empty.
+    //
+    // The bytes are handed to an iframe as a Blob so the preview IS the
+    // deliverable, byte for byte, rather than a re-render of it.
+    const motionHtml = (ad.creative && ad.creative.motion_html) || '';
     let stage;
+    if(motionHtml){
+      window.__SB_MOTION = window.__SB_MOTION || [];
+      const midx = window.__SB_MOTION.push({ html: motionHtml, name: (ad.platform||'ad')+'-'+(ad.variant||'video') }) - 1;
+      const mp4 = (ad.creative && ad.creative.video) || null;
+      const note = (mp4 && mp4.exists)
+        ? 'RENDERED MP4 AVAILABLE'
+        : 'ANIMATED CREATIVE · ' + esc(String((mp4 && mp4.reason) || 'no MP4 rendered'));
+      stage = `<div class="adcard-motion" style="position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(171,135,67,.3);background:#04120b;${adFrameCss(ad)}">
+        ${meta}
+        <iframe class="advframe" sandbox="allow-same-origin allow-scripts" title="Animated ad creative"
+          style="display:block;width:100%;height:100%;border:0;background:#04120b"></iframe>
+        <span style="position:absolute;bottom:7px;right:10px;z-index:3;font-size:9px;font-weight:800;letter-spacing:.06em;color:#AB8743;background:rgba(4,18,11,.7);padding:3px 7px;border-radius:6px">${note}</span>
+      </div>`;
+      return `<div class="adcard" data-motion="1" data-motion-idx="${midx}"><h4>${esc(platform)} · Video ad ${vtag} ${qa}</h4>
+        ${stage}${rows.join('')}
+        <div style="margin-top:8px"><button type="button" class="btn sm secondary" onclick="sbDownloadMotion(${midx})">⬇ Download creative</button></div></div>`;
+    }
     if(vurl){
       stage = `<div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(171,135,67,.3);background:#04120b;${adFrameCss(ad)}">
         ${meta}<video src="${esc(vurl)}"${still?` poster="${esc(still)}"`:''} controls playsinline preload="metadata"
@@ -826,9 +891,20 @@ function renderPreview(payload, e, i, opts){
   const cw        = payload.copywriter || campaign.copywriter || {};
   const liveLpId  = e.generated_campaign_id || (opts.persisted && campaign.campaign_id) || null;
 
-  const tabs = [], panes = [];
-  const tab = (id,label,on)=> tabs.push(`<button class="pvtab${on?' on':''}" onclick="pvTab(this,'${id}')">${label}</button>`);
-  const pane= (id,html,on)=> panes.push(`<div class="pvpane${on?' on':''}" id="${id}">${html}</div>`);
+  /* EVERY RECORD AND ASSET INSIDE THE EXPANDED ROW, ALL AT ONCE.
+   *
+   * This was a tab strip: one pane visible, the rest display:none, over a
+   * mailer, a landing page, one pane per ad, the analysis and the JSON. A
+   * reviewer approving a slot could see one asset at a time and had to hold the
+   * rest in their head.
+   *
+   * Stacked and open now, each under its own heading. Pane ids are unchanged —
+   * they are what the download and copy controls address and what the motion
+   * hydration finds. `tab()` keeps its name and signature so the call sites did
+   * not all need editing; `on` is ignored, because nothing is hidden. */
+  const heads = [], panes = [];
+  const tab = (id,label)=> heads.push({ id, label });
+  const pane= (id,html)=> panes.push({ id, html });
 
   let first = true;
   // Analysis first — the "why" behind everything below it.
@@ -866,7 +942,21 @@ function renderPreview(payload, e, i, opts){
       first=false;
     });
   } else if(emailHtml){ const html = emailHtml.replace(/\{\{\s*landing_page_url\s*\}\}/g,'#'); tab('pv-mail','✉ Mailer',first); pane('pv-mail', `${expBar('mailer', html)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first); first=false; }
-  if(lpHtml){ tab('pv-lp','🛬 Landing page',first); pane('pv-lp', `${liveLpId?`<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#0a7d33">/lp/${esc(liveLpId)} ↗</a>.</p>`:''}${expBar('landing-page', lpHtml)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(lpHtml)}"></iframe>`, first); first=false; }
+  // EVERY landing page, not just the first. The builder ships an A/B pair and
+  // only landing_pages[0] was ever rendered, so the B variant was in the
+  // payload, was included in "Download all", and could not be looked at.
+  // Showing both is free once nothing is hidden behind a tab.
+  const lpList = (campaign.assets && campaign.assets.landing_pages && campaign.assets.landing_pages.length)
+    ? campaign.assets.landing_pages
+    : (lpHtml ? [{ title: 'Landing page', html: lpHtml }] : []);
+  lpList.forEach((lp, li) => {
+    const html = String(lp.html || '');
+    if (!html) return;
+    const id = 'pv-lp' + (li ? '-' + li : '');
+    tab(id, '🛬 ' + esc(lp.title || ('Landing page ' + (li + 1))), first);
+    pane(id, `${(liveLpId && !li) ? `<p class="pvnote">Hosted at <a href="/lp/${esc(liveLpId)}" target="_blank" style="color:#0a7d33">/lp/${esc(liveLpId)} ↗</a>.</p>` : ''}${expBar('landing-page' + (li ? '-' + li : ''), html)}<iframe class="pvframe" sandbox="allow-same-origin" srcdoc="${esc(html)}"></iframe>`, first);
+    first = false;
+  });
   // Each platform ships an A/B pair. Give every ad a UNIQUE tab id + a label that
   // names its variant and angle, otherwise both A and B collide on the same id
   // ("pv-ad-meta") and read as a duplicate "meta ad" tile (B hidden behind A).
@@ -991,8 +1081,15 @@ function renderPreview(payload, e, i, opts){
         return `<div class="pvnote" style="margin-top:4px;color:#ffd9d0;background:#3a1414;border-radius:6px;padding:6px 9px;font-size:11px">⚠ ${head}${why?': '+esc(why):'.'}${fix?' To fix: '+esc(fix):''}${bypassed?' Remove CATALOG_GATE=off once the catalog is live, so a stale build is refused rather than saved.':''}</div>`;
       }).join('');
     })()}
-    <div class="pvtabs">${tabs.join('')}</div>
-    ${panes.join('')}</div>`;
+    ${heads.length > 1 ? `<div class="pvtabs">${heads.map(h=>`<button type="button" class="pvtab" onclick="pvJump('${h.id}')">${h.label}</button>`).join('')}</div>` : ''}
+    ${panes.map((pn) => {
+      const h = heads.find((x) => x.id === pn.id);
+      return `<section class="pvsec"><h4 class="pvsech">${h ? h.label : ''}</h4>`
+        + `<div class="pvpane on" id="${pn.id}">${pn.html}</div></section>`;
+    }).join('')}</div>`;
+  // The animated ad creatives are real HTML; point each iframe at its exact
+  // bytes now that the panes are in the DOM.
+  hydrateMotionAds(host);
   host.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 window.closeExp = function(i){ const r=$('exprow-'+i); if(r) r.style.display='none'; };
