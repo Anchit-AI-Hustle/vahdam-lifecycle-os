@@ -568,6 +568,42 @@ message, and printed a count - so the one sentence that fixes it was thrown away
   connectors: continuing spends minutes re-proving the same fact and buries it under a bigger number.
 - Same defect class as the 2026-08-19 gate-notice work, in the bulk path rather than the single one.
 
+### ONE calendar on /brain, and it is the send table (2026-08-25, product owner)
+The flip-flop below ended with both views rendering. The product owner's call is the TABLE only, so the
+day-card list is gone: `#callegend`, `#calbody`, `#dayslots` and about 300 lines of renderer
+(`renderDayGrid`, `chnChips`, `selectDay`, `viewSlotAssets`, `planIndexForSlot`, `slotReviewCtl`,
+`slotAct`, `slotApprove/Reject/Reset/Download`, `closeDay`, `setDayWindow`) are deleted.
+- **Deleted, not left unreachable.** Every one of those functions wrote into `#calbody` or `#dayslots`,
+  so with the nodes gone a stray call is a TypeError, not a no-op. Checked first that nothing outside
+  the block referenced any of them (0 external refs) and that the SHARED verdict primitives
+  (`approveSend`/`rejectSend`/`resetSend`, which the table's row controls call) live elsewhere and are
+  untouched.
+- **The filters and bulk actions moved onto the table's card** rather than being deleted with the view
+  they happened to sit on: `#downloadAll`, `#mktfilter`, `#durfilter`, `#catfilter`, `#generateAll`,
+  `#approveAll` all act on `PLAN + slotVisible`, which never depended on the day grid's DOM.
+- **The day-level READ stays**, because the freshness card is computed from it (`renderFreshness(d)`).
+  `loadDayCalendar` no longer draws a grid, and its error path now writes to `#freshcells` only -
+  `$('calbody').innerHTML` on a removed node would have thrown.
+- The Window chips (`setDayWindow`) went too: their only job was sizing the day grid's history.
+- Verified against the LIVE plan (790 entries served to the local build): table on the calendar card,
+  415 rows, all four row actions, `.cw` caps live, 0 overlapping and 0 collapsed cells, freshness card
+  still populated, no page errors. The spec now asserts the day view's ABSENCE, which is what stops a
+  third flip-flop reintroducing a second calendar of the same 90 days.
+
+### A button that does nothing is worse than no button (2026-08-25)
+"View Full Tear-downs" on `/landing-pages` had no `onclick`, no `id`, no `data-*` and no delegated
+handler. Clicking it did literally nothing.
+- Scanned all **818 buttons** across the top-level pages: it was the ONLY genuinely unwired one. The
+  presell/landing deliverables' carousel arrows are wired by class, and `lifecycle-calendar`'s "UK"
+  chip is deliberately `disabled` with a title explaining the program is UK-only.
+- **A first pass reported six**, because the regex required `data-x=` while this page delegates on
+  VALUELESS attributes (`data-ai-fill`, `data-pm-download`). Matching the attribute NAME cleared five
+  working buttons. A guard that cries wolf on working code is how guards get deleted.
+- The card's four named brands are illustrative sample copy (its sibling card already said so about its
+  own patterns), so there was no tear-down dataset to open. It is now a link to the REAL competitor
+  intelligence surface, labelled with what that surface actually does, and the brand list carries the
+  same "illustrative" qualifier its neighbour had.
+
 ### Restoring the send table, and the flip-flop that took it away twice (2026-08-25)
 `/brain` has swapped between a send-level TABLE and a day-card LIST twice, each side deleting the other
 and each commit message arguing the merge was overdue. The last swap left `renderPlan()` emitting all

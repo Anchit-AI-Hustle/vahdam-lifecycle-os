@@ -1,20 +1,23 @@
 const { test, expect } = require('@playwright/test');
 const { startServer, blockExternal } = require('./lib/page-harness.js');
 
-// THE DAY CARD SPENT ITS HEADLINE ON A CONSTANT.
+// ONE CALENDAR ON /brain, AND IT IS THE SEND TABLE.
 //
-// /brain renders a 90-day grid. The plan is one slot per market per day, so
-// every card read "2 planned · 1 ready" — the same six words on ninety cards.
-// The fields that actually differ between days (festival, hero product, cohort,
-// objective) are all present on the slot and none of them was rendered.
+// This page has swapped between a send-level TABLE and a day-card LIST twice,
+// each side deleting the other and each commit arguing the merge was overdue.
+// The product owner's call is the table, and the day list is gone: nine
+// identical facts per row - cohort size, the analysis that chose the send,
+// confidence, the verdict and four per-send actions - is what a table is for,
+// where a card collapses them into a chip and puts the rest behind clicks.
 //
-// The second defect is not cosmetic. `assets_ready` is derived from
-// builtChannels(): every planned channel has an ARTIFACT. That stays true for a
-// campaign generated weeks ago against a catalog that has since gone stale, or
-// that the live catalog gate is now blocking outright (production currently
-// reports creative_blocked: true). Printing file-existence as "ready" where a
-// reader scans for "cleared to send" is the same class of defect as the run
-// that called itself final while its gate had failed.
+// The day-level READ survives because the freshness card is computed from it;
+// it simply no longer draws a calendar. What this file pins:
+//   1. the table is VISIBLE, not a hidden tbody renderPlan() fills for nobody -
+//      which is exactly how it regressed last time;
+//   2. every column it promises carries real data, capped by a block INSIDE the
+//      cell (a max-width on a <td> is ignored, a defect shipped here twice);
+//   3. each row can act on its own send;
+//   4. the plan says how old it is.
 
 let server, BASE;
 test.beforeAll(async () => { const s = await startServer(); server = s.server; BASE = s.base; });
@@ -101,7 +104,7 @@ async function openCalendar(page) {
     r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, entries }) });
   });
   await page.goto(`${BASE}/smart-brain.html`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.callist .cday').first().waitFor({ timeout: 20000 });
+  await page.locator('#plantable tbody tr.planrow').first().waitFor({ timeout: 20000 });
   // WAIT FOR THE REVEAL TRANSFORM TO CLEAR BEFORE MEASURING ANY GEOMETRY.
   //
   // This is the same defect I diagnosed on the ads table earlier and then failed
@@ -122,7 +125,7 @@ async function openCalendar(page) {
   // shifted between runs (iphone-12+ipad, then iphone-se+iphone-12) - it is a
   // race, not a per-device layout difference.
   await page.waitForFunction(() => {
-    const el = document.querySelector('.callist .cday');
+    const el = document.querySelector('#plantable tbody tr.planrow');
     if (!el) return false;
     for (let e = el; e && e !== document.documentElement; e = e.parentElement) {
       const tf = getComputedStyle(e).transform;
@@ -132,295 +135,40 @@ async function openCalendar(page) {
   }, null, { timeout: 20000 });
 }
 
-test.describe('the /brain day card', () => {
+test.describe('the /brain rolling calendar', () => {
   test.beforeEach(async ({ page }) => { await openCalendar(page); });
 
-  test('leads with what the day sends, not with a constant', async ({ page }) => {
-    const themes = await page.locator('.callist .cday .ct').allTextContents();
-    expect(themes.length, 'no theme line rendered on any card').toBeGreaterThan(0);
-    // The whole point: cards must differ from one another.
-    expect(new Set(themes).size, `every card shows the same thing: ${themes.join(' | ')}`).toBeGreaterThan(1);
-    expect(themes.join(' ')).toContain('Diwali Gifting');
-  });
-
-  test('never calls an artifact that exists "ready"', async ({ page }) => {
-    // "ready" is a promise about sendability the data cannot support; "built" is
-    // what builtChannels() actually measured.
-    const text = await page.locator('.callist').innerText();
-    expect(text).not.toMatch(/\bready\b/i);
-    expect(text).toMatch(/\d\/\d built/);
-  });
-
-  test('the readiness fraction shows its denominator', async ({ page }) => {
-    // "0 ready" cannot be told apart from a day that plans nothing; "0/2 built" can.
-    // Day 3 is deliberately MIXED (US unbuilt, UK built) so the fraction has to
-    // be computed rather than echoing a constant. It belongs on the DAY, not on
-    // a campaign row: a fraction over that day's sends is the one number here
-    // that is about the day rather than about any single send.
-    const group = page.locator('.callist .cdaygrp').nth(2);
-    await expect(group.locator('.cdayhd .cs')).toHaveText('1/2 built');
-  });
-
-  test('the colour code is explained on the page', async ({ page }) => {
-    const legend = page.locator('#callegend');
-    await expect(legend).toBeVisible();
-    await expect(legend).toContainText('one row per campaign', { ignoreCase: true });
-    await expect(legend).toContainText('not that they passed the live catalog gate', { ignoreCase: true });
-  });
-
-  // ONE ROW PER CAMPAIGN, NOT ONE ROW PER DAY.
-  //
-  // Collapsing a day's sends into market chips on a single row left a campaign
-  // with no line of its own: its cohort and objective existed only in a tooltip
-  // and in the panel behind a click, and two sends on one day shared a headline
-  // built by joining their themes with a middot. The day stays the grouping.
-  test('every campaign gets its own row, carrying its own cohort and objective', async ({ page }) => {
-    // The fixture is 3 days x 2 markets. One row per DAY would render 3.
-    await expect(page.locator('.callist .cday')).toHaveCount(6);
-    await expect(page.locator('.callist .cdaygrp')).toHaveCount(3);
-
-    // Each row names one market, and its own audience — not the day's.
-    const rows = page.locator('.callist .cdaygrp').nth(2).locator('.cday');
-    await expect(rows).toHaveCount(2);
-    await expect(rows.nth(0).locator('.bar b')).toHaveText('US');
-    await expect(rows.nth(1).locator('.bar b')).toHaveText('UK');
-    for (const i of [0, 1]) {
-      await expect(rows.nth(i).locator('.who'),
-        'cohort and objective are still only reachable by opening the day').toContainText('Lapsed 90d');
-      await expect(rows.nth(i).locator('.who')).toContainText('winback');
-    }
-  });
-
-  test('each row states its own build state and says why it is that colour', async ({ page }) => {
-    const rows = page.locator('.callist .cdaygrp').nth(2).locator('.cday');
-    await expect(rows.nth(0).locator('.bar b')).toHaveAttribute('title', /US — not built yet/);
-    await expect(rows.nth(1).locator('.bar b')).toHaveAttribute('title', /UK — all channels built/);
-    // And it is on the row as TEXT, not only in a tooltip — a title attribute is
-    // not readable by someone scanning the list, which is the whole job here.
-    await expect(rows.nth(0).locator('.cs')).toHaveText('not built yet');
-    await expect(rows.nth(1).locator('.cs')).toHaveText('all channels built');
-  });
-
-  test('clicking a campaign row marks THAT send in the day panel', async ({ page }) => {
-    // Two rows open the same day panel. Without this the panel gave no sign of
-    // which of the two the reader had asked about.
-    await page.locator('.callist .cdaygrp').nth(2).locator('.cday').nth(1).click();
-    const selected = page.locator('#dayslots .dslot.sel');
-    await expect(selected, 'the panel does not mark the send that was clicked').toHaveCount(1);
-    await expect(selected).toContainText('UK');
-  });
-
-  test('one campaign per row, and a long product name is not truncated', async ({ page }) => {
-    // The reason for the single column. In the 7-across grid each day got about
-    // 130px, so "Turmeric Ashwagandha Herbal Tea" rendered as
-    // "Turmeric Ashwagandh..." — and so did most other days, which is the state
-    // the screenshot showed. scrollWidth > clientWidth is exactly the ellipsis.
-    const rows = page.locator('.callist .cday');
-    // Collect enough to DIAGNOSE a failure from the CI log alone. The bare
-    // "expected >= 1393.43, received 1389.93" that this used to print says a
-    // row overlaps and nothing about which rows, how tall they are, or whether
-    // they are even siblings - and the screenshot/trace live in a CI artifact
-    // on a host this project's sandbox cannot reach. A geometry assertion
-    // should carry its own evidence.
-    const geo = await rows.evaluateAll((els) => els.map((e, i) => {
-      const r = e.getBoundingClientRect();
-      const p = e.parentElement;
-      return {
-        i, cls: e.className,
-        x: +r.x.toFixed(2), top: +r.top.toFixed(2), bottom: +r.bottom.toFixed(2),
-        h: +r.height.toFixed(2), offsetH: e.offsetHeight, scrollH: e.scrollHeight,
-        parent: p ? (p.className || p.tagName) : null,
-        parentDisplay: p ? getComputedStyle(p).display : null,
-        parentGap: p ? getComputedStyle(p).rowGap : null,
-      };
-    }));
-    const table = () => geo.map((g) =>
-      `  [${g.i}] x=${g.x} top=${g.top} bottom=${g.bottom} h=${g.h} (offset ${g.offsetH}, scroll ${g.scrollH}) ` +
-      `parent=${g.parent} display=${g.parentDisplay} gap=${g.parentGap} cls="${g.cls}"`).join('\n');
-
-    const boxes = geo;
-    expect(boxes.length, `only ${boxes.length} row(s) rendered:\n${table()}`).toBeGreaterThan(1);
-    // One per row: every row starts at the same x and each sits below the last.
-    const xs = new Set(boxes.map((b) => Math.round(b.x)));
-    expect(xs.size, `rows are not in a single column (${xs.size} distinct x):\n${table()}`).toBe(1);
-    for(let i = 1; i < boxes.length; i++){
-      expect(boxes[i].top,
-        `row ${i} overlaps row ${i - 1} by ${(boxes[i-1].bottom - boxes[i].top).toFixed(2)}px.\n` +
-        `In a flex column with a fixed gap this is not possible for siblings, so check whether these ` +
-        `two rows share a parent and whether either box is taller than its layout slot:\n${table()}`
-      ).toBeGreaterThanOrEqual(boxes[i-1].bottom - 1);
-    }
-    // Assert the ROOM the column change delivers, as a FRACTION of the list.
-    //
-    // Two earlier versions of this got it wrong, both by measuring something
-    // that is not the claim:
-    //   1. "no theme is ever ellipsised" - failed on all three WebKit projects,
-    //      because the same string measures wider there. That tested font
-    //      metrics, not layout.
-    //   2. "every theme is at least 260px" - still failed on iphone-12 and
-    //      ipad. Those projects emulate a mobile device, where the layout width
-    //      is driven by the page's own viewport meta rather than by the
-    //      configured viewport, so an ABSOLUTE pixel floor is not a property
-    //      the layout controls.
-    // What the column change actually guarantees is a SHARE: the theme gets
-    // most of the row instead of one seventh of the grid. In the 7-across grid
-    // a day was ~1/7 of the container, so the theme measured ~13% of the list;
-    // in a single column it is the 1fr of `52px 1fr 200px 128px`. A fraction is
-    // both font-independent and viewport-independent.
-    const share = await page.evaluate(() => {
-      const list = document.querySelector('.callist').getBoundingClientRect().width;
-      return [...document.querySelectorAll('.callist .cday .ct')]
-        .map((e) => e.getBoundingClientRect().width / list);
-    });
-    expect(share.length).toBeGreaterThan(1);
-    expect(Math.min(...share), `the theme column is still cramped: ${share.map((x) => Math.round(x * 100) + '%').join(', ')}`)
-      .toBeGreaterThan(0.35);
-  });
-
-  // The assertion above only says the text HAPPENED to fit in the browser and
-  // viewport that ran it. That is why this sat red on main: it passed on every
-  // Chromium project and failed on all three WebKit ones, so it could not be
-  // reproduced by anyone whose machine cannot launch WebKit - which includes
-  // the sandbox this repo is usually developed in.
-  //
-  // These two tests pin the STRUCTURAL property instead, and both FAIL on
-  // Chromium against the old nowrap + text-overflow:ellipsis rule. That is the
-  // point: the defect is now reproducible on the engine you have, rather than
-  // only on the one CI has. Wrapped text cannot exceed its box because line
-  // breaking is CSS semantics, not a measurement that happens to come out
-  // favourably.
-  test('the headline is built to wrap, so no engine can truncate it', async ({ page }) => {
-    const css = await page.locator('.callist .cday .ct').first().evaluate((el) => {
-      const c = getComputedStyle(el);
-      return { whiteSpace: c.whiteSpace, overflowWrap: c.overflowWrap, textOverflow: c.textOverflow, overflow: c.overflow };
-    });
-    expect(css.whiteSpace, 'nowrap means the text truncates as soon as it is too wide').not.toBe('nowrap');
-    // A single unbroken token longer than the column is the one case wrapping
-    // alone cannot solve.
-    expect(['anywhere', 'break-word'], `overflow-wrap is ${css.overflowWrap}`).toContain(css.overflowWrap);
-    expect(css.textOverflow, 'text-overflow:ellipsis is the truncation this test forbids').not.toBe('ellipsis');
-  });
-
-  test('a pathological product name still does not overflow, at the narrowest width', async ({ page }) => {
-    // If a 200-char string and an unbroken 120-char token both fit at 320px -
-    // narrower than any project here - then a few percent of extra glyph width
-    // on another engine cannot make them overflow. That is what turns "it fits
-    // in this browser" into "it cannot overflow in any browser".
-    await page.setViewportSize({ width: 320, height: 900 });
-    const overflowing = await page.locator('.callist .cday .ct').evaluateAll((els) => {
-      const long = 'Turmeric Ashwagandha Herbal Tea with Cardamom and Black Pepper Single Estate Reserve Harvest Limited Batch Blend for the Morning Ritual, Second Flush, High Altitude Darjeeling Garden Selection';
-      const unbroken = 'A'.repeat(120);
-      const out = [];
-      els.forEach((e, i) => {
-        e.textContent = i % 2 ? long : unbroken;
-        if (e.scrollWidth > e.clientWidth + 1) out.push(e.textContent.slice(0, 30));
-      });
-      return out;
-    });
-    expect(overflowing, `text overflowed its box even with wrapping on: ${overflowing.join(' | ')}`).toEqual([]);
-  });
-
-  // A REVIEW SURFACE YOU CANNOT RECORD A VERDICT FROM IS NOT A REVIEW SURFACE.
-  //
-  // Approve / Reject / Reset are rendered by renderPlan() into the plan table,
-  // and that table is HIDDEN while the day-level calendar is the visible
-  // calendar. So the controls existed, in the DOM, unreachable - the same "kept
-  // its code, lost its entrance" trap INFO.ads and the Creative Studio each hit.
-  // Restoring the day view without these would have silently removed a working
-  // feature rather than a duplicate view.
-  test('a send can actually be approved from the day panel', async ({ page }) => {
-    let approved = null;
-    await page.route((url) => url.pathname.includes('/api/calendar'), async (r) => {
-      const u = r.request().url();
-      if (/smart-brain-generate|smart-brain-approve/.test(u)) {
-        approved = JSON.parse(r.request().postData() || '{}');
-        return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, persisted: true, campaign: { campaign_id: 'camp-1' } }) });
-      }
-      return r.fallback();
-    });
-    await page.locator('.callist .cday').nth(1).click();
-    const slot = page.locator('#dayslots .dslot').first();
-    await expect(slot.getByRole('button', { name: /Approve/ }),
-      'the day panel offers no way to approve the send it is showing').toHaveCount(1);
-    await expect(slot.getByRole('button', { name: /Reject/ })).toHaveCount(1);
-  });
-
-  test('a failed verdict is reported in the panel, not into the hidden table row', async ({ page }) => {
-    // approveRow/rejectRow wrote "approve failed: ..." into #rev-<i>, which lives
-    // in the hidden plan table. From the day panel that is silence, and silence
-    // reads as "still working" - so the reviewer waits on a request that already
-    // failed. The panel has to render its own outcome.
-    await page.route((url) => url.pathname.includes('/api/calendar'), async (r) => {
-      if (/smart-brain-generate|smart-brain-approve/.test(r.request().url())) {
-        return r.fulfill({ status: 200, contentType: 'application/json',
-          body: JSON.stringify({ ok: false, blocked: true, blocker: 'Live catalog unavailable for US', message: 'Live catalog unavailable for US' }) });
-      }
-      return r.fallback();
-    });
-    await page.locator('.callist .cday').nth(1).click();
-    const slot = page.locator('#dayslots .dslot').first();
-    await slot.getByRole('button', { name: /Approve/ }).click();
-    await expect(slot.locator('.dact'), 'the failure never reached the surface the reviewer is looking at')
-      .toContainText(/failed/i, { timeout: 15000 });
-  });
-
-  test('a day opens the assets that were built for it', async ({ page }) => {
-    // The panel used to list a campaign id, an image COUNT and a landing link,
-    // and nothing else: no mailer, no ads, no way to look at anything. The
-    // viewer already existed for the entry list further down the page, so the
-    // capability was present and simply had no entrance from the calendar.
-    await page.route((url) => url.pathname.includes('/api/calendar') || url.pathname.includes('/api/brain'), async (r) => {
-      const u = r.request().url();
-      if (/smart-brain-preview/.test(u)) {
-        return r.fulfill({ contentType: 'application/json', body: JSON.stringify({
-          ok: true, persisted: true,
-          email_html: '<html><body><h1>Steep the evening slowly</h1></body></html>',
-          landing_html: '<html><body><h1>Landing</h1></body></html>',
-          ads: [], copywriter: { provider: 'anthropic' }, campaign: { campaign_id: 'camp-1' },
-        }) });
-      }
-      return r.fallback();
-    });
-    await page.locator('.callist .cday').nth(1).click();
-    // Locate the button STRUCTURALLY, not by its text: the text is what the
-    // click changes, so a hasText locator stops matching the moment it works.
-    const slotBtn = page.locator('#dayslots .dslot button').first();
-    await expect(slotBtn, 'the day panel offers no way to see an asset').toBeVisible();
-    await expect(slotBtn).toHaveText('View assets');
-    await slotBtn.click();
-    // The mailer must actually render, not just a spinner or an id.
-    const frame = page.locator('#dayslots .slotpv iframe.pvframe').first();
-    await expect(frame).toBeVisible({ timeout: 20000 });
-    await expect(slotBtn).toHaveText('Hide assets');
-  });
-
-  test('BOTH views render, and each answers a different question', async ({ page }) => {
-    // /brain has flip-flopped between these two views twice, each time deleting
-    // the other. They are not duplicates and the product owner wants both: the
-    // day card answers "what is happening on this day", the send table answers
-    // "what is this send, and do I approve it". Nine identical facts per row is
-    // what a table is for; a card collapses them into a chip.
+  test('the table is the ONE calendar, and it is actually visible', async ({ page }) => {
     await expect(page.locator('#plantable'), 'the send-level table is missing again').toHaveCount(1);
     await expect(page.getByRole('heading', { name: /Rolling calendar/i })).toHaveCount(1);
-    await expect(page.locator('.callist .cday').first(), 'the day-card list is missing').toBeVisible();
+    // The day-card list is gone, and so is its per-day slot panel. Asserting
+    // their ABSENCE is what stops the third flip-flop reintroducing a second
+    // calendar of the same 90 days.
+    await expect(page.locator('.callist .cday'), 'the day-card calendar is back').toHaveCount(0);
+    await expect(page.locator('#calbody'), '#calbody is back').toHaveCount(0);
+    await expect(page.locator('#dayslots'), '#dayslots is back').toHaveCount(0);
 
     // The table must be VISIBLE, not a hidden tbody that renderPlan() fills for
     // nobody - which is exactly how it regressed last time.
     await expect(page.locator('#plantable')).toBeVisible();
     await expect(page.locator('#plantable tbody tr.planrow').first()).toBeVisible();
 
-    // The bulk actions and filters stay where they are and still act on PLAN.
+    // The filters and bulk actions had to MOVE onto the table's card, not be
+    // deleted with the view they used to sit on: they act on PLAN + slotVisible,
+    // so deleting the card without relocating them would have silently removed
+    // working features rather than a duplicate view.
     const card = page.locator('#daycal');
-    for (const id of ['#downloadAll', '#mktfilter', '#durfilter', '#catfilter']) {
-      await expect(card.locator(id), `${id} moved out of the day card`).toHaveCount(1);
+    for (const id of ['#downloadAll', '#mktfilter', '#durfilter', '#catfilter', '#plantable']) {
+      await expect(card.locator(id), `${id} is not on the calendar card`).toHaveCount(1);
     }
+  });
 
-    // And the two columns the card pushes into a panel are still there too.
-    await page.locator('.callist .cday').nth(1).click();
-    const panel = page.locator('#dayslots');
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText('Why:');
-    await expect(panel).toContainText('Confidence:');
+  test('the freshness card still has its read, which the day view used to own', async ({ page }) => {
+    // loadDayCalendar is kept for ONE reason: renderFreshness is computed from
+    // it. Removing the grid must not have taken the ages with it.
+    const cells = page.locator('#freshcells .fcell');
+    await expect(cells.first()).toBeVisible();
+    await expect(page.locator('#freshcells')).not.toContainText('Checking…');
   });
 
   test('every column the row promises is actually there', async ({ page }) => {
@@ -505,10 +253,11 @@ test.describe('the /brain day card', () => {
 // 120s function cap and wrote nothing. The age is DERIVED from the rows at
 // render time - never a stored "fresh" flag re-asserted as a live claim.
 //
-// NOTE: these stub BOTH endpoints the page reads, because the day grid comes
-// from ?action=daily-calendar and the plan (which carries the timestamps this
-// tile is computed from) comes from ?action=smart-brain-plan. Stubbing only the
-// grid leaves the plan empty and the tile then correctly reads "never".
+// NOTE: these stub BOTH endpoints the page reads. The plan (which carries the
+// timestamps this tile is computed from) comes from ?action=smart-brain-plan;
+// ?action=daily-calendar is still read for the freshness card above the table.
+// Stubbing only one leaves the other empty and the tile then correctly reads
+// "never" - a green-looking test measuring nothing.
 test.describe('the /brain plan says how old it is', () => {
   const DATES = ['2026-10-05', '2026-10-06', '2026-10-07'];
 
@@ -553,7 +302,7 @@ test.describe('the /brain plan says how old it is', () => {
       r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, entries: planEntries(stamp) }) });
     });
     await page.goto(`${BASE}/smart-brain.html`, { waitUntil: 'domcontentloaded' });
-    await page.locator('.callist .cday').first().waitFor({ timeout: 20000 });
+    await page.locator('#plantable tbody tr.planrow').first().waitFor({ timeout: 20000 });
   }
 
   test('a fresh plan shows its age on load, with no warning', async ({ page }) => {
@@ -580,5 +329,42 @@ test.describe('the /brain plan says how old it is', () => {
     await openWith(page, null);
     await expect(page.locator('#lastsync')).toHaveText('never');
     await expect(page.locator('#lastsyncnote')).toContainText('never been written');
+  });
+});
+
+// ── A button that does nothing is worse than no button ──────────────────────
+// "View Full Tear-downs →" on /landing-pages carried no onclick, no id, no data
+// attribute and no delegated handler: clicking it did literally nothing. Scanned
+// across all 818 buttons on the top-level pages, it was the only genuinely
+// unwired one in the app - the presell/landing DELIVERABLES have carousel arrows
+// wired by class, and lifecycle-calendar's "UK" chip is deliberately `disabled`
+// with a title saying the program is UK-only. So this guard is narrow on purpose:
+// it pins the one page that had the defect rather than pretending to police a
+// class it would report falsely on.
+test.describe('no dead control on the landing-pages surface', () => {
+  const LP = require('fs').readFileSync(require('path').join(__dirname, '..', 'landing-pages.html'), 'utf8');
+
+  test('every button is wired to something', () => {
+    const dead = [];
+    for (const m of LP.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)) {
+      const tag = m[0].slice(0, m[0].indexOf('>') + 1);
+      // A valueless data-* attribute counts as wired: this page delegates on
+      // data-pm-download, data-ai-fill and friends, so requiring `data-x=` would
+      // report five working buttons as dead.
+      if (/onclick=|\bid=|\bdata-[a-z-]+|type=["']submit|\bdisabled\b/.test(tag)) continue;
+      dead.push(m[1].replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 40));
+    }
+    expect(dead, `unwired button(s) on landing-pages.html: ${dead.join(' | ')}`).toEqual([]);
+  });
+
+  test('the tear-down promise leads somewhere real, and says what it is', () => {
+    // It must not simply have been deleted: the click had a purpose, and the
+    // repo does have a competitor intelligence surface to serve it.
+    expect(LP).toContain('href="/competitor"');
+    expect(LP).toMatch(/Open Competitor Benchmarking/);
+    expect(LP, 'the old dead button is back').not.toMatch(/<button[^>]*>View Full Tear-downs/);
+    // And the four named brands are labelled for what they are, like the card
+    // beside them already labels its own patterns.
+    expect(LP).toMatch(/Illustrative examples - not tracked VAHDAM competitor accounts/);
   });
 });

@@ -468,12 +468,20 @@ test.describe('the surfaces are wired', () => {
     expect(functionFileCount()).toBeLessThanOrEqual(12);
   });
 
-  test('the console renders the status panel and the day grid', () => {
-    for (const id of ['opsstatus', 'daycal', 'freshcells', 'opsblockers', 'calbody', 'dayslots']) {
+  test('the console renders the status panel, and still READS the day endpoint', () => {
+    // The day-card GRID is gone: /brain shows one calendar and it is the send
+    // table (product owner's call). The day-level READ stays, because the
+    // freshness cells above the table are computed from it - so #calbody and
+    // #dayslots are deliberately absent while the fetch and #freshcells remain.
+    for (const id of ['opsstatus', 'daycal', 'freshcells', 'opsblockers', 'plantable']) {
       expect(PAGE, `#${id} is missing from the console`).toContain(`id="${id}"`);
+    }
+    for (const id of ['calbody', 'dayslots']) {
+      expect(PAGE, `#${id} is back - that is the second calendar returning`).not.toContain(`id="${id}"`);
     }
     expect(PAGE).toMatch(/loadDayCalendar\(true\)/);
     expect(PAGE).toContain('action=daily-calendar');
+    expect(PAGE, 'the freshness card must still be rendered from that read').toMatch(/renderFreshness\(d\)/);
   });
 
   test('the migration that unblocks the writes ships in the apply-all bundle', () => {
