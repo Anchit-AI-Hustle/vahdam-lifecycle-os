@@ -43,10 +43,21 @@
   #plantable{min-width:1020px}
   #plantable th,#plantable td{white-space:nowrap;padding:12px 10px;vertical-align:top}
   #plantable tbody tr.planrow:hover td{background:rgba(171,135,67,.06)}
-  #plantable td.cohort{white-space:normal;max-width:150px}
-  #plantable td.obj,#plantable th.obj{white-space:normal;max-width:190px}
-  #plantable td.why,#plantable th.why{white-space:normal;max-width:280px}
-  #plantable td.chan,#plantable th.chan{white-space:normal;max-width:150px}
+  /* A max-width on a <td> IS IGNORED by auto table layout - it has to sit on a
+     block INSIDE the cell. The four rules that used to live here read as
+     deliberate caps and capped nothing, which is the same defect the ad tables
+     shipped twice: a long campaign token or product name then grows its column
+     until it paints over the next one. The .cw inner block is the idiom that
+     actually works, and is what data-analysis-extensions.js and
+     ad-campaigns-master.html both use. */
+  #plantable td.cohort,#plantable td.obj,#plantable th.obj,
+  #plantable td.why,#plantable th.why,
+  #plantable td.chan,#plantable th.chan{white-space:normal}
+  #plantable .cw{display:block;white-space:normal;overflow-wrap:anywhere;min-width:0}
+  #plantable td.cohort .cw{max-width:170px}
+  #plantable td.obj .cw{max-width:220px}
+  #plantable td.why .cw{max-width:300px}
+  #plantable td.chan .cw{max-width:170px}
   /* Clamp long copy to 2 lines — the full text lives in View / the decision panel. */
   .clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .pill{display:inline-block;border:1px solid rgba(171,135,67,.35);border-radius:999px;padding:2px 8px;margin:1px;font-size:11px;color:#7a5f28;white-space:nowrap}
@@ -331,18 +342,37 @@
       <div id="dayslots" class="dayslots" style="display:none"></div>
     </div>
 
-    <!-- The "Rolling calendar (next 90 days)" table lived here. It listed the same
-         90 days the day-level calendar above already lists, one row per entry, so /brain
-         carried two calendars of the same data. Merged into the day surface: its bulk
-         actions and filters moved into the Day-level calendar card, and its per-row
-         Market / Cohort / Objective-Hero / Why / Confidence now render in that card's
-         per-send detail panel (daily-calendar-core forwards `why` and
-         `confidence_label` for exactly this).
-         #plan is retained as an empty, hidden tbody because renderPlan() is still the
-         single place that computes the visible counts and the Generate/Approve button
-         state from PLAN + slotVisible - deleting the node would have meant either
-         rewriting that logic or letting $('plan').innerHTML throw. -->
-    <table hidden aria-hidden="true" style="display:none"><tbody id="plan"></tbody></table>
+    <!-- THE SEND-LEVEL CALENDAR IS A TABLE, and it is this one.
+         It was replaced by the day-card list above and reduced to a HIDDEN tbody:
+         renderPlan() kept emitting all nine columns per send, complete with the
+         verdict controls and the per-row actions, into a table nobody could see.
+         The columns are the reason: cohort size, the analysis that chose the send,
+         confidence, the review verdict and four per-send actions are the same nine
+         facts on every row, which is precisely what a table is for - a card
+         collapses them into a chip and pushes the rest into tooltips.
+         The two views are not duplicates: the card list above answers "what is
+         happening on this day", this table answers "what is this send, and do I
+         approve it". Restored at the product owner's instruction. -->
+    <div class="card wide" id="planwrap">
+      <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
+        <div>
+          <h2 style="margin:0">Rolling calendar &mdash; one row per send</h2>
+          <p style="color:#48524c;margin:.35em 0 0;font-size:13px">In date order. Each row carries the market, the cohort it goes to, the objective and hero product, the analysis that chose it, the channel mix, the confidence and the review verdict &mdash; and acts on that send directly.</p>
+        </div>
+      </div>
+      <div class="tblscroll" style="margin-top:12px">
+        <table id="plantable">
+          <thead>
+            <tr>
+              <th>Date</th><th>Market</th><th class="cohort">Cohort</th>
+              <th class="obj">Objective &middot; Hero</th><th class="why">Why (analysis)</th>
+              <th class="chan">Channels</th><th>Conf.</th><th>Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="plan"><tr><td colspan="9" style="color:#48524c">Loading the plan&hellip;</td></tr></tbody>
+        </table>
+      </div>
+    </div>
 
     <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
     <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
@@ -547,10 +577,10 @@ function renderPlan(){
     return `<tr class="planrow" id="planrow-${i}">
     <td>${esc(e.date)}${e.mailer_total > 1 ? `<br><span class="pill" style="background:#2a2411;color:#7a5f28;font-size:10px">MAILER ${e.mailer_index}/${e.mailer_total}</span>` : ''}</td>
     <td><b>${esc(e.market)}</b>${e.festival ? `<br><span class="pill">🎉 ${esc(e.festival.name)}</span>` : ''}</td>
-    <td class="cohort">${esc(e.cohort?.name)}<br><span style="color:#48524c;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#e8f3ec;color:#0a7d33;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}${feasBadge(e.feasibility)}</td>
-    <td class="obj"><div class="clamp2" style="font-weight:600;color:#171717">${esc(e.objective)}</div><span style="color:#556059;font-size:12px">${esc(e.heroProduct?.title || '')}${(e.supportingProducts&&e.supportingProducts.length)?` <span style="color:#7a8a80">· + ${esc(e.supportingProducts.map(p=>p.title).filter(Boolean).join(', '))}</span>`:''}</span></td>
-    <td class="why"><div class="clamp2" style="font-size:12px;color:#a9b8ad;line-height:1.45" title="${esc(why)}">${esc(why)}</div></td>
-    <td class="chan">${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</td>
+    <td class="cohort"><div class="cw">${esc(e.cohort?.name)}<br><span style="color:#48524c;font-size:11px">${e.cohort?.size ?? '—'} profiles</span>${e.reach ? `<br><span class="pill" style="background:#e8f3ec;color:#0a7d33;font-size:10px" title="${esc(e.reach.widen_note||'')} · Per user: ${e.reach.per_user_per_week?.min}-${e.reach.per_user_per_week?.max} mailers/week.">→ ${Number(e.reach.planned_recipients||0).toLocaleString()} recipients</span>` : ''}${feasBadge(e.feasibility)}</div></td>
+    <td class="obj"><div class="cw"><div class="clamp2" style="font-weight:600;color:#171717">${esc(e.objective)}</div><span style="color:#556059;font-size:12px">${esc(e.heroProduct?.title || '')}${(e.supportingProducts&&e.supportingProducts.length)?` <span style="color:#7a8a80">· + ${esc(e.supportingProducts.map(p=>p.title).filter(Boolean).join(', '))}</span>`:''}</span></div></td>
+    <td class="why"><div class="cw"><div class="clamp2" style="font-size:12px;color:#556059;line-height:1.45" title="${esc(why)}">${esc(why)}</div></div></td>
+    <td class="chan"><div class="cw">${(e.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</div></td>
     <td class="conf" title="${esc(confTip)}">${e.confidence != null ? Math.round(e.confidence*100)+'%' : '—'}${confLabel?`<br><span style="color:#556059;font-size:10px;text-transform:uppercase;letter-spacing:.06em">${esc(confLabel)}</span>`:''}</td>
     <td>${status}</td>
     <td style="white-space:nowrap">
@@ -1507,7 +1537,14 @@ async function generateEntry(i, { silent = false } = {}){
   }
   const r = await fetch(`${API}?action=smart-brain-approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: e.id, entry: e, reviewer: reviewerEmail() })});
   const data = await safeJson(r);
-  if(!data.ok) throw new Error(window.GateNotice ? window.GateNotice.message('Generation failed', data, null).text : (data.error || data.message || data.blocker || 'Generation failed'));
+  if(!data.ok){
+    const err = new Error(window.GateNotice ? window.GateNotice.message('Generation failed', data, null).text : (data.error || data.message || data.blocker || 'Generation failed'));
+    // Carry the VERDICT, not just its sentence. A gate declines with a status, a
+    // blocker, a DATA REQUIRED line and a remediation list; bulk callers need
+    // those to report the one fact instead of counting identical failures.
+    if(data.blocked) err.__gate = { status: data.status, blocker: data.blocker, message: data.message, data_required: data.data_required, remediation: data.remediation || [], code: data.code };
+    throw err;
+  }
   e.status = 'final'; e.generated_campaign_id = data.campaign.campaign_id;
   PREVIEW_CACHE[e.id] = data;   // cache the FINAL so re-opening always shows it
   if(!silent){
@@ -1622,7 +1659,7 @@ async function generateAll(){
   const aa = $('generateAll'); if(aa){ aa.disabled = true; }
   const det = $('detail'); if(det) det.scrollIntoView({ behavior:'smooth', block:'center' });
   window.__SB_GEN_CANCEL = false;
-  let ok = 0; const fails = [];
+  let ok = 0; const fails = []; let gateBlock = null;
   for(let n=0; n<targets.length; n++){
     if(window.__SB_GEN_CANCEL) break;
     const { i, e } = targets[n];
@@ -1631,13 +1668,36 @@ async function generateAll(){
     if(det) det.innerHTML = `<span class="sbspin"></span> Generating <b>${n+1}</b> of <b>${targets.length}</b>: ${esc(e.date)} ${esc(e.market)} — ${esc(e.objective)} &nbsp; ✓${ok}${fails.length?` ✕${fails.length}`:''} `+
       `<button class="btn sm secondary" onclick="window.__SB_GEN_CANCEL=true">Stop</button>`;
     try{ await generateEntry(i, { silent: true }); ok++; if(dl){ dl.innerHTML = '✓ ready'; } }
-    catch(err){ fails.push(`${e.date} ${e.market}: ${err.message}`); if(dl){ dl.innerHTML = '✕ failed'; } }
+    catch(err){
+      fails.push(`${e.date} ${e.market}: ${err.message}`);
+      if(dl){ dl.innerHTML = '✕ failed'; }
+      // A GATE BLOCK IS ONE FACT, NOT 367 FAILURES. Every build shares one
+      // catalog and one set of connectors, so when the first two are refused by
+      // the same gate the rest will be refused identically: continuing spends
+      // minutes reprinting the same sentence and buries it under a count. The
+      // block carries its own remediation - keep it and stop.
+      if(err && err.__gate){ gateBlock = err.__gate; if(fails.length >= 2) break; }
+    }
     finally{ if(dl){ dl.disabled = false; } }
     await new Promise(r=>setTimeout(r, 0));   // yield → the UI repaints each step
   }
   if(aa){ aa.disabled = false; }
   renderPlan();
-  if(det) det.textContent = `Generate all done — ✓ ${ok} generated${fails.length?`, ✕ ${fails.length} failed`:''}. Assets are cached; View and Download retrieve them (no regeneration).`;
+  if(det){
+    if(gateBlock && !ok){
+      // "0 generated, 367 failed" is a count of something the operator cannot
+      // act on. The response body carried the reason and the remedy the whole
+      // time - the same defect gate-notice.js exists to prevent.
+      const fix = (gateBlock.remediation || []).slice(0, 3);
+      det.innerHTML = `<div><span class="st" style="background:#3a2a14;color:#f0d9a8">${esc(gateBlock.status || 'NOT LAUNCH READY - DATA DEPENDENCY')}</span></div>`
+        + `<p style="margin:8px 0 0"><b>Nothing was generated, and this is why:</b> ${esc(gateBlock.blocker || gateBlock.message || 'a pre-generation gate declined')}</p>`
+        + (gateBlock.data_required ? `<p style="margin:6px 0 0;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#7a5f28">${esc(gateBlock.data_required)}</p>` : '')
+        + (fix.length ? `<p style="margin:8px 0 4px"><b>To fix:</b></p><ul style="margin:0 0 0 18px;padding:0">${fix.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>` : '')
+        + `<p style="margin:8px 0 0;color:#48524c;font-size:12px">Stopped after the first repeats rather than retrying every send against the same gate. Nothing is wrong with the plan: it is current and every slot is planned.</p>`;
+    } else {
+      det.textContent = `Generate all done — ✓ ${ok} generated${fails.length?`, ✕ ${fails.length} failed`:''}. Assets are cached; View and Download retrieve them (no regeneration).`;
+    }
+  }
 }
 window.generateEntry = generateEntry; window.downloadEntry = downloadEntry; window.generateAll = generateAll;
 

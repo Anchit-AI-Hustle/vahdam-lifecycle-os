@@ -91,6 +91,10 @@ async function openCalendar(page) {
           cohort: { name: 'Lapsed 90d', size: 12400 }, objective: 'winback',
           heroProduct: { title: 'Turmeric Spiced Herbal Tea' },
           channels: ['email', 'meta'], confidence: 0.7,
+          // The table's Why column reads analysis.summary || rationale. Omitting
+          // both rendered an empty column that looked like a broken cell.
+          rationale: 'Chosen to drive reactivation for Lapsed 90d with a caffeine-free evening ritual.',
+          analysis: { summary: 'Chosen to drive reactivation for Lapsed 90d with a caffeine-free evening ritual.', confidence: { label: 'moderate', factors: [{ delta: 12, label: 'cohort responds to winback' }] } },
         });
       }
     }
@@ -390,32 +394,105 @@ test.describe('the /brain day card', () => {
     await expect(slotBtn).toHaveText('Hide assets');
   });
 
-  test('the day surface is the ONLY calendar, and carries what the retired table carried', async ({ page }) => {
-    // /brain used to show TWO calendars of the same 90 days: this day-level list
-    // and a "Rolling calendar (next 90 days)" table, one row per entry. Two
-    // calendars of one dataset is the duplication that made the page hard to use.
-    await expect(page.locator('#plantable'), 'the duplicate Rolling calendar table is still rendered').toHaveCount(0);
-    await expect(page.getByRole('heading', { name: /Rolling calendar/i })).toHaveCount(0);
+  test('BOTH views render, and each answers a different question', async ({ page }) => {
+    // /brain has flip-flopped between these two views twice, each time deleting
+    // the other. They are not duplicates and the product owner wants both: the
+    // day card answers "what is happening on this day", the send table answers
+    // "what is this send, and do I approve it". Nine identical facts per row is
+    // what a table is for; a card collapses them into a chip.
+    await expect(page.locator('#plantable'), 'the send-level table is missing again').toHaveCount(1);
+    await expect(page.getByRole('heading', { name: /Rolling calendar/i })).toHaveCount(1);
+    await expect(page.locator('.callist .cday').first(), 'the day-card list is missing').toBeVisible();
 
-    // Its bulk actions and filters had to MOVE, not be deleted: they act on
-    // PLAN + slotVisible, which is independent of the table's DOM, so deleting
-    // the card without relocating them would have silently removed working
-    // features rather than a duplicate view.
+    // The table must be VISIBLE, not a hidden tbody that renderPlan() fills for
+    // nobody - which is exactly how it regressed last time.
+    await expect(page.locator('#plantable')).toBeVisible();
+    await expect(page.locator('#plantable tbody tr.planrow').first()).toBeVisible();
+
+    // The bulk actions and filters stay where they are and still act on PLAN.
     const card = page.locator('#daycal');
     for (const id of ['#downloadAll', '#mktfilter', '#durfilter', '#catfilter']) {
-      await expect(card.locator(id), `${id} did not move into the day card`).toHaveCount(1);
+      await expect(card.locator(id), `${id} moved out of the day card`).toHaveCount(1);
     }
-    // #plan is kept as a hidden tbody because renderPlan() is still the single
-    // place that computes the visible counts and button state.
-    await expect(page.locator('#plan')).toHaveCount(1);
 
-    // And the two columns only the table had now render in the per-send detail.
+    // And the two columns the card pushes into a panel are still there too.
     await page.locator('.callist .cday').nth(1).click();
     const panel = page.locator('#dayslots');
     await expect(panel).toBeVisible();
     await expect(panel).toContainText('Why:');
     await expect(panel).toContainText('Confidence:');
-    await expect(panel).toContainText('moderate');
+  });
+
+  test('every column the row promises is actually there', async ({ page }) => {
+    const heads = await page.locator('#plantable thead th').allTextContents();
+    expect(heads.map((h) => h.trim().toLowerCase())).toEqual([
+      'date', 'market', 'cohort', 'objective · hero', 'why (analysis)', 'channels', 'conf.', 'status', 'actions',
+    ]);
+    const row = page.locator('#plantable tbody tr.planrow').first();
+    await expect(row.locator('td.cohort')).toContainText('Lapsed 90d');
+    await expect(row.locator('td.obj')).toContainText('winback');
+    await expect(row.locator('td.why')).not.toBeEmpty();
+    await expect(row.locator('td.chan')).toContainText('email');
+    await expect(row.locator('td.conf')).toContainText('%');
+  });
+
+  test('each row acts on its own send', async ({ page }) => {
+    // The verdict controls and the four per-send actions are the reason this is a
+    // table: they were being rendered into a hidden node the whole time it was
+    // "merged away".
+    const row = page.locator('#plantable tbody tr.planrow').first();
+    for (const label of [/^View$/, /Recreate/, /Download/, /Why this mail\?/]) {
+      await expect(row.getByRole('button', { name: label }), `${label} is missing from the row`).toHaveCount(1);
+    }
+    await expect(row.getByRole('button', { name: /Approve/ })).toHaveCount(1);
+    await expect(row.getByRole('button', { name: /Reject/ })).toHaveCount(1);
+    await expect(row.locator('.st')).toContainText(/draft|approved|rejected/);
+  });
+
+  test('the wide columns are capped by a block inside the cell, not by the cell', async ({ page }) => {
+    // A max-width on a <td> is IGNORED by auto table layout. This page shipped
+    // the ignored form twice; the cap has to sit on a block INSIDE the cell.
+    const row = page.locator('#plantable tbody tr.planrow').first();
+    for (const col of ['cohort', 'obj', 'why', 'chan']) {
+      const cw = row.locator(`td.${col} .cw`);
+      await expect(cw, `td.${col} has no .cw inner block, so its cap does nothing`).toHaveCount(1);
+      const capped = await cw.evaluate((el) => getComputedStyle(el).maxWidth);
+      expect(capped, `td.${col} .cw has no max-width`).toMatch(/px$/);
+    }
+  });
+
+  test('a pathological product name never paints over the next column', async ({ page }) => {
+    // Wrapped text cannot exceed its box on any engine; overflow-wrap:anywhere
+    // covers a single unbroken token. Measured, not asserted from CSS.
+    const boxes = await page.locator('#plantable tbody tr.planrow').first().locator('td').evaluateAll(
+      (tds) => tds.map((td) => { const r = td.getBoundingClientRect(); return { l: r.left, r: r.right, w: r.width }; }));
+    for (let i = 1; i < boxes.length; i++) {
+      expect(boxes[i].l, `cell ${i} starts before cell ${i - 1} ends (columns overlap)`).toBeGreaterThanOrEqual(boxes[i - 1].r - 1);
+      expect(boxes[i].w, `cell ${i} collapsed to ${boxes[i].w}px`).toBeGreaterThan(8);
+    }
+  });
+
+  test('the analysis column is readable, not decoratively faint', async ({ page }) => {
+    // It rendered #a9b8ad on a light card: about 2:1, below AA at any size. A
+    // column nobody can read is not a column.
+    const { fg, bg } = await page.locator('#plantable td.why .clamp2').first().evaluate((el) => {
+      const walkBg = (n) => {
+        for (let e = n; e; e = e.parentElement) {
+          const c = getComputedStyle(e).backgroundColor;
+          if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') return c;
+        }
+        return 'rgb(255, 255, 255)';
+      };
+      return { fg: getComputedStyle(el).color, bg: walkBg(el) };
+    });
+    const lum = (c) => {
+      const [r, g, b] = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number)
+        .map((v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+    const ratio = (a + 0.05) / (b + 0.05);
+    expect(ratio, `Why column contrast is ${ratio.toFixed(2)}:1 (${fg} on ${bg})`).toBeGreaterThanOrEqual(4.5);
   });
 });
 
