@@ -291,21 +291,15 @@
     <div class="card wide" id="daycal">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
-          <h2 style="margin:0">Day-level calendar — history, today, and the plan ahead</h2>
-          <p style="color:#48524c;margin:.35em 0 0;font-size:13px">One cell per day. Past days carry what was measured; future days carry what is planned and which assets exist for it. A day with no send inside the rolling window is a gap, not a rest day.</p>
+          <h2 style="margin:0">Rolling calendar — one row per send</h2>
+          <p style="color:#48524c;margin:.35em 0 0;font-size:13px">In date order. Each row carries the market, the cohort it goes to, the objective and hero product, the analysis that chose it, the channel mix, the confidence and the review verdict, and acts on that send directly. The filters and bulk actions below act on the rows in view.</p>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;min-width:210px">
           <button id="generateAll" class="btn sm ok" onclick="generateAll()" style="display:none;text-align:center" title="Generate the final best version of every asset (mailer, ads, landing page) for the sends currently shown (respects the region filter).">⚙ Generate all</button>
           <button id="approveAll" class="btn sm ok" onclick="approveAll()" style="display:none;text-align:center" title="Approve and lock every send currently shown that is not already approved (includes prebuilt drafts). Each is built if needed, then locked as ship-ready. Rejected sends are skipped.">✓ Approve all</button>
           <button id="downloadAll" class="btn sm secondary" onclick="sbZipAll()" style="text-align:center" title="Download every ALREADY-generated asset in view as a nested ZIP — {date}_{cohort}/{date}/mailer + landing + ad files. Retrieval only; never regenerates.">⬇ Download all (.zip)</button>
         </div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <span style="color:#556059;font-size:12px;text-transform:uppercase;letter-spacing:.06em">Window</span>
-          <button class="mkchip" data-dcw="14" onclick="setDayWindow(14)">±14d</button>
-          <button class="mkchip on" data-dcw="30" onclick="setDayWindow(30)">30d back · 90 ahead</button>
-          <button class="mkchip" data-dcw="90" onclick="setDayWindow(90)">90d back · 90 ahead</button>
-        </div>
-      </div>
+
       <div id="mktfilter" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 8px">
         <span style="color:#556059;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Region</span>
         <button class="mkchip" data-mkt="all" onclick="toggleMkt('all')">All</button>
@@ -331,36 +325,7 @@
         <button class="mkchip on" data-cat="supplement" onclick="toggleCat('supplement')">Supplements</button>
         <span id="catcount" style="color:#48524c;font-size:12px;margin-left:6px"></span>
       </div>
-      <div id="callegend">
-        <span><b class="sw ready">US</b> all channels built</span>
-        <span><b class="sw part">UK</b> partly built</span>
-        <span><b class="sw">US</b> not built yet</span>
-        <span style="border:1px dashed rgba(171,135,67,.6);border-radius:4px;padding:0 6px">dashed day = no send planned</span>
-        <span class="calnote">One row per campaign, grouped by day and named for its market. <b>Built</b> means the files exist, not that they passed the live catalog gate.</span>
-      </div>
-      <div id="calbody"><p style="color:#48524c;font-size:13px">Loading the day-level calendar…</p></div>
-      <div id="dayslots" class="dayslots" style="display:none"></div>
-    </div>
-
-    <!-- THE SEND-LEVEL CALENDAR IS A TABLE, and it is this one.
-         It was replaced by the day-card list above and reduced to a HIDDEN tbody:
-         renderPlan() kept emitting all nine columns per send, complete with the
-         verdict controls and the per-row actions, into a table nobody could see.
-         The columns are the reason: cohort size, the analysis that chose the send,
-         confidence, the review verdict and four per-send actions are the same nine
-         facts on every row, which is precisely what a table is for - a card
-         collapses them into a chip and pushes the rest into tooltips.
-         The two views are not duplicates: the card list above answers "what is
-         happening on this day", this table answers "what is this send, and do I
-         approve it". Restored at the product owner's instruction. -->
-    <div class="card wide" id="planwrap">
-      <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
-        <div>
-          <h2 style="margin:0">Rolling calendar &mdash; one row per send</h2>
-          <p style="color:#48524c;margin:.35em 0 0;font-size:13px">In date order. Each row carries the market, the cohort it goes to, the objective and hero product, the analysis that chose it, the channel mix, the confidence and the review verdict &mdash; and acts on that send directly.</p>
-        </div>
-      </div>
-      <div class="tblscroll" style="margin-top:12px">
+      <div class="tblscroll" style="margin-top:4px">
         <table id="plantable">
           <thead>
             <tr>
@@ -374,6 +339,16 @@
       </div>
     </div>
 
+    <!-- ONE CALENDAR, AND IT IS THE TABLE ABOVE.
+         /brain has swapped between a send-level table and a day-card list twice,
+         each side deleting the other. The product owner's call is the table: nine
+         identical facts per row - cohort size, the analysis that chose the send,
+         confidence, the verdict and four per-send actions - is what a table is
+         for, and a card collapses them into a chip with the rest behind clicks.
+         The day-level READ still happens: it is what the freshness card above is
+         computed from (renderFreshness), it simply no longer draws a second
+         calendar. The filters and bulk actions live on the table's own card, so
+         nothing that worked was deleted along with the view. -->
     <div class="card two"><h2>Daily insights</h2><div id="insights" class="feed"><p>Run a sync to refresh insights.</p></div></div>
     <div class="card two"><h2>Changes from last sync</h2><div id="changes" class="feed"><p>No sync run in this session yet.</p></div></div>
 
@@ -1892,304 +1867,18 @@ function renderFreshness(d){
 
 var DC_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-function renderDayGrid(d){
-  const days = d.days || [];
-  if(!days.length){
-    $('calbody').innerHTML = `<p style="color:#b91c1c;font-size:13px">${esc(d.blocker || 'No days returned.')}</p>`;
-    return;
-  }
-  const out = [];
-  let month = '';
-  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  for(const day of days){
-    const dt = new Date(day.date + 'T00:00:00Z');
-    const key = DC_MONTHS[dt.getUTCMonth()] + ' ' + dt.getUTCFullYear();
-    if(key !== month){
-      month = key;
-      out.push(`<div class="calmon">${esc(key)}</div>`);
-      // No weekday header row and no leading pad cells: a single column has one
-      // day per row, so there are no weekday columns to label or align to.
-    }
-    const c = day.counts || {};
-    const planned = c.planned || 0;
-    const slots = day.slots || [];
-
-    // ONE ROW PER CAMPAIGN, GROUPED UNDER THE DAY.
-    //
-    // The previous version put one row per DAY and collapsed that day's sends
-    // into market chips, so a campaign had no line of its own: its cohort and
-    // objective existed only in a tooltip and in the panel you got after a
-    // click, and two sends on one day shared a single headline built by
-    // joining their themes with a middot. Scanning "which campaign goes out,
-    // to whom, and is it built" meant opening every day in turn.
-    //
-    // The day stays the organising unit - the header below still carries the
-    // date and the day-level built fraction, which is the one number that is
-    // about the DAY rather than about any one send - and each campaign gets
-    // its own row underneath it.
-    let dayLine;
-    if(!planned){
-      dayLine = day.bucket === 'past' ? 'no send' : '<span class="warnmark">no send planned</span>';
-    } else if(day.bucket === 'past'){
-      // A past day's headline is what it MEASURED, and an unknown says so.
-      const m = day.measured || {};
-      dayLine = m.orders === null ? `${planned} sent · —` : `${planned} sent · ${dcMoney(m.revenue)}`;
-    } else {
-      // "built", not "ready". assets_ready is derived from builtChannels(): every
-      // planned channel has an artifact. That is a statement about files EXISTING,
-      // and it stays true for a campaign generated weeks ago against a catalog
-      // that has since gone stale or that the live gate is now blocking. Printing
-      // it as "ready" in the position a reader scans for "cleared to send" is the
-      // same defect as the run that called itself final while its catalog gate
-      // had failed. A fraction also makes the denominator visible, so "0 built"
-      // on a day that plans nothing cannot be confused with one that plans two.
-      dayLine = `${c.assets_ready || 0}/${planned} built`;
-    }
-
-    const grpCls = ['cdaygrp', day.bucket, planned ? '' : 'empty',
-                    DC.selected === day.date ? 'sel' : ''].filter(Boolean).join(' ');
-    const rows = [];
-    rows.push(`<div class="cdayhd">
-      <span class="dwrap"><span class="d">${dt.getUTCDate()}</span><span class="dow">${DOW[dt.getUTCDay()]}</span></span>
-      <span class="hdate">${esc(day.date)}</span>
-      <span class="cs">${dayLine}</span>
-    </div>`);
-
-    if(!slots.length){
-      rows.push(`<div class="cday empty"><span class="ct"><span class="ctnone">no send planned</span></span></div>`);
-    }
-    for(const s of slots){
-      // The row's own build state, named. A chip that says "US" beside a row
-      // that IS the US send is not a second fact - it is this row's status, and
-      // it carries the same three colours the legend explains.
-      const state = s.assets_ready ? 'ready' : (s.assets ? 'part' : '');
-      const label = s.assets_ready ? 'all channels built'
-        : (s.assets ? 'partly built: missing ' + (s.assets_missing || []).join(', ') : 'not built yet');
-      // The headline is THIS send's, not a join of every send that day.
-      const theme = s.festival || s.hero || s.cohort || s.objective || '';
-      // Cohort and objective were previously reachable only by opening the day.
-      const who = [s.cohort, s.objective].filter(Boolean).join(' · ');
-      const rowCls = ['cday', day.bucket, DC.selectedSlot === s.id ? 'sel' : ''].filter(Boolean).join(' ');
-      rows.push(`<button class="${rowCls}" onclick="selectDay('${day.date}','${esc(s.id || '')}')"
-          title="${esc(day.date + ' · ' + (s.market || '?') + ' — ' + label)}">
-        <span class="bar"><b class="${state}" title="${esc((s.market || 'slot') + ' — ' + label)}">${esc(s.market || '?')}</b></span>
-        <span class="ct">${theme ? esc(theme) : '<span class="ctnone">no theme recorded</span>'}</span>
-        <span class="who">${who ? esc(who) : ''}</span>
-        <span class="cs">${esc(label)}</span>
-      </button>`);
-    }
-    out.push(`<div class="${grpCls}">${rows.join('')}</div>`);
-  }
-  $('calbody').innerHTML = `<div class="callist">${out.join('')}</div>`;
-}
-
-function chnChips(slot){
-  const built = slot.assets;
-  const chans = slot.channels || [];
-  if(!chans.length) return '<span style="color:#48524c;font-size:12px">No channel mix recorded for this send.</span>';
-  return chans.map(function(ch){
-    // With no campaign at all we know nothing was built; with a campaign we know
-    // per channel. Both render as "not built", never as a hopeful tick.
-    const on = built ? built[ch] === true : false;
-    return `<span class="chn ${on ? 'on' : 'off'}">${on ? '✓' : '—'} ${esc(ch)}</span>`;
-  }).join('');
-}
-
-function selectDay(date, slotId){
-  DC.selected = date;
-  // Which CAMPAIGN was clicked, not just which day. With a row per send, two
-  // rows open the same day panel, and without this the panel gave no sign of
-  // which of them the reader had asked about.
-  DC.selectedSlot = slotId || null;
-  const d = DC.data; if(!d) return;
-  const day = (d.days || []).find(x => x.date === date);
-  renderDayGrid(d);
-  const box = $('dayslots');
-  if(!day){ box.style.display = 'none'; return; }
-  box.style.display = 'block';
-  const parts = [`<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline">
-      <h3 style="margin:0;font-family:Georgia,serif;font-size:20px">${esc(date)} <span style="font-size:12px;color:#48524c;text-transform:uppercase;letter-spacing:.1em">${esc(day.bucket)}</span></h3>
-      <button class="btn sm secondary" onclick="closeDay()">Close</button>
-    </div>`];
-
-  const m = day.measured;
-  if(m){
-    parts.push(m.orders === null
-      ? `<p style="color:#7a5f28;font-size:13px;margin:8px 0 0">Measured: <b>unknown</b>. ${esc((day.blockers || [])[0] || 'No reporting source covered this day.')}</p>`
-      : `<p style="color:#556059;font-size:13px;margin:8px 0 0">Measured on this day: <b>${dcFmtNum(m.orders)}</b> orders, <b>${dcMoney(m.revenue)}</b> revenue <span style="color:#48524c">(${esc(m.basis)})</span>.</p>`);
-  } else {
-    parts.push('<p style="color:#556059;font-size:13px;margin:8px 0 0">This day is in the future, so there is nothing measured yet. Everything below is plan and asset state.</p>');
-  }
-
-  if(!(day.slots || []).length){
-    parts.push(`<p style="color:#b91c1c;font-size:13px;margin:10px 0 0">${esc((day.blockers || []).join(' ') || 'No send is planned for this day.')}</p>`);
-  }
-  for(const s of day.slots || []){
-    const missing = (s.assets_missing || []);
-    parts.push(`<div class="dslot${DC.selectedSlot === s.id ? ' sel' : ''}" id="dslot-${esc(s.id || '')}">
-      <div class="hd">
-        <span class="ttl">${esc(s.market || '')} · ${esc(s.cohort || 'cohort n/a')}</span>
-        <span class="st ${esc(s.status || 'tentative')}">${esc(s.status || '')}</span>
-      </div>
-      <div class="meta">${esc(s.objective || 'objective n/a')}${s.hero ? ' — ' + esc(s.hero) : ''}${s.festival ? ' · ' + esc(s.festival) : ''}</div>
-      ${s.why ? `<div class="meta" style="margin-top:5px"><b>Why:</b> ${esc(s.why)}</div>` : ''}
-      ${(s.confidence != null || s.confidence_label) ? `<div class="meta" style="margin-top:3px"><b>Confidence:</b> ${esc(s.confidence_label || '')}${s.confidence != null ? ` ${Math.round(s.confidence * (s.confidence <= 1 ? 100 : 1))}%` : ''}</div>` : ''}
-      <div style="margin-top:6px">${chnChips(s)}</div>
-      <div class="meta">${s.campaign_id
-        ? `Campaign <code>${esc(s.campaign_id)}</code>${s.images != null ? ' · ' + s.images + ' image' + (s.images === 1 ? '' : 's') : ''}${s.landing_url ? ` · <a href="${esc(s.landing_url)}" target="_blank" style="color:#0a6b39">landing page ↗</a>` : ''}`
-        : 'No campaign has been generated for this send yet.'}
-        ${missing.length ? `<br><span style="color:#b91c1c">Not built: ${esc(missing.join(', '))}</span>` : ''}
-        ${s.updated_at ? `<br><span style="color:#48524c">Row last written ${esc(String(s.updated_at).slice(0, 16).replace('T', ' '))} UTC</span>` : ''}
-      </div>
-      <div style="margin-top:8px">
-        <button class="btn sm" onclick="viewSlotAssets('${esc(s.id)}', this)">View assets</button>
-        ${slotReviewCtl(s)}
-        <span class="meta" style="margin-left:8px">${s.assets ? 'Opens the mailer, ads and landing page that were built for this send.' : 'Nothing is built for this send yet — this will attempt to generate it.'}</span>
-      </div>
-      <div class="dact" id="dact-${esc(s.id || '')}"></div>
-      <div class="slotpv" id="slotpv-${esc(s.id)}" style="display:none;margin-top:10px"></div>
-    </div>`);
-  }
-  box.innerHTML = parts.join('');
-  // Scroll to the SEND that was clicked when there is one, and to the day panel
-  // otherwise. Landing on the top of a two-send panel after clicking the second
-  // send is the same "which one did I ask about" problem the highlight fixes.
-  const focused = DC.selectedSlot && document.getElementById('dslot-' + DC.selectedSlot);
-  (focused || box).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-// THE DAY PANEL COULD NOT SHOW AN ASSET.
-// It listed the campaign id, the image COUNT and a landing-page link, and that
-// was the whole of it: no mailer, no ads, no way to look at anything that had
-// been built. The viewer already existed — renderPreview() draws the Mailer /
-// Ads / Landing tabs for the entry list further down the page — so this is the
-// same "the feature kept its code and lost its entrance" trap the ads merge hit.
-// previewEntry resolves a slot from its id alone, so the day panel can call the
-// identical endpoint.
-async function viewSlotAssets(id, btn){
-  const box = document.getElementById('slotpv-' + id);
-  if(!box) return;
-  if(box.style.display !== 'none' && box.getAttribute('data-loaded') === '1'){
-    box.style.display = 'none'; btn.textContent = 'View assets'; return;
-  }
-  // renderPreview writes fixed pane ids (pv-mail, pv-lp, ...). Two open previews
-  // would mint duplicate ids and pvTab's getElementById would drive the WRONG
-  // one, so only one preview is ever mounted at a time.
-  document.querySelectorAll('.exprow').forEach(function(r){ r.style.display = 'none'; });
-  document.querySelectorAll('.exprow .expbody, .slotpv').forEach(function(b){
-    if(b !== box){ b.innerHTML = ''; b.removeAttribute('data-loaded'); }
-  });
-  box.style.display = '';
-  box.innerHTML = '<p class="pvnote"><span class="spinner"></span> Loading the built assets for this send…</p>';
-  btn.disabled = true;
-  try{
-    const r = await fetch(`${API}?action=smart-brain-preview`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id, reviewer: reviewerEmail() }),
-    });
-    const data = await safeJson(r);
-    // A gate block answers HTTP 200 with ok:false and a reason. GateNotice turns
-    // that into the sentence that actually fixes it rather than a bare failure.
-    if(!data || !data.ok){
-      throw new Error(window.GateNotice
-        ? window.GateNotice.message('Could not load assets', data, r).text
-        : ((data && (data.error || data.message || data.blocker)) || 'Preview failed'));
-    }
-    const slot = ((DC.data && DC.data.days) || [])
-      .reduce(function(acc, d){ return acc || (d.slots || []).find(function(x){ return String(x.id) === String(id); }); }, null) || {};
-    renderPreview(data, {
-      id: id, channels: slot.channels || [],
-      generated_campaign_id: slot.campaign_id || null, analysis: null,
-    }, 'day-' + id, { target: box, persisted: !!data.persisted || slot.status === 'approved' || slot.status === 'final' });
-    box.setAttribute('data-loaded', '1');
-    btn.textContent = 'Hide assets';
-  }catch(err){
-    box.innerHTML = `<p class="pvnote" style="color:#b91c1c">${esc(err.message || String(err))}</p>`;
-  }finally{ btn.disabled = false; }
-}
-window.viewSlotAssets = viewSlotAssets;
-
-// THE VERDICT CONTROLS HAVE TO EXIST WHEREVER THE SEND IS VISIBLE.
-//
-// Approve / Reject / Reset are rendered by renderPlan() into the plan table, and
-// that table is hidden while the day-level calendar is the visible calendar. So
-// the buttons existed, in the DOM, unreachable - the same "the feature kept its
-// code and lost its entrance" trap that INFO.ads and the Creative Studio each
-// hit. A review surface you cannot record a verdict from is not a review
-// surface.
-//
-// The day panel resolves the slot back to its PLAN index by id and drives the
-// SAME functions the table row does.
-function planIndexForSlot(id){
-  return PLAN.findIndex((e) => String(e.id) === String(id));
-}
-
-function slotReviewCtl(s){
-  const i = planIndexForSlot(s.id);
-  // A slot the loaded plan does not contain (a different market/duration filter,
-  // or a day outside the plan window) gets NO buttons rather than buttons that
-  // would act on the wrong row.
-  if(i < 0) return '<span class="meta" style="margin-left:8px">Not in the plan currently loaded, so it cannot be reviewed here.</span>';
-  const e = PLAN[i];
-  const rejected = e.status === 'rejected';
-  const decided = !rejected && !!(e.generated_campaign_id || e.status === 'approved' || e.status === 'final');
-  if(decided) return `<span class="st approved" style="margin-left:8px">✓ approved</span>`;
-  const dl = `<button class="btn sm secondary" onclick="slotDownload('${esc(s.id)}', this)" title="Generate (if needed) and download every asset for this send as one HTML file">⬇ Download</button>`;
-  if(rejected){
-    return `<span class="st" style="background:#3a1c1c;color:#e89a9a;margin-left:8px">✗ rejected</span>`
-      + `<button class="btn sm ok" onclick="slotApprove('${esc(s.id)}')" title="Approve this send now - generates and locks the final assets">✓ Approve</button>`
-      + `<button class="btn sm secondary" onclick="slotReset('${esc(s.id)}')" title="Clear the rejected status - the send goes back to draft">⟲ Reset</button>`
-      + dl;
-  }
-  return `<button class="btn sm ok" onclick="slotApprove('${esc(s.id)}')" title="Approve this send - generates and locks the final assets so it is ready to ship">✓ Approve</button>`
-    + `<button class="btn sm secondary" onclick="slotReject('${esc(s.id)}')" title="Reject this send - the decision is logged and the slot is re-planned on the next daily sync">✗ Reject</button>`
-    + dl;
-}
-
-// One wrapper for all three verdicts: report progress and the OUTCOME in the
-// panel, then re-read the day calendar so the day's chips and built fraction
-// reflect what just happened rather than what they showed a moment ago.
-async function slotAct(id, label, run){
-  const i = planIndexForSlot(id);
-  const box = $('dact-' + id);
-  if(i < 0) return;
-  if(box) box.innerHTML = `<span class="pvnote"><span class="spinner"></span> ${esc(label)}…</span>`;
-  try{
-    await run(i);
-    await loadDayCalendar(true);
-    if(DC.selected) selectDay(DC.selected, DC.selectedSlot);
-  }catch(err){
-    // Rendered HERE, not into the hidden table row, which is the whole point.
-    const b = $('dact-' + id);
-    if(b) b.innerHTML = `<span style="color:#b91c1c;font-size:12px">${esc(label)} failed: ${esc((err && err.message) || String(err))}</span>`;
-  }
-}
-function slotApprove(id){ return slotAct(id, 'approving — building final assets', (i) => approveSend(i)); }
-function slotReject(id){
-  const notes = prompt('Reject this send? Add an optional reason — it is logged and the slot is re-planned on the next daily sync.', '');
-  if(notes === null) return Promise.resolve();   // reviewer cancelled
-  return slotAct(id, 'rejecting', (i) => rejectSend(i, notes));
-}
-function slotReset(id){ return slotAct(id, 'clearing the rejection', (i) => resetSend(i)); }
-// NOT routed through slotAct: downloadEntry reports its own outcome (including
-// failure) into the node it is given, so wrapping it in a helper that announces
-// success would claim a download happened when it did not.
-function slotDownload(id, btn){
-  const i = planIndexForSlot(id);
-  const target = $('slotpv-' + id);
-  if(i < 0 || !target) return Promise.resolve();
-  return downloadEntry(i, { target, button: btn });
-}
-window.slotApprove = slotApprove; window.slotReject = slotReject;
-window.slotReset = slotReset;   window.slotDownload = slotDownload;
-
-function closeDay(){ DC.selected = null; $('dayslots').style.display = 'none'; if(DC.data) renderDayGrid(DC.data); }
-
-function setDayWindow(back){
-  DC.back = back;
-  document.querySelectorAll('[data-dcw]').forEach(function(b){ b.classList.toggle('on', String(back) === b.getAttribute('data-dcw')); });
-  loadDayCalendar(true);
-}
+// The day-card grid and its per-day slot panel lived here: renderDayGrid,
+// chnChips, selectDay, viewSlotAssets, planIndexForSlot, slotReviewCtl, slotAct,
+// slotApprove/Reject/Reset/Download, closeDay and setDayWindow - about 300 lines
+// whose only job was to draw a second calendar of the same 90 days and act on a
+// send from inside it. The table above is the calendar now (product owner's
+// call), and it already carries every one of those actions per row through
+// approveRow / rejectRow / resetRow / viewEntry / downloadEntry / recreateEntry.
+// Deleted rather than left unreachable: every one of these functions wrote into
+// #calbody or #dayslots, nodes that no longer exist, so a stray call would have
+// been a TypeError rather than a no-op. The shared verdict primitives
+// (approveSend / rejectSend / resetSend) are untouched - they live above and the
+// table's row controls call them.
 
 async function loadDayCalendar(force){
   if(DC.loading) return;
@@ -2201,14 +1890,14 @@ async function loadDayCalendar(force){
     const r = await fetch(`/api/brain?action=daily-calendar&from=${from}`, { cache: 'no-store' });
     const d = await safeJson(r);
     if(!d || d.ok === false){
-      $('freshcells').innerHTML = `<div class="fcell bad"><div class="k">Status</div><div class="v">Unavailable</div><div class="n">${esc((d && (d.error || d.blocker)) || 'The day-level calendar endpoint did not respond.')}</div></div>`;
-      $('calbody').innerHTML = '';
+      $('freshcells').innerHTML = `<div class="fcell bad"><div class="k">Status</div><div class="v">Unavailable</div><div class="n">${esc((d && (d.error || d.blocker)) || 'The day-level freshness read did not respond, so the ages above cannot be verified. The calendar below is unaffected: it is loaded separately.')}</div></div>`;
       return;
     }
     DC.data = d;
+    // The day-level read is kept for ONE reason: the freshness card above is
+    // computed from it. It no longer draws a calendar - the table is the
+    // calendar - so there is no grid to render and no day to re-select.
     renderFreshness(d);
-    renderDayGrid(d);
-    if(DC.selected) selectDay(DC.selected);
   }catch(e){
     $('freshcells').innerHTML = `<div class="fcell bad"><div class="k">Status</div><div class="v">Unavailable</div><div class="n">${esc((e && e.message) || e)}</div></div>`;
   }finally{ DC.loading = false; }
