@@ -376,3 +376,59 @@ test.describe('no dead control on the landing-pages surface', () => {
     expect(LP).toMatch(/Illustrative examples - not tracked VAHDAM competitor accounts/);
   });
 });
+
+// CLAUDE.md IS THE FILE EVERY FUTURE SESSION READS FIRST, AND IT DRIFTS.
+//
+// This view has now flip-flopped three times, and each flip left the previous
+// entry asserting - in the present tense - an arrangement the code had just
+// stopped having. That is the same defect class as the three documented
+// provider counts and the nine copies of the market-URL map: prose nobody
+// executes. The fix this repo has settled on is to pin the prose to the code,
+// so the check below derives the truth from THIS spec's own assertions rather
+// than from a phrase somebody remembered to update.
+test.describe('CLAUDE.md agrees with what this spec asserts', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const ROOT = path.join(__dirname, '..');
+  const MD = fs.readFileSync(path.join(ROOT, 'CLAUDE.md'), 'utf8');
+  const SELF = fs.readFileSync(__filename, 'utf8');
+
+  /** The section CLAUDE.md carries for the current arrangement. */
+  function section(heading) {
+    const i = MD.indexOf(heading);
+    if (i < 0) return '';
+    const next = MD.indexOf('\n### ', i + heading.length);
+    return MD.slice(i, next < 0 ? MD.length : next);
+  }
+
+  test('the section names every selector this spec asserts is GONE', () => {
+    // Read the absent-selector list out of the assertions above, so adding a
+    // fourth deleted node cannot silently leave the doc describing three.
+    const absent = [...SELF.matchAll(/locator\('(#[a-z]+)'\), '\1 is back'\)\s*\.toHaveCount\(0\)/g)]
+      .map((m) => m[1]);
+    expect(absent.length, 'no absent-node assertions found - has this spec been rewritten?')
+      .toBeGreaterThanOrEqual(2);
+
+    const sec = section('### ONE calendar on /brain, and it is the send table');
+    expect(sec, 'CLAUDE.md has no section for the current /brain arrangement').not.toBe('');
+    for (const sel of absent) {
+      expect(sec, `CLAUDE.md does not record ${sel} as deleted, but this spec asserts it is absent`)
+        .toContain(sel.slice(1));
+    }
+  });
+
+  test('no superseded entry still claims both calendars render', () => {
+    // The earlier entry is deliberately KEPT - the .cw block and the contrast
+    // regression it records are still live lessons - so this does not ban the
+    // phrase, it requires the entry carrying it to say it was superseded. A
+    // guard that deleted the history would cost more than the drift it fixes.
+    const sec = section('### Restoring the send table, and the flip-flop that took it away twice');
+    if (!sec) return; // the entry may legitimately be retired one day
+    if (/both views/i.test(sec)) {
+      expect(sec, 'this entry still presents the two-calendar arrangement as current')
+        .toMatch(/SUPERSEDED/);
+    }
+    // And nowhere may a doc assert, live, that the day view is still drawn.
+    expect(MD).not.toMatch(/\*\*both views now render\*\*/);
+  });
+});

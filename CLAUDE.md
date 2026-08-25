@@ -308,7 +308,8 @@ fresh change on the same branch rebased onto the new main. Three things worth ke
   `smart-brain-plan.js`, where `persistence` is assigned unconditionally.
 - **A clean textual rebase can still break a spec semantically.** main had meanwhile replaced the
   `/brain` Rolling calendar TABLE with a day-card list (`.callist .cday`, fed by
-  `?action=daily-calendar`), and `#plantable` is now asserted absent. My appended freshness tests
+  `?action=daily-calendar`), and `#plantable` was at that point asserted absent (it is asserted
+  PRESENT again now - the day view is the part that is gone). My appended freshness tests
   merged without a conflict and then failed on a selector that no longer exists, referencing a `PLAN`
   fixture the rewritten file no longer defines. **eslint's `no-undef` caught the second half in
   seconds** - which is the lint ratchet paying for itself on exactly the class of failure it was
@@ -610,9 +611,13 @@ and each commit message arguing the merge was overdue. The last swap left `rende
 nine columns - cohort size, the analysis that chose the send, confidence, the verdict controls and four
 per-send actions - into `<table hidden aria-hidden="true" style="display:none">`. Fully working UI,
 rendered for nobody.
-- Restored at the product owner's instruction, and **both views now render**: the day card answers "what
-  is happening on this day", the table answers "what is this send, and do I approve it". They are not
-  duplicates, and the spec now asserts BOTH exist rather than asserting the other one does not.
+- Restored at the product owner's instruction, and at THAT point both views rendered: the day card
+  answered "what is happening on this day", the table answered "what is this send, and do I approve
+  it", and the spec asserted BOTH existed rather than asserting the other one did not. **SUPERSEDED
+  the same day** - see "ONE calendar on /brain, and it is the send table" above, where the product
+  owner cut the day view and the spec now asserts its ABSENCE. Left here in the past tense because
+  the reasoning below it (the `.cw` block, the contrast regression) is still live; the "both views"
+  arrangement is not.
 - The restore also had to bring back the `.cw` inner block: the hidden version had reverted to
   `max-width` on the `<td>`, which auto table layout IGNORES - the defect this repo has now shipped
   three times. And the Why column had drifted to `#a9b8ad`, about 2:1 on a light card; it is `#556059`
