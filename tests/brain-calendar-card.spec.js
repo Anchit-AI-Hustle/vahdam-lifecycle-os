@@ -352,7 +352,15 @@ test.describe('no dead control on the landing-pages surface', () => {
       // data-pm-download, data-ai-fill and friends, so requiring `data-x=` would
       // report five working buttons as dead.
       if (/onclick=|\bid=|\bdata-[a-z-]+|type=["']submit|\bdisabled\b/.test(tag)) continue;
-      dead.push(m[1].replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 40));
+      // NO TAG STRIPPING. The obvious way to get a label out of the inner HTML
+      // is .replace(/<[^>]*>/g,''), and CodeQL is right to flag it: a
+      // single-pass strip leaves `<<span>script>` behind, and this repo has
+      // already recorded that lesson once. Nothing here needs sanitizing at
+      // all - the label is only used to make the failure message readable - so
+      // the inner markup is reported verbatim and truncated instead. When a
+      // sanitizer looks necessary, check first whether the input can just be
+      // left alone.
+      dead.push(JSON.stringify(m[1].trim().slice(0, 60)));
     }
     expect(dead, `unwired button(s) on landing-pages.html: ${dead.join(' | ')}`).toEqual([]);
   });
