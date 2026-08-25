@@ -493,10 +493,17 @@ module.exports = async function handler(req, res) {
   // creative aimed at nobody, for no stated goal, is wrong even when every
   // product fact in it is live. Customer-facing modes block; ideation proceeds
   // with its gaps declared rather than silently invented.
+  // Forward EVERY name a caller uses for the audience. This call site listed
+  // only `target_audience`, so a client that sent `audience` was told to supply
+  // an audience it had already supplied - a gate blocking work that was
+  // correctly specified, which is worse than no gate at all. assess() already
+  // understood `audience`; nothing was passing it.
   const brief = briefGate.requireBrief({
     mode, market, campaign_brief, theme,
-    target_audience: body.target_audience, objective: body.objective || body.goal,
-    cohort: body.cohort, selected_products,
+    target_audience: body.target_audience || body.audience || body.segment,
+    objective: body.objective || body.goal,
+    cohort: body.cohort || body.cohort_label || body.cohort_key,
+    selected_products,
   });
   if (brief.blocked) return res.status(422).json(briefGate.blockedResponse(brief));
   const briefStamp = briefGate.stamp(brief);

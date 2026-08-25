@@ -74,7 +74,15 @@ const text = (v) => String(v == null ? '' : v).trim();
  */
 function assess(input = {}) {
   const brief = text(input.campaign_brief || input.brief || input.prompt);
-  const audience = text(input.target_audience || input.audience || (input.cohort && (input.cohort.name || input.cohort.key)));
+  // A cohort arrives as a STRING almost everywhere in this app ('Lapsed 90d',
+  // entry.cohort_label) and as an object only in the Smart Brain plan payload.
+  // Reading `.name`/`.key` alone made a string cohort invisible, so naming the
+  // cohort did not satisfy the audience essential and the send was blocked for
+  // missing the thing it had just been given.
+  const cohortName = typeof input.cohort === 'string'
+    ? input.cohort
+    : (input.cohort && (input.cohort.name || input.cohort.key)) || '';
+  const audience = text(input.target_audience || input.audience || cohortName);
   const objective = text(input.objective || input.goal || input.theme || input.type);
   const products = Array.isArray(input.selected_products) ? input.selected_products : [];
 

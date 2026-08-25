@@ -537,6 +537,61 @@ being re-run.
   so the concurrency and budget work is proven by test and by reasoning about the measured 504, not
   by a green production run.
 
+### The migration nobody applied, and 632 rejections that named their own fix (2026-08-25)
+`/brain` showed `Error: 0 of 632 planned writes landed; 632 rejected by the database` as a raw JS stack
+trace in the Details panel. The sync itself was healthy - the timeout work below made it finish in 19s -
+and every single write was refused.
+- **Measured, not guessed:** `select indexdef from pg_indexes` on the live database returned
+  `CREATE UNIQUE INDEX smart_cal_date_market_idx ON smart_calendar_entries (date, market)`. The planner
+  writes 3-4 cohort sends per (date, market), so every insert was a 23505 duplicate-key violation.
+  `supabase/migrations/20260712090000_multi_cohort_per_day.sql` drops that index and was authored on
+  2026-07-12; it had **never been applied**. `smart-brain-plan.js`'s own header comment had said so all
+  along - the code was right, the database was six weeks behind it.
+- Applied verbatim (index relaxed to non-unique, 40 old-format `tentative` rows cleared so days do not
+  double up, all 120 approved/final rows preserved). The next sync: **650 inserted + 16 updated = 666 of
+  666, 0 rejected, coverage 90/90 days complete**, 19.3s.
+- **The lesson is about deployment, not SQL.** A migration in `supabase/migrations/` is not applied by
+  anything in this repo - no CI step, no deploy hook, no test. It is a file that someone has to run. The
+  app therefore has to survive its own schema being older than its code, which is why the row-by-row
+  retry and the classified blocker exist; what was missing was any way to notice. `select indexdef` is
+  now the first thing to check when writes are refused wholesale.
+
+### A gate block is ONE fact, not 367 failures (2026-08-25)
+With the calendar syncing again, `Generate all` reported `✓ 0 generated, ✗ 367 failed`. Every build was
+refused by the live-catalog gate, which returns HTTP 200 with the reason and the remedy:
+`CATALOG_NOT_LIVE`, `NOT LAUNCH READY - DATA DEPENDENCY`, "Live connectors are disabled - set
+LIVE_CONNECTORS=on", plus a four-step `remediation[]`. The bulk loop caught the Error, kept only its
+message, and printed a count - so the one sentence that fixes it was thrown away 367 times.
+- `generateEntry` now attaches the whole verdict to the thrown Error (`err.__gate`), and `generateAll`
+  reports it ONCE: status chip, blocker, the DATA REQUIRED line, and the remediation as a list.
+- It also **stops after the second identical block**. Every build shares one catalog and one set of
+  connectors: continuing spends minutes re-proving the same fact and buries it under a bigger number.
+- Same defect class as the 2026-08-19 gate-notice work, in the bulk path rather than the single one.
+
+### Restoring the send table, and the flip-flop that took it away twice (2026-08-25)
+`/brain` has swapped between a send-level TABLE and a day-card LIST twice, each side deleting the other
+and each commit message arguing the merge was overdue. The last swap left `renderPlan()` emitting all
+nine columns - cohort size, the analysis that chose the send, confidence, the verdict controls and four
+per-send actions - into `<table hidden aria-hidden="true" style="display:none">`. Fully working UI,
+rendered for nobody.
+- Restored at the product owner's instruction, and **both views now render**: the day card answers "what
+  is happening on this day", the table answers "what is this send, and do I approve it". They are not
+  duplicates, and the spec now asserts BOTH exist rather than asserting the other one does not.
+- The restore also had to bring back the `.cw` inner block: the hidden version had reverted to
+  `max-width` on the `<td>`, which auto table layout IGNORES - the defect this repo has now shipped
+  three times. And the Why column had drifted to `#a9b8ad`, about 2:1 on a light card; it is `#556059`
+  again, with the contrast test restored alongside the truncation and overlap tests.
+
+### A gate that cannot see the field you filled in (2026-08-25)
+Mailer Studio blocked `mailer_full` with "Supply: Target audience / cohort" for a request that supplied
+both. `brief-gate.assess()` reads `target_audience || audience || cohort.name || cohort.key`, but:
+- `api/ai/generate.js` forwarded only `body.target_audience`, so a caller sending `audience` was told to
+  supply an audience it had already supplied;
+- a **string** `cohort` ('Lapsed 90d' - the shape used almost everywhere in this app) was invisible,
+  because only `.name`/`.key` were read.
+Both fixed. A gate that blocks correctly specified work is worse than no gate: it teaches the operator
+that the gate is noise, which is exactly when it stops being read.
+
 ### A UK send planned around a US product, because two market names are the same length (2026-08-24)
 Found while reading the frozen plan above. Of the 80 UK slots in the live 90-day window, **64 carried a
 hero whose SKU was `VAH-US-*`**, and the US slots carried UK products in the same proportion. One line:
