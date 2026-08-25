@@ -254,7 +254,17 @@ function bareSelectors(css) {
   // broken rule while explaining it, and a quotation inside a correction is
   // not drift. Strip at-rule preludes too (@media, @supports) — they are not
   // selectors, and the rules nested inside them are checked on their own lines.
-  const code = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  //
+  // @keyframes bodies are removed BEFORE the scan. Their steps — `from`, `to`,
+  // `0%`, `70%` — sit on their own line followed by `{`, so a line-oriented
+  // parser reads them as bare element selectors and reports five offenders for
+  // one animation. A keyframe step is not a selector and reaches no element, so
+  // flagging it is a false positive, and the fix an author would reach for
+  // (wrapping `from` in :where()) is not even valid CSS. Found when the
+  // futuristic layer added the first @keyframes this file had ever seen.
+  const code = css
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/@(-\w+-)?keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, ' ');
   const out = [];
   for (const line of code.split('\n')) {
     if (!line.includes('{')) continue;
@@ -295,6 +305,8 @@ test('the zero-specificity guard actually catches an offender (guards the guard)
     '*::-webkit-scrollbar-thumb:hover { background: red; }', // pseudo on * — must NOT be flagged
     '::selection { background: gold; }',          // document pseudo — must NOT be flagged
     '/* table { table-layout: fixed; } */',       // quoted inside a comment — must NOT be flagged
+    '@keyframes spin {\n  from { transform: none; }\n  to { transform: rotate(1turn); }\n}', // steps are not selectors
+    '@keyframes pulse {\n  0% { opacity: 0; }\n  70% { opacity: 1; }\n  100% { opacity: 0; }\n}',
   ].join('\n'));
   expect(planted).toEqual(['section', 'table', 'ul > li + li', 'table::before']);
 });
