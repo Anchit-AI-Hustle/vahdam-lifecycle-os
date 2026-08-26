@@ -27,7 +27,7 @@
   .akbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 10px;padding:8px 0;border-bottom:1px solid rgba(171,135,67,.18)}
   .akstatus{font-size:12px;font-weight:700}
   .akstatus.approved{color:#0a7d33} .akstatus.rejected{color:#b91c1c}
-  .btn.ok{background:#1d6b45;color:#171717}.btn.no{background:transparent;color:#b91c1c;border:1px solid rgba(232,154,154,.4)}
+  .btn.ok{background:#1d6b45;color:#FBF5EA}.btn.no{background:transparent;color:#b91c1c;border:1px solid rgba(232,154,154,.4)}
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#ffffff;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px}
   .card h2{font-size:16px;margin:0 0 8px}.metric{font-size:30px;color:#171717;font-weight:800}.label{font-size:11px;color:#48524c;letter-spacing:.12em;text-transform:uppercase}
   .wide{grid-column:span 4}.two{grid-column:span 2}
@@ -818,7 +818,14 @@ function ensureAdModal(){
     + '#ad-preview .apbody{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}'
     + '#ad-preview .apstage{flex:0 1 460px;min-width:260px}'
     + '#ad-preview .apcopy{flex:1 1 300px;min-width:260px;color:#e9efe9;font-size:13px;line-height:1.55}'
-    + '#ad-preview .apcopy h5{color:#AB8743;font-size:10px;letter-spacing:.09em;text-transform:uppercase;margin:12px 0 3px}';
+    + '#ad-preview .apcopy h5{color:#AB8743;font-size:10px;letter-spacing:.09em;text-transform:uppercase;margin:12px 0 3px}'
+    // .btn.secondary is styled for the LIGHT page: transparent background,
+    // color:#171717. This panel is #0c1c14, so those labels rendered at
+    // 1.02:1 - not faint, INVISIBLE. "Copy master prompt" and "Download"
+    // showed as two empty outlined pills. A button whose label cannot be
+    // read is a dead control, and dark-on-dark is a HARD rule in this repo.
+    + '#ad-preview .btn.secondary{color:#FBF5EA;border-color:rgba(171,135,67,.55)}'
+    + '#ad-preview .btn.secondary:disabled{color:#8fb3a1}';
   document.head.appendChild(st);
   m = document.createElement('div');
   m.id = 'ad-preview';
@@ -853,7 +860,14 @@ window.previewAd = function(key){
   } else {
     stage = '<div style="width:100%;aspect-ratio:' + a + ';border-radius:12px;border:1px solid rgba(171,135,67,.3);background:#04120b;'
       + (still ? "background-image:url('" + esc(still) + "');background-size:contain;background-repeat:no-repeat;background-position:center" : '')
-      + '"></div><p style="color:#8fb3a1;font-size:11px;margin:8px 0 0">Static &middot; ' + esc(a.replace('/', ':')) + '</p>';
+      + '"></div>'
+      + (still
+          ? '<p style="color:#8fb3a1;font-size:11px;margin:8px 0 0">Static &middot; ' + esc(a.replace('/', ':')) + '</p>'
+          // An empty box that says nothing reads as a broken preview. The video
+          // branch above already names its empty stage; this one did not, so a
+          // slot whose image has not been generated looked identical to a bug.
+          : '<p style="color:#e0a06a;font-size:11px;margin:8px 0 0">No image yet &mdash; this slot has not finished rendering. '
+            + 'The creative brief below is what it will be generated from.</p>');
   }
   const F = (label, val) => val ? '<h5>' + esc(label) + '</h5><div>' + esc(String(val)) + '</div>' : '';
   const board = (ad.storyboard || []).map((sh) => '<div style="margin:5px 0"><b style="color:#AB8743">' + esc(sh.t || '') + '</b> ' + esc(sh.scene || sh.shot || '') + '</div>').join('');

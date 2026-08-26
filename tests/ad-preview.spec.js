@@ -47,6 +47,74 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
 
+// A BUTTON WHOSE LABEL CANNOT BE READ IS A DEAD CONTROL.
+//
+// The ad preview modal panel is #0c1c14. Its header buttons carry .btn.secondary,
+// which is styled for the LIGHT page: transparent background, color #171717.
+// That renders the labels at 1.02:1 against the panel - not faint, invisible -
+// so "Copy master prompt" and "Download" showed as two empty outlined pills.
+// .btn.ok had the same shape at 2.77:1 (#171717 on #1d6b45), which is every
+// Approve button on the page.
+//
+// Dark-on-dark is a HARD rule in this repo, so this is measured rather than
+// eyeballed: the ratio is computed from the COMPUTED styles, walking up for the
+// first non-transparent background the way a reader's eye does.
+test.describe('every button label in the ad preview is actually legible', () => {
+  const REL = (c) => {
+    const [r, g, b] = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number)
+      .map((v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const RATIO = (fg, bg) => {
+    const [a, b] = [REL(fg), REL(bg)].sort((x, y) => y - x);
+    return (a + 0.05) / (b + 0.05);
+  };
+
+  test('the modal header buttons meet AA against the panel they sit on', async ({ page }) => {
+    await page.goto('about:blank');
+    await page.setContent(`<style>
+      .btn{border:0;border-radius:10px;background:#AB8743;color:#ffffff;padding:12px 16px;font-weight:800}
+      .btn.secondary{background:transparent;color:#171717;border:1px solid rgba(171,135,67,.35)}
+      .btn.ok{background:#1d6b45;color:#FBF5EA}
+      .apc{background:#0c1c14;padding:18px}
+      #ad-preview .btn.secondary{color:#FBF5EA;border-color:rgba(171,135,67,.55)}
+    </style>
+    <div id="ad-preview"><div class="apc">
+      <button class="btn sm secondary" id="mp">Copy master prompt</button>
+      <button class="btn sm secondary" id="dl">Download</button>
+      <button class="btn sm ok" id="ok">Approve</button>
+    </div></div>`);
+    const read = (sel) => page.locator(sel).evaluate((el) => {
+      const walk = (n) => {
+        for (let e = n; e; e = e.parentElement) {
+          const c = getComputedStyle(e).backgroundColor;
+          if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') return c;
+        }
+        return 'rgb(255, 255, 255)';
+      };
+      return { fg: getComputedStyle(el).color, bg: walk(el), text: el.textContent.trim() };
+    });
+    for (const sel of ['#mp', '#dl', '#ok']) {
+      const { fg, bg, text } = await read(sel);
+      const r = RATIO(fg, bg);
+      expect(r, `"${text}" renders at ${r.toFixed(2)}:1 (${fg} on ${bg})`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  test('the live page ships those overrides, not just this fixture', () => {
+    const page = require('fs').readFileSync(require('path').join(__dirname, '..', 'smart-brain.html'), 'utf8');
+    // The modal injects its own <style>; the override has to be in it.
+    expect(page, 'the modal does not lighten .btn.secondary for its dark panel')
+      .toContain('#ad-preview .btn.secondary{color:#FBF5EA');
+    // .btn.ok was #171717 on #1d6b45 = 2.77:1, below AA at 12px bold.
+    expect(page).not.toContain('.btn.ok{background:#1d6b45;color:#171717}');
+    expect(page).toContain('.btn.ok{background:#1d6b45;color:#FBF5EA}');
+    // An empty stage has to say why it is empty, like the video branch does.
+    expect(page, 'a static ad with no image renders an unexplained empty box')
+      .toContain('No image yet');
+  });
+});
+
 test.describe('ads render at their real aspect', () => {
   test('aspect comes from the ad, then the platform, never a fixed height', async ({ page }) => {
     // smart-brain.html boots auth and registers a service worker after load, so
