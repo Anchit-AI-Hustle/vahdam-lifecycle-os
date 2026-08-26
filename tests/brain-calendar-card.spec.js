@@ -302,6 +302,50 @@ test.describe('the /brain agentic card', () => {
   });
 });
 
+// THE PAGE SCROLLED SIDEWAYS ON A PHONE, AND CLIPPED TEXT AT BOTH EDGES.
+//
+// Measured at a 390px viewport: documentElement.scrollWidth was 1086 - the page
+// was 696px wider than the screen. 1086 is #plantable's min-width (1020) plus
+// padding, so the plan table was pushing the whole document.
+//
+// The mechanism is the `1fr` track. A 1fr track's implicit minimum is
+// min-width:auto, which resolves to the item's MAX-CONTENT, so the card holding
+// the table set a 1020px floor for its grid track and the grid, body and
+// document all grew to match. .tblscroll's overflow-x:auto never got to clip
+// anything because its parent had already been allowed to grow - which is why
+// the table looked fine at 1440px and the PAGE broke at 390px.
+//
+// This asserts the property at three widths rather than one: a fix that only
+// works at the width it was tested at is how this reached a phone.
+test.describe('the /brain page never scrolls sideways', () => {
+  for (const width of [390, 810, 1280]) {
+    test(`at ${width}px the document is no wider than the viewport`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await openCalendar(page);
+      const m = await page.evaluate(() => ({
+        vw: document.documentElement.clientWidth,
+        doc: document.documentElement.scrollWidth,
+      }));
+      expect(m.doc, `the page is ${m.doc - m.vw}px wider than the ${m.vw}px viewport`)
+        .toBeLessThanOrEqual(m.vw + 1);
+    });
+  }
+
+  test('the wide table still scrolls, inside its own wrapper', async ({ page }) => {
+    // The fix must not be "make the table narrow" - the columns are wanted. The
+    // overflow belongs to .tblscroll, which is what it was added for.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openCalendar(page);
+    const m = await page.evaluate(() => {
+      const t = document.querySelector('.tblscroll');
+      return t ? { client: t.clientWidth, scroll: t.scrollWidth } : null;
+    });
+    expect(m, 'no .tblscroll wrapper on the page').toBeTruthy();
+    expect(m.scroll, 'the table no longer overflows its wrapper, so the columns were crushed instead')
+      .toBeGreaterThan(m.client);
+  });
+});
+
 test.describe('the /brain plan says how old it is', () => {
   const DATES = ['2026-10-05', '2026-10-06', '2026-10-07'];
 
