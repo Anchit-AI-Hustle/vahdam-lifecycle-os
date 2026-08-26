@@ -45,7 +45,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
     "@playwright/test": "^1.62.1",
-    "eslint": "^9.39.0"
+    "eslint": "^10.9.0"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
