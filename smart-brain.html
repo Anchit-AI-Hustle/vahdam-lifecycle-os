@@ -269,8 +269,14 @@
         </p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-        <span class="label" style="margin-right:4px">Mode</span>
-        <span class="btn sm" style="cursor:default;pointer-events:none" title="One mode: an agentic pipeline powered by the premium model cascade">🤖 Agentic</span>
+        <!-- There was a "Mode" SELECTOR here with a "🤖 Agentic" chip beside the
+             run button (hence this card's id, dualmode). The second mode was
+             removed and the chip stayed: a <span class="btn"> with
+             pointer-events:none, which is a thing that looks pressable, sits
+             next to a real button with nearly the same words, and does nothing
+             when tapped. A selector with one option carries no information
+             anyway - the paragraph above already states the flow always runs on
+             the Premium cascade - so the chip is gone rather than restyled. -->
         <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
       </div>
       <div id="agenticOut" class="feed"><p style="color:#48524c">Run the agentic flow. It plans the calendar, writes the content and returns the next-step ideation inline.</p></div>
@@ -423,7 +429,32 @@ async function runAgentic(){
     out.innerHTML = `<div class="label">Flow · ${esc(d.mode)} · tier ${esc(d.tier)}</div>` + goalBar + `
       <div style="margin:8px 0">${stages}</div>
       <h2 style="font-size:18px;margin-top:14px">Ideation — what to do next</h2><ul>${ideas||'<li>—</li>'}</ul>
-      <p style="color:#48524c;margin-top:12px">Creative assets (mailers, ads, landing pages, images) are prebuilding in the background and will appear on the dashboard shortly.</p>`;
+      <p id="agenticReload" style="color:#48524c;margin-top:12px"><span class="spinner"></span> Reloading the calendar with what this run planned…</p>`;
+
+    // RELOAD THE CALENDAR. The run writes a new plan; nothing on this page was
+    // re-reading it, so the calendar kept showing whatever it fetched when the
+    // page was opened - "Nothing was generated." sitting directly under a run
+    // that had just generated something. The old closing line said the assets
+    // "will appear on the dashboard shortly", which promised an update no code
+    // performed: the only way to see the result was to reload by hand.
+    //
+    // Assets are a separate matter and are NOT waited for here. The run returns
+    // the plan fast and the prebuild queue converges afterwards (withCreatives
+    // is false above, deliberately - building inline blew the serverless time
+    // limit). So the plan appears now, and the note below says plainly that the
+    // assets are still arriving and how to pick them up, rather than implying
+    // this screen updates itself.
+    const note = $('agenticReload');
+    try{
+      await loadPlan();
+      await loadDayCalendar(true);
+      if(note) note.innerHTML = 'Calendar reloaded — the plan above is now on the calendar. Creative assets (mailers, ads, landing pages, images) are still prebuilding in the background; press <b>Sync</b> in the status bar to pick them up as they land.';
+    }catch(err){
+      // A refresh that fails must say so. Reporting the run as finished while
+      // the surface below it silently shows stale rows is the defect this whole
+      // block exists to remove.
+      if(note) note.innerHTML = `<span style="color:#b91c1c">The run finished, but reloading the calendar failed: ${esc((err && err.message) || String(err))}. Reload the page to see the new plan.</span>`;
+    }
   }catch(e){ out.innerHTML = `<p style="color:#b00">Error: ${esc(e.message||e)}</p>`; }
 }
 

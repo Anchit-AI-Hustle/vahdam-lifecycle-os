@@ -258,6 +258,50 @@ test.describe('the /brain rolling calendar', () => {
 // ?action=daily-calendar is still read for the freshness card above the table.
 // Stubbing only one leaves the other empty and the tile then correctly reads
 // "never" - a green-looking test measuring nothing.
+// THE AGENTIC CARD: A CONTROL THAT DID NOTHING, AND A CLAIM NOTHING KEPT.
+test.describe('the /brain agentic card', () => {
+  test.beforeEach(async ({ page }) => { await openCalendar(page); });
+
+  test('the run row offers no control that does nothing', async ({ page }) => {
+    // "🤖 Agentic" was a <span class="btn"> with pointer-events:none sitting
+    // beside "🤖 Run Agentic Flow": it looked pressable, read almost the same
+    // words, and was inert - the card id is still `dualmode` from when there
+    // were two modes to choose between. A one-option selector is not a
+    // selector, so it is gone rather than restyled.
+    const card = page.locator('#dualmode');
+    await expect(card.locator('#runAgentic')).toHaveCount(1);
+    const inert = await card.evaluate((el) => [...el.querySelectorAll('.btn')]
+      .filter((b) => getComputedStyle(b).pointerEvents === 'none')
+      .map((b) => b.textContent.trim()));
+    expect(inert, `these look like buttons and cannot be pressed: ${inert.join(', ')}`).toEqual([]);
+  });
+
+  test('running the flow reloads the calendar instead of promising it will', async ({ page }) => {
+    // runAgentic() wrote its stages and ideation into #agenticOut and closed
+    // with "Creative assets ... will appear on the dashboard shortly" - a
+    // promise no code kept. Nothing on the page re-read the plan, so the
+    // calendar underneath kept showing whatever it fetched when the page
+    // opened. The only way to see the result was to reload by hand.
+    let planReads = 0;
+    page.on('request', (req) => { if (/action=smart-brain-plan/.test(req.url())) planReads += 1; });
+    await page.route((url) => url.pathname.includes('/api/brain'), (r) => {
+      if (!/action=agentic-run/.test(r.request().url())) return r.fallback();
+      return r.fulfill({ contentType: 'application/json', body: JSON.stringify({
+        ok: true, mode: 'agentic', tier: 'premium', goal: '',
+        stages: [{ stage: 'planning', ok: true, summary: 'planned 90 days' }],
+        ideation: { ideas: [{ title: 'Win back UK lapsed', action: 'ship a winback', impact: 'high', effort: 'low' }] },
+      }) });
+    });
+
+    const before = planReads;
+    await page.locator('#runAgentic').click();
+    await expect(page.locator('#agenticOut')).toContainText('Ideation', { timeout: 20000 });
+    // The closing line has to be backed by an actual re-read, not asserted.
+    await expect.poll(() => planReads, { timeout: 20000 }).toBeGreaterThan(before);
+    await expect(page.locator('#agenticReload')).toContainText('Calendar reloaded');
+  });
+});
+
 test.describe('the /brain plan says how old it is', () => {
   const DATES = ['2026-10-05', '2026-10-06', '2026-10-07'];
 
