@@ -1,4 +1,3 @@
-/* eslint-env browser */
 /**
  * table-sort.js — drop-in column sorting for any <table>.
  *

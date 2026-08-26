@@ -1,4 +1,3 @@
-/* eslint-env browser */
 /**
  * sync-bar.js — the shared "how fresh is this, and sync it now" control.
  *
