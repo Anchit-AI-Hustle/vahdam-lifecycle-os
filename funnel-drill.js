@@ -1,4 +1,3 @@
-/* eslint-env browser */
 /**
  * funnel-drill.js — one funnel graph, one row-click behaviour, every analytics table.
  *

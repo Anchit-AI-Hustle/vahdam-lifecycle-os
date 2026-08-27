@@ -1,4 +1,3 @@
-/* eslint-env browser */
 /**
  * chart-enhance.js — universal chart upgrade layer.
  *

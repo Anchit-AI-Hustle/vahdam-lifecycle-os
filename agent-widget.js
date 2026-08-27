@@ -1,4 +1,3 @@
-/* eslint-env browser */
 /**
  * Vahdam Agent — embeddable widget (Shopify-ready).
  *

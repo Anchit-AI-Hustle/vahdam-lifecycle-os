@@ -27,8 +27,17 @@
   .akbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 10px;padding:8px 0;border-bottom:1px solid rgba(171,135,67,.18)}
   .akstatus{font-size:12px;font-weight:700}
   .akstatus.approved{color:#0a7d33} .akstatus.rejected{color:#b91c1c}
-  .btn.ok{background:#1d6b45;color:#171717}.btn.no{background:transparent;color:#b91c1c;border:1px solid rgba(232,154,154,.4)}
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#ffffff;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px}
+  .btn.ok{background:#1d6b45;color:#FBF5EA}.btn.no{background:transparent;color:#b91c1c;border:1px solid rgba(232,154,154,.4)}
+    /* minmax(0,1fr), NOT 1fr. A 1fr track's implicit minimum is min-width:auto,
+     which is the item's MAX-CONTENT - so a card containing #plantable
+     (min-width:1020px) sets a 1020px floor for its track, and the grid, the
+     body and the document all grow to match. Measured at a 390px viewport:
+     documentElement.scrollWidth was 1086. The whole page scrolled sideways and
+     text clipped at both edges, while .tblscroll's overflow-x:auto never got to
+     clip anything, because its parent had already been allowed to grow.
+     minmax(0,...) lets the track shrink, so the scroll happens inside the table
+     wrapper where it was designed to. */
+  .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.card{background:#ffffff;border:1px solid rgba(171,135,67,.18);border-radius:16px;padding:18px;min-width:0}
   .card h2{font-size:16px;margin:0 0 8px}.metric{font-size:30px;color:#171717;font-weight:800}.label{font-size:11px;color:#48524c;letter-spacing:.12em;text-transform:uppercase}
   .wide{grid-column:span 4}.two{grid-column:span 2}
   pre{white-space:pre-wrap;word-break:break-word;background:#f4f2ec;border:1px solid rgba(171,135,67,.16);border-radius:12px;padding:14px;max-height:420px;overflow:auto;color:#556059;font-size:12px}
@@ -226,7 +235,7 @@
   .chn{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin:3px 3px 0 0;border:1px solid}
   .chn.on{background:rgba(29,107,69,.14);border-color:rgba(29,107,69,.45);color:#0a6b39}
   .chn.off{background:rgba(171,135,67,.08);border-color:rgba(171,135,67,.4);color:#7a5f28}
-  @media(max-width:980px){.grid{grid-template-columns:1fr}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}
+  @media(max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}.wide,.two{grid-column:span 1}h1{font-size:30px}.pvframe{height:460px}
     .cday{padding:8px 10px}.cday .cs{font-size:11px}}
 </style>
 <script src="/gate-notice.js"></script>
@@ -269,8 +278,14 @@
         </p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-        <span class="label" style="margin-right:4px">Mode</span>
-        <span class="btn sm" style="cursor:default;pointer-events:none" title="One mode: an agentic pipeline powered by the premium model cascade">🤖 Agentic</span>
+        <!-- There was a "Mode" SELECTOR here with a "🤖 Agentic" chip beside the
+             run button (hence this card's id, dualmode). The second mode was
+             removed and the chip stayed: a <span class="btn"> with
+             pointer-events:none, which is a thing that looks pressable, sits
+             next to a real button with nearly the same words, and does nothing
+             when tapped. A selector with one option carries no information
+             anyway - the paragraph above already states the flow always runs on
+             the Premium cascade - so the chip is gone rather than restyled. -->
         <button id="runAgentic" class="btn" onclick="runAgentic()">🤖 Run Agentic Flow</button>
       </div>
       <div id="agenticOut" class="feed"><p style="color:#48524c">Run the agentic flow. It plans the calendar, writes the content and returns the next-step ideation inline.</p></div>
@@ -423,7 +438,32 @@ async function runAgentic(){
     out.innerHTML = `<div class="label">Flow · ${esc(d.mode)} · tier ${esc(d.tier)}</div>` + goalBar + `
       <div style="margin:8px 0">${stages}</div>
       <h2 style="font-size:18px;margin-top:14px">Ideation — what to do next</h2><ul>${ideas||'<li>—</li>'}</ul>
-      <p style="color:#48524c;margin-top:12px">Creative assets (mailers, ads, landing pages, images) are prebuilding in the background and will appear on the dashboard shortly.</p>`;
+      <p id="agenticReload" style="color:#48524c;margin-top:12px"><span class="spinner"></span> Reloading the calendar with what this run planned…</p>`;
+
+    // RELOAD THE CALENDAR. The run writes a new plan; nothing on this page was
+    // re-reading it, so the calendar kept showing whatever it fetched when the
+    // page was opened - "Nothing was generated." sitting directly under a run
+    // that had just generated something. The old closing line said the assets
+    // "will appear on the dashboard shortly", which promised an update no code
+    // performed: the only way to see the result was to reload by hand.
+    //
+    // Assets are a separate matter and are NOT waited for here. The run returns
+    // the plan fast and the prebuild queue converges afterwards (withCreatives
+    // is false above, deliberately - building inline blew the serverless time
+    // limit). So the plan appears now, and the note below says plainly that the
+    // assets are still arriving and how to pick them up, rather than implying
+    // this screen updates itself.
+    const note = $('agenticReload');
+    try{
+      await loadPlan();
+      await loadDayCalendar(true);
+      if(note) note.innerHTML = 'Calendar reloaded — the plan above is now on the calendar. Creative assets (mailers, ads, landing pages, images) are still prebuilding in the background; press <b>Sync</b> in the status bar to pick them up as they land.';
+    }catch(err){
+      // A refresh that fails must say so. Reporting the run as finished while
+      // the surface below it silently shows stale rows is the defect this whole
+      // block exists to remove.
+      if(note) note.innerHTML = `<span style="color:#b91c1c">The run finished, but reloading the calendar failed: ${esc((err && err.message) || String(err))}. Reload the page to see the new plan.</span>`;
+    }
   }catch(e){ out.innerHTML = `<p style="color:#b00">Error: ${esc(e.message||e)}</p>`; }
 }
 
@@ -787,7 +827,14 @@ function ensureAdModal(){
     + '#ad-preview .apbody{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}'
     + '#ad-preview .apstage{flex:0 1 460px;min-width:260px}'
     + '#ad-preview .apcopy{flex:1 1 300px;min-width:260px;color:#e9efe9;font-size:13px;line-height:1.55}'
-    + '#ad-preview .apcopy h5{color:#AB8743;font-size:10px;letter-spacing:.09em;text-transform:uppercase;margin:12px 0 3px}';
+    + '#ad-preview .apcopy h5{color:#AB8743;font-size:10px;letter-spacing:.09em;text-transform:uppercase;margin:12px 0 3px}'
+    // .btn.secondary is styled for the LIGHT page: transparent background,
+    // color:#171717. This panel is #0c1c14, so those labels rendered at
+    // 1.02:1 - not faint, INVISIBLE. "Copy master prompt" and "Download"
+    // showed as two empty outlined pills. A button whose label cannot be
+    // read is a dead control, and dark-on-dark is a HARD rule in this repo.
+    + '#ad-preview .btn.secondary{color:#FBF5EA;border-color:rgba(171,135,67,.55)}'
+    + '#ad-preview .btn.secondary:disabled{color:#8fb3a1}';
   document.head.appendChild(st);
   m = document.createElement('div');
   m.id = 'ad-preview';
@@ -822,7 +869,14 @@ window.previewAd = function(key){
   } else {
     stage = '<div style="width:100%;aspect-ratio:' + a + ';border-radius:12px;border:1px solid rgba(171,135,67,.3);background:#04120b;'
       + (still ? "background-image:url('" + esc(still) + "');background-size:contain;background-repeat:no-repeat;background-position:center" : '')
-      + '"></div><p style="color:#8fb3a1;font-size:11px;margin:8px 0 0">Static &middot; ' + esc(a.replace('/', ':')) + '</p>';
+      + '"></div>'
+      + (still
+          ? '<p style="color:#8fb3a1;font-size:11px;margin:8px 0 0">Static &middot; ' + esc(a.replace('/', ':')) + '</p>'
+          // An empty box that says nothing reads as a broken preview. The video
+          // branch above already names its empty stage; this one did not, so a
+          // slot whose image has not been generated looked identical to a bug.
+          : '<p style="color:#e0a06a;font-size:11px;margin:8px 0 0">No image yet &mdash; this slot has not finished rendering. '
+            + 'The creative brief below is what it will be generated from.</p>');
   }
   const F = (label, val) => val ? '<h5>' + esc(label) + '</h5><div>' + esc(String(val)) + '</div>' : '';
   const board = (ad.storyboard || []).map((sh) => '<div style="margin:5px 0"><b style="color:#AB8743">' + esc(sh.t || '') + '</b> ' + esc(sh.scene || sh.shot || '') + '</div>').join('');

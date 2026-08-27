@@ -1,4 +1,3 @@
-/* eslint-env browser */
 /**
  * auth.js — Lifecycle OS shared auth + cross-step navigation header.
  *

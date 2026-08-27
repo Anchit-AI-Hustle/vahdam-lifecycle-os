@@ -258,6 +258,94 @@ test.describe('the /brain rolling calendar', () => {
 // ?action=daily-calendar is still read for the freshness card above the table.
 // Stubbing only one leaves the other empty and the tile then correctly reads
 // "never" - a green-looking test measuring nothing.
+// THE AGENTIC CARD: A CONTROL THAT DID NOTHING, AND A CLAIM NOTHING KEPT.
+test.describe('the /brain agentic card', () => {
+  test.beforeEach(async ({ page }) => { await openCalendar(page); });
+
+  test('the run row offers no control that does nothing', async ({ page }) => {
+    // "🤖 Agentic" was a <span class="btn"> with pointer-events:none sitting
+    // beside "🤖 Run Agentic Flow": it looked pressable, read almost the same
+    // words, and was inert - the card id is still `dualmode` from when there
+    // were two modes to choose between. A one-option selector is not a
+    // selector, so it is gone rather than restyled.
+    const card = page.locator('#dualmode');
+    await expect(card.locator('#runAgentic')).toHaveCount(1);
+    const inert = await card.evaluate((el) => [...el.querySelectorAll('.btn')]
+      .filter((b) => getComputedStyle(b).pointerEvents === 'none')
+      .map((b) => b.textContent.trim()));
+    expect(inert, `these look like buttons and cannot be pressed: ${inert.join(', ')}`).toEqual([]);
+  });
+
+  test('running the flow reloads the calendar instead of promising it will', async ({ page }) => {
+    // runAgentic() wrote its stages and ideation into #agenticOut and closed
+    // with "Creative assets ... will appear on the dashboard shortly" - a
+    // promise no code kept. Nothing on the page re-read the plan, so the
+    // calendar underneath kept showing whatever it fetched when the page
+    // opened. The only way to see the result was to reload by hand.
+    let planReads = 0;
+    page.on('request', (req) => { if (/action=smart-brain-plan/.test(req.url())) planReads += 1; });
+    await page.route((url) => url.pathname.includes('/api/brain'), (r) => {
+      if (!/action=agentic-run/.test(r.request().url())) return r.fallback();
+      return r.fulfill({ contentType: 'application/json', body: JSON.stringify({
+        ok: true, mode: 'agentic', tier: 'premium', goal: '',
+        stages: [{ stage: 'planning', ok: true, summary: 'planned 90 days' }],
+        ideation: { ideas: [{ title: 'Win back UK lapsed', action: 'ship a winback', impact: 'high', effort: 'low' }] },
+      }) });
+    });
+
+    const before = planReads;
+    await page.locator('#runAgentic').click();
+    await expect(page.locator('#agenticOut')).toContainText('Ideation', { timeout: 20000 });
+    // The closing line has to be backed by an actual re-read, not asserted.
+    await expect.poll(() => planReads, { timeout: 20000 }).toBeGreaterThan(before);
+    await expect(page.locator('#agenticReload')).toContainText('Calendar reloaded');
+  });
+});
+
+// THE PAGE SCROLLED SIDEWAYS ON A PHONE, AND CLIPPED TEXT AT BOTH EDGES.
+//
+// Measured at a 390px viewport: documentElement.scrollWidth was 1086 - the page
+// was 696px wider than the screen. 1086 is #plantable's min-width (1020) plus
+// padding, so the plan table was pushing the whole document.
+//
+// The mechanism is the `1fr` track. A 1fr track's implicit minimum is
+// min-width:auto, which resolves to the item's MAX-CONTENT, so the card holding
+// the table set a 1020px floor for its grid track and the grid, body and
+// document all grew to match. .tblscroll's overflow-x:auto never got to clip
+// anything because its parent had already been allowed to grow - which is why
+// the table looked fine at 1440px and the PAGE broke at 390px.
+//
+// This asserts the property at three widths rather than one: a fix that only
+// works at the width it was tested at is how this reached a phone.
+test.describe('the /brain page never scrolls sideways', () => {
+  for (const width of [390, 810, 1280]) {
+    test(`at ${width}px the document is no wider than the viewport`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await openCalendar(page);
+      const m = await page.evaluate(() => ({
+        vw: document.documentElement.clientWidth,
+        doc: document.documentElement.scrollWidth,
+      }));
+      expect(m.doc, `the page is ${m.doc - m.vw}px wider than the ${m.vw}px viewport`)
+        .toBeLessThanOrEqual(m.vw + 1);
+    });
+  }
+
+  test('the wide table still scrolls, inside its own wrapper', async ({ page }) => {
+    // The fix must not be "make the table narrow" - the columns are wanted. The
+    // overflow belongs to .tblscroll, which is what it was added for.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openCalendar(page);
+    const m = await page.evaluate(() => {
+      const t = document.querySelector('.tblscroll');
+      return t ? { client: t.clientWidth, scroll: t.scrollWidth } : null;
+    });
+    expect(m, 'no .tblscroll wrapper on the page').toBeTruthy();
+    expect(m.scroll, 'the table no longer overflows its wrapper, so the columns were crushed instead')
+      .toBeGreaterThan(m.client);
+  });
+});
+
 test.describe('the /brain plan says how old it is', () => {
   const DATES = ['2026-10-05', '2026-10-06', '2026-10-07'];
 

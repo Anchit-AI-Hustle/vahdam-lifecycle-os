@@ -1,4 +1,3 @@
-/* eslint-env browser */
 (function () {
   'use strict';
   if (window.__VahdamDataAnalysisExtensions) return;
