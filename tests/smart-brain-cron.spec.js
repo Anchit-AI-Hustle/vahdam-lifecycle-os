@@ -273,3 +273,82 @@ test('an insert phase with no budget defers instead of writing forever', async (
   expect(out.inserted).toBe(0);
   expect(out.deferred).toBe(100);
 });
+
+// A GRACEFUL PATH THAT ONLY HANDLES `!r.ok` DOES NOT HANDLE AN UNREACHABLE HOST.
+//
+// Every method on SmartBrainDbAdapter routes failures through an `if (!r.ok)`
+// branch, and those branches are the documented graceful path: the comment on
+// select() promises that "a failed read (missing table, wrong project, key
+// mismatch, transient error) returns no rows instead of throwing and blanking
+// the whole calendar".
+//
+// But a NETWORK-level failure makes fetch() itself reject, so it sailed past
+// every one of them. A paused Supabase project de-provisions its API hostname
+// while keeping the project and the URL correct, so every read became
+// `getaddrinfo ENOTFOUND` and syncDaily THREW - the daily cron dying on an
+// unhandled error instead of reporting a database it could not reach. main was
+// red on four consecutive merges for exactly this.
+test.describe('the db adapter degrades on an unreachable host, not just a bad status', () => {
+  const { SmartBrainDbAdapter, smartConfig } = require('../lib/smart-brain/services.js');
+
+  /** An adapter pointed at a host that cannot resolve, which is what a paused
+   *  project looks like. `.invalid` is reserved by RFC 2606 precisely so it can
+   *  never resolve, so this needs no network and cannot flake. */
+  function deadAdapter() {
+    const db = new SmartBrainDbAdapter(smartConfig());
+    db.url = 'https://project-that-cannot-resolve.invalid';
+    db.key = 'k';
+    return db;
+  }
+
+  test('a read returns no rows instead of throwing', async () => {
+    const rows = await deadAdapter().select('smart_products', { limit: 1 });
+    expect(rows, 'an unreachable host must read as empty, never as a rejection').toEqual([]);
+  });
+
+  test('every write reports a warning instead of throwing', async () => {
+    const db = deadAdapter();
+    for (const [name, call] of [
+      ['insert', () => db.insert('t', [{ id: 1 }])],
+      ['upsert', () => db.upsert('t', [{ id: 1 }])],
+      ['update', () => db.update('t', { id: 'eq.1' }, { a: 1 })],
+      ['delete', () => db.delete('t', { id: 'eq.1' })],
+    ]) {
+      const out = await call();
+      expect(out, `${name} threw or returned nothing on an unreachable host`).toBeTruthy();
+      expect(out.ok, `${name} reported success against a host that does not exist`).toBe(false);
+      expect(String(out.warning), `${name} does not say what went wrong`).toMatch(/unreachable/i);
+    }
+  });
+
+  test('the failure is not dressed up as an HTTP status', async () => {
+    // status 0 is not an HTTP status. Reporting 404 or 500 here would send the
+    // operator looking for a missing table or a broken query instead of a
+    // hostname that no longer resolves.
+    const r = await deadAdapter().req('https://project-that-cannot-resolve.invalid/x');
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(0);
+    expect(r.unreachable).toBe(true);
+    expect(await r.text()).toMatch(/unreachable/i);
+  });
+
+  test('no CRUD method calls fetch directly any more', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'smart-brain', 'services.js'), 'utf8');
+    const cls = src.slice(src.indexOf('class SmartBrainDbAdapter'), src.indexOf('  async ownData()'));
+    // req() itself is the one legitimate caller, so count the others.
+    const direct = cls.split('\n').filter((l) => /await fetch\(/.test(l));
+    expect(direct, `these bypass req() and will throw on an unreachable host:\n  ${direct.join('\n  ')}`)
+      .toEqual(['      return await fetch(url, init);']);
+  });
+
+  test('a sync survives a database it cannot reach', async () => {
+    // The whole point: the cron must finish and REPORT, not die. This runs
+    // against the configured project, which in CI and in this sandbox is
+    // unreachable - so it exercises the real failure rather than a mock.
+    const out = await sbplan.syncDaily({ persist: false, days: 7, includePlan: false });
+    expect(out, 'syncDaily threw instead of reporting').toBeTruthy();
+    expect(out.timings, 'a sync with no timings is a sync nobody can diagnose').toBeTruthy();
+  });
+});

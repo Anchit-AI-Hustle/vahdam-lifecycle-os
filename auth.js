@@ -1539,15 +1539,12 @@
           </svg>
           Sign in with Google
         </button>
-        <div class="llw-foot">One-time sign-in · Session persists</div>
-        ${window.__SUPABASE__?.url ? '' : `
-          <div class="llw-config">
-            <b>⚠ Supabase not configured yet.</b><br>
-            The login wall is rendered, but no Supabase project URL is set.
-            Once provisioned, set <code>SUPABASE_URL</code> + <code>SUPABASE_ANON_KEY</code>
-            on Vercel and redeploy. Until then, Google sign-in click will be a no-op.
-          </div>
-        `}
+        <div class="llw-foot">One-time sign-in &middot; Session persists</div>
+        <!-- ONE slot for every reason sign-in cannot proceed. It used to be a
+             conditional that only fired when the URL was MISSING, so a
+             configured-but-unreachable backend (a paused project) rendered
+             nothing at all and the button stayed live. -->
+        <div id="llw-notice"></div>
       </div>
     `;
     document.body.appendChild(wall);
@@ -1558,12 +1555,15 @@
       btn.textContent = 'Redirecting to Google…';
       try {
         if (!window.LifecycleAuth.client) {
-          btn.textContent = 'Supabase not configured';
-          setTimeout(() => { btn.disabled = false; btn.innerHTML = btn.dataset.original || 'Sign in with Google'; }, 1800);
+          showAuthBackendNotice('unconfigured');
           return;
         }
         await signIn();
       } catch (e) {
+        // A backend that is not there is a VERDICT, not a crash: it has a cause
+        // and a remedy, so it renders as the notice rather than as a red
+        // "Sign-in failed: TypeError" the operator cannot act on.
+        if (e && e.authBackend) { showAuthBackendNotice(e.authBackend); return; }
         btn.disabled = false;
         btn.textContent = 'Sign in with Google';
         const err = document.createElement('div');
@@ -1572,6 +1572,12 @@
         btn.parentElement.insertBefore(err, btn);
       }
     };
+
+    // Probe WITHOUT waiting for a click, so the wall tells the truth on arrival
+    // instead of only after the user has tried. Non-blocking: the wall is
+    // already painted and a reachable backend changes nothing on screen.
+    authBackendReachable().then((r) => { if (!r.ok) showAuthBackendNotice(r.reason); })
+      .catch(() => {});
   }
 
   function removeLoginWall() {
@@ -1663,6 +1669,97 @@
     return null;
   }
 
+  // ─── Is the auth backend actually THERE? ─────────────────────────────────
+  // signInWithOAuth is a FULL-PAGE NAVIGATION to <supabase-url>/auth/v1/
+  // authorize. If that host does not resolve the browser leaves this app
+  // entirely and lands on its own DNS error page: no banner, no back path,
+  // nothing naming the cause. That is exactly what a PAUSED Supabase project
+  // looks like from here - the project still exists and the URL is still
+  // correct, so every "is it configured" check passes and the button stays
+  // enabled. A button that cannot work is worse than no button.
+  //
+  // So reachability is checked BEFORE navigating away. mode:'no-cors' is
+  // deliberate: an opaque response still proves the network reached the host,
+  // and a CORS policy must never be read as "the backend is down". Only a real
+  // DNS or network failure rejects, which is the one thing we need to catch.
+  let authReachState = null; // cached for this page load
+  async function authBackendReachable(force) {
+    if (authReachState && !force) return authReachState;
+    const cfg = window.__SUPABASE__;
+    if (!cfg || !cfg.url) return (authReachState = { ok: false, reason: 'unconfigured' });
+    // Not cached: connectivity can come back without a reload.
+    if (navigator.onLine === false) return { ok: false, reason: 'offline' };
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6000);
+    try {
+      await fetch(String(cfg.url).replace(/\/+$/, '') + '/auth/v1/health',
+        { mode: 'no-cors', cache: 'no-store', signal: ctl.signal });
+      authReachState = { ok: true };
+    } catch (e) {
+      authReachState = { ok: false, reason: e && e.name === 'AbortError' ? 'timeout' : 'unreachable' };
+    } finally {
+      clearTimeout(timer);
+    }
+    return authReachState;
+  }
+
+  /** The project ref is the first label of the Supabase host, so the dashboard
+   *  link is DERIVED from the configured URL and never a guessed constant. */
+  function supabaseRefAndHost() {
+    try {
+      const host = new URL(window.__SUPABASE__.url).host;
+      const ref = /^([a-z0-9]+)\.supabase\.(co|in)$/i.test(host) ? host.split('.')[0] : '';
+      return { host, ref };
+    } catch (_) { return { host: '', ref: '' }; }
+  }
+
+  // The VERDICT and the REMEDY, never a bare failure. A probe failure cannot
+  // tell a paused project from a deleted one, so the likely cause is named as
+  // likely and both remedies are given - the operator should not be sent to
+  // check the thing that is not broken.
+  function authBackendNoticeHtml(reason) {
+    const { host, ref } = supabaseRefAndHost();
+    const where = host ? '<code>' + host + '</code>' : 'the auth backend';
+    if (reason === 'offline') {
+      return '<b>You appear to be offline.</b><br>' +
+        'Sign-in needs a network connection. Reconnect, then reload this page.';
+    }
+    if (reason === 'sdk') {
+      return '<b>&#9888; Sign-in is unavailable: the Supabase library did not load.</b><br>' +
+        'auth.js loads supabase-js from a CDN, and that request failed. An ad blocker, a ' +
+        'corporate network policy or a CDN outage will all do this. Retry on a different ' +
+        'network, or allow <code>cdn.jsdelivr.net</code>, then reload.';
+    }
+    if (reason === 'unconfigured') {
+      return '<b>&#9888; Supabase is not configured.</b><br>' +
+        'No project URL reached this page. Set <code>SUPABASE_URL</code> + ' +
+        '<code>SUPABASE_ANON_KEY</code> on Vercel and redeploy.';
+    }
+    const dash = ref
+      ? ' <a href="https://supabase.com/dashboard/project/' + ref + '" target="_blank" rel="noopener">Open this project in Supabase</a> and press Restore, then reload here.'
+      : ' Restore the project in the Supabase dashboard, then reload here.';
+    return '<b>&#9888; Sign-in is unavailable: the auth backend did not respond.</b><br>' +
+      (reason === 'timeout' ? where + ' did not answer within 6 seconds.' : where + ' could not be reached.') +
+      '<br><br>The most likely cause is that the <b>Supabase project is paused</b>. ' +
+      'A paused project keeps its URL but stops resolving, which is why this page could still ' +
+      'offer the button.' + dash +
+      '<br><br>If the project was deleted or replaced instead, set <code>SUPABASE_URL</code> + ' +
+      '<code>SUPABASE_ANON_KEY</code> on Vercel to the new project and redeploy.';
+  }
+
+  /** Put the verdict on the login wall and stop offering a dead button. */
+  function showAuthBackendNotice(reason) {
+    const slot = document.getElementById('llw-notice');
+    if (!slot) return;
+    slot.className = 'llw-config';
+    slot.innerHTML = authBackendNoticeHtml(reason);
+    const btn = document.getElementById('llw-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = reason === 'offline' ? 'Offline' : 'Sign-in unavailable';
+    }
+  }
+
   // ─── Access mode ─────────────────────────────────────────────────────────
   // Every signed-in user gets full, live access. The former demo/mock-mode
   // gate (which simulated write/generation calls for non-vahdam.com accounts),
@@ -1704,6 +1801,14 @@
   async function signIn() {
     const c = window.LifecycleAuth && window.LifecycleAuth.client;
     if (!c) throw new Error('Supabase not configured');
+    // Never hand the user to a host that is not there: signInWithOAuth leaves
+    // this app, so after it fires there is nothing left to report an error in.
+    const reach = await authBackendReachable();
+    if (!reach.ok) {
+      const err = new Error('auth backend unreachable (' + reach.reason + ')');
+      err.authBackend = reach.reason;
+      throw err;
+    }
     rememberReturnTo();
     const { error } = await c.auth.signInWithOAuth({
       provider: 'google',
@@ -1733,6 +1838,12 @@
       internal: false,
       mockMode: false,
       signIn,
+      // ONE explainer, exposed so a page never writes its own. index.html's
+      // CTA delegates to signIn(), so it now receives the thrown verdict and
+      // needs the same words - and a second copy of them would drift, exactly
+      // as the market-URL map and the asset prompts each did.
+      signInBlockedHtml: authBackendNoticeHtml,
+      authBackendReachable,
       signOut: async () => {
         if (window.LifecycleAuth.client) await window.LifecycleAuth.client.auth.signOut();
         window.LifecycleAuth.session = null;
@@ -1988,10 +2099,30 @@
   }
 
 
+  // init() is async and was invoked with NO catch, so any rejection - most
+  // realistically the supabase-js CDN being blocked - became an unhandled
+  // promise rejection and the page rendered NOTHING: no wall, no top bar, no
+  // reason. A blank page is the least actionable failure there is.
+  function boot() {
+    Promise.resolve()
+      .then(init)
+      .catch((e) => {
+        try {
+          const isLocal = location.protocol === 'file:' ||
+            /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/.test(location.hostname);
+          if (isLocal || isOpenPage()) { injectTopbar(null); return; }
+          injectLoginWall();
+          // Name what failed. Only the SDK load and the client construction can
+          // reject here, and both leave sign-in impossible for the same reason.
+          showAuthBackendNotice(/supabase-js/i.test(String(e && e.message)) ? 'sdk' : 'unreachable');
+        } catch (_) { /* nothing left to render into */ }
+      });
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', boot);
   } else {
-    init();
+    boot();
   }
 })();
 
