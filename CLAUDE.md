@@ -1418,6 +1418,34 @@ calendar copy prompt in `api/_shared/smart-brain-plan.js`. The proven page corpu
 `landing-pages/final/` (cortisol presell v1/v2/v3, agent-best, all-in-one agent), `landing-pages/usa-july/` and
 `landing-pages/ashwagandha-matrix/`, with per-slot generation prompts in `landing-pages/final/lp-cortisol-asset-prompts.md`.
 
+### A guard that reads only the FIRST match certifies the wrong loop (2026-08-27)
+With the paused-project and service-worker fixes in, main was down to ONE red test:
+`cta-and-filters.spec.js:198 mailer-discovery.html CTAs fire`, failing on `[ipad]` and flaky on
+`[iphone-se]` - both WebKit - with `Test timeout of 120000ms exceeded`.
+- **The file budgets itself explicitly, and the arithmetic was written against the wrong loop.** The
+  comment at the top computes `20 controls x (2s click cap + 180ms settle + ~300ms of evaluates)
+  ~= 50s`. That is true of the FILTERS loop, which caps clicks at 2s. The CTA loop capped them at
+  **4s**, so the dominant term was double what the budget was justified against.
+- **The guard meant to prevent exactly this was vacuous**, and in the most ordinary way: it used
+  `.exec()` per pattern, which returns only the FIRST match. That file has TWO control-walking loops,
+  so it read the filters loop's 2s cap and never saw the CTA loop's 4s; and `settle` came from
+  `ready()`'s `waitForTimeout(700)`, not from either loop. It certified a 75s worst case for a test
+  that was really overrunning 120s. Now it takes `Math.max` over EVERY occurrence, so a second loop
+  cannot hide behind the first.
+- **Widening the scan alone was not enough, and that is the more useful half.** With the 4s cap
+  visible the guard computed 115s against a 120s budget and still PASSED - a 5s margin on a test that
+  was demonstrably timing out. The per-control allowance was 300ms, which is optimistic to the point
+  of being useless: each iteration does `textContent` + `getAttribute` + `isVisible` (three locator
+  round-trips) before the click, then the click polls for actionability, on an emulated mobile WebKit
+  project sharing a runner. At 1000ms the guard fails the 4s cap (129s > 120s), which is what having
+  teeth means. **A check whose margin is thinner than its own measurement error is not a check.**
+- The cap is 2s in both loops now. Nothing is lost: the click result is discarded (`noWaitAfter` +
+  `.catch`), the element was visibility-checked on the previous line, and what the test asserts is the
+  page errors a click produces - not that the click resolved. Coverage is untouched (the `limit >= 20`
+  floor still holds), so this is not a timeout "fixed" by walking fewer controls.
+- **Unverifiable here, and worth stating:** WebKit cannot be installed in this sandbox, so the timing
+  itself is proven by the arithmetic and by CI, not by a local WebKit run. Chromium: 72 pass.
+
 ### The sw.js self-heal reload is a navigation, and 15 specs were racing it (2026-08-27)
 Fixing the paused-project failures above cleared 12 of main's 13 red tests and left ONE:
 `ad-preview.spec.js:233` failing 3/3 attempts with `page.evaluate: Execution context was destroyed,

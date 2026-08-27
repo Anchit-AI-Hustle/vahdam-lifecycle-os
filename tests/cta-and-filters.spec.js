@@ -211,7 +211,17 @@ test.describe('every CTA is wired', () => {
         const handler = (await b.getAttribute('onclick').catch(() => '')) || '';
         if (DESTRUCTIVE.test(label) || DESTRUCTIVE.test(handler)) continue;
         if (!(await b.isVisible().catch(() => false))) continue;
-        await b.click({ timeout: 4000, noWaitAfter: true }).catch(() => {});
+        // 2s, matching the filters loop above and the arithmetic this file's own
+        // budget comment is written against. It was 4s, which made the CTA loop
+        // the dominant term and put its real worst case at roughly double what
+        // the budget claims - which is how [ipad] and [iphone-se] timed out on
+        // mailer-discovery.html at 120s. The justification is the same one
+        // already recorded above: this element was visibility-checked on the
+        // line before, so a click either lands quickly or is not going to.
+        // Nothing is lost by capping sooner - the click's result is discarded
+        // (noWaitAfter + catch); what this test asserts is the page errors the
+        // click produces, not that the click resolved.
+        await b.click({ timeout: 2000, noWaitAfter: true }).catch(() => {});
         await page.waitForTimeout(120);
       }
       // A ReferenceError here means the button is decoration.

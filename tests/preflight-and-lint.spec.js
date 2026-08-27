@@ -99,13 +99,35 @@ test('a spec that walks many controls budgets more time than its worst case', ()
   // budget cannot silently fall behind the work again.
   const src = fs.readFileSync(path.join(ROOT, 'tests', 'cta-and-filters.spec.js'), 'utf8');
 
-  const limit = Number(/Math\.min\(n,\s*(\d+)\)/.exec(src)[1]);
-  const clickCap = Number(/click\(\{\s*timeout:\s*(\d+)/.exec(src)[1]);
-  const settle = Number(/waitForTimeout\((\d+)\)/.exec(src)[1]);
+  // EVERY occurrence, not the first. This guard was vacuous: that file has TWO
+  // control-walking loops, and a single .exec() reads only the earlier one. So
+  // it validated the filters loop's 2s cap while the CTA loop's 4s cap - the
+  // real dominant term - was invisible, and `settle` came from ready()'s
+  // waitForTimeout(700) rather than from either loop. It certified a 75s worst
+  // case for a test that was timing out at 120s on the two WebKit projects.
+  // Take the WORST of each, so a second loop can never hide behind the first.
+  const all = (re) => [...src.matchAll(re)].map((m) => Number(m[1]));
+  const limits = all(/Math\.min\(n,\s*(\d+)\)/g);
+  const clickCaps = all(/click\(\{\s*timeout:\s*(\d+)/g);
+  const settles = all(/waitForTimeout\((\d+)\)/g);
+  expect(limits.length, 'no control-walking loop found - has this spec been rewritten?').toBeGreaterThan(0);
+  expect(clickCaps.length, 'no click cap found').toBeGreaterThan(0);
+  const limit = Math.max(...limits);
+  const clickCap = Math.max(...clickCaps);
+  const settle = Math.max(...settles);
   const budget = Number(/describe\.configure\(\{\s*timeout:\s*([\d_]+)/.exec(src)[1].replace(/_/g, ''));
 
-  // Per control, plus a generous allowance for the page load and the evaluates.
-  const worstCase = limit * (clickCap + settle + 300) + 15_000;
+  // Per control, plus an allowance for the page load and the evaluates.
+  //
+  // The per-control allowance is 1000ms, not 300ms. 300ms was optimistic to the
+  // point of being useless: each iteration does textContent + getAttribute +
+  // isVisible (three locator round-trips) BEFORE the click, and then the click
+  // runs its own actionability polling - on an emulated mobile WebKit project
+  // sharing a CI runner. The evidence is empirical rather than theoretical: at
+  // 300ms this guard certified a 115s worst case for the 4s cap, 5s inside the
+  // 120s budget, while [ipad] and [iphone-se] were really timing out at 120s on
+  // mailer-discovery.html. A margin that thin is not a check.
+  const worstCase = limit * (clickCap + settle + 1000) + 15_000;
   expect(budget,
     `budget ${budget}ms is under the ${worstCase}ms worst case (${limit} controls x ${clickCap}ms click cap)`
   ).toBeGreaterThan(worstCase);
