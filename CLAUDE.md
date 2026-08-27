@@ -1180,6 +1180,32 @@ Competitor data lives in a Google Sheet. Auth has **two modes** (see `docs/workl
 - **Mode A (preferred, keyless):** WIF — Vercel mints a per-request OIDC token (`VERCEL_OIDC_TOKEN`, enable "OIDC Tokens" in Vercel project settings), Google STS swaps it, code impersonates the SA. Set `GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`.
 - **Mode B (legacy):** JSON key in `GOOGLE_SERVICE_ACCOUNT_*` env vars. Code prefers Mode A when `GCP_*` present; falls back to JWT when `VERCEL_OIDC_TOKEN` absent.
 
+### Overriding a public method is not overriding the code path (2026-08-27)
+Mode A never worked. `buildWifAuth()` built an `OAuth2Client` and then assigned over its
+`getAccessToken`, `getRequestHeaders` and `request` to inject the impersonated token. All three
+assignments succeed, the object looks correct in a debugger, and the token exchange itself was fine -
+but `OAuth2Client.requestAsync()` calls the **private** `getRequestMetadataAsync()`, never the public
+`getRequestHeaders()`, so every WIF-mode Sheets call threw *"No access, refresh token, API key or
+refresh handler callback is set"* before a request left the process. The overridden `request()` made
+it worse by delegating to the original, straight back into the same throw.
+- Measured dead on google-auth-library **9.15.1, 10.5.0 and 11.0.2** (googleapis 128 / 144 / 174 /
+  176) - it never worked as written, and no dependency bump caused it. The fix is `auth.refreshHandler`,
+  which is the third thing that error message names, and which lets the library own the caching and
+  the eager refresh (the hand-rolled `cachedToken`/`cachedExpiry` pair went with it).
+- **Why nobody noticed for so long: `competitor-core.js` is the repo's ONLY consumer of `googleapis`
+  and had ZERO test coverage.** `node --check` parses it; nothing exercised it. A dependency this
+  large with one consumer and no test can only report a break through a production sync failing days
+  after the bump merged. `tests/competitor-sheets-auth.spec.js` now drives a **real** googleapis
+  request from the real auth client at a local server and reads the `Authorization` header off the
+  wire - the previous client could not have passed it, because it sent no request at all.
+- Mode B was and is fine: the JWT client constructs, unescapes the `\n`-encoded PEM, signs, and
+  googleapis carries its token onto the wire. The spec injects the granted credential for the last
+  step, since a signed assertion cannot be redeemed offline.
+- Related and worth keeping straight: **browser Google sign-in does not touch `googleapis` at all.**
+  `auth.js` goes through `supabase.createClient` -> `signInWithOAuth({provider:'google'})`; the only
+  `googleapis` string in front-end code is `fonts.googleapis.com`. A sign-in outage is a Supabase
+  reachability question (check that the project's URL resolves), never a `googleapis` version question.
+
 ### Smart Brain (persistent daily loop)
 `lib/smart-brain/services.js` (6 services: KB, Analysis, Competitor, Calendar, Generation, Review) + `api/_shared/smart-brain-plan.js` (persistent rolling **90-day** plan in `smart_calendar_entries`, diff-updated daily, human approve/reject). Daily Vercel Cron (03:30 UTC) hits `/api/cron/smart-brain` (rewrite → `?action=smart-brain-cron`, `CRON_SECRET`-protected). That cron and that rewrite were BOTH missing from `vercel.json` until 2026-08-24 while this line claimed otherwise — see "The Smart Brain stopped" above; the plan is also refreshed by the 18:30 UTC `/api/brain?action=cron` run as a second chance. Console UI: `smart-brain.html` at `/brain`. Approving a slot LLM-writes mailer + Meta/Google/TikTok ads + landing page (served at `/lp/:campaignId`) and mirrors them into `ads_generated`/`landing_pages_generated`. Platform push stays Phase 2 (`push_status: not_integrated_phase_2`).
 

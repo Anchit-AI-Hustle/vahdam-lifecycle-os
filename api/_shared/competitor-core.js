@@ -54,10 +54,11 @@ const SHEET_COLUMNS = [
 //    deployments keep working during the cutover.
 //
 // All sheetsClient() callers stay synchronous: the WIF token fetch is deferred
-// into the auth client's getAccessToken/getRequestHeaders, which googleapis
-// invokes lazily before each request and we cache + refresh internally.
+// into the auth client's refreshHandler, which google-auth-library invokes
+// lazily before the first request and re-invokes when the token nears expiry.
 
 let _sheets = null;
+function resetSheetsClient() { _sheets = null; }
 function sheetsClient() {
   if (_sheets) return _sheets;
   // Prefer WIF only when its env vars AND a live Vercel OIDC token are present.
@@ -91,32 +92,26 @@ function buildJwtAuth() {
 
 function buildWifAuth() {
   const auth = new google.auth.OAuth2();
-  let cachedToken = null;
-  let cachedExpiry = 0;
-
-  async function refreshIfNeeded() {
-    const now = Date.now();
-    if (cachedToken && cachedExpiry > now + 60_000) return cachedToken;
+  // refreshHandler is the library's OWN seam for "I will supply the access
+  // token myself" — it is the third thing named in the error you get without
+  // one ("No access, refresh token, API key or refresh handler callback is
+  // set"). The library then owns the caching and the eager refresh, so there
+  // is no token bookkeeping here.
+  //
+  // This used to override getAccessToken / getRequestHeaders / request on the
+  // client instead. That reads as equivalent and is not: OAuth2Client's
+  // requestAsync() calls the PRIVATE getRequestMetadataAsync() directly and
+  // never the public getRequestHeaders(), so it threw the error above before
+  // reaching the network — and the overridden request() delegated to the
+  // original, straight back into the same throw. Every WIF-mode Sheets call
+  // failed. Measured dead on google-auth-library 9.15.1, 10.5.0 and 11.0.2
+  // (googleapis 128 / 144 / 174 / 176), so it never worked as written; nothing
+  // about the recent bump caused it. tests/competitor-sheets-auth.spec.js
+  // drives a real request through this client so a future rewrite cannot go
+  // quiet the same way.
+  auth.refreshHandler = async () => {
     const fresh = await fetchWifAccessToken();
-    cachedToken = fresh.accessToken;
-    cachedExpiry = fresh.expiresAt;
-    return cachedToken;
-  }
-
-  // googleapis calls one of these to attach Authorization on each request.
-  auth.getAccessToken = async () => {
-    const token = await refreshIfNeeded();
-    return { token, res: null };
-  };
-  auth.getRequestHeaders = async () => {
-    const token = await refreshIfNeeded();
-    return { Authorization: `Bearer ${token}` };
-  };
-  // Some googleapis internals call request() — proxy to ensure auth headers.
-  const origRequest = auth.request.bind(auth);
-  auth.request = async (opts) => {
-    const headers = await auth.getRequestHeaders();
-    return origRequest({ ...opts, headers: { ...(opts.headers || {}), ...headers } });
+    return { access_token: fresh.accessToken, expiry_date: fresh.expiresAt };
   };
   return auth;
 }
@@ -929,4 +924,10 @@ module.exports = {
   getBrands, appendBrands, seedBrands, discoverBrands, markBrandSubscribed,
   DISCOVERY_CATEGORIES, DISCOVERY_GEOS,
   NONE, NO_SCREENSHOT,
+  // Test seam. This file is the repo's ONLY consumer of googleapis, and until
+  // tests/competitor-sheets-auth.spec.js it had no coverage at all — so a
+  // breaking bump of a large dependency could only be discovered by a
+  // production sync failing. The auth clients are exported (not the sheet
+  // writes) because the auth path is the half that talks to the dependency.
+  __testing: { sheetsClient, resetSheetsClient, buildJwtAuth, buildWifAuth, fetchWifAccessToken },
 };
