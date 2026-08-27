@@ -1418,6 +1418,31 @@ calendar copy prompt in `api/_shared/smart-brain-plan.js`. The proven page corpu
 `landing-pages/final/` (cortisol presell v1/v2/v3, agent-best, all-in-one agent), `landing-pages/usa-july/` and
 `landing-pages/ashwagandha-matrix/`, with per-slot generation prompts in `landing-pages/final/lp-cortisol-asset-prompts.md`.
 
+### The sw.js self-heal reload is a navigation, and 15 specs were racing it (2026-08-27)
+Fixing the paused-project failures above cleared 12 of main's 13 red tests and left ONE:
+`ad-preview.spec.js:233` failing 3/3 attempts with `page.evaluate: Execution context was destroyed,
+most likely because of a navigation`, on `smart-brain.html`.
+- **The navigation is ours, and it is deliberate.** `auth.js` registers `sw.js` on `window` `load` -
+  independent of `init()` - and its `controllerchange` handler calls `location.reload()` after 50ms as
+  a PWA self-heal. Any spec that navigates and then reads page state is racing that reload. It passes
+  when the file runs ALONE and fails in the loaded full suite, which is exactly why it reads as a flake
+  rather than a race. This file already recorded the trap on 2026-08-19; what was missing was applying
+  it to the specs that need it.
+- **15 specs drove real pages without `serviceWorkers: 'block'`**, and the three that misbehaved in
+  that run (`ad-preview` failed, `ads-revenue-panel` and `cta-and-filters` went flaky) were all in
+  that set. 14 now block it.
+- **`cta-and-filters` is the ONE deliberate exemption, and it earned it the hard way.** Blocking there
+  turned 5 of its tests red: Playwright's blocking creates a sandboxed context in which READING
+  `navigator.serviceWorker` throws `SecurityError`, and that spec asserts "every page loads without
+  throwing". The throw is not ours - the stack lands in an injected `<anonymous>:3:15` script, all
+  three of our reads sit inside a `try/catch`, and `index.html` throws nothing under the same setting -
+  so the guard would have injected the very error the spec exists to detect. Reverted there; 72 pass
+  again. **A guard that manufactures the failure it is meant to prevent is the wrong guard for that
+  test**, and its flake was a 120s timeout anyway, a different cause.
+- Lesson worth keeping: when a fix clears most of a red suite, read the REMAINDER rather than
+  declaring victory - and check the full summary, since Playwright prints `failed` ABOVE `flaky`, so a
+  short log tail can show `0 failed` when one test did fail.
+
 ### A paused Supabase project keeps its URL, so every "is it configured" check passed (2026-08-27)
 `/ads-master` rendered the sign-in wall, the button was enabled, and clicking it left the app for
 `https://<ref>.supabase.co/auth/v1/authorize?provider=google&redirect_to=...` which answered
