@@ -2,6 +2,17 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 
+// SERVICE WORKERS ARE BLOCKED, AND THAT IS NOT A CONVENIENCE.
+// auth.js registers sw.js on window 'load' - independent of init() - and its
+// controllerchange handler calls location.reload() 50ms later as a deliberate
+// PWA self-heal. Any spec that navigates and then reads page state is racing
+// that reload: on a loaded machine it lands mid-assertion and the page is gone,
+// which surfaces as "Execution context was destroyed, most likely because of a
+// navigation". It passes when the file is run alone and fails in the full suite,
+// which is what makes it look like a flake instead of a race.
+// The SW is not under test here, so it is switched off.
+test.use({ serviceWorkers: 'block' });
+
 // TWO WAYS THIS SUITE WENT RED WITHOUT ANY PRODUCT CODE BEING WRONG.
 //
 // 1. A SKIPPED DESCRIBE STILL RUNS afterAll.
