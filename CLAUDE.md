@@ -1457,6 +1457,26 @@ no way back.
   or a CDN outage - became an unhandled rejection and the page rendered **NOTHING**: no wall, no top
   bar, no reason. A blank page is the least actionable failure there is. It now renders the wall with
   an `sdk` verdict naming `cdn.jsdelivr.net`.
+- **The same defect was in the SERVER, and it had turned main red on four consecutive merges.**
+  `SmartBrainDbAdapter` routes every failure through an `if (!r.ok)` branch, and `select()`'s own
+  comment promises that path handles "missing table, wrong project, key mismatch, transient error" by
+  returning no rows "instead of throwing and blanking the whole calendar". But a **network-level
+  failure makes `fetch()` itself reject**, so it sailed past all five branches: every read became
+  `getaddrinfo ENOTFOUND` and `syncDaily` THREW, so the daily cron died on an unhandled error instead
+  of reporting a database it could not reach. `select()` is called ten times under one `Promise.all`
+  in `ownData()` and only two of the ten carried a `.catch`. Fixed with `req()`, a fetch that never
+  throws and returns a synthetic `{ok:false, status:0, unreachable:true}` so an unreachable host lands
+  in the graceful branch the comments already described. **`status:0` is deliberate** - reporting 404
+  or 500 would send the operator hunting a missing table instead of a hostname that stopped resolving.
+  `tests/smart-brain-cron.spec.js` drives a real adapter at a `.invalid` host (RFC 2606, cannot resolve,
+  so no network and no flake), asserts reads return `[]` and all four writes report a warning, and
+  fails if any CRUD method calls `fetch` directly again. 6 of its tests go red against the old code.
+- **CI red on `main` was NOT caused by the diff that surfaced it.** #404 was green on 2026-08-25;
+  #405, #406, #407 and #408 all failed after the project paused on the 26th, on the same two specs
+  (`smart-brain-cron`, `goal-driven-assets`) - both of which make REAL calls to the configured Supabase
+  project. Check the base branch before believing a failure belongs to your PR; and note the specs
+  reproduce locally in this sandbox for the same reason (no egress to that host), which is what made
+  the root cause findable.
 - **Testing note:** Playwright checks routes in **REVERSE registration order**, so the CDN stub must be
   registered AFTER `blockExternal` or its `**/*` shadows it and the SDK is aborted - which reproduces
   the *other* defect and makes the test look like the fix failed. And `/ads-master` is a `vercel.json`
