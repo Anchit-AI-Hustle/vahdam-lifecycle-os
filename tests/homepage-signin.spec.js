@@ -40,7 +40,13 @@ test('auth.js exposes signIn so a page never needs its own', () => {
   expect(AUTH).toMatch(/async function signIn\s*\(/);
   expect(AUTH, 'signIn is not on window.LifecycleAuth').toMatch(/\n\s*signIn,/);
   // It must still remember where the user was; that is why the bounce recovers.
-  expect(AUTH).toMatch(/async function signIn[\s\S]{0,400}rememberReturnTo\(\)/);
+  // Sliced to the function rather than matched within a fixed character window:
+  // the reachability guard now sits between the declaration and this call, and a
+  // char-count window turns any future line added to signIn() into a failure
+  // that says nothing about what actually broke.
+  const body = AUTH.slice(AUTH.indexOf('async function signIn('),
+    AUTH.indexOf('function restoreReturnTo'));
+  expect(body, 'signIn no longer remembers where the user was').toMatch(/rememberReturnTo\(\)/);
 });
 
 test('the homepage CTA delegates instead of rolling its own', () => {
@@ -156,5 +162,153 @@ test.describe('the CTA actually starts sign-in', () => {
     await expect(btn).toBeEnabled();
     // It must not be left reading "Redirecting to Google…" forever.
     await expect(btn).toHaveText(before.trim());
+  });
+});
+
+// A PAUSED SUPABASE PROJECT KEEPS ITS URL, AND THAT IS WHY THIS BROKE SILENTLY.
+//
+// Reported live: /ads-master rendered the sign-in wall, the button was enabled,
+// and clicking it navigated to
+//   https://<ref>.supabase.co/auth/v1/authorize?provider=google&redirect_to=...
+// which returned DNS_PROBE_FINISHED_NXDOMAIN. Supabase pauses inactive free-tier
+// projects and de-provisions the API hostname; the project and the URL both
+// stay correct. So every "is Supabase configured" check passed - the wall's own
+// warning was `window.__SUPABASE__?.url ? '' : ...`, i.e. it only fired when the
+// URL was MISSING - and the user was handed to a browser DNS error page with no
+// banner, no cause and no way back.
+//
+// signInWithOAuth is a full-page navigation, so after it fires there is nothing
+// left in this app to report anything. Reachability must be checked BEFORE it.
+test.describe('sign-in refuses to navigate into an unreachable auth backend', () => {
+  test('the probe is made before signInWithOAuth, not after', () => {
+    // COMMENTS ARE STRIPPED FIRST. The comment explaining the guard names
+    // signInWithOAuth, so scanning the raw source found the explanation at a
+    // lower index than the call and failed - and a guard that trips on the
+    // note describing the bug it prevents only teaches people to delete the
+    // note. This repo has now hit that exact trap three times (the asset-prompt
+    // guard and the llm.js format-string guard were the first two).
+    const raw = AUTH.slice(AUTH.indexOf('async function signIn('), AUTH.indexOf('function restoreReturnTo'));
+    const fn = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    expect(fn, 'signIn() does not check reachability').toMatch(/authBackendReachable\s*\(/);
+    expect(fn, 'the premise is gone: signIn no longer navigates via signInWithOAuth')
+      .toMatch(/signInWithOAuth/);
+    expect(fn.indexOf('authBackendReachable'),
+      'the reachability check must run BEFORE the navigation, or it cannot prevent it')
+      .toBeLessThan(fn.indexOf('signInWithOAuth'));
+  });
+
+  test('a CORS policy is never read as "the backend is down"', () => {
+    // no-cors is load-bearing: an opaque response still proves the network
+    // reached the host. A cors-mode probe would reject on a CORS header and
+    // report a perfectly healthy backend as unreachable.
+    const probe = AUTH.slice(AUTH.indexOf('async function authBackendReachable'),
+      AUTH.indexOf('function supabaseRefAndHost'));
+    expect(probe).toMatch(/mode:\s*'no-cors'/);
+    expect(probe, 'an unbounded probe would hang the click').toMatch(/AbortController|signal/);
+  });
+
+  test('the wall notice covers unreachable, not only unconfigured', () => {
+    // The original guard keyed on a MISSING url, which is exactly the case that
+    // was not happening. Assert the shipped markup no longer does that.
+    expect(AUTH).toMatch(/id="llw-notice"/);
+    expect(AUTH, 'the wall still gates its warning on the url merely being present')
+      .not.toMatch(/\$\{window\.__SUPABASE__\?\.url \? '' :/);
+  });
+
+  test('the verdict names a likely cause and both remedies, and never asserts one as fact', () => {
+    const notice = AUTH.slice(AUTH.indexOf('function authBackendNoticeHtml'),
+      AUTH.indexOf('function showAuthBackendNotice'));
+    expect(notice, 'the notice does not mention the paused-project cause').toMatch(/paused/i);
+    expect(notice, 'a probe cannot distinguish paused from deleted, so it must hedge')
+      .toMatch(/most likely/i);
+    expect(notice, 'the deleted/replaced remedy is missing').toMatch(/SUPABASE_URL/);
+    expect(notice, 'offline must not be reported as a broken backend').toMatch(/offline/i);
+  });
+
+  test('the dashboard link is derived from the configured url, never a constant', () => {
+    const ref = AUTH.slice(AUTH.indexOf('function supabaseRefAndHost'),
+      AUTH.indexOf('function authBackendNoticeHtml'));
+    expect(ref).toMatch(/new URL\(window\.__SUPABASE__\.url\)/);
+    // No hard-coded project ref anywhere in the dashboard link.
+    expect(AUTH).not.toMatch(/supabase\.com\/dashboard\/project\/[a-z0-9]{8,}/);
+  });
+
+  test('there is ONE explainer, and the homepage CTA uses it', () => {
+    expect(AUTH, 'the explainer is not exposed, so a page must write its own')
+      .toMatch(/signInBlockedHtml:\s*authBackendNoticeHtml/);
+    expect(INDEX).toMatch(/signInBlockedHtml/);
+    // The CTA used to swallow the error and silently reset - a button that does
+    // nothing. It must now surface the verdict.
+    expect(INDEX).toMatch(/e\.authBackend/);
+  });
+});
+
+test.describe('the wall reports a dead backend instead of navigating to it', () => {
+  const { blockExternal } = require('./lib/page-harness.js');
+  let server, origin;
+  test.use({ serviceWorkers: 'block', reducedMotion: 'reduce' });
+
+  test.beforeAll(async () => {
+    server = http.createServer((req, res) => {
+      const u = new URL(req.url, 'http://x');
+      if (u.pathname === '/api/public-config') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        // A host that cannot resolve, exactly like a paused project's.
+        return res.end(JSON.stringify({
+          supabase: { url: 'https://paused-project-does-not-resolve.supabase.co', anonKey: 'x.y.z' },
+        }));
+      }
+      if (u.pathname.startsWith('/api/')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: true }));
+      }
+      const f = path.join(ROOT, u.pathname === '/' ? '/index.html' : decodeURIComponent(u.pathname));
+      if (f.startsWith(ROOT) && fs.existsSync(f) && fs.statSync(f).isFile()) {
+        const ext = path.extname(f);
+        res.writeHead(200, { 'Content-Type': ext === '.html' ? 'text/html' : ext === '.js' ? 'text/javascript' : 'text/plain' });
+        return res.end(fs.readFileSync(f));
+      }
+      res.writeHead(404); res.end('not found');
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    origin = 'http://127.0.0.1:' + server.address().port;
+  });
+  test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
+
+  test('the notice appears and the button is disabled, with no navigation away', async ({ page }) => {
+    // Everything off-origin fails, which is what a de-provisioned host does to
+    // the reachability probe AND to the authorize navigation.
+    await blockExternal(page, origin);
+    // Registered AFTER blockExternal on purpose: Playwright checks routes in
+    // REVERSE registration order, so the later handler wins. Registered first,
+    // this stub is shadowed by blockExternal's '**/*' and the CDN is aborted.
+    //
+    // The supabase-js CDN is stubbed rather than blocked because blocking it
+    // makes init() reject, which is a DIFFERENT failure (one this pass also
+    // fixed). Stubbing keeps this test about the thing it names: a configured
+    // backend whose HOST is not there.
+    await page.route('**/cdn.jsdelivr.net/**', (route) => route.fulfill({
+      status: 200,
+      contentType: 'text/javascript',
+      body: `window.supabase = { createClient: () => ({ auth: {
+        getSession: async () => ({ data: { session: null } }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+        signInWithOAuth: async (o) => { location.href = o.options.redirectTo; return {}; },
+      } }) };`,
+    }));
+    const navs = [];
+    page.on('framenavigated', (f) => { if (f === page.mainFrame()) navs.push(f.url()); });
+
+    await page.goto(origin + '/ad-campaigns-master.html', { waitUntil: 'domcontentloaded' }).catch(() => {});
+    // The wall is injected by auth.js after config resolution.
+    const notice = page.locator('#llw-notice');
+    await expect(notice, 'the wall never explained why sign-in cannot work')
+      .toContainText(/did not respond|could not be reached|offline/i, { timeout: 20000 });
+    await expect(page.locator('#llw-btn'), 'a dead button was left enabled').toBeDisabled();
+
+    // And the critical part: the user is still HERE, not on a DNS error page.
+    expect(navs.filter((u) => /supabase\.co/.test(u)),
+      'the app navigated to the dead auth host anyway').toEqual([]);
+    expect(page.url()).toContain('127.0.0.1');
   });
 });

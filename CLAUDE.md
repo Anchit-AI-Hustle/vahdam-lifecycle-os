@@ -1418,6 +1418,51 @@ calendar copy prompt in `api/_shared/smart-brain-plan.js`. The proven page corpu
 `landing-pages/final/` (cortisol presell v1/v2/v3, agent-best, all-in-one agent), `landing-pages/usa-july/` and
 `landing-pages/ashwagandha-matrix/`, with per-slot generation prompts in `landing-pages/final/lp-cortisol-asset-prompts.md`.
 
+### A paused Supabase project keeps its URL, so every "is it configured" check passed (2026-08-27)
+`/ads-master` rendered the sign-in wall, the button was enabled, and clicking it left the app for
+`https://<ref>.supabase.co/auth/v1/authorize?provider=google&redirect_to=...` which answered
+**DNS_PROBE_FINISHED_NXDOMAIN**. The user ended up on a Chrome error page with no banner, no cause and
+no way back.
+- **Measured, not guessed:** `list_projects` returns the project `vahdam-lifecycle-os`
+  (`gubbckgjujwqodghcavv`) with status **INACTIVE** - all eight of the account's projects are. Supabase
+  pauses inactive free-tier projects and **de-provisions the API hostname**, while the project and the
+  URL both stay correct. Production reported `supabase live:true` on 2026-08-25 and `fetch failed` on
+  2026-08-27, so it paused in between. Restoring it is a dashboard action; nothing in this repo can.
+- **Why it was silent is the part worth keeping.** The wall's warning was
+  `${window.__SUPABASE__?.url ? '' : ...}` - it fired only when the URL was **MISSING**, which is the
+  one case that was not happening. A present-but-dead URL passed it, `getConfig()`, the anon-key check
+  and the client construction. Same shape as the gate payloads read for `j.error`: the app had the
+  fact and rendered nothing.
+- **`signInWithOAuth` is a full-page NAVIGATION**, so after it fires there is nothing left in this app
+  to report anything. Reachability is therefore checked BEFORE it, in `signIn()`, and a failure throws
+  `err.authBackend` instead of navigating. `tests/homepage-signin.spec.js` asserts the probe's index is
+  lower than the call's, **after stripping comments** - the comment explaining the guard names
+  `signInWithOAuth`, so the raw scan found the explanation first. Third time this repo has tripped a
+  guard on its own explanation.
+- **`mode:'no-cors'` is load-bearing.** An opaque response still proves the network reached the host; a
+  cors-mode probe rejects on a CORS header and would report a healthy backend as down. Bounded by an
+  `AbortController` (6s) so a hanging host cannot hang the click.
+- **The notice is a verdict, not a crash.** A probe cannot tell a paused project from a deleted one, so
+  it names the paused case as *most likely*, links the dashboard for the ref **derived from the
+  configured URL** (never a constant), and gives the deleted/replaced remedy (`SUPABASE_URL` +
+  `SUPABASE_ANON_KEY` on Vercel) too. `navigator.onLine === false` reports being offline instead - do
+  not send someone to restore a database when their wifi is off. The offline verdict is not cached,
+  because connectivity returns without a reload.
+- **ONE explainer**, `window.LifecycleAuth.signInBlockedHtml`. The homepage CTA delegates to `signIn()`
+  (the 2026-08-21 consolidation), so it now receives the thrown verdict - and it had been **swallowing
+  the error and silently resetting the button**, which would have relocated the dead-button defect
+  rather than fixing it. A second copy of the words would drift exactly as the market-URL map did.
+- **Found in passing, same family:** `init()` was invoked with **no catch**. It is async, so any
+  rejection - most realistically the supabase-js CDN being blocked by an ad blocker, a corporate proxy
+  or a CDN outage - became an unhandled rejection and the page rendered **NOTHING**: no wall, no top
+  bar, no reason. A blank page is the least actionable failure there is. It now renders the wall with
+  an `sdk` verdict naming `cdn.jsdelivr.net`.
+- **Testing note:** Playwright checks routes in **REVERSE registration order**, so the CDN stub must be
+  registered AFTER `blockExternal` or its `**/*` shadows it and the SDK is aborted - which reproduces
+  the *other* defect and makes the test look like the fix failed. And `/ads-master` is a `vercel.json`
+  rewrite, not a file, so a throwaway static server must be pointed at
+  `ad-campaigns-master.html`. Verified with teeth: removing the guard turns the browser test red.
+
 ### Sign-in has ONE implementation, and a redirect must point at a real route (2026-08-21)
 The homepage's main "Sign in with Google" CTA hand-rolled its own `signInWithOAuth` with
 `redirectTo: location.origin + '/dashboard'`. **`/dashboard` is not a route** - `dashboard.html` is
