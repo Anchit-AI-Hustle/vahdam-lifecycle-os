@@ -54,8 +54,20 @@ function qaAd(ad) {
   const type = ad.creative_type;
 
   // 1) exactly one valid type
-  if (type !== 'static' && type !== 'video') crit(`invalid ad type "${type || 'none'}" (must be static or video)`);
-  if (type === 'static' && (ad.storyboard || ad.script)) crit('static ad carries video fields');
+  // `text` is the TYPOGRAPHIC creative (brand colour + type + built elements, no
+  // photograph), not an ad with no creative. It was added with the 1 Text + 3
+  // Text+Visual contract; without it here every text variant scored a critical
+  // and the Ads QA pill went red on every run - the same deterministic-red trap
+  // the TikTok `script` field caused before.
+  if (type !== 'static' && type !== 'video' && type !== 'text') crit(`invalid ad type "${type || 'none'}" (must be static, video or text)`);
+  if ((type === 'static' || type === 'text') && (ad.storyboard || ad.script)) crit(`${type} ad carries video fields`);
+  if (type === 'text') {
+    // The brief still has to exist - it specifies the typographic layout. What it
+    // must NOT do is brief a photograph, since that is the whole distinction.
+    if (!ad.creative_brief) crit('text ad has no creative brief (nothing specifies the typographic layout)');
+    if (!(ad.overlay && (ad.overlay.headline || ad.headline))) warn('text ad missing headline');
+    if (!ad.aspect) warn('text ad missing aspect ratio');
+  }
   // 2) type-complete (never text-only)
   if (type === 'static') {
     if (!ad.creative_brief) crit('static ad has no image brief (would render text-only)');
@@ -96,11 +108,18 @@ function qaAds(ads) {
   const critical = results.reduce((n, r) => n + r.critical, 0);
   const passed = results.every((r) => r.ok);
   const avg_score = results.length ? Math.round((results.reduce((s, r) => s + r.score, 0) / results.length) * 10) / 10 : 0;
-  // Coverage: each channel should carry BOTH a static and a video creative.
+  // Coverage: each channel should carry the full 1 Text + 3 Text+Visual set -
+  // the typographic control, plus static and video treatments.
   const byPlat = {};
   (ads || []).forEach((a) => { (byPlat[a.platform] = byPlat[a.platform] || {})[a.creative_type] = true; });
-  const coverage = Object.keys(byPlat).map((p) => ({ platform: p, static: !!byPlat[p].static, video: !!byPlat[p].video }));
-  const missing = coverage.filter((c) => !c.static || !c.video).map((c) => `${c.platform}:${!c.static ? 'no-static' : 'no-video'}`);
+  const coverage = Object.keys(byPlat).map((p) => ({
+    platform: p, static: !!byPlat[p].static, video: !!byPlat[p].video, text: !!byPlat[p].text,
+  }));
+  const missing = coverage.flatMap((c) => [
+    !c.text ? `${c.platform}:no-text` : null,
+    !c.static ? `${c.platform}:no-static` : null,
+    !c.video ? `${c.platform}:no-video` : null,
+  ].filter(Boolean));
   return { passed, critical, avg_score, count: results.length, coverage, missing, results };
 }
 
