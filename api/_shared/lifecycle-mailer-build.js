@@ -396,13 +396,19 @@ async function buildLifecycleMailer({ id = null, entry = null, force = false } =
   //                   dividers, badges), NO images / video / gif.
   //   Text + Visual = the same, plus a hero image (real catalog or a fillable slot).
   const variants = [
-    { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,          framework: fwA.key, image: null, ...meta(SA), html: render(SA, 'pure') },
-    { key: 'text_b',   type: 'Text',          label: `Text · ${fwB.name}`,          framework: fwB.key, image: null, ...meta(SB), html: render(SB, 'editorial') },
-    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`, framework: fwA.key, image: hero, ...meta(SA), html: render(SA, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true, lifestyle_prompt: lifestylePrompt }) },
-    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`, framework: fwB.key, image: hero, ...meta(SB), html: render(SB, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true, lifestyle_prompt: lifestylePrompt }) },
+    { key: 'text_a',   type: 'Text',          label: `Text · ${fwA.name}`,                   framework: fwA.key, image: null, ...meta(SA), html: render(SA, 'pure') },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${fwA.name}`,          framework: fwA.key, image: hero, ...meta(SA), html: render(SA, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true, lifestyle_prompt: lifestylePrompt }) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${fwB.name}`,          framework: fwB.key, image: hero, ...meta(SB), html: render(SB, 'visual', { hero_image_url: heroImg, hero_prompt: hero.prompt, withGrid: true, lifestyle_prompt: lifestylePrompt }) },
+    // Built graphic elements, no photograph - a genuinely different treatment
+    // rather than a third pass of the same hero layout.
+    { key: 'visual_c', type: 'Text + Visual', label: `Text + Visual · ${fwB.name} editorial`, framework: fwB.key, image: null, ...meta(SB), html: render(SB, 'editorial') },
   ];
 
-  const primary = variants[2]; // visual_a, for backward-compatible top-level fields
+  // BY KEY, NOT BY INDEX. This was `variants[2]`, which meant visual_a only
+  // while the order happened to be [text, text, visual_a, visual_b]; under the
+  // 1+3 contract index 2 is visual_b, so the positional read would have silently
+  // promoted the wrong variant to the top-level fields.
+  const primary = variants.find((v) => v.key === 'visual_a') || variants[0];
   const provider = rA.provider || rB.provider || null;
   const model = rA.model || rB.model || null;
 

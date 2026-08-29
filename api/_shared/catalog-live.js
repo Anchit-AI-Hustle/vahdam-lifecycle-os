@@ -283,6 +283,19 @@ async function fetchStorefront(market, { timeoutMs = 15000 } = {}) {
 // JSON file each time would turn a template render into disk-bound work.
 const STATIC_CACHE = Object.create(null);
 
+// A deployed file's mtime is frequently normalised to a build-system constant.
+// 1540000000 is the value Vercel uses; anything at or before the repo's first
+// commit is likewise a sentinel rather than an observation. Neither is evidence
+// about when the catalog was built.
+const MTIME_SENTINELS = new Set([1540000000000]);
+function plausibleMtime(d) {
+  const t = d.getTime();
+  if (!Number.isFinite(t) || MTIME_SENTINELS.has(t)) return false;
+  // Before 2024 this repo did not exist, and no artifact can predate its build.
+  if (t < Date.parse('2024-01-01T00:00:00Z')) return false;
+  return t <= Date.now() + 86400000; // a future mtime is a clock problem, not an age
+}
+
 function readStatic(market) {
   const region = staticRegion(market);
   if (!region) {
@@ -302,8 +315,25 @@ function readStatic(market) {
     return { ok: false, source: 'static_build', blocker: `Static catalog products_${region}.json is unreadable: ${e.message}` };
   }
   const arr = Array.isArray(raw) ? raw : (raw.products || raw.items || []);
-  const fetchedAt = (mtime instanceof Date ? mtime : new Date()).toISOString();
-  const ageDays = Math.max(0, Math.round((Date.now() - new Date(fetchedAt).getTime()) / 86400000));
+  // THE FILE'S mtime IS NOT A FACT ONCE DEPLOYED. Vercel normalises mtimes on
+  // deployed files to a constant - 1540000000, i.e. 2018-10-20T01:46:40Z - so
+  // this computed ~2871 days for an artifact `npm run build` had just written
+  // minutes earlier, and the studio reported a seven-year-old catalog. That is
+  // a fabricated fact in the one place the app exists to prevent them.
+  //
+  // So: prefer the stamp the build writes. Fall back to mtime only when it is
+  // plausible. If neither can be trusted, report the age as UNKNOWN rather than
+  // invent a number - a wrong date beside the word "stale" is worse than no
+  // date, because it is actionable and false.
+  let fetchedAt = null;
+  try {
+    const meta = JSON.parse(fs.readFileSync(p.replace(/\.json$/, '.meta.json'), 'utf8'));
+    if (meta && meta.generated_at && !Number.isNaN(Date.parse(meta.generated_at))) fetchedAt = meta.generated_at;
+  } catch (e) { /* no sidecar: fall through to mtime */ }
+  if (!fetchedAt && mtime instanceof Date && plausibleMtime(mtime)) fetchedAt = mtime.toISOString();
+  const ageDays = fetchedAt
+    ? Math.max(0, Math.round((Date.now() - new Date(fetchedAt).getTime()) / 86400000))
+    : null;
   STATIC_CACHE[region] = {
     ok: true, source: 'static_build', stale: true, stale_days: ageDays, fetched_at: fetchedAt,
     products: arr.filter(usable).map((row) => fromStaticRow(row, { market, fetchedAt, ageDays })),
@@ -636,7 +666,7 @@ async function resolve(market, { fresh = false } = {}) {
       fetched_at: st.fetched_at || null, stale: true, stale_days: st.ok ? st.stale_days : null,
       attempts, cached_at: Date.now(), cache: 'miss',
       blocker: st.ok
-        ? `Live catalog unavailable for ${mk}; falling back to the static build artifact from ${st.fetched_at} (${st.stale_days} day(s) old). ${attempts.map((a) => a.blocker).filter(Boolean).join(' | ')}`
+        ? `Live catalog unavailable for ${mk}; falling back to the static build artifact ${st.fetched_at ? `built ${st.fetched_at} (${st.stale_days} day(s) old)` : 'whose build time could not be determined'}. ${attempts.map((a) => a.blocker).filter(Boolean).join(' | ')}`
         : `No catalog at all for ${mk}. ${attempts.map((a) => a.blocker).filter(Boolean).concat([st.blocker]).filter(Boolean).join(' | ')}`,
     };
     MISS[mk] = failed;

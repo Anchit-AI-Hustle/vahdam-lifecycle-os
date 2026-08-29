@@ -1066,7 +1066,7 @@ function renderVariant(entry, copy, style, img) {
     offer_bar: (withGrid && (E.offer || (copy.landing && copy.landing.offer_bar))) || undefined,
   });
 }
-// Four variants in the SAME taxonomy as the Mailer Calendar: 2 Text + 2 Text +
+// Four variants in the SAME taxonomy as the Mailer Calendar: 1 Text + 3 Text +
 // Visual, each labelled by its copy framework, with copyA driving the A-slots and
 // copyB the B-slots so the two directions read genuinely differently.
 function emailVariants(entry, copyA, copyB, fwA, fwB, creativeUrl) {
@@ -1076,10 +1076,13 @@ function emailVariants(entry, copyA, copyB, fwA, fwB, creativeUrl) {
   const nA = (fwA && fwA.name) || 'Concise';
   const nB = (fwB && fwB.name) || 'Editorial';
   return [
-    { key: 'text_a',   type: 'Text',          label: `Text · ${nA}`,          framework: fwA && fwA.key, ...variantMeta(copyA), html: renderVariant(entry, copyA, 'pure') },
-    { key: 'text_b',   type: 'Text',          label: `Text · ${nB}`,          framework: fwB && fwB.key, ...variantMeta(copyB), html: renderVariant(entry, copyB, 'editorial') },
-    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${nA}`, framework: fwA && fwA.key, ...variantMeta(copyA), html: renderVariant(entry, copyA, 'visual', heroImg) },
-    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${nB}`, framework: fwB && fwB.key, ...variantMeta(copyB), html: renderVariant(entry, copyB, 'visual', heroImg) },
+    { key: 'text_a',   type: 'Text',          label: `Text · ${nA}`,                    framework: fwA && fwA.key, ...variantMeta(copyA), html: renderVariant(entry, copyA, 'pure') },
+    { key: 'visual_a', type: 'Text + Visual', label: `Text + Visual · ${nA}`,            framework: fwA && fwA.key, ...variantMeta(copyA), html: renderVariant(entry, copyA, 'visual', heroImg) },
+    { key: 'visual_b', type: 'Text + Visual', label: `Text + Visual · ${nB}`,            framework: fwB && fwB.key, ...variantMeta(copyB), html: renderVariant(entry, copyB, 'visual', heroImg) },
+    // The third visual is the EDITORIAL treatment: built graphic elements, no
+    // photograph. Rendering a third `visual` would have produced a near-copy of
+    // the first two and called it a variant.
+    { key: 'visual_c', type: 'Text + Visual', label: `Text + Visual · ${nB} editorial`,  framework: fwB && fwB.key, ...variantMeta(copyB), html: renderVariant(entry, copyB, 'editorial') },
   ];
 }
 

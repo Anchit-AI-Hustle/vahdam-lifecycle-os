@@ -146,12 +146,18 @@ const META_FIELDS = {
   social:  ['hook', 'caption', 'hashtags', 'alt_text', 'first_comment', 'cover_text', 'utm'],
 };
 
-// ── Mailer variant contract (2 Text + 2 Text+Visual) ─────────────────────────
+// ── Mailer variant contract (1 Text + 3 Text+Visual) ─────────────────────────
+// Product owner, 2026-08-30: one text-only variant is enough to test a pure
+// typographic angle; the spend is better placed on three genuinely different
+// Text+Visual treatments. The three differ by TREATMENT, not just by copy - two
+// photo-led (each on its own copy framework) and one built-graphics editorial
+// with no photograph - because three near-identical visuals would be variety on
+// paper only, which is what the design-variety rule exists to prevent.
 const MAILER_VARIANTS = [
-  { id: 'T1', type: 'Text',          media: 'none',            note: 'Pure typographic, editorial voice.' },
-  { id: 'T2', type: 'Text',          media: 'none',            note: 'Pure typographic, alternate angle/structure.' },
-  { id: 'V1', type: 'Text + Visual', media: 'image|chart',     note: 'Text plus a hero image or brand graphic/infographic.' },
-  { id: 'V2', type: 'Text + Visual', media: 'image|gif|video', note: 'Text plus a distinct visual treatment (lifestyle image / gif / video keyframe / chart).' },
+  { id: 'T1', type: 'Text',          media: 'none',            note: 'Pure typographic, editorial voice. The single text-only variant.' },
+  { id: 'V1', type: 'Text + Visual', media: 'image|chart',     note: 'Hero photograph, product grid, framework A copy.' },
+  { id: 'V2', type: 'Text + Visual', media: 'image|gif|video', note: 'Distinct visual treatment (lifestyle / gif / video keyframe), framework B copy.' },
+  { id: 'V3', type: 'Text + Visual', media: 'chart|graphic',   note: 'Built graphic elements only - bands, price table, badges, dividers - no photograph.' },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
