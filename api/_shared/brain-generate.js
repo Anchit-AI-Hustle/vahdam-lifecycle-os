@@ -474,9 +474,9 @@ function mailerVariants(slot, copy, products, brand, agentUrl, richHtml) {
   });
   return [
     { key: 'text_a', type: 'Text', label: 'Text · Concise', html: mk('pure') },
-    { key: 'text_b', type: 'Text', label: 'Text · Editorial', html: mk('editorial') },
     { key: 'visual_a', type: 'Text + Visual', label: 'Text + Visual · Hero', html: mk('visual', heroImg, true) },
     { key: 'visual_b', type: 'Text + Visual', label: 'Text + Visual · Rich brand', html: richHtml },
+    { key: 'visual_c', type: 'Text + Visual', label: 'Text + Visual · Editorial graphics', html: mk('editorial') },
   ];
 }
 

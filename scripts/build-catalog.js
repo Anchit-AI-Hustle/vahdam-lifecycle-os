@@ -258,6 +258,17 @@ function main() {
     const products = processCSV(csvPath, region.market);
     const outPath = path.join(OUT_DIR, `products_${region.market}.json`);
     fs.writeFileSync(outPath, JSON.stringify(products), 'utf8');
+    // STAMP THE BUILD TIME IN THE FILE, because the file's mtime is not a fact
+    // once it is deployed. Vercel normalises deployed mtimes to a constant
+    // (1540000000 -> 2018-10-20T01:46:40Z), so catalog-live computed an age of
+    // ~2871 days for an artifact it had just rebuilt, and the studio told the
+    // operator the catalog was seven years old. A sidecar keeps products_*.json
+    // a bare array, which every existing reader depends on.
+    fs.writeFileSync(
+      path.join(OUT_DIR, `products_${region.market}.meta.json`),
+      JSON.stringify({ generated_at: new Date().toISOString(), count: products.length, region: region.market }),
+      'utf8',
+    );
     const sizeKB = Math.round(fs.statSync(outPath).size / 1024);
     console.log(`  → ${outPath} (${sizeKB} KB, ${products.length} products)`);
     totalProducts += products.length;
