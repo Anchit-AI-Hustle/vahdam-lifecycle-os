@@ -814,15 +814,44 @@
     }
     return 'home';
   }
-  // Pages that must never gate behind the login wall.
+  // ─── The sign-in toggle ──────────────────────────────────────────────
   //
-  // Internal tool: we do NOT force a Google sign-in to use any feature. The
-  // optional "Sign in" chip stays in the nav (so profiles/Supabase still work
-  // when signed in), but no page is blocked by the login wall. This avoids
-  // lockouts from external OAuth redirect-URL/domain mismatches. To re-enable
-  // forced auth on specific pages later, return `!!(item && item.open)` based
-  // on a per-item flag instead of `true`.
+  // Product owner, 2026-08-30: signing in must NOT be necessary to view any
+  // feature, and the switch back to enforced sign-in has to be one flip.
+  //
+  // So there is exactly ONE control: REQUIRE_SIGN_IN in the environment,
+  // surfaced to the browser as `flags.require_sign_in` by /api/public-config.
+  // Off (the default) opens every page; on restores the wall everywhere at
+  // once. `window.__REQUIRE_SIGN_IN__` overrides it for a local test.
+  //
+  // The default lives HERE, in code, and is OPEN. That is deliberate: the
+  // whole point is not being locked out, so a page must not wall itself just
+  // because /api/public-config was unreachable. Enforcing sign-in is therefore
+  // an explicit act (set the env var), never an accident of a failed fetch.
+  //
+  // The comment this replaces claimed sign-in was never forced while the code
+  // below walled every page that was not flagged `open` - prose that had
+  // drifted from the code it described.
+  //
+  // SCOPE, and it is narrow: this governs what a visitor may VIEW. It does not
+  // touch the operator gate in data-analysis-core.authorize(), which still
+  // guards /api/shopify, ?pipeline=1, ?probe=1, forced catalog refresh and the
+  // detailed health payload. Those return real order and customer records.
+  // Opening the UI is a UX decision; opening those would be a data-exposure
+  // one, and this toggle does not make it.
+  var REQUIRE_SIGN_IN = false;
+  function signInRequired() {
+    if (typeof window.__REQUIRE_SIGN_IN__ === 'boolean') return window.__REQUIRE_SIGN_IN__;
+    return REQUIRE_SIGN_IN === true;
+  }
+  window.LifecycleAuth = window.LifecycleAuth || {};
+  window.LifecycleAuth.signInRequired = signInRequired;
+
+  // Pages that must never gate behind the login wall.
   function isOpenPage() {
+    // With the toggle off, every page is open. Checked FIRST so the answer does
+    // not depend on nav flags, the current path, or which leaf resolved.
+    if (!signInRequired()) return true;
     const p = (location.pathname || '').toLowerCase();
     // Legal/consent pages are always open (Google OAuth review + never lock a
     // user out of the privacy/terms pages).
@@ -1648,6 +1677,12 @@
       const ct = (res.headers.get('content-type') || '').toLowerCase();
       if (res.ok && ct.includes('application/json')) {
         const data = await res.json();
+        // Read the sign-in toggle BEFORE the supabase check below, because a
+        // deployment can legitimately serve flags while Supabase config is
+        // absent - and the flag still has to be honoured in that state.
+        if (typeof data?.flags?.require_sign_in === 'boolean') {
+          REQUIRE_SIGN_IN = data.flags.require_sign_in;
+        }
         if (data?.supabase?.url && data?.supabase?.anonKey) {
           window.__SUPABASE__ = data.supabase;
           return data.supabase;
@@ -1838,6 +1873,12 @@
       internal: false,
       mockMode: false,
       signIn,
+      // Re-exported here because this literal REPLACES the object wholesale,
+      // which silently wiped the assignment made where signInRequired is
+      // defined. A page or test reading window.LifecycleAuth.signInRequired
+      // got undefined, which reads as "not required" - the wrong direction to
+      // fail in for a security toggle.
+      signInRequired,
       // ONE explainer, exposed so a page never writes its own. index.html's
       // CTA delegates to signIn(), so it now receives the thrown verdict and
       // needs the same words - and a second copy of them would drift, exactly
