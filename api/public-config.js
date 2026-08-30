@@ -212,6 +212,19 @@ module.exports = async function handler(req, res) {
       anonKey: ldb.anonKey || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
     },
     app: { name: 'VAHDAM Lifecycle OS', version: '1.0.0', regions: ['US', 'UK', 'Global', 'IN'] },
-    flags: { real_facts_only: String(process.env.REAL_FACTS_ONLY || '') === '1' },
+    flags: {
+      real_facts_only: String(process.env.REAL_FACTS_ONLY || '') === '1',
+      // THE SIGN-IN TOGGLE. Default is OPEN (no sign-in needed to view a
+      // feature), per the product owner. Set REQUIRE_SIGN_IN to on/1/true in
+      // the environment to put the wall back for every page at once.
+      //
+      // Scope: this governs the front-end LOGIN WALL only - what a visitor may
+      // VIEW. It deliberately does NOT touch the operator gate in
+      // data-analysis-core.authorize(), which still guards /api/shopify,
+      // ?pipeline=1, ?probe=1, forced catalog refresh and the detailed health
+      // payload. Those return real order and customer records, so opening the
+      // UI is a UX decision and opening them would be a data-exposure one.
+      require_sign_in: /^(1|on|true|yes)$/i.test(String(process.env.REQUIRE_SIGN_IN || '').trim()),
+    },
   });
 };

@@ -307,6 +307,14 @@ test.describe('a dead backend opens the app instead of navigating to it', () => 
     const navs = [];
     page.on('framenavigated', (f) => { if (f === page.mainFrame()) navs.push(f.url()); });
 
+    // This test is ABOUT the login wall, so it turns the wall on explicitly
+    // rather than relying on a default. Sign-in became optional by default on
+    // 2026-08-30 (REQUIRE_SIGN_IN), which stopped this page from walling and
+    // left the test waiting for a notice that could never appear. The override
+    // exists for exactly this: assert wall behaviour without depending on the
+    // deployment-wide setting.
+    await page.addInitScript(() => { window.__REQUIRE_SIGN_IN__ = true; });
+
     await page.goto(origin + '/ad-campaigns-master.html', { waitUntil: 'domcontentloaded' }).catch(() => {});
     // auth.js resolves the config, finds the host does not answer, and opens.
     const notice = page.locator('#lc-nobackend');

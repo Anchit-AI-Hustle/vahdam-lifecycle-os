@@ -1616,6 +1616,34 @@ path is not in the redirect allow-list, and a path nobody uses is not in it.
   check that `/dashboard` is still not a route, and a behavioural click test. Verified with teeth - 4
   of the 7 fail when the old CTA is restored.
 
+### Sign-in is a toggle, and the default is open (2026-08-30, product owner)
+Signing in must not be necessary to VIEW any feature, and the switch back has to be one flip.
+- ONE control: **`REQUIRE_SIGN_IN`** in the environment, surfaced to the browser as
+  `flags.require_sign_in` by `/api/public-config`, read by `auth.js` into `signInRequired()`.
+  `isOpenPage()` consults it FIRST, before any path or nav-leaf check, so a page cannot wall
+  itself on a stale `open` flag while the toggle says open. `window.__REQUIRE_SIGN_IN__`
+  overrides for a local test.
+- **The default lives in code and is OPEN.** Deliberate: the point is not being locked out, so a
+  page must not wall itself merely because `/api/public-config` was unreachable. Enforcing
+  sign-in is an explicit act, never an accident of a failed fetch.
+- **SCOPE, and it is narrow.** This governs what a visitor may VIEW. It does NOT touch
+  `data-analysis-core.authorize()`, which still guards `/api/shopify`, `?pipeline=1`, `?probe=1`,
+  forced catalog refresh and the detailed health payload. Those return real orders WITH customer
+  objects, the customer list and inventory. Opening the UI is a UX decision; opening those would
+  be a data-exposure one. `tests/signin-toggle.spec.js` asserts `REQUIRE_SIGN_IN` appears in
+  exactly ONE server file (`api/public-config.js`) and never in gating logic.
+- The comment this replaced claimed "we do NOT force a Google sign-in to use any feature" while
+  the code walled every page not flagged `open` - prose that had drifted from its own code, again.
+- **Two defects found doing it.** `window.LifecycleAuth = {...}` at the end of `init()` REPLACES
+  the object wholesale, silently wiping the earlier `signInRequired` assignment, so readers got
+  `undefined` - which reads as "not required", the wrong direction for a security toggle. And
+  **a browser test on the local harness proves nothing about the wall**: `auth.js` treats
+  localhost/`file://` as local preview and injects the top-bar without consulting `isOpenPage()`
+  at all, so the first version of the spec passed identically with the toggle ON and OFF. The
+  spec now serves the page from a non-local hostname and premise-checks `signInRequired()`
+  before asserting on the wall.
+- Not done: the other seven sibling projects. This session's GitHub scope is this repo only.
+
 ## LHS navigation IA rule
 The shared LHS menu (`auth.js`, element `#lifecycle-nav`; model exposed as `window.__LC_NAV` / `window.__LC_NAV_INFO`) follows a standing IA rule:
 - **Every feature carries the SAME five "know about this feature" questions, in this exact order:** 1. What does it do? · 2. Who is it for? (cohort / cohort definition) · 3. How does it work? (modes/steps/logic) · 4. Input · 5. Step-by-Step Working. Because they are identical in shape for every feature, they do NOT live inline in the rail — a quiet `?` chip beside each feature/group label opens a popup that presents all five as headings with their content. The rail itself shows only the real feature links and their group sub-sections.
