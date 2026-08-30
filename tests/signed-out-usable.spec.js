@@ -1,30 +1,35 @@
 /**
- * With no backend to sign in to, every page is still usable.
+ * A signed-out visitor is never blocked, anywhere.
  * ---------------------------------------------------------------------------
- * WHY. The Supabase project this app pointed at was deleted. auth.js then fell
- * through to `injectLoginWall()` on every page that is not the homepage, a
- * legal page or the Studio — a wall nobody could get past, because getting past
- * it needs the very project that no longer exists. The whole product became
- * unreachable, not gated.
+ * WHY. auth.js walled every page that was not the homepage, a legal page or the
+ * Studio. When the Supabase project was deleted that wall became unpassable —
+ * getting past it needed the very project that no longer existed — and the
+ * whole product was unreachable rather than gated. The wall is now gone
+ * outright: signed out is a usable state, not a locked one.
  *
- * A login wall exists to keep unauthorised people away from DATA. With no
- * reachable backend there is no session to obtain and no query that can
- * succeed, so there is nothing on the other side to protect. The wall cost
- * every feature and defended nothing.
+ * WHY THAT IS NOT AN AUTH BYPASS. The wall was never the security boundary and
+ * could not have been. The anon key it gated is PUBLIC by design: it ships in
+ * the browser and /api/public-config hands it to anyone who asks, so whatever
+ * the wall "protected" was always one curl away — the wall only ever hid the
+ * UI. Removing it changes what the UI shows, never what the database returns.
+ * See the last test for an honest note on this repo's RLS posture, which is
+ * weaker than the sibling's and is a separate, pre-existing matter.
  *
- * TWO CASES, and the second is the one production was actually left in:
+ * FOUR SIGNED-OUT STATES, each told apart because they need different words —
+ * and only three of them are anyone's to fix:
  *   - unconfigured: no SUPABASE_URL at all.
- *   - CONFIGURED BUT GONE: the env var is still set and still points at the
- *     deleted project. `config` is therefore truthy, so every "is it
- *     configured" check passed and the wall went up reading "Sign in to
- *     continue" — no cause named — over a button that navigated the browser to
- *     a host that does not resolve. Fixing only the first case would have left
- *     the live deployment exactly as broken as it was found.
+ *   - CONFIGURED BUT GONE: the env var still set, still naming the deleted
+ *     project. `config` is therefore truthy, so every "is it configured" check
+ *     passed and the wall used to go up reading "Sign in to continue" with no
+ *     cause named, over a button that navigated to a host that does not
+ *     resolve. This is the state production was actually left in.
+ *   - sdk: the supabase-js CDN was blocked. This one used to render NOTHING at
+ *     all — see the CDN test below.
+ *   - signed-out: everything works, this visitor simply has no session.
  *
- * THE LINE THIS MUST NOT CROSS, and the last test is the one that matters: a
- * REACHABLE backend still gates. Opening the app when there is no data behind
- * it is not the same as opening the data. The probe fails closed on doubt — a
- * timeout counts as reachable — so a slow network keeps the wall.
+ * WHAT MUST NOT REGRESS: opening the UI must never fabricate a signed-in state.
+ * `LifecycleAuth.user` stays null and `internal` stays false, because `internal`
+ * is what grants full live access in applyAccessMode.
  *
  * Run: npx playwright test tests/signed-out-usable.spec.js
  */
@@ -152,16 +157,16 @@ test('the page list is real', () => {
 
 /* ═══ with no backend: open, navigable, and honest about it ═══════════════ */
 
-test('a gated page is not walled when there is no backend to sign in to', async ({ page }) => {
+test('a page is not blocked when there is no backend to sign in to', async ({ page }) => {
   const errors = await open(page, 'smart-brain.html', { config: NO_BACKEND });
-  expect(await wallShown(page), 'an unpassable login wall was shown').toBe(false);
+  expect(await wallShown(page), 'a login wall was shown').toBe(false);
   await expect(page.locator('#lifecycle-nav'), 'the nav did not render, so nothing is reachable').toHaveCount(1);
   expect(errors.filter((e) => !/ResizeObserver/.test(e)), `page errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
 test('the state is explained rather than left as an empty page', async ({ page }) => {
   await open(page, 'smart-brain.html', { config: NO_BACKEND });
-  const bar = page.locator('#lc-nobackend');
+  const bar = page.locator('#lc-authnotice');
   await expect(bar).toBeVisible();
   await expect(bar).toContainText(/SUPABASE_URL/);
   // It must say the two things a user needs: why it is empty, and that nothing
@@ -171,7 +176,7 @@ test('the state is explained rather than left as an empty page', async ({ page }
 
 test('the notice is readable, on the brand surface and never on a dark ground', async ({ page }) => {
   await open(page, 'smart-brain.html', { config: NO_BACKEND });
-  const seen = await page.locator('#lc-nobackend').evaluate((el) => {
+  const seen = await page.locator('#lc-authnotice').evaluate((el) => {
     const s = getComputedStyle(el);
     const rgb = (v) => (v.match(/\d+/g) || []).slice(0, 3).map(Number);
     const lum = (c) => { const a = c.map((x) => { const y = x / 255; return y <= 0.03928 ? y / 12.92 : Math.pow((y + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; };
@@ -183,16 +188,26 @@ test('the notice is readable, on the brand surface and never on a dark ground', 
   expect(seen.ratio, 'the notice text is under WCAG AA').toBeGreaterThanOrEqual(4.5);
 });
 
-test('every page carrying auth.js opens without a wall and without throwing', async ({ page }) => {
-  test.setTimeout(600_000);
-  const walled = [], broken = [];
-  for (const f of PAGES) {
-    const errors = await open(page, f, { config: NO_BACKEND });
-    if (await wallShown(page)) walled.push(f);
-    const real = errors.filter((e) => !/ResizeObserver|Failed to fetch|NetworkError|net::ERR/i.test(e));
-    if (real.length) broken.push(`${f}: ${real[0]}`);
+test('EVERY page carrying auth.js opens without a block and without throwing', async ({ page }) => {
+  test.setTimeout(900_000);
+  // BOTH configurations, because they used to take different paths and only
+  // one of them was ever swept. With a LIVE backend is the case that matters
+  // most: it is the state the deployment returns to once Supabase is set, and
+  // it is where the wall used to appear on every page in this list.
+  const cases = [
+    ['no backend', { config: NO_BACKEND }],
+    ['live backend, signed out', { config: WITH_BACKEND, reachable: true }],
+  ];
+  const blocked = [], broken = [];
+  for (const [label, opts] of cases) {
+    for (const f of PAGES) {
+      const errors = await open(page, f, opts);
+      if (await wallShown(page)) blocked.push(`${f} (${label})`);
+      const real = errors.filter((e) => !/ResizeObserver|Failed to fetch|NetworkError|net::ERR/i.test(e));
+      if (real.length) broken.push(`${f} (${label}): ${real[0]}`);
+    }
   }
-  expect(walled, `these pages are unreachable with no backend:\n  ${walled.join('\n  ')}`).toEqual([]);
+  expect(blocked, `these pages blocked a signed-out visitor:\n  ${blocked.join('\n  ')}`).toEqual([]);
   expect(broken, `these pages threw:\n  ${broken.join('\n  ')}`).toEqual([]);
 });
 
@@ -208,7 +223,7 @@ test('a deployment pointing at a DELETED project opens, and names the host', asy
   expect(await page.evaluate(() => (window.__SUPABASE__ || {}).url || ''),
     'the dead-backend fixture never reached the page').toBe('https://deleted-project.supabase.co');
   expect(await wallShown(page), 'an unpassable wall was shown for a project that does not exist').toBe(false);
-  const bar = page.locator('#lc-nobackend');
+  const bar = page.locator('#lc-authnotice');
   await expect(bar).toBeVisible();
   // Naming the host is the difference between a status and a remedy: it is the
   // value the operator has to change.
@@ -216,16 +231,143 @@ test('a deployment pointing at a DELETED project opens, and names the host', asy
   await expect(bar).toContainText(/deleted, renamed or paused/i);
 });
 
-/* ═══ the line: a real backend still gates ════════════════════════════════ */
+/* ═══ a LIVE backend does not gate either ════════════════════════════════ */
 
-test('with a backend configured, a signed-out visitor still meets the wall', async ({ page }) => {
-  // The whole change is conditional on there being NO configuration. If this
-  // ever passes for a configured deployment, the fix has become an auth bypass.
+test('with a live backend, a signed-out visitor is still not blocked', async ({ page }) => {
+  // SUPERSEDED, deliberately, and this is the assertion that used to say the
+  // opposite. It was the right guard while the wall was believed to be
+  // protecting something. It is not: see the header. What replaces it is not
+  // "no check at all" but a check of the thing that actually protects data,
+  // in the test below.
   await open(page, 'smart-brain.html', { config: WITH_BACKEND, reachable: true });
   // The config actually reached the page. Without this the test can pass while
-  // measuring the no-config path, which is what it is meant to rule out.
+  // measuring the no-config path, which is exactly what it must not do.
   expect(await page.evaluate(() => (window.__SUPABASE__ || {}).url || ''),
     'the backend fixture never reached the page').toBe('https://live.supabase.co');
-  expect(await wallShown(page), 'a configured deployment stopped gating signed-out users').toBe(true);
-  await expect(page.locator('#lc-nobackend'), 'the no-backend notice showed on a configured deployment').toHaveCount(0);
+  expect(await wallShown(page), 'a signed-out visitor was blocked').toBe(false);
+  await expect(page.locator('#lifecycle-nav'), 'the nav did not render').toHaveCount(1);
+  // Told, not blocked: an empty panel must read as "not signed in", never as
+  // "no data".
+  const bar = page.locator('#lc-authnotice');
+  await expect(bar).toBeVisible();
+  await expect(bar).toContainText(/you are signed out/i);
+  await expect(bar).toContainText(/load once you sign in/i);
+  // ...and it must NOT claim the deployment is broken. That is a different
+  // state with a different remedy, and crying outage on a healthy deployment
+  // is how a notice teaches people to ignore it.
+  await expect(bar).not.toContainText(/cannot be reached|Running without a database/i);
+});
+
+test('opening the UI does not fabricate a signed-in state', async ({ page }) => {
+  // The real risk in removing a wall is not the wall: it is that some flag
+  // downstream starts reading "signed in" because the page is now visible.
+  // `internal` is what grants full live access in applyAccessMode.
+  await open(page, 'smart-brain.html', { config: WITH_BACKEND, reachable: true });
+  const auth = await page.evaluate(() => ({
+    user: (window.LifecycleAuth || {}).user || null,
+    session: (window.LifecycleAuth || {}).session || null,
+    internal: (window.LifecycleAuth || {}).internal,
+  }));
+  expect(auth.user, 'a user appeared without signing in').toBeNull();
+  expect(auth.session, 'a session appeared without signing in').toBeNull();
+  expect(auth.internal, 'a signed-out visitor was granted internal access').toBe(false);
+});
+
+/* ═══ the failure that renders nothing at all ════════════════════════════ */
+
+test('a blocked supabase-js CDN still leaves a usable page', async ({ page }) => {
+  // init() is async and used to be invoked with NO catch, so a rejection - most
+  // realistically the SDK CDN blocked by an ad blocker or a network policy -
+  // became an unhandled promise rejection and the page rendered NOTHING: no
+  // nav, no notice, no reason. Measured before the fix: nav=false, no notice.
+  // A blank page is the least actionable failure there is, and it is the one
+  // state that makes "every page is usable signed out" untrue.
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e.message || e)));
+  // Deliberately NO window.supabase stub: the SDK genuinely fails to load.
+  await page.route(/^https?:\/\/(?!app\.example\.test)/, (route) => {
+    if (/jsdelivr|supabase/.test(route.request().url())) return route.abort('failed');
+    if (route.request().resourceType() !== 'script') return route.abort('failed');
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/javascript',
+      body: 'const noop=()=>{};export default new Proxy({},{get:()=>noop});'
+        + 'export const animate=noop,scroll=noop,inView=noop,stagger=noop,spring=noop,motion=new Proxy({},{get:()=>noop});',
+    });
+  });
+  await page.route('http://app.example.test/**', (route) => {
+    const u = new URL(route.request().url());
+    const f = path.join(ROOT, u.pathname === '/' ? 'index.html' : u.pathname.replace(/^\//, ''));
+    if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) {
+      return route.fulfill({ status: 404, body: 'nf' });
+    }
+    return route.fulfill({ status: 200, contentType: MIME[path.extname(f)] || 'application/octet-stream', body: fs.readFileSync(f) });
+  });
+  await page.route(/\/api\//, (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }),
+  }));
+  await page.route(/\/api\/public-config/, (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(WITH_BACKEND),
+  }));
+  await page.goto('http://app.example.test/smart-brain.html', { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(6000);
+
+  // The NAV is the assertion that matters: without it nothing is reachable,
+  // whatever else the page painted.
+  await expect(page.locator('#lifecycle-nav'),
+    'the nav never rendered, so no feature is reachable').toHaveCount(1);
+  expect(await wallShown(page), 'a block was shown').toBe(false);
+  const bar = page.locator('#lc-authnotice');
+  await expect(bar).toBeVisible();
+  await expect(bar).toContainText(/Supabase library did not load/i);
+  // And it says what to DO. "Sign-in unavailable" alone is not actionable.
+  await expect(bar).toContainText(/cdn\.jsdelivr\.net/);
+  expect(errors.filter((e) => !/ResizeObserver|Failed to fetch|NetworkError|net::ERR/i.test(e)),
+    `page errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
+/* ═══ the boundary, and an honest note about it in THIS repo ════════════ */
+
+test('the anonymous surface has not grown', () => {
+  // A claim about the FILES, and a file check is the right tool: the question
+  // is what the migrations DECLARE, and no Supabase instance is reachable here.
+  //
+  // AN HONEST DIFFERENCE FROM THE SIBLING REPO, recorded because the safety
+  // argument is not identical. In lifecycle-os the login wall could be removed
+  // on the strength of RLS: 74 `is_brand_member` policies and 135 `auth.uid()`
+  // checks mean a session-less caller reads nothing. THIS repo does not have
+  // that posture. 95 of its 107 policies are `using (true)`, only app_users is
+  // gated on `auth.uid()`, and 20260429120000's own comment carries the
+  // never-completed TODO: "swap policies to require authenticated() and add
+  // user_id = auth.uid() filters".
+  //
+  // That is PRE-EXISTING and is not what this change touches, in either
+  // direction. The wall never protected any of it: /api/public-config hands the
+  // anon key to every visitor, so anything a permissive policy exposes was
+  // always one curl away, wall or no wall. Removing the wall changes what the
+  // UI shows, never what the database returns.
+  //
+  // So this test pins the thing that IS true and IS checkable - the set of
+  // objects granted to anonymous callers - and fails when it grows. It
+  // deliberately does not assert an RLS strength this repo does not have;
+  // a test that claimed otherwise would be worse than no test.
+  const dir = path.join(ROOT, 'supabase', 'migrations');
+  const sql = fs.readdirSync(dir).filter((f) => f.endsWith('.sql'))
+    .map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+
+  const KNOWN_ANON_OPEN = [
+    /vahdam_campaigns_by_(type|user|market|regen)/,      // security_invoker views
+    /^public\.smart_generated_campaigns$/,               // /lp/:id on the anon key
+    /^public\.smart_brain_runs$/,
+    /^public\.%I$/,                                      // a format() string, not an object
+    /^(views|tables)$/,                                  // prose in a comment, not an object
+  ];
+  const leaks = [...sql.matchAll(/GRANT\s+[^;]*?\bON\s+([^\s;]+)[^;]*?\bTO\s+[^;]*\banon\b/gi)]
+    .map((m) => m[1])
+    .filter((t) => !KNOWN_ANON_OPEN.some((re) => re.test(t)));
+  expect(leaks, `NEW objects granted to anonymous callers: ${leaks.join(', ')}`).toEqual([]);
+
+  // app_users is the one table holding per-person data, and it must stay gated.
+  expect(sql, 'app_users stopped being scoped to the signed-in user')
+    .toMatch(/create policy[^;]*on public\.app_users[^;]*auth\.uid\(\) = id/i);
 });

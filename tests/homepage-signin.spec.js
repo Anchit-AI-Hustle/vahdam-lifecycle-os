@@ -207,11 +207,18 @@ test.describe('sign-in refuses to navigate into an unreachable auth backend', ()
     expect(probe, 'an unbounded probe would hang the click').toMatch(/AbortController|signal/);
   });
 
-  test('the wall notice covers unreachable, not only unconfigured', () => {
+  test('the notice covers unreachable, not only unconfigured', () => {
     // The original guard keyed on a MISSING url, which is exactly the case that
-    // was not happening. Assert the shipped markup no longer does that.
-    expect(AUTH).toMatch(/id="llw-notice"/);
-    expect(AUTH, 'the wall still gates its warning on the url merely being present')
+    // was not happening. It used to assert the login wall's #llw-notice slot;
+    // there is no wall now, so it asserts the standing bar that replaced it -
+    // which must still tell the three states apart rather than collapsing them
+    // into "not configured".
+    expect(AUTH).toMatch(/function injectSignedOutNotice/);
+    expect(AUTH, 'the notice no longer distinguishes an unreachable project')
+      .toMatch(/kind === 'unreachable'/);
+    expect(AUTH, 'the notice no longer distinguishes an ordinary signed-out visitor')
+      .toMatch(/kind === 'signed-out'/);
+    expect(AUTH, 'the warning is gated on the url merely being present')
       .not.toMatch(/\$\{window\.__SUPABASE__\?\.url \? '' :/);
   });
 
@@ -317,7 +324,7 @@ test.describe('a dead backend opens the app instead of navigating to it', () => 
 
     await page.goto(origin + '/ad-campaigns-master.html', { waitUntil: 'domcontentloaded' }).catch(() => {});
     // auth.js resolves the config, finds the host does not answer, and opens.
-    const notice = page.locator('#lc-nobackend');
+    const notice = page.locator('#lc-authnotice');
     await expect(notice, 'the app never explained why it has no data')
       .toContainText(/cannot be reached/i, { timeout: 20000 });
     // Naming the host is the difference between a status and a remedy: it is

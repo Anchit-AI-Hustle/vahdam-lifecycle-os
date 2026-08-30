@@ -4,6 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # VAHDAM Lifecycle OS — Project Memory
 
+## ⭐ Signed out is a usable state, not a locked one (2026-08-30)
+`auth.js` -> the login wall is GONE. `gateSignedOut()` opens every page for a signed-out visitor
+whether or not the backend is reachable; `injectSignedOutNotice(kind)` explains which of four states
+this is. Gated by `tests/signed-out-usable.spec.js` (9 tests).
+- **Why this is not an auth bypass.** The wall was never the security boundary: the anon key it gated
+  is PUBLIC by design — it ships in the browser and `/api/public-config` hands it to anyone — so
+  anything the wall "protected" was always one curl away. The wall only ever hid the UI.
+- **An honest difference from the sibling repo, recorded because the argument is not identical.**
+  lifecycle-os could lean on RLS (74 `is_brand_member`, 135 `auth.uid()`). **This repo cannot**: 95
+  of its 107 policies are `using (true)`, only `app_users` is gated on `auth.uid()`, and
+  `20260429120000`'s own comment carries the never-completed TODO *"swap policies to require
+  authenticated() and add user_id = auth.uid() filters"*. That is PRE-EXISTING and untouched by this
+  change in either direction — but the spec says so rather than asserting an RLS strength this repo
+  does not have. **A test that claimed otherwise would be worse than no test.**
+- So the spec pins what IS true and checkable: the set of objects granted to `anon` has not grown,
+  and `app_users` stays scoped to the signed-in user.
+- **One probe, not two.** `gateSignedOut` reuses this repo's existing `authBackendReachable` rather
+  than adding a second reachability check. It fails CLOSED on doubt in the other direction too: only
+  an outright `unreachable` is reported as a dead project; `offline` and `timeout` are not.
+- **The SDK-failure path would have gone silent.** `boot()`'s catch called `showAuthBackendNotice`,
+  which wrote into the wall's own `#llw-notice` slot — with no wall there is no slot, so it rendered
+  into nothing. It routes through the standing bar now (a fourth `sdk` state). Deleting a component
+  means auditing what wrote INTO it, not just what called it.
+- Mutation-verified: restoring the wall for a live backend fails 2 tests.
+
 ## ⭐ A login wall that defends nothing (2026-08-30)
 `auth.js` -> `gateSignedOut()` + `injectNoBackendNotice()`, gated by `tests/signed-out-usable.spec.js`.
 The Supabase project this app pointed at was deleted, so `<ref>.supabase.co` went NXDOMAIN. Every page
