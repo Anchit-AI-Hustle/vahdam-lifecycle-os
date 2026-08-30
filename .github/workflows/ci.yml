@@ -22,18 +22,21 @@ jobs:
         run: |
           test -f vahdam_mailer_architect_v34.html
           node -e "const fs=require('fs');const s=fs.readFileSync('vahdam_mailer_architect_v34.html','utf8');if(!s.includes('<!DOCTYPE html>'))process.exit(1);console.log('v34 OK ('+s.length+' bytes)')"
-      - name: JS syntax check (api / lib / workers / scripts + shared shells)
+      - name: JS syntax check (every tracked .js — no hand-kept list)
+        # Two widenings, both from real defects. The root scripts were already a
+        # GLOB rather than a hand-kept list (that version named 5 files while 13
+        # existed, leaving motion.js unchecked on every page). But the find was
+        # still limited to api/lib/workers/scripts, so data/*.js was never
+        # parsed — and in the sibling repo exactly that file shipped broken: an
+        # unescaped apostrophe (`the brand's`) terminated a string, the whole
+        # file failed to parse, its page ran no JavaScript, and CI stayed green.
+        #
+        # `git ls-files` cannot omit a file that exists in the repo.
         run: |
           set -e
-          for f in $(find api lib workers scripts -name '*.js'); do node --check "$f"; done
-          # GLOB the root shared scripts, never a hand-kept list. The list version
-          # named 5 files while 13 existed, so motion.js (injected by auth.js on
-          # EVERY page), data-analysis-extensions.js and sync-bar.js were all
-          # unchecked — a syntax error in any of them breaks every page and CI
-          # still passes. A list that must be updated by hand is a list that gets
-          # forgotten; the glob cannot omit a file that exists.
-          for f in *.js; do [ -f "$f" ] && node --check "$f"; done
-          echo "All JS parses cleanly ($(ls *.js | wc -l) root scripts + api/lib/workers/scripts)"
+          n=0
+          for f in $(git ls-files '*.js'); do node --check "$f"; n=$((n+1)); done
+          echo "All $n tracked .js files parse cleanly"
       - name: Lint (correctness rules; warnings do not block)
         # A ratchet, not a cleanup mandate. Every error-level rule is at zero
         # today, so this can only go red on newly broken code. no-undef is why

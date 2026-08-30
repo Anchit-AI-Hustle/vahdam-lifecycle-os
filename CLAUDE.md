@@ -4,6 +4,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # VAHDAM Lifecycle OS — Project Memory
 
+## ⭐ A login wall that defends nothing (2026-08-30)
+`auth.js` -> `gateSignedOut()` + `injectNoBackendNotice()`, gated by `tests/signed-out-usable.spec.js`.
+The Supabase project this app pointed at was deleted, so `<ref>.supabase.co` went NXDOMAIN. Every page
+that is not the homepage, a legal page or the Studio then showed a login wall nobody could get past,
+because getting past it needs the very project that no longer exists. **The whole product became
+unreachable, not gated.**
+- **A wall keeps unauthorised people away from DATA.** With no reachable backend there is no session
+  to obtain and no query that can succeed, so there is nothing on the other side to protect. It cost
+  every feature and defended nothing. The app now opens, unauthenticated, on whatever local state it
+  has, and SAYS so.
+- **The case that mattered was the one that looked configured.** Two states reach the same dead end:
+  no `SUPABASE_URL` at all, and — the state production was actually left in — the env var still SET and
+  still naming the deleted project. In the second, `config` is truthy, so every "is it configured"
+  check passed and the wall went up over a button that navigated to a host that does not resolve.
+  Fixing only the unconfigured branch would have changed nothing for the live deployment.
+- **Fail CLOSED on doubt.** Only an outright `unreachable` opens the app; offline and timeout keep the
+  wall, because a slow network is not a deleted project. Nothing is latched — the wall returns by
+  itself once the host answers.
+- **One probe, not two.** `gateSignedOut` reuses this repo's existing `authBackendReachable` rather
+  than adding a second reachability check beside it. Two implementations of the same question drift,
+  which is the defect class this repo keeps recording about pinned constants and copied facts.
+- **A dead constant shipped in the browser.** `PUBLIC_SUPABASE_FALLBACK` held a hardcoded project ref
+  as last-resort config; it is now empty, and a deployment that genuinely needs one sets
+  `window.__SUPABASE_FALLBACK__` in its own HTML.
+- **The fixture lied, and the auth-bypass guard failed because of it.** The spec's catch-all route
+  aborted the `/auth/v1/health` probe, so the "live backend" case read as unreachable and the app
+  opened — reported as the app dropping its wall. Reachability is now stated per case.
+- **The syntax check is a glob, not a list.** The sibling repo shipped a file that failed to parse
+  (an unescaped apostrophe) because its check walked a hand-kept list; ours is `git ls-files '*.js'`
+  for the same reason. A hand-kept list is a list that gets forgotten.
+- Three mutations verified: making the opening unconditional (an auth bypass) fails the gate,
+  restoring the unpassable wall fails it, and making `gateSignedOut` always wall fails it.
+
 ## ⭐ Governing spec: Campaign Orchestration Master Operating Contract
 `docs/campaign-orchestration-master-spec.md` is the standing operating contract for all campaign
 calendar, cohort, mailer, ad, dashboard, and creative generation work. When building or generating

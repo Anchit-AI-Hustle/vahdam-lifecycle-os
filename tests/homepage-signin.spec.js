@@ -243,7 +243,7 @@ test.describe('sign-in refuses to navigate into an unreachable auth backend', ()
   });
 });
 
-test.describe('the wall reports a dead backend instead of navigating to it', () => {
+test.describe('a dead backend opens the app instead of navigating to it', () => {
   const { blockExternal } = require('./lib/page-harness.js');
   let server, origin;
   test.use({ serviceWorkers: 'block', reducedMotion: 'reduce' });
@@ -275,7 +275,15 @@ test.describe('the wall reports a dead backend instead of navigating to it', () 
   });
   test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
 
-  test('the notice appears and the button is disabled, with no navigation away', async ({ page }) => {
+  // SUPERSEDED, deliberately. This used to assert that the wall STAYS and
+  // explains itself with the button disabled. That was the right answer while
+  // the wall was assumed to be protecting something; it is not, when the host
+  // it gates does not resolve. No session can be obtained and no query can
+  // succeed, so the wall costs every feature and defends nothing.
+  //
+  // What this test was really guarding survives unchanged and is asserted
+  // below: the user must still be HERE, never handed to a DNS error page.
+  test('the app opens, names the dead host, and never navigates to it', async ({ page }) => {
     // Everything off-origin fails, which is what a de-provisioned host does to
     // the reachability probe AND to the authorize navigation.
     await blockExternal(page, origin);
@@ -300,11 +308,18 @@ test.describe('the wall reports a dead backend instead of navigating to it', () 
     page.on('framenavigated', (f) => { if (f === page.mainFrame()) navs.push(f.url()); });
 
     await page.goto(origin + '/ad-campaigns-master.html', { waitUntil: 'domcontentloaded' }).catch(() => {});
-    // The wall is injected by auth.js after config resolution.
-    const notice = page.locator('#llw-notice');
-    await expect(notice, 'the wall never explained why sign-in cannot work')
-      .toContainText(/did not respond|could not be reached|offline/i, { timeout: 20000 });
-    await expect(page.locator('#llw-btn'), 'a dead button was left enabled').toBeDisabled();
+    // auth.js resolves the config, finds the host does not answer, and opens.
+    const notice = page.locator('#lc-nobackend');
+    await expect(notice, 'the app never explained why it has no data')
+      .toContainText(/cannot be reached/i, { timeout: 20000 });
+    // Naming the host is the difference between a status and a remedy: it is
+    // the value the operator has to change.
+    await expect(notice).toContainText('paused-project-does-not-resolve.supabase.co');
+    // And the page is genuinely usable, not a wall wearing a new id.
+    await expect(page.locator('#lifecycle-loginwall'),
+      'an unpassable wall was left in front of a backend that does not exist').toHaveCount(0);
+    await expect(page.locator('#lifecycle-nav'),
+      'the nav did not render, so nothing is reachable').toHaveCount(1);
 
     // And the critical part: the user is still HERE, not on a DNS error page.
     expect(navs.filter((u) => /supabase\.co/.test(u)),

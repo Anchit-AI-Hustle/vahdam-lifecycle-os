@@ -80,9 +80,20 @@ test('every inline script block parses', () => {
 
 test('the CI syntax step still covers the standalone scripts', () => {
   // This spec extends that coverage; it must not be read as replacing it.
+  //
+  // The claim is about the FILE - which files CI decides to check - so a file
+  // check is the right tool. What it guards is that the set is ENUMERATED BY
+  // THE REPO, never typed out by hand: a hand-kept list is a list that gets
+  // forgotten, and the sibling repo shipped a page that ran zero JavaScript
+  // because a broken file sat outside one.
+  //
+  // `git ls-files '*.js'` is accepted alongside the bare `*.js` glob because it
+  // is strictly broader - it reaches data/, tests/ and every other tracked
+  // directory, where the bare glob only sees the repo root.
   const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
   expect(ci).toMatch(/node --check/);
-  expect(ci, 'the root-script glob was replaced by a hand-kept list again').toMatch(/for f in \*\.js/);
+  expect(ci, 'the root-script glob was replaced by a hand-kept list again')
+    .toMatch(/for f in \*\.js|git ls-files '\*\.js'/);
 });
 
 test('the extractor handles every legal close-tag form', () => {
