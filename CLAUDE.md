@@ -4,30 +4,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # VAHDAM Lifecycle OS — Project Memory
 
-## ⭐ Signed out is a usable state, not a locked one (2026-08-30)
-`auth.js` -> the login wall is GONE. `gateSignedOut()` opens every page for a signed-out visitor
-whether or not the backend is reachable; `injectSignedOutNotice(kind)` explains which of four states
-this is. Gated by `tests/signed-out-usable.spec.js` (9 tests).
-- **Why this is not an auth bypass.** The wall was never the security boundary: the anon key it gated
-  is PUBLIC by design — it ships in the browser and `/api/public-config` hands it to anyone — so
-  anything the wall "protected" was always one curl away. The wall only ever hid the UI.
-- **An honest difference from the sibling repo, recorded because the argument is not identical.**
-  lifecycle-os could lean on RLS (74 `is_brand_member`, 135 `auth.uid()`). **This repo cannot**: 95
-  of its 107 policies are `using (true)`, only `app_users` is gated on `auth.uid()`, and
-  `20260429120000`'s own comment carries the never-completed TODO *"swap policies to require
-  authenticated() and add user_id = auth.uid() filters"*. That is PRE-EXISTING and untouched by this
-  change in either direction — but the spec says so rather than asserting an RLS strength this repo
-  does not have. **A test that claimed otherwise would be worse than no test.**
-- So the spec pins what IS true and checkable: the set of objects granted to `anon` has not grown,
-  and `app_users` stays scoped to the signed-in user.
-- **One probe, not two.** `gateSignedOut` reuses this repo's existing `authBackendReachable` rather
-  than adding a second reachability check. It fails CLOSED on doubt in the other direction too: only
-  an outright `unreachable` is reported as a dead project; `offline` and `timeout` are not.
-- **The SDK-failure path would have gone silent.** `boot()`'s catch called `showAuthBackendNotice`,
-  which wrote into the wall's own `#llw-notice` slot — with no wall there is no slot, so it rendered
-  into nothing. It routes through the standing bar now (a fourth `sdk` state). Deleting a component
-  means auditing what wrote INTO it, not just what called it.
-- Mutation-verified: restoring the wall for a live backend fails 2 tests.
+## ⭐ Signed out is a usable state, and the control is the TOGGLE (2026-08-30)
+`auth.js` -> `gateSignedOut()` + `injectSignedOutNotice(kind)`, gated by
+`tests/signed-out-usable.spec.js` (10 tests) alongside `tests/signin-toggle.spec.js`.
+- **The wall stays; `REQUIRE_SIGN_IN` decides.** This repo had already answered "must you sign in to
+  view a feature?" with a toggle (default OFF, served as `require_sign_in`). A first pass here
+  DELETED the wall outright to make the app open. That made the toggle a switch wired to nothing —
+  it could be turned on and nothing happened — and broke `signin-toggle.spec.js`. **Default-open was
+  the decision; being unable to change it back was a different and worse thing.** The lesson is the
+  one this file keeps recording about probes and constants: look for the mechanism the repo already
+  has before building or removing one.
+- **Two conditions for a wall, and BOTH must hold**: the operator asked for one, AND we have not
+  PROVEN the backend is gone. A wall in front of a project that does not resolve is unpassable —
+  getting past it needs the very project that is missing — and it protects nothing, because no
+  session can be established and no query can succeed.
+- **Fails CLOSED on doubt.** Only an outright `unreachable` opens a page the operator asked to gate.
+  `offline`, a timeout, and a supabase-js that never loaded all KEEP the wall, because none of them
+  prove the project is gone. That last case is why `boot()`'s catch consults the toggle too — without
+  it the wall silently stopped appearing whenever `init()` threw.
+- **Why opening is not an auth bypass**: the wall was never the security boundary. The anon key it
+  gated is public by design — `/api/public-config` hands it to every visitor — so anything it
+  "protected" was always one curl away. It only ever hid the UI. The toggle's own scope note holds:
+  this governs the front-end wall only, never the operator gate on `/api/shopify`, `?pipeline=1`,
+  `?probe=1` and the detailed health payload, which return real order and customer records.
+- **An honest note on RLS, because the sibling's argument does not transfer.** lifecycle-os could
+  lean on RLS (74 `is_brand_member`, 135 `auth.uid()`). This repo cannot: **95 of its 107 policies
+  are `using (true)`**, only `app_users` is gated on `auth.uid()`, and `20260429120000`'s own comment
+  carries the never-completed TODO *"swap policies to require authenticated() and add
+  user_id = auth.uid() filters"*. Pre-existing, untouched by this change, and the spec SAYS so rather
+  than asserting a strength this repo does not have — a test that claimed otherwise would be worse
+  than no test. It pins what is true and checkable: the anon grant set has not grown, and `app_users`
+  stays scoped to the signed-in user.
+- **Four states, four sentences**, only three of them anyone's to fix: `unconfigured`, `unreachable`
+  (the host is printed — that is the value that has to change), `sdk`, and `signed-out`. The last
+  takes the ACCENT rule, not the warn rule: being signed out is ordinary, and a normal state wearing
+  a warning colour teaches people to ignore the bar.
+- **Deleting the wall would have silenced a separate path.** `boot()`'s catch called
+  `showAuthBackendNotice`, which writes into the wall's own `#llw-notice` slot — with no wall there is
+  no slot, so an SDK failure rendered into nothing. **Removing a component means auditing what wrote
+  INTO it, not only what called it.**
 
 ## ⭐ A login wall that defends nothing (2026-08-30)
 `auth.js` -> `gateSignedOut()` + `injectNoBackendNotice()`, gated by `tests/signed-out-usable.spec.js`.
