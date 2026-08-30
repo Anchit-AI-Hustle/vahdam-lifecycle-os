@@ -209,10 +209,11 @@ test.describe('sign-in refuses to navigate into an unreachable auth backend', ()
 
   test('the notice covers unreachable, not only unconfigured', () => {
     // The original guard keyed on a MISSING url, which is exactly the case that
-    // was not happening. It used to assert the login wall's #llw-notice slot;
-    // there is no wall now, so it asserts the standing bar that replaced it -
-    // which must still tell the three states apart rather than collapsing them
-    // into "not configured".
+    // was not happening. BOTH surfaces are checked now, because there are two:
+    // the wall's own #llw-notice slot, seen when REQUIRE_SIGN_IN is on, and the
+    // standing bar, seen when it is off (the default). Each must tell the states
+    // apart rather than collapsing them into "not configured".
+    expect(AUTH).toMatch(/id="llw-notice"/);
     expect(AUTH).toMatch(/function injectSignedOutNotice/);
     expect(AUTH, 'the notice no longer distinguishes an unreachable project')
       .toMatch(/kind === 'unreachable'/);
@@ -282,11 +283,18 @@ test.describe('a dead backend opens the app instead of navigating to it', () => 
   });
   test.afterAll(async () => { if (server) await new Promise((r) => server.close(r)); });
 
-  // SUPERSEDED, deliberately. This used to assert that the wall STAYS and
-  // explains itself with the button disabled. That was the right answer while
-  // the wall was assumed to be protecting something; it is not, when the host
-  // it gates does not resolve. No session can be obtained and no query can
-  // succeed, so the wall costs every feature and defends nothing.
+  // SUPERSEDED, deliberately, and note WHICH part. This used to assert that the
+  // wall STAYS and explains itself with the button disabled. The wall still
+  // exists and is still governed by REQUIRE_SIGN_IN - which this test turns ON
+  // explicitly below - but it is no longer shown when the host it gates has
+  // been PROVEN not to resolve: that wall is unpassable, since getting past it
+  // needs the very project that is missing, and it protects nothing because no
+  // session can be established and no query can succeed.
+  //
+  // The distinction is narrow and deliberate: only an outright `unreachable`
+  // opens a page the operator asked to gate. Offline, a timeout, or a
+  // supabase-js that never loaded all keep the wall, because none of them prove
+  // the project is gone - see signin-toggle.spec.js, which asserts that case.
   //
   // What this test was really guarding survives unchanged and is asserted
   // below: the user must still be HERE, never handed to a DNS error page.

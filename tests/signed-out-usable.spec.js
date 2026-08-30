@@ -1,28 +1,43 @@
 /**
- * A signed-out visitor is never blocked, anywhere.
+ * A signed-out visitor is not blocked, anywhere — by default.
  * ---------------------------------------------------------------------------
  * WHY. auth.js walled every page that was not the homepage, a legal page or the
  * Studio. When the Supabase project was deleted that wall became unpassable —
  * getting past it needed the very project that no longer existed — and the
- * whole product was unreachable rather than gated. The wall is now gone
- * outright: signed out is a usable state, not a locked one.
+ * whole product was unreachable rather than gated.
  *
- * WHY THAT IS NOT AN AUTH BYPASS. The wall was never the security boundary and
- * could not have been. The anon key it gated is PUBLIC by design: it ships in
- * the browser and /api/public-config hands it to anyone who asks, so whatever
- * the wall "protected" was always one curl away — the wall only ever hid the
- * UI. Removing it changes what the UI shows, never what the database returns.
- * See the last test for an honest note on this repo's RLS posture, which is
- * weaker than the sibling's and is a separate, pre-existing matter.
+ * THE CONTROL IS THIS REPO'S OWN TOGGLE, not the removal of the wall.
+ * REQUIRE_SIGN_IN (default off, served on /api/public-config as
+ * `require_sign_in`) is the product owner's answer to "must you sign in to
+ * view a feature?", and the answer is no. An earlier pass deleted the wall
+ * outright; that made the toggle a switch wired to nothing and broke
+ * signin-toggle.spec.js. Default-open is the decision; being unable to change
+ * it back is a different and worse thing.
+ *
+ * So there are two conditions for a wall, and BOTH must hold:
+ *   1. the operator asked for one, and
+ *   2. we have not PROVEN the backend is gone — a wall in front of a project
+ *      that does not resolve is unpassable and protects nothing.
+ * It fails CLOSED on doubt: offline, a timeout, or a supabase-js that never
+ * loaded all keep the wall, because none of them prove the project is gone.
+ *
+ * WHY OPENING IS NOT AN AUTH BYPASS. The wall was never the security boundary.
+ * The anon key it gated is PUBLIC by design: it ships in the browser and
+ * /api/public-config hands it to anyone who asks, so whatever the wall
+ * "protected" was always one curl away — it only ever hid the UI. And the
+ * toggle's own scope note applies: this governs the front-end wall only, never
+ * the operator gate on /api/shopify, ?pipeline=1, ?probe=1 and the detailed
+ * health payload, which return real order and customer records. See the last
+ * test for an honest note on this repo's RLS posture, which is weaker than the
+ * sibling's and is a separate, pre-existing matter.
  *
  * FOUR SIGNED-OUT STATES, each told apart because they need different words —
  * and only three of them are anyone's to fix:
  *   - unconfigured: no SUPABASE_URL at all.
  *   - CONFIGURED BUT GONE: the env var still set, still naming the deleted
  *     project. `config` is therefore truthy, so every "is it configured" check
- *     passed and the wall used to go up reading "Sign in to continue" with no
- *     cause named, over a button that navigated to a host that does not
- *     resolve. This is the state production was actually left in.
+ *     passed and the wall used to go up with no cause named, over a button that
+ *     navigated to a host that does not resolve.
  *   - sdk: the supabase-js CDN was blocked. This one used to render NOTHING at
  *     all — see the CDN test below.
  *   - signed-out: everything works, this visitor simply has no session.
