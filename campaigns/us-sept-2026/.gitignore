@@ -1,0 +1,5 @@
+# Intermediate build artifact: regenerate with `node build/cutout.js`.
+# The source pack shots ARE committed, so this rebuilds offline with no CDN
+# call, which matters because the store's CDN URLs carry ?v= cache-busting
+# params that change whenever a product image is updated.
+assets/cutouts/
