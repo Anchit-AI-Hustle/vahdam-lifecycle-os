@@ -868,6 +868,74 @@
   }
 
   // ─── Left-hand sidebar (global cross-feature navigation) ────────────
+  // ─── Wide tables must scroll inside their box, never widen the page ──────
+  //
+  // Measured at 390px across the feature pages: research 829px of horizontal
+  // overflow, playbook 519, competitor-benchmarking 253, calendar 181,
+  // landing-pages 69, knowledge-base 35, index 22. The cause is the same one
+  // /brain already hit and this file already records: a table carrying its own
+  // min-width (640/720/900px) with no scrolling wrapper sets a floor, and the
+  // grid or flex track holding it has an implicit min-width:auto that resolves
+  // to MAX-CONTENT - so the card, the body and the document all grow to match
+  // and every page edge clips.
+  //
+  // Fixing seven pages by hand would leave the eighth to be found later, which
+  // is why this lives in the one script every page already loads. It is
+  // deliberately conservative: it only acts on a table that ACTUALLY overflows
+  // the viewport, and only when nothing above it already scrolls.
+  function wrapWideTables() {
+    try {
+      const vw = document.documentElement.clientWidth;
+      if (!vw) return;
+      for (const table of document.querySelectorAll('table')) {
+        const r = table.getBoundingClientRect();
+        if (r.width <= vw) continue;
+        // Already inside something that scrolls? Then the page is not being
+        // pushed by this table and wrapping again would nest two scrollers.
+        let scroller = null, n = table.parentElement;
+        while (n && n !== document.body) {
+          const ox = getComputedStyle(n).overflowX;
+          if (ox === 'auto' || ox === 'scroll') { scroller = n; break; }
+          n = n.parentElement;
+        }
+        if (!scroller) {
+          const wrap = document.createElement('div');
+          wrap.className = 'lc-tblscroll';
+          wrap.style.cssText = 'overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%';
+          table.parentNode.insertBefore(wrap, table);
+          wrap.appendChild(table);
+          scroller = wrap;
+        }
+        // THE WRAPPER ALONE IS NOT ENOUGH. A grid/flex item defaults to
+        // min-width:auto, which resolves to max-content, so the ancestor track
+        // still grows to the table's width and the scroller never gets to clip
+        // anything. Every flex/grid ancestor needs an explicit min-width:0.
+        let a = scroller;
+        while (a && a !== document.body) {
+          const par = a.parentElement;
+          if (!par) break;
+          const pd = getComputedStyle(par).display;
+          if (pd === 'flex' || pd === 'grid' || pd === 'inline-flex' || pd === 'inline-grid') {
+            if (getComputedStyle(a).minWidth === 'auto') a.style.minWidth = '0';
+          }
+          a = par;
+        }
+      }
+    } catch (e) { /* layout repair must never break a page */ }
+  }
+  window.LifecycleAuth = window.LifecycleAuth || {};
+  window.LifecycleAuth.wrapWideTables = wrapWideTables;
+  if (document.readyState === 'complete') setTimeout(wrapWideTables, 0);
+  else window.addEventListener('load', () => setTimeout(wrapWideTables, 0));
+  // Tables are re-rendered constantly here (plan tables, ad tables, KB lists),
+  // so a one-shot pass at load would fix only what happened to exist then.
+  try {
+    new MutationObserver(() => {
+      clearTimeout(window.__lcTblT);
+      window.__lcTblT = setTimeout(wrapWideTables, 120);
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  } catch (e) { /* observer unavailable: the load pass still ran */ }
+
   function injectTopbar(user) {
     if (document.getElementById('lifecycle-nav')) return;
     const cur = currentStepId();
