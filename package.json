@@ -43,7 +43,7 @@
     "setup:hooks": "git config core.hooksPath .githooks && echo \"pre-push hook active (bypass with git push --no-verify)\""
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.5.0",
+    "@capacitor/cli": "^8.5.1",
     "@playwright/test": "^1.62.1",
     "eslint": "^10.9.1"
   },
