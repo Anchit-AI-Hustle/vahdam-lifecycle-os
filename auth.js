@@ -885,8 +885,20 @@
   // the viewport, and only when nothing above it already scrolls.
   function wrapWideTables() {
     try {
-      const vw = document.documentElement.clientWidth;
+      const doc = document.documentElement;
+      const vw = doc.clientWidth;
       if (!vw) return;
+      // CHEAP GATE FIRST. Everything below queries every table and calls
+      // getBoundingClientRect on each, which forces a synchronous layout. On a
+      // MutationObserver over pages that re-render constantly that is not free:
+      // it took the CI Playwright suite from ~52 to 73 minutes (local: 8.4 ->
+      // 11.0), against a 90-minute job timeout this repo has already been bitten
+      // by three times. scrollWidth vs clientWidth is one property read and
+      // answers "is anything overflowing at all", which is false almost always.
+      if (doc.scrollWidth <= vw + 1 && !document.querySelector('table.lc-wide-checked')) {
+        // Nothing is overflowing. Any table already wrapped stays wrapped.
+        return;
+      }
       for (const table of document.querySelectorAll('table')) {
         const r = table.getBoundingClientRect();
         if (r.width <= vw) continue;
@@ -904,6 +916,7 @@
           wrap.style.cssText = 'overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%';
           table.parentNode.insertBefore(wrap, table);
           wrap.appendChild(table);
+          table.classList.add('lc-wide-checked');
           scroller = wrap;
         }
         // THE WRAPPER ALONE IS NOT ENOUGH. A grid/flex item defaults to
