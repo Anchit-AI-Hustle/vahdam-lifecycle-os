@@ -55,7 +55,7 @@
     "google-auth-library": "^11.0.2",
     "googleapis": "^176.0.0",
     "imapflow": "^1.7.6",
-    "mailparser": "^3.9.17",
+    "mailparser": "^3.9.22",
     "xlsx-js-style": "^1.2.0"
   }
 }
