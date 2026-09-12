@@ -33,6 +33,10 @@
     { id: 'review-access', label: 'Access Audit', index: 9 },
   ];
   var LIVE_TABS = [
+    // FIRST, because it is the whole-funnel answer and every other tab is a
+    // detail of it. It is also the only tab that carries period-over-period
+    // comparison, so a reader who wants "how are we doing" stops here.
+    { id: 'live-summary', label: 'Live Summary' },
     { id: 'revenue-analysis', label: 'Revenue Analysis' },
     { id: 'platform-agents', label: 'Platform Agents' },
     // 'live-ads' is deliberately NOT a tab here any more - it is the Ad Campaigns
@@ -268,6 +272,35 @@
       '.xreview-note{margin:0 0 10px}.xreview-frame{display:block;width:100%;border:1px solid var(--line);border-radius:12px;background:#FBF5EA;min-height:800px}',
       '.xplatform{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px}.xplatform:last-child{border:0}',
       '.xmetric-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.xmetric{border:1px solid var(--line);border-radius:9px;padding:9px 10px;font-size:12px}.xmetric b{color:var(--head)}',
+      // ── Live Summary ──────────────────────────────────────────────────────
+      // The delta chip. Three states, and the third is the one that matters:
+      // `.na` is a comparison that could not be computed (no baseline, a window
+      // the series does not cover, a metric nothing measured). It is deliberately
+      // grey and carries its reason in title=, so it can never be mistaken for a
+      // flat result — "0%" and "we could not tell" are different facts.
+      '.sm-delta{display:inline-flex;align-items:baseline;gap:4px;font:700 12px Inter,Arial,sans-serif;white-space:nowrap}',
+      '.sm-delta.up{color:#14643e}.sm-delta.down{color:#9d2929}.sm-delta.flat,.sm-delta.na{color:var(--soft)}',
+      '.sm-delta.na{font-weight:600;font-style:italic}',
+      '.sm-delta .sm-arrow{font-size:10px}',
+      // A partial window is shown, not hidden, with a dotted underline so the
+      // number reads as provisional rather than final.
+      '.sm-partial{border-bottom:1px dotted var(--gold);cursor:help}',
+      '.sm-matrix{width:100%;border-collapse:collapse;font-size:12.5px}',
+      '.sm-matrix th,.sm-matrix td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}',
+      '.sm-matrix th:first-child,.sm-matrix td:first-child{text-align:left;white-space:normal}',
+      '.sm-matrix thead th{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);font-weight:800}',
+      '.sm-matrix tbody tr:hover{background:rgba(0,74,43,.04)}',
+      '.sm-metric b{color:var(--head)}.sm-metric small{display:block;color:var(--soft);font-weight:600;font-size:10.5px}',
+      '.sm-now{font-weight:800;color:var(--head);font-variant-numeric:tabular-nums}',
+      '.sm-wrap{overflow-x:auto}',
+      '.sm-spark{display:block;width:100%;height:34px;overflow:visible}',
+      '.sm-blocked{color:var(--soft);font-style:italic;font-size:12px}',
+      '.sm-today{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px}',
+      '.sm-today div{border:1px solid var(--line);border-radius:9px;padding:8px 10px}',
+      '.sm-today .l{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);font-weight:800}',
+      '.sm-today .v{font-size:17px;font-weight:800;color:var(--head);font-variant-numeric:tabular-nums;margin-top:2px}',
+      '.sm-src{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}.sm-src:last-child{border:0}',
+      '.sm-src small{color:var(--soft);display:block;margin-top:2px;line-height:1.5}',
       '@media(max-width:900px){.xcard,.xcard.span4,.xcard.span8{grid-column:span 12}.xsplit,.xform-grid{grid-template-columns:1fr}.xhead{align-items:stretch}.xcontrols{align-items:stretch}.xfield{flex:1 1 130px}}',
     ].join('\n');
     document.head.appendChild(style);
@@ -347,6 +380,7 @@
     // rendering a second copy that can drift from it.
     if (id === 'live-ads') { location.replace('/ads-master#liveintel'); return; }
     var panel = showExtension(id);
+    if (id === 'live-summary') return renderLiveSummary(panel);
     if (id === 'revenue-analysis') return renderRevenue(panel);
     if (id === 'platform-agents') return renderAgents(panel);
     if (id === 'mailer-intelligence') return renderMailer(panel);
@@ -658,6 +692,224 @@
   function mailerControls() {
     return '<div class="xcontrols"><label class="xfield">Window<select id="xMailerHours"><option value="24">24 hours</option><option value="72">3 days</option><option value="168">7 days</option><option value="720" selected>30 days</option></select></label><button class="xbtn" id="xMailerRefresh">Refresh now</button></div>';
   }
+  // ── Live Summary ──────────────────────────────────────────────────────────
+  // The whole-funnel view, and the only tab that compares periods. Its entire
+  // job is to answer "how are we doing" without lying about it, which in a
+  // dashboard means three specific refusals: never compare a part-period against
+  // a whole one, never average a rate, and never render an unknown as a zero.
+  // The server enforces all three; this renderer's job is not to undo them.
+
+  function unitFmt(unit, v) {
+    if (unit === 'currency') return money(v);
+    if (unit === 'percent_fraction') return percent(v, 2);
+    if (unit === 'ratio') return ratio(v, 2);
+    return fmt(v);
+  }
+
+  /**
+   * One comparison cell.
+   *
+   * `better` decides the colour, and 'context' is load-bearing: ad spend rising
+   * is neither good nor bad on its own, and painting it green because the number
+   * went up is how a dashboard talks someone into a budget increase. Spend and
+   * impressions are neutral by design.
+   */
+  function deltaCell(c, unit, better) {
+    if (!c) return '<span class="sm-delta na">—</span>';
+    if (c.available === false) {
+      return '<span class="sm-delta na" title="' + esc(c.note || '') + '">n/a</span>';
+    }
+    var val = known(c.current) ? unitFmt(unit, c.current) : '—';
+    var chip;
+    if (c.pct == null) {
+      // No percentage is computable. Say which, rather than printing 0%.
+      chip = '<span class="sm-delta na" title="' + esc(c.blocked_reason || 'Not comparable.') + '">no baseline</span>';
+    } else {
+      var up = c.pct > 0, flat = c.pct === 0;
+      var good = better === 'up' ? up : better === 'down' ? !up : null;
+      var cls = flat ? 'flat' : (better === 'context' || good == null) ? 'flat' : (good ? 'up' : 'down');
+      var arrow = flat ? '' : '<span class="sm-arrow">' + (up ? '▲' : '▼') + '</span>';
+      chip = '<span class="sm-delta ' + cls + '" title="'
+        + esc(c.label + ': ' + (c.current_window ? c.current_window.from + ' to ' + c.current_window.to : '')
+          + ' vs ' + (c.previous_window ? c.previous_window.from + ' to ' + c.previous_window.to : '')
+          + '. ' + (c.note || '')) + '">'
+        + arrow + (up && !flat ? '+' : '') + c.pct.toFixed(1) + '%</span>';
+    }
+    // A window the series does not fully cover still shows its number, marked,
+    // because seeing the shape is useful and being misled about it is not.
+    var cell = '<div class="sm-now">' + val + '</div>' + chip;
+    if (c.complete === false) {
+      return '<span class="sm-partial" title="' + esc('Incomplete window. ' + (c.coverage_note || '')) + '">' + cell + '</span>';
+    }
+    return cell;
+  }
+
+  /**
+   * The per-day value of a metric, for the trend line only.
+   *
+   * The daily series carries raw counters, not derived rates, so asking it for
+   * `roas` returns undefined for every row. num(undefined) is 0, and a run of
+   * zeros draws a flat line — which reads as "this metric did not move", a claim
+   * nobody made. So a ratio is DERIVED per day here, and anything that cannot be
+   * derived returns null so no line is drawn at all.
+   *
+   * This does not contradict the rates-from-totals rule. Each point is that
+   * DAY's own rate, correctly computed from that day's numerator and
+   * denominator. What is forbidden is averaging these points into a period
+   * figure, and nothing here does that: the period columns come from the server,
+   * which sums first and divides after.
+   */
+  function dailyValue(row, field) {
+    if (row == null) return null;
+    if (Object.prototype.hasOwnProperty.call(row, field)) {
+      var direct = Number(row[field]);
+      return Number.isFinite(direct) ? direct : null;
+    }
+    var div = function (a, b) {
+      var x = Number(row[a]), y = Number(row[b]);
+      return (Number.isFinite(x) && Number.isFinite(y) && y !== 0) ? x / y : null;
+    };
+    switch (field) {
+      case 'roas': return div('revenue', 'spend');
+      case 'cpa': return div('spend', 'conversions');
+      case 'cpc': return div('spend', 'clicks');
+      case 'ctr': return div('link_clicks', 'impressions');
+      case 'conversion_rate': return div('conversions', 'clicks');
+      case 'aov': return div('revenue', 'orders');
+      case 'units_per_order': return div('units', 'orders');
+      case 'cpm': {
+        var s = Number(row.spend), i = Number(row.impressions);
+        return (Number.isFinite(s) && Number.isFinite(i) && i !== 0) ? (s / i) * 1000 : null;
+      }
+      default: return null;
+    }
+  }
+
+  /** Inline sparkline. No library, no network, and it degrades to nothing. */
+  function spark(series, field) {
+    var pts = (series || []).map(function (r) { return dailyValue(r, field); })
+      .filter(function (v) { return v != null; });
+    // Fewer than two real points is not a trend. Drawing one anyway would put a
+    // flat line under a metric the series cannot describe.
+    if (pts.length < 2) return '';
+    var min = Math.min.apply(null, pts), max = Math.max.apply(null, pts);
+    var span = max - min || 1, W = 240, H = 30;
+    var d = pts.map(function (v, i) {
+      return (i ? 'L' : 'M') + (i / (pts.length - 1) * W).toFixed(1) + ',' + (H - (v - min) / span * H).toFixed(1);
+    }).join(' ');
+    return '<svg class="sm-spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">'
+      + '<path d="' + d + '" fill="none" stroke="#AB8743" stroke-width="1.6"/></svg>';
+  }
+
+  function summaryControls() {
+    return '<div class="xcontrols">'
+      + '<label class="xfield">Order history'
+      + '<select id="xSumCommerce"><option value="90">90 days</option><option value="180">180 days</option><option value="400">400 days (enables commerce YoY)</option></select></label>'
+      + '<button class="xbtn" id="xSumRefresh">Refresh now</button></div>';
+  }
+
+  async function renderLiveSummary(panel) {
+    panel.innerHTML = panelTitle(
+      'Live Summary',
+      'Every live number in one place, with day on day, week on week, month on month and year on year. Each comparison uses two windows of the SAME length, so a part-month is never measured against a whole one.',
+      summaryControls()
+    ) + '<div id="xSumBody">' + loader('Reading live sources') + '</div>';
+    var btn = document.getElementById('xSumRefresh');
+    var sel = document.getElementById('xSumCommerce');
+
+    async function load() {
+      if (state.tab !== 'live-summary') return;
+      btn.disabled = true; btn.textContent = 'Refreshing…';
+      var body = document.getElementById('xSumBody');
+      try {
+        var d = await getJson('summary', { market: currentMarket(), commerceDays: sel.value });
+        state.lastPayload.summary = d;
+        var periodKeys = (d.periods || []).map(function (p) { return p.key; });
+        var periodLabels = {};
+        (d.periods || []).forEach(function (p) { periodLabels[p.key] = p.label; });
+
+        var anyLive = (d.sources || []).some(function (s) { return s.days_returned > 0; });
+        var banner = anyLive ? '' :
+          '<div class="xcard span12" style="border-left:4px solid var(--gold,#AB8743)"><h3>No live source answered</h3><p>'
+          + 'Every figure below is <b>unknown</b> and shown as a dash. Nothing is estimated and nothing is shown as zero, because a zero here would claim we spent nothing and sold nothing. '
+          + (d.live_connectors === false
+              ? 'The cause is that outbound reads are switched off: set <code>LIVE_CONNECTORS=on</code> in Vercel, then refresh.'
+              : 'The blockers are listed under Source health.')
+          + '</p></div>';
+
+        // Source health first: a reader has to know what answered before any
+        // number below means anything.
+        var srcHtml = (d.sources || []).map(function (s) {
+          return '<div class="sm-src"><span><b>' + esc(s.label) + '</b>'
+            + '<small>' + esc(
+                s.days_returned
+                  ? s.days_returned + ' days returned (' + s.first_day + ' to ' + s.last_day + ')' + (s.source ? ' via ' + s.source : '')
+                  : (s.blocker || 'No rows returned.')
+              ) + '</small></span>' + boolBadge(s.connected, 'Live', 'Not reading') + '</div>';
+        }).join('');
+
+        var t = d.today_partial || {};
+        var todayCells = [
+          ['Ad spend', t.ads ? money(t.ads.spend) : '—'],
+          ['Impressions', t.ads ? fmt(t.ads.impressions) : '—'],
+          ['Clicks', t.ads ? fmt(t.ads.clicks) : '—'],
+          ['Conversions', t.ads ? fmt(t.ads.conversions) : '—'],
+          ['Orders', t.commerce ? fmt(t.commerce.orders) : '—'],
+          ['Store revenue', t.commerce ? money(t.commerce.revenue) : '—'],
+        ].map(function (x) { return '<div><div class="l">' + esc(x[0]) + '</div><div class="v">' + x[1] + '</div></div>'; }).join('');
+
+        // The matrix. One row per metric, one column per period.
+        function matrix(group) {
+          var rows = (d.metrics || []).filter(function (m) { return m.group === group; });
+          if (!rows.length) return '';
+          var head = '<tr><th>Metric</th><th>Trend</th>'
+            + periodKeys.map(function (k) { return '<th>' + esc(periodLabels[k] || k) + '</th>'; }).join('')
+            + '</tr>';
+          var seriesKey = group === 'Commerce' ? 'commerce' : 'ads';
+          var body2 = rows.map(function (m) {
+            var cells;
+            if (!m.available) {
+              cells = '<td colspan="' + (periodKeys.length + 1) + '" class="sm-blocked">'
+                + esc(m.blocker || 'Not measured.') + '</td>';
+            } else {
+              cells = '<td style="min-width:140px">' + spark((d.series || {})[seriesKey], m.key) + '</td>'
+                + periodKeys.map(function (k) {
+                    return '<td>' + deltaCell(m.periods && m.periods[k], m.unit, m.better) + '</td>';
+                  }).join('');
+            }
+            return '<tr><td class="sm-metric"><b>' + esc(m.label) + '</b>'
+              + '<small>' + esc(m.better === 'up' ? 'higher is better' : m.better === 'down' ? 'lower is better' : 'neither direction is good or bad on its own') + '</small></td>'
+              + cells + '</tr>';
+          }).join('');
+          return '<div class="xcard span12"><h3>' + esc(group) + '</h3><div class="sm-wrap"><table class="sm-matrix"><thead>'
+            + head + '</thead><tbody>' + body2 + '</tbody></table></div></div>';
+        }
+
+        body.innerHTML = banner
+          + '<div class="xgrid">'
+          + '<div class="xcard"><h3>Source health</h3>' + srcHtml + '</div>'
+          + '<div class="xcard"><h3>Today so far <span class="xbadge off">partial</span></h3>'
+          + '<p style="font-size:12px;color:var(--soft);margin:0 0 9px">'
+          + esc('Today (' + d.today + ', ' + d.timezone + ') is still accruing. It is shown for awareness and is never used as a comparison base: yesterday is the latest complete day.')
+          + '</p><div class="sm-today">' + todayCells + '</div></div>'
+          + '</div>'
+          + matrix('Paid media')
+          + matrix('Commerce')
+          + '<div class="xcard span12"><h3>How these numbers are built</h3>'
+          + '<div class="xmetric-list">' + (d.notes || []).map(function (x) {
+              return '<div class="xmetric">' + esc(x) + '</div>';
+            }).join('') + '</div>'
+          + '<p style="font-size:11.5px;color:var(--soft);margin:10px 0 0">'
+          + esc('Hover any comparison to see the exact window pair it used. A dotted underline means the series did not fully cover one of those windows.')
+          + '</p></div>';
+      } catch (e) { body.innerHTML = failure('Live Summary', e); }
+      finally { btn.disabled = false; btn.textContent = 'Refresh now'; }
+    }
+    btn.addEventListener('click', load);
+    sel.addEventListener('change', load);
+    await load();
+  }
+
   async function renderMailer(panel) {
     panel.innerHTML = panelTitle('Mailer Intelligence', 'Unified Klaviyo and WebEngage reporting: event mix, campaign engagement, audience coverage, conversions, attributed revenue and negative signals.', mailerControls()) + '<div id="xMailerBody">' + loader('Loading mailer data') + '</div>';
     var btn = document.getElementById('xMailerRefresh');
